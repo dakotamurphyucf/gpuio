@@ -1,4 +1,5 @@
 open Core
+module Diff = Document_diff
 
 module Language : sig
   (** A syntax token/extension, not an executable grammar or file path.
@@ -70,6 +71,14 @@ module Config : sig
       document contract. [initially_collapsed] applies on mount/generation reset.
       [path] labels navigation; it never reads a file. [search] is literal text.
 
+      [diff] is valid only for [Mode.Diff] and configures the extended diff
+      controls: per-file collapse, body-row previews, Show more and word emphasis.
+      [View.document ~on_diff] observes typed actions asynchronously. Omission
+      preserves the raw unified-diff presentation. Diff syntax uses each side's
+      filename label, without file I/O; unknown languages or syntax work limits
+      retain complete diff colors. Grammar state resets at hunk gaps because
+      omitted source cannot be recovered from the patch.
+
       Markdown image URLs resolve only through [images], an explicit mapping to
       application asset handles; no implicit network or filesystem acquisition.
       At most128 unique URLs, 4096 UTF-8 bytes each. *)
@@ -84,6 +93,7 @@ module Config : sig
     -> ?initially_collapsed:bool
     -> ?search:string
     -> ?images:(string * Asset.Handle.t) list
+    -> ?diff:Diff.Config.t
     -> unit
     -> t Or_error.t
 
@@ -97,6 +107,7 @@ module Config : sig
   val initially_collapsed : t -> bool
   val search : t -> string
   val images : t -> (string * Asset.Handle.t) list
+  val diff : t -> Diff.Config.t option
 end
 
 module Expert : sig

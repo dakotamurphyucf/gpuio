@@ -1,0 +1,348 @@
+[
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/base/src/lib.rs",
+    "snapshot": "base-lib.rs.txt",
+    "sha256": "09d9a7cf3ce358b98859958ec36c3ad918decf666581da4b30c6287dccbe230e"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/lib.rs",
+    "snapshot": "component-lib.rs.txt",
+    "sha256": "d1ed0462c38444c27288f3c7d97ef44bce5acd982ec2ad27e64e2a92c0f7d808"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "LICENSE-APACHE",
+    "snapshot": "gpui-kit-LICENSE",
+    "sha256": "d1b0449e5478c574ba4f686c2656df7fe77d66821a61f8b6ed3378a58ed9a811"
+  },
+  {
+    "project": "gpuix",
+    "revision": "18e695ed0ee8121a7793413ca795e08eda2a13df",
+    "repository": "https://github.com/remorses/gpuix",
+    "source": "packages/react/src/types/host.ts",
+    "snapshot": "gpuix-host.ts.txt",
+    "sha256": "65b666f290638741b39f0d0ee010a2714261a749fd831044e6107a046a6d7d7d"
+  },
+  {
+    "project": "gpuix",
+    "revision": "18e695ed0ee8121a7793413ca795e08eda2a13df",
+    "repository": "https://github.com/remorses/gpuix",
+    "source": "packages/react/src/index.ts",
+    "snapshot": "gpuix-index.ts.txt",
+    "sha256": "ded131900b2b45b0172bb3ae924199317d921470c4c24429168ffb080d65fa19"
+  },
+  {
+    "project": "gpuix",
+    "revision": "18e695ed0ee8121a7793413ca795e08eda2a13df",
+    "repository": "https://github.com/remorses/gpuix",
+    "source": "packages/native/index.d.ts",
+    "snapshot": "gpuix-native.d.ts.txt",
+    "sha256": "4d66f867ace7aa5ccaf2648c06c5b9801eefb209166cde5d86d30bab5ab23d14"
+  },
+  {
+    "project": "gpuix",
+    "revision": "18e695ed0ee8121a7793413ca795e08eda2a13df",
+    "repository": "https://github.com/remorses/gpuix",
+    "source": "LICENSE",
+    "snapshot": "gpuix-LICENSE",
+    "sha256": "043b2e38b6d079a31838b3be6a80f6c1253d126f66fc4981d034126b9efeb6f2"
+  },
+  {
+    "project": "gpuix",
+    "revision": "18e695ed0ee8121a7793413ca795e08eda2a13df",
+    "repository": "https://github.com/remorses/gpuix",
+    "source": "packages/native/src/style.rs",
+    "snapshot": "gpuix-style.rs.txt",
+    "sha256": "7570037449b1f249208d256078ad2667181d13e465c57b0050e1027e2f23fd82"
+  },
+  {
+    "project": "gpuix",
+    "revision": "18e695ed0ee8121a7793413ca795e08eda2a13df",
+    "repository": "https://github.com/remorses/gpuix",
+    "source": "packages/native/src/renderer.rs",
+    "snapshot": "gpuix-renderer.rs.txt",
+    "sha256": "31d1178c171b27e64a4b86c8a399f00c5ddc7ded5054ae8274bf27806bd36556"
+  },
+  {
+    "project": "gpuix-gpui",
+    "revision": "81c99f816b4a5f69d3c014774068034c24d1d7af",
+    "repository": "https://github.com/remorses/zed",
+    "source": "crates/gpui/src/styled.rs",
+    "snapshot": "gpuix-gpui-styled.rs.txt",
+    "sha256": "c6e62fe136bedf887ee755c886df5466d5fe0b398a004b35d1a3530fef809c8d",
+    "submodule_of": {
+      "project": "gpuix",
+      "revision": "18e695ed0ee8121a7793413ca795e08eda2a13df",
+      "path": "zed"
+    }
+  },
+  {
+    "project": "gpuix-gpui",
+    "revision": "81c99f816b4a5f69d3c014774068034c24d1d7af",
+    "repository": "https://github.com/remorses/zed",
+    "source": "crates/gpui/LICENSE-APACHE",
+    "snapshot": "gpuix-gpui-LICENSE-APACHE",
+    "sha256": "9cff568488e9d56aae60f162404acdb15d8533a0202cf01f6eb0843b264f20ff",
+    "submodule_of": {
+      "project": "gpuix",
+      "revision": "18e695ed0ee8121a7793413ca795e08eda2a13df",
+      "path": "zed"
+    }
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/status_bar.rs",
+    "snapshot": "component-status-bar.rs.txt",
+    "sha256": "8b1d329dbc89701aa4c69a0bd9e032d9218d44542f13178624e8fc3698d47c0e"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/badge.rs",
+    "snapshot": "component-badge.rs.txt",
+    "sha256": "f4debc66e913a6fb4450beeebc3acd19d2b882b891a6e9fbe65ca4421497a691"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/label.rs",
+    "snapshot": "component-label.rs.txt",
+    "sha256": "06d28dfcec538d209d2d0ea03c4c4ef0192ee9dd0b8fbb2b2b4616f7c2cdfed7"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/group_box.rs",
+    "snapshot": "component-group-box.rs.txt",
+    "sha256": "acac45f32729dae656b39429aed46edc9a45e40cc0c6df04e2e2cb8a7f0216c7"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/base/src/link.rs",
+    "snapshot": "base-link.rs.txt",
+    "sha256": "67828689cb912cc06f655ab4cf9ee96d500a222bb226080618ac90d5116fcf56"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/link.rs",
+    "snapshot": "component-link.rs.txt",
+    "sha256": "594c4fc5dc14eb014eb7e32868776144d6a7dc9f5ecf2f89bea0828ef3991ae5"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/alert.rs",
+    "snapshot": "component-alert.rs.txt",
+    "sha256": "44c36830f4d7b951edca0c8bf48ea382e46262b933d809b71c085ca58e8d9e78"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/attachment.rs",
+    "snapshot": "component-attachment.rs.txt",
+    "sha256": "9e377f3ec104bd52839733e2ae708a0cec651e67b089d4e62c16e3cfc0df2d6b"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/bubble.rs",
+    "snapshot": "component-bubble.rs.txt",
+    "sha256": "024bc89a810dea3f538681eeb5663e6bb1603bbfc46f5054b6e30b2f069971ca"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/description_list.rs",
+    "snapshot": "component-description-list.rs.txt",
+    "sha256": "ce090def6caf75d5e147c4b4945f15b8c51915bcf17e7d5aa7150db6bbd46a23"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/empty.rs",
+    "snapshot": "component-empty.rs.txt",
+    "sha256": "0e45fbcebbc7f7e093c8903923a680970ad8603b114079252eee0fb74770bdb2"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/kbd.rs",
+    "snapshot": "component-kbd.rs.txt",
+    "sha256": "bf2da1a22c197638abee10c1088c7cd172094b352a1f950b3190f091675b0e68"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/marker.rs",
+    "snapshot": "component-marker.rs.txt",
+    "sha256": "c54480b32faea2c57e599582c2b3df38259800c56f34ab4159f8474dab9e4192"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/message.rs",
+    "snapshot": "component-message.rs.txt",
+    "sha256": "c91b4fafaa1007fe3ca3dd0982ced95371e26ec5c65f001ba68fde29d873d560"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/separator.rs",
+    "snapshot": "component-separator.rs.txt",
+    "sha256": "156c97d0a2f6da1e19c24d987cc48a1ce882c7ad22f6f568ca51221d9100ca60"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/setting/fields/bool.rs",
+    "snapshot": "component-setting-fields-bool.rs.txt",
+    "sha256": "88bbc5698a442a8efcf7a1cf539d68a60708b5af3a7287a55003f8069302b64a"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/setting/fields/dropdown.rs",
+    "snapshot": "component-setting-fields-dropdown.rs.txt",
+    "sha256": "9810040ce70a7430937ee76ed90a86fd69b3fd09101e45af02f1747360fbc7f5"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/setting/fields/element.rs",
+    "snapshot": "component-setting-fields-element.rs.txt",
+    "sha256": "1b820fc5009ea04e1e9b0a495455960300f10345b18eb776c3589c81145d30a7"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/setting/fields/mod.rs",
+    "snapshot": "component-setting-fields-mod.rs.txt",
+    "sha256": "32dd55b8df4321f0f08262b334fff09f8038d6061a21ab3596cf4e3784964279"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/setting/fields/number.rs",
+    "snapshot": "component-setting-fields-number.rs.txt",
+    "sha256": "16962c85721edcc80ee2e7c8591ab1f577d3d0e4995ffe36178fbcc55f68b113"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/setting/fields/string.rs",
+    "snapshot": "component-setting-fields-string.rs.txt",
+    "sha256": "8c554a71dec82adc0e3aacfc998823f5034c50c53304b70b2c29cf0d4189a890"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/setting/group.rs",
+    "snapshot": "component-setting-group.rs.txt",
+    "sha256": "6b351efbd9dd363fc199faad07fd4a42025eb269b26efe92d877b97eedf023ad"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/setting/item.rs",
+    "snapshot": "component-setting-item.rs.txt",
+    "sha256": "d54c99a70d6e845d1a2e800bb19510d9ccc3a88df31f4ed0d4825d7672030397"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/setting/mod.rs",
+    "snapshot": "component-setting-mod.rs.txt",
+    "sha256": "74608c7a95bb09fa1c653cc18c4b78bb8a2b4fd5e3cfc5d152414c3a7c80e3bd"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/setting/page.rs",
+    "snapshot": "component-setting-page.rs.txt",
+    "sha256": "b926399155a9c221c0b014c38186c86cecac96192884aea9cfe1c9c33c6cd9c2"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/setting/settings.rs",
+    "snapshot": "component-setting-settings.rs.txt",
+    "sha256": "46af8cfa4e2f4f2b4a4ed75018f845a550bd0686325c1c0780cc2b924618308a"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/tag.rs",
+    "snapshot": "component-tag.rs.txt",
+    "sha256": "1c22daa1254063593c23d076eb3b35e5f6521940937cc4fa15bf08964c982e8d"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/shimmer.rs",
+    "snapshot": "component-shimmer.rs.txt",
+    "sha256": "ae2bd2fcf00758afb368ff8a045805655039c15c54d705c158587a00a8f73c7c"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/form/mod.rs",
+    "snapshot": "component-form-mod.rs.txt",
+    "sha256": "5902ce08e6b49d9938c75990b5fdd444bd714fa4c52db1bb60c45037c973e49d"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/form/form.rs",
+    "snapshot": "component-form-form.rs.txt",
+    "sha256": "6b6c709a120b95f53a8bfad34819097ec9a336cfa404a7ad3d8c15e9c0f28212"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/form/field.rs",
+    "snapshot": "component-form-field.rs.txt",
+    "sha256": "8cf81fd4295e047df01b720441c04f06f4885f4cf939b4a17846e204dad539e5"
+  }
+]

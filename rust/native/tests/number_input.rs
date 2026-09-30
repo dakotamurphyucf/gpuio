@@ -383,3 +383,63 @@ fn coalescing_accounts_for_variable_draft_bytes_and_preserves_discrete_backpress
     mailbox.input(changed(2, &"x".repeat(4096))).unwrap();
     assert_eq!(mailbox.drain(128), [changed(2, &"x".repeat(4096))]);
 }
+
+#[test]
+fn draft_mount_metadata_is_bounded_accounted_and_atomic() {
+    let mut session = session();
+    mount(&mut session);
+    let base = session.tree(window()).unwrap().revision();
+    let bytes_before = session.tree(window()).unwrap().retained_bytes();
+    session
+        .apply(&tx(
+            base,
+            vec![Op::SetNumberInputDraft(node(), Some("1e-".into()))],
+        ))
+        .unwrap();
+    let tree = session.tree(window()).unwrap();
+    assert_eq!(
+        tree.get(node())
+            .unwrap()
+            .number_input
+            .as_ref()
+            .unwrap()
+            .initial_draft
+            .as_deref(),
+        Some("1e-")
+    );
+    assert_eq!(tree.retained_bytes(), bytes_before + 3);
+    let revision = tree.revision();
+    for invalid in ["\0".to_owned(), "bad\n".into(), "x".repeat(4097)] {
+        assert!(
+            session
+                .apply(&tx(
+                    revision,
+                    vec![
+                        Op::SetNumberInputDraft(node(), Some("replacement".into())),
+                        Op::SetNumberInputDraft(node(), Some(invalid)),
+                    ]
+                ))
+                .is_err()
+        );
+        let tree = session.tree(window()).unwrap();
+        assert_eq!(tree.revision(), revision);
+        assert_eq!(tree.retained_bytes(), bytes_before + 3);
+        assert_eq!(
+            tree.get(node())
+                .unwrap()
+                .number_input
+                .as_ref()
+                .unwrap()
+                .initial_draft
+                .as_deref(),
+            Some("1e-")
+        );
+    }
+    session
+        .apply(&tx(revision, vec![Op::SetNumberInputDraft(node(), None)]))
+        .unwrap();
+    assert_eq!(
+        session.tree(window()).unwrap().retained_bytes(),
+        bytes_before
+    );
+}

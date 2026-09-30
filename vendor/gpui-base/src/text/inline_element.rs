@@ -8,6 +8,7 @@ use gpui::{AnyElement, IntoElement, Pixels, TextStyle};
 pub struct InlineElement {
     pub(crate) element: AnyElement,
     pub(crate) baseline: Option<Pixels>,
+    pub(crate) hide_accessibility_when_linked: bool,
 }
 
 impl InlineElement {
@@ -15,6 +16,7 @@ impl InlineElement {
         Self {
             element: element.into_any_element(),
             baseline: None,
+            hide_accessibility_when_linked: false,
         }
     }
 
@@ -22,6 +24,15 @@ impl InlineElement {
     /// By default the box aligns its bottom with the surrounding text's descent.
     pub fn with_baseline(mut self, baseline: Pixels) -> Self {
         self.baseline = Some(baseline);
+        self
+    }
+
+    /// Represent this passive element through its enclosing logical link's
+    /// alternative instead of exposing a duplicate accessible subtree. Use for
+    /// images or decorations only, never elements with interactive descendants.
+    /// Unlinked elements retain their own semantics. Default: false.
+    pub fn hide_accessibility_when_linked(mut self) -> Self {
+        self.hide_accessibility_when_linked = true;
         self
     }
 }

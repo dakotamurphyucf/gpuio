@@ -4,6 +4,8 @@ module Virtual_list = Virtual_list
 module Tree_rows = Tree_rows
 module Tree = Tree
 module Table = Table
+module Command_binding = Binding_observer
+module Settings = Settings_panel
 
 (** The pure view API specialized to Bonsai effects. No driver, I/O runtime or
     scheduling policy is introduced here; window lifecycle scheduling is OCH-9. *)
@@ -11,7 +13,16 @@ module View : sig
   type t = unit Bonsai.Effect.t Gpuio.View.t
   type toast = unit Bonsai.Effect.t Gpuio.View.toast
 
+  val with_key : t -> Gpuio.Key.t -> t
   val with_accessibility : t -> Gpuio.Accessibility.t -> t Or_error.t
+
+  val link
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> Gpuio.Link.Config.t
+    -> on_click:unit Bonsai.Effect.t
+    -> t list
+    -> t Or_error.t
 
   val container_query
     :  ?key:Gpuio.Key.t
@@ -58,6 +69,7 @@ module View : sig
     :  ?key:Gpuio.Key.t
     -> ?style:Gpuio.Style.t
     -> ?on_navigate:(Gpuio.Document.Navigation.t -> unit Bonsai.Effect.t)
+    -> ?on_diff:(Gpuio.Document.Diff.Event.t -> unit Bonsai.Effect.t)
     -> Gpuio.Document.Config.t
     -> t
 
@@ -92,6 +104,30 @@ module View : sig
     -> t list
     -> t
 
+  val command_binding_scope
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> config:Gpuio.Command_binding.Config.t
+    -> on_update:(Gpuio.Command_binding.Observation.t -> unit Bonsai.Effect.t)
+    -> t list
+    -> t
+
+  val highlight_scope
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> config:Gpuio.Highlight.Config.t
+    -> ?on_update:(Gpuio.Highlight.Observation.t -> unit Bonsai.Effect.t)
+    -> t list
+    -> t
+
+  val input_region
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> config:Gpuio.Input_region.Config.t
+    -> on_event:(Gpuio.Input_region.Event.t -> unit Bonsai.Effect.t)
+    -> t list
+    -> t
+
   val pointer_area
     :  ?key:Gpuio.Key.t
     -> ?style:Gpuio.Style.t
@@ -116,6 +152,12 @@ module View : sig
     -> t Or_error.t
 
   val text : ?key:Gpuio.Key.t -> ?style:Gpuio.Style.t -> string -> t
+
+  (** See [Gpuio.View.styled_text] for foreground, selection and theme semantics. *)
+  val styled_text : ?key:Gpuio.Key.t -> ?style:Gpuio.Style.t -> Gpuio.Text_content.t -> t
+
+  (** See [Gpuio.View.with_text_shimmer], including its experimental status. *)
+  val with_text_shimmer : t -> Gpuio.Text_shimmer.Config.t option -> t Or_error.t
 
   val button
     :  ?key:Gpuio.Key.t

@@ -103,10 +103,23 @@ distinguishes synthetic GPUI dispatch from physical input testing.
 clipboard operations; no per-drag callback crosses the bridge. Mouse selection,
 shift-click, double-click word selection, triple-click select-all, grapheme-aware
 Left/Right, Shift extension, Home/End and Cmd/Ctrl+A/C are supported. Selection
-color inherits. Offsets are UTF-8 bytes and clamp to valid boundaries on text
+color inherits into ordinary text and document bodies, with child overrides and
+restoration of native defaults when declarations are removed. Offsets are UTF-8 bytes and clamp to valid boundaries on text
 changes. Native state is preserved for a stable node and discarded on removal,
-replacement or deselection. This is per-text-node selection, not a rich-text editor
-or cross-node document selection; editable text is implemented in its own ticket.
+replacement or deselection. Single-click drags and Shift-click can span ordinary
+text nodes in the active window selection scope; Copy follows rendered order and
+preserves selected whitespace. Keyboard ranges and multi-click gestures remain
+local to their text node. Source changes retire geometric selection, and hiding
+an endpoint retires its shared gesture. Truncated pointer selection maps retained
+glyphs to source bytes; Cmd/Ctrl+A still selects the complete source. Native editors
+own their editing selection.
+Document bodies default to selectable and honor inherited/local `User_select`;
+disabling clears user selection without disabling links, scroll or explicit Copy
+source controls. Programmatic document search selection remains available, while
+selection Copy stays disabled. Editable inputs retain their own selection even
+under `User_select false`.
+The [selection-style audit](selection-style-audit.md) records the pinned GPUIX
+default differences, document user-selection policy and remaining cross-document acceptance.
 
 ## Keys, events and commit ownership
 
@@ -149,7 +162,7 @@ there is no promise of CSS syntax or the React development lifecycle.
 | padding, paddingTop, paddingRight, paddingBottom, paddingLeft | Padding shorthand and Padding_top/right/bottom/left |
 | margin, marginTop, marginRight, marginBottom, marginLeft | Margin shorthand and Margin_top/right/bottom/left |
 | position, top, right, bottom, left | Position, Top, Right, Bottom, Left |
-| background, backgroundColor | Background.solid or Background.linear_gradient (two stops) |
+| background, backgroundColor | Background.solid, linear_gradient (sRGB) or linear_gradient_in (Srgb/Oklab; two stops) |
 | color, opacity | Foreground, Opacity |
 | borderWidth, borderTopWidth, borderRightWidth, borderBottomWidth, borderLeftWidth | Border_width shorthand and Border_top/right/bottom/left_width |
 | borderColor | Border_color |
@@ -161,7 +174,7 @@ there is no promise of CSS syntax or the React development lifecycle.
 | overflow, overflowX, overflowY | Overflow shorthand, Overflow_x/y (Visible/Clip/Hidden/Scroll) |
 | cursor | Cursor; Move uses GPUI ClosedHand, the available drag cursor equivalent |
 | pointerEvents | Pointer_events; inherited interaction policy described above |
-| userSelect, selectionColor | User_select, Selection_color; native per-text-node selection described above |
+| userSelect, selectionColor | User_select, Selection_color; native ordinary/window and document selection described above |
 | hover, active | Style.with_state Hovered/Pressed; Focused is also available |
 
 ## Validation
@@ -181,3 +194,10 @@ are absent from the ordinary native library. `examples/view_api/main.exe
 --self-test` checks 20 acknowledged public-API commits and theme changes through
 the actual OCaml/Rust bridge. macOS is the functional gate; Linux builds/unit
 tests are required and Linux graphical runs remain informational under OCH-17.
+
+
+Gradient interpolation now has an explicit `Background.Color_space` choice; the
+existing constructor retains its sRGB behavior and bytes. See the [gradient
+contract and native evidence](../evidence/gradient-color-spaces-och41.md) for the
+additive wire tag, validation, Expert description change and focused GPU/gallery
+checks. This does not close the remaining style-value acceptance audit.

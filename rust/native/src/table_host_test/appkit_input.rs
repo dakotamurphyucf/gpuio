@@ -53,6 +53,19 @@ pub(super) async fn table(cx: &mut gpui::AsyncApp, window: gpui::WindowHandle<Vi
     );
     frame(cx, window).await;
     requests(cx, window);
+    // activate_window queues an AppKit operation; manual layout frames above
+    // do not yield to that queue. Do not post the first OS key until this
+    // process's native window has actually become active.
+    let deadline = std::time::Instant::now() + Duration::from_secs(2);
+    while !window.update(cx, |_, w, _| w.is_window_active()).unwrap() {
+        assert!(
+            std::time::Instant::now() < deadline,
+            "table window did not activate before OS keyboard validation"
+        );
+        cx.background_executor()
+            .timer(Duration::from_millis(10))
+            .await;
+    }
     key(cx, window, 125, 0).await; // Down
     assert_selection(cx, window, wire::Selection::Cell(2, "name".into()));
     key(cx, window, 124, 0).await; // Right

@@ -16,7 +16,14 @@ module Property : sig
     | Top_right_radius
     | Bottom_left_radius
     | Bottom_right_radius
+    | Opacity_factor
   [@@deriving equal, sexp_of]
+
+  (** [Opacity] replaces the element's style opacity. [Opacity_factor] multiplies
+      its resolved base/interaction opacity, including background and children,
+      without adding a layout wrapper. The factor is in [0,1]; 1 preserves the
+      original style. A target cannot contain both opacity properties. Ancestor
+      opacity still multiplies normally. *)
 end
 
 module Target : sig
@@ -51,7 +58,8 @@ module Spring : sig
       times the natural frequency. [max_duration] defaults to 10 seconds,
       is positive, rounds up to milliseconds and is at most 60 seconds.
       At that deadline the spring settles exactly at its target, including
-      undamped springs. Native spring rendering is under implementation. *)
+      undamped springs. Native animation programs evaluate springs without
+      calling OCaml on each frame. *)
   val create
     :  ?epsilon:float
     -> ?max_duration:Time_ns.Span.t

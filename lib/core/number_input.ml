@@ -25,6 +25,17 @@ end
 
 module Step_controls = W.Step_controls
 
+module Draft = struct
+  type t = string [@@deriving equal, sexp_of]
+
+  let of_string text =
+    let%map.Or_error () = validate_draft text in
+    text
+  ;;
+
+  let to_string t = t
+end
+
 module Config = struct
   type t = W.Config.t [@@deriving equal, sexp_of]
 

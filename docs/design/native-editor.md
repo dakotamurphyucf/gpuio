@@ -120,6 +120,13 @@ its ancestor inert without mouse-up and requires the whole window to become idle
 The unpatched widget continued about 10 redraws per 180 ms; the adaptation passes.
 The source pin stays unchanged and the reconstructible patch digest is updated.
 
+The visible byte-range geometry lookup also preserves gaps between source lines.
+Folded and earlier scrolled-out offsets return no position rather than clamping
+to the next visible line. The native diff regression clicks actual gutter controls,
+checks hidden and later ranges, unfolds them, and verifies selection precedence;
+source-scroll checks also reject a range above the laid-out viewport. This affects
+geometry lookup, not the stored text, selection offsets or folding policy.
+
 The ordinary test command runs OCaml expect/codec/reconciliation tests and Rust
 protocol/session/mailbox tests without opening application windows. The optional
 `native-tests` feature builds an actual-window harness; run it locally for fast iteration and on macOS CI for the final gate.

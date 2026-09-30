@@ -380,7 +380,8 @@ fn maximum_spring_program_compilation_has_measured_bounded_retention() {
         Property::BottomLeftRadius,
         Property::BottomRightRadius,
     ];
-    assert_eq!(properties.len(), PROPERTY_COUNT);
+    // Absolute and multiplicative opacity are mutually exclusive.
+    assert_eq!(properties.len(), PROPERTY_COUNT - 1);
     let values = |step: usize| {
         properties
             .iter()

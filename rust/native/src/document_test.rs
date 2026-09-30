@@ -9,6 +9,16 @@ use std::{
     cell::RefCell,
     os::fd::{AsRawFd, FromRawFd, OwnedFd},
 };
+#[path = "document_diff_actions_test.rs"]
+mod diff_actions;
+#[path = "document_diff_view_test.rs"]
+mod diff_view;
+#[path = "document_reset_test.rs"]
+mod reset;
+#[cfg(feature = "native-image-tests")]
+#[path = "document_table_appearance_test.rs"]
+mod table_appearance;
+
 static LAYOUT_US: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 fn draw(cx: &mut gpui::AsyncApp, window: gpui::WindowHandle<View>) {
     let start = std::time::Instant::now();
@@ -352,6 +362,46 @@ async fn exercise(
     markdown.read_with(cx, |p, _| {
         assert_eq!(p.images.0.len(), 1, "explicit registered image decoded")
     });
+    let focus_revision = markdown.read_with(cx, |p, cx| {
+        let installed = p.installed.as_ref().unwrap();
+        let revision = Some((installed.generation, installed.revision));
+        assert!(p.allows_link_focus(revision, &markdown, cx));
+        assert!(!p.allows_link_focus(None, &markdown, cx));
+        assert!(!p.allows_link_focus(
+            Some((installed.generation, installed.revision + 1)),
+            &markdown,
+            cx
+        ));
+        revision
+    });
+    markdown.update(cx, |p, cx| {
+        p.collapsed = true;
+        assert!(!p.allows_link_focus(focus_revision, &markdown, cx));
+        p.collapsed = false;
+        p.source_mode = true;
+        assert!(!p.allows_link_focus(focus_revision, &markdown, cx));
+        p.source_mode = false;
+        assert!(p.allows_link_focus(focus_revision, &markdown, cx));
+    });
+    window
+        .update(cx, |view, _, _| {
+            view.focus
+                .borrow_mut()
+                .set_query_hidden([node()].into_iter().collect());
+        })
+        .unwrap();
+    markdown.read_with(cx, |p, cx| {
+        assert!(!p.allows_link_focus(focus_revision, &markdown, cx))
+    });
+    window
+        .update(cx, |view, _, _| {
+            view.focus.borrow_mut().set_query_hidden(Default::default());
+        })
+        .unwrap();
+    // Read outside the root update: the guard reads the presentation's owner.
+    markdown.read_with(cx, |p, cx| {
+        assert!(p.allows_link_focus(focus_revision, &markdown, cx))
+    });
     session
         .borrow_mut()
         .assets()
@@ -405,6 +455,11 @@ async fn exercise(
         assert!(p.error.is_none(), "{:?}", p.error);
         assert_eq!(p.diff.as_ref().unwrap().lines.len(), 5);
     });
+    diff_view::exercise(cx, window, &session).await;
+    diff_actions::exercise(cx, window, &session).await;
+    reset::exercise(cx, window, &session).await;
+    #[cfg(feature = "native-image-tests")]
+    table_appearance::exercise(cx, window, &session).await;
     let huge = format!("{}last λ target", "row\n".repeat(25000));
     publish(&mut session.borrow_mut(), source, 5, 4, 0, &huge);
     configure(cx, window, source, Mode::Markdown, "last λ target");

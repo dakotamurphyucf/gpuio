@@ -635,12 +635,16 @@ impl Session {
             && revision >= 0
             && window.tree.get(node).is_some_and(|node| {
                 node.image.is_none()
+                    && node.input_region.is_none()
+                    && node.highlight_scope.is_none()
+                    && node.command_binding.is_none()
                     && node.slider.is_none()
                     && node.number_input.is_none()
                     && node.otp_input.is_none()
                     && node.calendar.is_none()
                     && node.color_input.is_none()
                     && !node.control.is_some_and(Control::disabled)
+                    && !node.link.as_ref().is_some_and(|config| config.disabled)
             })
             && window.tree.accepts_handler(node, handler))
         .then_some(Event::Press(id, node, handler, revision))
@@ -863,6 +867,105 @@ impl Session {
         .then_some(Event::DropTargetEvent(
             window, node, handler, revision, sample,
         ))
+    }
+
+    /// The presenter supplies provenance from its exact installed snapshot.
+    /// Keep old same-generation pictures interactive while preparation runs,
+    /// but retire source/config/handler identities immediately when replaced.
+    pub fn document_diff_event(
+        &self,
+        window: WindowId,
+        node: NodeId,
+        handler: HandlerId,
+        source: gpuio_protocol::ResourceId,
+        event: gpuio_protocol::document_diff::Event,
+    ) -> Option<Event> {
+        let state = self.window(window).ok()?;
+        let target = state.tree.get(node)?;
+        let config = target.document_diff.as_ref()?;
+        let snapshot = self.documents.acquire(source).ok()?.snapshot();
+        (!state.overloaded
+            && event.is_valid()
+            && event.observation.valid_for(config)
+            && target.document_diff_epoch == event.config_epoch
+            && target.document.as_ref()?.source == Some(source)
+            && snapshot.generation == event.source_generation
+            && event.source_revision >= snapshot.generation_first_revision
+            && event.source_revision <= snapshot.revision
+            && state.tree.accepts_handler(node, handler))
+        .then_some(Event::DocumentDiffEvent(
+            window,
+            node,
+            handler,
+            state.tree.revision(),
+            source,
+            event,
+        ))
+    }
+
+    pub fn command_binding_observed(
+        &self,
+        window: WindowId,
+        node: NodeId,
+        handler: HandlerId,
+        observation: gpuio_protocol::command_binding::Observation,
+    ) -> Option<Event> {
+        let state = self.window(window).ok()?;
+        let config = state.tree.get(node)?.command_binding.as_ref()?;
+        (!state.overloaded
+            && observation.valid_for(config)
+            && state.tree.accepts_handler(node, handler))
+        .then_some(Event::CommandBindingObserved(
+            window,
+            node,
+            handler,
+            state.tree.revision(),
+            observation,
+        ))
+    }
+
+    pub fn highlight_observed(
+        &self,
+        window: WindowId,
+        node: NodeId,
+        handler: HandlerId,
+        revision: i64,
+        observation: gpuio_protocol::highlight::Observation,
+    ) -> Option<Event> {
+        let state = self.window(window).ok()?;
+        let config = state.tree.get(node)?.highlight_scope.as_ref()?;
+        (!state.overloaded
+            && observation.valid_for(config)
+            && state.tree.accepts_handler(node, handler)
+            && revision >= 0
+            && revision <= state.tree.revision())
+        .then_some(Event::HighlightObserved(
+            window,
+            node,
+            handler,
+            revision,
+            observation,
+        ))
+    }
+
+    pub fn input_observed(
+        &self,
+        window: WindowId,
+        node: NodeId,
+        handler: HandlerId,
+        revision: i64,
+        event: gpuio_protocol::input::Event,
+    ) -> Option<Event> {
+        let state = self.window(window).ok()?;
+        let config = state.tree.get(node)?.input_region.as_ref()?;
+        (!state.overloaded
+            && !config.disabled
+            && event.is_valid()
+            && config.subscription(event.kind()).is_some()
+            && state.tree.accepts_handler(node, handler)
+            && revision >= 0
+            && revision <= state.tree.revision())
+        .then_some(Event::InputObserved(window, node, handler, revision, event))
     }
 
     pub fn pointer_event(

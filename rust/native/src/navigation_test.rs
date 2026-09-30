@@ -357,67 +357,70 @@ async fn inert_drag_cleanup(
             Op::SetRoot(Some(node(51))),
         ],
     );
-    frame(cx, handle).await;
-    focus(cx, handle, 53);
-    frame(cx, handle).await;
-    let bounds = handle
-        .update(cx, |v, _, _| v.probes.borrow()[&node(53)].bounds)
-        .unwrap();
-    let start = bounds.origin + gpui::point(px(20.), px(20.));
-    let end = gpui::point(start.x, bounds.bottom() + px(40.));
-    super::super::native_test::move_mouse(cx, handle, start, false);
-    super::super::native_test::mouse(cx, handle, start, true);
-    super::super::native_test::move_mouse(cx, handle, end, true);
-    frame(cx, handle).await;
-    let active = handle.update(cx, |v, _, _| v.render_count).unwrap();
-    cx.background_executor()
-        .timer(std::time::Duration::from_millis(180))
-        .await;
-    assert!(
-        handle.update(cx, |v, _, _| v.render_count).unwrap() > active + 2,
-        "real drag auto-scroll timer was active"
-    );
-    let selection = handle
-        .update(cx, |v, w, cx| {
-            // Sample and apply within one UI update. Separate updates permit an
-            // auto-scroll tick between the sample and the actual blur boundary.
-            let selection = v.editors[&node(53)].snapshot(w, cx).selection;
-            apply_in_update(
-                v,
-                w,
-                cx,
-                vec![Op::SetStyle(
-                    node(52),
-                    vec![Style::Fields(vec![Field::Inert(true)])],
-                )],
-            );
-            selection
-        })
-        .unwrap();
-    frame(cx, handle).await;
-    // Drain already queued rendering before checking idle without a mouse-up.
-    cx.background_executor()
-        .timer(std::time::Duration::from_millis(80))
-        .await;
-    let stopped = handle.update(cx, |v, _, _| v.render_count).unwrap();
-    cx.background_executor()
-        .timer(std::time::Duration::from_millis(180))
-        .await;
-    assert_eq!(
-        handle.update(cx, |v, _, _| v.render_count).unwrap(),
-        stopped,
-        "inert retained editor must stop drag auto-scroll without waiting for mouse-up"
-    );
-    handle
-        .update(cx, |v, w, cx| {
-            assert_eq!(
-                v.editors[&node(53)].snapshot(w, cx).selection,
-                selection,
-                "blur preserves the actual selected range"
-            )
-        })
-        .unwrap();
-    super::super::native_test::mouse(cx, handle, end, false);
+    for policy in [Field::Inert(true), Field::Disabled(true)] {
+        apply(cx, handle, vec![Op::SetStyle(node(52), vec![])]);
+        frame(cx, handle).await;
+        focus(cx, handle, 53);
+        frame(cx, handle).await;
+        let bounds = handle
+            .update(cx, |v, _, _| v.probes.borrow()[&node(53)].bounds)
+            .unwrap();
+        let start = bounds.origin + gpui::point(px(20.), px(20.));
+        let end = gpui::point(start.x, bounds.bottom() + px(40.));
+        super::super::native_test::move_mouse(cx, handle, start, false);
+        super::super::native_test::mouse(cx, handle, start, true);
+        super::super::native_test::move_mouse(cx, handle, end, true);
+        frame(cx, handle).await;
+        let active = handle.update(cx, |v, _, _| v.render_count).unwrap();
+        cx.background_executor()
+            .timer(std::time::Duration::from_millis(180))
+            .await;
+        assert!(
+            handle.update(cx, |v, _, _| v.render_count).unwrap() > active + 2,
+            "real drag auto-scroll timer was active"
+        );
+        let selection = handle
+            .update(cx, |v, w, cx| {
+                // Sample and apply within one UI update. Separate updates permit an
+                // auto-scroll tick between the sample and the actual blur boundary.
+                let selection = v.editors[&node(53)].snapshot(w, cx).selection;
+                apply_in_update(
+                    v,
+                    w,
+                    cx,
+                    vec![Op::SetStyle(
+                        node(52),
+                        vec![Style::Fields(vec![policy.clone()])],
+                    )],
+                );
+                selection
+            })
+            .unwrap();
+        frame(cx, handle).await;
+        // Drain already queued rendering before checking idle without a mouse-up.
+        cx.background_executor()
+            .timer(std::time::Duration::from_millis(80))
+            .await;
+        let stopped = handle.update(cx, |v, _, _| v.render_count).unwrap();
+        cx.background_executor()
+            .timer(std::time::Duration::from_millis(180))
+            .await;
+        assert_eq!(
+            handle.update(cx, |v, _, _| v.render_count).unwrap(),
+            stopped,
+            "shielded retained editor must stop drag auto-scroll without waiting for mouse-up"
+        );
+        handle
+            .update(cx, |v, w, cx| {
+                assert_eq!(
+                    v.editors[&node(53)].snapshot(w, cx).selection,
+                    selection,
+                    "blur preserves the actual selected range"
+                )
+            })
+            .unwrap();
+        super::super::native_test::mouse(cx, handle, end, false);
+    }
     apply(
         cx,
         handle,
@@ -427,7 +430,7 @@ async fn inert_drag_cleanup(
     );
     frame(cx, handle).await;
     println!(
-        "GPUIO_INERT_DRAG_IDLE_OK: active textarea auto-scroll stops on inert blur before mouse-up"
+        "GPUIO_INERT_DRAG_IDLE_OK: active textarea auto-scroll stops on inert/disabled blur before mouse-up"
     );
 }
 
@@ -584,6 +587,97 @@ async fn inert_content(
             assert_eq!(v.editors[&node(50)].snapshot(w, cx).text, before.text);
         })
         .unwrap();
+    // Disabled retains the same painted owners and semantic controls, unlike
+    // Inert. A local false cannot escape the ancestor's native interaction gate.
+    let mut disabled_style = panel_style(false);
+    disabled_style.push(Style::Fields(vec![Field::Disabled(true)]));
+    apply(
+        cx,
+        handle,
+        vec![
+            Op::SetStyle(node(47), disabled_style),
+            Op::SetStyle(node(50), vec![Style::Fields(vec![Field::Disabled(false)])]),
+        ],
+    );
+    frame(cx, handle).await;
+    handle
+        .update(cx, |v, w, cx| {
+            assert!(
+                v.focus.borrow().visible(node(50)),
+                "disabled remains visible"
+            );
+            assert!(!v.focus.borrow().allows(node(50)), "ancestor blocks input");
+            assert!(!editor_focus.is_focused(w));
+            assert_eq!(v.probes.borrow()[&node(47)].bounds, bounds);
+            assert!(editor_focus == v.editors[&node(50)].focus_handle(cx));
+            #[cfg(feature = "native-image-tests")]
+            {
+                let image = w.render_to_image().unwrap();
+                let position = bounds.bottom_right() - gpui::point(px(4.), px(4.));
+                let scale = w.scale_factor();
+                let pixel = image.get_pixel(
+                    (f32::from(position.x) * scale) as u32,
+                    (f32::from(position.y) * scale) as u32,
+                );
+                assert_eq!(
+                    pixel.0,
+                    [0xe1, 0x35, 0x99, 0xff],
+                    "disabled policy adds no opacity"
+                );
+            }
+        })
+        .unwrap();
+    let _ = presses(transport);
+    #[cfg(target_os = "macos")]
+    {
+        assert!(
+            !accessible_request(
+                cx,
+                handle,
+                "Outgoing button",
+                Some("AXButton"),
+                AccessibilityRequest::PressRejected
+            )
+            .expect("disabled button remains accessible")
+            .enabled
+        );
+        assert!(
+            !accessible_with_role(cx, handle, "Outgoing editor", Some("AXTextField"), false)
+                .expect("disabled editor remains accessible")
+                .enabled
+        );
+        super::super::editor_test::native_text(cx, handle, "blocked disabled input", false);
+    }
+    frame(cx, handle).await;
+    assert!(
+        !presses(transport).contains(&node(49)),
+        "disabled AX action activated"
+    );
+    for id in [49, 50] {
+        let position = handle
+            .update(cx, |v, _, _| v.probes.borrow()[&node(id)].bounds.center())
+            .unwrap();
+        super::super::native_test::move_mouse(cx, handle, position, false);
+        super::super::native_test::mouse(cx, handle, position, true);
+        super::super::native_test::mouse(cx, handle, position, false);
+    }
+    key(cx, handle, "enter");
+    assert!(!presses(transport).contains(&node(49)));
+    handle
+        .update(cx, |v, w, cx| {
+            assert_eq!(v.editors[&node(50)].snapshot(w, cx).text, before.text);
+        })
+        .unwrap();
+    apply(cx, handle, vec![Op::SetStyle(node(47), panel_style(false))]);
+    frame(cx, handle).await;
+    focus(cx, handle, 49);
+    key(cx, handle, "enter");
+    assert_eq!(presses(transport), vec![node(49)]);
+    focus(cx, handle, 50);
+    assert!(focused(cx, handle, node(50)));
+    println!(
+        "GPUIO_DISABLED_SUBTREE_NATIVE_OK: visible semantic controls, retained layout/editor, inherited input denial and reactivation"
+    );
     apply(
         cx,
         handle,

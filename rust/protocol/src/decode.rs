@@ -2,6 +2,20 @@ use crate::{HandlerId, NodeId, WindowId, v1::*};
 use binprot::BinProtRead;
 use std::io::{Cursor, Read};
 
+mod command_binding;
+pub use command_binding::{decode_command_binding_config, decode_command_binding_observation};
+mod input;
+mod link;
+mod text_content;
+mod text_shimmer;
+pub use input::{decode_input_config, decode_input_event};
+pub use link::decode_link_config;
+pub use text_content::decode_text_content;
+pub use text_shimmer::decode_text_shimmer_config;
+mod highlight;
+pub use highlight::{decode_highlight_config, decode_highlight_observation};
+mod document_diff;
+pub use document_diff::{decode_document_diff_config, decode_document_diff_event};
 mod accessibility;
 mod chart_data;
 mod chart_options;
@@ -179,8 +193,8 @@ impl Decoder<'_> {
         crate::ResourceId::from_parts(self.int()?, self.int()?).ok_or(DecodeError::Malformed)
     }
     fn animation_targets(&mut self) -> Result<Vec<crate::animation::Target>, DecodeError> {
-        use crate::animation::{PROPERTY_COUNT, Property, Target};
-        let count = self.count(PROPERTY_COUNT)?;
+        use crate::animation::{MAX_TARGETS, Property, Target};
+        let count = self.count(MAX_TARGETS)?;
         (0..count)
             .map(|_| {
                 let property = match self.tag()? {
@@ -195,6 +209,7 @@ impl Decoder<'_> {
                     8 => Property::TopRightRadius,
                     9 => Property::BottomLeftRadius,
                     10 => Property::BottomRightRadius,
+                    11 => Property::OpacityFactor,
                     _ => return Err(DecodeError::Malformed),
                 };
                 Ok(Target {
@@ -532,6 +547,14 @@ impl Decoder<'_> {
                 self.color()?,
                 self.float()?,
             )),
+            2 => Ok(Fill::LinearGradientIn(
+                self.int()?,
+                self.float()?,
+                self.color()?,
+                self.float()?,
+                self.color()?,
+                self.float()?,
+            )),
             _ => Err(DecodeError::Malformed),
         }
     }
@@ -620,6 +643,10 @@ impl Decoder<'_> {
             63 => Field::SelectionColor(self.color()?),
             64 => Field::AccessibleName(self.text()?),
             65 => Field::Inert(self.boolean()?),
+            66 => Field::PointerOcclusion(self.int()?),
+            67 => Field::BorderStyle(self.int()?),
+            68 => Field::AspectRatio(self.float()?),
+            69 => Field::Disabled(self.boolean()?),
             _ => return Err(DecodeError::Malformed),
         })
     }
@@ -662,7 +689,7 @@ impl Decoder<'_> {
 
     fn shortcut(&mut self) -> Result<Shortcut, DecodeError> {
         Ok(Shortcut {
-            key: self.text()?,
+            key: self.bounded_text(256)?,
             modifiers: self.list(5, |this| {
                 Ok(match this.tag()? {
                     0 => ShortcutModifier::Primary,
@@ -912,6 +939,9 @@ impl Decoder<'_> {
                     46 => Kind::HoverCard,
                     47 => Kind::Carousel,
                     48 => Kind::ChartView,
+                    49 => Kind::InputRegion,
+                    50 => Kind::HighlightScope,
+                    51 => Kind::Link,
                     _ => return Err(DecodeError::Malformed),
                 };
                 Op::Create(id, kind, self.text()?, self.handler()?)
@@ -1007,6 +1037,21 @@ impl Decoder<'_> {
             53 => Op::SetTableCell(self.node()?, self.table_cell()?),
             54 => Op::TableCommand(self.node()?, self.table_command()?),
             55 => Op::SetChart(self.node()?, self.chart_view_config()?),
+            56 => Op::SetInputRegion(self.node()?, self.input_config()?),
+            57 => Op::SetHighlightScope(self.node()?, self.highlight_config()?),
+            59 => Op::SetStyledText(self.node()?, self.text_content()?),
+            60 => Op::SetLink(self.node()?, self.link_config()?),
+            61 => Op::SetTextShimmer(self.node()?, self.option(Self::text_shimmer_config)?),
+            62 => Op::SetCommandBinding(self.node()?, self.option(Self::command_binding_config)?),
+            63 => Op::SetNumberInputDraft(self.node()?, self.option(Self::number_initial_draft)?),
+            58 => {
+                let node = self.node()?;
+                let epoch = self.int()?;
+                if epoch <= 0 {
+                    return Err(DecodeError::Malformed);
+                }
+                Op::SetDocumentDiff(node, epoch, self.option(Self::document_diff_config)?)
+            }
             47 => Op::SetColorInput(
                 self.node()?,
                 Box::new(self.color_config()?),

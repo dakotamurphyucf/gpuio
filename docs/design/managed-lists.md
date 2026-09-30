@@ -80,6 +80,13 @@ resize, tail jump, focused-row retention and disposal. The extended test also ch
 composition through the macOS text client, held selection, intentional source
 deletion and full-history resource bounds. These are local macOS checks.
 
+Wheel movement consumed by a list does not also move an ordinary ancestor.
+Nested child scrollers receive events first; unconsumed list-boundary and
+horizontal-only events remain available to ancestors. The native Frame observes
+actual position changes within each event and retains only a weak owner; it does
+not synthesize a second scroll operation. See the focused
+[routing regression](../evidence/scrolling-och11.md#milestone-07-managed-list-inside-an-ordinary-scroller).
+
 The first native metadata layer uses positive logical row IDs independent of
 native node handles. Consecutive IDs are encoded as runs: an initial 100,000-row
 order occupies eight bin_prot bytes, verified independently in OCaml and Rust.
@@ -149,6 +156,21 @@ required rows. The OCaml driver discards only that pending candidate, schedules
 retention callbacks from the last accepted view, and retries without running
 Bonsai deactivation/reset hooks. Explicit source deletion or list removal still
 disposes the row. A historical unfocused selection alone does not pin it forever.
+For an ordinary cross-row text range, eviction of an unfocused endpoint retires
+the shared selection and releases that native owner. Rematerializing the logical
+row with a fresh node generation starts unselected; copying requires a fresh
+gesture. The native `list_selection_test.rs` fixture checks admission pins,
+clipboard results and weak-owner release for this transition. This is not a
+promise to copy text from rows that have never been materialized.
+
+An unfocused interior participant can be evicted without discarding surviving
+geometric endpoints. Copy then includes currently materialized eligible text and
+releases the evicted payload. A new node generation for that interior row joins
+the live range with its current text; it cannot restore old bytes. In contrast,
+an endpoint's retirement destroys the range itself. Updating a selected interior
+source retires shared geometry and requires a fresh gesture. The native
+`list_selection_interior_test.rs` checks these transitions through guarded
+admission with unchanged logical order and weak-owner release.
 
 Tests cover atomic rollback, explicit deletion, response-reservation release,
 source-generation validation, independent OCaml/Rust bin_prot fixtures, and an

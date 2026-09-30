@@ -730,46 +730,416 @@
      /// True while a `begin_transaction` bracket is collecting changes.
 --- a/src/text/text_view.rs
 +++ b/src/text/text_view.rs
-@@ -1264,8 +1264,11 @@
+@@ -1,3 +1,4 @@
++use gpui::StatefulInteractiveElement as _;
+ use std::{ops::Range, sync::Arc};
+ 
+ use gpui::prelude::FluentBuilder as _;
+@@ -19,7 +20,7 @@
+ pub(crate) type CodeBlockActionsFn =
+     dyn Fn(&CodeBlock, &mut Window, &mut App) -> AnyElement + Send + Sync;
+ 
+-pub(crate) type CodeBlockHighlighterFn =
++pub type CodeBlockHighlighterFn =
+     dyn Fn(&CodeBlock) -> Vec<(Range<usize>, gpui::HighlightStyle)> + Send + Sync;
+ 
+ /// Application-wide defaults for TextViews that do not provide explicit
+@@ -75,6 +76,8 @@
+ 
+ pub(crate) type LinkClickHandlerFn =
+     dyn Fn(&SharedString, &ClickEvent, &mut Window, &mut App) + Send + Sync;
++
++pub(crate) type LinkFocusGuardFn = dyn Fn(&App) -> bool + Send + Sync;
+ 
+ pub(crate) fn handle_link_click(
+     handler: &Option<Arc<LinkClickHandlerFn>>,
+@@ -128,6 +131,7 @@
+     code_block_highlighter: Option<Arc<CodeBlockHighlighterFn>>,
+     table_actions: Option<Arc<TableActionsFn>>,
+     link_click_handler: Option<Arc<LinkClickHandlerFn>>,
++    link_focus_guard: Option<Arc<LinkFocusGuardFn>>,
+     markdown_extensions: Arc<MarkdownExtensions>,
+ }
+ 
+@@ -172,6 +176,7 @@
+             code_block_highlighter: None,
+             table_actions: None,
+             link_click_handler: None,
++            link_focus_guard: None,
+             markdown_extensions: Arc::default(),
+         }
+     }
+@@ -193,6 +198,7 @@
+             code_block_highlighter: None,
+             table_actions: None,
+             link_click_handler: None,
++            link_focus_guard: None,
+             markdown_extensions: Arc::default(),
+         }
+     }
+@@ -214,6 +220,7 @@
+             code_block_highlighter: None,
+             table_actions: None,
+             link_click_handler: None,
++            link_focus_guard: None,
+             markdown_extensions: Arc::default(),
+         }
+     }
+@@ -306,6 +313,16 @@
+         self
+     }
+ 
++    /// Reuse a prepared highlighter identity across frames so fenced-code
++    /// style caches remain valid until the source or theme actually changes.
++    pub fn code_block_highlighter_shared(
++        mut self,
++        highlighter: Arc<CodeBlockHighlighterFn>,
++    ) -> Self {
++        self.code_block_highlighter = Some(highlighter);
++        self
++    }
++
+     /// Set custom actions to be rendered below each Markdown table.
+     ///
+     /// The closure receives the [`TableData`],
+@@ -330,6 +347,18 @@
+         F: Fn(&SharedString, &ClickEvent, &mut Window, &mut App) + Send + Sync + 'static,
+     {
+         self.link_click_handler = Some(Arc::new(handler));
++        self
++    }
++
++    /// Authorize direct accessibility focus before changing the logical link
++    /// or the document's native focus. Hosts can reject stale presentations or
++    /// modal-blocked content. This native predicate must not mutate the view.
++    /// Without a guard, any current prepared link may receive focus.
++    pub fn link_focus_guard<F>(mut self, guard: F) -> Self
++    where
++        F: Fn(&App) -> bool + Send + Sync + 'static,
++    {
++        self.link_focus_guard = Some(Arc::new(guard));
+         self
+     }
+ 
+@@ -518,16 +547,20 @@
+         } else {
+             let default_format = self.format.unwrap_or(TextViewFormat::Markdown);
+             let default_text = self.text.clone().unwrap_or_default();
++            let default_selectable = self.selectable;
+ 
+             let state = window.use_keyed_state(
+                 SharedString::from(format!("{}/state", self.id)),
+                 cx,
+                 move |_, cx| {
+-                    if default_format == TextViewFormat::Markdown {
++                    let state = if default_format == TextViewFormat::Markdown {
+                         TextViewState::markdown(default_text.as_str(), cx)
+                     } else {
+                         TextViewState::html(default_text.as_str(), cx)
+-                    }
++                    };
++                    // This keyed state is new: apply its initial configuration
++                    // without scheduling a redundant selection-change redraw.
++                    state.selectable(default_selectable)
+                 },
+             );
+             self.state = Some(state.clone());
+@@ -554,8 +587,9 @@
+             state.code_block_highlighter = code_block_highlighter.clone();
+             state.table_actions = self.table_actions.clone();
+             state.link_click_handler = self.link_click_handler.clone();
++            state.link_focus_guard = self.link_focus_guard.clone();
+             state.set_markdown_extensions(self.markdown_extensions.clone(), cx);
+-            state.selectable = self.selectable;
++            state.set_selectable(self.selectable, cx);
+             state.selection_format = self.selection_format;
+             state.scrollable = self.scrollable;
+             state.max_lines = max_lines;
+@@ -569,6 +603,8 @@
+             }
+         });
+ 
++        let select_all_state = state.downgrade();
++        let select_all_listener = window.listener_for(&state, TextViewState::on_action_select_all);
+         let focus_handle = state.read(cx).focus_handle.clone();
+         let list_state = state.read(cx).list_state.clone();
+         // Cap the box at `n` body-text lines (the effective text style may be
+@@ -582,21 +618,43 @@
+ 
+         let mut el = div()
+             .id(("text-view-scroll", state.entity_id()))
++            .role(gpui::Role::Document)
++            .aria_label("Document content")
+             .key_context("TextView")
+             .track_focus(&focus_handle)
++            .on_key_down(window.listener_for(&state, TextViewState::on_link_key))
++            .on_mouse_down(
++                MouseButton::Left,
++                window.listener_for(&state, |state, _, _, cx| {
++                    if state.link_navigation.active.take().is_some() {
++                        state.link_reveal = None;
++                        cx.notify();
++                    }
++                }),
++            )
+             .when(self.scrollable, |this| this.size_full())
+             .when_some(max_lines_cap, |this, cap| this.max_h(cap).overflow_hidden())
+             .relative()
+             .text_color(text_view_style.foreground())
+             .on_action(move |_: &crate::input::Copy, window, cx| {
+-                let text = TextSelection::selected_text(window, cx).trim().to_string();
++                let text = TextSelection::selected_text(window, cx);
+                 if text.is_empty() {
+                     cx.propagate();
+                     return;
+                 }
+                 cx.write_to_clipboard(gpui::ClipboardItem::new_string(text));
+             })
+-            .on_action(window.listener_for(&state, TextViewState::on_action_select_all))
++            .on_action(move |action: &crate::input::SelectAll, window, cx| {
++                if select_all_state
++                    .upgrade()
++                    .is_some_and(|state| state.read(cx).is_selectable())
++                {
++                    // Clear shared geometry before the listener borrows this
++                    // view: clear callbacks may update the same native entity.
++                    TextSelection::clear(window, cx);
++                }
++                select_all_listener(action, window, cx);
++            })
+             .child(state.clone())
+             // Overlay controls must paint after the document, otherwise rich
+             // content and selection backgrounds cover the thumb and hitbox.
+@@ -626,20 +684,22 @@
+     ) -> Self::PrepaintState {
+         let state = request_layout.state.clone();
+         let max_lines_active = state.read(cx).max_lines.is_some();
++        state.update(cx, |state, _| {
++            state.link_reveal_claimed = false;
++            state.link_active_owner = None;
++        });
+         if max_lines_active {
+             if let Ok(mut line_spans) = state.read(cx).line_spans.lock() {
+                 line_spans.clear();
+             }
+             // Descendant `Inline`s report their line spans through the state
+             // stack during prepaint (in addition to the paint-time push below).
+-            GlobalState::global_mut(cx)
+-                .text_view_state_stack
+-                .push(state.clone());
+-        }
++        }
++        GlobalState::global_mut(cx)
++            .text_view_state_stack
++            .push(state.clone());
+         request_layout.element.prepaint(window, cx);
+-        if max_lines_active {
+-            GlobalState::global_mut(cx).text_view_state_stack.pop();
+-        }
++        GlobalState::global_mut(cx).text_view_state_stack.pop();
+ 
+         let mut clip_bottom = None;
+         if max_lines_active {
+@@ -709,6 +769,11 @@
+         }
+         GlobalState::global_mut(cx).text_view_state_stack.pop();
+ 
++        state.update(cx, |state, _| {
++            if state.link_reveal_claimed {
++                state.link_reveal = None;
++            }
++        });
+         if self.selectable {
+             let (adapter, scroll_offset, content_bounds, self_scroll) = {
+                 let state = state.read(cx);
+@@ -1195,6 +1260,48 @@
+             .join("\n\n")
+     }
+ 
++    #[gpui::test]
++    fn keyboard_links_reveal_positions_inside_one_tall_virtual_block(cx: &mut TestAppContext) {
++        cx.update(crate::init);
++        let source = (0..60)
++            .map(|i| format!("- [Link {i}](test:{i})\n"))
++            .collect::<String>();
++        let (root, cx) = cx.add_window_view(|_, cx| ScrollExtentTestRoot {
++            text_view: cx.new(|cx| TextViewState::markdown(&source, cx)),
++        });
++        let cx: &mut VisualTestContext = cx;
++        cx.run_until_parked();
++        let view = root.read_with(cx, |root, _| root.text_view.clone());
++        cx.update(|window, cx| {
++            let focus = view.read(cx).focus_handle().clone();
++            window.focus(&focus, cx);
++        });
++        for i in 0..60 {
++            cx.simulate_keystrokes("tab");
++            cx.run_until_parked();
++            cx.update(|window, cx| window.draw(cx).clear(cx));
++            view.read_with(cx, |view, _| {
++                assert_eq!(view.list_state.item_count(), 1);
++                assert_eq!(view.link_navigation.selected().unwrap().url.as_ref(), format!("test:{i}"));
++                let offset = view.list_state.logical_scroll_top();
++                assert_eq!(offset.item_ix, 0);
++                if i == 0 { assert!(offset.offset_in_item <= px(2.), "first link must reveal the top, not the bottom of its tall block: {offset:?}"); }
++                if i == 59 { assert!(offset.offset_in_item > px(600.), "last link must reveal the bottom: {offset:?}"); }
++            });
++        }
++        for _ in 0..59 {
++            cx.simulate_keystrokes("shift-tab");
++            cx.run_until_parked();
++        }
++        view.read_with(cx, |view, _| {
++            assert_eq!(
++                view.link_navigation.selected().unwrap().url.as_ref(),
++                "test:0"
++            );
++            assert!(view.list_state.logical_scroll_top().offset_in_item <= px(2.));
++        });
++    }
++
+     /// Replacing a document with one that happens to have the *same* block
+     /// count must still re-measure. `Document::render_root` only resets the
+     /// list when the count changes, so without an explicit re-measure every
+@@ -1258,13 +1365,14 @@
+ 
+     struct StatelessMarkdownRoot {
+         renders: Arc<AtomicUsize>,
++        source: SharedString,
+     }
+ 
+     impl Render for StatelessMarkdownRoot {
          fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
              self.renders.fetch_add(1, Ordering::Relaxed);
              div().child(
 -                TextView::markdown("stateless-markdown", include_str!("../../../../README.md"))
--                    .markdown_block_parser(|_, _| None),
-+                TextView::markdown(
-+                    "stateless-markdown",
-+                    include_str!("../../UPSTREAM_README.md"),
-+                )
-+                .markdown_block_parser(|_, _| None),
++                TextView::markdown("stateless-markdown", self.source.clone())
+                     .markdown_block_parser(|_, _| None),
              )
          }
-     }
---- a/src/input/base/element.rs
-+++ b/src/input/base/element.rs
-@@ -987,7 +987,7 @@
-         style: &TextStyle,
-         window: &mut Window,
-     ) -> (Pixels, usize) {
--        let total_lines = text.lines_len();
-+        let total_lines = text.lines_len().saturating_add(state.line_number_offset);
-         // One extra column beyond the widest line number, so right-aligned
-         // numbers keep a gap from the left edge.
-         let line_number_len = total_lines.max(1).ilog10() as usize + 2;
-@@ -2095,8 +2095,12 @@
-                 .iter()
-                 .zip(last_layout.visible_buffer_lines.iter())
-             {
--                let line_no: SharedString =
--                    format!("{:>width$}", buffer_line + 1, width = line_number_len).into();
-+                let line_no: SharedString = format!(
-+                    "{:>width$}",
-+                    buffer_line + 1 + state.line_number_offset,
-+                    width = line_number_len
-+                )
-+                .into();
+@@ -1295,7 +1403,14 @@
+         let renders = Arc::new(AtomicUsize::new(0));
+         let (_, cx) = cx.add_window_view({
+             let renders = renders.clone();
+-            move |_, _| StatelessMarkdownRoot { renders }
++            move |_, _| StatelessMarkdownRoot {
++                renders,
++                // Exercise asynchronous parsing and a freshly rebuilt parser,
++                // without image-loading notifications changing the render count.
++                source: "A stable paragraph with **formatting** and [a link](test:stable).\n\n"
++                    .repeat(80)
++                    .into(),
++            }
+         });
+         let cx: &mut VisualTestContext = cx;
  
-                 let runs = if current_row == Some(buffer_line) {
-                     &current_line_runs
+@@ -1305,6 +1420,38 @@
+             "an unchanged TextView must settle after its parse, but rendered {} times",
+             renders.load(Ordering::Relaxed),
+         );
++    }
++
++    #[gpui::test]
++    fn stateless_markdown_with_images_does_not_keep_redrawing_after_settling(
++        cx: &mut TestAppContext,
++    ) {
++        let settle = |cx: &mut VisualTestContext| {
++            cx.run_until_parked();
++            cx.executor()
++                .advance_clock(std::time::Duration::from_secs(1));
++            cx.run_until_parked();
++        };
++        cx.update(crate::init);
++        let renders = Arc::new(AtomicUsize::new(0));
++        let (_, cx) = cx.add_window_view({
++            let renders = renders.clone();
++            move |_, _| StatelessMarkdownRoot {
++                renders,
++                source: include_str!("../../UPSTREAM_README.md").into(),
++            }
++        });
++        let cx: &mut VisualTestContext = cx;
++        settle(cx);
++        let settled = renders.load(Ordering::Relaxed);
++        for _ in 0..3 {
++            settle(cx);
++            assert_eq!(
++                renders.load(Ordering::Relaxed),
++                settled,
++                "idle Markdown must not redraw"
++            );
++        }
+     }
+ 
+     #[gpui::test]
+@@ -2192,6 +2339,67 @@
+     }
+ 
+     #[gpui::test]
++    fn direct_link_focus_validates_identity_and_guard_without_activation(cx: &mut TestAppContext) {
++        cx.update(crate::init);
++        let (root, cx) = cx.add_window_view(|_, cx| {
++            TextViewTestRoot::new(
++                "[first](https://example.com/first) [second](https://example.com/second)",
++                cx,
++            )
++        });
++        let cx: &mut VisualTestContext = cx;
++        cx.run_until_parked();
++        let state = root.read_with(cx, |root, _| root.text_view.clone());
++        cx.update(|window, cx| {
++            state.update(cx, |state, cx| {
++                let target = state.link_navigation.links[1].clone();
++                let mark = super::super::node::LinkMark {
++                    source_start: Some(target.source_start),
++                    url: target.url.clone(),
++                    identifier: None,
++                    title: None,
++                };
++                window.blur(cx);
++                state.link_focus_guard = Some(Arc::new(|_| false));
++                state.focus_link(&mark, window, cx);
++                assert!(state.link_navigation.active.is_none());
++                assert!(!state.focus_handle.is_focused(window));
++                state.link_focus_guard = None;
++                for invalid in [
++                    super::super::node::LinkMark {
++                        source_start: None,
++                        ..mark.clone()
++                    },
++                    super::super::node::LinkMark {
++                        source_start: Some(usize::MAX),
++                        ..mark.clone()
++                    },
++                    super::super::node::LinkMark {
++                        url: "https://example.com/stale".into(),
++                        ..mark.clone()
++                    },
++                ] {
++                    state.focus_link(&invalid, window, cx);
++                    assert!(state.link_navigation.active.is_none());
++                    assert!(!state.focus_handle.is_focused(window));
++                }
++                state.focus_link(&mark, window, cx);
++                assert_eq!(state.link_navigation.active, Some(target.source_start));
++                assert_eq!(state.link_reveal, Some(target.source_start));
++                assert!(state.focus_handle.is_focused(window));
++                let previous = state.link_navigation.step(true).unwrap();
++                assert_eq!(previous.url, "https://example.com/first");
++                state.set_text("replacement with no links", cx);
++                window.blur(cx);
++                state.focus_link(&mark, window, cx);
++                assert!(state.link_navigation.active.is_none());
++                assert!(!state.focus_handle.is_focused(window));
++            });
++        });
++        assert_eq!(cx.opened_url(), None);
++    }
++
++    #[gpui::test]
+     fn link_handler_receives_button_and_modifiers(cx: &mut TestAppContext) {
+         use std::sync::{Arc, Mutex};
+ 
 --- a/src/input/base/state.rs
 +++ b/src/input/base/state.rs
 @@ -427,6 +427,7 @@
@@ -1060,11 +1430,2044 @@
 +        }
 +    }
  }
- 
+
  fn parse_table_row(source: &str, table: &mut Table, node: &mdast::TableRow, cx: &mut NodeContext) {
+@@ -256,6 +318,7 @@
+         }
+         Node::Link(val) => {
+             let link_mark = Some(LinkMark {
++                source_start: val.position.as_ref().map(|p| cx.offset + p.start.offset),
+                 url: val.url.clone().into(),
+                 title: val.title.clone().map(|s| s.into()),
+                 ..Default::default()
+@@ -337,6 +400,7 @@
+         }
+         Node::LinkReference(link) => {
+             let link_mark = LinkMark {
++                source_start: link.position.as_ref().map(|p| cx.offset + p.start.offset),
+                 url: "".into(),
+                 title: link.label.clone().map(Into::into),
+                 identifier: Some(link.identifier.clone().into()),
+@@ -555,6 +619,7 @@
+                 def.identifier.clone().into(),
+                 LinkMark {
+                     url: def.url.clone().into(),
++                    source_start: None,
+                     identifier: Some(def.identifier.clone().into()),
+                     title: def.title.clone().map(Into::into),
+                 },
+--- a/src/input/base/state.rs
++++ b/src/input/base/state.rs
+@@ -3330,2 +3330,9 @@
+     fn on_blur(&mut self, window: &mut Window, cx: &mut Context<Self>) {
++        // GPUIO: blur may hide or make a retained editor inert before a mouse-up
++        // arrives. Stop the drag timer and transient gesture state, preserving
++        // the actual selection range for menu Copy and later restoration.
++        self.auto_scroll.stop();
++        self.selecting = false;
++        self.column_select_start = None;
++        self.selected_word_range = None;
+         if M::is_context_menu_open(self, cx) {
+--- a/src/input/base/state.rs
++++ b/src/input/base/state.rs
+@@ -3329,0 +3330,7 @@
++    fn cancel_drag_selection(&mut self) {
++        self.auto_scroll.stop();
++        self.selecting = false;
++        self.column_select_start = None;
++        self.selected_word_range = None;
++    }
++
+@@ -3334,4 +3341 @@
+-        self.auto_scroll.stop();
+-        self.selecting = false;
+-        self.column_select_start = None;
+-        self.selected_word_range = None;
++        self.cancel_drag_selection();
+@@ -3436,11 +3440,14 @@
+-            self.auto_scroll.set(scroll_delta, cx, |delta, state, cx| {
+-                let current = state.scroll_handle.offset();
+-                state.update_scroll_offset(Some(point(current.x, current.y + delta)), cx);
+-                if let Some(pos) = state.auto_scroll.last_drag_position {
+-                    let (offset, line_end_affinity, columns_past_line_end) =
+-                        state.resolve_mouse_position(pos);
+-                    if let Some(start) = state.column_select_start {
+-                        let end = ColumnarPoint::new(offset, columns_past_line_end);
+-                        state.build_columnar_selection(start, end, cx);
+-                    } else {
+-                        state.select_to_with_affinity(offset, line_end_affinity, cx);
++            let window_handle = window.window_handle();
++            self.auto_scroll
++                .set(scroll_delta, cx, move |delta, state, cx| {
++                    // GPUI delivers blur listeners after drawing. A ready timer can
++                    // run after Window::blur but before that notification; it must
++                    // not extend selection in the intervening frame.
++                    let focused = cx
++                        .update_window(window_handle, |_, window, _| {
++                            window.is_window_active() && state.focus_handle.is_focused(window)
++                        })
++                        .unwrap_or(false);
++                    if !focused {
++                        state.cancel_drag_selection();
++                        return;
+@@ -3448,2 +3455,13 @@
+-                }
+-            });
++                    let current = state.scroll_handle.offset();
++                    state.update_scroll_offset(Some(point(current.x, current.y + delta)), cx);
++                    if let Some(pos) = state.auto_scroll.last_drag_position {
++                        let (offset, line_end_affinity, columns_past_line_end) =
++                            state.resolve_mouse_position(pos);
++                        if let Some(start) = state.column_select_start {
++                            let end = ColumnarPoint::new(offset, columns_past_line_end);
++                            state.build_columnar_selection(start, end, cx);
++                        } else {
++                            state.select_to_with_affinity(offset, line_end_affinity, cx);
++                        }
++                    }
++                });
+--- /dev/null
++++ b/src/text/link_navigation.rs
+@@ -0,0 +1,247 @@
++//! Logical Markdown links, independent of virtualized rows and shaped fragments.
++use std::collections::BTreeMap;
++
++use gpui::SharedString;
++
++use super::{
++    document::ParsedDocument,
++    inline::accessible_runs,
++    node::{BlockNode, LinkMark, NodeContext, Paragraph},
++};
++
++#[derive(Clone, Debug, PartialEq)]
++pub(super) struct Link {
++    pub source_start: usize,
++    pub block: usize,
++    pub label: String,
++    pub url: SharedString,
++}
++
++#[derive(Default)]
++pub(super) struct Navigation {
++    pub links: Vec<Link>,
++    pub active: Option<usize>,
++}
++
++impl Navigation {
++    pub fn refresh(
++        &mut self,
++        document: &ParsedDocument,
++        context: &NodeContext,
++        unchanged_prefix: Option<usize>,
++    ) {
++        let old = self
++            .active
++            .and_then(|id| self.links.iter().find(|link| link.source_start == id))
++            .cloned();
++        let mut links = BTreeMap::new();
++        for (index, block) in document.blocks.iter().enumerate() {
++            collect(block, index, context, &mut links);
++        }
++        self.links = links.into_values().collect();
++        for link in &mut self.links {
++            if link.label.trim().is_empty() {
++                link.label = link.url.to_string();
++            }
++        }
++        self.active = old
++            .filter(|old| {
++                unchanged_prefix.is_some_and(|prefix| old.source_start < prefix)
++                    && self.links.iter().any(|new| new == old)
++            })
++            .map(|old| old.source_start);
++    }
++
++    /// No wrapping: leaving either edge returns control to the enclosing widget.
++    pub fn step(&mut self, backward: bool) -> Option<&Link> {
++        let current = self
++            .active
++            .and_then(|id| self.links.iter().position(|link| link.source_start == id));
++        let next = match (current, backward) {
++            (Some(index), true) => index.checked_sub(1),
++            (Some(index), false) => Some(index + 1),
++            (None, true) => self.links.len().checked_sub(1),
++            (None, false) => Some(0),
++        }
++        .and_then(|index| self.links.get(index));
++        self.active = next.map(|link| link.source_start);
++        next
++    }
++
++    pub fn selected(&self) -> Option<&Link> {
++        self.active
++            .and_then(|id| self.links.iter().find(|link| link.source_start == id))
++    }
++}
++
++fn add(links: &mut BTreeMap<usize, Link>, block: usize, mark: &LinkMark, text: &str) {
++    let Some(id) = mark.source_start else {
++        return;
++    };
++    links
++        .entry(id)
++        .or_insert_with(|| Link {
++            source_start: id,
++            block,
++            label: String::new(),
++            url: mark.url.clone(),
++        })
++        .label
++        .push_str(text);
++}
++
++fn paragraph(
++    paragraph: &Paragraph,
++    block: usize,
++    context: &NodeContext,
++    links: &mut BTreeMap<usize, Link>,
++) {
++    for inline in &paragraph.children {
++        if let Some(image) = &inline.image {
++            if let Some(link) = &image.link {
++                add(
++                    links,
++                    block,
++                    &link.resolved(&context.link_refs),
++                    &image.title(),
++                );
++            }
++        } else if let Some(custom) = &inline.custom {
++            if let Some(link) = inline.marks.iter().find_map(|(_, mark)| mark.link.as_ref()) {
++                add(
++                    links,
++                    block,
++                    &link.resolved(&context.link_refs),
++                    &custom.shared_accessibility_name(),
++                );
++            }
++        } else {
++            let marks = inline
++                .marks
++                .iter()
++                .filter_map(|(range, mark)| {
++                    mark.link
++                        .as_ref()
++                        .map(|link| (range.clone(), link.resolved(&context.link_refs)))
++                })
++                .collect::<Vec<_>>();
++            for (range, link) in accessible_runs(&inline.text, &marks) {
++                if let Some(link) = link {
++                    add(links, block, &link, &inline.text[range]);
++                }
++            }
++        }
++    }
++}
++
++fn collect(
++    node: &BlockNode,
++    block: usize,
++    context: &NodeContext,
++    links: &mut BTreeMap<usize, Link>,
++) {
++    match node {
++        BlockNode::Root { children, .. }
++        | BlockNode::Blockquote { children, .. }
++        | BlockNode::List { children, .. }
++        | BlockNode::ListItem { children, .. } => {
++            for node in children {
++                collect(node, block, context, links);
++            }
++        }
++        BlockNode::Paragraph(p) | BlockNode::Heading { children: p, .. } => {
++            paragraph(p, block, context, links)
++        }
++        BlockNode::Table(table) => {
++            for row in &table.children {
++                for cell in &row.children {
++                    paragraph(&cell.children, block, context, links);
++                }
++            }
++        }
++        BlockNode::CodeBlock(_)
++        | BlockNode::Custom(_)
++        | BlockNode::Break { .. }
++        | BlockNode::HorizontalRule { .. }
++        | BlockNode::Definition { .. }
++        | BlockNode::Unknown => {}
++    }
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++
++    fn refresh(navigation: &mut Navigation, source: &str, prefix: Option<usize>) {
++        let mut context = NodeContext::default();
++        let document = super::super::format::markdown::parse_bounded(source, &mut context).unwrap();
++        navigation.refresh(&document, &context, prefix);
++    }
++
++    #[test]
++    fn unnamed_image_links_fall_back_to_the_destination() {
++        let mut navigation = Navigation::default();
++        refresh(
++            &mut navigation,
++            "[![](asset://image)](test:unnamed) [![named](asset://image)](test:named)",
++            None,
++        );
++        assert_eq!(navigation.links[0].label, "test:unnamed");
++        assert_eq!(navigation.links[1].label, "named");
++    }
++
++    #[test]
++    fn logical_links_keep_source_order_across_styles_references_and_blocks() {
++        let mut navigation = Navigation::default();
++        let source = "[one **bold** `code`](test:one) [same](test:one)\n\n\
++                      - [世界][guide]\n\n\
++                      | Link |\n| --- |\n| [last](test:last) |\n\n\
++                      [guide]: test:unicode\n";
++        refresh(&mut navigation, source, None);
++        assert_eq!(
++            navigation
++                .links
++                .iter()
++                .map(|link| (link.label.as_str(), link.url.as_ref(), link.block))
++                .collect::<Vec<_>>(),
++            vec![
++                ("one bold code", "test:one", 0),
++                ("same", "test:one", 0),
++                ("世界", "test:unicode", 1),
++                ("last", "test:last", 2)
++            ]
++        );
++        assert!(
++            navigation
++                .links
++                .windows(2)
++                .all(|pair| pair[0].source_start < pair[1].source_start)
++        );
++        for expected in ["one bold code", "same", "世界", "last"] {
++            assert_eq!(navigation.step(false).unwrap().label, expected);
++        }
++        assert!(navigation.step(false).is_none());
++        assert_eq!(navigation.step(true).unwrap().label, "last");
++        assert_eq!(navigation.step(true).unwrap().label, "世界");
++    }
++
++    #[test]
++    fn appended_links_preserve_focus_but_reset_or_changed_target_clears_it() {
++        let mut navigation = Navigation::default();
++        let source = "[first](test:first)";
++        refresh(&mut navigation, source, None);
++        navigation.step(false);
++        let next = format!("{source}\n\n[last](test:last)");
++        refresh(&mut navigation, &next, Some(source.len()));
++        assert_eq!(navigation.selected().unwrap().url.as_ref(), "test:first");
++        refresh(
++            &mut navigation,
++            &next.replace("test:first", "test:other"),
++            Some(source.len()),
++        );
++        assert!(navigation.selected().is_none());
++        navigation.step(false);
++        refresh(&mut navigation, &next, None);
++        assert!(navigation.selected().is_none());
++    }
++}
+--- a/src/input/base/element.rs
++++ b/src/input/base/element.rs
+@@ -987,7 +987,7 @@
+         style: &TextStyle,
+         window: &mut Window,
+     ) -> (Pixels, usize) {
+-        let total_lines = text.lines_len();
++        let total_lines = text.lines_len().saturating_add(state.line_number_offset);
+         // One extra column beyond the widest line number, so right-aligned
+         // numbers keep a gap from the left edge.
+         let line_number_len = total_lines.max(1).ilog10() as usize + 2;
+@@ -1617,6 +1617,7 @@
+ }
+ 
+ pub(super) struct PrepaintState {
++    range_backgrounds: Option<Rc<dyn crate::input::RangeBackgrounds>>,
+     /// The lines of entire lines.
+     last_layout: LastLayout,
+     /// The lines only contains the visible lines in the viewport, based on `visible_range`.
+@@ -2095,8 +2096,12 @@
+                 .iter()
+                 .zip(last_layout.visible_buffer_lines.iter())
+             {
+-                let line_no: SharedString =
+-                    format!("{:>width$}", buffer_line + 1, width = line_number_len).into();
++                let line_no: SharedString = format!(
++                    "{:>width$}",
++                    buffer_line + 1 + state.line_number_offset,
++                    width = line_number_len
++                )
++                .into();
+ 
+                 let runs = if current_row == Some(buffer_line) {
+                     &current_line_runs
+@@ -2132,10 +2137,15 @@
+                 cursor_scroll_offset,
+                 state,
+             )));
++        let range_backgrounds = state
++            .readonly
++            .then(|| state.extras.range_backgrounds())
++            .flatten();
+         let fold_icon_layout =
+             self.layout_fold_icons(original_x, &bounds, &last_layout, window, cx);
+ 
+         PrepaintState {
++            range_backgrounds,
+             bounds,
+             last_layout,
+             scroll_size,
+@@ -2269,6 +2279,43 @@
+             // Ghost lines shift every later line down.
+             if Some(buffer_line) == prepaint.current_row {
+                 offset_y += prepaint.ghost_lines_height;
++            }
++        }
++
++        // Prepared document washes are independent ordered layers above syntax
++        // backgrounds and below native search/selection decoration. Preserve the
++        // frame's immutable owner even if the state changes before the next draw.
++        if let Some(backgrounds) = &prepaint.range_backgrounds {
++            for wash in backgrounds.ranges() {
++                let mut offset_y = invisible_top_padding;
++                for ((line, &buffer_line), &start) in prepaint
++                    .last_layout
++                    .lines
++                    .iter()
++                    .zip(prepaint.last_layout.visible_buffer_lines.iter())
++                    .zip(prepaint.last_layout.visible_line_byte_offsets.iter())
++                {
++                    let end = start.saturating_add(line.len());
++                    if wash.bytes.start < end && wash.bytes.end > start {
++                        line.paint_range_background(
++                            wash.bytes.start.max(start) - start..wash.bytes.end.min(end) - start,
++                            point(
++                                origin.x + prepaint.last_layout.line_number_width + scroll_offset,
++                                origin.y + offset_y,
++                            ),
++                            line_height,
++                            text_align,
++                            prepaint.last_layout.content_width,
++                            wash.color,
++                            wash.radius,
++                            window,
++                        );
++                    }
++                    offset_y += line.size(line_height).height;
++                    if Some(buffer_line) == prepaint.current_row {
++                        offset_y += prepaint.ghost_lines_height;
++                    }
++                }
+             }
+         }
+ 
+--- a/src/input/base/kind.rs
++++ b/src/input/base/kind.rs
+@@ -77,6 +77,9 @@
+ /// during an edit. Adding a field an editor renders belongs here and leaves
+ /// the engine's callbacks alone.
+ pub trait InputExtras: Default + 'static {
++    fn range_backgrounds(&self) -> Option<std::rc::Rc<dyn crate::input::RangeBackgrounds>> {
++        None
++    }
+     /// Decoration ranges to paint, innermost collection first.
+     fn decoration_layers(&self) -> Vec<&[TextDecoration]> {
+         Vec::new()
+@@ -334,6 +337,7 @@
+ 
+ /// What a code editor adds on top of multi-line text: language features.
+ pub struct EditorExtras {
++    pub(crate) range_backgrounds: Option<std::rc::Rc<dyn crate::input::RangeBackgrounds>>,
+     pub(crate) lsp: Lsp,
+     pub(crate) decorations: DecorationCollections,
+     pub(crate) inline_completion: InlineCompletion,
+@@ -346,6 +350,7 @@
+ impl Default for EditorExtras {
+     fn default() -> Self {
+         Self {
++            range_backgrounds: None,
+             lsp: Lsp::default(),
+             decorations: DecorationCollections::default(),
+             inline_completion: InlineCompletion::default(),
+--- /dev/null
++++ b/src/input/editor/backgrounds.rs
+@@ -0,0 +1,84 @@
++//! Immutable background layers for a prepared read-only document revision.
++use crate::input::EditorState;
++use gpui::{Context, Hsla, Pixels, px};
++use std::{ops::Range, rc::Rc};
++
++#[derive(Clone, Debug)]
++pub struct RangeBackground {
++    /// Half-open UTF-8 bytes in the currently installed editor buffer.
++    pub bytes: Range<usize>,
++    pub color: Hsla,
++    pub radius: Pixels,
++}
++
++/// Frozen ordered layers. Implementations may retain a prepared-result lease;
++/// the editor and in-flight frame keep this owner alive while reading its data.
++/// `ranges` must return the same immutable slice for this owner's lifetime and
++/// must not run matching, I/O, or application callbacks.
++pub trait RangeBackgrounds: 'static {
++    fn ranges(&self) -> &[RangeBackground];
++}
++
++#[derive(Clone, Copy, Debug, PartialEq, Eq)]
++pub enum RangeBackgroundError {
++    Editable,
++    Limit,
++    InvalidRange,
++    InvalidRadius,
++}
++
++impl EditorState {
++    /// Replace prepared washes without changing syntax styles or selection.
++    /// Text replacement clears the owner. Invalid input also clears old washes.
++    /// Only read-only buffers accept this revision-bound decoration API.
++    pub fn set_range_backgrounds(
++        &mut self,
++        backgrounds: Option<Rc<dyn RangeBackgrounds>>,
++        cx: &mut Context<Self>,
++    ) -> Result<(), RangeBackgroundError> {
++        let same = match (&self.extras.range_backgrounds, &backgrounds) {
++            (Some(a), Some(b)) => Rc::ptr_eq(a, b),
++            (None, None) => true,
++            _ => false,
++        };
++        if same && (self.readonly || backgrounds.is_none()) {
++            return Ok(());
++        }
++        let valid = backgrounds.as_ref().map_or(Ok(()), |source| {
++            if !self.readonly {
++                return Err(RangeBackgroundError::Editable);
++            }
++            let ranges = source.ranges();
++            if ranges.len() > 32768 {
++                return Err(RangeBackgroundError::Limit);
++            }
++            for wash in ranges {
++                if wash.bytes.start >= wash.bytes.end
++                    || wash.bytes.end > self.text.len()
++                    || !self.text.is_char_boundary(wash.bytes.start)
++                    || !self.text.is_char_boundary(wash.bytes.end)
++                {
++                    return Err(RangeBackgroundError::InvalidRange);
++                }
++                if !wash.radius.as_f32().is_finite()
++                    || wash.radius < px(0.)
++                    || wash.radius > px(64.)
++                {
++                    return Err(RangeBackgroundError::InvalidRadius);
++                }
++            }
++            Ok(())
++        });
++        let backgrounds = valid.is_ok().then_some(backgrounds).flatten();
++        let same = match (&self.extras.range_backgrounds, &backgrounds) {
++            (Some(a), Some(b)) => Rc::ptr_eq(a, b),
++            (None, None) => true,
++            _ => false,
++        };
++        if !same {
++            self.extras.range_backgrounds = backgrounds;
++            cx.notify();
++        }
++        valid
++    }
++}
+--- a/src/input/editor/mod.rs
++++ b/src/input/editor/mod.rs
+@@ -36,6 +36,7 @@
+     }
+ 
+     fn reset_annotations(state: &mut InputBaseState<Self>) {
++        state.extras.range_backgrounds = None;
+         state.extras.hover_popover = None;
+         state.extras.decorations.clear();
+     }
+@@ -49,6 +50,7 @@
+         range: &std::ops::Range<usize>,
+         new_len: usize,
+     ) {
++        state.extras.range_backgrounds = None;
+         state.extras.decorations.adjust_for_edit(range, new_len);
+     }
+ 
+@@ -214,6 +216,9 @@
+ 
+ /// What a code editor exposes to the renderer. See [`crate::input::InputExtras`].
+ impl crate::input::InputExtras for super::EditorExtras {
++    fn range_backgrounds(&self) -> Option<std::rc::Rc<dyn crate::input::RangeBackgrounds>> {
++        self.range_backgrounds.clone()
++    }
+     fn decoration_layers(&self) -> Vec<&[super::TextDecoration]> {
+         self.decorations.iter().collect()
+     }
+--- a/src/input/mod.rs
++++ b/src/input/mod.rs
+@@ -12,6 +12,8 @@
+ 
+ #[path = "editor/auto_close.rs"]
+ mod auto_close;
++#[path = "editor/backgrounds.rs"]
++mod backgrounds;
+ mod base;
+ #[path = "base/blink_cursor.rs"]
+ pub(crate) mod blink_cursor;
+@@ -68,6 +70,7 @@
+ }
+ 
+ pub use crate::number_input::{NumberInputEvent, NumberStep};
++pub use backgrounds::{RangeBackground, RangeBackgroundError, RangeBackgrounds};
+ pub use base::{InputBase, InputContextMenuCapabilities, InputStyles};
+ pub use cursor::Selection;
+ pub use decorations::{TextDecoration, TextDecorationCollection};
+--- /dev/null
++++ b/src/text/displayed_text.rs
+@@ -0,0 +1,233 @@
++//! Immutable text runs prepared with the AST, before virtualization or paint.
++//! This is not the copy/Markdown/AX representation: separators, list markers,
++//! image descriptions and arbitrary custom renderers do not fabricate glyphs.
++use std::{
++    collections::BTreeMap,
++    sync::{Arc, Mutex},
++};
++
++use gpui::SharedString;
++
++use super::{
++    MarkdownExtensions, MarkdownNode, MarkdownPresentation,
++    document::ParsedDocument,
++    inline::InlineState,
++    node::{BlockNode, Paragraph},
++};
++
++const MAX_FRAGMENTS: usize = 4096;
++const MAX_BYTES: usize = 65536;
++
++/// One contiguous rendered text run. Inline formatting does not split a run;
++/// an image/custom object does. IDs are consecutive in structural display order
++/// and are local to a single [`DisplayedText`] snapshot.
++#[derive(Clone, Debug, PartialEq, Eq)]
++pub struct DisplayedFragment {
++    id: u32,
++    text: Arc<str>,
++}
++impl DisplayedFragment {
++    pub fn id(&self) -> u32 {
++        self.id
++    }
++    pub fn text(&self) -> &Arc<str> {
++        &self.text
++    }
++}
++
++/// Bounded immutable source for native text decorations. Each fragment is a
++/// separate matching group: queries cannot cross cells, paragraphs or objects.
++/// Retaining this value retains its text, but no mutable selection/layout state.
++/// A nonzero opaque count means custom/image content needs a separate renderer
++/// contract; its copy or accessibility label is not searchable displayed text.
++#[derive(Debug, Default)]
++pub struct DisplayedText {
++    fragments: Vec<DisplayedFragment>,
++    bytes: usize,
++    opaque_nodes: usize,
++    objects: BTreeMap<usize, PreparedObject>,
++}
++
++#[derive(Debug)]
++struct PreparedObject {
++    _key: Arc<()>,
++    text: Option<(SharedString, Option<DisplayedFragment>)>,
++    non_text: bool,
++}
++
++// The snapshot is an identity, not structural equality over mutable inline state.
++impl PartialEq for DisplayedText {
++    fn eq(&self, other: &Self) -> bool {
++        std::ptr::eq(self, other)
++    }
++}
++impl Eq for DisplayedText {}
++
++impl DisplayedText {
++    pub(super) fn object_is_non_text(&self, node: &MarkdownNode) -> bool {
++        self.objects
++            .get(&(Arc::as_ptr(&node.projection_key) as usize))
++            .is_some_and(|object| object.non_text)
++    }
++    pub(super) fn object_text(&self, node: &MarkdownNode) -> Option<Arc<Mutex<InlineState>>> {
++        let (text, fragment) = self
++            .objects
++            .get(&(Arc::as_ptr(&node.projection_key) as usize))?
++            .text
++            .as_ref()?;
++        // Passive glyph elements have no persistent controller state. Keep the
++        // shared projection immutable and create only a frame-local reader.
++        let mut state = InlineState::default();
++        state.set_text(text.clone());
++        state.displayed_fragment = fragment.clone();
++        Some(Arc::new(Mutex::new(state)))
++    }
++    pub fn fragments(&self) -> &[DisplayedFragment] {
++        &self.fragments
++    }
++    pub fn text_bytes(&self) -> usize {
++        self.bytes
++    }
++    pub fn opaque_nodes(&self) -> usize {
++        self.opaque_nodes
++    }
++
++    pub(super) fn prepare(
++        document: &ParsedDocument,
++        extensions: &MarkdownExtensions,
++    ) -> Result<Arc<Self>, SharedString> {
++        let mut result = Self::default();
++        // parse_bounded has already validated depth and total AST node count.
++        for block in document.blocks.iter() {
++            result.block(block, extensions)?;
++        }
++        Ok(Arc::new(result))
++    }
++
++    fn push(&mut self, state: &Arc<Mutex<InlineState>>, text: &str) -> Result<(), SharedString> {
++        let fragment = self.fragment(text)?;
++        state
++            .lock()
++            .map_err(|_| SharedString::from("invalid prepared inline state"))?
++            .displayed_fragment = fragment;
++        Ok(())
++    }
++
++    fn fragment(&mut self, text: &str) -> Result<Option<DisplayedFragment>, SharedString> {
++        if text.is_empty() {
++            return Ok(None);
++        }
++        if self.fragments.len() >= MAX_FRAGMENTS || text.len() > MAX_BYTES - self.bytes {
++            return Err("displayed Markdown text exceeds preparation limits".into());
++        }
++        let fragment = DisplayedFragment {
++            id: self.fragments.len() as u32,
++            text: Arc::from(text),
++        };
++        self.bytes += text.len();
++        self.fragments.push(fragment.clone());
++        Ok(Some(fragment))
++    }
++
++    fn object(
++        &mut self,
++        node: &MarkdownNode,
++        extensions: &MarkdownExtensions,
++    ) -> Result<(), SharedString> {
++        let presentation = extensions.presentation(node);
++        let non_text = presentation == MarkdownPresentation::NonText;
++        let text = match presentation {
++            MarkdownPresentation::Opaque => {
++                self.opaque_nodes += 1;
++                None
++            }
++            MarkdownPresentation::NonText => None,
++            MarkdownPresentation::Text(text) => {
++                let fragment = self.fragment(&text)?;
++                Some((text, fragment))
++            }
++        };
++        self.objects.insert(
++            Arc::as_ptr(&node.projection_key) as usize,
++            PreparedObject {
++                _key: node.projection_key.clone(),
++                text,
++                non_text,
++            },
++        );
++        Ok(())
++    }
++
++    fn paragraph(
++        &mut self,
++        paragraph: &Paragraph,
++        extensions: &MarkdownExtensions,
++    ) -> Result<(), SharedString> {
++        let mut text = String::new();
++        for child in &paragraph.children {
++            // This is the same ownership split as Paragraph::inline_flow_items:
++            // the object child's state owns the text preceding that object.
++            if let Some(node) = &child.custom {
++                self.push(&child.state, &text)?;
++                text.clear();
++                self.object(node, extensions)?;
++                continue;
++            }
++            if child.text.len() > MAX_BYTES - self.bytes - text.len() {
++                return Err("displayed Markdown text exceeds preparation limits".into());
++            }
++            text.push_str(&child.text);
++            if child.image.is_some() {
++                self.push(&child.state, &text)?;
++                text.clear();
++                self.opaque_nodes += 1;
++            }
++        }
++        self.push(&paragraph.state, &text)
++    }
++
++    fn block(
++        &mut self,
++        block: &BlockNode,
++        extensions: &MarkdownExtensions,
++    ) -> Result<(), SharedString> {
++        match block {
++            BlockNode::Root { children, .. } | BlockNode::Blockquote { children, .. } => {
++                for child in children {
++                    self.block(child, extensions)?;
++                }
++            }
++            BlockNode::List { children, .. } => {
++                for child in children {
++                    if let BlockNode::ListItem { children, .. } = child {
++                        for child in children {
++                            self.block(child, extensions)?;
++                        }
++                    }
++                }
++            }
++            BlockNode::Paragraph(paragraph)
++            | BlockNode::Heading {
++                children: paragraph,
++                ..
++            } => {
++                self.paragraph(paragraph, extensions)?;
++            }
++            BlockNode::CodeBlock(code) => self.push(&code.state, &code.code())?,
++            BlockNode::Table(table) => {
++                for row in &table.children {
++                    for cell in &row.children {
++                        self.paragraph(&cell.children, extensions)?;
++                    }
++                }
++            }
++            BlockNode::Custom(node) => self.object(node, extensions)?,
++            BlockNode::Break { .. }
++            | BlockNode::HorizontalRule { .. }
++            | BlockNode::Definition { .. }
++            | BlockNode::ListItem { .. }
++            | BlockNode::Unknown => (),
++        }
++        Ok(())
++    }
++}
+--- a/src/text/inline.rs
++++ b/src/text/inline.rs
+@@ -1,4 +1,4 @@
+-use gpui::Corners;
++use gpui::{Corners, prelude::*};
+ use std::{
+     ops::Range,
+     rc::Rc,
+@@ -160,6 +160,13 @@
+ /// A inline element used to render a inline text and support selectable.
+ ///
+ /// All text in TextView (including the CodeBlock) used this for text rendering.
++#[derive(Clone, Copy, PartialEq, Eq)]
++enum InlineInteraction {
++    Text,
++    AtomicObject,
++    BlockObject,
++}
++
+ pub(super) struct Inline {
+     id: ElementId,
+     text: SharedString,
+@@ -171,9 +178,56 @@
+     paint_origin: Option<Point<Pixels>>,
+     selection_bounds: Option<Bounds<Pixels>>,
+     selection_source: Option<(Arc<Mutex<InlineState>>, Range<usize>)>,
++    range_backgrounds: Option<(Rc<dyn crate::input::RangeBackgrounds>, Range<usize>)>,
++    style_backgrounds: Vec<crate::input::RangeBackground>,
++    interaction: InlineInteraction,
++    semantic_sink: Option<(super::inline_semantics::Collector, usize)>,
++    suppress_semantics: bool,
+     link_click_handler: Option<Arc<LinkClickHandlerFn>>,
+ 
+     state: Arc<Mutex<InlineState>>,
++}
++
++pub(super) struct InlinePrepaint {
++    hitbox: Hitbox,
++    semantics: Vec<gpui::AnyElement>,
++}
++
++/// Partition rendered text in reading order. Adjacent style runs of the same
++/// link remain one accessible action; ordinary text is not duplicated beside it.
++pub(super) fn accessible_runs(
++    text: &str,
++    links: &[(Range<usize>, LinkMark)],
++) -> Vec<(Range<usize>, Option<LinkMark>)> {
++    let mut links = links.to_vec();
++    links.sort_by_key(|(range, _)| range.start);
++    let mut runs: Vec<(Range<usize>, Option<LinkMark>)> = Vec::new();
++    let mut cursor = 0;
++    for (range, link) in links {
++        if range.start < cursor
++            || range.is_empty()
++            || !text.is_char_boundary(range.start)
++            || !text.is_char_boundary(range.end)
++        {
++            continue;
++        }
++        if range.start > cursor {
++            runs.push((cursor..range.start, None));
++        }
++        cursor = range.end;
++        if let Some((previous, Some(previous_link))) = runs.last_mut()
++            && previous.end == range.start
++            && *previous_link == link
++        {
++            previous.end = range.end;
++        } else {
++            runs.push((range, Some(link)));
++        }
++    }
++    if cursor < text.len() {
++        runs.push((cursor..text.len(), None));
++    }
++    runs
+ }
+ 
+ /// The inline text state, used RefCell to keep the selection state.
+@@ -183,6 +237,7 @@
+     /// The text that actually rendering, matched with selection.
+     pub(super) text: SharedString,
+     pub(super) selection: Option<Selection>,
++    pub(super) displayed_fragment: Option<super::DisplayedFragment>,
+ }
+ 
+ impl InlineState {
+@@ -215,14 +270,45 @@
+             paint_origin: None,
+             selection_bounds: None,
+             selection_source: None,
++            range_backgrounds: None,
++            style_backgrounds: Vec::new(),
++            interaction: InlineInteraction::Text,
++            semantic_sink: None,
++            suppress_semantics: false,
+             link_click_handler,
+             state,
+         }
++    }
++
++    pub(super) fn semantic_sink(
++        mut self,
++        sink: super::inline_semantics::Collector,
++        slot: usize,
++    ) -> Self {
++        self.semantic_sink = Some((sink, slot));
++        self
++    }
++
++    pub(super) fn suppress_semantics(mut self, suppress: bool) -> Self {
++        self.suppress_semantics = suppress;
++        self
+     }
+ 
+     /// Use the resolved style captured by a deferred parent layout.
+     pub(super) fn text_style(mut self, text_style: TextStyle) -> Self {
+         self.text_style = Some(text_style);
++        self
++    }
++
++    /// Glyph presentation inside an atomic custom object. The object owns
++    /// selection, links and input; it must not acquire a second text controller.
++    pub(super) fn passive(mut self) -> Self {
++        self.interaction = InlineInteraction::AtomicObject;
++        self
++    }
++
++    pub(super) fn passive_block(mut self) -> Self {
++        self.interaction = InlineInteraction::BlockObject;
+         self
+     }
+ 
+@@ -244,6 +330,133 @@
+     ) -> Self {
+         self.selection_source = Some((state, range));
+         self
++    }
++
++    fn semantic_elements(
++        &self,
++        owner: Option<&GlobalElementId>,
++        bounds: Bounds<Pixels>,
++        window: &mut Window,
++        cx: &mut App,
++    ) -> Vec<gpui::AnyElement> {
++        if self.suppress_semantics {
++            return Vec::new();
++        }
++        if let Some((sink, _)) = &self.semantic_sink {
++            if !sink.enabled() {
++                return Vec::new();
++            }
++        } else if self.links.is_empty() || !window.is_a11y_active() {
++            return Vec::new();
++        }
++        let layout = self.styled_text.layout();
++        let height = layout.line_height();
++        let view = GlobalState::global(cx).text_view_state().cloned();
++        let mut elements = Vec::new();
++        for (range, link) in accessible_runs(&self.text, &self.links) {
++            let (Some(start), Some(end)) = (
++                layout.position_for_index(range.start),
++                layout.position_for_index(range.end),
++            ) else {
++                continue;
++            };
++            let area = if start.y == end.y {
++                Bounds::from_corners(
++                    point(start.x.min(end.x), start.y),
++                    point(start.x.max(end.x), end.y + height),
++                )
++            } else {
++                Bounds::from_corners(
++                    point(bounds.left(), start.y),
++                    point(bounds.right(), end.y + height),
++                )
++            };
++            if let Some((sink, slot)) = &self.semantic_sink {
++                sink.push(*slot, area, &self.text[range], link);
++                continue;
++            }
++            let id: SharedString = format!(
++                "semantic-{}-{}-{}",
++                range.start,
++                range.end,
++                link.as_ref().map_or("", |link| link.url.as_ref())
++            )
++            .into();
++            let text = self.text[range].to_owned();
++            let mut element = gpui::div().id(id).w(area.size.width).h(area.size.height);
++            if let Some(link) = link {
++                let text = if text.trim().is_empty() {
++                    link.url.to_string()
++                } else {
++                    text
++                };
++                let active = view.as_ref().is_some_and(|view| {
++                    view.update(cx, |state, _| {
++                        if link.source_start.is_none()
++                            || state.link_navigation.active != link.source_start
++                        {
++                            return false;
++                        }
++                        let Some(owner) = owner else {
++                            return false;
++                        };
++                        if state.link_active_owner.is_none() {
++                            state.link_active_owner = Some(owner.clone());
++                        }
++                        state.link_active_owner.as_ref() == Some(owner)
++                    })
++                });
++                let focus_target = view
++                    .as_ref()
++                    .filter(|_| link.source_start.is_some())
++                    .map(|view| (view.downgrade(), link.clone()));
++                let url = link.url;
++                let metadata_url = url.clone();
++                let handler = self.link_click_handler.clone();
++                element = element
++                    .role(gpui::Role::Link)
++                    .aria_label(text)
++                    .when(active, |element| element.aria_active_descendant())
++                    .when_some(focus_target, |element, (view, link)| {
++                        element.on_a11y_action(
++                            gpui::AccessibleAction::Focus,
++                            move |_, window, cx| {
++                                let _ = view
++                                    .update(cx, |state, cx| state.focus_link(&link, window, cx));
++                            },
++                        )
++                    })
++                    .a11y_synthetic_children(move |builder| {
++                        builder.parent_node().set_url(metadata_url.to_string())
++                    })
++                    .on_a11y_action(gpui::AccessibleAction::Click, move |_, window, cx| {
++                        handle_link_click(
++                            &handler,
++                            url.clone(),
++                            ClickEvent::Keyboard(gpui::KeyboardClickEvent {
++                                bounds: area,
++                                ..Default::default()
++                            }),
++                            window,
++                            cx,
++                        );
++                    });
++            } else {
++                element = element.role(gpui::Role::Label).aria_value(text);
++            }
++            let mut element = element.into_any_element();
++            element.prepaint_as_root(
++                area.origin,
++                gpui::size(
++                    gpui::AvailableSpace::Definite(area.size.width),
++                    gpui::AvailableSpace::Definite(area.size.height),
++                ),
++                window,
++                cx,
++            );
++            elements.push(element);
++        }
++        elements
+     }
+ 
+     /// Get link at given mouse position.
+@@ -547,7 +760,7 @@
+ 
+ impl Element for Inline {
+     type RequestLayoutState = ();
+-    type PrepaintState = Hitbox;
++    type PrepaintState = InlinePrepaint;
+ 
+     fn id(&self) -> Option<ElementId> {
+         Some(self.id.clone())
+@@ -555,6 +768,25 @@
+ 
+     fn source_location(&self) -> Option<&'static std::panic::Location<'static>> {
+         None
++    }
++
++    fn a11y_role(&self) -> Option<gpui::accesskit::Role> {
++        if self.suppress_semantics || self.semantic_sink.is_some() {
++            return None;
++        }
++        Some(if self.links.is_empty() {
++            gpui::accesskit::Role::Label
++        } else {
++            gpui::accesskit::Role::Group
++        })
++    }
++
++    fn write_a11y_info(&self, node: &mut gpui::accesskit::Node) {
++        // StyledText is painted directly below, bypassing its Element wrapper.
++        // Publish the same rendered text here; do not duplicate raw Markdown.
++        if self.links.is_empty() {
++            node.set_value(self.text.to_string());
++        }
+     }
+ 
+     fn request_layout(
+@@ -568,7 +800,41 @@
+             .text_style
+             .clone()
+             .unwrap_or_else(|| window.text_style());
+-        let runs = text_runs(self.text.len(), &text_style, &self.highlights);
++        let (source_state, source_range) = self
++            .selection_source
++            .as_ref()
++            .map(|(state, range)| (state, range.clone()))
++            .unwrap_or((&self.state, 0..self.text.len()));
++        let fragment = source_state
++            .lock()
++            .ok()
++            .and_then(|state| state.displayed_fragment.clone());
++        self.range_backgrounds = fragment.and_then(|fragment| {
++            if fragment.text().get(source_range.clone()) != Some(self.text.as_ref()) {
++                return None;
++            }
++            let view = GlobalState::global(cx).text_view_state()?.read(cx);
++            let layer = view.text_backgrounds.as_ref()?.layer(&fragment)?;
++            Some((layer, source_range))
++        });
++        let mut runs = text_runs(self.text.len(), &text_style, &self.highlights);
++        self.style_backgrounds.clear();
++        if self.range_backgrounds.is_some() {
++            // StyledText normally paints backgrounds and glyphs together. Move
++            // only its backgrounds into our first pass so rounded prepared
++            // washes sit above syntax/mark colors and below the glyphs.
++            let mut offset = 0;
++            for run in &mut runs {
++                if let Some(color) = run.background_color.take() {
++                    self.style_backgrounds.push(crate::input::RangeBackground {
++                        bytes: offset..offset + run.len,
++                        color,
++                        radius: px(0.),
++                    });
++                }
++                offset += run.len;
++            }
++        }
+ 
+         self.styled_text = StyledText::new(self.text.clone()).with_runs(runs);
+         let (layout_id, _) =
+@@ -593,11 +859,11 @@
+ 
+         // Report this element's laid-out extent so an ancestor TextView with
+         // `max_lines` can snap its clip to a whole-line boundary. The state
+-        // stack only holds an entry during prepaint when that view set
+-        // `max_lines`, so this is a no-op otherwise.
++        // stack also supplies the one-shot keyboard link reveal request.
+         if let Some(text_view_state) = GlobalState::global(cx).text_view_state().cloned() {
+             let state = text_view_state.read(cx);
+-            if state.max_lines.is_some()
++            if self.interaction == InlineInteraction::Text
++                && state.max_lines.is_some()
+                 && let Ok(mut line_spans) = state.line_spans.lock()
+             {
+                 line_spans.push(LineSpan {
+@@ -608,8 +874,36 @@
+             }
+         }
+ 
+-        let hitbox = window.insert_hitbox(bounds, HitboxBehavior::Normal);
+-        hitbox
++        if self.semantic_sink.is_none()
++            && let Some(view) = GlobalState::global(cx).text_view_state().cloned()
++        {
++            let target = {
++                let state = view.read(cx);
++                state.link_reveal.filter(|_| !state.link_reveal_claimed)
++            };
++            if let Some(target) = target {
++                let layout = self.styled_text.layout();
++                if let Some((range, _)) = self
++                    .links
++                    .iter()
++                    .find(|(_, link)| link.source_start == Some(target))
++                    && let Some(start) = layout.position_for_index(range.start)
++                {
++                    // Reveal the start of the logical link, including when its
++                    // containing list/table block is taller than the viewport.
++                    window.request_autoscroll(Bounds::from_corners(
++                        start,
++                        point(start.x + px(2.), start.y + layout.line_height()),
++                    ));
++                    view.update(cx, |state, _| state.link_reveal_claimed = true);
++                }
++            }
++        }
++
++        InlinePrepaint {
++            hitbox: window.insert_hitbox(bounds, HitboxBehavior::Normal),
++            semantics: self.semantic_elements(id, bounds, window, cx),
++        }
+     }
+ 
+     fn paint(
+@@ -624,10 +918,90 @@
+     ) {
+         let bounds = Bounds::new(self.paint_origin.unwrap_or(bounds.origin), bounds.size);
+         let current_view = window.current_view();
+-        let hitbox = prepaint;
++        for element in &mut prepaint.semantics {
++            element.paint(window, cx);
++        }
++        let hitbox = &prepaint.hitbox;
+         let text_layout = self.styled_text.layout().clone();
++        if let Some((layers, source)) = &self.range_backgrounds {
++            let align = self
++                .text_style
++                .as_ref()
++                .map_or_else(|| window.text_style().text_align, |style| style.text_align);
++            super::backgrounds::paint(
++                &self.style_backgrounds,
++                0..self.text.len(),
++                &text_layout,
++                align,
++                window,
++            );
++            super::backgrounds::paint(layers.ranges(), source.clone(), &text_layout, align, window);
++        }
+         self.styled_text
+             .paint(global_id, None, bounds, &mut (), &mut (), window, cx);
++
++        if self.interaction != InlineInteraction::Text {
++            // Custom blocks already participate in whole-document copy. Keep
++            // select-all visible without inventing partial selection behavior.
++            if self.interaction == InlineInteraction::BlockObject
++                && let Some(view) = GlobalState::global(cx).text_view_state()
++                && view.read(cx).is_selectable()
++                && view.read(cx).is_all_selected()
++            {
++                Self::paint_selection(
++                    &Selection::new(0, self.text.len()),
++                    &text_layout,
++                    &bounds,
++                    window,
++                    view.read(cx).text_view_style.selection(),
++                );
++            }
++            return;
++        }
++
++        if self.semantic_sink.is_none()
++            && let Some(view) = GlobalState::global(cx).text_view_state()
++        {
++            let view = view.read(cx);
++            if view.focus_handle().is_focused(window)
++                && let Some(active) = view.link_navigation.active
++            {
++                for (range, link) in accessible_runs(&self.text, &self.links) {
++                    if link.as_ref().and_then(|link| link.source_start) != Some(active) {
++                        continue;
++                    }
++                    if let (Some(start), Some(end)) = (
++                        text_layout.position_for_index(range.start),
++                        text_layout.position_for_index(range.end),
++                    ) {
++                        let focus_bounds = if start.y == end.y {
++                            Bounds::from_corners(
++                                point(start.x.min(end.x), start.y),
++                                point(start.x.max(end.x), end.y + text_layout.line_height()),
++                            )
++                        } else {
++                            Bounds::from_corners(
++                                point(bounds.left(), start.y),
++                                point(bounds.right(), end.y + text_layout.line_height()),
++                            )
++                        };
++                        window.paint_quad(quad(
++                            focus_bounds,
++                            px(2.),
++                            gpui::transparent_black(),
++                            Edges {
++                                top: px(1.5),
++                                right: px(1.5),
++                                bottom: px(1.5),
++                                left: px(1.5),
++                            },
++                            view.text_view_style.link(),
++                            BorderStyle::default(),
++                        ));
++                    }
++                }
++            }
++        }
+ 
+         // layout selections
+         let (is_selectable, is_selection, selection) =
+@@ -1088,8 +1462,37 @@
+ 
+ #[cfg(test)]
+ mod tests {
+-    use super::{InlineHighlight, combine_highlights, point_in_text_selection, text_runs};
++    use super::{
++        InlineHighlight, LinkMark, accessible_runs, combine_highlights, point_in_text_selection,
++        text_runs,
++    };
+     use gpui::{FontWeight, HighlightStyle, SharedString, TextStyle, point, px};
++
++    #[test]
++    fn accessible_links_partition_unicode_text_without_duplicating_style_runs() {
++        let text = "Before 世界 guide after";
++        let link = LinkMark {
++            url: "test:guide".into(),
++            ..Default::default()
++        };
++        let links = vec![(14..19, link.clone()), (7..14, link.clone())];
++        let runs = accessible_runs(text, &links);
++        assert_eq!(
++            runs,
++            vec![(0..7, None), (7..19, Some(link.clone())), (19..25, None)]
++        );
++        assert_eq!(
++            runs.iter()
++                .map(|(range, _)| &text[range.clone()])
++                .collect::<String>(),
++            text
++        );
++        // Invalid boundaries cannot panic or hide the remainder of the text.
++        assert_eq!(
++            accessible_runs(text, &[(8..10, link.clone()), (50..80, link)]),
++            vec![(0..text.len(), None)]
++        );
++    }
+ 
+     fn mono(style: HighlightStyle) -> InlineHighlight {
+         InlineHighlight {
+--- a/src/text/inline_flow.rs
++++ b/src/text/inline_flow.rs
+@@ -18,6 +18,7 @@
+ use super::{
+     inline::{Inline, InlineHighlight, InlineState, text_runs, text_size_ranges},
+     inline_object::{InlineObject, MeasuredInlineObject},
++    inline_semantics::{self, Collector, visual_slot},
+     node::LinkMark,
+     utils::image_source,
+ };
+@@ -38,6 +39,7 @@
+ pub(super) enum InlineFlowItem {
+     Object {
+         text: SharedString,
++        fallback_text: Option<SharedString>,
+         id: usize,
+         renderer: Arc<InlineRenderer>,
+         accessibility_label: SharedString,
+@@ -58,6 +60,12 @@
+         width: Option<DefiniteLength>,
+         height: Option<DefiniteLength>,
+     },
++}
++
++pub(super) struct InlineFlowPrepaint {
++    elements: Vec<(AnyElement, Option<(Bounds<Pixels>, gpui::Hsla)>)>,
++    semantics: Vec<(usize, AnyElement)>,
++    runs: Vec<inline_semantics::Run>,
+ }
+ 
+ pub(crate) struct InlineFlowLayoutState {
+@@ -212,7 +220,41 @@
+ 
+ impl Element for InlineFlow {
+     type RequestLayoutState = InlineFlowLayoutState;
+-    type PrepaintState = Vec<(AnyElement, Option<(Bounds<Pixels>, gpui::Hsla)>)>;
++    type PrepaintState = InlineFlowPrepaint;
++
++    fn a11y_role(&self) -> Option<gpui::Role> {
++        Some(gpui::Role::Group)
++    }
++
++    fn a11y_synthetic_children(
++        &mut self,
++        prepaint: &mut Self::PrepaintState,
++        builder: &mut gpui::A11ySubtreeBuilder,
++    ) {
++        // Geometry is collected from real leaves during prepaint. Proxies are
++        // then created after the visuals; interleave their IDs back into source
++        // order, preserving native child subtrees at their original slots.
++        let node = builder.parent_node();
++        let children = node.children().to_vec();
++        let visual_count = prepaint.elements.len();
++        debug_assert_eq!(children.len(), visual_count + prepaint.semantics.len());
++        if children.len() != visual_count + prepaint.semantics.len() {
++            return;
++        }
++        let mut ordered = Vec::with_capacity(children.len());
++        let mut semantics = prepaint.semantics.iter().enumerate().peekable();
++        for (slot, child) in children.iter().take(visual_count).enumerate() {
++            while let Some((index, (source_slot, _))) = semantics.peek() {
++                if *source_slot != slot {
++                    break;
++                }
++                ordered.push(children[visual_count + *index]);
++                semantics.next();
++            }
++            ordered.push(*child);
++        }
++        node.set_children(ordered);
++    }
+ 
+     fn id(&self) -> Option<ElementId> {
+         Some(self.id.clone())
+@@ -303,7 +345,7 @@
+ 
+     fn prepaint(
+         &mut self,
+-        _id: Option<&GlobalElementId>,
++        id: Option<&GlobalElementId>,
+         _inspector_id: Option<&InspectorElementId>,
+         bounds: Bounds<Pixels>,
+         request_layout: &mut Self::RequestLayoutState,
+@@ -319,6 +361,7 @@
+         let typography = request_layout.typography.clone();
+         let text_style = &typography.text_style;
+         let mut elements = Vec::with_capacity(fragments.len());
++        let collector = Collector::new(window, cx);
+ 
+         for fragment in fragments {
+             match fragment {
+@@ -340,6 +383,16 @@
+                         continue;
+                     };
+                     let object_size = object.metrics.size;
++                    if let Some(link) = link {
++                        collector.push(
++                            elements.len(),
++                            Bounds::new(bounds.origin + origin, object_size),
++                            accessibility_label,
++                            Some(link.clone()),
++                        );
++                    } else {
++                        collector.native(elements.len());
++                    }
+                     let mut element = InlineObject::new(
+                         ("inline-object", *id),
+                         text.clone(),
+@@ -443,6 +496,7 @@
+                         highlights,
+                         self.link_click_handler.clone(),
+                     )
++                    .semantic_sink(collector.clone(), elements.len())
+                     .selection_source(source_state.clone(), source_range)
+                     .text_style(text_style.clone())
+                     .selection_bounds(Bounds::new(
+@@ -450,7 +504,7 @@
+                         size(bounds.size.width, selection_bounds.size.height),
+                     ))
+                     .paint_origin(bounds.origin + origin + point(padding, Pixels::ZERO));
+-                    let mut element = div()
++                    let element = div()
+                         .font(text_style.font())
+                         .text_color(text_style.color)
+                         .when_some(text_style.background_color, |this, color| {
+@@ -462,6 +516,7 @@
+                         .whitespace_nowrap()
+                         .child(inline)
+                         .into_any_element();
++                    let mut element = visual_slot(elements.len(), element);
+                     window.with_rem_size(Some(typography.rem_size), |window| {
+                         element.prepaint_as_root(
+                             bounds.origin + origin + point(padding, Pixels::ZERO),
+@@ -486,7 +541,17 @@
+                     else {
+                         continue;
+                     };
+-                    let mut element = Self::image_element(
++                    if let Some(link) = link {
++                        collector.push(
++                            elements.len(),
++                            Bounds::new(bounds.origin + origin, fragment_size),
++                            title,
++                            Some(link.clone()),
++                        );
++                    } else {
++                        collector.native(elements.len());
++                    }
++                    let element = Self::image_element(
+                         elements.len(),
+                         url,
+                         link,
+@@ -494,6 +559,7 @@
+                         fragment_size,
+                         self.link_click_handler.clone(),
+                     );
++                    let mut element = visual_slot(elements.len(), element);
+                     element.prepaint_as_root(
+                         bounds.origin + origin,
+                         size(
+@@ -508,7 +574,14 @@
+             }
+         }
+ 
+-        elements
++        let runs = collector.finish();
++        inline_semantics::reveal(&runs, window, cx);
++        let semantics = inline_semantics::elements(&runs, id, &self.link_click_handler, window, cx);
++        InlineFlowPrepaint {
++            elements,
++            semantics,
++            runs,
++        }
+     }
+ 
+     fn paint(
+@@ -533,12 +606,16 @@
+             }
+         }
+         let radius = crate::Theme::global(cx).tokens.radius.sm;
+-        for (element, background) in prepaint {
++        for (element, background) in &mut prepaint.elements {
+             if let Some((bounds, color)) = background {
+                 window.paint_quad(gpui::fill(*bounds, *color).corner_radii(radius));
+             }
+             element.paint(window, cx);
+         }
++        for (_, element) in &mut prepaint.semantics {
++            element.paint(window, cx);
++        }
++        inline_semantics::paint_focus(&prepaint.runs, window, cx);
+     }
+ }
+ 
+@@ -547,12 +624,13 @@
+         match item {
+             InlineFlowItem::Object {
+                 text,
++                fallback_text,
+                 id,
+                 renderer,
+                 style,
+                 ..
+             } => Self::Object {
+-                text: text.clone(),
++                text: fallback_text.as_ref().unwrap_or(text).clone(),
+                 id: *id,
+                 renderer: renderer.clone(),
+                 style: *style,
+--- a/src/text/inline_object.rs
++++ b/src/text/inline_object.rs
+@@ -45,6 +45,7 @@
+     text: SharedString,
+     font_size: Pixels,
+     text_style: TextStyle,
++    hide_accessibility_when_linked: bool,
+ }
+ 
+ impl MeasuredInlineObject {
+@@ -78,6 +79,7 @@
+             text,
+             font_size,
+             text_style: style.clone(),
++            hide_accessibility_when_linked: false,
+         };
+         if let Some(presentation) = presentation {
+             // The wrapper carries inherited marks into both layout and painting.
+@@ -98,6 +100,7 @@
+             };
+             if metrics.is_valid() {
+                 result.metrics = metrics;
++                result.hide_accessibility_when_linked = presentation.hide_accessibility_when_linked;
+                 result.content = Some(Rc::new(RefCell::new(Some(element))));
+             }
+         }
+@@ -225,6 +228,13 @@
+         node.set_role(Role::GenericContainer);
+         node.set_label(self.accessibility_label.as_ref());
+         node.set_read_only();
++        // Plain fallbacks and explicitly passive alternatives are represented by
++        // the logical link. Custom interactive children retain their semantics.
++        if self.link.is_some()
++            && (!self.content_measured || self.object.hide_accessibility_when_linked)
++        {
++            node.set_hidden();
++        }
+     }
+ 
+     fn request_layout(
+@@ -326,10 +336,8 @@
+         if let Ok(mut value) = self.selected.lock() {
+             *value = selected;
+         }
+-        if selected {
+-            let color = view.as_ref().unwrap().read(cx).text_view_style.selection();
+-            window.paint_quad(gpui::fill(bounds, color));
+-        }
++        let selection_color =
++            selected.then(|| view.as_ref().unwrap().read(cx).text_view_style.selection());
+         if let Some(link) = self.link.clone() {
+             window.set_cursor_style(CursorStyle::PointingHand, hitbox);
+             let link_hitbox = hitbox.clone();
+@@ -404,6 +412,11 @@
+             });
+         }
+         self.content.paint(window, cx);
++        // The atomic object owns this layer; text/image/native child backgrounds
++        // must not cover selection or let prepared search washes take precedence.
++        if let Some(color) = selection_color {
++            window.paint_quad(gpui::fill(bounds, color));
++        }
+     }
+ }
+ 
+--- a/src/text/markdown_ext.rs
++++ b/src/text/markdown_ext.rs
+@@ -41,8 +41,25 @@
+     + Send
+     + Sync;
+ 
++/// A custom renderer's explicit displayed-content contract. Text is rendered
++/// by TextView itself so its searchable bytes and painted glyphs agree. NonText
++/// promises the custom element contains no searchable glyphs. Opaque keeps the
++/// existing renderer but cannot establish complete document query counts.
++#[derive(Clone, Debug, PartialEq, Eq)]
++pub enum MarkdownPresentation {
++    Opaque,
++    Text(SharedString),
++    NonText,
++}
++type MarkdownPresentationFn = dyn Fn(&MarkdownNode) -> MarkdownPresentation + Send + Sync;
++
+ /// A reusable Markdown extension that parses and renders one custom node.
+ pub trait MarkdownPlugin: Send + Sync + 'static {
++    /// Resolve from already-prepared data only: no I/O, layout or matching.
++    /// TextView replaces the plugin renderer for Text; NonText retains it.
++    fn presentation(&self, _node: &MarkdownNode) -> MarkdownPresentation {
++        MarkdownPresentation::Opaque
++    }
+     /// Whether this plugin produces block-level nodes.
+     ///
+     /// Plugins are inline by default. Block plugins should return `true`.
+@@ -106,8 +123,10 @@
+ /// A custom Markdown node produced by [`MarkdownExtensions`].
+ #[derive(Clone)]
+ pub struct MarkdownNode {
++    pub(crate) projection_key: Arc<()>,
+     name: SharedString,
+     text: SharedString,
++    explicit_text: bool,
+     markdown: SharedString,
+     accessibility_label: Option<SharedString>,
+     data: Arc<dyn Any + Send + Sync>,
+@@ -121,8 +140,10 @@
+         T: Any + Send + Sync + 'static,
+     {
+         Self {
++            projection_key: Arc::new(()),
+             name: name.into(),
+             text: SharedString::default(),
++            explicit_text: false,
+             markdown: SharedString::default(),
+             accessibility_label: None,
+             data: Arc::new(data),
+@@ -178,7 +199,7 @@
+     }
+ 
+     pub(crate) fn with_inline_source(mut self, source: &str) -> Self {
+-        if self.text.is_empty() {
++        if !self.explicit_text {
+             self.text = source.to_string().into();
+         }
+         if self.markdown.is_empty() {
+@@ -187,9 +208,11 @@
+         self
+     }
+ 
+-    /// Set the text representation of this custom node.
++    /// Set the text representation of this custom node. Explicit empty text is
++    /// preserved; only an unspecified representation defaults to source syntax.
+     pub fn text(mut self, text: impl Into<SharedString>) -> Self {
+         self.text = text.into();
++        self.explicit_text = true;
+         self
+     }
+ 
+@@ -208,6 +231,9 @@
+     }
+ 
+     pub(crate) fn set_span(&mut self, span: Option<Span>) {
++        // A plugin may reuse a cloned template. Each parsed occurrence needs
++        // its own identity; subsequent renderer clones preserve this key.
++        self.projection_key = Arc::new(());
+         self.span = span;
+     }
+ 
+@@ -235,6 +261,7 @@
+     fn eq(&self, other: &Self) -> bool {
+         self.name == other.name
+             && self.text == other.text
++            && self.explicit_text == other.explicit_text
+             && self.markdown == other.markdown
+             && self.accessibility_label == other.accessibility_label
+             && self.span == other.span
+@@ -244,6 +271,7 @@
+ /// Registry for custom Markdown parsing and rendering.
+ #[derive(Clone, Default)]
+ pub struct MarkdownExtensions {
++    presentations: HashMap<SharedString, Arc<MarkdownPresentationFn>>,
+     enable_mdx: bool,
+     enable_frontmatter: bool,
+     block_parsers: Vec<Arc<MarkdownBlockParserFn>>,
+@@ -308,12 +336,17 @@
+     }
+ 
+     /// Apply a reusable Markdown plugin.
+-    pub fn plugin<P>(self, plugin: P) -> Self
++    pub fn plugin<P>(mut self, plugin: P) -> Self
+     where
+         P: MarkdownPlugin,
+     {
+         let plugin = Arc::new(plugin);
+         let name = SharedString::from(plugin.name().to_string());
++        let presentation = plugin.clone();
++        self.presentations.insert(
++            name.clone(),
++            Arc::new(move |node| presentation.presentation(node)),
++        );
+         let parser = plugin.clone();
+         let renderer = plugin;
+ 
+@@ -341,6 +374,12 @@
+ 
+     pub(crate) fn revision(&self) -> u64 {
+         self.revision
++    }
++
++    pub(crate) fn presentation(&self, node: &MarkdownNode) -> MarkdownPresentation {
++        self.presentations
++            .get(node.name())
++            .map_or(MarkdownPresentation::Opaque, |f| f(node))
+     }
+ 
+     /// Whether replacing these extension handles can change the parsed tree.
 --- a/src/text/node.rs
 +++ b/src/text/node.rs
-@@ -3656,3 +3656,123 @@
+@@ -360,10 +360,25 @@
+ #[allow(unused)]
+ #[derive(Debug, Default, Clone, PartialEq)]
+ pub struct LinkMark {
++    /// Source identity shared by styled/line-wrapped pieces of one Markdown link.
++    pub source_start: Option<usize>,
+     pub url: SharedString,
+     /// Optional identifier for footnotes.
+     pub identifier: Option<SharedString>,
+     pub title: Option<SharedString>,
++}
++
++impl LinkMark {
++    pub(super) fn resolved(&self, references: &HashMap<SharedString, LinkMark>) -> Self {
++        let mut link = self
++            .identifier
++            .as_ref()
++            .and_then(|id| references.get(id))
++            .unwrap_or(self)
++            .clone();
++        link.source_start = self.source_start;
++        link
++    }
+ }
+ 
+ #[derive(Debug, Default, Clone, PartialEq)]
+@@ -486,7 +501,7 @@
+     /// The text styles, each tuple contains the range of the text and the style.
+     pub(crate) marks: Vec<(Range<usize>, TextMark)>,
+ 
+-    state: Arc<Mutex<InlineState>>,
++    pub(super) state: Arc<Mutex<InlineState>>,
+ }
+ 
+ impl PartialEq for InlineNode {
+@@ -1279,7 +1294,7 @@
+ #[derive(Debug, Clone)]
+ pub struct CodeBlock {
+     lang: Option<SharedString>,
+-    state: Arc<Mutex<InlineState>>,
++    pub(super) state: Arc<Mutex<InlineState>>,
+     highlight_cache: Arc<Mutex<Option<CachedCodeBlockHighlights>>>,
+     pub span: Option<Span>,
+ }
+@@ -1477,6 +1492,7 @@
+ /// A context for rendering nodes, contains link references.
+ #[derive(Default, Clone)]
+ pub(crate) struct NodeContext {
++    pub(crate) displayed_text: Option<Arc<super::DisplayedText>>,
+     /// The byte offset of the node in the original markdown text.
+     /// Used for incremental updates.
+     pub(crate) offset: usize,
+@@ -1665,11 +1681,7 @@
+                         });
+ 
+                         // convert link references, replace link
+-                        if let Some(identifier) = link_mark.identifier.as_ref() {
+-                            if let Some(mark) = node_cx.link_refs.get(identifier) {
+-                                link_mark = mark.clone();
+-                            }
+-                        }
++                        link_mark = link_mark.resolved(&node_cx.link_refs);
+ 
+                         links.push((inner_range.clone(), link_mark));
+                     }
+@@ -1742,13 +1754,7 @@
+                 for (_, mark) in &inline_node.marks {
+                     object_style = object_style.highlight(mark_highlight(mark, node_cx, cx).style);
+                     if let Some(link) = &mark.link {
+-                        object_link = Some(
+-                            link.identifier
+-                                .as_ref()
+-                                .and_then(|id| node_cx.link_refs.get(id))
+-                                .unwrap_or(link)
+-                                .clone(),
+-                        );
++                        object_link = Some(link.resolved(&node_cx.link_refs));
+                         object_style.color = Some(node_cx.style.link());
+                         object_style.underline = Some(gpui::UnderlineStyle {
+                             thickness: px(1.),
+@@ -1756,13 +1762,40 @@
+                         });
+                     }
+                 }
++                let linked = object_link.is_some();
+                 let rendered_node = node.clone();
+                 let extensions = node_cx.markdown_extensions.clone();
++                let projected = node_cx
++                    .displayed_text
++                    .as_ref()
++                    .and_then(|source| source.object_text(node));
+                 items.push(InlineFlowItem::Object {
+                     text: node.shared_text(),
++                    // A missing/invalid non-text element must not silently turn
++                    // its copy/AX alternative into unprojected fallback glyphs.
++                    fallback_text: node_cx
++                        .displayed_text
++                        .as_ref()
++                        .is_some_and(|source| source.object_is_non_text(node))
++                        .then(SharedString::default),
+                     accessibility_label: node.shared_accessibility_name(),
+                     id: node.source_range().map_or(items.len(), |range| range.start),
+                     renderer: Arc::new(move |context, window, cx| {
++                        if let Some(state) = &projected {
++                            return Some(super::InlineElement::new(
++                                div().min_w(px(1.)).min_h(px(1.)).child(
++                                    Inline::new(
++                                        "projected-object",
++                                        state.clone(),
++                                        vec![],
++                                        vec![],
++                                        None,
++                                    )
++                                    .passive()
++                                    .suppress_semantics(linked),
++                                ),
++                            ));
++                        }
+                         extensions.render_inline(&rendered_node, context, window, cx)
+                     }),
+                     selected: inline_node.custom_selection.clone(),
+@@ -1813,11 +1846,7 @@
+                             ..Default::default()
+                         });
+ 
+-                        if let Some(identifier) = link_mark.identifier.as_ref()
+-                            && let Some(mark) = node_cx.link_refs.get(identifier)
+-                        {
+-                            link_mark = mark.clone();
+-                        }
++                        link_mark = link_mark.resolved(&node_cx.link_refs);
+ 
+                         links.push((inner_range.clone(), link_mark));
+                     }
+@@ -2179,6 +2208,7 @@
+                 ..
+             } => v_flex()
+                 .id(("li", options.ix))
++                .role(gpui::Role::ListItem)
+                 .w_full()
+                 .min_w_0()
+                 .when(*spread, |this| this.child(div()))
+@@ -2421,6 +2451,13 @@
+                 cells.push(
+                     div()
+                         .id(("cell", ix))
++                        .role(if row_ix == 0 {
++                            gpui::Role::ColumnHeader
++                        } else {
++                            gpui::Role::Cell
++                        })
++                        .aria_row_index(row_ix)
++                        .aria_column_index(ix)
+                         // Measured max-content width is the flex-basis;
+                         // `flex_grow` (proportional to it) distributes extra
+                         // space so a narrow table still fills the frame, while
+@@ -2445,7 +2482,9 @@
+             }
+             rows.push(
+                 div()
+-                    .id("row")
++                    .id(("row", row_ix))
++                    .role(gpui::Role::Row)
++                    .aria_row_index(row_ix)
+                     .w_full()
+                     .when(row_ix < row_count - 1, |this| this.border_b_1())
+                     .border_color(style.border())
+@@ -2489,7 +2528,14 @@
+                     // shrink-to-fit (their text wrapping), the definite
+                     // `w(min_total_w)` keeps the floors once they are reached,
+                     // letting the track exceed the viewport and scroll.
+-                    div().min_w_full().w(px(min_total_w)).children(rows),
++                    div()
++                        .id("table-data")
++                        .role(gpui::Role::Table)
++                        .aria_row_count(row_count)
++                        .aria_column_count(col_count)
++                        .min_w_full()
++                        .w(px(min_total_w))
++                        .children(rows),
+                 ),
+             )
+             // Custom actions row (e.g. copy / download) rendered below the
+@@ -2537,6 +2583,13 @@
+                 cells.push(
+                     div()
+                         .id(("cell", ix))
++                        .role(if row_ix == 0 {
++                            gpui::Role::ColumnHeader
++                        } else {
++                            gpui::Role::Cell
++                        })
++                        .aria_row_index(row_ix)
++                        .aria_column_index(ix)
+                         .overflow_hidden()
+                         .when(align == ColumnumnAlign::Center, |this| this.text_center())
+                         .when(align == ColumnumnAlign::Right, |this| this.text_right())
+@@ -2554,7 +2607,9 @@
+ 
+             rows.push(
+                 div()
+-                    .id("row")
++                    .id(("row", row_ix))
++                    .role(gpui::Role::Row)
++                    .aria_row_index(row_ix)
+                     .w_full()
+                     .when(row_ix < row_count - 1, |this| this.border_b_1())
+                     .border_color(style.border())
+@@ -2578,6 +2633,9 @@
+             .child(
+                 div()
+                     .id(("table", options.ix))
++                    .role(gpui::Role::Table)
++                    .aria_row_count(row_count)
++                    .aria_column_count(col_lens.len())
+                     .w_full()
+                     .bg(cx.theme().tokens.colors.surface)
+                     .border_1()
+@@ -2625,6 +2683,7 @@
+                 .into_any_element(),
+             BlockNode::Paragraph(paragraph) => div()
+                 .id(("p", ix))
++                .role(gpui::Role::Paragraph)
+                 .pb(mb)
+                 .child(paragraph.render(node_cx, window, cx))
+                 .into_any_element(),
+@@ -2648,6 +2707,8 @@
+ 
+                 div()
+                     .id(SharedString::from(format!("h{}-{}", level, ix)))
++                    .role(gpui::Role::Heading)
++                    .aria_level(*level as usize)
+                     .pb(rems(0.3))
+                     .whitespace_normal()
+                     .text_size(text_size)
+@@ -2679,6 +2740,7 @@
+                 children, ordered, ..
+             } => v_flex()
+                 .id((if *ordered { "ol" } else { "ul" }, ix))
++                .role(gpui::Role::List)
+                 .w_full()
+                 .min_w_0()
+                 .pb(mb)
+@@ -2710,6 +2772,19 @@
+                 .into_any_element(),
+             BlockNode::CodeBlock(code_block) => code_block.render(&options, node_cx, window, cx),
+             BlockNode::Custom(node) => {
++                if let Some(state) = node_cx
++                    .displayed_text
++                    .as_ref()
++                    .and_then(|source| source.object_text(node))
++                {
++                    return div()
++                        .pb(mb)
++                        .child(
++                            Inline::new(("projected-block", ix), state, vec![], vec![], None)
++                                .passive_block(),
++                        )
++                        .into_any_element();
++                }
+                 let inner = match node_cx.markdown_extensions.render_block(node, window, cx) {
+                     Some(rendered) => rendered,
+                     None => div().child(node.as_text().to_string()).into_any_element(),
+@@ -3656,3 +3731,123 @@
          assert_ne!(first, second);
      }
  }
@@ -1190,7 +3593,26 @@
 +}
 --- a/src/text/state.rs
 +++ b/src/text/state.rs
-@@ -111,6 +111,7 @@
+@@ -17,8 +17,8 @@
+     async_util::{Receiver, Sender, unbounded},
+     input::{self, SelectAll},
+     text::{
+-        CodeBlockActionsFn, CodeBlockHighlighterFn, LinkClickHandlerFn, MarkdownExtensions,
+-        TableActionsFn, TextViewStyle,
++        CodeBlockActionsFn, CodeBlockHighlighterFn, LinkClickHandlerFn, LinkFocusGuardFn,
++        MarkdownExtensions, TableActionsFn, TextViewStyle,
+         document::ParsedDocument,
+         format,
+         node::{self, NodeContext},
+@@ -104,6 +104,7 @@
+     pub(super) code_block_highlighter: Option<std::sync::Arc<CodeBlockHighlighterFn>>,
+     pub(super) table_actions: Option<std::sync::Arc<TableActionsFn>>,
+     pub(super) link_click_handler: Option<std::sync::Arc<LinkClickHandlerFn>>,
++    pub(super) link_focus_guard: Option<Arc<LinkFocusGuardFn>>,
+     pub(super) markdown_extensions: Arc<MarkdownExtensions>,
+ 
+     pub(super) is_selecting: bool,
+@@ -111,11 +112,17 @@
      pub(super) preserve_inline_selection: bool,
      multi_click_selection: Option<TextViewMultiClickSelection>,
      selected_text_override: Option<String>,
@@ -1198,7 +3620,17 @@
      select_all: bool,
      pub(super) auto_scroll: AutoScroll,
      pub(super) selection_adapter: TextViewSelectionAdapter,
-@@ -126,72 +127,140 @@
+ 
+     pub(super) parsed_content: ParsedContent,
++    pub(super) text_backgrounds: Option<std::rc::Rc<super::TextBackgrounds>>,
++    pub(super) link_navigation: super::link_navigation::Navigation,
++    pub(super) link_reveal: Option<usize>,
++    pub(super) link_reveal_claimed: bool,
++    pub(super) link_active_owner: Option<gpui::GlobalElementId>,
+     /// Content format (markdown / html), used for bounded synchronous parsing
+     /// of small full-replace updates.
+     format: TextViewFormat,
+@@ -126,72 +133,176 @@
      layout_text_style: Option<(gpui::TextStyle, Pixels)>,
      parsed_error: Option<SharedString>,
      tx: Sender<UpdateOptions>,
@@ -1209,6 +3641,38 @@
  }
  
  impl TextViewState {
++    /// Install immutable decoration layers for this exact prepared AST. A stale
++    /// source clears the old owner and returns false. This does not reparse or
++    /// invalidate list measurements, selection or scrolling.
++    pub fn set_text_backgrounds(
++        &mut self,
++        layers: Option<std::rc::Rc<super::TextBackgrounds>>,
++        cx: &mut Context<Self>,
++    ) -> bool {
++        let valid = layers.as_ref().is_none_or(|layers| {
++            self.parsed_content
++                .displayed_text
++                .as_ref()
++                .is_some_and(|source| Arc::ptr_eq(source, &layers.source))
++        });
++        let layers = valid.then_some(layers).flatten();
++        let same = match (&self.text_backgrounds, &layers) {
++            (Some(a), Some(b)) => std::rc::Rc::ptr_eq(a, b),
++            (None, None) => true,
++            _ => false,
++        };
++        if !same {
++            self.text_backgrounds = layers;
++            cx.notify();
++        }
++        valid
++    }
++    /// The immutable fragments of the installed bounded preparation. Ordinary
++    /// asynchronous Markdown/HTML updates do not advertise this contract.
++    pub fn displayed_text(&self) -> Option<Arc<super::DisplayedText>> {
++        self.parsed_content.displayed_text.clone()
++    }
++
 +    /// Install a single-use snapshot from an externally bounded worker. No
 +    /// parser work or source queue is started by this operation. The caller
 +    /// rejects stale document generations/revisions before calling it.
@@ -1261,6 +3725,8 @@
 +        self.text = prepared.content.document.source.to_string();
 +        self.markdown_extensions = prepared.content.node_cx.markdown_extensions.clone();
 +        self.parsed_content = prepared.content;
++        self.text_backgrounds = None;
++        self.refresh_links(unchanged_prefix);
 +        self.parsed_error = None;
 +        self.preserve_inline_selection = preserve;
 +        self.compatible_layout_update = preserve;
@@ -1327,6 +3793,8 @@
 +                            match parsed_update.result {
 +                                Ok(content) => {
 +                                    state.parsed_content = content;
++                                    state.text_backgrounds = None;
++                                    state.refresh_links(None);
 +                                    state.parsed_error = None;
 +                                    state.compatible_layout_update =
 +                                        parsed_update.selection_compatible;
@@ -1378,7 +3846,26 @@
              select_all: false,
              selectable: false,
              selection_format: SelectionFormat::default(),
-@@ -226,7 +295,9 @@
+@@ -209,12 +320,18 @@
+             code_block_highlighter: None,
+             table_actions: None,
+             link_click_handler: None,
++            link_focus_guard: None,
+             markdown_extensions: Arc::default(),
+             is_selecting: false,
+             preserve_inline_selection: false,
+             auto_scroll: AutoScroll::default(),
+             selection_adapter,
+             parsed_content: Default::default(),
++            text_backgrounds: None,
++            link_navigation: Default::default(),
++            link_reveal: None,
++            link_reveal_claimed: false,
++            link_active_owner: None,
+             format,
+             parsed_error: None,
+             text: text.to_string(),
+@@ -226,8 +343,95 @@
              _parse_task,
              _receive_task,
          };
@@ -1387,9 +3874,135 @@
 +            this.increment_update(&text, false, cx);
 +        }
          this
++    }
++
++    fn refresh_links(&mut self, unchanged_prefix: Option<usize>) {
++        self.link_navigation.refresh(
++            &self.parsed_content.document,
++            &self.parsed_content.node_cx,
++            unchanged_prefix,
++        );
++        self.link_reveal = None;
++    }
++
++    pub(super) fn focus_link(
++        &mut self,
++        link: &node::LinkMark,
++        window: &mut Window,
++        cx: &mut Context<Self>,
++    ) {
++        let Some(source) = link.source_start else {
++            return;
++        };
++        let Ok(index) = self
++            .link_navigation
++            .links
++            .binary_search_by_key(&source, |entry| entry.source_start)
++        else {
++            return;
++        };
++        let target = &self.link_navigation.links[index];
++        if target.url != link.url
++            || self
++                .link_focus_guard
++                .as_ref()
++                .is_some_and(|guard| !guard(cx))
++        {
++            return;
++        }
++        self.link_navigation.active = Some(source);
++        self.link_reveal = Some(source);
++        if self.scrollable {
++            self.list_state.scroll_to_reveal_item(target.block);
++        }
++        self.focus_handle.focus(window, cx);
++        cx.notify();
++    }
++
++    pub(super) fn on_link_key(
++        &mut self,
++        event: &gpui::KeyDownEvent,
++        window: &mut Window,
++        cx: &mut Context<Self>,
++    ) {
++        if !self.focus_handle.is_focused(window) {
++            return;
++        }
++        let modifiers = event.keystroke.modifiers;
++        if modifiers.control || modifiers.alt || modifiers.platform || modifiers.function {
++            return;
++        }
++        if event.keystroke.key == "tab" {
++            self.link_reveal = None;
++            if let Some(link) = self.link_navigation.step(modifiers.shift) {
++                self.link_reveal = Some(link.source_start);
++                if self.scrollable {
++                    self.list_state.scroll_to_reveal_item(link.block);
++                }
++                cx.stop_propagation();
++            }
++            cx.notify();
++        } else if event.keystroke.key == "enter" && !modifiers.shift {
++            if let Some(link) = self.link_navigation.selected() {
++                super::text_view::handle_link_click(
++                    &self.link_click_handler,
++                    link.url.clone(),
++                    gpui::ClickEvent::Keyboard(gpui::KeyboardClickEvent::default()),
++                    window,
++                    cx,
++                );
++                cx.stop_propagation();
++            }
++        } else if event.keystroke.key == "escape" && self.link_navigation.active.is_some() {
++            self.link_navigation.active = None;
++            self.link_reveal = None;
++            cx.notify();
++            cx.stop_propagation();
++        }
      }
  
-@@ -325,6 +396,17 @@
+     /// Get the text content.
+@@ -243,7 +447,13 @@
+ 
+     /// Set whether the text is selectable, default false.
+     pub fn set_selectable(&mut self, selectable: bool, cx: &mut Context<Self>) {
++        if self.selectable == selectable {
++            return;
++        }
+         self.selectable = selectable;
++        if !selectable {
++            self.reset_selection_and_adapter(cx);
++        }
+         cx.notify();
+     }
+ 
+@@ -305,7 +515,12 @@
+         self.increment_update(new_text, true, cx);
+     }
+ 
+-    pub(crate) fn set_markdown_extensions(
++    /// Replace prepared renderer resources. For bounded externally prepared
++    /// documents with unchanged parser configuration, this rebuilds only the
++    /// displayed-text projection, not the AST. Parser changes use the normal
++    /// content-update path and require a new bounded preparation for decoration.
++    /// Callers must invalidate their enclosing query source after this operation.
++    pub fn set_markdown_extensions(
+         &mut self,
+         markdown_extensions: Arc<MarkdownExtensions>,
+         cx: &mut Context<Self>,
+@@ -321,10 +536,29 @@
+         if parser_configuration_changed && self.format == TextViewFormat::Markdown {
+             let text = self.text.clone();
+             self.increment_update(&text, false, cx);
++        } else if self.parsed_content.bounded {
++            self.text_backgrounds = None;
++            self.parsed_content.displayed_text = super::DisplayedText::prepare(
++                &self.parsed_content.document,
++                &self.markdown_extensions,
++            )
++            .ok();
++            self.invalidate_inline_layout(cx);
+         }
      }
  
      /// Return the selected text, in the view's [`SelectionFormat`].
@@ -1407,7 +4020,7 @@
      pub fn selected_text(&self) -> String {
          self.selected_text_in(None)
      }
-@@ -353,6 +435,11 @@
+@@ -353,6 +587,11 @@
      /// [`ParsedDocument::selected_text`](crate::text::document::ParsedDocument).
      pub(super) fn selected_text_in(&self, blocks: Option<RangeInclusive<usize>>) -> String {
          let format = self.effective_format();
@@ -1419,7 +4032,16 @@
  
          if self.select_all {
              if format == SelectionFormat::Source {
-@@ -524,6 +611,7 @@
+@@ -436,6 +675,8 @@
+             match parse_content(self.format, ParsedContent::default(), &update_options) {
+                 Ok(content) => {
+                     self.parsed_content = content;
++                    self.text_backgrounds = None;
++                    self.refresh_links(None);
+                     self.parsed_error = None;
+                     self.invalidate_measured_heights();
+                     if !self.is_selecting {
+@@ -524,6 +765,7 @@
          self.preserve_inline_selection = false;
          self.multi_click_selection = None;
          self.selected_text_override = None;
@@ -1427,7 +4049,7 @@
          self.select_all = false;
          self.is_selecting = false;
          self.auto_scroll.stop();
-@@ -556,6 +644,7 @@
+@@ -556,6 +798,7 @@
      pub fn select_all(&mut self, cx: &mut Context<Self>) {
          self.multi_click_selection = None;
          self.selected_text_override = None;
@@ -1435,7 +4057,7 @@
          self.select_all = true;
          self.is_selecting = false;
          self.auto_scroll.stop();
-@@ -579,6 +668,7 @@
+@@ -579,6 +822,7 @@
              line_bounds: None,
          });
          self.selected_text_override = Some(selected_text);
@@ -1443,7 +4065,7 @@
          self.select_all = false;
          self.is_selecting = false;
          self.auto_scroll.stop();
-@@ -593,6 +683,7 @@
+@@ -593,6 +837,7 @@
              cx,
          );
          self.selected_text_override = None;
@@ -1451,10 +4073,22 @@
          let offset = self.bounds.origin + self.scroll_offset();
          if let Some(selection) = self.multi_click_selection.as_mut() {
              selection.line_bounds = Some(Bounds::new(bounds.origin - offset, bounds.size));
-@@ -769,6 +860,57 @@
-     pub(crate) node_cx: node::NodeContext,
- }
+@@ -697,6 +942,7 @@
+         let state = cx.entity();
+         let document = self.parsed_content.document.clone();
+         let mut node_cx = self.parsed_content.node_cx.clone();
++        node_cx.displayed_text = self.parsed_content.displayed_text.clone();
  
+         node_cx.code_block_actions = self.code_block_actions.clone();
+         node_cx.code_block_highlighter = self.code_block_highlighter.clone();
+@@ -767,6 +1013,77 @@
+ pub(crate) struct ParsedContent {
+     pub(crate) document: ParsedDocument,
+     pub(crate) node_cx: node::NodeContext,
++    displayed_text: Option<Arc<super::DisplayedText>>,
++    bounded: bool,
++}
++
 +/// A single-use full Markdown parse prepared outside the native UI thread.
 +/// This deliberately does not implement Clone: parsed inline nodes contain
 +/// mutable selection/layout state and must not be shared between mounted views.
@@ -1472,9 +4106,27 @@
 +            ..NodeContext::default()
 +        };
 +        let document = format::markdown::parse_bounded(source, &mut node_cx)?;
++        let displayed_text = Some(super::DisplayedText::prepare(
++            &document,
++            &node_cx.markdown_extensions,
++        )?);
 +        Ok(Self {
-+            content: ParsedContent { document, node_cx },
++            content: ParsedContent {
++                document,
++                node_cx,
++                displayed_text,
++                bounded: true,
++            },
 +        })
++    }
++
++    /// Available before any layout/paint, including all virtualized blocks.
++    pub fn displayed_text(&self) -> Arc<super::DisplayedText> {
++        self.content
++            .displayed_text
++            .as_ref()
++            .expect("bounded preparation")
++            .clone()
 +    }
 +
 +    pub fn source(&self) -> SharedString {
@@ -1504,106 +4156,2065 @@
 +        }
 +        blocks
 +    }
+ }
+ 
+ struct UpdateFuture {
+@@ -884,6 +1201,10 @@
+     mut content: ParsedContent,
+     options: &UpdateOptions,
+ ) -> Result<ParsedContent, SharedString> {
++    // A later ordinary parse cannot reuse identities from an installed bounded
++    // snapshot. It has no admission contract for this extra representation.
++    content.displayed_text = None;
++    content.bounded = false;
+     let mut node_cx = NodeContext {
+         markdown_extensions: options.markdown_extensions.clone(),
+         ..NodeContext::default()
+--- a/src/input/editor/display_map/text_wrapper.rs
++++ b/src/input/editor/display_map/text_wrapper.rs
+@@ -531,6 +531,7 @@
+     /// Whether any run of this line carries a background color, so [`Self::paint_background`]
+     /// can skip the glyph walk for the common case of a line without highlights.
+     has_background: bool,
++    range_geometry: std::cell::OnceCell<Vec<Option<crate::text::ReorderedTextGeometry>>>,
+ }
+ 
+ impl LineLayout {
+@@ -543,6 +544,7 @@
+             whitespace_chars: Vec::new(),
+             whitespace_indicators: None,
+             has_background: false,
++            range_geometry: Default::default(),
+         }
+     }
+ 
+@@ -575,6 +577,7 @@
+     }
+ 
+     pub(crate) fn set_wrapped_lines(&mut self, wrapped_lines: SmallVec<[ShapedLine; 1]>) {
++        self.range_geometry.take();
+         self.len = wrapped_lines.iter().map(|l| l.len).sum();
+         let width = wrapped_lines
+             .iter()
+@@ -815,6 +818,69 @@
+                 window,
+                 cx,
+             );
++        }
++    }
++
++    pub(crate) fn paint_range_background(
++        &self,
++        bytes: Range<usize>,
++        origin: Point<Pixels>,
++        line_height: Pixels,
++        align: TextAlign,
++        width: Pixels,
++        color: gpui::Hsla,
++        radius: Pixels,
++        window: &mut Window,
++    ) {
++        let geometries = self.range_geometry.get_or_init(|| {
++            self.wrapped_lines
++                .iter()
++                .map(|line| crate::text::ReorderedTextGeometry::new(line))
++                .collect()
++        });
++        let mut offset = 0;
++        for (row, line) in self.wrapped_lines.iter().enumerate() {
++            let end = offset + line.len;
++            let start_byte = bytes.start.max(offset);
++            let end_byte = bytes.end.min(end);
++            if start_byte < end_byte {
++                let align_x = match align {
++                    TextAlign::Left => px(0.),
++                    TextAlign::Center => (width - line.width).half().max(px(0.)),
++                    TextAlign::Right => (width - line.width).max(px(0.)),
++                };
++                let mut paint = |x: Range<Pixels>| {
++                    let bounds = gpui::Bounds::new(
++                        origin
++                            + point(self.line_indent(row) + align_x + x.start, row * line_height),
++                        size(x.end - x.start, line_height),
++                    );
++                    if bounds.size.width > px(0.)
++                        && bounds.intersects(&window.content_mask().bounds)
++                    {
++                        window.paint_quad(gpui::quad(
++                            bounds,
++                            radius,
++                            color,
++                            px(0.),
++                            gpui::transparent_black(),
++                            Default::default(),
++                        ));
++                    }
++                };
++                if let Some(geometry) = &geometries[row] {
++                    geometry.spans(
++                        start_byte - offset..end_byte - offset,
++                        px(0.)..line.width,
++                        &mut paint,
++                    );
++                } else {
++                    let x1 = line.x_for_index(start_byte - offset);
++                    let x2 = line.x_for_index(end_byte - offset);
++                    paint(x1.min(x2)..x1.max(x2));
++                }
++            }
++            offset = end;
+         }
+     }
+ 
+--- /dev/null
++++ b/src/text/backgrounds.rs
+@@ -0,0 +1,168 @@
++//! Prepared decoration data; no matching or application callbacks during paint.
++use std::{ops::Range, rc::Rc, sync::Arc};
++
++use gpui::{Bounds, TextAlign, TextLayout, Window, point, px, quad, size};
++
++use crate::input::{RangeBackground, RangeBackgroundError, RangeBackgrounds};
++
++use super::{DisplayedFragment, DisplayedText, ReorderedTextGeometry};
++
++/// A fixed array of paint layers for one immutable parsed text snapshot. The
++/// range providers retain their preparation leases through each painted frame.
++pub struct TextBackgrounds {
++    pub(super) source: Arc<DisplayedText>,
++    layers: Vec<Option<Rc<dyn RangeBackgrounds>>>,
++}
++impl TextBackgrounds {
++    pub fn new(
++        source: Arc<DisplayedText>,
++        layers: Vec<Option<Rc<dyn RangeBackgrounds>>>,
++    ) -> Result<Self, RangeBackgroundError> {
++        if layers.len() != source.fragments().len() {
++            return Err(RangeBackgroundError::InvalidRange);
++        }
++        let mut count = 0usize;
++        for (fragment, layer) in source.fragments().iter().zip(&layers) {
++            if let Some(layer) = layer {
++                count += layer.ranges().len();
++                if count > 32768 {
++                    return Err(RangeBackgroundError::Limit);
++                }
++                for wash in layer.ranges() {
++                    if wash.bytes.start >= wash.bytes.end
++                        || wash.bytes.end > fragment.text().len()
++                        || !fragment.text().is_char_boundary(wash.bytes.start)
++                        || !fragment.text().is_char_boundary(wash.bytes.end)
++                    {
++                        return Err(RangeBackgroundError::InvalidRange);
++                    }
++                    if !wash.radius.as_f32().is_finite()
++                        || wash.radius < px(0.)
++                        || wash.radius > px(64.)
++                    {
++                        return Err(RangeBackgroundError::InvalidRadius);
++                    }
++                }
++            }
++        }
++        Ok(Self { source, layers })
++    }
++
++    pub(super) fn layer(&self, fragment: &DisplayedFragment) -> Option<Rc<dyn RangeBackgrounds>> {
++        let current = self.source.fragments().get(fragment.id() as usize)?;
++        // Identical bytes in a different prepared AST are still a new source.
++        if !Arc::ptr_eq(current.text(), fragment.text()) {
++            return None;
++        }
++        self.layers.get(fragment.id() as usize)?.clone()
++    }
 +}
 +
- struct UpdateFuture {
-     format: TextViewFormat,
-     content: ParsedContent,
---- a/src/text/text_view.rs
-+++ b/src/text/text_view.rs
-@@ -19,7 +19,7 @@
- pub(crate) type CodeBlockActionsFn =
-     dyn Fn(&CodeBlock, &mut Window, &mut App) -> AnyElement + Send + Sync;
++/// Source ranges are local to the unsplit prepared fragment. InlineFlow calls
++/// this with its actual shaped subrange, preserving Unicode byte boundaries.
++pub(super) fn paint(
++    ranges: &[RangeBackground],
++    source: Range<usize>,
++    layout: &TextLayout,
++    align: TextAlign,
++    window: &mut Window,
++) {
++    let bounds = layout.bounds();
++    let height = layout.line_height();
++    let mask = window.content_mask().bounds;
++    let lines = layout.line_layouts();
++    // Construct at most once per shaped line in this paint pass, not per match.
++    let geometries = lines
++        .iter()
++        .map(|line| ReorderedTextGeometry::new(&line.unwrapped_layout))
++        .collect::<Vec<_>>();
++    for wash in ranges {
++        let start = wash.bytes.start.max(source.start);
++        let end = wash.bytes.end.min(source.end);
++        if start >= end {
++            continue;
++        }
++        let start = start - source.start;
++        let end = end - source.start;
++        let mut offset = 0;
++        let mut row = 0;
++        for (line, geometry) in lines.iter().zip(&geometries) {
++            let local_start = start.saturating_sub(offset);
++            let local_end = end.saturating_sub(offset).min(line.len());
++            if local_start < local_end {
++                let boundary = |row: usize| {
++                    if row == 0 {
++                        (0, px(0.))
++                    } else {
++                        line.wrap_boundaries.get(row - 1).map_or(
++                            (line.len(), line.unwrapped_layout.width),
++                            |b| {
++                                let glyph =
++                                    &line.unwrapped_layout.runs[b.run_ix].glyphs[b.glyph_ix];
++                                (glyph.index, glyph.position.x)
++                            },
++                        )
++                    }
++                };
++                for wrapped in 0..=line.wrap_boundaries.len() {
++                    let y = bounds.top() + height * (row + wrapped);
++                    if y >= mask.bottom() {
++                        break;
++                    }
++                    if y + height <= mask.top() {
++                        continue;
++                    }
++                    let (from, x_from) = boundary(wrapped);
++                    let (to, x_to) = boundary(wrapped + 1);
++                    let a = local_start.max(from);
++                    let b = local_end.min(to);
++                    if geometry.is_none() && a >= b {
++                        continue;
++                    }
++                    let inset = match align {
++                        TextAlign::Left => px(0.),
++                        TextAlign::Center => (bounds.size.width - (x_to - x_from)) / 2.,
++                        TextAlign::Right => bounds.size.width - (x_to - x_from),
++                    };
++                    if let Some(geometry) = geometry {
++                        geometry.spans(local_start..local_end, x_from..x_to, |span| {
++                            window.paint_quad(quad(
++                                Bounds::new(
++                                    point(bounds.left() + inset + span.start - x_from, y),
++                                    size(span.end - span.start, height),
++                                ),
++                                wash.radius,
++                                wash.color,
++                                px(0.),
++                                gpui::transparent_black(),
++                                Default::default(),
++                            ));
++                        });
++                        continue;
++                    }
++                    let a = line.unwrapped_layout.x_for_index(a) - x_from;
++                    let b = line.unwrapped_layout.x_for_index(b) - x_from;
++                    if a == b {
++                        continue;
++                    }
++                    window.paint_quad(quad(
++                        Bounds::new(
++                            point(bounds.left() + inset + a.min(b), y),
++                            size((b - a).abs(), height),
++                        ),
++                        wash.radius,
++                        wash.color,
++                        px(0.),
++                        gpui::transparent_black(),
++                        Default::default(),
++                    ));
++                }
++            }
++            row += line.wrap_boundaries.len() + 1;
++            offset += line.len() + 1;
++            if offset >= end {
++                break;
++            }
++        }
++    }
++}
+--- a/src/text/mod.rs
++++ b/src/text/mod.rs
+@@ -1,13 +1,18 @@
++mod backgrounds;
++mod displayed_text;
+ mod document;
+ mod format;
+ mod inline;
+ mod inline_element;
+ mod inline_flow;
+ mod inline_object;
++mod inline_semantics;
+ #[cfg(test)]
+ mod inline_virtual_tests;
++mod link_navigation;
+ mod markdown_ext;
+ mod node;
++mod range_geometry;
+ pub(crate) mod selection;
+ mod selection_adapter;
+ mod state;
+@@ -15,10 +20,13 @@
+ mod text_view;
+ mod utils;
  
--pub(crate) type CodeBlockHighlighterFn =
-+pub type CodeBlockHighlighterFn =
-     dyn Fn(&CodeBlock) -> Vec<(Range<usize>, gpui::HighlightStyle)> + Send + Sync;
++pub use backgrounds::TextBackgrounds;
++pub use displayed_text::{DisplayedFragment, DisplayedText};
+ use gpui::{App, ElementId, IntoElement, RenderOnce, SharedString, Window};
+ pub use inline_element::*;
+ pub use markdown_ext::*;
+ pub use node::{CodeBlock, TableData};
++pub use range_geometry::ReorderedTextGeometry;
+ pub use state::*;
+ pub use style::*;
+ pub use text_view::*;
+--- /dev/null
++++ b/src/text/range_geometry.rs
+@@ -0,0 +1,111 @@
++//! Visual cells for shaped lines whose source indices are reordered (for example
++//! bidirectional text). Logical endpoints alone cannot describe their paint.
++use std::ops::Range;
++
++use gpui::{LineLayout, Pixels, px};
++
++struct Cell {
++    source: Range<usize>,
++    x: Range<Pixels>,
++}
++
++/// Immutable geometry tied to one shaped line. Build once per layout, then reuse
++/// for its ranges. Coordinates are unwrapped line coordinates, not screen pixels.
++/// A range touching part of a shaped cluster decorates that cluster's whole cell.
++pub struct ReorderedTextGeometry {
++    // Sorted by logical start/end, so finding a match does not scan earlier glyphs.
++    cells: Vec<Cell>,
++}
++
++impl ReorderedTextGeometry {
++    /// Monotonic layouts need no additional per-glyph geometry.
++    pub fn new(line: &LineLayout) -> Option<Self> {
++        let mut previous = 0;
++        let mut reordered = false;
++        for glyph in line.runs.iter().flat_map(|run| &run.glyphs) {
++            reordered |= glyph.index < previous;
++            previous = glyph.index;
++        }
++        if !reordered {
++            return None;
++        }
++        let mut positions = line
++            .runs
++            .iter()
++            .flat_map(|run| &run.glyphs)
++            .filter(|glyph| glyph.index < line.len)
++            .map(|glyph| (glyph.index, glyph.position.x))
++            .collect::<Vec<_>>();
++        let mut indices = positions
++            .iter()
++            .map(|(index, _)| *index)
++            .collect::<Vec<_>>();
++        indices.push(line.len);
++        indices.sort_unstable();
++        indices.dedup();
++        positions.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
++        let mut cells = Vec::with_capacity(positions.len());
++        let mut next = 0;
++        for (index, x) in &positions {
++            while next < positions.len() && positions[next].1 <= *x {
++                next += 1;
++            }
++            let end_x = positions.get(next).map_or(line.width, |(_, x)| *x);
++            let end_index = indices[indices.partition_point(|value| value <= index)];
++            if end_x > *x && end_index > *index {
++                cells.push(Cell {
++                    source: *index..end_index,
++                    x: *x..end_x,
++                });
++            }
++        }
++        cells.sort_by_key(|cell| cell.source.start);
++        Some(Self { cells })
++    }
++
++    /// Emit disjoint visual spans intersected with one visual row's coordinates.
++    /// No shaping, matching, callbacks or source mutation occurs here.
++    pub fn spans(
++        &self,
++        source: Range<usize>,
++        visible_x: Range<Pixels>,
++        mut emit: impl FnMut(Range<Pixels>),
++    ) {
++        if source.start >= source.end || visible_x.start >= visible_x.end {
++            return;
++        }
++        let first = self
++            .cells
++            .partition_point(|cell| cell.source.end <= source.start);
++        let mut spans = self.cells[first..]
++            .iter()
++            .take_while(|cell| cell.source.start < source.end)
++            .filter_map(|cell| {
++                let start = cell.x.start.max(visible_x.start);
++                let end = cell.x.end.min(visible_x.end);
++                (start < end).then_some(start..end)
++            })
++            .collect::<Vec<_>>();
++        spans.sort_by(|a, b| {
++            a.start
++                .partial_cmp(&b.start)
++                .unwrap_or(std::cmp::Ordering::Equal)
++        });
++        let mut merged: Option<Range<Pixels>> = None;
++        for span in spans {
++            if let Some(previous) = &mut merged {
++                if span.start <= previous.end + px(0.001) {
++                    previous.end = previous.end.max(span.end);
++                } else {
++                    emit(previous.clone());
++                    *previous = span;
++                }
++            } else {
++                merged = Some(span);
++            }
++        }
++        if let Some(span) = merged {
++            emit(span);
++        }
++    }
++}
+--- a/src/input/base/state.rs
++++ b/src/input/base/state.rs
+@@ -910,5 +910,9 @@
+         for (vi, line) in last_layout.lines.iter().enumerate() {
+             let prev_lines_offset = last_layout.visible_line_byte_offsets[vi];
+-            let local_offset = offset.saturating_sub(prev_lines_offset);
++            // Visible source lines can skip folded or scrolled-out bytes. An
++            // earlier offset must not clamp to this later line's first glyph.
++            let Some(local_offset) = offset.checked_sub(prev_lines_offset) else {
++                break;
++            };
+             if let Some(pos) = line.position_for_index(local_offset, last_layout, false) {
+                 let sub_line_index = (pos.y / line_height) as usize;
+--- a/src/input/base/state.rs
++++ b/src/input/base/state.rs
+@@ -135,6 +135,24 @@
+     pub selection: (usize, usize),
+     pub focused: bool,
+ }
++
++/// A native element occupying a fixed row-local slot. Called during prepaint;
++/// renderers must not mutate the input or perform I/O.
++pub type RowAdornmentRenderer =
++    Rc<dyn Fn(gpui::Size<Pixels>, &mut Window, &mut App) -> gpui::AnyElement>;
++
++/// Decorations beside original read-only code text, never replacing its bytes.
++/// The gutter shares (or reserves) the fold slot; the suffix follows the shaped text
++/// and contributes to horizontal scroll extent. Neither changes row height.
++#[derive(Clone)]
++pub struct RowAdornment {
++    pub gutter: Option<RowAdornmentRenderer>,
++    pub suffix: Option<RowAdornmentRenderer>,
++    pub suffix_width: Pixels,
++}
++
++#[derive(Clone, Copy, Debug, PartialEq, Eq)]
++pub struct InvalidRowAdornments;
  
- /// Application-wide defaults for TextViews that do not provide explicit
-@@ -303,6 +303,16 @@
-         F: Fn(&CodeBlock) -> Vec<(Range<usize>, gpui::HighlightStyle)> + Send + Sync + 'static,
-     {
-         self.code_block_highlighter = Some(Arc::new(highlighter));
+ /// Native adapter hook on the actual focus-owning editor element. This avoids
+ /// registering the same focus handle again on an outer semantic wrapper.
+@@ -365,6 +383,8 @@
+     bridge_revision: i64,
+     bridge_max_bytes: Option<usize>,
+     bridge_decorator: Option<BridgeDecorator<M>>,
++    pub(super) row_adornments: Option<Rc<std::collections::BTreeMap<usize, RowAdornment>>>,
++    pub(super) row_adornment_begin: Option<Rc<dyn Fn()>>,
+     pub(super) display_map: DisplayMap,
+     pub(super) undo_manager: UndoManager,
+     pub(super) search_session: super::SearchSession,
+@@ -709,6 +729,8 @@
+             bridge_revision: 0,
+             bridge_max_bytes: None,
+             bridge_decorator: None,
++            row_adornments: None,
++            row_adornment_begin: None,
+             display_map: DisplayMap::new(text_style.font(), window.rem_size(), None),
+             search_session: super::SearchSession::default(),
+             search_activation_revision: 0,
+@@ -840,6 +862,40 @@
+     /// Install a default adapter without replacing an application-provided one.
+     pub fn ensure_highlighter_factory(&mut self, factory: InputHighlighterFactory) {
+         self.mode.ensure_highlighter_factory(factory);
++    }
++
++    /// Replace bounded row adornments on a read-only, nonwrapping code editor.
++    /// Row keys are zero-based buffer rows in the current input value. A map is
++    /// limited to 1024 rows and each suffix to 0..1024 finite logical pixels.
++    /// Call after replacing text; clear before reusing the editor for other text.
++    /// Scrolling and folding position the native elements in the current frame.
++    /// `begin_frame` runs once before visible row renderers; it can clear a
++    /// caller-owned geometry registry, but must not mutate this input or do I/O.
++    pub fn set_row_adornments(
++        &mut self,
++        adornments: Option<Rc<std::collections::BTreeMap<usize, RowAdornment>>>,
++        begin_frame: Option<Rc<dyn Fn()>>,
++        cx: &mut Context<Self>,
++    ) -> Result<(), InvalidRowAdornments> {
++        if let Some(entries) = &adornments {
++            if !M::CODE_EDITOR
++                || !self.readonly
++                || self.soft_wrap
++                || entries.len() > 1024
++                || entries.iter().any(|(row, item)| {
++                    *row >= self.text.lines_len()
++                        || !f32::from(item.suffix_width).is_finite()
++                        || item.suffix_width < px(0.)
++                        || item.suffix_width > px(1024.)
++                })
++            {
++                return Err(InvalidRowAdornments);
++            }
++        }
++        self.row_adornments = adornments;
++        self.row_adornment_begin = begin_frame;
++        cx.notify();
++        Ok(())
+     }
+ 
+     /// Install native semantics on the element that owns keyboard focus.
+--- a/src/input/base/element.rs
++++ b/src/input/base/element.rs
+@@ -1014,8 +1014,15 @@
+             px(0.)
+         };
+ 
+-        if state.mode.is_folding() {
+-            // Add extra space for fold icons
++        if state.mode.is_folding()
++            || (state.readonly
++                && !state.soft_wrap
++                && state
++                    .row_adornments
++                    .as_ref()
++                    .is_some_and(|entries| entries.values().any(|entry| entry.gutter.is_some())))
++        {
++            // Row controls share the fold slot, including when no hunks exist.
+             line_number_width += FOLD_ICON_HITBOX_WIDTH
+         }
+ 
+@@ -1617,6 +1624,7 @@
+ }
+ 
+ pub(super) struct PrepaintState {
++    row_adornments: Vec<(Bounds<Pixels>, AnyElement)>,
+     range_backgrounds: Option<Rc<dyn crate::input::RangeBackgrounds>>,
+     /// The lines of entire lines.
+     last_layout: LastLayout,
+@@ -1979,6 +1987,18 @@
+                 )
+                 .width;
+         }
++        // Conservative extent: the longest source line plus the widest suffix.
++        // The original text layout and selection coordinates remain unchanged.
++        let row_adornments = (state.readonly && state.is_code_editor() && !state.soft_wrap)
++            .then(|| state.row_adornments.clone())
++            .flatten();
++        if let Some(entries) = &row_adornments {
++            longest_line_width += entries
++                .values()
++                .map(|entry| entry.suffix_width)
++                .max()
++                .unwrap_or(px(0.));
++        }
+         last_layout.lines = Rc::new(lines);
+ 
+         let (ghost_first_line, ghost_lines) = Self::layout_inline_completion(
+@@ -2144,7 +2164,83 @@
+         let fold_icon_layout =
+             self.layout_fold_icons(original_x, &bounds, &last_layout, window, cx);
+ 
++        let mut adornment_elements = Vec::new();
++        let begin_adornments = self.state.read(cx).row_adornment_begin.clone();
++        if let Some(begin) = begin_adornments {
++            begin();
++        }
++        if let Some(entries) = row_adornments {
++            let text_left = original_x + last_layout.line_number_width;
++            let text_mask = input_bounds.intersect(&Bounds::new(
++                point(text_left, input_bounds.top()),
++                size(
++                    (input_bounds.right() - text_left).max(px(0.)),
++                    input_bounds.size.height,
++                ),
++            ));
++            let mut y = bounds.origin.y + last_layout.visible_top;
++            let align_scroll = match last_layout.text_align {
++                TextAlign::Right => (scroll_size.width - bounds.size.width).max(px(0.)),
++                TextAlign::Center => (scroll_size.width - bounds.size.width).half().max(px(0.)),
++                TextAlign::Left => px(0.),
++            };
++            for (line, row) in last_layout
++                .lines
++                .iter()
++                .zip(&last_layout.visible_buffer_lines)
++            {
++                if let Some(adornment) = entries.get(row) {
++                    let gutter = Bounds::new(
++                        point(
++                            original_x + last_layout.line_number_width
++                                - LINE_NUMBER_RIGHT_MARGIN
++                                - FOLD_ICON_HITBOX_WIDTH,
++                            y,
++                        ),
++                        size(FOLD_ICON_HITBOX_WIDTH, line_height),
++                    );
++                    let width = line.size(line_height).width;
++                    let suffix = Bounds::new(
++                        point(
++                            bounds.origin.x
++                                + last_layout.line_number_width
++                                + align_scroll
++                                + last_layout.alignment_offset(width)
++                                + width,
++                            y,
++                        ),
++                        size(adornment.suffix_width, line_height),
++                    );
++                    for (renderer, slot, mask) in [
++                        (&adornment.gutter, gutter, input_bounds),
++                        (&adornment.suffix, suffix, text_mask),
++                    ] {
++                        if let Some(renderer) = renderer
++                            && slot.size.width > px(0.)
++                            && slot.intersects(&mask)
++                        {
++                            let mut element = renderer(slot.size, window, cx);
++                            window.with_content_mask(
++                                Some(gpui::ContentMask { bounds: mask }),
++                                |window| {
++                                    element.prepaint_as_root(
++                                        slot.origin,
++                                        slot.size.into(),
++                                        window,
++                                        cx,
++                                    );
++                                },
++                            );
++                            adornment_elements.push((mask, element));
++                        }
++                    }
++                }
++                y += line.size(line_height).height;
++            }
++        }
++
+         PrepaintState {
++            row_adornments: adornment_elements,
+             range_backgrounds,
+             bounds,
+             last_layout,
+@@ -2490,6 +2586,12 @@
+             cx,
+         );
+ 
++        for (mask, element) in &mut prepaint.row_adornments {
++            window.with_content_mask(Some(gpui::ContentMask { bounds: *mask }), |window| {
++                element.paint(window, cx);
++            });
++        }
++
+         self.state.update(cx, |state, cx| {
+             let geometry_changed = state.last_bounds != Some(bounds)
+                 || state.input_bounds != input_bounds
+--- a/src/input/base/state.rs
++++ b/src/input/base/state.rs
+@@ -419,6 +419,7 @@
+     pub(super) column_select_start: Option<ColumnarPoint>,
+     pub(crate) disabled: bool,
+     pub(crate) readonly: bool,
++    user_selectable: bool,
+     pub(crate) text_align: TextAlign,
+     pub(super) masked: bool,
+     pub(super) clean_on_escape: bool,
+@@ -638,11 +639,33 @@
+         M::CODE_EDITOR
+     }
+ 
++    /// Whether pointer and keyboard gestures may select text. Programmatic
++    /// bridge selection remains available for search and navigation.
++    pub fn is_user_selectable(&self) -> bool {
++        self.user_selectable
++    }
++
++    /// Enable user selection (the default). Disabling cancels an active drag,
++    /// collapses the current range at its head and disables selection Copy.
++    /// It preserves focus, navigation, scrolling and programmatic selection.
++    pub fn set_user_selectable(&mut self, selectable: bool, cx: &mut Context<Self>) {
++        if self.user_selectable == selectable {
++            return;
++        }
++        self.user_selectable = selectable;
++        if !selectable {
++            self.cancel_drag_selection();
++            self.selections.remove_all_but_active();
++            self.set_cursor_to(self.cursor());
++        }
++        cx.notify();
++    }
++
+     /// Whether the user is allowed to copy the selection out.
+     ///
+     /// A masked input keeps its value out of the clipboard.
+     pub fn is_copyable(&self) -> bool {
+-        self.selections.iter().any(|sel| !sel.is_empty()) && !self.masked
++        self.user_selectable && self.selections.iter().any(|sel| !sel.is_empty()) && !self.masked
+     }
+ 
+     pub fn context_menu_capabilities(&self) -> InputContextMenuCapabilities {
+@@ -651,7 +674,7 @@
+             .disabled(self.disabled)
+             .readonly(self.readonly)
+             .code_editor(self.is_code_editor())
+-            .selection(!self.active_selection().is_empty())
++            .selection(self.user_selectable && !self.active_selection().is_empty())
+             .masked(self.masked)
+             .go_to_definition(go_to_definition)
+             .code_actions(code_actions)
+@@ -747,6 +770,7 @@
+             ime_marked_range: None,
+             input_bounds: Bounds::default(),
+             selecting: false,
++            user_selectable: true,
+             disabled: false,
+             readonly: false,
+             text_align: TextAlign::Left,
+@@ -1512,7 +1536,9 @@
+         window: &mut Window,
+         cx: &mut Context<Self>,
+     ) {
+-        self.select_all(window, cx);
++        if self.user_selectable {
++            self.select_all(window, cx);
++        }
+     }
+ 
+     pub(super) fn select_to_start(
+@@ -2292,7 +2318,7 @@
+     /// the first/last display row) or that would duplicate an existing cursor
+     /// are skipped.
+     fn add_cursor_vertical(&mut self, move_lines: isize, cx: &mut Context<Self>) {
+-        if !self.is_multi_line() {
++        if !self.is_multi_line() || !self.user_selectable {
+             return;
+         }
+ 
+@@ -2340,7 +2366,7 @@
+     /// Rejected when `offset` lands inside an existing selection or exactly on
+     /// an existing cursor.
+     pub(super) fn add_cursor_at(&mut self, offset: usize, cx: &mut Context<Self>) {
+-        if !self.is_multi_line() {
++        if !self.is_multi_line() || !self.user_selectable {
+             return;
+         }
+ 
+@@ -2437,11 +2463,21 @@
+             }
+         }
+ 
+-        self.selecting = true;
++        self.selecting = self.user_selectable;
+         let (offset, line_end_affinity, columns_past_line_end) =
+             self.resolve_mouse_position(event.position);
+ 
+         if M::on_click(self, event, offset, window, cx) {
++            return;
++        }
++
++        if !self.user_selectable {
++            if event.button == MouseButton::Left {
++                self.selections.remove_all_but_active();
++                self.move_to_with_affinity(offset, None, line_end_affinity, cx);
++            } else if event.button == MouseButton::Right && self.enable_context_menu {
++                self.pending_context_menu = Some((event.position, offset));
++            }
+             return;
+         }
+ 
+@@ -3225,6 +3261,9 @@
+         f: impl Fn(&Self, &CursorSelection) -> usize,
+         cx: &mut Context<Self>,
+     ) {
++        if !self.user_selectable {
++            return;
++        }
+         self.pause_blink_cursor(cx);
+         self.undo_manager.break_transaction_coalescing();
+         M::clear_inline_completion(self, cx);
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -171,7 +171,7 @@
+     TextSelection, TextSelectionContentKey, TextSelectionCoverage, TextSelectionEndpoint,
+     TextSelectionEvent, TextSelectionHandle, TextSelectionLayer, TextSelectionProjection,
+     TextSelectionRegistration, TextSelectionRun, TextSelectionScopeId, TextSelectionSnapshot,
+-    TextSelectionWindowPoints,
++    TextSelectionWindowPoints, text_selection_scope,
+ };
+ pub use theme::{ResizableTheme, ScrollbarTheme, Theme, ThemeAppearance};
+ pub use theme_tokens::{
+--- a/src/text/selection_adapter.rs
++++ b/src/text/selection_adapter.rs
+@@ -136,6 +136,11 @@
+                     return String::new();
+                 };
+                 let state = view.read(cx);
++                // A restyle can disable selection before the frame-end sweep
++                // removes this participant's previous registration.
++                if !state.is_selectable() {
++                    return String::new();
++                }
+                 let last = state.parsed_content.document.blocks.len().saturating_sub(1);
+                 let blocks = blocks_for_copy.borrow().block_range(selection_id, last);
+                 state.selected_text_in(blocks)
+--- a/src/text_selection.rs
++++ b/src/text_selection.rs
+@@ -1084,6 +1084,7 @@
+     fn copy_items(&self, cx: &App) -> Vec<CopyItem> {
+         self.participants
+             .values()
++            .filter(|registration| registration.registration.scope == self.active_scope)
+             .filter_map(|registration| {
+                 let participant = registration.participant.upgrade()?;
+                 participant
+@@ -1102,10 +1103,11 @@
+     pub fn has_selection(&self, cx: &App) -> bool {
+         self.snapshot().is_some()
+             || self.participants.values().any(|registration| {
+-                registration
+-                    .participant
+-                    .upgrade()
+-                    .is_some_and(|participant| participant.read(cx).local_selection)
++                registration.registration.scope == self.active_scope
++                    && registration
++                        .participant
++                        .upgrade()
++                        .is_some_and(|participant| participant.read(cx).local_selection)
+             })
+     }
+ 
+@@ -1729,7 +1731,10 @@
+ /// element identity retains the window-local selection entity across frames.
+ pub struct TextSelectionLayer;
+ 
+-pub(crate) fn text_selection_scope(
++/// Assign selection participants inside this element to a retained scope.
++/// Activate the matching scope with [`TextSelection::activate_scope`].
++/// Modal hosts should allocate once per scope lifetime, not once per frame.
++pub fn text_selection_scope(
+     scope: TextSelectionScopeId,
+     element: impl IntoElement,
+ ) -> impl IntoElement {
+--- a/src/text_selection.rs
++++ b/src/text_selection.rs
+@@ -520,7 +520,7 @@
+                 .map(|callback| callback(cx))
+                 .unwrap_or(item.fallback)
+         })
+-        .filter(|text| !text.trim().is_empty())
++        .filter(|text| !text.is_empty())
+         .collect::<Vec<_>>()
+         .join("\n")
+ }
+@@ -536,6 +536,7 @@
+     projected_copy_text: Option<String>,
+     runs: Vec<TextSelectionRun>,
+     local_selection: bool,
++    local_anchor: Option<Point<Pixels>>,
+     snapshot: Option<TextSelectionSnapshot>,
+     on_focus: Option<FocusCallback>,
+     clear: Option<ClearHandler>,
+@@ -552,6 +553,7 @@
+             projected_copy_text: None,
+             runs: Vec::new(),
+             local_selection: false,
++            local_anchor: None,
+             snapshot: None,
+             on_focus: None,
+             clear: None,
+@@ -642,6 +644,7 @@
+         self.snapshot = None;
+         self.projected_copy_text = None;
+         self.local_selection = false;
++        self.local_anchor = None;
+         cx.emit(TextSelectionEvent::Cleared);
+         cx.emit(TextSelectionEvent::SelectionChanged(None));
+         self.clear.clone()
+@@ -701,6 +704,12 @@
+             .update(cx, |state, _| state.set_local_selection(active));
+     }
+ 
++    /// Supply a window-coordinate anchor for Shift-click after local keyboard
++    /// selection/caret movement. Refresh after layout; clear when no longer valid.
++    pub fn set_local_anchor(&self, point: Option<Point<Pixels>>, cx: &mut App) {
++        self.0.update(cx, |state, _| state.local_anchor = point);
++    }
++
+     /// Returns whether participant-local selection is active.
+     pub fn has_local_selection(&self, cx: &App) -> bool {
+         self.0.read(cx).local_selection
+@@ -722,6 +731,18 @@
+         state.update(cx, |state, cx| {
+             state.register_participant(self.clone(), registration, cx)
+         });
++    }
++
++    /// Register in the same frame-local paint order used by native TextViews.
++    /// Call exactly once per painted participant after mounting TextSelectionLayer.
++    pub fn register_in_paint_order(
++        &self,
++        mut registration: TextSelectionRegistration,
++        window: &mut Window,
++        cx: &mut App,
++    ) {
++        registration.document_order = GlobalState::global_mut(cx).next_selection_document_order();
++        self.register(registration, window, cx);
+     }
+ 
+     /// Projects the current snapshot onto plain-text runs and caches their copy text.
+@@ -978,6 +999,17 @@
+                     .then(|| (*id, registration.participant.clone()))
+             })
+             .collect::<Vec<_>>();
++        // Retiring an endpoint must also retire the gesture. Otherwise showing
++        // the same retained participant later would resurrect cleared selection.
++        let retired_endpoint = [&self.anchor, &self.cursor, &self.pending_extension_anchor]
++            .into_iter()
++            .flatten()
++            .filter_map(SelectionEndpoint::entity_id)
++            .any(|id| stale.iter().any(|(stale_id, _)| *stale_id == id));
++        if retired_endpoint {
++            // Notify a self-scrolling anchor before dropping its registration.
++            self.stop_anchor_auto_scroll(cx);
++        }
+         let mut handlers = Vec::new();
+         for (id, participant) in stale {
+             self.participants.remove(&id);
+@@ -986,6 +1018,9 @@
+                     handlers.push(handler);
+                 }
+             }
++        }
++        if retired_endpoint {
++            handlers.extend(self.clear_state(cx));
+         }
+         self.publish_snapshots(cx);
+         self.frame_generation = self.frame_generation.wrapping_add(1);
+@@ -1134,7 +1169,29 @@
+     }
+ 
+     fn prepare_for_mouse_down(&mut self, extend: bool, cx: &mut App) -> Vec<ClearHandler> {
+-        let pending_extension_anchor = extend.then(|| self.anchor.clone()).flatten();
++        let pending_extension_anchor = extend
++            .then(|| {
++                self.anchor.clone().or_else(|| {
++                    self.participants.values().find_map(|registration| {
++                        if registration.registration.scope != self.active_scope {
++                            return None;
++                        }
++                        let participant = registration.participant.upgrade()?;
++                        let point = participant.read(cx).local_anchor?;
++                        Some(SelectionEndpoint {
++                            participant: Some(participant.downgrade()),
++                            point: point
++                                - registration.registration.bounds.origin
++                                - registration.registration.scroll_offset,
++                            inside: true,
++                            inside_text: true,
++                            content_key: None,
++                            content_key_resolver: None,
++                        })
++                    })
++                })
++            })
++            .flatten();
+         self.stop_anchor_auto_scroll(cx);
+         self.anchor = None;
+         self.cursor = None;
+--- a/src/text/selection_adapter.rs
++++ b/src/text/selection_adapter.rs
+@@ -143,7 +143,10 @@
+                 }
+                 let last = state.parsed_content.document.blocks.len().saturating_sub(1);
+                 let blocks = blocks_for_copy.borrow().block_range(selection_id, last);
+-                state.selected_text_in(blocks)
++                // Normalize this renderer's paragraph-edge separators here.
++                // Trimming the window result would also strip neighboring plain
++                // text and make Copy depend on which participant has focus.
++                state.selected_text_in(blocks).trim().to_string()
+             },
+             cx,
+         );
+--- a/src/text_selection.rs
++++ b/src/text_selection.rs
+@@ -1,4 +1,7 @@
++mod geometry;
++
+ use std::{
++    cell::OnceCell,
+     collections::HashMap,
+     ops::Range,
+     rc::Rc,
+@@ -296,6 +299,8 @@
+     document_order: u64,
+     /// The exact text used to produce `layout`.
+     text: SharedString,
++    geometry: Rc<OnceCell<geometry::Geometry>>,
++    text_align: gpui::TextAlign,
+     /// Laid-out glyph geometry in window coordinates.
+     layout: TextLayout,
+     /// The run's window-coordinate paint bounds.
+@@ -308,9 +313,39 @@
+         Self {
+             document_order: 0,
+             text: text.into(),
++            geometry: Rc::new(OnceCell::new()),
++            text_align: gpui::TextAlign::Left,
+             layout,
+             bounds,
+         }
++    }
++
++    /// Update painted text/geometry while retaining immutable glyph-cell data
++    /// when the shaped lines are unchanged. Bounds and alignment stay dynamic.
++    pub fn update(
++        &mut self,
++        text: impl Into<SharedString>,
++        layout: TextLayout,
++        bounds: Bounds<Pixels>,
++    ) {
++        let text = text.into();
++        if self.text != text
++            || self
++                .geometry
++                .get()
++                .is_some_and(|geometry| !geometry.matches(&layout))
++        {
++            self.geometry = Rc::new(OnceCell::new());
++        }
++        self.text = text;
++        self.layout = layout;
++        self.bounds = bounds;
++    }
++
++    /// Use the same alignment as the painted StyledText.
++    pub fn with_text_align(mut self, align: gpui::TextAlign) -> Self {
++        self.text_align = align;
++        self
+     }
+ 
+     /// Sets the run's logical order within the participant.
+@@ -401,31 +436,9 @@
+         return None;
+     }
+ 
+-    let line_height = run.layout.line_height();
+-    let mut range = None;
+-    for (offset, character) in run.text.char_indices() {
+-        let next_offset = offset + character.len_utf8();
+-        let Some(position) = run.layout.position_for_index(offset) else {
+-            continue;
+-        };
+-
+-        let char_width = run
+-            .layout
+-            .position_for_index(next_offset)
+-            .filter(|next| next.y == position.y)
+-            .map_or_else(|| line_height.half(), |next| next.x - position.x);
+-
+-        if point_in_selection_band(
+-            position,
+-            char_width,
+-            selection_start,
+-            selection_end,
+-            line_height,
+-        ) {
+-            range.get_or_insert(offset..offset).end = next_offset;
+-        }
+-    }
+-    range
++    run.geometry
++        .get_or_init(|| geometry::Geometry::new(&run.text, &run.layout))
++        .project(run, selection_start, selection_end)
+ }
+ 
+ fn points_for_multi_click(
+--- /dev/null
++++ b/src/text_selection/geometry.rs
+@@ -0,0 +1,160 @@
++//! Immutable shaped visual cells for plain selection runs. A cell includes whole
++//! source graphemes, even when a font emits several glyphs for one cluster.
++use super::{TextSelectionRun, point_in_selection_band};
++use gpui::{Pixels, Point, TextAlign, TextLayout, WrappedLineLayout, point, px};
++use std::{ops::Range, sync::Arc};
++use unicode_segmentation::UnicodeSegmentation;
++
++struct Cell {
++    source: Range<usize>,
++    x: Range<Pixels>,
++}
++struct Row {
++    width: Pixels,
++    cells: Vec<Cell>,
++}
++pub(super) struct Geometry {
++    layouts: Vec<Arc<WrappedLineLayout>>,
++    rows: Vec<Row>,
++}
++impl Geometry {
++    pub(super) fn matches(&self, layout: &TextLayout) -> bool {
++        let lines = layout.line_layouts();
++        self.layouts.len() == lines.len()
++            && self
++                .layouts
++                .iter()
++                .zip(&lines)
++                .all(|(a, b)| Arc::ptr_eq(a, b))
++    }
++    pub(super) fn new(text: &str, layout: &TextLayout) -> Self {
++        let layouts: Vec<_> = layout.line_layouts().into_iter().collect();
++        let boundaries: Vec<_> = text
++            .grapheme_indices(true)
++            .map(|(offset, _)| offset)
++            .chain([text.len()])
++            .collect();
++        let mut rows = Vec::new();
++        let mut offset = 0;
++        for wrapped in &layouts {
++            let line = &wrapped.unwrapped_layout;
++            let mut glyphs: Vec<_> = line
++                .runs
++                .iter()
++                .flat_map(|run| &run.glyphs)
++                .filter(|glyph| glyph.index < line.len)
++                .collect();
++            let mut indices: Vec<_> = glyphs
++                .iter()
++                .map(|glyph| glyph.index)
++                .chain([line.len])
++                .collect();
++            indices.sort_unstable();
++            indices.dedup();
++            glyphs.sort_by(|a, b| {
++                a.position
++                    .x
++                    .partial_cmp(&b.position.x)
++                    .unwrap_or(std::cmp::Ordering::Equal)
++            });
++            let edges: Vec<_> = std::iter::once(px(0.))
++                .chain(
++                    wrapped
++                        .wrap_boundaries
++                        .iter()
++                        .map(|edge| line.runs[edge.run_ix].glyphs[edge.glyph_ix].position.x),
++                )
++                .chain([line.width])
++                .collect();
++            let first_row = rows.len();
++            rows.extend(edges.windows(2).map(|edge| Row {
++                width: edge[1] - edge[0],
++                cells: Vec::new(),
++            }));
++            let mut next = 0;
++            for glyph in &glyphs {
++                let x = glyph.position.x;
++                while next < glyphs.len() && glyphs[next].position.x <= x {
++                    next += 1;
++                }
++                let end_x = glyphs
++                    .get(next)
++                    .map_or(line.width, |glyph| glyph.position.x);
++                if end_x <= x {
++                    continue;
++                }
++                let end = offset + indices[indices.partition_point(|index| *index <= glyph.index)];
++                let start = offset + glyph.index;
++                let start = boundaries[boundaries
++                    .partition_point(|edge| *edge <= start)
++                    .saturating_sub(1)];
++                let end = boundaries[boundaries.partition_point(|edge| *edge < end)];
++                let first = edges.partition_point(|edge| *edge <= x).saturating_sub(1);
++                for row in first..edges.len() - 1 {
++                    if edges[row] >= end_x {
++                        break;
++                    }
++                    let left = x.max(edges[row]);
++                    let right = end_x.min(edges[row + 1]);
++                    if left < right {
++                        rows[first_row + row].cells.push(Cell {
++                            source: start..end,
++                            x: left - edges[row]..right - edges[row],
++                        });
++                    }
++                }
++            }
++            let end = offset + line.len;
++            if text.as_bytes().get(end) == Some(&b'\n') {
++                let row = rows.last_mut().expect("a shaped line has a visual row");
++                row.cells.push(Cell {
++                    source: boundaries[boundaries
++                        .partition_point(|edge| *edge <= end)
++                        .saturating_sub(1)]
++                        ..boundaries[boundaries.partition_point(|edge| *edge < end + 1)],
++                    x: row.width..row.width,
++                });
++            }
++            offset = end + 1;
++        }
++        Self { layouts, rows }
++    }
++    pub(super) fn project(
++        &self,
++        run: &TextSelectionRun,
++        start: Point<Pixels>,
++        end: Point<Pixels>,
++    ) -> Option<Range<usize>> {
++        let height = run.layout.line_height();
++        let mut selected: Option<Range<usize>> = None;
++        for (index, row) in self.rows.iter().enumerate() {
++            let y = run.bounds.top() + height * index;
++            if y + height <= start.y.min(end.y) || y > start.y.max(end.y) {
++                continue;
++            }
++            let inset = match run.text_align {
++                TextAlign::Left => px(0.),
++                TextAlign::Center => (run.bounds.size.width - row.width) / 2.,
++                TextAlign::Right => run.bounds.size.width - row.width,
++            };
++            for cell in &row.cells {
++                if point_in_selection_band(
++                    point(run.bounds.left() + inset + cell.x.start, y),
++                    cell.x.end - cell.x.start,
++                    start,
++                    end,
++                    height,
++                ) {
++                    match &mut selected {
++                        Some(range) => {
++                            range.start = range.start.min(cell.source.start);
++                            range.end = range.end.max(cell.source.end);
++                        }
++                        None => selected = Some(cell.source.clone()),
++                    }
++                }
++            }
++        }
++        selected
++    }
++}
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -45,6 +45,7 @@
+ sum-tree = { package = "sum_tree", git = "https://github.com/zed-industries/zed.git", rev = "a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b" }
+ tracing = "0.1.41"
+ unicode-segmentation = "1.12.0"
++unicode-bidi = "0.3.18"
+ web-time = "1"
+ 
+ [target.'cfg(not(target_family = "wasm"))'.dependencies]
+--- a/src/text_selection.rs
++++ b/src/text_selection.rs
+@@ -346,6 +346,31 @@
+     pub fn with_text_align(mut self, align: gpui::TextAlign) -> Self {
+         self.text_align = align;
+         self
++    }
++
++    fn geometry(&self) -> Option<&geometry::Geometry> {
++        (self.text.len() == self.layout.len()).then(|| {
++            self.geometry
++                .get_or_init(|| geometry::Geometry::new(&self.text, &self.layout))
++        })
++    }
++
++    /// Source cluster under a window-coordinate position, clamped to the nearest
++    /// visible cell. Suitable for word selection; never splits a grapheme.
++    pub fn index_for_position(&self, position: Point<Pixels>) -> Option<usize> {
++        Some(self.geometry()?.index_at(self, position, false))
++    }
++
++    /// Nearest shaped-cluster caret, respecting alignment and resolved bidi
++    /// direction. Read-only arrow movement remains a separate logical policy.
++    pub fn caret_for_position(&self, position: Point<Pixels>) -> Option<usize> {
++        Some(self.geometry()?.index_at(self, position, true))
++    }
++
++    /// Visual caret for a source byte offset, with downstream affinity at bidi
++    /// and wrap boundaries. Interior cluster offsets snap to the leading edge.
++    pub fn position_for_index(&self, index: usize) -> Option<Point<Pixels>> {
++        self.geometry()?.position(self, index)
+     }
+ 
+     /// Sets the run's logical order within the participant.
+@@ -450,7 +475,7 @@
+     if run.text.len() != run.layout.len() {
+         return None;
+     }
+-    let offset = run.layout.index_for_position(position).ok()?;
++    let offset = run.index_for_position(position)?;
+     let range = match click_count {
+         2 => word_range_at(&run.text, offset)?,
+         3.. => line_range_at(&run.text, offset),
+@@ -459,10 +484,7 @@
+     if range.is_empty() {
+         return None;
+     }
+-    Some((
+-        run.layout.position_for_index(range.start)?,
+-        run.layout.position_for_index(range.end)?,
+-    ))
++    run.geometry()?.range_points(run, range)
+ }
+ 
+ fn point_in_selection_band(
+--- a/src/text_selection/geometry.rs
++++ b/src/text_selection/geometry.rs
+@@ -8,6 +8,7 @@
+ struct Cell {
+     source: Range<usize>,
+     x: Range<Pixels>,
++    rtl: bool,
+ }
+ struct Row {
+     width: Pixels,
+@@ -34,6 +35,7 @@
+             .map(|(offset, _)| offset)
+             .chain([text.len()])
+             .collect();
++        let bidi = unicode_bidi::BidiInfo::new(text, None);
+         let mut rows = Vec::new();
+         let mut offset = 0;
+         for wrapped in &layouts {
+@@ -100,6 +102,7 @@
+                         rows[first_row + row].cells.push(Cell {
+                             source: start..end,
+                             x: left - edges[row]..right - edges[row],
++                            rtl: bidi.levels.get(start).is_some_and(|level| level.is_rtl()),
+                         });
+                     }
+                 }
+@@ -113,11 +116,121 @@
+                         .saturating_sub(1)]
+                         ..boundaries[boundaries.partition_point(|edge| *edge < end + 1)],
+                     x: row.width..row.width,
++                    rtl: false,
+                 });
+             }
+             offset = end + 1;
+         }
++        for row in &mut rows {
++            // Several fallback glyphs may paint one extended grapheme. Its caret
++            // midpoint belongs to the entire visual cluster, not each glyph.
++            let mut cells: Vec<Cell> = Vec::with_capacity(row.cells.len());
++            for cell in row.cells.drain(..) {
++                if let Some(previous) = cells.last_mut()
++                    && previous.source == cell.source
++                    && previous.rtl == cell.rtl
++                    && previous.x.end >= cell.x.start
++                {
++                    previous.x.end = previous.x.end.max(cell.x.end);
++                } else {
++                    cells.push(cell);
++                }
++            }
++            row.cells = cells;
++        }
+         Self { layouts, rows }
++    }
++    fn cell_at(&self, run: &TextSelectionRun, position: Point<Pixels>) -> Option<(&Cell, Pixels)> {
++        let height = run.layout.line_height();
++        if height <= px(0.) {
++            return None;
++        }
++        let index = ((position.y - run.bounds.top()) / height).floor().max(0.) as usize;
++        let row = self
++            .rows
++            .get(index.min(self.rows.len().saturating_sub(1)))?;
++        let x = position.x - run.bounds.left() - row.inset(run);
++        let cell = row.cells.iter().min_by(|a, b| {
++            let distance = |cell: &Cell| (cell.x.start - x).max(x - cell.x.end).max(px(0.));
++            distance(a)
++                .partial_cmp(&distance(b))
++                .unwrap_or(std::cmp::Ordering::Equal)
++        })?;
++        Some((cell, x))
++    }
++    pub(super) fn index_at(
++        &self,
++        run: &TextSelectionRun,
++        position: Point<Pixels>,
++        caret: bool,
++    ) -> usize {
++        let Some((cell, x)) = self.cell_at(run, position) else {
++            return run.text.len();
++        };
++        if !caret {
++            return cell.source.start;
++        }
++        let after_midpoint = x >= (cell.x.start + cell.x.end) / 2.;
++        if after_midpoint != cell.rtl {
++            cell.source.end
++        } else {
++            cell.source.start
++        }
++    }
++    pub(super) fn position(&self, run: &TextSelectionRun, index: usize) -> Option<Point<Pixels>> {
++        if index > run.text.len() {
++            return None;
++        }
++        // Prefer the downstream source cluster at bidi and soft-wrap boundaries.
++        let cells = || {
++            self.rows
++                .iter()
++                .enumerate()
++                .flat_map(|(row, value)| value.cells.iter().map(move |cell| (row, value, cell)))
++        };
++        let found = cells()
++            .find(|(_, _, cell)| cell.source.contains(&index))
++            .map(|value| (value, false))
++            .or_else(|| {
++                cells()
++                    .find(|(_, _, cell)| cell.source.end == index)
++                    .map(|value| (value, true))
++            });
++        let Some(((row_index, row, cell), trailing)) = found else {
++            return (index == 0).then_some(run.bounds.origin);
++        };
++        let x = if trailing != cell.rtl {
++            cell.x.end
++        } else {
++            cell.x.start
++        };
++        Some(point(
++            run.bounds.left() + row.inset(run) + x,
++            run.bounds.top() + run.layout.line_height() * row_index,
++        ))
++    }
++    pub(super) fn range_points(
++        &self,
++        run: &TextSelectionRun,
++        range: Range<usize>,
++    ) -> Option<(Point<Pixels>, Point<Pixels>)> {
++        let mut start: Option<Point<Pixels>> = None;
++        let mut end: Option<Point<Pixels>> = None;
++        for (index, row) in self.rows.iter().enumerate() {
++            for cell in &row.cells {
++                if cell.source.start >= range.end || cell.source.end <= range.start {
++                    continue;
++                }
++                let y = run.bounds.top()
++                    + run.layout.line_height() * index
++                    + run.layout.line_height() / 2.;
++                let left = point(run.bounds.left() + row.inset(run) + cell.x.start, y);
++                let right = point(run.bounds.left() + row.inset(run) + cell.x.end, y);
++                start.get_or_insert(left);
++                end = Some(right);
++            }
++        }
++        start.zip(end)
+     }
+     pub(super) fn project(
+         &self,
+@@ -132,11 +245,7 @@
+             if y + height <= start.y.min(end.y) || y > start.y.max(end.y) {
+                 continue;
+             }
+-            let inset = match run.text_align {
+-                TextAlign::Left => px(0.),
+-                TextAlign::Center => (run.bounds.size.width - row.width) / 2.,
+-                TextAlign::Right => run.bounds.size.width - row.width,
+-            };
++            let inset = row.inset(run);
+             for cell in &row.cells {
+                 if point_in_selection_band(
+                     point(run.bounds.left() + inset + cell.x.start, y),
+@@ -158,3 +267,13 @@
+         selected
+     }
+ }
++
++impl Row {
++    fn inset(&self, run: &TextSelectionRun) -> Pixels {
++        match run.text_align {
++            TextAlign::Left => px(0.),
++            TextAlign::Center => (run.bounds.size.width - self.width) / 2.,
++            TextAlign::Right => run.bounds.size.width - self.width,
++        }
++    }
++}
+--- /dev/null
++++ b/src/text/inline_semantics.rs
+@@ -0,0 +1,418 @@
++//! Frame-local reading order and logical links for measured rich paragraphs.
++use std::{cell::RefCell, collections::BTreeMap, rc::Rc, sync::Arc};
++
++use gpui::{
++    AnyElement, App, AvailableSpace, Bounds, ClickEvent, Element, ElementId, GlobalElementId,
++    InspectorElementId, InteractiveElement as _, IntoElement, LayoutId, Pixels, SharedString,
++    StatefulInteractiveElement as _, Styled as _, Window, div, prelude::FluentBuilder as _, px,
++    size,
++};
++
++use super::{
++    node::LinkMark,
++    text_view::{LinkClickHandlerFn, handle_link_click},
++};
++use crate::GlobalState;
++
++// Keep a direct, platform-filtered accessibility child per visual slot without
++// adding a layout box or changing the native element's measurement/input.
++struct VisualSlot {
++    slot: usize,
++    element: AnyElement,
++}
++
++impl IntoElement for VisualSlot {
++    type Element = Self;
++    fn into_element(self) -> Self {
++        self
++    }
++}
++
++impl Element for VisualSlot {
++    type RequestLayoutState = ();
++    type PrepaintState = ();
++    fn id(&self) -> Option<ElementId> {
++        Some(("flow-visual", self.slot).into())
++    }
++    fn source_location(&self) -> Option<&'static core::panic::Location<'static>> {
++        None
++    }
++    fn a11y_role(&self) -> Option<gpui::Role> {
++        Some(gpui::Role::GenericContainer)
++    }
++    fn request_layout(
++        &mut self,
++        _: Option<&GlobalElementId>,
++        _: Option<&InspectorElementId>,
++        window: &mut Window,
++        cx: &mut App,
++    ) -> (LayoutId, ()) {
++        (self.element.request_layout(window, cx), ())
++    }
++    fn prepaint(
++        &mut self,
++        _: Option<&GlobalElementId>,
++        _: Option<&InspectorElementId>,
++        _: Bounds<Pixels>,
++        _: &mut (),
++        window: &mut Window,
++        cx: &mut App,
++    ) {
++        self.element.prepaint(window, cx);
++    }
++    fn paint(
++        &mut self,
++        _: Option<&GlobalElementId>,
++        _: Option<&InspectorElementId>,
++        _: Bounds<Pixels>,
++        _: &mut (),
++        _: &mut (),
++        window: &mut Window,
++        cx: &mut App,
++    ) {
++        self.element.paint(window, cx);
++    }
++}
++
++pub(super) fn visual_slot(slot: usize, element: impl IntoElement) -> AnyElement {
++    VisualSlot {
++        slot,
++        element: element.into_any_element(),
++    }
++    .into_any_element()
++}
++
++#[derive(Clone)]
++pub(super) struct Collector {
++    fragments: Rc<RefCell<Vec<Fragment>>>,
++    labels: bool,
++    enabled: bool,
++}
++
++struct Fragment {
++    slot: usize,
++    bounds: Bounds<Pixels>,
++    text: String,
++    link: Option<LinkMark>,
++    native: bool,
++}
++
++pub(super) struct Run {
++    pub slot: usize,
++    pub bounds: Bounds<Pixels>,
++    pub fragments: Vec<Bounds<Pixels>>,
++    pub text: String,
++    pub link: Option<LinkMark>,
++}
++
++impl Collector {
++    pub fn new(window: &Window, cx: &App) -> Self {
++        let labels = window.is_a11y_active();
++        let enabled = labels
++            || GlobalState::global(cx)
++                .text_view_state()
++                .is_some_and(|view| {
++                    let state = view.read(cx);
++                    state.link_navigation.active.is_some() || state.link_reveal.is_some()
++                });
++        Self {
++            fragments: Rc::default(),
++            labels,
++            enabled,
++        }
++    }
++
++    pub fn enabled(&self) -> bool {
++        self.enabled
++    }
++
++    pub fn push(&self, slot: usize, bounds: Bounds<Pixels>, text: &str, link: Option<LinkMark>) {
++        if self.enabled {
++            self.fragments.borrow_mut().push(Fragment {
++                slot,
++                bounds,
++                text: if self.labels {
++                    text.to_owned()
++                } else {
++                    String::new()
++                },
++                link,
++                native: false,
++            });
++        }
++    }
++
++    /// An unlinked native object keeps its real descendants at this position.
++    pub fn native(&self, slot: usize) {
++        if self.enabled {
++            self.fragments.borrow_mut().push(Fragment {
++                slot,
++                bounds: Bounds::default(),
++                text: String::new(),
++                link: None,
++                native: true,
++            });
++        }
++    }
++
++    pub fn finish(&self) -> Vec<Run> {
++        coalesce(std::mem::take(&mut *self.fragments.borrow_mut()))
++    }
++}
++
++fn coalesce(fragments: Vec<Fragment>) -> Vec<Run> {
++    let mut runs: Vec<Run> = Vec::new();
++    let mut adjacent = false;
++    for fragment in fragments {
++        if fragment.native {
++            adjacent = false;
++            continue;
++        }
++        if adjacent
++            && let Some(link) = &fragment.link
++            && link.source_start.is_some()
++            && let Some(previous) = runs.last_mut()
++            && previous.link.as_ref() == Some(link)
++        {
++            previous.bounds = previous.bounds.union(&fragment.bounds);
++            previous.fragments.push(fragment.bounds);
++            previous.text.push_str(&fragment.text);
++        } else {
++            runs.push(Run {
++                slot: fragment.slot,
++                bounds: fragment.bounds,
++                fragments: vec![fragment.bounds],
++                text: fragment.text,
++                link: fragment.link,
++            });
++        }
++        adjacent = true;
++    }
++    runs
++}
++
++pub(super) fn reveal(runs: &[Run], window: &mut Window, cx: &mut App) {
++    let Some(view) = GlobalState::global(cx).text_view_state().cloned() else {
++        return;
++    };
++    let target = {
++        let state = view.read(cx);
++        state.link_reveal.filter(|_| !state.link_reveal_claimed)
++    };
++    if let Some(target) = target
++        && let Some(run) = runs
++            .iter()
++            .find(|run| run.link.as_ref().and_then(|link| link.source_start) == Some(target))
++        && let Some(first) = run.fragments.first()
++    {
++        window.request_autoscroll(Bounds::new(first.origin, size(px(2.), first.size.height)));
++        view.update(cx, |state, _| state.link_reveal_claimed = true);
++    }
++}
++
++pub(super) fn elements(
++    runs: &[Run],
++    owner: Option<&GlobalElementId>,
++    handler: &Option<Arc<LinkClickHandlerFn>>,
++    window: &mut Window,
++    cx: &mut App,
++) -> Vec<(usize, AnyElement)> {
++    if !window.is_a11y_active() {
++        return Vec::new();
++    }
++    let view = GlobalState::global(cx).text_view_state().cloned();
++    let mut occurrences = BTreeMap::<usize, usize>::new();
++    let mut active_claimed = false;
++    runs.iter()
++        .enumerate()
++        .map(|(index, run)| {
++            let area = run.bounds;
++            let id: SharedString = match run.link.as_ref().and_then(|link| link.source_start) {
++                Some(source) => {
++                    let occurrence = occurrences.entry(source).or_default();
++                    let url = &run.link.as_ref().expect("source belongs to a link").url;
++                    let id = format!("flow-link-{source}-{occurrence}-{url}");
++                    *occurrence += 1;
++                    id
++                }
++                None => format!("flow-text-{index}"),
++            }
++            .into();
++            let mut element = div().id(id).w(area.size.width).h(area.size.height);
++            if let Some(link) = &run.link {
++                let mut label = run.text.clone();
++                let active = view.as_ref().is_some_and(|view| {
++                    view.update(cx, |state, _| {
++                        // The prepared name includes whitespace elided by line wrapping.
++                        if let Some(source) = link.source_start
++                            && let Ok(index) = state
++                                .link_navigation
++                                .links
++                                .binary_search_by_key(&source, |entry| entry.source_start)
++                            && let Some(prepared) = state.link_navigation.links.get(index)
++                            && prepared.url == link.url
++                        {
++                            label.clone_from(&prepared.label);
++                        }
++                        if link.source_start.is_none()
++                            || state.link_navigation.active != link.source_start
++                        {
++                            return false;
++                        }
++                        let Some(owner) = owner else {
++                            return false;
++                        };
++                        if state.link_active_owner.is_none() {
++                            state.link_active_owner = Some(owner.clone());
++                        }
++                        state.link_active_owner.as_ref() == Some(owner)
++                    })
++                });
++                let active = active && !std::mem::replace(&mut active_claimed, true);
++                let url = link.url.clone();
++                let focus_target = view
++                    .as_ref()
++                    .filter(|_| link.source_start.is_some())
++                    .map(|view| (view.downgrade(), link.clone()));
++                let metadata_url = url.clone();
++                let handler = handler.clone();
++                element = element
++                    .role(gpui::Role::Link)
++                    .aria_label(label)
++                    .when(active, |element| element.aria_active_descendant())
++                    .when_some(focus_target, |element, (view, link)| {
++                        element.on_a11y_action(
++                            gpui::AccessibleAction::Focus,
++                            move |_, window, cx| {
++                                let _ = view
++                                    .update(cx, |state, cx| state.focus_link(&link, window, cx));
++                            },
++                        )
++                    })
++                    .a11y_synthetic_children(move |builder| {
++                        builder.parent_node().set_url(metadata_url.to_string())
++                    })
++                    .on_a11y_action(gpui::AccessibleAction::Click, move |_, window, cx| {
++                        handle_link_click(
++                            &handler,
++                            url.clone(),
++                            ClickEvent::Keyboard(gpui::KeyboardClickEvent {
++                                bounds: area,
++                                ..Default::default()
++                            }),
++                            window,
++                            cx,
++                        );
++                    });
++            } else {
++                element = element.role(gpui::Role::Label).aria_value(run.text.clone());
++            }
++            let mut element = element.into_any_element();
++            element.prepaint_as_root(
++                area.origin,
++                size(
++                    AvailableSpace::Definite(area.size.width),
++                    AvailableSpace::Definite(area.size.height),
++                ),
++                window,
++                cx,
++            );
++            (run.slot, element)
++        })
++        .collect()
++}
++
++pub(super) fn paint_focus(runs: &[Run], window: &mut Window, cx: &App) {
++    let Some(view) = GlobalState::global(cx).text_view_state() else {
++        return;
++    };
++    let state = view.read(cx);
++    if !state.focus_handle().is_focused(window) {
++        return;
++    }
++    let Some(active) = state.link_navigation.active else {
++        return;
++    };
++    for run in runs {
++        if run.link.as_ref().and_then(|link| link.source_start) != Some(active) {
++            continue;
++        }
++        for area in &run.fragments {
++            window.paint_quad(gpui::quad(
++                *area,
++                px(2.),
++                gpui::transparent_black(),
++                gpui::Edges::all(px(1.5)),
++                state.text_view_style.link(),
++                gpui::BorderStyle::default(),
++            ));
++        }
++    }
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++    use gpui::point;
++
++    fn fragment(slot: usize, text: &str, source: Option<usize>) -> Fragment {
++        Fragment {
++            slot,
++            bounds: Bounds::new(point(px(slot as f32 * 10.), px(0.)), size(px(10.), px(20.))),
++            text: text.into(),
++            link: Some(LinkMark {
++                source_start: source,
++                url: "test:same".into(),
++                ..Default::default()
++            }),
++            native: false,
++        }
++    }
++
++    #[test]
++    fn rich_fragments_share_one_action_but_same_url_is_not_identity() {
++        let runs = coalesce(vec![
++            fragment(0, "Read ", Some(4)),
++            fragment(1, "code", Some(4)),
++            fragment(2, " 世界", Some(4)),
++            fragment(3, "Again", Some(40)),
++        ]);
++        assert_eq!(runs.len(), 2);
++        assert_eq!(runs[0].text, "Read code 世界");
++        assert_eq!(runs[0].slot, 0);
++        assert_eq!(runs[0].bounds.size, size(px(30.), px(20.)));
++        assert_eq!(runs[0].fragments.len(), 3);
++        assert_eq!(runs[1].slot, 3);
++    }
++
++    #[test]
++    fn wrapped_link_keeps_first_fragment_and_unions_painted_bounds() {
++        let first = fragment(0, "first ", Some(4));
++        let first_bounds = first.bounds;
++        let mut second = fragment(1, "line", Some(4));
++        second.bounds = Bounds::new(point(px(0.), px(20.)), size(px(60.), px(20.)));
++        let runs = coalesce(vec![first, second]);
++        assert_eq!(runs.len(), 1);
++        assert_eq!(runs[0].bounds.size, size(px(60.), px(40.)));
++        assert_eq!(runs[0].fragments[0], first_bounds);
++        assert_eq!(runs[0].text, "first line");
++    }
++
++    #[test]
++    fn native_objects_and_unknown_identities_prevent_accidental_coalescing() {
++        let mut native = fragment(1, "", None);
++        native.native = true;
++        let runs = coalesce(vec![
++            fragment(0, "left", Some(4)),
++            native,
++            fragment(2, "right", Some(4)),
++            fragment(3, "one", None),
++            fragment(4, "two", None),
++        ]);
++        assert_eq!(runs.len(), 4);
++        assert_eq!(
++            runs.iter().map(|run| run.slot).collect::<Vec<_>>(),
++            [0, 2, 3, 4]
++        );
++    }
++}
+--- a/src/text/inline_element.rs
++++ b/src/text/inline_element.rs
+@@ -8,6 +8,7 @@
+ pub struct InlineElement {
+     pub(crate) element: AnyElement,
+     pub(crate) baseline: Option<Pixels>,
++    pub(crate) hide_accessibility_when_linked: bool,
+ }
+ 
+ impl InlineElement {
+@@ -15,6 +16,7 @@
+         Self {
+             element: element.into_any_element(),
+             baseline: None,
++            hide_accessibility_when_linked: false,
+         }
+     }
+ 
+@@ -22,6 +24,15 @@
+     /// By default the box aligns its bottom with the surrounding text's descent.
+     pub fn with_baseline(mut self, baseline: Pixels) -> Self {
+         self.baseline = Some(baseline);
 +        self
 +    }
 +
-+    /// Reuse a prepared highlighter identity across frames so fenced-code
-+    /// style caches remain valid until the source or theme actually changes.
-+    pub fn code_block_highlighter_shared(
-+        mut self,
-+        highlighter: Arc<CodeBlockHighlighterFn>,
-+    ) -> Self {
-+        self.code_block_highlighter = Some(highlighter);
++    /// Represent this passive element through its enclosing logical link's
++    /// alternative instead of exposing a duplicate accessible subtree. Use for
++    /// images or decorations only, never elements with interactive descendants.
++    /// Unlinked elements retain their own semantics. Default: false.
++    pub fn hide_accessibility_when_linked(mut self) -> Self {
++        self.hide_accessibility_when_linked = true;
          self
      }
+ }
+--- a/src/input/base/element.rs
++++ b/src/input/base/element.rs
+@@ -464,6 +464,12 @@
  
+         let active_id = state.active_selection().id;
+         let mut scroll_offset = state.scroll_handle.offset();
++        // Resolve the request against this layout before using it for either
++        // caret or text geometry. Clamping only when storing the painted state
++        // leaves one frame at the unbounded requested offset.
++        let deferred_scroll_offset = state
++            .deferred_scroll_offset
++            .map(|offset| state.clamp_scroll_offset(offset, scroll_size, bounds.size));
+         let mut current_row = None;
+         let mut cursor_infos: Vec<CursorRenderInfo> = Vec::with_capacity(state.selections.len());
+ 
+@@ -605,8 +611,7 @@
+             // Match the caret to the deferred scroll target (applied below) that
+             // the text paints at; otherwise the caret follows the cursor-scroll
+             // while the text uses the deferred offset, flashing it mid-field.
+-            let cursor_scroll_x = state
+-                .deferred_scroll_offset
++            let cursor_scroll_x = deferred_scroll_offset
+                 .map(|offset| offset.x)
+                 .unwrap_or(scroll_offset.x);
+ 
+@@ -630,7 +635,7 @@
+             });
+         }
+ 
+-        if let Some(deferred_scroll_offset) = state.deferred_scroll_offset {
++        if let Some(deferred_scroll_offset) = deferred_scroll_offset {
+             scroll_offset = deferred_scroll_offset;
+         }
+         scroll_offset.y = clamp_auto_grow_vertical_scroll_offset(
+@@ -933,7 +938,21 @@
+         }
+ 
+         let mut scroll_top = if let Some(deferred_scroll_offset) = state.deferred_scroll_offset {
+-            deferred_scroll_offset.y
++            // Select source rows using the current content extent, before
++            // shaping. Ignore completion ghost rows here: they can extend the
++            // final scroll extent, but cannot introduce earlier source rows.
++            // This conservatively shapes at most one viewport of source rows;
++            // layout_cursors resolves the final offset including ghost height.
++            let height = line_height * total_lines
++                + empty_bottom_height(
++                    state.is_code_editor(),
++                    state.scroll_beyond_last_line,
++                    input_height,
++                    line_height,
++                );
++            deferred_scroll_offset
++                .y
++                .clamp((input_height - height).min(px(0.)), px(0.))
+         } else {
+             state.scroll_handle.offset().y
+         };
 --- a/src/input/base/state.rs
 +++ b/src/input/base/state.rs
-@@ -3330,2 +3330,9 @@
-     fn on_blur(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-+        // GPUIO: blur may hide or make a retained editor inert before a mouse-up
-+        // arrives. Stop the drag timer and transient gesture state, preserving
-+        // the actual selection range for menu Copy and later restoration.
-+        self.auto_scroll.stop();
-+        self.selecting = false;
-+        self.column_select_start = None;
-+        self.selected_word_range = None;
-         if M::is_context_menu_open(self, cx) {
---- a/src/input/base/state.rs
-+++ b/src/input/base/state.rs
-@@ -3329,0 +3330,7 @@
-+    fn cancel_drag_selection(&mut self) {
-+        self.auto_scroll.stop();
-+        self.selecting = false;
-+        self.column_select_start = None;
-+        self.selected_word_range = None;
+@@ -2619,7 +2619,23 @@
+         offset: Option<Point<Pixels>>,
+         cx: &mut Context<Self>,
+     ) {
+-        let mut offset = offset.unwrap_or(self.scroll_handle.offset());
++        let offset = self.clamp_scroll_offset(
++            offset.unwrap_or(self.scroll_handle.offset()),
++            self.scroll_size,
++            self.input_bounds.size,
++        );
++        if self.scroll_handle.offset() != offset {
++            self.scroll_handle.set_offset(offset);
++            cx.notify();
++        }
 +    }
 +
-@@ -3334,4 +3341 @@
--        self.auto_scroll.stop();
--        self.selecting = false;
--        self.column_select_start = None;
--        self.selected_word_range = None;
-+        self.cancel_drag_selection();
-@@ -3436,11 +3440,14 @@
--            self.auto_scroll.set(scroll_delta, cx, |delta, state, cx| {
--                let current = state.scroll_handle.offset();
--                state.update_scroll_offset(Some(point(current.x, current.y + delta)), cx);
--                if let Some(pos) = state.auto_scroll.last_drag_position {
--                    let (offset, line_end_affinity, columns_past_line_end) =
--                        state.resolve_mouse_position(pos);
--                    if let Some(start) = state.column_select_start {
--                        let end = ColumnarPoint::new(offset, columns_past_line_end);
--                        state.build_columnar_selection(start, end, cx);
--                    } else {
--                        state.select_to_with_affinity(offset, line_end_affinity, cx);
-+            let window_handle = window.window_handle();
-+            self.auto_scroll
-+                .set(scroll_delta, cx, move |delta, state, cx| {
-+                    // GPUI delivers blur listeners after drawing. A ready timer can
-+                    // run after Window::blur but before that notification; it must
-+                    // not extend selection in the intervening frame.
-+                    let focused = cx
-+                        .update_window(window_handle, |_, window, _| {
-+                            window.is_window_active() && state.focus_handle.is_focused(window)
-+                        })
-+                        .unwrap_or(false);
-+                    if !focused {
-+                        state.cancel_drag_selection();
-+                        return;
-@@ -3448,2 +3455,13 @@
--                }
--            });
-+                    let current = state.scroll_handle.offset();
-+                    state.update_scroll_offset(Some(point(current.x, current.y + delta)), cx);
-+                    if let Some(pos) = state.auto_scroll.last_drag_position {
-+                        let (offset, line_end_affinity, columns_past_line_end) =
-+                            state.resolve_mouse_position(pos);
-+                        if let Some(start) = state.column_select_start {
-+                            let end = ColumnarPoint::new(offset, columns_past_line_end);
-+                            state.build_columnar_selection(start, end, cx);
-+                        } else {
-+                            state.select_to_with_affinity(offset, line_end_affinity, cx);
-+                        }
-+                    }
-+                });
++    pub(super) fn clamp_scroll_offset(
++        &self,
++        mut offset: Point<Pixels>,
++        scroll_size: gpui::Size<Pixels>,
++        input_size: gpui::Size<Pixels>,
++    ) -> Point<Pixels> {
+         // In addition to left alignment, a cursor position will be reserved on the right side
+         let safe_x_offset = if self.text_align == TextAlign::Left {
+             px(0.)
+@@ -2627,10 +2643,9 @@
+             -CURSOR_WIDTH
+         };
+ 
+-        let safe_y_range =
+-            (-self.scroll_size.height + self.input_bounds.size.height).min(px(0.0))..px(0.);
+-        let safe_x_range = (-self.scroll_size.width + self.input_bounds.size.width + safe_x_offset)
+-            .min(safe_x_offset)..px(0.);
++        let safe_y_range = (-scroll_size.height + input_size.height).min(px(0.0))..px(0.);
++        let safe_x_range =
++            (-scroll_size.width + input_size.width + safe_x_offset).min(safe_x_offset)..px(0.);
+ 
+         offset.y = if self.is_single_line() {
+             px(0.)
+@@ -2638,10 +2653,7 @@
+             offset.y.clamp(safe_y_range.start, safe_y_range.end)
+         };
+         offset.x = offset.x.clamp(safe_x_range.start, safe_x_range.end);
+-        if self.scroll_handle.offset() != offset {
+-            self.scroll_handle.set_offset(offset);
+-            cx.notify();
+-        }
++        offset
+     }
+ 
+     /// Scroll to make the given offset visible.

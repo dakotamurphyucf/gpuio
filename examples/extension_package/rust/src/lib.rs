@@ -112,6 +112,9 @@ impl sdk::Component for Counter {
         self.value.trace("unmount");
     }
     fn render(&mut self, cx: &mut sdk::Context<'_>) -> Result<gpui::AnyElement, sdk::Error> {
+        // Disabled semantics do not inherit from the host's accessible group.
+        // Describe this actual button; its callbacks still check the live lease.
+        let disabled = cx.events.check().is_err();
         let value = self.value.clone();
         let step = self.step;
         let events = cx.events.clone();
@@ -143,6 +146,11 @@ impl sdk::Component for Counter {
                 "Increment counter, current value {}",
                 self.value.value.get()
             ))
+            .a11y_synthetic_children(move |builder| {
+                if disabled {
+                    builder.parent_node().set_disabled();
+                }
+            })
             .flex()
             .items_center()
             .justify_between()

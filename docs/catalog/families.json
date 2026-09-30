@@ -1,0 +1,805 @@
+{
+  "schema_version": 1,
+  "status": "Root-module ownership map; not release acceptance",
+  "families": [
+    {
+      "id": "presentation",
+      "owner": "OCH-33",
+      "scope": "v1",
+      "audit_status": "local source-row functional equivalents reviewed: status bar, badge, label, group box, Empty, Separator, Link, Attachment, Marker, Alert, Tag, Bubble, Message, Description, Kbd and Settings; contracts and per-row Core/native/installed-consumer evidence are linked in presentation-review.md. Settings includes six field types, 24 appearance/layout retention cases, reset/lifetime guards, US dead-key composition, 48-group virtualization, Eio persistence and independent windows. Hosted gates and OCH-17 multilingual IME/VoiceOver/performance/distribution remain open.",
+      "public_interface": "lib/core/presentation.mli",
+      "example": "examples/presentation",
+      "evidence": [
+        "docs/evidence/presentation-components-och33.md",
+        "docs/catalog/presentation-review.md",
+        "docs/design/settings-composition.md"
+      ],
+      "gallery_page": "presentation",
+      "contract": "Stateless compositions, explicit content slots, semantic roles and theme/style overrides.",
+      "upstream_modules": [
+        "base/link",
+        "component/alert",
+        "component/attachment",
+        "component/badge",
+        "component/bubble",
+        "component/description_list",
+        "component/empty",
+        "component/group_box",
+        "component/kbd",
+        "component/label",
+        "component/link",
+        "component/marker",
+        "component/message",
+        "component/separator",
+        "component/setting",
+        "component/status_bar",
+        "component/tag"
+      ]
+    },
+    {
+      "id": "forms",
+      "owner": "OCH-33",
+      "scope": "v1",
+      "audit_status": "pinned source reviewed; single-field helper implemented, rich collection/slots/placement/footer incomplete; see form-composition.md draft and acceptance requirements",
+      "public_interface": "lib/core/form.mli",
+      "example": "examples/presentation",
+      "evidence": [
+        "docs/evidence/presentation-components-och33.md",
+        "docs/design/form-composition.md"
+      ],
+      "gallery_page": "text-inputs",
+      "contract": "Field help/error metadata and direct control association exist. Rich Form collection, independent grid/label orientation, field placement, rich slots and full-width footer require implementation and native/public-consumer evidence. Validation and persistence remain application-owned.",
+      "upstream_modules": [
+        "component/form"
+      ]
+    },
+    {
+      "id": "avatar",
+      "owner": "OCH-33",
+      "scope": "v1",
+      "audit_status": "mapping established; detailed behavioral review pending",
+      "public_interface": "lib/core/avatar.mli",
+      "example": "examples/presentation",
+      "evidence": [
+        "docs/evidence/presentation-components-och33.md"
+      ],
+      "gallery_page": "presentation",
+      "contract": "Image/fallback/load state, explicit asset ownership and alt semantics.",
+      "upstream_modules": [
+        "base/avatar",
+        "component/avatar"
+      ]
+    },
+    {
+      "id": "rating",
+      "owner": "OCH-33",
+      "scope": "v1",
+      "audit_status": "mapping established; detailed behavioral review pending",
+      "public_interface": "lib/core/rating.mli",
+      "example": "examples/presentation",
+      "evidence": [
+        "docs/evidence/presentation-components-och33.md"
+      ],
+      "gallery_page": "numeric-inputs",
+      "contract": "Ordered relative rating requests, bounded values and read-only/disabled policy.",
+      "upstream_modules": [
+        "component/rating"
+      ]
+    },
+    {
+      "id": "loading",
+      "owner": "OCH-33",
+      "scope": "v1",
+      "audit_status": "mapping established; detailed behavioral review pending",
+      "public_interface": "lib/core/loading.mli",
+      "example": "examples/presentation",
+      "evidence": [
+        "docs/evidence/presentation-components-och33.md",
+        "docs/design/text-shimmer.md"
+      ],
+      "gallery_page": "presentation",
+      "contract": "Native skeleton/spinner/placeholder animation and reduced-motion/static policy; no invented completion value. Glyph shimmer has Core/Bonsai/live transport and mounted Host/selection/highlight integration, explicit application appearances and focused background GPU/lifecycle checks including retained tabs, native responsive branches and managed-row pause/eviction/remount. Shared per-window candidate/glyph budgets have native fallback/recovery evidence. Public gallery and fresh installed-consumer checks now pass theme/width/direction, keyboard Copy and effect toggling, identity, playback/reduced motion and page remount. A visible-layout clock defect has a failing-before regression and passing repair. Measured application-performance acceptance remains pending.",
+      "upstream_modules": [
+        "component/shimmer",
+        "component/skeleton",
+        "component/spinner"
+      ]
+    },
+    {
+      "id": "buttons",
+      "owner": "OCH-11",
+      "scope": "v1",
+      "audit_status": "mapping established; detailed behavioral review pending",
+      "public_interface": "lib/core/view.mli",
+      "example": "examples/controls",
+      "evidence": [
+        "docs/evidence/button-icons-och11.md"
+      ],
+      "gallery_page": "controls",
+      "contract": "Native press, keyboard and accessibility actions; icon slots and style states.",
+      "upstream_modules": [
+        "base/button",
+        "component/button"
+      ]
+    },
+    {
+      "id": "selection",
+      "owner": "OCH-11",
+      "scope": "v1",
+      "audit_status": "mapping established; detailed behavioral review pending",
+      "public_interface": "lib/core/choice.mli",
+      "example": "examples/controls",
+      "evidence": [
+        "docs/evidence/milestones-01-02.md"
+      ],
+      "gallery_page": "controls",
+      "contract": "Checkbox/switch/radio/choice compositions. Audit single/multiple toggle-group equivalence explicitly.",
+      "upstream_modules": [
+        "base/checkbox",
+        "base/radio",
+        "base/radio_group",
+        "base/switch",
+        "base/toggle",
+        "base/toggle_group",
+        "component/checkbox",
+        "component/radio",
+        "component/switch"
+      ]
+    },
+    {
+      "id": "select",
+      "owner": "OCH-11",
+      "scope": "v1",
+      "audit_status": "mapping established; detailed behavioral review pending",
+      "public_interface": "lib/core/choice.mli",
+      "example": "examples/controls",
+      "evidence": [
+        "docs/evidence/milestones-01-02.md"
+      ],
+      "gallery_page": "controls",
+      "contract": "Retained native popup/highlight; queued selected ID; validated options/appearance.",
+      "upstream_modules": [
+        "base/select",
+        "component/select"
+      ]
+    },
+    {
+      "id": "combobox",
+      "owner": "OCH-11",
+      "scope": "v1",
+      "audit_status": "mapping established; detailed behavioral review pending",
+      "public_interface": "lib/eio/combobox.mli",
+      "example": "examples/combobox",
+      "evidence": [
+        "docs/evidence/milestones-01-02.md"
+      ],
+      "gallery_page": "controls",
+      "contract": "Native query editing, queued semantic selection and explicit controller commands.",
+      "upstream_modules": [
+        "base/combobox",
+        "component/combobox"
+      ]
+    },
+    {
+      "id": "editor",
+      "owner": "OCH-10",
+      "scope": "v1",
+      "audit_status": "mapping established; detailed behavioral review pending",
+      "public_interface": "lib/eio/text_input.mli",
+      "example": "examples/text_input",
+      "evidence": [
+        "docs/evidence/native-editor-och10.md"
+      ],
+      "gallery_page": "text-inputs",
+      "contract": "Single/multiline editing, IME, selection, history and revisioned commands. Full code-editor/LSP subfamilies remain OCH-44/45; inventory nested input exports separately.",
+      "upstream_modules": [
+        "base/history",
+        "base/input",
+        "base/text_boundary",
+        "base/undo_history",
+        "component/history",
+        "component/input"
+      ]
+    },
+    {
+      "id": "numbers",
+      "owner": "OCH-34",
+      "scope": "v1",
+      "audit_status": "mapping established; detailed behavioral review pending",
+      "public_interface": "lib/eio/number_input.mli",
+      "example": "examples/numeric",
+      "evidence": [
+        "docs/evidence/numeric-inputs-och34.md"
+      ],
+      "gallery_page": "numeric-inputs",
+      "contract": "Native draft versus committed value, stepping and bounded numeric domain.",
+      "upstream_modules": [
+        "base/number_input",
+        "component/stepper"
+      ]
+    },
+    {
+      "id": "sliders",
+      "owner": "OCH-34",
+      "scope": "v1",
+      "audit_status": "mapping established; detailed behavioral review pending",
+      "public_interface": "lib/eio/slider.mli",
+      "example": "examples/numeric",
+      "evidence": [
+        "docs/evidence/numeric-inputs-och34.md"
+      ],
+      "gallery_page": "numeric-inputs",
+      "contract": "Single/range, linear/log, horizontal/vertical; native drag/keyboard and explicit commands.",
+      "upstream_modules": [
+        "base/slider",
+        "component/slider"
+      ]
+    },
+    {
+      "id": "otp",
+      "owner": "OCH-34",
+      "scope": "v1",
+      "audit_status": "mapping established; detailed behavioral review pending",
+      "public_interface": "lib/eio/otp_input.mli",
+      "example": "examples/numeric",
+      "evidence": [
+        "docs/evidence/numeric-inputs-och34.md"
+      ],
+      "gallery_page": "numeric-inputs",
+      "contract": "Canonical code policy, composition/paste validation, masking and explicit replacements.",
+      "upstream_modules": [
+        "base/otp_input"
+      ]
+    },
+    {
+      "id": "calendar",
+      "owner": "OCH-35",
+      "scope": "v1",
+      "audit_status": "mapping established; detailed behavioral review pending",
+      "public_interface": "lib/eio/date_picker.mli",
+      "example": "examples/calendar",
+      "evidence": [
+        "docs/evidence/calendar-och35.md"
+      ],
+      "gallery_page": "pickers",
+      "contract": "Civil date/range constraints; native calendar draft, explicit picker confirm/cancel and focus restoration.",
+      "upstream_modules": [
+        "base/calendar",
+        "base/date_picker",
+        "component/time"
+      ]
+    },
+    {
+      "id": "color",
+      "owner": "OCH-36",
+      "scope": "v1",
+      "audit_status": "mapping established; detailed behavioral review pending",
+      "public_interface": "lib/eio/color_picker.mli",
+      "example": "examples/color_input",
+      "evidence": [
+        "docs/evidence/color-inputs-och36.md"
+      ],
+      "gallery_page": "pickers",
+      "contract": "RGBA/HSLA, swatches/channels, native hex draft; confirmed application value separate from popup draft.",
+      "upstream_modules": [
+        "base/color_picker",
+        "component/color_picker"
+      ]
+    },
+    {
+      "id": "dialogs",
+      "owner": "OCH-37",
+      "scope": "v1",
+      "audit_status": "mapping established; detailed behavioral review pending",
+      "public_interface": "lib/core/overlay.mli",
+      "example": "examples/overlays",
+      "evidence": [
+        "docs/evidence/navigation-components-och37.md"
+      ],
+      "gallery_page": "overlays",
+      "contract": "Dialog/sheet/alert-dialog focus and dismissal policy; safe confirmation action first.",
+      "upstream_modules": [
+        "base/alert_dialog",
+        "base/dialog",
+        "base/focus_trap",
+        "base/sheet",
+        "component/dialog",
+        "component/sheet"
+      ]
+    },
+    {
+      "id": "popovers",
+      "owner": "OCH-11",
+      "scope": "v1",
+      "audit_status": "mapping established; detailed behavioral review pending",
+      "public_interface": "lib/core/overlay.mli",
+      "example": "examples/overlays",
+      "evidence": [
+        "docs/evidence/milestones-01-02.md"
+      ],
+      "gallery_page": "overlays",
+      "contract": "Anchored native placement, dismissal and focus restoration; helpers belong to overlay ownership.",
+      "upstream_modules": [
+        "base/popover",
+        "base/popup",
+        "base/positioner",
+        "component/popover"
+      ]
+    },
+    {
+      "id": "tooltips",
+      "owner": "OCH-37",
+      "scope": "v1",
+      "audit_status": "mapping established; detailed behavioral review pending",
+      "public_interface": "lib/core/hover_card.mli",
+      "example": "examples/tooltips",
+      "evidence": [
+        "docs/evidence/navigation-components-och37.md"
+      ],
+      "gallery_page": "overlays",
+      "contract": "Native managed/controlled visibility, deadlines and retained hidden content; helper role versus interactive-card role.",
+      "upstream_modules": [
+        "base/hover_card",
+        "base/tooltip",
+        "component/hover_card",
+        "component/tooltip"
+      ]
+    },
+    {
+      "id": "disclosure",
+      "owner": "OCH-37",
+      "scope": "v1",
+      "audit_status": "mapping established; detailed behavioral review pending",
+      "public_interface": "lib/core/disclosure.mli",
+      "example": "examples/navigation",
+      "evidence": [
+        "docs/evidence/navigation-components-och37.md"
+      ],
+      "gallery_page": "navigation",
+      "contract": "Latest-state expansion reducer, grouped keyboard headers, explicit hidden-content lifetime.",
+      "upstream_modules": [
+        "base/accordion",
+        "base/collapsible",
+        "component/accordion",
+        "component/collapsible"
+      ]
+    },
+    {
+      "id": "breadcrumb-pagination",
+      "owner": "OCH-37",
+      "scope": "v1",
+      "audit_status": "mapping established; detailed behavioral review pending",
+      "public_interface": "lib/core/navigation.mli",
+      "example": "examples/navigation",
+      "evidence": [
+        "docs/evidence/navigation-components-och37.md"
+      ],
+      "gallery_page": "navigation",
+      "contract": "Stable identities/current semantics, bounded paging and ordered relative requests.",
+      "upstream_modules": [
+        "base/pagination",
+        "component/breadcrumb",
+        "component/pagination"
+      ]
+    },
+    {
+      "id": "workspace",
+      "owner": "OCH-15",
+      "scope": "v1",
+      "audit_status": "mapping established; detailed behavioral review pending",
+      "public_interface": "lib/core/split_pane.mli",
+      "example": "examples/window_lifecycle",
+      "evidence": [
+        "docs/evidence/agent-workspace-m4.md"
+      ],
+      "gallery_page": "navigation",
+      "contract": "Application-owned tab choice; retained panels, native split geometry and explicit reset generations.",
+      "upstream_modules": [
+        "base/resizable",
+        "base/tabs",
+        "component/resizable",
+        "component/tab"
+      ]
+    },
+    {
+      "id": "navigation-stack",
+      "owner": "OCH-37",
+      "scope": "v1",
+      "audit_status": "mapping established; detailed behavioral review pending",
+      "public_interface": "lib/core/navigation_stack.mli",
+      "example": "examples/navigation",
+      "evidence": [
+        "docs/evidence/navigation-components-och37.md"
+      ],
+      "gallery_page": "journeys",
+      "contract": "Bounded history, separate instance identity and native navigation motion; retention does not imply Eio cancellation.",
+      "upstream_modules": [
+        "base/nav_stack"
+      ]
+    },
+    {
+      "id": "carousel",
+      "owner": "OCH-37",
+      "scope": "v1",
+      "audit_status": "mapping established; detailed behavioral review pending",
+      "public_interface": "lib/core/carousel.mli",
+      "example": "examples/navigation",
+      "evidence": [
+        "docs/evidence/navigation-components-och37.md"
+      ],
+      "gallery_page": "journeys",
+      "contract": "Revisioned application selection; native gestures/deadlines, reduced motion and bounded retained pages.",
+      "upstream_modules": [
+        "component/carousel"
+      ]
+    },
+    {
+      "id": "sidebar",
+      "owner": "OCH-37",
+      "scope": "v1",
+      "audit_status": "mapping established; detailed behavioral review pending",
+      "public_interface": "lib/core/sidebar.mli",
+      "example": "examples/agent_chat",
+      "evidence": [
+        "docs/evidence/agent-chat-m5.md"
+      ],
+      "gallery_page": "journeys",
+      "contract": "Grouped/nested destinations, independent expansion, collapse modes and current-route semantics.",
+      "upstream_modules": [
+        "component/sidebar"
+      ]
+    },
+    {
+      "id": "managed-list",
+      "owner": "OCH-13",
+      "scope": "v1",
+      "audit_status": "mapping established; detailed behavioral review pending",
+      "public_interface": "lib/bonsai/virtual_list.mli",
+      "example": "examples/virtual_list",
+      "evidence": [
+        "docs/evidence/managed-lists-och13.md"
+      ],
+      "gallery_page": "collections",
+      "contract": "Virtual rows/paging/anchors/tail following; explicit state/cache retention; helper masks/scroll ownership mapped to the same native viewport.",
+      "upstream_modules": [
+        "base/auto_scroll",
+        "base/list_settings",
+        "base/scrollable_mask",
+        "base/scrollbar",
+        "base/virtual_list",
+        "component/list",
+        "component/message_scroller",
+        "component/scroll",
+        "component/virtual_list"
+      ]
+    },
+    {
+      "id": "tree",
+      "owner": "OCH-38",
+      "scope": "v1",
+      "audit_status": "mapping established; detailed behavioral review pending",
+      "public_interface": "lib/bonsai/tree.mli",
+      "example": "examples/tree",
+      "evidence": [
+        "docs/evidence/managed-trees-och38.md"
+      ],
+      "gallery_page": "collections",
+      "contract": "Stable lazy tree identity, selection/keyboard/reveal and generation-checked loading; editing deferred OCH-42.",
+      "upstream_modules": [
+        "base/tree",
+        "component/tree"
+      ]
+    },
+    {
+      "id": "table",
+      "owner": "OCH-39",
+      "scope": "v1",
+      "audit_status": "mapping established; detailed behavioral review pending",
+      "public_interface": "lib/bonsai/table.mli",
+      "example": "examples/table",
+      "evidence": [
+        "docs/evidence/data-tables-och39.md"
+      ],
+      "gallery_page": "collections",
+      "contract": "Read-only virtual tables with native column interaction; structural table composition maps to views; editing deferred OCH-42.",
+      "upstream_modules": [
+        "base/table",
+        "component/table"
+      ]
+    },
+    {
+      "id": "documents",
+      "owner": "OCH-14",
+      "scope": "v1",
+      "audit_status": "mapping established; detailed behavioral review pending",
+      "public_interface": "lib/core/document.mli",
+      "example": "examples/documents",
+      "evidence": [
+        "docs/evidence/agent-workspace-m4.md",
+        "docs/evidence/subtree-highlighting-och41.md"
+      ],
+      "gallery_page": "documents",
+      "contract": "Revisioned Markdown/code/diff, native text selection/navigation and literal document search; additional Find & highlight page demonstrates public subtree query/range scopes, queued counts and selected matches. Full selection/custom-plugin and broad highlighting acceptance remain open.",
+      "upstream_modules": [
+        "base/selectable_text",
+        "base/text",
+        "base/text_selection",
+        "component/highlighter",
+        "component/text"
+      ]
+    },
+    {
+      "id": "charts",
+      "owner": "OCH-40",
+      "scope": "v1",
+      "audit_status": "mapping established; detailed behavioral review pending",
+      "public_interface": "lib/core/chart.mli",
+      "example": "examples/charts",
+      "evidence": [
+        "docs/evidence/charts-och40.md"
+      ],
+      "gallery_page": "charts",
+      "contract": "Seven chart families/mixed layers, bounded source/preparation and original-data accessibility; preserve exact/reduced provenance.",
+      "upstream_modules": [
+        "component/chart",
+        "component/plot"
+      ]
+    },
+    {
+      "id": "motion",
+      "owner": "OCH-25",
+      "scope": "v1",
+      "audit_status": "mapping established; detailed behavioral review pending",
+      "public_interface": "lib/core/animation.mli",
+      "example": "examples/animation_program",
+      "evidence": [
+        "docs/evidence/animation-programs-och25.md"
+      ],
+      "gallery_page": "motion",
+      "contract": "Native transitions/springs/sequences/repetition and interruption/reduced motion, without OCaml frame callbacks.",
+      "upstream_modules": [
+        "base/animation",
+        "base/motion"
+      ]
+    },
+    {
+      "id": "commands-menus",
+      "owner": "OCH-11",
+      "scope": "v1",
+      "audit_status": "mapping established; detailed behavioral review pending",
+      "public_interface": "lib/core/command.mli",
+      "example": "examples/palette",
+      "evidence": [
+        "docs/evidence/native-palette-och11.md"
+      ],
+      "gallery_page": "feedback",
+      "contract": "Shared typed commands/key bindings, native menus/palette search and queued invocations; audit searchable-list composition separately.",
+      "upstream_modules": [
+        "base/actions",
+        "component/actions",
+        "component/command",
+        "component/menu",
+        "component/native_menu",
+        "component/searchable_list"
+      ]
+    },
+    {
+      "id": "progress",
+      "owner": "OCH-11",
+      "scope": "v1",
+      "audit_status": "mapping established; detailed behavioral review pending",
+      "public_interface": "lib/core/progress.mli",
+      "example": "examples/progress",
+      "evidence": [
+        "docs/evidence/native-progress-och11.md"
+      ],
+      "gallery_page": "feedback",
+      "contract": "Finite determinate values or native indeterminate work; semantic value/label and reduced motion.",
+      "upstream_modules": [
+        "base/progress",
+        "component/progress"
+      ]
+    },
+    {
+      "id": "toasts",
+      "owner": "OCH-11",
+      "scope": "v1",
+      "audit_status": "mapping established; detailed behavioral review pending",
+      "public_interface": "lib/core/toast.mli",
+      "example": "examples/toasts",
+      "evidence": [
+        "docs/evidence/native-toasts-och11.md"
+      ],
+      "gallery_page": "feedback",
+      "contract": "In-application notifications are toast stacks, distinct from OCH-28 OS notifications. Native deadlines, actions, queue bounds and lifecycle.",
+      "upstream_modules": [
+        "base/toast",
+        "component/notification"
+      ]
+    },
+    {
+      "id": "clipboard",
+      "owner": "OCH-11",
+      "scope": "v1",
+      "audit_status": "mapping established; detailed behavioral review pending",
+      "public_interface": "lib/core/text_input.mli",
+      "example": "examples/text_input",
+      "evidence": [
+        "docs/evidence/native-editor-och10.md"
+      ],
+      "gallery_page": "text-inputs",
+      "contract": "Native editor/selection clipboard actions; audit standalone application clipboard API requirements.",
+      "upstream_modules": [
+        "component/clipboard"
+      ]
+    },
+    {
+      "id": "assets",
+      "owner": "OCH-11",
+      "scope": "v1",
+      "audit_status": "mapping established; detailed behavioral review pending",
+      "public_interface": "lib/core/asset.mli",
+      "example": "examples/images",
+      "evidence": [
+        "docs/evidence/assets-och11.md"
+      ],
+      "gallery_page": "assets",
+      "contract": "Explicit scoped image/SVG assets and tintable icons. No mandatory upstream icon macro or implicit network acquisition.",
+      "upstream_modules": [
+        "component/icon"
+      ]
+    },
+    {
+      "id": "style-theme",
+      "owner": "OCH-8",
+      "scope": "v1",
+      "audit_status": "mapping established; detailed behavioral review pending",
+      "public_interface": "lib/core/style.mli",
+      "example": "examples/view_api",
+      "evidence": [
+        "docs/evidence/theme-scale-och11.md",
+        "docs/design/native-aspect-ratio.md"
+      ],
+      "gallery_page": "presentation",
+      "contract": "Typed styles/tokens/native states. Compare values and scope restrictions using gpuix-styles.json, not only field names. Native aspect ratio now has paired transport, validation and retained GPU geometry/state/unset evidence; public gallery and a fresh installed consumer pass proportional geometry, explicit-height reset, keyboard focus/state/identity retention and page remount. Specialized-widget and release acceptance remain separate.",
+      "upstream_modules": [
+        "base/state_style",
+        "base/styled",
+        "base/theme",
+        "base/theme_tokens",
+        "component/sizing",
+        "component/styled",
+        "component/theme"
+      ]
+    },
+    {
+      "id": "native-events",
+      "owner": "OCH-11",
+      "scope": "v1",
+      "audit_status": "mapping established; detailed behavioral review pending",
+      "public_interface": "lib/core/pointer.mli",
+      "example": "examples/pointer",
+      "evidence": [
+        "docs/evidence/native-pointer-och11.md",
+        "docs/evidence/drag-drop-och11.md",
+        "docs/evidence/input-observations-och41.md"
+      ],
+      "gallery_page": "input",
+      "contract": "Typed captured gestures and general input-region observations with explicit phase, focus, pointer/wheel occlusion and asynchronous ownership. Input & transfers and Input observations gallery pages have local native evidence; consolidated gates remain.",
+      "upstream_modules": [
+        "base/event"
+      ]
+    },
+    {
+      "id": "geometry",
+      "owner": "OCH-8",
+      "scope": "v1",
+      "audit_status": "mapping established; detailed behavioral review pending",
+      "public_interface": "lib/core/length.mli",
+      "example": "examples/view_api",
+      "evidence": [
+        "docs/evidence/theme-scale-och11.md"
+      ],
+      "gallery_page": "runtime",
+      "contract": "Typed length/placement/layout and View composition; Rust extension traits do not require one-for-one FFI wrappers.",
+      "upstream_modules": [
+        "base/element_ext",
+        "base/geometry",
+        "component/element_ext"
+      ]
+    },
+    {
+      "id": "window",
+      "owner": "OCH-15",
+      "scope": "v1",
+      "audit_status": "mapping established; detailed behavioral review pending",
+      "public_interface": "lib/core/window.mli",
+      "example": "examples/window_lifecycle",
+      "evidence": [
+        "docs/evidence/agent-workspace-m4.md"
+      ],
+      "gallery_page": "runtime",
+      "contract": "Native window configuration/chrome/commands; no general OS-owned titlebar object crosses FFI.",
+      "upstream_modules": [
+        "component/title_bar",
+        "component/window_border",
+        "component/window_ext"
+      ]
+    },
+    {
+      "id": "runtime",
+      "owner": "OCH-9",
+      "scope": "v1",
+      "audit_status": "mapping established; detailed behavioral review pending",
+      "public_interface": "lib/eio/app.mli",
+      "example": "examples/runtime",
+      "evidence": [
+        "docs/evidence/runtime-och9.md"
+      ],
+      "gallery_page": "runtime",
+      "contract": "Native runtime ownership, typed IDs, validated config and scoped Eio tasks replace upstream global helpers/traits.",
+      "upstream_modules": [
+        "base/async_util",
+        "base/component_traits",
+        "base/global_state",
+        "base/index_path",
+        "component/component_traits",
+        "component/global_state",
+        "component/index_path",
+        "component/root"
+      ]
+    },
+    {
+      "id": "diagnostics",
+      "owner": "OCH-17",
+      "scope": "v1",
+      "audit_status": "mapping established; detailed behavioral review pending",
+      "public_interface": "lib/eio/app.mli",
+      "example": "examples/runtime",
+      "evidence": [
+        "docs/evidence/runtime-och9.md"
+      ],
+      "gallery_page": "runtime",
+      "contract": "Internal measurement/observation/accessibility integration maps to diagnostics/native automation. Audit general public geometry/automation surface for release.",
+      "upstream_modules": [
+        "base/macos_accessibility",
+        "base/measure",
+        "base/observe",
+        "base/test_support"
+      ]
+    },
+    {
+      "id": "docking",
+      "owner": "OCH-43",
+      "scope": "post_v1",
+      "audit_status": "mapping established; detailed behavioral review pending",
+      "public_interface": "lib/core/split_pane.mli",
+      "example": "examples/navigation",
+      "evidence": [
+        "docs/design/component-catalog.md"
+      ],
+      "gallery_page": null,
+      "contract": "Post-v1: comprehensive docking/detachable panels. Existing splits/tabs are not an assertion of full docking.",
+      "upstream_modules": [
+        "base/dock",
+        "component/dock"
+      ]
+    },
+    {
+      "id": "inspector",
+      "owner": "OCH-17",
+      "scope": "excluded_development_tooling",
+      "audit_status": "mapping established; detailed behavioral review pending",
+      "public_interface": "lib/eio/app.mli",
+      "example": "examples/runtime",
+      "evidence": [
+        "docs/design/component-catalog.md"
+      ],
+      "gallery_page": null,
+      "contract": "Upstream development inspector is excluded from component/application-functionality parity; runtime diagnostics still required.",
+      "upstream_modules": [
+        "component/inspector"
+      ]
+    }
+  ]
+}

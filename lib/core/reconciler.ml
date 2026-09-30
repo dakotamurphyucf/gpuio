@@ -71,11 +71,22 @@ type 'a callback =
   | Split_pane of Split_pane.Config.t * (Split_pane.Snapshot.t -> 'a)
   | Canvas of Wire.Canvas_view.Config.t * (Canvas.Event.t -> 'a)
   | Chart of Wire.Chart_view.Config.t * (Chart.Event.t -> 'a)
-  | Document of Text_source.Handle.t * (Document.Navigation.t -> 'a)
+  | Document of
+      { source : Text_source.Handle.t
+      ; diff_config : Document.Diff.Config.t option
+      ; diff_epoch : int64
+      ; on_navigate : (Document.Navigation.t -> 'a) option
+      ; on_diff : (Document.Diff.Event.t -> 'a) option
+      }
   | Virtual_list of List_identity.t * 'a View.Expert.virtual_list * TW.Config.t option
   | Animation_program of int64 * (int64 * int64) ref * (Animation.Program.Event.t -> 'a)
   | Animation of int64 * int64 ref * (Animation.Event.t -> 'a)
   | Image of (Image.State.t -> 'a)
+  | Input_region of Gpuio_protocol.Input_wire.Config.t * (Input_region.Event.t -> 'a)
+  | Command_binding_scope of
+      Command_binding.Config.t * int64 ref * (Command_binding.Observation.t -> 'a)
+  | Highlight_scope of
+      Gpuio_protocol.Highlight_wire.Config.t * (Highlight.Observation.t -> 'a)
   | Pointer of (Pointer.Event.t -> 'a)
   | Drag_source of (Drag_and_drop.Source_event.t -> 'a)
   | Drop_target of (Drag_and_drop.Target_event.t -> 'a)
@@ -107,12 +118,15 @@ type 'a mounted =
   ; id : Node_id.t
   ; handler : Handler_id.t option
   ; style : Wire.Style.t list
+  ; text_content : Gpuio_protocol.Text_content_wire.t option
   ; animation : Wire.Animation.Config.t option
   ; animation_seen : int64 ref
   ; animation_program : Wire.Animation_program.Config.t option
   ; program_seen : (int64 * int64) ref
   ; container_query : Wire.Container_query.Config.t option
   ; query_seen : int64 ref
+  ; binding_seen : int64 ref
+  ; document_diff_epoch : int64
   ; slider_seen : int64 ref
   ; number_input_seen : int64 ref
   ; otp_input_seen : int64 ref
@@ -160,7 +174,8 @@ type 'a update =
   }
 
 type 'a builder =
-  { mutable nodes : Allocator.t
+  { window : Window_id.t
+  ; mutable nodes : Allocator.t
   ; mutable handlers : Allocator.t
   ; mutable bindings : 'a binding Int.Map.t
   ; mutable operations : Wire.Op.t list
@@ -250,6 +265,9 @@ let kind = function
   | Toast -> Toast
   | Toast_stack -> Toast_stack
   | Pointer_area -> Pointer_area
+  | Input_region -> Input_region
+  | Highlight_scope -> Highlight_scope
+  | Link -> Link
   | Drag_source -> Drag_source
   | Drop_target -> Drop_target
   | Image -> Image
@@ -415,6 +433,25 @@ let rec mount builder ~depth previous view =
           in
           { candidate with generation }))
     in
+    let old_binding_config =
+      Option.bind previous ~f:(fun old ->
+        Option.map (View.Expert.describe old.view).command_binding_scope ~f:(fun item ->
+          item.config))
+    in
+    let binding_config =
+      Option.map description.command_binding_scope ~f:(fun item -> item.config)
+    in
+    let binding_changed =
+      not (Option.equal Command_binding.Config.equal old_binding_config binding_config)
+    in
+    let binding_seen =
+      if binding_changed
+      then ref 0L
+      else Option.value_map previous ~default:(ref 0L) ~f:(fun old -> old.binding_seen)
+    in
+    Option.iter binding_config ~f:(fun config ->
+      if not (Command_binding.Expert.valid_window config builder.window)
+      then fail "binding editor context belongs to another window");
     let query_seen =
       Option.value_map previous ~default:(ref 0L) ~f:(fun old -> old.query_seen)
     in
@@ -581,6 +618,28 @@ let rec mount builder ~depth previous view =
       | Some _, Some _ -> fail "toast cannot combine another handler"
     in
     let callback =
+      match description.command_binding_scope, callback with
+      | Some item, None ->
+        Some (Command_binding_scope (item.config, binding_seen, item.on_update))
+      | None, callback -> callback
+      | Some _, Some _ -> fail "binding observer cannot combine another handler"
+    in
+    let callback =
+      match description.highlight_scope, callback with
+      | Some item, None ->
+        Option.map item.on_update ~f:(fun callback ->
+          Highlight_scope (Highlight.Expert.to_wire item.config, callback))
+      | None, callback -> callback
+      | Some _, Some _ -> fail "highlight scope cannot combine another handler"
+    in
+    let callback =
+      match description.input_region, callback with
+      | Some item, None ->
+        Some (Input_region (Input_region.Expert.to_wire item.config, item.on_event))
+      | None, callback -> callback
+      | Some _, Some _ -> fail "input region cannot combine another handler"
+    in
+    let callback =
       match description.pointer, callback with
       | Some item, None -> Some (Pointer item.on_event)
       | None, callback -> callback
@@ -627,11 +686,41 @@ let rec mount builder ~depth previous view =
       | None, callback -> callback
       | Some _, Some _ -> fail "chart cannot combine another handler"
     in
+    let old_diff =
+      Option.bind previous ~f:(fun mounted ->
+        Option.bind (View.Expert.describe mounted.view).document ~f:(fun item ->
+          Document.Config.diff item.config))
+    in
+    let next_diff =
+      Option.bind description.document ~f:(fun item -> Document.Config.diff item.config)
+    in
+    let old_diff_epoch =
+      Option.value_map previous ~default:0L ~f:(fun old -> old.document_diff_epoch)
+    in
+    let document_diff_epoch =
+      if Option.equal Document.Diff.Config.equal old_diff next_diff
+      then old_diff_epoch
+      else (
+        if Int64.equal old_diff_epoch Int64.max_value
+        then fail "document diff configuration epoch exhausted";
+        Int64.succ old_diff_epoch)
+    in
     let callback =
       match description.document, callback with
       | Some item, None ->
-        Option.map item.on_navigate ~f:(fun callback ->
-          Document (Document.Config.source item.config, callback))
+        if Option.is_some item.on_diff && Option.is_none next_diff
+        then fail "document diff callback requires explicit diff configuration";
+        if Option.is_none item.on_navigate && Option.is_none item.on_diff
+        then None
+        else
+          Some
+            (Document
+               { source = Document.Config.source item.config
+               ; diff_config = next_diff
+               ; diff_epoch = document_diff_epoch
+               ; on_navigate = item.on_navigate
+               ; on_diff = item.on_diff
+               })
       | None, callback -> callback
       | Some _, Some _ -> fail "document cannot combine another handler"
     in
@@ -717,10 +806,22 @@ let rec mount builder ~depth previous view =
       | _ -> fail "incompatible virtual list callback"
     in
     let rotate_handler =
-      (match table_config, old_table_config with
-       | Some next, Some old ->
-         not (Int64.equal next.query_generation old.query_generation)
-       | Some _, None | None, _ -> false)
+      binding_changed
+      || (match description.highlight_scope, previous with
+          | Some item, Some mounted ->
+            Option.exists
+              (View.Expert.describe mounted.view).highlight_scope
+              ~f:(fun old -> not (Highlight.Config.equal item.config old.config))
+          | None, _ | Some _, None -> false)
+      || (match description.input_region, previous with
+          | Some item, Some mounted ->
+            Option.exists (View.Expert.describe mounted.view).input_region ~f:(fun old ->
+              not (Input_region.Config.equal item.config old.config))
+          | None, _ | Some _, None -> false)
+      || (match table_config, old_table_config with
+          | Some next, Some old ->
+            not (Int64.equal next.query_generation old.query_generation)
+          | Some _, None | None, _ -> false)
       || (match description.virtual_list, previous with
           | Some list, Some mounted ->
             let old =
@@ -808,17 +909,53 @@ let rec mount builder ~depth previous view =
             ~data:{ node = id; handler; callback }
      | None, None -> builder.bindings <- Map.remove builder.bindings (node_slot id)
      | Some _, None | None, Some _ -> assert false);
+    let text_content =
+      Option.map description.text_content ~f:(fun content ->
+        Text_content.Expert.to_wire content ~theme:builder.theme |> value)
+    in
     (match previous with
      | None ->
-       emit builder (Create (id, kind description.kind, description.text, handler))
+       let text = if Option.is_some text_content then "" else description.text in
+       emit builder (Create (id, kind description.kind, text, handler))
      | Some mounted ->
        if
          Option.is_none description.editor
          && Option.is_none description.combobox
-         && not (String.equal (View.Expert.describe mounted.view).text description.text)
+         && Option.is_none text_content
+         && (Option.is_some mounted.text_content
+             || not
+                  (String.equal (View.Expert.describe mounted.view).text description.text)
+            )
        then emit builder (Set_text (id, description.text));
        if not (Option.equal Handler_id.equal old_handler handler)
        then emit builder (Bind (id, handler)));
+    if
+      not
+        (Option.equal
+           Gpuio_protocol.Text_content_wire.equal
+           text_content
+           (Option.bind previous ~f:(fun mounted -> mounted.text_content)))
+    then
+      Option.iter text_content ~f:(fun content ->
+        emit builder (Set_styled_text (id, content)));
+    let previous_shimmer =
+      Option.bind previous ~f:(fun mounted ->
+        (View.Expert.describe mounted.view).text_shimmer)
+    in
+    if
+      not
+        (Option.equal Text_shimmer.Config.equal previous_shimmer description.text_shimmer)
+    then
+      emit
+        builder
+        (Set_text_shimmer
+           (id, Option.map description.text_shimmer ~f:Text_shimmer.Expert.to_wire));
+    Option.iter description.link ~f:(fun config ->
+      let previous_config =
+        Option.bind previous ~f:(fun mounted -> (View.Expert.describe mounted.view).link)
+      in
+      if not (Option.equal Link.Config.equal previous_config (Some config))
+      then emit builder (Set_link (id, Link.Expert.to_wire config)));
     if
       Option.is_some description.commands
       && not (List.equal Wire.Command.equal old_commands commands)
@@ -876,6 +1013,28 @@ let rec mount builder ~depth previous view =
         emit
           builder
           (Set_drop_target (id, Drag_and_drop.Expert.target_to_wire item.config)));
+    if binding_changed
+    then
+      emit
+        builder
+        (Set_command_binding
+           (id, Option.map binding_config ~f:Command_binding.Expert.to_wire));
+    Option.iter description.highlight_scope ~f:(fun item ->
+      let old =
+        Option.bind previous ~f:(fun mounted ->
+          Option.map (View.Expert.describe mounted.view).highlight_scope ~f:(fun item ->
+            item.config))
+      in
+      if not (Option.equal Highlight.Config.equal old (Some item.config))
+      then emit builder (Set_highlight_scope (id, Highlight.Expert.to_wire item.config)));
+    Option.iter description.input_region ~f:(fun item ->
+      let old =
+        Option.bind previous ~f:(fun mounted ->
+          Option.map (View.Expert.describe mounted.view).input_region ~f:(fun item ->
+            item.config))
+      in
+      if not (Option.equal Input_region.Config.equal old (Some item.config))
+      then emit builder (Set_input_region (id, Input_region.Expert.to_wire item.config)));
     Option.iter description.pointer ~f:(fun item ->
       let old =
         Option.bind previous ~f:(fun mounted ->
@@ -1057,6 +1216,12 @@ let rec mount builder ~depth previous view =
                  document.config
                  ~owner:builder.document_owner
                  ~asset_owner:builder.asset_owner )));
+    if not (Int64.equal old_diff_epoch document_diff_epoch)
+    then
+      emit
+        builder
+        (Set_document_diff
+           (id, document_diff_epoch, Option.map next_diff ~f:Document.Diff.Expert.to_wire));
     if Option.is_none description.avatar
     then
       Option.iter description.image ~f:(fun image ->
@@ -1103,7 +1268,14 @@ let rec mount builder ~depth previous view =
           (Set_number_input
              ( id
              , Number_input.Expert.config_to_wire number_input.config
-             , Number_input.Expert.value_to_wire number_input.initial )));
+             , Number_input.Expert.value_to_wire number_input.initial ));
+      (* Draft seeds never produce a replacement/update for a live editor. *)
+      if Option.is_none old
+      then
+        Option.iter number_input.initial_draft ~f:(fun draft ->
+          emit
+            builder
+            (Set_number_input_draft (id, Some (Number_input.Draft.to_string draft)))));
     Option.iter description.otp_input ~f:(fun input ->
       let policy = Otp_input.Config.policy input.config in
       if not (Otp_input.Value.fits input.initial ~policy)
@@ -1532,12 +1704,15 @@ let rec mount builder ~depth previous view =
     ; id
     ; handler
     ; style
+    ; text_content
     ; animation
     ; animation_seen
     ; animation_program
     ; program_seen
     ; container_query
     ; query_seen
+    ; binding_seen
+    ; document_diff_epoch
     ; slider_seen
     ; number_input_seen
     ; otp_input_seen
@@ -1564,7 +1739,8 @@ let prepare t ~theme view =
   else (
     try
       let builder =
-        { nodes = t.state.nodes
+        { window = t.window
+        ; nodes = t.state.nodes
         ; handlers = t.state.handlers
         ; bindings = t.state.bindings
         ; operations = []
@@ -1768,6 +1944,33 @@ let dispatch t = function
        |> Result.ok
        |> Option.map ~f:callback
      | Some _ | None -> None)
+  | Wire.Event.Document_diff_event (window, node, handler, revision, source, event)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match Map.find t.state.bindings (node_slot node) with
+     | Some
+         { node = expected
+         ; handler = expected_handler
+         ; callback =
+             Document
+               { source = expected_source
+               ; diff_config = Some config
+               ; diff_epoch
+               ; on_diff = Some callback
+               ; on_navigate = _
+               }
+         }
+       when Node_id.equal node expected
+            && Handler_id.equal handler expected_handler
+            && Gpuio_protocol.Resource_id.equal
+                 source
+                 (Text_source.Expert.native_id expected_source)
+            && Int64.equal event.config_epoch diff_epoch ->
+       Document.Diff.Expert.event_of_wire ~config event
+       |> Result.ok
+       |> Option.map ~f:callback
+     | Some _ | None -> None)
   | Wire.Event.Document_navigation (window, node, handler, revision, source, _, navigation)
     when (not t.closed)
          && Window_id.equal window t.window
@@ -1776,7 +1979,14 @@ let dispatch t = function
      | Some
          { node = expected
          ; handler = expected_handler
-         ; callback = Document (expected_source, callback)
+         ; callback =
+             Document
+               { source = expected_source
+               ; on_navigate = Some callback
+               ; diff_config = _
+               ; diff_epoch = _
+               ; on_diff = _
+               }
          }
        when Node_id.equal node expected
             && Handler_id.equal handler expected_handler
@@ -1958,6 +2168,9 @@ let dispatch t = function
         | Commands _
         | Palette _
         | Toast _
+        | Input_region _
+        | Command_binding_scope _
+        | Highlight_scope _
         | Pointer _
         | Drag_source _
         | Drop_target _
@@ -2247,6 +2460,57 @@ let dispatch t = function
        |> Result.ok
        |> Option.map ~f:callback
      | Some _ | None -> None)
+  | Command_binding_observed (window, node, handler, revision, sample)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match Map.find t.state.bindings (node_slot node) with
+     | Some
+         { node = expected
+         ; handler = expected_handler
+         ; callback = Command_binding_scope (config, seen, callback)
+         }
+       when Node_id.equal node expected
+            && Handler_id.equal handler expected_handler
+            && Int64.(sample.epoch > !seen) ->
+       Option.map (Command_binding.Expert.of_wire config sample) ~f:(fun observation ->
+         seen := sample.epoch;
+         callback observation)
+     | Some _ | None -> None)
+  | Highlight_observed (window, node, handler, revision, sample)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match Map.find t.state.bindings (node_slot node) with
+     | Some
+         { node = expected
+         ; handler = expected_handler
+         ; callback = Highlight_scope (config, callback)
+         }
+       when Node_id.equal node expected
+            && Handler_id.equal handler expected_handler
+            && Gpuio_protocol.Highlight_wire.Observation.valid_for sample config ->
+       Highlight.Expert.observation_of_wire sample |> Result.ok |> Option.map ~f:callback
+     | Some _ | None -> None)
+  | Input_observed (window, node, handler, revision, sample)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match Map.find t.state.bindings (node_slot node) with
+     | Some
+         { node = expected
+         ; handler = expected_handler
+         ; callback = Input_region (config, callback)
+         }
+       when Node_id.equal node expected
+            && Handler_id.equal handler expected_handler
+            && (not config.disabled)
+            && List.exists config.subscriptions ~f:(fun subscription ->
+              Gpuio_protocol.Input_wire.Kind.equal
+                subscription.kind
+                (Gpuio_protocol.Input_wire.Event.kind sample)) ->
+       Input_region.Expert.event_of_wire sample |> Result.ok |> Option.map ~f:callback
+     | Some _ | None -> None)
   | Pointer_event (window, node, handler, revision, sample)
     when (not t.closed)
          && Window_id.equal window t.window
@@ -2300,6 +2564,9 @@ let dispatch t = function
      | Some _ | None -> None)
   | Drag_source_event _
   | Drop_target_event _
+  | Input_observed _
+  | Highlight_observed _
+  | Command_binding_observed _
   | Pointer_event _
   | Toast_dismissed _
   | Palette_dismissed _
@@ -2357,6 +2624,7 @@ let dispatch t = function
   | Canvas_response _
   | Document_response _
   | Document_navigation _
+  | Document_diff_event _
   | Editor_result _
   | Failed _
   | Stopped

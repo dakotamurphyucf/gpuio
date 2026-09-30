@@ -208,9 +208,27 @@ let run ~self_test =
   if self_test then assert !application_survived
 ;;
 
+exception Worker_test_failure
+
+let[@inline never] fail_in_worker () = raise Worker_test_failure
+
+let worker_backtrace_test () =
+  Stdlib.Printexc.record_backtrace true;
+  match App.run (fun _ _ -> fail_in_worker ()) with
+  | () -> failwith "Worker failure was swallowed"
+  | exception Worker_test_failure ->
+    let trace =
+      Stdlib.Printexc.get_raw_backtrace () |> Stdlib.Printexc.raw_backtrace_to_string
+    in
+    if not (String.is_substring trace ~substring:"fail_in_worker")
+    then raise_s [%message "Worker backtrace origin was lost" (trace : string)]
+;;
+
 let () =
   let has flag = Array.exists (Sys.get_argv ()) ~f:(String.equal flag) in
-  if has "--shutdown-test" || has "--last-window-test"
+  if has "--worker-backtrace-test"
+  then worker_backtrace_test ()
+  else if has "--shutdown-test" || has "--last-window-test"
   then
     App.run (fun _ app ->
       ignore

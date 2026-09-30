@@ -1,13 +1,18 @@
+mod backgrounds;
+mod displayed_text;
 mod document;
 mod format;
 mod inline;
 mod inline_element;
 mod inline_flow;
 mod inline_object;
+mod inline_semantics;
 #[cfg(test)]
 mod inline_virtual_tests;
+mod link_navigation;
 mod markdown_ext;
 mod node;
+mod range_geometry;
 pub(crate) mod selection;
 mod selection_adapter;
 mod state;
@@ -15,10 +20,13 @@ mod style;
 mod text_view;
 mod utils;
 
+pub use backgrounds::TextBackgrounds;
+pub use displayed_text::{DisplayedFragment, DisplayedText};
 use gpui::{App, ElementId, IntoElement, RenderOnce, SharedString, Window};
 pub use inline_element::*;
 pub use markdown_ext::*;
 pub use node::{CodeBlock, TableData};
+pub use range_geometry::ReorderedTextGeometry;
 pub use state::*;
 pub use style::*;
 pub use text_view::*;

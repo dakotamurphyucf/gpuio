@@ -17,8 +17,8 @@ use crate::{
     async_util::{Receiver, Sender, unbounded},
     input::{self, SelectAll},
     text::{
-        CodeBlockActionsFn, CodeBlockHighlighterFn, LinkClickHandlerFn, MarkdownExtensions,
-        TableActionsFn, TextViewStyle,
+        CodeBlockActionsFn, CodeBlockHighlighterFn, LinkClickHandlerFn, LinkFocusGuardFn,
+        MarkdownExtensions, TableActionsFn, TextViewStyle,
         document::ParsedDocument,
         format,
         node::{self, NodeContext},
@@ -104,6 +104,7 @@ pub struct TextViewState {
     pub(super) code_block_highlighter: Option<std::sync::Arc<CodeBlockHighlighterFn>>,
     pub(super) table_actions: Option<std::sync::Arc<TableActionsFn>>,
     pub(super) link_click_handler: Option<std::sync::Arc<LinkClickHandlerFn>>,
+    pub(super) link_focus_guard: Option<Arc<LinkFocusGuardFn>>,
     pub(super) markdown_extensions: Arc<MarkdownExtensions>,
 
     pub(super) is_selecting: bool,
@@ -117,6 +118,11 @@ pub struct TextViewState {
     pub(super) selection_adapter: TextViewSelectionAdapter,
 
     pub(super) parsed_content: ParsedContent,
+    pub(super) text_backgrounds: Option<std::rc::Rc<super::TextBackgrounds>>,
+    pub(super) link_navigation: super::link_navigation::Navigation,
+    pub(super) link_reveal: Option<usize>,
+    pub(super) link_reveal_claimed: bool,
+    pub(super) link_active_owner: Option<gpui::GlobalElementId>,
     /// Content format (markdown / html), used for bounded synchronous parsing
     /// of small full-replace updates.
     format: TextViewFormat,
@@ -132,6 +138,38 @@ pub struct TextViewState {
 }
 
 impl TextViewState {
+    /// Install immutable decoration layers for this exact prepared AST. A stale
+    /// source clears the old owner and returns false. This does not reparse or
+    /// invalidate list measurements, selection or scrolling.
+    pub fn set_text_backgrounds(
+        &mut self,
+        layers: Option<std::rc::Rc<super::TextBackgrounds>>,
+        cx: &mut Context<Self>,
+    ) -> bool {
+        let valid = layers.as_ref().is_none_or(|layers| {
+            self.parsed_content
+                .displayed_text
+                .as_ref()
+                .is_some_and(|source| Arc::ptr_eq(source, &layers.source))
+        });
+        let layers = valid.then_some(layers).flatten();
+        let same = match (&self.text_backgrounds, &layers) {
+            (Some(a), Some(b)) => std::rc::Rc::ptr_eq(a, b),
+            (None, None) => true,
+            _ => false,
+        };
+        if !same {
+            self.text_backgrounds = layers;
+            cx.notify();
+        }
+        valid
+    }
+    /// The immutable fragments of the installed bounded preparation. Ordinary
+    /// asynchronous Markdown/HTML updates do not advertise this contract.
+    pub fn displayed_text(&self) -> Option<Arc<super::DisplayedText>> {
+        self.parsed_content.displayed_text.clone()
+    }
+
     /// Install a single-use snapshot from an externally bounded worker. No
     /// parser work or source queue is started by this operation. The caller
     /// rejects stale document generations/revisions before calling it.
@@ -184,6 +222,8 @@ impl TextViewState {
         self.text = prepared.content.document.source.to_string();
         self.markdown_extensions = prepared.content.node_cx.markdown_extensions.clone();
         self.parsed_content = prepared.content;
+        self.text_backgrounds = None;
+        self.refresh_links(unchanged_prefix);
         self.parsed_error = None;
         self.preserve_inline_selection = preserve;
         self.compatible_layout_update = preserve;
@@ -228,6 +268,8 @@ impl TextViewState {
                             match parsed_update.result {
                                 Ok(content) => {
                                     state.parsed_content = content;
+                                    state.text_backgrounds = None;
+                                    state.refresh_links(None);
                                     state.parsed_error = None;
                                     state.compatible_layout_update =
                                         parsed_update.selection_compatible;
@@ -278,12 +320,18 @@ impl TextViewState {
             code_block_highlighter: None,
             table_actions: None,
             link_click_handler: None,
+            link_focus_guard: None,
             markdown_extensions: Arc::default(),
             is_selecting: false,
             preserve_inline_selection: false,
             auto_scroll: AutoScroll::default(),
             selection_adapter,
             parsed_content: Default::default(),
+            text_backgrounds: None,
+            link_navigation: Default::default(),
+            link_reveal: None,
+            link_reveal_claimed: false,
+            link_active_owner: None,
             format,
             parsed_error: None,
             text: text.to_string(),
@@ -301,6 +349,91 @@ impl TextViewState {
         this
     }
 
+    fn refresh_links(&mut self, unchanged_prefix: Option<usize>) {
+        self.link_navigation.refresh(
+            &self.parsed_content.document,
+            &self.parsed_content.node_cx,
+            unchanged_prefix,
+        );
+        self.link_reveal = None;
+    }
+
+    pub(super) fn focus_link(
+        &mut self,
+        link: &node::LinkMark,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(source) = link.source_start else {
+            return;
+        };
+        let Ok(index) = self
+            .link_navigation
+            .links
+            .binary_search_by_key(&source, |entry| entry.source_start)
+        else {
+            return;
+        };
+        let target = &self.link_navigation.links[index];
+        if target.url != link.url
+            || self
+                .link_focus_guard
+                .as_ref()
+                .is_some_and(|guard| !guard(cx))
+        {
+            return;
+        }
+        self.link_navigation.active = Some(source);
+        self.link_reveal = Some(source);
+        if self.scrollable {
+            self.list_state.scroll_to_reveal_item(target.block);
+        }
+        self.focus_handle.focus(window, cx);
+        cx.notify();
+    }
+
+    pub(super) fn on_link_key(
+        &mut self,
+        event: &gpui::KeyDownEvent,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if !self.focus_handle.is_focused(window) {
+            return;
+        }
+        let modifiers = event.keystroke.modifiers;
+        if modifiers.control || modifiers.alt || modifiers.platform || modifiers.function {
+            return;
+        }
+        if event.keystroke.key == "tab" {
+            self.link_reveal = None;
+            if let Some(link) = self.link_navigation.step(modifiers.shift) {
+                self.link_reveal = Some(link.source_start);
+                if self.scrollable {
+                    self.list_state.scroll_to_reveal_item(link.block);
+                }
+                cx.stop_propagation();
+            }
+            cx.notify();
+        } else if event.keystroke.key == "enter" && !modifiers.shift {
+            if let Some(link) = self.link_navigation.selected() {
+                super::text_view::handle_link_click(
+                    &self.link_click_handler,
+                    link.url.clone(),
+                    gpui::ClickEvent::Keyboard(gpui::KeyboardClickEvent::default()),
+                    window,
+                    cx,
+                );
+                cx.stop_propagation();
+            }
+        } else if event.keystroke.key == "escape" && self.link_navigation.active.is_some() {
+            self.link_navigation.active = None;
+            self.link_reveal = None;
+            cx.notify();
+            cx.stop_propagation();
+        }
+    }
+
     /// Get the text content.
     pub(crate) fn source(&self) -> SharedString {
         self.parsed_content.document.source.clone()
@@ -314,7 +447,13 @@ impl TextViewState {
 
     /// Set whether the text is selectable, default false.
     pub fn set_selectable(&mut self, selectable: bool, cx: &mut Context<Self>) {
+        if self.selectable == selectable {
+            return;
+        }
         self.selectable = selectable;
+        if !selectable {
+            self.reset_selection_and_adapter(cx);
+        }
         cx.notify();
     }
 
@@ -376,7 +515,12 @@ impl TextViewState {
         self.increment_update(new_text, true, cx);
     }
 
-    pub(crate) fn set_markdown_extensions(
+    /// Replace prepared renderer resources. For bounded externally prepared
+    /// documents with unchanged parser configuration, this rebuilds only the
+    /// displayed-text projection, not the AST. Parser changes use the normal
+    /// content-update path and require a new bounded preparation for decoration.
+    /// Callers must invalidate their enclosing query source after this operation.
+    pub fn set_markdown_extensions(
         &mut self,
         markdown_extensions: Arc<MarkdownExtensions>,
         cx: &mut Context<Self>,
@@ -392,6 +536,14 @@ impl TextViewState {
         if parser_configuration_changed && self.format == TextViewFormat::Markdown {
             let text = self.text.clone();
             self.increment_update(&text, false, cx);
+        } else if self.parsed_content.bounded {
+            self.text_backgrounds = None;
+            self.parsed_content.displayed_text = super::DisplayedText::prepare(
+                &self.parsed_content.document,
+                &self.markdown_extensions,
+            )
+            .ok();
+            self.invalidate_inline_layout(cx);
         }
     }
 
@@ -523,6 +675,8 @@ impl TextViewState {
             match parse_content(self.format, ParsedContent::default(), &update_options) {
                 Ok(content) => {
                     self.parsed_content = content;
+                    self.text_backgrounds = None;
+                    self.refresh_links(None);
                     self.parsed_error = None;
                     self.invalidate_measured_heights();
                     if !self.is_selecting {
@@ -788,6 +942,7 @@ impl Render for TextViewState {
         let state = cx.entity();
         let document = self.parsed_content.document.clone();
         let mut node_cx = self.parsed_content.node_cx.clone();
+        node_cx.displayed_text = self.parsed_content.displayed_text.clone();
 
         node_cx.code_block_actions = self.code_block_actions.clone();
         node_cx.code_block_highlighter = self.code_block_highlighter.clone();
@@ -858,6 +1013,8 @@ impl Render for TextViewState {
 pub(crate) struct ParsedContent {
     pub(crate) document: ParsedDocument,
     pub(crate) node_cx: node::NodeContext,
+    displayed_text: Option<Arc<super::DisplayedText>>,
+    bounded: bool,
 }
 
 /// A single-use full Markdown parse prepared outside the native UI thread.
@@ -877,9 +1034,27 @@ impl PreparedMarkdown {
             ..NodeContext::default()
         };
         let document = format::markdown::parse_bounded(source, &mut node_cx)?;
+        let displayed_text = Some(super::DisplayedText::prepare(
+            &document,
+            &node_cx.markdown_extensions,
+        )?);
         Ok(Self {
-            content: ParsedContent { document, node_cx },
+            content: ParsedContent {
+                document,
+                node_cx,
+                displayed_text,
+                bounded: true,
+            },
         })
+    }
+
+    /// Available before any layout/paint, including all virtualized blocks.
+    pub fn displayed_text(&self) -> Arc<super::DisplayedText> {
+        self.content
+            .displayed_text
+            .as_ref()
+            .expect("bounded preparation")
+            .clone()
     }
 
     pub fn source(&self) -> SharedString {
@@ -1026,6 +1201,10 @@ fn parse_content(
     mut content: ParsedContent,
     options: &UpdateOptions,
 ) -> Result<ParsedContent, SharedString> {
+    // A later ordinary parse cannot reuse identities from an installed bounded
+    // snapshot. It has no admission contract for this extra representation.
+    content.displayed_text = None;
+    content.bounded = false;
     let mut node_cx = NodeContext {
         markdown_extensions: options.markdown_extensions.clone(),
         ..NodeContext::default()

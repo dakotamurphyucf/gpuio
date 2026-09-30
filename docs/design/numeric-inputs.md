@@ -3,9 +3,62 @@
 Status: local macOS acceptance is complete for single/range sliders, numeric
 editors/steppers and segmented OTP inputs. Capability `34359738368` advertises this
 family (aggregate `2199023255551`). See the [milestone handoff](../milestone-5.md) for hosted gates and delivery;
-full Linux GUI release acceptance remains OCH-17. See the
+full Linux desktop qualification is deferred to OCH-47. See the
 [current evidence](../evidence/numeric-inputs-och34.md). Historical checkpoints
 below describe the staged implementation, not remaining work.
+
+## Milestone 07: independent draft mount seeds
+
+`Number_input.Draft.of_string` validates a mount seed independently of the
+committed `Value`: up to 4096 UTF-8 bytes, without NUL/CR/LF. Empty text,
+incomplete expressions and invalid numeric syntax are permitted. Core
+`View.number_input` and Eio `Number_input.view` accept optional `initial_draft`.
+Omitting it formats the normalized committed value; supplying an empty draft
+keeps the field empty even when the committed value is a number.
+
+Both seeds are consumed at native creation, before the first observation. The
+OCaml reconciler emits no draft-seed operation for a live node. A new placement
+receives the latest supplied seeds. The native instance normalizes committed
+value using its current domain and preserves draft text exactly. It creates a
+fresh selection, history and composition state; it does not revive an old IME
+session. Cancel restores the committed value's formatted text; explicit commands
+and ordinary editing retain the existing revision/lease contracts.
+
+The ordinary native constructor still requires settled formatted text. A separate
+creation path accepts an independent draft and rejects active composition,
+malformed text or invalid UTF-8 selection boundaries. Persisting values and draft
+text across row/page removal remains application-owned. Applications should
+decide how to handle an active composition before forcing its field to unmount.
+
+Transport appends Op63 `Set_number_input_draft (node, string option)` and capability
+bit 53 (`CAP_NUMBER_INPUT_DRAFT`); required shared mask is `36028797018963967`.
+The decoder validates the bounded text, native admission is atomic, and retained
+tree accounting charges the seed bytes. None clears seed metadata; native
+instances already alive ignore such metadata changes. Core sends Some only at
+creation and omits this operation for the ordinary value-only mount path.
+
+Independent request fixtures use node `(2,3)`, window `(0,1)`, base 0/revision 1:
+`0300010001013f0203010331652d` for draft `1e-`, and `0300010001013f020300` for
+None. Isolated capability Hello is `0001fc0000000000002000`; current full-mask
+Hello is `0001fcffffffffffff7f00`. Existing variant tags are unchanged.
+
+Local macOS arm64 validation (2026-09-30) passes independent OCaml/Rust request
+fixtures and malformed-input bounds, creation-only reconciliation, atomic native
+admission/rollback and seed byte accounting. Native model checks cover invalid
+and incomplete drafts, normalized committed values, Cancel, rejected composition
+and invalid UTF-8 selection boundaries. The public numeric example passes a real
+native remount: its first read contains draft `1e-` and committed value `4.5`,
+Cancel returns `4.5`, and live seed changes leave the existing editor untouched.
+Existing revision/lease/history checks, the full Dune build/expect/format suite,
+strict native/protocol Clippy and the structural catalog audit also pass. This is programmatic native
+command evidence, not physical keyboard, OS IME or Linux GUI qualification.
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test -p gpuio-protocol --locked -j2
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test -p gpuio-native --lib --test number_input --test session --locked -j2
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 @test/view_api/runtest examples/numeric/number.exe
+GPUIO_JOBS=2 ./scripts/gpuio exec _build/default/examples/numeric/number.exe --self-test
+```
 
 ## Pinned implementation review
 

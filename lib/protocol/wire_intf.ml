@@ -20,10 +20,13 @@ module type S = sig
   module Container_query = Container_query_wire
   module Animation_program = Animation_program_wire
   module Document = Document_wire
+  module Document_diff = Document_diff_wire
   module Chart = Chart_resource_wire
   module Canvas = Canvas_resource_wire
   module Canvas_view = Canvas_view_wire
   module Chart_view = Chart_view_wire
+  module Input_region = Input_wire
+  module Highlight = Highlight_wire
   module Window = Window_wire
   module Desktop = Desktop_wire
   module Notification = Notification_wire
@@ -86,84 +89,20 @@ module type S = sig
       | Hover_card
       | Carousel
       | Chart_view
+      | Input_region
+      | Highlight_scope
+      | Link
     [@@deriving bin_io, equal, sexp_of]
   end
 
-  module Shortcut_modifier : sig
-    type t =
-      | Primary
-      | Control
-      | Alt
-      | Shift
-      | Super
-    [@@deriving bin_io, equal, sexp_of]
-  end
-
-  module Shortcut_priority : sig
-    type t =
-      | Native_first
-      | Override
-    [@@deriving bin_io, equal, sexp_of]
-  end
-
-  module Shortcut_text_input : sig
-    type t =
-      | Modified_only
-      | Always
-      | Never
-    [@@deriving bin_io, equal, sexp_of]
-  end
-
-  module Shortcut : sig
-    type t =
-      { key : string
-      ; modifiers : Shortcut_modifier.t list
-      ; priority : Shortcut_priority.t
-      ; text_input : Shortcut_text_input.t
-      ; during_composition : bool
-      }
-    [@@deriving bin_io, equal, sexp_of]
-  end
-
-  module Native_command : sig
-    type t =
-      | Copy
-      | Cut
-      | Paste
-      | Select_all
-      | Undo
-      | Redo
-    [@@deriving bin_io, equal, sexp_of]
-  end
-
-  module Command_target : sig
-    type t =
-      | Callback
-      | Native of Native_command.t
-    [@@deriving bin_io, equal, sexp_of]
-  end
-
-  module Command : sig
-    type t =
-      { id : string
-      ; generation : int64
-      ; label : string
-      ; enabled : bool
-      ; checked : bool option
-      ; shortcuts : Shortcut.t list
-      ; target : Command_target.t
-      }
-    [@@deriving bin_io, equal, sexp_of]
-  end
-
-  module Command_source : sig
-    type t =
-      | Button of Node_id.t
-      | Shortcut
-      | Menu of Node_id.t
-      | Palette of Node_id.t
-    [@@deriving bin_io, equal, sexp_of]
-  end
+  module Shortcut_modifier = Command_wire.Shortcut_modifier
+  module Shortcut_priority = Command_wire.Shortcut_priority
+  module Shortcut_text_input = Command_wire.Shortcut_text_input
+  module Shortcut = Command_wire.Shortcut
+  module Native_command = Command_wire.Native_command
+  module Command_target = Command_wire.Command_target
+  module Command = Command_wire.Command
+  module Command_source = Command_wire.Command_source
 
   module Tooltip_open_state : sig
     type t =
@@ -315,6 +254,7 @@ module type S = sig
     type t =
       | Solid of Color.t
       | Linear_gradient of float * Color.t * float * Color.t * float
+      | Linear_gradient_in of int64 * float * Color.t * float * Color.t * float
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -398,6 +338,10 @@ module type S = sig
       | Selection_color of Color.t
       | Accessible_name of string
       | Inert of bool
+      | Pointer_occlusion of int64
+      | Border_style of int64
+      | Aspect_ratio of float
+      | Disabled of bool
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -763,6 +707,14 @@ module type S = sig
       | Set_table_cell of Node_id.t * Table.Cell.t
       | Table_command of Node_id.t * Table.Command.t
       | Set_chart of Node_id.t * Chart_view.Config.t
+      | Set_input_region of Node_id.t * Input_region.Config.t
+      | Set_highlight_scope of Node_id.t * Highlight.Config.t
+      | Set_document_diff of Node_id.t * int64 * Document_diff.Config.t option
+      | Set_styled_text of Node_id.t * Text_content_wire.t
+      | Set_link of Node_id.t * Link_wire.t
+      | Set_text_shimmer of Node_id.t * Text_shimmer_wire.Config.t option
+      | Set_command_binding of Node_id.t * Command_binding_wire.Config.t option
+      | Set_number_input_draft of Node_id.t * string option
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -1021,6 +973,23 @@ module type S = sig
           * int64
           * int64
           * Chart_view.Observation.t
+      | Input_observed of
+          Window_id.t * Node_id.t * Handler_id.t * int64 * Input_region.Event.t
+      | Highlight_observed of
+          Window_id.t * Node_id.t * Handler_id.t * int64 * Highlight.Observation.t
+      | Document_diff_event of
+          Window_id.t
+          * Node_id.t
+          * Handler_id.t
+          * int64
+          * Resource_id.t
+          * Document_diff.Event.t
+      | Command_binding_observed of
+          Window_id.t
+          * Node_id.t
+          * Handler_id.t
+          * int64
+          * Command_binding_wire.Observation.t
     [@@deriving bin_io, equal, sexp_of]
 
     (** Decode one bounded event envelope, requiring full byte consumption and

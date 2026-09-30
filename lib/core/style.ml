@@ -163,11 +163,13 @@ module Text_overflow = struct
   type t =
     | Clip
     | Ellipsis
+    | Ellipsis_start
   [@@deriving equal, sexp_of]
 
   let to_int64 = function
     | Clip -> 0L
     | Ellipsis -> 1L
+    | Ellipsis_start -> 2L
   ;;
 end
 
@@ -187,6 +189,18 @@ module Text_decoration = struct
   ;;
 end
 
+module Border_style = struct
+  type t =
+    | Solid
+    | Dashed
+  [@@deriving equal, sexp_of]
+
+  let to_int64 = function
+    | Solid -> 0L
+    | Dashed -> 1L
+  ;;
+end
+
 module Overflow = struct
   type t =
     | Visible
@@ -203,6 +217,20 @@ module Overflow = struct
   ;;
 end
 
+module Pointer_occlusion = struct
+  type t =
+    | None
+    | Pointer
+    | Pointer_and_scroll
+  [@@deriving equal, sexp_of]
+
+  let to_int64 = function
+    | None -> 0L
+    | Pointer -> 1L
+    | Pointer_and_scroll -> 2L
+  ;;
+end
+
 module Cursor = struct
   type t =
     | Arrow
@@ -215,6 +243,18 @@ module Cursor = struct
     | Resize_vertical
     | Grab
     | Grabbing
+    | Ibeam_vertical
+    | Resize_column
+    | Resize_row
+    | Resize_nw_se
+    | Resize_ne_sw
+    | Resize_left
+    | Resize_right
+    | Resize_up
+    | Resize_down
+    | Alias
+    | Copy
+    | Context_menu
   [@@deriving equal, sexp_of]
 
   let to_int64 = function
@@ -228,6 +268,18 @@ module Cursor = struct
     | Resize_vertical -> 7L
     | Grab -> 8L
     | Grabbing -> 9L
+    | Ibeam_vertical -> 10L
+    | Resize_column -> 11L
+    | Resize_row -> 12L
+    | Resize_nw_se -> 13L
+    | Resize_ne_sw -> 14L
+    | Resize_left -> 15L
+    | Resize_right -> 16L
+    | Resize_up -> 17L
+    | Resize_down -> 18L
+    | Alias -> 19L
+    | Copy -> 20L
+    | Context_menu -> 21L
   ;;
 end
 
@@ -276,6 +328,7 @@ module Property = struct
     | Grid_row_minimum of Grid_minimum.t
     | Width of Length.t
     | Height of Length.t
+    | Aspect_ratio of float
     | Min_width of Length.t
     | Min_height of Length.t
     | Max_width of Length.t
@@ -305,6 +358,7 @@ module Property = struct
     | Bottom_left_radius of float
     | Bottom_right_radius of float
     | Border_color of Color.t
+    | Border_style of Border_style.t
     | Shadows of Shadow.t list
     | Font_size of float
     | Font_family of string
@@ -318,10 +372,12 @@ module Property = struct
     | Overflow_x of Overflow.t
     | Overflow_y of Overflow.t
     | Cursor of Cursor.t
+    | Pointer_occlusion of Pointer_occlusion.t
     | Pointer_events of bool
     | User_select of bool
     | Selection_color of Color.t
     | Accessible_name of string
+    | Disabled of bool
     | Inert of bool
     | Padding of Length.t
     | Margin of Length.t
@@ -353,6 +409,7 @@ module Property = struct
         | Grid_row_minimum
         | Width
         | Height
+        | Aspect_ratio
         | Min_width
         | Min_height
         | Max_width
@@ -382,6 +439,7 @@ module Property = struct
         | Bottom_left_radius
         | Bottom_right_radius
         | Border_color
+        | Border_style
         | Shadows
         | Font_size
         | Font_family
@@ -395,11 +453,13 @@ module Property = struct
         | Overflow_x
         | Overflow_y
         | Cursor
+        | Pointer_occlusion
         | Pointer_events
         | User_select
         | Selection_color
         | Accessible_name
         | Inert
+        | Disabled
       [@@deriving compare, equal, sexp]
     end
 
@@ -427,6 +487,7 @@ module Property = struct
     | Grid_row_minimum _ -> Name.Grid_row_minimum
     | Width _ -> Name.Width
     | Height _ -> Name.Height
+    | Aspect_ratio _ -> Name.Aspect_ratio
     | Min_width _ -> Name.Min_width
     | Min_height _ -> Name.Min_height
     | Max_width _ -> Name.Max_width
@@ -456,6 +517,7 @@ module Property = struct
     | Bottom_left_radius _ -> Name.Bottom_left_radius
     | Bottom_right_radius _ -> Name.Bottom_right_radius
     | Border_color _ -> Name.Border_color
+    | Border_style _ -> Name.Border_style
     | Shadows _ -> Name.Shadows
     | Font_size _ -> Name.Font_size
     | Font_family _ -> Name.Font_family
@@ -469,10 +531,12 @@ module Property = struct
     | Overflow_x _ -> Name.Overflow_x
     | Overflow_y _ -> Name.Overflow_y
     | Cursor _ -> Name.Cursor
+    | Pointer_occlusion _ -> Name.Pointer_occlusion
     | Pointer_events _ -> Name.Pointer_events
     | User_select _ -> Name.User_select
     | Selection_color _ -> Name.Selection_color
     | Inert _ -> Name.Inert
+    | Disabled _ -> Name.Disabled
     | Accessible_name _ -> Name.Accessible_name
     | Padding _ | Margin _ | Gap _ | Border_width _ | Radius _ | Overflow _ ->
       assert false
@@ -526,6 +590,7 @@ module Property = struct
       | Grid_row_minimum _ -> true
       | Width v -> length v ~auto:true ~negative:false
       | Height v -> length v ~auto:true ~negative:false
+      | Aspect_ratio v -> Float.is_finite v && Float.(v >= 0.000001 && v <= 1_000_000.)
       | Min_width v -> length v ~auto:true ~negative:false
       | Min_height v -> length v ~auto:true ~negative:false
       | Max_width v -> length v ~auto:true ~negative:false
@@ -554,7 +619,7 @@ module Property = struct
       | Top_right_radius v -> nonnegative v
       | Bottom_left_radius v -> nonnegative v
       | Bottom_right_radius v -> nonnegative v
-      | Border_color _ -> true
+      | Border_color _ | Border_style _ -> true
       | Shadows v -> List.length v <= 8
       | Font_size v -> nonnegative v && Float.(v > 0.)
       | Font_family v -> (not (String.is_empty v)) && String.length v <= 256
@@ -568,7 +633,12 @@ module Property = struct
       | Overflow_x _ -> true
       | Overflow_y _ -> true
       | Cursor _ -> true
-      | Pointer_events _ | User_select _ | Selection_color _ | Inert _ -> true
+      | Pointer_occlusion _
+      | Pointer_events _
+      | User_select _
+      | Selection_color _
+      | Inert _
+      | Disabled _ -> true
       | Accessible_name v -> (not (String.is_empty v)) && String.length v <= 1024
       | Padding _ | Margin _ | Gap _ | Border_width _ | Radius _ | Overflow _ ->
         assert false
@@ -596,11 +666,13 @@ let with_state t state properties =
           match state, property with
           | State.Base, _ -> Ok ()
           | ( _
-            , ( Property.Pointer_events _
+            , ( Property.Pointer_occlusion _
+              | Pointer_events _
               | User_select _
               | Selection_color _
               | Accessible_name _
-              | Inert _ ) ) ->
+              | Inert _
+              | Disabled _ ) ) ->
             Or_error.error_string "interaction properties belong to the base style"
           | _, _ -> Ok ()
         in
@@ -626,6 +698,26 @@ let unset t ?(state = State.Base) name =
 ;;
 
 module Expert = struct
+  let validate_link_content t =
+    let invalid =
+      Map.exists t ~f:(fun fields ->
+        Map.exists fields ~f:(function
+          | Some
+              ( Property.User_select true
+              | Inert true
+              | Disabled true
+              | Overflow_x Scroll
+              | Overflow_y Scroll
+              | Pointer_occlusion (Pointer | Pointer_and_scroll) ) -> true
+          | Some _ | None -> false))
+    in
+    if invalid
+    then
+      Or_error.error_string
+        "link content cannot select text, scroll or shield pointer input"
+    else Ok ()
+  ;;
+
   let declaration_count t =
     Map.fold t ~init:0 ~f:(fun ~key:_ ~data count -> count + Map.length data)
   ;;
@@ -656,10 +748,13 @@ module Expert = struct
     | Solid c ->
       let%map.Or_error c = color theme c in
       Wire.Fill.Solid c
-    | Linear_gradient (angle, (from, start), (to_, stop)) ->
+    | Linear_gradient (space, angle, (from, start), (to_, stop)) ->
       let%bind.Or_error from = color theme from in
       let%map.Or_error to_ = color theme to_ in
-      Wire.Fill.Linear_gradient (angle, from, start, to_, stop)
+      (match space with
+       | Background.Color_space.Srgb ->
+         Wire.Fill.Linear_gradient (angle, from, start, to_, stop)
+       | Oklab -> Wire.Fill.Linear_gradient_in (1L, angle, from, start, to_, stop))
   ;;
 
   let shadow theme shadow =
@@ -693,6 +788,7 @@ module Expert = struct
       Ok (Wire.Field.Grid_row_minimum (Grid_minimum.to_int64 v))
     | Property.Width v -> Ok (Wire.Field.Width (Length.Expert.to_wire v))
     | Property.Height v -> Ok (Wire.Field.Height (Length.Expert.to_wire v))
+    | Property.Aspect_ratio v -> Ok (Wire.Field.Aspect_ratio v)
     | Property.Min_width v -> Ok (Wire.Field.Min_width (Length.Expert.to_wire v))
     | Property.Min_height v -> Ok (Wire.Field.Min_height (Length.Expert.to_wire v))
     | Property.Max_width v -> Ok (Wire.Field.Max_width (Length.Expert.to_wire v))
@@ -729,6 +825,7 @@ module Expert = struct
     | Property.Border_color v ->
       let%map.Or_error v = color theme v in
       Wire.Field.Border_color v
+    | Property.Border_style v -> Ok (Wire.Field.Border_style (Border_style.to_int64 v))
     | Property.Shadows v ->
       let%map.Or_error v = List.map v ~f:(shadow theme) |> Or_error.all in
       Wire.Field.Shadows v
@@ -745,7 +842,10 @@ module Expert = struct
     | Property.Overflow_x v -> Ok (Wire.Field.Overflow_x (Overflow.to_int64 v))
     | Property.Overflow_y v -> Ok (Wire.Field.Overflow_y (Overflow.to_int64 v))
     | Property.Cursor v -> Ok (Wire.Field.Cursor (Cursor.to_int64 v))
+    | Property.Pointer_occlusion v ->
+      Ok (Wire.Field.Pointer_occlusion (Pointer_occlusion.to_int64 v))
     | Property.Inert v -> Ok (Wire.Field.Inert v)
+    | Property.Disabled v -> Ok (Wire.Field.Disabled v)
     | Property.Pointer_events v -> Ok (Wire.Field.Pointer_events v)
     | Property.User_select v -> Ok (Wire.Field.User_select v)
     | Property.Selection_color v ->

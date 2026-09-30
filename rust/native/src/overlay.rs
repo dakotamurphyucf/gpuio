@@ -56,10 +56,11 @@ pub(super) fn element(
     route: Route,
     scrolling: Option<&std::rc::Rc<super::scroll::State>>,
     window: &Window,
+    node: &crate::tree::Node,
 ) -> AnyElement {
     // Retained hidden panels intentionally retire active overlay scopes. Do not
     // create a deferred surface (or require an anchor) until it is visible again.
-    if !route.gate.borrow().visible(route.node) {
+    if !route.gate.borrow().interactive(route.node) {
         return div().into_any_element();
     }
     let priority = route.gate.borrow().layer(route.node);
@@ -137,8 +138,13 @@ pub(super) fn element(
         .on_any_mouse_down(|_, _, cx| cx.stop_propagation())
         .on_scroll_wheel(|_, _, cx| cx.stop_propagation());
     let panel = match scrolling {
-        Some(state) => super::scroll::Frame::new(panel, state).into_any_element(),
-        None => panel.into_any_element(),
+        Some(state) => super::highlight_style::Frame::new(
+            super::scroll::Frame::new(panel, state, route.gate.clone(), node.id),
+            node,
+            &route.gate,
+        )
+        .into_any_element(),
+        None => super::highlight_style::Frame::new(panel, node, &route.gate).into_any_element(),
     };
     let bounds = Rc::new(Cell::new(Bounds::default()));
     route.gate.borrow_mut().surface(route.node, bounds.clone());

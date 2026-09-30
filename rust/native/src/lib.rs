@@ -85,6 +85,24 @@ mod selection;
 mod semantics;
 pub mod session;
 mod style;
+mod styled_text;
+mod text_shimmer_budget;
+pub mod text_shimmer_clock;
+mod text_shimmer_color;
+pub mod text_shimmer_paint;
+#[cfg(feature = "native-image-tests")]
+pub fn run_native_text_shimmer_paint_test() {
+    text_shimmer_paint::native_test::run();
+}
+#[cfg(feature = "native-image-tests")]
+pub fn run_native_text_shimmer_clock_test() {
+    text_shimmer_clock::native_test::run();
+}
+#[cfg(feature = "native-image-tests")]
+pub fn run_native_text_shimmer_view_test() {
+    host::text_shimmer_view_test::run();
+}
+mod text_projection;
 mod transport;
 pub mod tree;
 
@@ -125,6 +143,11 @@ pub fn run_native_progress_test() {
 #[cfg(feature = "native-tests")]
 pub fn run_native_toast_test() {
     host::control_test::run_toast();
+}
+
+#[cfg(feature = "native-tests")]
+pub fn run_native_input_region_test() {
+    host::control_test::run_input_region();
 }
 
 #[cfg(feature = "native-tests")]
@@ -180,6 +203,10 @@ pub fn run_native_table_history_test() {
 }
 
 pub mod document_diff;
+pub mod document_diff_controls;
+pub mod document_diff_projection;
+mod document_diff_syntax;
+mod document_diff_words;
 
 pub mod document_markdown;
 
@@ -191,6 +218,12 @@ pub fn run_native_document_test() {
 }
 
 pub mod document_search;
+pub mod highlight_collect;
+pub mod highlight_host;
+pub mod highlight_jobs;
+pub mod highlight_paint;
+pub mod highlight_projection;
+pub mod highlight_search;
 
 #[cfg(all(feature = "native-tests", target_os = "macos"))]
 pub fn run_native_window_test() {
@@ -289,4 +322,54 @@ pub fn run_native_hover_card_test() {
 #[cfg(feature = "native-tests")]
 pub fn run_native_carousel_test() {
     host::control_test::run_carousel();
+}
+
+#[cfg(feature = "native-tests")]
+pub fn run_native_highlight_host_test() {
+    highlight_host::test::run();
+}
+
+#[cfg(feature = "native-image-tests")]
+pub fn run_native_highlight_paint_test() {
+    highlight_paint::native_test::run();
+}
+
+#[cfg(feature = "native-image-tests")]
+pub fn run_native_highlight_view_test() {
+    host::highlight::test::run();
+}
+
+#[cfg(feature = "native-image-tests")]
+pub fn run_native_highlight_document_test() {
+    host::document_view::highlight_test::run();
+}
+
+#[cfg(feature = "native-image-tests")]
+pub fn run_native_styled_text_test() {
+    host::styled_text_test::run();
+}
+
+#[cfg(feature = "native-image-tests")]
+pub fn run_native_link_test() {
+    host::link_test::run();
+}
+
+#[cfg(feature = "native-image-tests")]
+pub fn run_native_border_style_test() {
+    host::border_style_test::run();
+}
+
+#[cfg(feature = "native-image-tests")]
+pub fn run_native_aspect_ratio_test() {
+    host::aspect_ratio_test::run();
+}
+
+#[cfg(feature = "native-image-tests")]
+pub fn run_native_opacity_factor_test() {
+    host::opacity_factor_test::run();
+}
+
+#[cfg(feature = "native-tests")]
+pub fn run_native_command_binding_test() {
+    host::command_binding_test::run();
 }

@@ -431,9 +431,9 @@ impl View {
                             Field::PointerEvents(value) => {
                                 panel_interaction.pointer = *value && hoverable
                             }
-                            Field::UserSelect(value) => panel_interaction.selectable = *value,
+                            Field::UserSelect(value) => panel_interaction.selectable = Some(*value),
                             Field::SelectionColor(value) => {
-                                panel_interaction.selection_color = super::color(value)
+                                panel_interaction.selection_color = Some(super::color(value))
                             }
                             _ => (),
                         }
@@ -522,7 +522,8 @@ impl View {
                         align: Align::Center,
                         offset: 6.,
                     }),
-                    content: panel.into_any_element(),
+                    content: super::highlight_style::Frame::part(panel, node, 1, &self.focus)
+                        .into_any_element(),
                 })
                 .with_priority(priority),
             );

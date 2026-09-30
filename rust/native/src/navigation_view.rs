@@ -162,7 +162,7 @@ impl View {
                 {
                     carousel::input::inert_page(body, carousel)
                 } else {
-                    crate::semantics::Inert(body).into_any_element()
+                    crate::semantics::InteractionShield::inert(body).into_any_element()
                 }
             } else {
                 body

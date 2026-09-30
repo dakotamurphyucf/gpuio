@@ -48,7 +48,11 @@ def run(arguments, timeout):
 
 
 def main():
-    status, output = run([], 900)
+    # This is a debug-build ownership traversal, not a frame-latency budget.
+    # Hosted macOS made steady progress to 171,936/200,000 visits in 900s;
+    # allow the complete unchanged workload on the slower runner. Named-hardware
+    # release performance remains a separate acceptance gate.
+    status, output = run([], 1800)
     if status:
         raise SystemExit(status)
     for marker in ("GPUIO_TABLE_HISTORY_OK", "GPUIO_TABLE_HISTORY_WINDOW_RELEASE_OK"):

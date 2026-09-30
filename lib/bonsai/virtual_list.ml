@@ -215,6 +215,7 @@ let inner
       ~pinned
       ~on_viewport
       ~render_row
+      ~lifetime
       graph
   =
   let module K = (val comparator) in
@@ -319,6 +320,7 @@ let inner
     and inject = inject
     and invalidated = invalidated
     and checkpoint = checkpoint
+    and lifetime = lifetime
     and style = style
     and accessibility = accessibility
     and generation = generation
@@ -338,11 +340,15 @@ let inner
         ~invalidated
         ~invalidation_revision:checkpoint.revision
         ~on_viewport:(fun viewport ->
-          E.Many
-            [ inject (Observe (checkpoint.revision, List.hd metadata.reversed, viewport))
-            ; observe viewport
-            ])
-        ~on_retain:(fun keys -> inject (Retain keys))
+          Managed_rows.Lifetime.guard
+            lifetime
+            (E.Many
+               [ inject
+                   (Observe (checkpoint.revision, List.hd metadata.reversed, viewport))
+               ; observe viewport
+               ]))
+        ~on_retain:(fun keys ->
+          Managed_rows.Lifetime.guard lifetime (inject (Retain keys)))
         ~tree_moves
         ?on_tree_input:
           (Option.map on_tree_input ~f:(fun callback input ->
@@ -351,7 +357,7 @@ let inner
                  Map.find metadata.by_wire (Key.to_string key))
              with
              | None -> E.Ignore
-             | Some input -> callback input))
+             | Some input -> Managed_rows.Lifetime.guard lifetime (callback input)))
         (Map.to_alist rows |> List.map ~f:(fun (key, view) -> row_key key, view))
     in
     let%map view =
@@ -361,7 +367,11 @@ let inner
     in
     { Output.view
     ; controller =
-        { Controller.key = row_key; submit = (fun command -> inject (Scroll command)) }
+        { Controller.key = row_key
+        ; submit =
+            (fun command ->
+              Managed_rows.Lifetime.guard lifetime (inject (Scroll command)))
+        }
     ; viewport =
         (if Option.exists model.viewport_revision ~f:(Int64.equal checkpoint.revision)
          then model.viewport
@@ -416,7 +426,7 @@ let component
     Managed_rows.assoc
       (module Int64)
       generations
-      ~f:(fun generation source _ graph ->
+      ~f:(fun generation source lifetime graph ->
         inner
           comparator
           source
@@ -430,6 +440,7 @@ let component
           ~pinned
           ~on_viewport
           ~render_row
+          ~lifetime
           graph)
       graph
   in

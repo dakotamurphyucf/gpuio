@@ -93,6 +93,7 @@ module Text_overflow : sig
   type t =
     | Clip
     | Ellipsis
+    | Ellipsis_start
   [@@deriving equal, sexp_of]
 end
 
@@ -105,12 +106,41 @@ module Text_decoration : sig
   [@@deriving equal, sexp_of]
 end
 
+(** Native border pattern. Widths and color remain independent properties;
+    zero-width borders remain invisible. Dash spacing and rounded-corner
+    treatment follow GPUI, with no application-owned timer or geometry cache. *)
+module Border_style : sig
+  type t =
+    | Solid
+    | Dashed
+  [@@deriving equal, sexp_of]
+end
+
+(** [Scroll] enables native scrolling on the declared axis. Ordinary containers
+    with both axes scrollable preserve diagonal movement; a single-axis
+    container does not translate wheel input from the other axis. Consumed
+    events stop at that viewport, and events at its boundary can reach an
+    ancestor. A partly consumed event does not forward leftover movement.
+    Managed lists and native editor/control widgets own their scroll policies. *)
 module Overflow : sig
   type t =
     | Visible
     | Clip
     | Hidden
     | Scroll
+  [@@deriving equal, sexp_of]
+end
+
+(** Controls native hit testing behind this element, independently of whether
+    its own listeners are enabled. None uses ordinary native behavior. Pointer
+    blocks pointer hitboxes behind it while allowing wheel input through;
+    Pointer_and_scroll blocks both. Base style only, not inherited. This does not
+    disable children or replace modal/native-control priority. *)
+module Pointer_occlusion : sig
+  type t =
+    | None
+    | Pointer
+    | Pointer_and_scroll
   [@@deriving equal, sexp_of]
 end
 
@@ -126,7 +156,24 @@ module Cursor : sig
     | Resize_vertical
     | Grab
     | Grabbing
+    | Ibeam_vertical
+    | Resize_column
+    | Resize_row
+    | Resize_nw_se
+    | Resize_ne_sw
+    | Resize_left
+    | Resize_right
+    | Resize_up
+    | Resize_down
+    | Alias
+    | Copy
+    | Context_menu
   [@@deriving equal, sexp_of]
+
+  (** Diagonals name their physical directions: [Resize_nw_se] runs top-left to
+      bottom-right. Platform cursor artwork may coincide: macOS uses the same
+      glyph for [Resize_column]/[Resize_horizontal] and [Resize_row]/
+      [Resize_vertical]. [Move] and [Grabbing] both use the closed-hand cursor. *)
 end
 
 module State : sig
@@ -163,6 +210,12 @@ module Property : sig
     | Grid_row_minimum of Grid_minimum.t
     | Width of Length.t
     | Height of Length.t
+    | Aspect_ratio of float
+    (** Preferred width / height for native layout, in [0.000001, 1000000].
+        One automatic dimension can be derived from the other. Explicit width
+        and height, min/max constraints and flex/grid layout retain their normal
+        GPUI precedence; this is not a forced crop. Not inherited. Unset removes
+        the declaration in that style layer, exposing the base/component default. *)
     | Min_width of Length.t
     | Min_height of Length.t
     | Max_width of Length.t
@@ -192,6 +245,7 @@ module Property : sig
     | Bottom_left_radius of float
     | Bottom_right_radius of float
     | Border_color of Color.t
+    | Border_style of Border_style.t
     | Shadows of Shadow.t list
     | Font_size of float
     | Font_family of string
@@ -205,10 +259,16 @@ module Property : sig
     | Overflow_x of Overflow.t
     | Overflow_y of Overflow.t
     | Cursor of Cursor.t
+    | Pointer_occlusion of Pointer_occlusion.t
     | Pointer_events of bool
     | User_select of bool
     | Selection_color of Color.t
     | Accessible_name of string
+    | Disabled of bool
+    (** Base-only inherited interaction policy. Keeps layout, paint and accessible
+        names/values, marks the subtree disabled and blocks user input/focus.
+        [false] clears only this node's policy; it cannot override an ancestor.
+        Does not alter opacity, application state or task lifetimes. *)
     | Inert of bool
     (** [Inert true] retains layout and paint while excluding this subtree from
         native focus, keyboard/pointer/IME input and accessibility. Descendants
@@ -244,6 +304,7 @@ module Property : sig
       | Grid_row_minimum
       | Width
       | Height
+      | Aspect_ratio
       | Min_width
       | Min_height
       | Max_width
@@ -273,6 +334,7 @@ module Property : sig
       | Bottom_left_radius
       | Bottom_right_radius
       | Border_color
+      | Border_style
       | Shadows
       | Font_size
       | Font_family
@@ -286,11 +348,13 @@ module Property : sig
       | Overflow_x
       | Overflow_y
       | Cursor
+      | Pointer_occlusion
       | Pointer_events
       | User_select
       | Selection_color
       | Accessible_name
       | Inert
+      | Disabled
     [@@deriving compare, equal, sexp_of]
   end
 end
@@ -301,14 +365,41 @@ end
 type t [@@deriving equal, sexp_of]
 
 val empty : t
+
+(** Validate before constructing a style. Numeric values are finite and bounded:
+    grow, shrink, border widths and radii are in 0..1,000,000; font size is
+    strictly positive and at most 1,000,000; aspect ratio is in 0.000001..1,000,000;
+    opacity is in 0..1. Grid counts and
+    line clamp are integers in 1..1024; font weight is in 1..1000. Font family
+    uses 1..256 UTF-8 bytes, accessible name 1..1024 bytes, and shadows at most
+    eight entries. Invalid values are rejected rather than clamped.
+
+    Length constructors enforce their own finite magnitude limit. Widths,
+    heights and basis allow nonnegative lengths or Auto; padding, gaps and line
+    height require nonnegative definite lengths; margins and offsets also allow
+    negatives and Auto. Shorthands expand in list order: the last declaration
+    of an individual side/axis wins, including when a later shorthand replaces
+    an earlier longhand. At most 128 input declarations are accepted per call. *)
 val create : Property.t list -> t Or_error.t
+
 val create_exn : Property.t list -> t
 val merge : t list -> t
+
+(** Remove the declaration from the selected state, including an earlier value
+    in that state when styles are merged. This emits no native reset command.
+    Unsetting a hover/pressed declaration leaves the base declaration in effect;
+    it does not force the native default while that state is active. Removing a
+    base declaration restores the receiving component's defaults/inheritance. *)
 val unset : t -> ?state:State.t -> Property.Name.t -> t
+
 val with_state : t -> State.t -> Property.t list -> t Or_error.t
 val with_state_exn : t -> State.t -> Property.t list -> t
 
 module Expert : sig
+  (** Reject selection, scrolling and pointer shields in a single-target link's
+      passive content. Examines declarations in every interaction state. *)
+  val validate_link_content : t -> unit Or_error.t
+
   val declaration_count : t -> int
 
   val validate_scope

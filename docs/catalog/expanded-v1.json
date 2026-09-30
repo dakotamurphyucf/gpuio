@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "status": "Accepted v1 additions outside the pinned root-module map; not release acceptance",
+  "capabilities": [
+    {
+      "id": "canvas",
+      "owner": "OCH-24",
+      "scope": "v1",
+      "audit_status": "implementation evidence linked; consolidated behavioral review pending",
+      "public_interface": "lib/core/canvas.mli",
+      "example": "examples/canvas",
+      "evidence": [
+        "docs/evidence/canvas-och24.md"
+      ],
+      "gallery_page": "canvas",
+      "contract": "Typed retained scenes, native selection/drag/viewport commands, revision fencing and scoped registration."
+    },
+    {
+      "id": "native-extensions",
+      "owner": "OCH-23",
+      "scope": "v1",
+      "audit_status": "implementation evidence linked; consolidated behavioral review pending",
+      "public_interface": "lib/core/extension.mli",
+      "example": "examples/extension_consumer",
+      "evidence": [
+        "docs/evidence/extensions-och23.md"
+      ],
+      "gallery_page": "extensions",
+      "contract": "Statically linked independent native components, negotiated schemas, bounded messages and explicit native ownership; no dynamic plugin ABI."
+    },
+    {
+      "id": "container-rules",
+      "owner": "OCH-26",
+      "scope": "v1",
+      "audit_status": "implementation evidence linked; consolidated behavioral review pending",
+      "public_interface": "lib/core/container_query.mli",
+      "example": "examples/container_query",
+      "evidence": [
+        "docs/evidence/container-queries-och26.md"
+      ],
+      "gallery_page": "responsive",
+      "contract": "Native declarative breakpoints and containment with deterministic property precedence; no OCaml layout callbacks."
+    },
+    {
+      "id": "desktop-integration",
+      "owner": "OCH-27",
+      "scope": "v1",
+      "audit_status": "implementation evidence linked; consolidated behavioral review pending",
+      "public_interface": "lib/core/desktop.mli",
+      "example": "examples/desktop",
+      "evidence": [
+        "docs/design/desktop-services.md",
+        "docs/milestone-6.md"
+      ],
+      "gallery_page": "desktop",
+      "contract": "Application identity, readiness-aware deep links, document metadata, OS open/reveal and packaging contracts."
+    },
+    {
+      "id": "os-notifications",
+      "owner": "OCH-28",
+      "scope": "v1",
+      "audit_status": "implementation evidence linked; consolidated behavioral review pending",
+      "public_interface": "lib/core/notification.mli",
+      "example": "examples/notification",
+      "evidence": [
+        "docs/evidence/os-notifications-och28.md"
+      ],
+      "gallery_page": "desktop",
+      "contract": "Explicit capability/permission queries, owned notification receipts, replace/dismiss and stale-safe action delivery."
+    }
+  ]
+}

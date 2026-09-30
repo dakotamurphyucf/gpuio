@@ -5,7 +5,9 @@ module Viewport = Gpuio.Virtual_list.Viewport
 
 module Controller : sig
   (** Effects belong to this mounted list generation. An absent target or an
-      inactive generation ignores a delayed command. New commands receive
+      inactive generation ignores a delayed command. Leaving and revisiting the
+      same generation creates a new lifetime: old controllers stay invalid.
+      New commands receive
       monotonically increasing serials on the OCaml UI domain. *)
   type 'key t
 

@@ -254,9 +254,9 @@ async fn command_and_child(cx: &mut gpui::AsyncApp, window: gpui::WindowHandle<V
     key(cx, window, "tab");
     frame(cx, window).await;
     window
-        .update(cx, |view, window, _| {
+        .update(cx, |view, window, cx| {
             assert_eq!(
-                view.focus.borrow().focused_node(window),
+                view.focus.borrow().focused_node(window, cx),
                 Some(node(62)),
                 "Tab leaves table"
             );

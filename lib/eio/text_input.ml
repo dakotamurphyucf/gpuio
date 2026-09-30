@@ -31,13 +31,13 @@ let create window ~config ?(initial_text = "") ?on_submit graph =
   { editor; config; initial_text; on_event; on_submit }
 ;;
 
-let view ?style t =
+let view ?style ?initial_text ?(on_event = fun _ -> Bonsai.Effect.Ignore) t =
   Gpuio.View.text_input
     ?style
-    ~initial_text:t.initial_text
+    ~initial_text:(Option.value initial_text ~default:t.initial_text)
     ~controller:(Editor_controller.key t.editor)
     ~config:t.config
-    ~on_event:t.on_event
+    ~on_event:(fun event -> Bonsai.Effect.Many [ t.on_event event; on_event event ])
     ()
   |> Or_error.ok_exn
 ;;
@@ -58,6 +58,10 @@ let clear_if_unchanged t submission =
     ~selection:Start
     ~undo:Record
     ""
+;;
+
+let replace_if_unchanged t expected ~selection ~undo text =
+  Editor_controller.replace_if_unchanged t.editor expected ~selection ~undo text
 ;;
 
 let submit t =

@@ -1,6 +1,6 @@
 //! Bounded advanced motion configuration; legacy animation wire data stays intact.
 use crate::animation::{
-    self as legacy, Easing, MAX_TIME_MS, PROPERTY_COUNT, Repeat, Spring, Target,
+    self as legacy, Easing, MAX_TIME_MS, Repeat, Spring, Target, valid_targets,
 };
 use binprot::macros::BinProtWrite;
 
@@ -70,12 +70,6 @@ pub struct Program {
     pub delay_ms: i64,
     pub repeat: Repeat,
     pub clock: Clock,
-}
-fn valid_targets(targets: &[Target]) -> bool {
-    !targets.is_empty()
-        && targets.len() <= PROPERTY_COUNT
-        && targets.iter().all(|t| t.property.accepts(t.value))
-        && targets.windows(2).all(|w| w[0].property < w[1].property)
 }
 fn same_properties(a: &[Target], b: &[Target]) -> bool {
     a.len() == b.len() && a.iter().zip(b).all(|(a, b)| a.property == b.property)

@@ -4,6 +4,8 @@ use super::*;
 mod avatars;
 #[path = "button_icon_test.rs"]
 mod buttons;
+#[path = "gradient_test.rs"]
+mod gradients;
 #[path = "image_svg_view_test.rs"]
 mod svg;
 use crate::{session::Session, transport::Transport};
@@ -204,6 +206,7 @@ pub(crate) fn run() {
                 svg::exercise(cx, window, &session).await;
                 buttons::exercise(cx, window, &session, &transport).await;
                 avatars::exercise(cx, window, &session, &transport).await;
+                gradients::exercise(cx, window).await;
                 image_host::shutdown(cx).await;
                 window.update(cx, |_, window, _| window.remove_window()).unwrap();
                 eprintln!("GPUIO_NATIVE_IMAGE_VIEWS_OK: actual pixels, accepted mount retirement, restyle, replacement, local errors, state events and disposal");

@@ -115,6 +115,37 @@ The SDK supplies one primary `Context.focus` handle per instance. The component
 binds that handle to exactly one accessible element; the host wrapper records it
 for traversal but does not register a second accessibility focus target. Nested
 controls may own additional handles under the package's documented focus policy.
+Bind those controls beneath the primary element in GPUI's native focus tree.
+An internal navigation handler consumes moves within the component and lets
+boundary Tab events bubble to the host. The host orders the component by its
+primary handle; it does not enumerate or replace the package's internal stops.
+The current OCH-41 focus-owner correction uses the closest recorded native
+ancestor for boundary traversal, retained updates, command routing and restoration.
+It remembers the actual child handle across modal/route transitions while the
+component is eligible and the child remains in its native focus tree. Eligibility
+of individual internal controls remains the package's responsibility. Host scroll reveal uses the component's
+recorded bounds; scrolling within a compound component remains package-owned.
+The native boundary/update/modal/disabled regression passes on macOS; see
+[the Link validation checkpoint](composed-links.md#nested-extension-focus-correction--macos-validation)
+for the tested scope and remaining release gates.
 Pointer callbacks use `EventSink.guard_pointer`; keyboard/accessibility actions
 use `guard`. Inherited pointer disabling does not disable keyboard or accessible
 activation. Both guards reject hidden, disabled, obsolete and closed instances.
+
+## Accessible state inside a package
+
+The host's disabled accessible group does not implicitly mark the package's
+individual controls disabled in the pinned AccessKit adapter. Authors must expose
+state on their actual focusable controls. During render, `cx.events.check().is_ok()`
+provides the current non-pointer input eligibility; the counter sample uses it to
+set its button's disabled flag through GPUI's public accessibility builder. This
+is semantic metadata, not a replacement for `guard`/`guard_pointer`: callbacks
+must still check the live lease, since eligibility may change after rendering.
+Pointer-only disabling must not mark keyboard/accessibility input disabled.
+
+A generation replacement can preserve the logical accessible element's identity.
+A retained OS accessibility reference may therefore resolve the replacement's
+current name and action. This differs from invoking a captured obsolete native
+callback: that callback's revoked event lease must reject mutation/delivery. The
+gallery validates current accessible action resolution separately from hidden
+reference rejection and generation-fenced OCaml observations.

@@ -45,6 +45,7 @@ pub(super) struct MeasuredInlineObject {
     text: SharedString,
     font_size: Pixels,
     text_style: TextStyle,
+    hide_accessibility_when_linked: bool,
 }
 
 impl MeasuredInlineObject {
@@ -78,6 +79,7 @@ impl MeasuredInlineObject {
             text,
             font_size,
             text_style: style.clone(),
+            hide_accessibility_when_linked: false,
         };
         if let Some(presentation) = presentation {
             // The wrapper carries inherited marks into both layout and painting.
@@ -98,6 +100,7 @@ impl MeasuredInlineObject {
             };
             if metrics.is_valid() {
                 result.metrics = metrics;
+                result.hide_accessibility_when_linked = presentation.hide_accessibility_when_linked;
                 result.content = Some(Rc::new(RefCell::new(Some(element))));
             }
         }
@@ -225,6 +228,13 @@ impl Element for InlineObject {
         node.set_role(Role::GenericContainer);
         node.set_label(self.accessibility_label.as_ref());
         node.set_read_only();
+        // Plain fallbacks and explicitly passive alternatives are represented by
+        // the logical link. Custom interactive children retain their semantics.
+        if self.link.is_some()
+            && (!self.content_measured || self.object.hide_accessibility_when_linked)
+        {
+            node.set_hidden();
+        }
     }
 
     fn request_layout(
@@ -326,10 +336,8 @@ impl Element for InlineObject {
         if let Ok(mut value) = self.selected.lock() {
             *value = selected;
         }
-        if selected {
-            let color = view.as_ref().unwrap().read(cx).text_view_style.selection();
-            window.paint_quad(gpui::fill(bounds, color));
-        }
+        let selection_color =
+            selected.then(|| view.as_ref().unwrap().read(cx).text_view_style.selection());
         if let Some(link) = self.link.clone() {
             window.set_cursor_style(CursorStyle::PointingHand, hitbox);
             let link_hitbox = hitbox.clone();
@@ -404,6 +412,11 @@ impl Element for InlineObject {
             });
         }
         self.content.paint(window, cx);
+        // The atomic object owns this layer; text/image/native child backgrounds
+        // must not cover selection or let prepared search washes take precedence.
+        if let Some(color) = selection_color {
+            window.paint_quad(gpui::fill(bounds, color));
+        }
     }
 }
 

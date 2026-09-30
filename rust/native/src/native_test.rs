@@ -141,6 +141,8 @@ pub(crate) async fn protect<F: std::future::Future>(
     })
     .await
 }
+#[path = "selection_window_test.rs"]
+mod selection_window;
 async fn exercise(
     cx: &mut gpui::AsyncApp,
     window: WindowHandle<View>,
@@ -259,6 +261,7 @@ async fn exercise(
             .press(window_id, id(1), handler, 1)
             .is_none()
     );
+    selection_window::exercise(cx, window).await;
     eprintln!(
         "NATIVE_VIEW_PASS grid=true hover=true pressed=true focus=true keyboard=true tab=true pointer_policy=true selection_copy=true replacement=true reset=true"
     );

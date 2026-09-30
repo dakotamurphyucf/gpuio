@@ -200,7 +200,7 @@ impl View {
             && restore
             && state.focus.is_focused(window)
             && let Some(focus) = state.restore.take()
-            && self.focus.borrow().can_restore(&focus)
+            && self.focus.borrow().can_focus(&focus, window)
         {
             window.focus(&focus, cx);
         }
@@ -518,7 +518,8 @@ impl View {
             return div().into_any_element();
         }
         let tab_stop = config.presentation != MenuPresentation::Context;
-        let disabled = config.menus.is_empty() || config.menus.iter().all(|menu| menu.disabled);
+        let own_disabled = config.menus.is_empty() || config.menus.iter().all(|menu| menu.disabled);
+        let disabled = own_disabled || self.focus.borrow().disabled(id);
         if (disabled || !visible) && state.borrow().focus.is_focused(window) {
             window.blur(cx);
         }
@@ -545,7 +546,9 @@ impl View {
             base = base.active(move |_| style);
         }
         if disabled {
-            base = base.opacity(0.5);
+            if own_disabled {
+                base = base.opacity(0.5);
+            }
             if let Some(style) = disabled_style {
                 gpui::Refineable::refine(base.style(), &style);
             }
@@ -677,15 +680,13 @@ impl View {
                     }
                 },
                 move |bounds, _, window, _| {
-                    if bounds.size.width > px(0.)
-                        && bounds.size.height > px(0.)
-                        && bounds.intersects(&window.content_mask().bounds)
-                    {
+                    if bounds.size.width > px(0.) && bounds.size.height > px(0.) {
                         manager.borrow_mut().record(
                             id,
                             record_focus.clone(),
                             tab_stop && !disabled,
                             record_focus.is_focused(window),
+                            bounds,
                         );
                     }
                 },
@@ -779,7 +780,7 @@ impl View {
             hidden: false,
             metadata: None,
             live: None,
-            element: base,
+            element: super::highlight_style::Frame::new(base, node, &self.focus),
             disabled,
             read_only: false,
             modal: false,

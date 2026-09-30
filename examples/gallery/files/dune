@@ -1,0 +1,5 @@
+(library
+ (name gpuio_gallery_files)
+ (libraries core eio)
+ (preprocess
+  (pps ppx_jane)))

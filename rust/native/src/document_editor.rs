@@ -13,9 +13,9 @@ pub fn style(run: &Run) -> HighlightStyle {
         background_color: run
             .background
             .map(|[r, g, b]| gpui::rgb((r as u32) << 16 | (g as u32) << 8 | b as u32).into()),
-        font_weight: run.bold.then_some(gpui::FontWeight::BOLD),
+        font_weight: (run.bold || run.diff_emphasis).then_some(gpui::FontWeight::BOLD),
         font_style: run.italic.then_some(gpui::FontStyle::Italic),
-        underline: run.underline.then_some(gpui::UnderlineStyle {
+        underline: (run.underline || run.diff_emphasis).then_some(gpui::UnderlineStyle {
             thickness: gpui::px(1.),
             color: None,
             wavy: false,

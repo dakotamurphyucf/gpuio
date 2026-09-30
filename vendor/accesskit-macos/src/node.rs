@@ -15,7 +15,7 @@ use accesskit::{
 };
 use accesskit_consumer::{FilterResult, Node, NodeId, Tree};
 use objc2::{
-    ClassType, DeclaredClass, declare_class, msg_send_id,
+    ClassType, DeclaredClass, declare_class, msg_send, msg_send_id,
     mutability::InteriorMutable,
     rc::Id,
     runtime::{AnyObject, Sel},
@@ -122,7 +122,7 @@ fn ns_role(node: &Node) -> &'static NSAccessibilityRole {
             Role::Grid => NSAccessibilityTableRole,
             Role::Group => NSAccessibilityGroupRole,
             Role::Header => NSAccessibilityGroupRole,
-            Role::Heading => ns_string!("Heading"),
+            Role::Heading => ns_string!("AXHeading"),
             Role::Iframe => NSAccessibilityGroupRole,
             Role::IframePresentational => NSAccessibilityGroupRole,
             Role::ImeCandidate => NSAccessibilityUnknownRole,
@@ -321,6 +321,11 @@ impl NodeWrapper<'_> {
     }
 
     pub(crate) fn value(&self) -> Option<Value> {
+        if self.0.role() == Role::Heading {
+            // macOS exposes a heading's hierarchy through its numeric AXValue;
+            // its title/painted children continue to provide the heading text.
+            return self.0.data().level().map(|level| Value::Number(level as f64));
+        }
         if let Some(toggled) = self.0.toggled() {
             return Some(Value::Bool(toggled != Toggled::False));
         }
@@ -1159,6 +1164,41 @@ declare_class!(
             }).unwrap_or(NSAccessibilitySortDirection::Unknown)
         }
 
+        #[method_id(accessibilityColumnHeaderUIElements)]
+        fn column_headers(&self) -> Option<Id<NSArray<PlatformNode>>> {
+            self.table_headers(Role::ColumnHeader)
+        }
+
+        #[method_id(accessibilityRowHeaderUIElements)]
+        fn row_headers(&self) -> Option<Id<NSArray<PlatformNode>>> {
+            self.table_headers(Role::RowHeader)
+        }
+
+        #[method_id(accessibilityHeader)]
+        fn header(&self) -> Option<Id<PlatformNode>> {
+            self.resolve_with_context(|node, _, context| {
+                if !table_container(node) || filter(node) != FilterResult::Include {
+                    return None;
+                }
+                let headers: Vec<_> = node.filtered_children(|child| {
+                    table_header_filter(child, Role::ColumnHeader)
+                }).collect();
+                let mut parent = headers.first()?.filtered_parent(&filter);
+                while let Some(candidate) = parent {
+                    if candidate.id() == node.id() {
+                        return None;
+                    }
+                    if matches!(candidate.role(), Role::Row | Role::RowGroup | Role::Group)
+                        && headers.iter().all(|header| header.is_descendant_of(&candidate))
+                    {
+                        return Some(context.get_or_create_platform_node(candidate.id()));
+                    }
+                    parent = candidate.filtered_parent(&filter);
+                }
+                None
+            }).flatten()
+        }
+
         #[method_id(accessibilityRows)]
         fn rows(&self) -> Option<Id<NSArray<PlatformNode>>> {
             self.resolve_with_context(|node, _, context| {
@@ -1300,6 +1340,20 @@ declare_class!(
             });
         }
 
+        // AppKit 14 can report AXValue as settable from the implemented setter
+        // even when isAccessibilitySelectorAllowed rejects that selector.
+        #[method(accessibilityIsAttributeSettable:)]
+        fn is_attribute_settable(&self, attribute: &NSString) -> bool {
+            if unsafe { attribute.isEqualToString(ns_string!("AXValue")) } {
+                self.resolve(|node| {
+                    (node.supports_text_ranges() && !node.is_read_only())
+                        || node.supports_action(Action::SetValue, &filter)
+                }).unwrap_or(false)
+            } else {
+                unsafe { msg_send![super(self), accessibilityIsAttributeSettable: attribute] }
+            }
+        }
+
         #[method(isAccessibilitySelectorAllowed:)]
         fn is_selector_allowed(&self, selector: Sel) -> bool {
             self.resolve(|node| {
@@ -1349,6 +1403,12 @@ declare_class!(
                     return node.role() == Role::TreeItem && node.data().level().is_some();
                 }
                 if selector == sel!(accessibilityRowCount) { return table_container(node); }
+                if selector == sel!(accessibilityColumnHeaderUIElements)
+                    || selector == sel!(accessibilityRowHeaderUIElements)
+                    || selector == sel!(accessibilityHeader)
+                {
+                    return table_container(node) && filter(node) == FilterResult::Include;
+                }
                 if selector == sel!(accessibilityColumnCount) {
                     return table_container(node) && node.data().column_count().is_some();
                 }
@@ -1445,6 +1505,14 @@ fn table_row_filter(node: &Node) -> FilterResult {
         _ => FilterResult::ExcludeNode,
     }
 }
+fn table_header_filter(node: &Node, role: Role) -> FilterResult {
+    match filter(node) {
+        FilterResult::ExcludeSubtree => FilterResult::ExcludeSubtree,
+        _ if node.role() == role => FilterResult::Include,
+        _ if matches!(node.role(), Role::Table | Role::Grid | Role::Tree | Role::TreeGrid) => FilterResult::ExcludeSubtree,
+        _ => FilterResult::ExcludeNode,
+    }
+}
 fn supports_table_selection(node: &Node) -> bool {
     table_item(node) && node.is_selectable()
         && node.supports_action(Action::CustomAction, &filter)
@@ -1472,6 +1540,19 @@ fn supports_tree_expansion(node: &Node) -> bool {
 }
 
 impl PlatformNode {
+    fn table_headers(&self, role: Role) -> Option<Id<NSArray<PlatformNode>>> {
+        self.resolve_with_context(|node, _, context| {
+            if !table_container(node) || filter(node) != FilterResult::Include {
+                return None;
+            }
+            let headers = node
+                .filtered_children(|child| table_header_filter(child, role))
+                .map(|header| context.get_or_create_platform_node(header.id()))
+                .collect::<Vec<_>>();
+            Some(NSArray::from_vec(headers))
+        }).flatten()
+    }
+
     fn set_tree_expanded(&self, expanded: bool) {
         self.resolve_with_context(|node, tree, context| {
             if !supports_tree_expansion(node) {

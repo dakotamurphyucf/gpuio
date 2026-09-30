@@ -73,10 +73,16 @@ mod editor;
 pub(super) mod editor_test;
 #[path = "focus.rs"]
 mod focus;
+#[path = "highlight_view.rs"]
+pub(crate) mod highlight;
+#[path = "highlight_style.rs"]
+mod highlight_style;
 #[path = "image_corners.rs"]
 mod image_corners;
 #[path = "image_view.rs"]
 pub(crate) mod image_view;
+#[path = "input_region.rs"]
+mod input_region;
 #[cfg(feature = "native-tests")]
 #[path = "list_test.rs"]
 pub(super) mod list_test;
@@ -139,15 +145,17 @@ struct ButtonState {
 #[derive(Clone, Copy)]
 struct Interaction {
     pointer: bool,
-    selectable: bool,
-    selection_color: gpui::Hsla,
+    selectable: Option<bool>,
+    selection_color: Option<gpui::Hsla>,
+    link_content: bool,
 }
 impl Default for Interaction {
     fn default() -> Self {
         Self {
             pointer: true,
-            selectable: false,
-            selection_color: rgba(0x386ac880).into(),
+            selectable: None,
+            selection_color: None,
+            link_content: false,
         }
     }
 }
@@ -170,7 +178,16 @@ struct View {
     splits: BTreeMap<NodeId, split_view::State>,
     split_activation: Option<gpui::Subscription>,
     buttons: BTreeMap<NodeId, Rc<ButtonState>>,
+    input_regions: BTreeMap<NodeId, input_region::Shared>,
+    highlights: BTreeMap<NodeId, highlight::Shared>,
+    binding_queries: BTreeMap<NodeId, command::binding::Owner>,
+    binding_rendered: std::collections::BTreeSet<NodeId>,
+    highlight_documents: Rc<RefCell<Rc<()>>>,
+    input_pointer_inside: Rc<std::cell::Cell<bool>>,
     selections: BTreeMap<NodeId, Rc<RefCell<crate::selection::State>>>,
+    text_shimmers: BTreeMap<NodeId, crate::text_shimmer_clock::Owner>,
+    text_shimmer_clock: Rc<crate::text_shimmer_clock::Clock>,
+    text_shimmer_budget: crate::text_shimmer_budget::Shared,
     editors: BTreeMap<NodeId, editor::Instance>,
     root_focus: Option<gpui::FocusHandle>,
     focus: focus::Shared,
@@ -386,6 +403,9 @@ fn pointer_enabled(tree: &crate::tree::Tree, mut id: NodeId) -> bool {
         id = parent;
     }
 }
+#[path = "text_shimmer_view.rs"]
+mod text_shimmer_view;
+
 impl View {
     fn new(id: WindowId, session: SharedSession, transport: Arc<Transport>) -> Self {
         Self {
@@ -404,7 +424,16 @@ impl View {
             splits: BTreeMap::new(),
             split_activation: None,
             buttons: BTreeMap::new(),
+            input_regions: BTreeMap::new(),
+            highlights: BTreeMap::new(),
+            binding_queries: BTreeMap::new(),
+            binding_rendered: Default::default(),
+            highlight_documents: Default::default(),
+            input_pointer_inside: Rc::new(std::cell::Cell::new(true)),
             selections: BTreeMap::new(),
+            text_shimmers: BTreeMap::new(),
+            text_shimmer_clock: Default::default(),
+            text_shimmer_budget: Default::default(),
             editors: BTreeMap::new(),
             root_focus: None,
             radios: BTreeMap::new(),
@@ -447,6 +476,8 @@ impl View {
         }
     }
     fn update_editors(&mut self, dirty: &[NodeId], window: &mut Window, cx: &mut Context<Self>) {
+        self.sync_binding_queries();
+        self.sync_text_shimmers();
         self.install_command_interceptor(window, cx);
         self.install_pointer_observer(window, cx);
         self.install_menu_observers(window, cx);
@@ -529,7 +560,12 @@ impl View {
             .get(id)
             .is_some_and(|node| crate::style::inert(&node.style));
         if inert {
-            crate::semantics::Inert(element).into_any_element()
+            crate::semantics::InteractionShield::inert(element).into_any_element()
+        } else if tree
+            .get(id)
+            .is_some_and(|node| crate::style::disabled(&node.style))
+        {
+            crate::semantics::InteractionShield::disabled(element).into_any_element()
         } else {
             element
         }
@@ -543,6 +579,18 @@ impl View {
         cx: &mut Context<Self>,
     ) -> gpui::AnyElement {
         let node = tree.get(id).expect("validated retained node");
+        if node.command_binding.is_some() || node.editor.is_some() {
+            self.binding_rendered.insert(id);
+        }
+        let highlight_scope = node
+            .highlight_scope
+            .as_ref()
+            // An unpainted scope is retired at frame end. Preparing one known
+            // to be hidden would request work, refresh, retire and repeat forever.
+            // Native state visibility is committed after paint and requests one
+            // new render when an interaction makes the scope visible again.
+            .filter(|_| self.focus.borrow().highlight_visible(tree, id))
+            .map(|_| self.prepare_highlight(tree, node, window, cx));
         if node.kind == Kind::ChartView {
             return self.chart_element(node, interaction);
         }
@@ -595,20 +643,27 @@ impl View {
                 for field in fields {
                     match field {
                         Field::PointerEvents(v) => interaction.pointer = *v,
-                        Field::UserSelect(v) => interaction.selectable = *v,
-                        Field::SelectionColor(v) => interaction.selection_color = color(v),
+                        Field::UserSelect(v) => interaction.selectable = Some(*v),
+                        Field::SelectionColor(v) => interaction.selection_color = Some(color(v)),
                         Field::AccessibleName(v) => accessible_name = v.clone().into(),
                         _ => (),
                     }
                 }
             }
         }
+        if let Some(config) = &node.link {
+            accessible_name = config.label.clone().into();
+        }
         let mut element = div().id(("gpuio-node", identity));
+        if let Some(scope) = highlight_scope {
+            element = element.child(highlight::marker(scope));
+        }
         // Native controls inside a tree/table row own pointer input. The input widget
         // may focus on mouse-down without consuming mouse-up; block the row's
         // ancestor click hitbox while preserving wheel propagation to the list.
         if (node.editor.is_some()
             || node.control.is_some()
+            || node.link.is_some()
             || node.choice.is_some()
             || node.rating.is_some()
             || node.slider.is_some()
@@ -616,13 +671,22 @@ impl View {
             || node.otp_input.is_some()
             || node.calendar.is_some()
             || node.color_input.is_some()
-            || (node.kind == Kind::Text && interaction.selectable))
+            || (node.kind == Kind::Text && interaction.selectable.unwrap_or(false)))
             && tree_input::within_input_collection(tree, id)
         {
             element = element.block_mouse_except_scroll();
         }
 
-        if node.kind == Kind::Text && !interaction.selectable && !node.text.is_empty() {
+        element = match crate::style::pointer_occlusion(&node.style) {
+            1 => element.block_mouse_except_scroll(),
+            2 => element.occlude(),
+            _ => element,
+        };
+
+        if node.kind == Kind::Text
+            && !interaction.selectable.unwrap_or(false)
+            && !node.text.is_empty()
+        {
             element = element
                 .role(gpui::Role::Label)
                 .aria_label(node.text.clone());
@@ -648,6 +712,8 @@ impl View {
                 | Kind::Rating
                 | Kind::TabBar
                 | Kind::PointerArea
+                | Kind::InputRegion
+                | Kind::HighlightScope
                 | Kind::DragSource
                 | Kind::DropTarget
         ) {
@@ -760,10 +826,15 @@ impl View {
                 .overflow_hidden()
                 .text_color(rgba(0x8b98abff))
                 .role(gpui::Role::ProgressIndicator)
-                .aria_label(config.label.clone())
-                .on_mouse_down(gpui::MouseButton::Left, |_, window, _| {
+                .aria_label(config.label.clone());
+            // A standalone indicator preserves existing focus. Inside a Link,
+            // let mouse-down reach the root's native focus behavior; cancelling
+            // it would activate the destination while leaving keyboard focus behind.
+            if !interaction.link_content {
+                element = element.on_mouse_down(gpui::MouseButton::Left, |_, window, _| {
                     window.prevent_default()
                 });
+            }
             if self.focus.borrow().visible(id) {
                 element = element.child(loading::indicator(
                     config,
@@ -842,7 +913,17 @@ impl View {
                 .as_ref()
                 .is_some_and(|slider| slider.config.disabled)
             || node.control.is_some_and(Control::disabled)
+            || node.link.as_ref().is_some_and(|config| config.disabled)
             || node.editor.as_ref().is_some_and(|config| config.disabled);
+        let own_disabled = disabled
+            || node
+                .input_region
+                .as_ref()
+                .is_some_and(|config| config.disabled);
+        let disabled = own_disabled || self.focus.borrow().disabled(id);
+        if let Some(config) = &node.input_region {
+            element = self.input_region_element(element, node, tree.revision(), config, window, cx);
+        }
         let checked = command
             .as_ref()
             .is_some_and(|route| route.config.checked == Some(true))
@@ -865,6 +946,7 @@ impl View {
         if matches!(
             node.kind,
             Kind::Button
+                | Kind::Link
                 | Kind::CommandButton
                 | Kind::Checkbox
                 | Kind::Switch
@@ -883,6 +965,11 @@ impl View {
                     })
                 })
                 .clone();
+            let tab_stop = node.link.as_ref().is_none_or(|config| config.tab_stop);
+            let tab_index = node
+                .link
+                .as_ref()
+                .map_or(0, |config| config.tab_index as isize);
             if disabled {
                 state.focus.clone().tab_stop(false);
                 if state.focus.is_focused(window) {
@@ -890,19 +977,21 @@ impl View {
                 }
             } else {
                 element = element
-                    .track_focus(&state.focus.clone().tab_stop(true))
-                    .tab_index(0);
+                    .track_focus(&state.focus.clone().tab_stop(tab_stop).tab_index(tab_index))
+                    .tab_index(tab_index);
                 let focus = state.focus.clone();
                 let gate = self.focus.clone();
                 element =
                     element.on_a11y_action(gpui::AccessibleAction::Focus, move |_, window, cx| {
-                        if gate.borrow().allows(id) {
+                        if gate.borrow().can_focus(&focus, window) {
+                            gate.borrow().request_reveal();
                             window.focus(&focus, cx);
                         }
                     });
             }
             element = element
                 .role(match node.kind {
+                    Kind::Link => gpui::Role::Link,
                     Kind::Checkbox => gpui::Role::CheckBox,
                     Kind::Switch => gpui::Role::Switch,
                     Kind::RadioGroup => gpui::Role::RadioGroup,
@@ -931,6 +1020,9 @@ impl View {
             {
                 element = element.cursor_pointer();
             }
+        }
+        if node.kind == Kind::Link && disabled {
+            element = element.block_mouse_except_scroll();
         }
         if node.kind == Kind::TabBar {
             element = element.flex_row();
@@ -983,7 +1075,22 @@ impl View {
                     .map(|(state, _)| state.borrow().styles.clone())
             })
             .unwrap_or_else(|| node.style.clone());
-        let (styled, mut states) = apply_styles(element, &styles, interaction, disabled);
+        let factor = animation
+            .as_ref()
+            .and_then(|(_, sample)| animation::opacity_factor(&sample.values))
+            .or_else(|| {
+                program
+                    .as_ref()
+                    .and_then(|(_, sample)| animation::opacity_factor(&sample.frame.values))
+            });
+        let (mut styled, mut states) = apply_styles(element, &styles, interaction, disabled);
+        if let Some(factor) = factor {
+            let style = styled.style();
+            style.opacity = Some(style.opacity.unwrap_or(1.) * factor);
+            for state in states.iter_mut().flatten() {
+                animation::factor_state_opacity(state, factor);
+            }
+        }
         if let Some(config) = &node.overlay {
             for state in states.iter_mut().flatten() {
                 overlay::constrain_state_style(config.kind, state);
@@ -1039,6 +1146,12 @@ impl View {
                 {
                     element.style().refine(&style);
                 }
+            } else if let Some(selection) = self.selections.get(&id) {
+                // The inner selectable text owns focus; the styled outer Div
+                // must follow that handle just like native editor wrappers do.
+                if selection.borrow().focus.is_focused(window) {
+                    element.style().refine(&style);
+                }
             } else {
                 element = element.focus(move |_| style);
             }
@@ -1057,7 +1170,11 @@ impl View {
         }
         if disabled {
             element.style().mouse_cursor = None;
-            element = element.opacity(0.5);
+            // A subtree policy does not repeatedly dim every nested container.
+            // Individual controls retain their ordinary disabled appearance.
+            if own_disabled {
+                element = element.opacity(0.5 * factor.unwrap_or(1.));
+            }
             if let Some(style) = disabled_style {
                 element.style().refine(&style);
             }
@@ -1224,24 +1341,37 @@ impl View {
                     cx.stop_propagation();
                 })
                 .child(editor.element());
-        } else if node.kind == Kind::Text && interaction.selectable {
+        } else if node.kind == Kind::Text && interaction.selectable.unwrap_or(false) {
             self.visited.insert(id);
             let selection = self
                 .selections
                 .entry(id)
                 .or_insert_with(|| {
-                    Rc::new(RefCell::new(crate::selection::State::new(
-                        node.text.clone(),
-                        cx,
-                    )))
+                    crate::selection::State::new(node.text.clone(), cx.entity_id(), cx)
                 })
                 .clone();
+            let changed_geometry = {
+                let state = selection.borrow();
+                state.text != node.text && state.has_geometry(cx)
+            };
+            if changed_geometry {
+                gpui_base::TextSelection::clear(window, cx);
+            }
             selection.borrow_mut().update(node.text.clone());
+            let highlight = self.highlight_for(tree, id);
+            let selection_scope = self.focus.borrow().selection_scope(id);
+            let shimmer = self.text_shimmer(node, window);
             element = element.child(crate::selection::element(
+                &node.text_spans,
                 selection,
-                interaction.selection_color,
+                interaction
+                    .selection_color
+                    .unwrap_or_else(|| rgba(0x386ac880).into()),
                 interaction.pointer,
                 cx.entity_id(),
+                selection_scope,
+                highlight,
+                shimmer,
             ));
         } else if matches!(node.kind, Kind::Checkbox | Kind::Switch) {
             element = element.child(control_indicator(node.kind, checked, indeterminate));
@@ -1275,7 +1405,25 @@ impl View {
                 Kind::TabPanel | Kind::Panel | Kind::NavigationStack | Kind::Carousel
             )
         {
-            element = element.child(gpui::SharedString::from(label));
+            let highlight = self.highlight_for(tree, id);
+            let shimmer = self.text_shimmer(node, window);
+            if highlight.is_some() || shimmer.is_some() || !node.text_spans.is_empty() {
+                let text = crate::styled_text::element(
+                    gpui::SharedString::from(label.clone()),
+                    &node.text_spans,
+                );
+                if let Some((paint, cache)) = highlight {
+                    element = element.child(crate::highlight_paint::underlay(
+                        label,
+                        text.layout().clone(),
+                        paint,
+                        cache,
+                    ));
+                }
+                element = element.child(crate::text_shimmer_clock::decorate(text, shimmer));
+            } else {
+                element = element.child(gpui::SharedString::from(label));
+            }
         }
         for child in node.children.iter() {
             if tree
@@ -1300,11 +1448,20 @@ impl View {
         } else if node.split.is_some() {
             element = element.child(self.split_element(tree, node, interaction, window, cx));
         } else {
+            let child_interaction = if node.kind == Kind::Link {
+                Interaction {
+                    selectable: Some(false),
+                    link_content: true,
+                    ..interaction
+                }
+            } else {
+                interaction
+            };
             element = element.children(
                 node.children
                     .iter()
                     .filter(|_| !matches!(node.kind, Kind::Button | Kind::CommandButton))
-                    .map(|id| self.element(tree, *id, interaction, window, cx))
+                    .map(|id| self.element(tree, *id, child_interaction, window, cx))
                     .collect::<Vec<_>>(),
             );
         }
@@ -1342,6 +1499,9 @@ impl View {
             && node.color_input.is_none()
             && node.overlay.is_none()
             && node.pointer.is_none()
+            && node.input_region.is_none()
+            && node.highlight_scope.is_none()
+            && node.command_binding.is_none()
             && node.image.is_none()
             && node.animation.is_none()
             && node.animation_program.is_none()
@@ -1406,24 +1566,38 @@ impl View {
             })
             .or_else(|| self.buttons.get(&id).map(|button| button.focus.clone()))
             .or_else(|| {
+                self.input_regions
+                    .get(&id)
+                    .filter(|_| {
+                        node.input_region.as_ref().is_some_and(|config| {
+                            config.focus != gpuio_protocol::input::Focus::None
+                        })
+                    })
+                    .map(|state| state.borrow().focus.clone())
+            })
+            .or_else(|| {
                 self.selections
                     .get(&id)
                     .map(|state| state.borrow().focus.clone())
             })
             .or_else(|| self.focus.borrow().handle(id));
-        if let Some(handle) = handle.filter(|_| !disabled) {
-            let tab_stop = node.kind != Kind::FocusScope;
+        if let Some(handle) = handle.filter(|_| !disabled && node.input_region.is_none()) {
+            let tab_stop = node.kind != Kind::FocusScope
+                && node.link.as_ref().is_none_or(|config| config.tab_stop)
+                && node
+                    .input_region
+                    .as_ref()
+                    .is_none_or(|config| config.focus == gpuio_protocol::input::Focus::Tab);
             let manager = self.focus.clone();
             element = element.child(
                 canvas(
                     |_, _, _| (),
                     move |bounds, _, window, _| {
-                        if bounds.size.width > px(0.)
-                            && bounds.size.height > px(0.)
-                            && bounds.intersects(&window.content_mask().bounds)
-                        {
+                        if bounds.size.width > px(0.) && bounds.size.height > px(0.) {
                             let focused = handle.is_focused(window);
-                            manager.borrow_mut().record(id, handle, tab_stop, focused);
+                            manager
+                                .borrow_mut()
+                                .record(id, handle, tab_stop, focused, bounds);
                         }
                     },
                 )
@@ -1471,6 +1645,7 @@ impl View {
                 },
                 scrolling.as_ref(),
                 window,
+                node,
             );
         }
         if let Some(config) = &node.drag_source
@@ -1502,7 +1677,7 @@ impl View {
             let image = image_corners::Rounded::capture(element, corners);
             return match &scrolling {
                 Some(state) => self.finish_element(
-                    scroll::Frame::new(image, state),
+                    scroll::Frame::new(image, state, self.focus.clone(), id),
                     node,
                     tree.revision(),
                     disabled,
@@ -1512,7 +1687,7 @@ impl View {
         }
         match scrolling {
             Some(state) => self.finish_element(
-                scroll::Frame::new(element, &state),
+                scroll::Frame::new(element, &state, self.focus.clone(), id),
                 node,
                 tree.revision(),
                 disabled,
@@ -1520,13 +1695,16 @@ impl View {
             None => self.finish_element(element, node, tree.revision(), disabled),
         }
     }
-    fn finish_element<E: gpui::Element>(
+    fn finish_element<
+        E: gpui::Element<PrepaintState = Option<gpui::Hitbox>> + gpui::InteractiveElement,
+    >(
         &self,
         element: E,
         node: &crate::tree::Node,
         revision: i64,
         disabled: bool,
     ) -> gpui::AnyElement {
+        let element = highlight_style::Frame::new(element, node, &self.focus);
         let id = node.id;
         // The managed list row wrapper owns this metadata and the row focus
         // handle. Rendering it again on the description would duplicate AX rows.
@@ -1591,6 +1769,15 @@ impl View {
             }
             .into_any_element();
         }
+        if node.input_region.is_some()
+            && let Some(state) = self.input_regions.get(&id)
+        {
+            return input_region::Region {
+                element,
+                state: state.clone(),
+            }
+            .into_any_element();
+        }
         if let Some(config) = &node.pointer {
             pointer::Region {
                 element,
@@ -1619,7 +1806,10 @@ impl Render for View {
             self.render_count += 1;
         }
         self.refresh_list_pins(window, cx);
+        self.sync_binding_queries();
+        self.sync_text_shimmers();
         self.visited.clear();
+        self.binding_rendered.clear();
         self.focus.borrow_mut().clear_surfaces();
         let shared = self.session.clone();
         let session = shared.borrow();
@@ -1632,9 +1822,17 @@ impl Render for View {
         let program_begin = cx.entity().downgrade();
         let canvas_budget = self.canvas_budget.clone();
         let chart_budget = self.chart_budget.clone();
+        let text_shimmer_budget = self.text_shimmer_budget.clone();
         let canvases: Vec<_> = self.canvases.values().map(Rc::downgrade).collect();
         let drag_window = self.id;
+        let input_pointer_inside = self.input_pointer_inside.clone();
+        gpui_base::TextSelection::activate_scope(
+            self.focus.borrow().active_selection_scope(),
+            window,
+            cx,
+        );
         let mut root = drag_drop::root(div(), self.id, cx)
+            .child(gpui_base::TextSelectionLayer)
             .capture_key_down(cx.listener(|view, event: &gpui::KeyDownEvent, window, cx| {
                 if event.keystroke.key == "escape"
                     && (view.cancel_color_inputs(
@@ -1674,20 +1872,25 @@ impl Render for View {
                 canvas(
                     |_, _, _| (),
                     move |_, _, window, cx| {
-                        begin_focus.borrow_mut().begin_frame();
+                        begin_focus
+                            .borrow_mut()
+                            .begin_frame(window.content_mask().bounds);
                         let _ = program_begin.update(cx, |view, _| {
                             view.begin_carousel_paint();
                             view.begin_program_paint();
                             view.begin_query_paint();
+                            view.begin_highlight_paint();
                         });
                         *canvas_budget.borrow_mut() = Default::default();
                         *chart_budget.borrow_mut() = Default::default();
+                        *text_shimmer_budget.borrow_mut() = Default::default();
                         for state in &canvases {
                             if let Some(state) = state.upgrade() {
                                 state.borrow_mut().flush_canvas_frame(window, cx);
                             }
                         }
                         drag_drop::install_cleanup(drag_window, window, cx);
+                        input_region::install_pointer_presence(input_pointer_inside, window);
                     },
                 )
                 .absolute()
@@ -1723,6 +1926,16 @@ impl Render for View {
         self.hide_unvisited_otps(window, cx);
         self.hide_unvisited_calendars(window, cx);
         self.hide_unvisited_color_inputs(window, cx);
+        self.input_regions.retain(|id, state| {
+            if !self.visited.contains(id) {
+                state.borrow_mut().clear();
+                return false;
+            }
+            if !self.focus.borrow().allows(*id) || window.captured_hitbox().is_some() {
+                state.borrow_mut().clear();
+            }
+            true
+        });
         self.buttons.retain(|id, _| self.visited.contains(id));
         self.radios.retain(|id, _| self.visited.contains(id));
         self.ratings.retain(|id, _| self.visited.contains(id));
@@ -1816,6 +2029,10 @@ impl Render for View {
                     .any(|state| state.borrow().chart_focused(window))
                 || root_focus.is_focused(window)
                 || self
+                    .input_regions
+                    .values()
+                    .any(|state| state.borrow().focus.is_focused(window))
+                || self
                     .buttons
                     .values()
                     .any(|state| state.focus.is_focused(window))
@@ -1835,6 +2052,7 @@ impl Render for View {
         let transport = self.transport.clone();
         let program_finish = cx.entity().downgrade();
         let navigation_focus = self.focus.clone();
+        let reveal_focus = self.focus.clone();
         root.child(
             canvas(
                 |_, _, _| (),
@@ -1846,14 +2064,25 @@ impl Render for View {
                             !view.animation_programs.is_empty()
                                 || !view.container_queries.is_empty()
                                 || !view.carousels.is_empty()
+                                || !view.highlights.is_empty()
+                                || !view.binding_queries.is_empty()
+                                || !view.text_shimmers.is_empty()
+                                // A native style can reveal the last hidden scope.
+                                // Commit that sample even with no active matcher.
+                                || view.focus.borrow().has_pending_highlight_styles()
                         })
                         .unwrap_or(false)
                     {
                         window.defer(cx, move |window, cx| {
                             let _ = program_finish.update(cx, |view, cx| {
                                 view.finish_query_paint(window, cx);
+                                view.finish_binding_paint(window, cx);
                                 view.finish_program_paint();
                                 view.schedule_carousels(window, cx);
+                                view.finish_highlight_paint(cx);
+                                for owner in view.text_shimmers.values() {
+                                    owner.finish_frame();
+                                }
                             });
                         });
                     }
@@ -1862,6 +2091,9 @@ impl Render for View {
                             navigation_focus.borrow_mut().finish_navigation(window, cx);
                         });
                     }
+                    window.defer(cx, move |window, cx| {
+                        reveal_focus.borrow_mut().finish_paint(window, cx);
+                    });
                     let events = session.borrow_mut().painted(id, revision);
                     for event in events {
                         if matches!(event, Event::FrameRequested(..)) {
@@ -1953,6 +2185,7 @@ pub fn run(transport: Arc<Transport>) {
                     crate::chart_render_host::shutdown(cx).await;
                     crate::image_host::shutdown(cx).await;
                     crate::document_host::shutdown(cx).await;
+                    crate::highlight_host::shutdown(cx).await;
                     if !stopping.replace(true) {
                         cx.update(stop_application);
                     }
@@ -2043,6 +2276,11 @@ pub fn run(transport: Arc<Transport>) {
                             let result = session.borrow_mut().apply_guarded(&tx, &pins);
                             match result {
                                 Ok(applied) => {
+                                    transport.mailbox.lock().expect("mailbox poisoned")
+                                        .retain_bindings(tx.window, |node, handler| {
+                                            session.borrow().tree(tx.window).is_some_and(|tree|
+                                                tree.get(node).is_some_and(|n| n.command_binding.is_some() && n.handler == Some(handler)))
+                                        });
                                     transport.respond(Event::Accepted(tx.window, tx.revision));
                                     if let Some(window) = windows.get(&tx.window) {
                                         let _ = window.update(cx, |view, window, cx| {
@@ -2232,6 +2470,7 @@ pub fn run(transport: Arc<Transport>) {
                     crate::chart_render_host::shutdown(cx).await;
                             crate::image_host::shutdown(cx).await;
                             crate::document_host::shutdown(cx).await;
+                            crate::highlight_host::shutdown(cx).await;
                             for event in session.borrow_mut().shutdown() {
                                 transport.respond(event);
                             }
@@ -2268,6 +2507,7 @@ pub(crate) fn stop_application(cx: &mut App) {
     crate::chart_render_host::finish_before_quit(cx);
     crate::image_host::finish_before_quit(cx);
     crate::document_host::finish_before_quit(cx);
+    crate::highlight_host::finish_before_quit(cx);
     cx.shutdown();
     // Embedded runtime must regain control instead of NSApplication.terminate.
     unsafe {
@@ -2285,6 +2525,7 @@ pub(crate) fn stop_application(cx: &mut App) {
     crate::chart_render_host::finish_before_quit(cx);
     crate::image_host::finish_before_quit(cx);
     crate::document_host::finish_before_quit(cx);
+    crate::highlight_host::finish_before_quit(cx);
     cx.quit();
 }
 
@@ -2323,3 +2564,39 @@ pub(crate) fn chart_source_changed(source: Option<gpuio_protocol::ResourceId>, c
         });
     }
 }
+
+#[cfg(feature = "native-image-tests")]
+#[path = "styled_text_test.rs"]
+pub(crate) mod styled_text_test;
+
+#[cfg(feature = "native-image-tests")]
+#[path = "link_test.rs"]
+pub(crate) mod link_test;
+
+#[cfg(feature = "native-image-tests")]
+#[path = "aspect_ratio_test.rs"]
+pub(crate) mod aspect_ratio_test;
+
+#[cfg(feature = "native-image-tests")]
+#[path = "border_style_test.rs"]
+pub(crate) mod border_style_test;
+
+#[cfg(feature = "native-image-tests")]
+#[path = "text_shimmer_view_test.rs"]
+pub(crate) mod text_shimmer_view_test;
+
+#[cfg(feature = "native-image-tests")]
+#[path = "opacity_factor_test.rs"]
+pub(crate) mod opacity_factor_test;
+
+impl Drop for View {
+    fn drop(&mut self) {
+        if let Ok(mut mailbox) = self.transport.mailbox.lock() {
+            mailbox.retain_bindings(self.id, |_, _| false);
+        }
+    }
+}
+
+#[cfg(feature = "native-tests")]
+#[path = "command_binding_test.rs"]
+pub(super) mod command_binding_test;

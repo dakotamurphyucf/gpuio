@@ -18,6 +18,7 @@ use crate::text::text_view::{LinkClickHandlerFn, handle_link_click};
 use super::{
     inline::{Inline, InlineHighlight, InlineState, text_runs, text_size_ranges},
     inline_object::{InlineObject, MeasuredInlineObject},
+    inline_semantics::{self, Collector, visual_slot},
     node::LinkMark,
     utils::image_source,
 };
@@ -38,6 +39,7 @@ pub(super) type InlineRenderer = dyn Fn(&super::InlineRenderContext, &mut Window
 pub(super) enum InlineFlowItem {
     Object {
         text: SharedString,
+        fallback_text: Option<SharedString>,
         id: usize,
         renderer: Arc<InlineRenderer>,
         accessibility_label: SharedString,
@@ -58,6 +60,12 @@ pub(super) enum InlineFlowItem {
         width: Option<DefiniteLength>,
         height: Option<DefiniteLength>,
     },
+}
+
+pub(super) struct InlineFlowPrepaint {
+    elements: Vec<(AnyElement, Option<(Bounds<Pixels>, gpui::Hsla)>)>,
+    semantics: Vec<(usize, AnyElement)>,
+    runs: Vec<inline_semantics::Run>,
 }
 
 pub(crate) struct InlineFlowLayoutState {
@@ -212,7 +220,41 @@ impl IntoElement for InlineFlow {
 
 impl Element for InlineFlow {
     type RequestLayoutState = InlineFlowLayoutState;
-    type PrepaintState = Vec<(AnyElement, Option<(Bounds<Pixels>, gpui::Hsla)>)>;
+    type PrepaintState = InlineFlowPrepaint;
+
+    fn a11y_role(&self) -> Option<gpui::Role> {
+        Some(gpui::Role::Group)
+    }
+
+    fn a11y_synthetic_children(
+        &mut self,
+        prepaint: &mut Self::PrepaintState,
+        builder: &mut gpui::A11ySubtreeBuilder,
+    ) {
+        // Geometry is collected from real leaves during prepaint. Proxies are
+        // then created after the visuals; interleave their IDs back into source
+        // order, preserving native child subtrees at their original slots.
+        let node = builder.parent_node();
+        let children = node.children().to_vec();
+        let visual_count = prepaint.elements.len();
+        debug_assert_eq!(children.len(), visual_count + prepaint.semantics.len());
+        if children.len() != visual_count + prepaint.semantics.len() {
+            return;
+        }
+        let mut ordered = Vec::with_capacity(children.len());
+        let mut semantics = prepaint.semantics.iter().enumerate().peekable();
+        for (slot, child) in children.iter().take(visual_count).enumerate() {
+            while let Some((index, (source_slot, _))) = semantics.peek() {
+                if *source_slot != slot {
+                    break;
+                }
+                ordered.push(children[visual_count + *index]);
+                semantics.next();
+            }
+            ordered.push(*child);
+        }
+        node.set_children(ordered);
+    }
 
     fn id(&self) -> Option<ElementId> {
         Some(self.id.clone())
@@ -303,7 +345,7 @@ impl Element for InlineFlow {
 
     fn prepaint(
         &mut self,
-        _id: Option<&GlobalElementId>,
+        id: Option<&GlobalElementId>,
         _inspector_id: Option<&InspectorElementId>,
         bounds: Bounds<Pixels>,
         request_layout: &mut Self::RequestLayoutState,
@@ -319,6 +361,7 @@ impl Element for InlineFlow {
         let typography = request_layout.typography.clone();
         let text_style = &typography.text_style;
         let mut elements = Vec::with_capacity(fragments.len());
+        let collector = Collector::new(window, cx);
 
         for fragment in fragments {
             match fragment {
@@ -340,6 +383,16 @@ impl Element for InlineFlow {
                         continue;
                     };
                     let object_size = object.metrics.size;
+                    if let Some(link) = link {
+                        collector.push(
+                            elements.len(),
+                            Bounds::new(bounds.origin + origin, object_size),
+                            accessibility_label,
+                            Some(link.clone()),
+                        );
+                    } else {
+                        collector.native(elements.len());
+                    }
                     let mut element = InlineObject::new(
                         ("inline-object", *id),
                         text.clone(),
@@ -443,6 +496,7 @@ impl Element for InlineFlow {
                         highlights,
                         self.link_click_handler.clone(),
                     )
+                    .semantic_sink(collector.clone(), elements.len())
                     .selection_source(source_state.clone(), source_range)
                     .text_style(text_style.clone())
                     .selection_bounds(Bounds::new(
@@ -450,7 +504,7 @@ impl Element for InlineFlow {
                         size(bounds.size.width, selection_bounds.size.height),
                     ))
                     .paint_origin(bounds.origin + origin + point(padding, Pixels::ZERO));
-                    let mut element = div()
+                    let element = div()
                         .font(text_style.font())
                         .text_color(text_style.color)
                         .when_some(text_style.background_color, |this, color| {
@@ -462,6 +516,7 @@ impl Element for InlineFlow {
                         .whitespace_nowrap()
                         .child(inline)
                         .into_any_element();
+                    let mut element = visual_slot(elements.len(), element);
                     window.with_rem_size(Some(typography.rem_size), |window| {
                         element.prepaint_as_root(
                             bounds.origin + origin + point(padding, Pixels::ZERO),
@@ -486,7 +541,17 @@ impl Element for InlineFlow {
                     else {
                         continue;
                     };
-                    let mut element = Self::image_element(
+                    if let Some(link) = link {
+                        collector.push(
+                            elements.len(),
+                            Bounds::new(bounds.origin + origin, fragment_size),
+                            title,
+                            Some(link.clone()),
+                        );
+                    } else {
+                        collector.native(elements.len());
+                    }
+                    let element = Self::image_element(
                         elements.len(),
                         url,
                         link,
@@ -494,6 +559,7 @@ impl Element for InlineFlow {
                         fragment_size,
                         self.link_click_handler.clone(),
                     );
+                    let mut element = visual_slot(elements.len(), element);
                     element.prepaint_as_root(
                         bounds.origin + origin,
                         size(
@@ -508,7 +574,14 @@ impl Element for InlineFlow {
             }
         }
 
-        elements
+        let runs = collector.finish();
+        inline_semantics::reveal(&runs, window, cx);
+        let semantics = inline_semantics::elements(&runs, id, &self.link_click_handler, window, cx);
+        InlineFlowPrepaint {
+            elements,
+            semantics,
+            runs,
+        }
     }
 
     fn paint(
@@ -533,12 +606,16 @@ impl Element for InlineFlow {
             }
         }
         let radius = crate::Theme::global(cx).tokens.radius.sm;
-        for (element, background) in prepaint {
+        for (element, background) in &mut prepaint.elements {
             if let Some((bounds, color)) = background {
                 window.paint_quad(gpui::fill(*bounds, *color).corner_radii(radius));
             }
             element.paint(window, cx);
         }
+        for (_, element) in &mut prepaint.semantics {
+            element.paint(window, cx);
+        }
+        inline_semantics::paint_focus(&prepaint.runs, window, cx);
     }
 }
 
@@ -547,12 +624,13 @@ impl From<&InlineFlowItem> for MeasureItem {
         match item {
             InlineFlowItem::Object {
                 text,
+                fallback_text,
                 id,
                 renderer,
                 style,
                 ..
             } => Self::Object {
-                text: text.clone(),
+                text: fallback_text.as_ref().unwrap_or(text).clone(),
                 id: *id,
                 renderer: renderer.clone(),
                 style: *style,

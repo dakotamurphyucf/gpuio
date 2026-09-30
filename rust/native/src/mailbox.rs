@@ -34,6 +34,10 @@ fn event_bytes(event: &Event) -> usize {
         Event::DesktopResponse(_, gpuio_protocol::desktop::Response::Links(batch)) => {
             batch.links.iter().map(|link| link.len() + 9).sum()
         }
+        Event::InputObserved(_, _, _, _, input) => input.payload_bytes(),
+        Event::HighlightObserved(_, _, _, _, observation) => observation.payload_bytes(),
+        Event::CommandBindingObserved(_, _, _, _, observation) => observation.payload_bytes(),
+        Event::DocumentDiffEvent(_, _, _, _, _, event) => event.payload_bytes(),
         Event::TableInput(_, _, _, _, input) => input.request.payload_bytes(),
         Event::TreeInput(
             _,
@@ -192,6 +196,7 @@ enum Class {
     Fault,
     Terminal,
     Control,
+    Binding,
 }
 
 #[derive(Default)]
@@ -209,6 +214,8 @@ pub struct Mailbox {
     closed: bool,
     stopped_emitted: bool,
     controls: usize,
+    bindings: usize,
+    binding_bytes: usize,
 }
 
 impl Mailbox {
@@ -296,6 +303,9 @@ impl Mailbox {
     }
 
     pub fn respond(&mut self, event: Event) {
+        if let Event::Closed(_, window) = event {
+            self.retain_bindings(window, |_, _| false);
+        }
         assert!(self.reserved > 0, "response without reservation");
         self.reserved -= 1;
         self.responses += 1;
@@ -349,6 +359,9 @@ impl Mailbox {
     /// Coalesce only consecutive render observations for the same window. Never
     /// cross input/response barriers. Other input is ordered and never discarded.
     pub fn input(&mut self, event: Event) -> Result<(), Box<Event>> {
+        if matches!(event, Event::CommandBindingObserved(..)) {
+            return self.binding_input(event);
+        }
         if matches!(event, Event::ColorInputEvent(..)) {
             return self
                 .color_batch(vec![event])
@@ -365,6 +378,31 @@ impl Mailbox {
                 unreachable!()
             };
             *revision = next;
+            return Ok(());
+        }
+        if let Event::InputObserved(
+            window,
+            node,
+            handler,
+            revision,
+            gpuio_protocol::input::Event::MouseMove(sample),
+        ) = &event
+            && let Some(last) = self.events.back_mut()
+            && matches!(last.class, Class::Input)
+            && let Event::InputObserved(
+                w,
+                n,
+                h,
+                r,
+                gpuio_protocol::input::Event::MouseMove(previous),
+            ) = &last.event
+            && (window, node, handler, revision) == (w, n, h, r)
+            && sample.pressed_button == previous.pressed_button
+            && sample.location.modifiers == previous.location.modifiers
+            && sample.location.is_valid()
+            && previous.location.is_valid()
+        {
+            last.event = event;
             return Ok(());
         }
         if let Event::PointerEvent(window, node, handler, revision, sample) = &event
@@ -645,6 +683,66 @@ impl Mailbox {
         });
     }
 
+    /// Latest-value observations have their own quota; no command invocation is
+    /// coalesced or displaced. Mounted owners reserve both a producer snapshot
+    /// and a queued snapshot in Tree/Session admission before this lane is used.
+    fn binding_input(&mut self, event: Event) -> Result<(), Box<Event>> {
+        let Event::CommandBindingObserved(window, node, handler, revision, ref sample) = event
+        else {
+            return Err(Box::new(event));
+        };
+        if self.closed || self.stopped_emitted || revision < 0 || !sample.is_valid() {
+            return Err(Box::new(event));
+        }
+        let index = self.events.iter().position(|output| {
+            matches!(&output.event,
+            Event::CommandBindingObserved(w, n, _, _, _) if *w == window && *n == node)
+        });
+        if let Some(index) = index
+            && let Event::CommandBindingObserved(_, _, previous_handler, _, previous) =
+                &self.events[index].event
+            && *previous_handler == handler
+            && previous.epoch >= sample.epoch
+        {
+            return Ok(());
+        }
+        let old_bytes = index.map_or(0, |i| event_bytes(&self.events[i].event));
+        let bytes = self.binding_bytes - old_bytes + event_bytes(&event);
+        if bytes > MAX_SESSION_BYTES / 2
+            || (index.is_none()
+                && self.bindings >= MAX_WINDOWS * gpuio_protocol::command_binding::MAX_OBSERVERS)
+        {
+            return Err(Box::new(event));
+        }
+        self.binding_bytes = bytes;
+        if let Some(index) = index {
+            self.events[index].event = event;
+        } else {
+            self.bindings += 1;
+            self.events.push_back(Output {
+                event,
+                class: Class::Binding,
+            });
+        }
+        Ok(())
+    }
+
+    pub fn retain_bindings(
+        &mut self,
+        window: WindowId,
+        mut keep: impl FnMut(gpuio_protocol::NodeId, gpuio_protocol::HandlerId) -> bool,
+    ) {
+        self.events.retain(|output| {
+            let remove = matches!(output.event,
+                Event::CommandBindingObserved(w, node, handler, _, _) if w == window && !keep(node, handler));
+            if remove {
+                self.bindings -= 1;
+                self.binding_bytes -= event_bytes(&output.event);
+            }
+            !remove
+        });
+    }
+
     pub fn has_window_output(&self, window_slot: usize) -> bool {
         self.events.iter().any(|output| match output.event {
             Event::CloseRequested(id)
@@ -678,6 +776,7 @@ impl Mailbox {
             | Event::CanvasEvent(id, ..)
             | Event::ChartEvent(id, ..)
             | Event::DocumentNavigation(id, ..)
+            | Event::DocumentDiffEvent(id, ..)
             | Event::ExtensionEvent(id, ..)
             | Event::SplitResized(id, ..)
             | Event::AnimationEndpoint(id, ..)
@@ -686,6 +785,9 @@ impl Mailbox {
             | Event::ListViewport(id, ..)
             | Event::DropTargetEvent(id, ..)
             | Event::PointerEvent(id, ..)
+            | Event::InputObserved(id, ..)
+            | Event::HighlightObserved(id, ..)
+            | Event::CommandBindingObserved(id, ..)
             | Event::PaletteDismissed(id, ..)
             | Event::ComboboxSelected(id, ..)
             | Event::SliderResult(_, id, ..)
@@ -740,6 +842,10 @@ impl Mailbox {
                 }
                 Class::Terminal => (),
                 Class::Control => self.controls -= 1,
+                Class::Binding => {
+                    self.bindings -= 1;
+                    self.binding_bytes -= event_bytes(&output.event);
+                }
             }
             if let Event::Accepted(id, _) | Event::Rejected(id, ..) | Event::ListRetained(id, ..) =
                 output.event
@@ -757,6 +863,10 @@ impl Mailbox {
     /// when the platform closed its last window. Always deliver it after output.
     pub fn close(&mut self) {
         self.closed = true;
+        self.events
+            .retain(|output| !matches!(output.class, Class::Binding));
+        self.bindings = 0;
+        self.binding_bytes = 0;
         self.commands.clear();
         self.command_bytes = 0;
         self.reserved = 0;
@@ -1121,5 +1231,91 @@ mod queue_measurement_tests {
         assert_eq!(mailbox.command_queue(), (1, 50, 80));
         mailbox.close();
         assert_eq!(mailbox.command_queue(), (0, 0, 80));
+    }
+}
+
+#[cfg(test)]
+mod command_binding_tests {
+    use super::*;
+    use gpuio_protocol::{
+        HandlerId, NodeId,
+        command_binding::{Observation, State},
+    };
+    fn observed(window: i64, generation: i64, epoch: i64) -> Event {
+        Event::CommandBindingObserved(
+            WindowId::from_parts(window, 1).unwrap(),
+            NodeId::from_parts(0, 1).unwrap(),
+            HandlerId::from_parts(0, generation).unwrap(),
+            1,
+            Observation {
+                epoch,
+                state: State::Suspended,
+            },
+        )
+    }
+    #[test]
+    fn latest_bindings_do_not_displace_lossless_input_and_old_epochs_do_not_replace() {
+        let mut mailbox = Mailbox::default();
+        let window = WindowId::from_parts(0, 1).unwrap();
+        let node = NodeId::from_parts(0, 1).unwrap();
+        let handler = HandlerId::from_parts(0, 1).unwrap();
+        for n in 0..MAX_INPUT_EVENTS {
+            mailbox
+                .input(Event::CommandInvoked(
+                    window,
+                    node,
+                    handler,
+                    1,
+                    "run".into(),
+                    n as i64 + 1,
+                    CommandSource::Shortcut,
+                ))
+                .unwrap();
+        }
+        for epoch in 1..=100 {
+            mailbox.input(observed(0, 1, epoch)).unwrap();
+        }
+        mailbox.input(observed(0, 1, 2)).unwrap();
+        assert_eq!(mailbox.inputs, MAX_INPUT_EVENTS);
+        assert_eq!(mailbox.bindings, 1);
+        let output = mailbox.drain(256);
+        assert_eq!(output.len(), MAX_INPUT_EVENTS + 1);
+        for (index, event) in output[..MAX_INPUT_EVENTS].iter().enumerate() {
+            assert!(
+                matches!(event, Event::CommandInvoked(_, _, _, _, _, generation, _) if *generation == index as i64 + 1)
+            );
+        }
+        assert_eq!(output.last(), Some(&observed(0, 1, 100)));
+        assert_eq!(
+            (
+                mailbox.bindings,
+                mailbox.binding_bytes,
+                mailbox.inputs,
+                mailbox.input_bytes
+            ),
+            (0, 0, 0, 0)
+        );
+    }
+    #[test]
+    fn configuration_retirement_windows_and_shutdown_release_pending_samples() {
+        let mut mailbox = Mailbox::default();
+        mailbox.input(observed(0, 1, 100)).unwrap();
+        mailbox.input(observed(0, 2, 1)).unwrap();
+        mailbox.input(observed(1, 1, 1)).unwrap();
+        assert_eq!(mailbox.bindings, 2);
+        let bytes = mailbox.binding_bytes;
+        assert!(mailbox.input(observed(0, 2, 0)).is_err());
+        assert_eq!(mailbox.binding_bytes, bytes);
+        mailbox.retain_bindings(WindowId::from_parts(0, 1).unwrap(), |_, handler| {
+            handler.generation() == 1
+        });
+        assert_eq!(mailbox.bindings, 1);
+        assert_eq!(mailbox.drain(256), vec![observed(1, 1, 1)]);
+        mailbox.input(observed(0, 2, 2)).unwrap();
+        mailbox.close();
+        assert_eq!(mailbox.bindings, 0);
+        assert_eq!(mailbox.binding_bytes, 0);
+        assert_eq!(mailbox.drain(256), vec![Event::Stopped]);
+        assert!(mailbox.input(observed(0, 2, 3)).is_err());
     }
 }

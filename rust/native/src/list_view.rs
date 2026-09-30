@@ -31,6 +31,12 @@ struct PendingFocus {
     _subscriptions: [gpui::Subscription; 2],
 }
 
+fn row_is_revealed(row: Bounds<Pixels>, viewport: Bounds<Pixels>) -> bool {
+    // A row taller than its viewport is revealed from its leading edge.
+    row.top() >= viewport.top() - px(0.5)
+        && row.top() + row.size.height.min(viewport.size.height) <= viewport.bottom() + px(0.5)
+}
+
 pub(super) struct State {
     pub(super) native: list_state::State,
     config: Arc<Config>,
@@ -41,10 +47,12 @@ pub(super) struct State {
     pub(super) tree_typeahead: super::tree_typeahead::Clock,
     pub(super) tree_typeahead_activation: Option<gpui::Subscription>,
     pending_focus: Option<PendingFocus>,
+    pending_reveal: Option<i64>,
     bound: Option<i64>,
     extra_pins: BTreeSet<i64>,
     width: Option<Pixels>,
     height: Option<Pixels>,
+    layout_bounds: Option<Bounds<Pixels>>,
     pub(super) observed: Option<Viewport>,
     observed_revision: Option<i64>,
 }
@@ -69,10 +77,12 @@ impl State {
             tree_typeahead: Default::default(),
             tree_typeahead_activation: None,
             pending_focus: None,
+            pending_reveal: None,
             bound: None,
             extra_pins: BTreeSet::new(),
             width: None,
             height: None,
+            layout_bounds: None,
             observed: None,
             observed_revision: None,
         }
@@ -107,12 +117,19 @@ impl State {
         self.tree_typeahead
             .sync(node.tree_input.then_some(node.handler).flatten());
         let index = node.list_index.as_ref().expect("validated list index");
+        if self
+            .pending_reveal
+            .is_some_and(|row| index.position(row).is_none())
+        {
+            self.pending_reveal = None;
+        }
         if self.pending_focus.as_ref().is_some_and(|pending| {
             !node.tree_input
                 || node.handler != Some(pending.handler)
                 || index.position(pending.row).is_none()
         }) {
             self.pending_focus = None;
+            self.pending_reveal = None;
         }
         let reordered = self.native.index().revision() != index.revision();
         if reordered {
@@ -155,6 +172,10 @@ impl State {
     #[cfg(feature = "native-tests")]
     pub(super) fn pending_focus_row(&self) -> Option<i64> {
         self.pending_focus.as_ref().map(|pending| pending.row)
+    }
+    #[cfg(feature = "native-tests")]
+    pub(super) fn pending_reveal_row(&self) -> Option<i64> {
+        self.pending_reveal
     }
 
     pub(super) fn owns_tree_focus(&self, window: &Window) -> bool {
@@ -310,6 +331,7 @@ impl View {
                     })
                 {
                     state.pending_focus = None;
+                    state.pending_reveal = None;
                 }
             }
         }
@@ -335,7 +357,15 @@ impl View {
                             .scroll(*request)
                             .expect("validated list command");
                         if fresh {
-                            state.borrow_mut().pending_focus = None;
+                            let mut current = state.borrow_mut();
+                            current.pending_focus = None;
+                            current.pending_reveal = match request.target {
+                                ScrollTarget::Reveal(row) | ScrollTarget::FocusTreeRow(row) => {
+                                    Some(row)
+                                }
+                                ScrollTarget::Offset(..) | ScrollTarget::End => None,
+                            };
+                            drop(current);
                             if let ScrollTarget::FocusTreeRow(row) = request.target {
                                 self.start_tree_focus(*id, row, request.serial, window, cx);
                             }
@@ -407,6 +437,7 @@ impl View {
                 .is_some_and(|pending| pending.serial == serial)
             {
                 state.pending_focus = None;
+                state.pending_reveal = None;
             }
         }
     }
@@ -435,8 +466,10 @@ impl View {
                 for field in fields {
                     match field {
                         Field::PointerEvents(value) => interaction.pointer = *value,
-                        Field::UserSelect(value) => interaction.selectable = *value,
-                        Field::SelectionColor(value) => interaction.selection_color = color(value),
+                        Field::UserSelect(value) => interaction.selectable = Some(*value),
+                        Field::SelectionColor(value) => {
+                            interaction.selection_color = Some(color(value))
+                        }
                         Field::AccessibleName(value) => accessible_name = value.clone().into(),
                         _ => (),
                     }
@@ -447,6 +480,22 @@ impl View {
             let mut state = state.borrow_mut();
             let focused = state.focused(window, cx).first().copied();
             state.bind(focused);
+            // The command may precede layout or destination materialization.
+            // Once present, anchor an offscreen destination by row identity;
+            // old estimated prefix heights cannot reliably reveal it.
+            if let Some(row) = state.pending_reveal
+                && state.mapping.contains_key(&row)
+                && let Some(position) = state.native.index().position(row)
+                && !state
+                    .layout_bounds
+                    .zip(state.native.handle().bounds_for_item(position))
+                    .is_some_and(|(viewport, row)| row_is_revealed(row, viewport))
+            {
+                state.native.handle().scroll_to(gpui::ListOffset {
+                    item_ix: position,
+                    offset_in_item: px(0.),
+                });
+            }
             (
                 state.native.handle().clone(),
                 state.native.shared_index(),
@@ -678,6 +727,7 @@ impl Element for Frame {
             .element
             .prepaint(id, inspector, bounds, layout, window, cx);
         let mut state = self.state.borrow_mut();
+        state.layout_bounds = Some(bounds);
         if !state.owns_tree_focus(window)
             || !window.is_window_active()
             || !self.focus.borrow().allows(self.route.node)
@@ -689,6 +739,7 @@ impl Element for Frame {
             .intersect(&window.fully_visible_bounds());
         if visible_bounds.size.width <= px(0.) || visible_bounds.size.height <= px(0.) {
             state.pending_focus = None;
+            state.pending_reveal = None;
             state.tree_typeahead.clear();
         }
         let handle = state.native.handle().clone();
@@ -740,9 +791,14 @@ impl Element for Frame {
                 .iter()
                 .filter_map(|row| index.position(*row))
                 .collect();
-            let overlaps = previous_positions
-                .iter()
-                .any(|position| (visible_first..visible_last).contains(position));
+            // Requested rows exclude focus pins. If the focused row fills the
+            // viewport, it can be the only visible row and absent from that
+            // vector; actual visible-range overlap must still retain neighbours.
+            let overlaps = (previous.visible_first < visible_last as i64
+                && (visible_first as i64) < previous.visible_last)
+                || previous_positions
+                    .iter()
+                    .any(|position| (visible_first..visible_last).contains(position));
             if overlaps {
                 overscan.extend(previous_positions);
             }
@@ -764,15 +820,17 @@ impl Element for Frame {
         let max_active = state.config.max_active as usize;
         let mut requested = Vec::new();
         let mut unique: BTreeSet<_> = pinned.iter().copied().collect();
-        // Reserve pins, then the pending focus destination, visible content and
-        // overscan. Partial leading rows must not starve a one-row focus budget.
+        // Reserve pins, then pending navigation, visible content and overscan.
+        // Partial leading rows must not starve a one-row destination budget.
         let focus_position = state
             .pending_focus
             .as_ref()
             .and_then(|pending| index.position(pending.row))
             .filter(|position| (visible_first..visible_last).contains(position));
-        for ix in focus_position
+        let reveal_position = state.pending_reveal.and_then(|row| index.position(row));
+        for ix in reveal_position
             .into_iter()
+            .chain(focus_position)
             .chain(visible_first..visible_last)
             .chain(overscan)
         {
@@ -786,7 +844,10 @@ impl Element for Frame {
             }
         }
         let budget_exhausted = self.overflow.get()
-            || visible_last.saturating_sub(visible_first) + pinned.len() > max_active;
+            || visible_last.saturating_sub(visible_first) + pinned.len() > max_active
+            || state
+                .pending_reveal
+                .is_some_and(|row| !unique.contains(&row));
         let at_end = index.is_empty()
             || handle
                 .is_scrolled_to_end()
@@ -836,8 +897,85 @@ impl Element for Frame {
         window: &mut Window,
         cx: &mut App,
     ) {
+        // GPUI's list updates its offset but leaves the wheel event bubbling.
+        // Register outside its listener: capture snapshots the position, then
+        // our bubble callback runs after the list and any nested scroll child.
+        // Consume actual list movement only; boundaries and horizontal-only
+        // input remain available to ordinary ancestor scrollers. Reading each
+        // event's starting position also handles several events in one frame.
+        let owner = Rc::downgrade(&self.state);
+        window.on_mouse_event(move |event: &gpui::MouseDownEvent, phase, _, _| {
+            if phase == gpui::DispatchPhase::Capture
+                && bounds.contains(&event.position)
+                && let Some(owner) = owner.upgrade()
+            {
+                let mut owner = owner.borrow_mut();
+                owner.pending_reveal = None;
+                owner.pending_focus = None;
+            }
+        });
+        let owner = Rc::downgrade(&self.state);
+        let mut before = None;
+        window.on_mouse_event(move |event: &gpui::ScrollWheelEvent, phase, _, cx| {
+            if !bounds.contains(&event.position) {
+                before = None;
+                return;
+            }
+            let Some(owner) = owner.upgrade() else {
+                return;
+            };
+            let current = owner.borrow().native.handle().logical_scroll_top();
+            let current = (current.item_ix, current.offset_in_item);
+            match phase {
+                gpui::DispatchPhase::Capture => {
+                    before = Some(current);
+                    if event.delta.pixel_delta(px(16.)).y != px(0.) {
+                        let mut owner = owner.borrow_mut();
+                        owner.pending_reveal = None;
+                        owner.pending_focus = None;
+                    }
+                }
+                gpui::DispatchPhase::Bubble => {
+                    if before.take().is_some_and(|old| old != current) {
+                        cx.stop_propagation();
+                    }
+                }
+            }
+        });
+        // Materialized overscan is not a new Tab destination. The list owns its
+        // scrolling/focus handoff; ordinary ancestor reveal cannot reveal a row
+        // through this viewport. Floating descendants paint outside this scope.
+        let boundary = self.focus.borrow_mut().enter_clip(super::focus::Clip {
+            bounds,
+            x: true,
+            y: true,
+        });
         self.element
             .paint(id, inspector, bounds, layout, prepaint, window, cx);
+        self.focus.borrow_mut().leave_boundary(boundary);
+        {
+            let mut state = self.state.borrow_mut();
+            if let Some(row) = state.pending_reveal
+                && state.mapping.contains_key(&row)
+                && let Some(position) = state.native.index().position(row)
+            {
+                if self.rendered.borrow().contains(&position)
+                    && state
+                        .native
+                        .handle()
+                        .bounds_for_item(position)
+                        .is_some_and(|row| row_is_revealed(row, bounds))
+                {
+                    state.pending_reveal = None;
+                } else {
+                    // Actual measurement can invalidate the previous estimate.
+                    // Retry after this frame, when anchoring sees real bounds.
+                    // Missing managed rows instead wait for their observation
+                    // response; they must not create a recurring idle redraw.
+                    window.defer(cx, |window, _| window.refresh());
+                }
+            }
+        }
         let focus = {
             let mut state = self.state.borrow_mut();
             let Some(pending) = &state.pending_focus else {
@@ -853,6 +991,7 @@ impl Element for Frame {
             let position = state.native.index().position(pending.row);
             if !live || position.is_none() {
                 state.pending_focus = None;
+                state.pending_reveal = None;
                 return;
             }
             let position = position.unwrap();
@@ -869,6 +1008,9 @@ impl Element for Frame {
                     visible.size.width > px(0.) && visible.size.height > px(0.)
                 });
             if !visible {
+                if state.pending_reveal.is_some() {
+                    return;
+                }
                 state.pending_focus = None;
                 return;
             }
@@ -887,6 +1029,7 @@ impl Element for Frame {
                 });
             if !enabled || !self.focus.borrow().allows(node) {
                 state.pending_focus = None;
+                state.pending_reveal = None;
                 return;
             }
             if self.focus_rendered.get() != Some(pending.row) {

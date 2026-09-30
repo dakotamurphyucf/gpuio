@@ -6,12 +6,15 @@ use gpui::{
     InspectorElementId, InteractiveElement, IntoElement, LayoutId, Pixels, Styled, Window,
     accesskit, canvas, prelude::*, px,
 };
-use gpuio_protocol::v1::{Field, Style};
+use gpuio_protocol::{
+    NodeId,
+    v1::{Field, Style},
+};
 use std::{
     cell::{Cell, RefCell},
     rc::{Rc, Weak},
 };
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, PartialEq, Eq)]
 struct Axes {
     x: bool,
     y: bool,
@@ -19,8 +22,76 @@ struct Axes {
 #[derive(Default)]
 pub(super) struct State {
     pub(super) handle: gpui::ScrollHandle,
+    pub(super) mask: Cell<Option<Bounds<Pixels>>>,
     axes: Cell<Axes>,
     ongoing: RefCell<gpui::OngoingScroll>,
+}
+fn reveal_axis(start: Pixels, end: Pixels, near: Pixels, far: Pixels) -> Pixels {
+    if end - start > far - near || start < near {
+        near - start
+    } else if end > far {
+        far - end
+    } else {
+        px(0.)
+    }
+}
+impl State {
+    /// Compute reveal geometry without mutating scroll state (focus admission).
+    pub(super) fn project(
+        &self,
+        mut target: Bounds<Pixels>,
+    ) -> (Bounds<Pixels>, gpui::Point<Pixels>) {
+        let viewport = self.mask.get().unwrap_or_else(|| self.handle.bounds());
+        let axes = self.axes.get();
+        let old = self.handle.offset();
+        let maximum = self.handle.max_offset();
+        let delta = gpui::point(
+            if axes.x {
+                reveal_axis(
+                    target.left(),
+                    target.right(),
+                    viewport.left(),
+                    viewport.right(),
+                )
+            } else {
+                px(0.)
+            },
+            if axes.y {
+                reveal_axis(
+                    target.top(),
+                    target.bottom(),
+                    viewport.top(),
+                    viewport.bottom(),
+                )
+            } else {
+                px(0.)
+            },
+        );
+        let next = gpui::point(
+            if axes.x {
+                (old.x + delta.x).clamp(-maximum.x, px(0.))
+            } else {
+                old.x
+            },
+            if axes.y {
+                (old.y + delta.y).clamp(-maximum.y, px(0.))
+            } else {
+                old.y
+            },
+        );
+        target.origin += next - old;
+        (target, next)
+    }
+    /// Reveal with the least clamped movement on actual scroll axes and return
+    /// translated target bounds for the next outer owner.
+    pub(super) fn reveal(&self, target: Bounds<Pixels>) -> (Bounds<Pixels>, bool) {
+        let (target, next) = self.project(target);
+        let changed = next != self.handle.offset();
+        if changed {
+            self.handle.set_offset(next);
+        }
+        (target, changed)
+    }
 }
 pub(super) fn declared(styles: &[Style]) -> bool {
     styles.iter().any(|style| match style {
@@ -61,7 +132,10 @@ pub(super) fn attach(
                     };
                     let axes = state.axes.get();
                     let mut delta = event.delta.pixel_delta(line_height);
-                    if event.delta.precise() {
+                    // A two-axis viewport supports diagonal panning. Keep GPUI's
+                    // gesture filtering only for single-axis containers, where
+                    // it prevents cross-axis drift into nested scroll regions.
+                    if event.delta.precise() && !(axes.x && axes.y) {
                         state
                             .ongoing
                             .borrow_mut()
@@ -72,13 +146,6 @@ pub(super) fn attach(
                     }
                     if !axes.y {
                         delta.y = px(0.);
-                    }
-                    if delta.x != px(0.) && delta.y != px(0.) {
-                        if delta.x.abs() > delta.y.abs() {
-                            delta.y = px(0.);
-                        } else {
-                            delta.x = px(0.);
-                        }
                     }
                     let max = state.handle.max_offset();
                     let clamp = |point: gpui::Point<Pixels>| {
@@ -103,12 +170,26 @@ pub(super) fn attach(
 pub(super) struct Frame<E> {
     element: E,
     state: Weak<State>,
+    focus: super::focus::Shared,
+    node: NodeId,
+}
+impl<E: InteractiveElement> InteractiveElement for Frame<E> {
+    fn interactivity(&mut self) -> &mut gpui::Interactivity {
+        self.element.interactivity()
+    }
 }
 impl<E> Frame<E> {
-    pub(super) fn new(element: E, state: &Rc<State>) -> Self {
+    pub(super) fn new(
+        element: E,
+        state: &Rc<State>,
+        focus: super::focus::Shared,
+        node: NodeId,
+    ) -> Self {
         Self {
             element,
             state: Rc::downgrade(state),
+            focus,
+            node,
         }
     }
 }
@@ -162,18 +243,34 @@ impl<E: Element<PrepaintState = Option<Hitbox>> + InteractiveElement + Styled> E
         window: &mut Window,
         cx: &mut App,
     ) {
-        if let Some(state) = self.state.upgrade() {
+        let boundary = if let Some(state) = self.state.upgrade() {
             let style =
                 self.element
                     .interactivity()
                     .compute_style(id, prepaint.as_ref(), window, cx);
-            state.axes.set(Axes {
+            let axes = Axes {
                 x: style.overflow.x == gpui::Overflow::Scroll,
                 y: style.overflow.y == gpui::Overflow::Scroll,
-            });
-        }
+            };
+            state.mask.set(
+                style
+                    .overflow_mask(bounds, window.rem_size())
+                    .map(|mask| mask.bounds),
+            );
+            if state.axes.replace(axes) != axes {
+                // Hover/focus refinements can change axes during a gesture.
+                // An earlier one-axis lock must not survive a policy change.
+                *state.ongoing.borrow_mut() = gpui::OngoingScroll::default();
+            }
+            Some(self.focus.borrow_mut().enter_scroll(self.node, &state))
+        } else {
+            None
+        };
         self.element
             .paint(id, inspector, bounds, layout, prepaint, window, cx);
+        if let Some(depth) = boundary {
+            self.focus.borrow_mut().leave_boundary(depth);
+        }
     }
     fn a11y_role(&self) -> Option<accesskit::Role> {
         self.element.a11y_role()
@@ -188,5 +285,28 @@ impl<E: Element<PrepaintState = Option<Hitbox>> + InteractiveElement + Styled> E
         builder: &mut A11ySubtreeBuilder,
     ) {
         self.element.a11y_synthetic_children(prepaint, builder);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn reveal_uses_nearest_edge_or_start_for_oversized_targets() {
+        for (start, end, expected) in [
+            (20., 40., 0.),
+            (10., 100., 0.),
+            (0., 20., 10.),
+            (90., 110., -10.),
+            (110., 120., -20.),
+            (-20., 0., 30.),
+            (20., 120., -10.),
+            (-20., 120., 30.),
+        ] {
+            assert_eq!(
+                reveal_axis(px(start), px(end), px(10.), px(100.)),
+                px(expected)
+            );
+        }
     }
 }

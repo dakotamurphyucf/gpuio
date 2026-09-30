@@ -1,0 +1,634 @@
+--- a/src/elements/div.rs
++++ b/src/elements/div.rs
+@@ -2356,6 +2356,8 @@
+             || self.group.is_some()
+             || self.scroll_offset.is_some()
+             || self.tracked_focus_handle.is_some()
++            || self.active_style.is_some()
++            || self.group_active_style.is_some()
+             || self.hover_style.is_some()
+             || self.group_hover_style.is_some()
+             || self.hover_listener.is_some()
+@@ -2477,7 +2479,42 @@
+ 
+                 self.paint_hover_group_handler(window, cx);
+ 
+-                if style.visibility == Visibility::Hidden {
++                if style.visibility == Visibility::Hidden || style.display == Display::None {
++                    // GPUIO: hidden elements must not activate, but a press that
++                    // hid this element still needs its release cleanup. Keeping
++                    // that cleanup outside visible hitbox registration avoids a
++                    // permanently active style and stale clicks on later frames.
++                    if let Some(state) = element_state.as_mut() {
++                        if let Some(pending) = &state.pending_mouse_down {
++                            pending.borrow_mut().take();
++                        }
++                        if let Some(pending) = &state.pending_keyboard_down {
++                            pending.borrow_mut().take();
++                        }
++                        if let Some(active) = &state.clicked_state
++                            && active.borrow().is_clicked()
++                        {
++                            let released = active.clone();
++                            window.on_mouse_event(
++                                move |event: &MouseMoveEvent, phase, window, _| {
++                                    if phase == DispatchPhase::Capture
++                                        && event.pressed_button.is_none()
++                                        && released.borrow().is_clicked()
++                                    {
++                                        *released.borrow_mut() = ElementClickedState::default();
++                                        window.refresh();
++                                    }
++                                },
++                            );
++                            let active = active.clone();
++                            window.on_mouse_event(move |_: &MouseUpEvent, phase, window, _| {
++                                if phase == DispatchPhase::Capture && active.borrow().is_clicked() {
++                                    *active.borrow_mut() = ElementClickedState::default();
++                                    window.refresh();
++                                }
++                            });
++                        }
++                    }
+                     return ((), element_state);
+                 }
+ 
+--- a/src/input.rs
++++ b/src/input.rs
+@@ -304,6 +304,9 @@
+             move |_, cx| ConfigurationTestView {
+                 focus_handle: cx.focus_handle(),
+                 configuration: custom,
++                composing: false,
++                mounted: true,
++                unmarks: 0,
+             }
+         });
+         let view = window.root(cx).unwrap();
+@@ -381,28 +384,144 @@
+         );
+     }
+ 
++    #[gpui::test]
++    fn text_input_reset_preserves_redraws_and_retires_hidden_owners(cx: &mut TestAppContext) {
++        use crate::PlatformWindow as _;
++        use std::{cell::Cell, rc::Rc};
++        let resets = Rc::new(Cell::new(0));
++        let window = cx.add_window({
++            let resets = resets.clone();
++            move |window, cx| {
++                window.on_text_input_reset(move |window| {
++                    assert!(window.platform_window.take_input_handler().is_none());
++                    resets.set(resets.get() + 1);
++                });
++                ConfigurationTestView {
++                    focus_handle: cx.focus_handle(),
++                    configuration: Default::default(),
++                    composing: false,
++                    mounted: true,
++                    unmarks: 0,
++                }
++            }
++        });
++        let view = window.root(cx).unwrap();
++        let window = AnyWindowHandle::from(window);
++        let draw = |cx: &mut TestAppContext| {
++            cx.update_window(window, |_, window, cx| window.draw(cx).clear(cx))
++                .unwrap();
++        };
++        cx.update_window(window, |_, window, cx| {
++            window.focus(&view.read(cx).focus_handle.clone(), cx);
++        })
++        .unwrap();
++        draw(cx);
++        view.update(cx, |view, cx| {
++            view.composing = true;
++            cx.notify();
++        });
++        draw(cx);
++        draw(cx);
++        view.update(cx, |view, cx| {
++            view.configuration.autocorrect = true;
++            cx.notify();
++        });
++        draw(cx);
++        assert_eq!(
++            resets.get(),
++            0,
++            "redraw/configuration must preserve composition"
++        );
++        cx.update(|cx| assert_eq!(view.read(cx).unmarks, 0));
++
++        // A native commit/cancel ends the platform session even without blur.
++        view.update(cx, |view, cx| {
++            view.composing = false;
++            cx.notify();
++        });
++        draw(cx);
++        draw(cx);
++        assert_eq!(resets.get(), 1);
++
++        view.update(cx, |view, cx| {
++            view.composing = true;
++            cx.notify();
++        });
++        draw(cx);
++        cx.update_window(window, |_, window, cx| window.blur(cx))
++            .unwrap();
++        draw(cx);
++        assert_eq!(resets.get(), 2);
++        cx.update(|cx| assert!(!view.read(cx).composing));
++        cx.update(|cx| assert_eq!(view.read(cx).unmarks, 1));
++
++        cx.update_window(window, |_, window, cx| {
++            window.focus(&view.read(cx).focus_handle.clone(), cx);
++        })
++        .unwrap();
++        view.update(cx, |view, cx| {
++            view.composing = true;
++            cx.notify();
++        });
++        draw(cx);
++        // Removing only the painted input keeps both the entity and FocusId
++        // alive: cleanup cannot depend on dropping either of them.
++        view.update(cx, |view, cx| {
++            view.mounted = false;
++            cx.notify();
++        });
++        draw(cx);
++        draw(cx);
++        assert_eq!(resets.get(), 3);
++        cx.update(|cx| assert!(!view.read(cx).composing));
++        cx.update(|cx| assert_eq!(view.read(cx).unmarks, 2));
++
++        view.update(cx, |view, cx| {
++            view.mounted = true;
++            cx.notify();
++        });
++        draw(cx);
++        let mut platform = cx.test_window(window);
++        let mut handler = platform.take_input_handler().unwrap();
++        handler.replace_and_mark_text_in_range(None, "x", Some(1..1));
++        handler.unmark_text();
++        platform.set_input_handler(handler);
++        // Both OS callbacks happened before any paint. Sampling only the
++        // marked range at frame boundaries would miss this ended session.
++        draw(cx);
++        draw(cx);
++        assert_eq!(resets.get(), 4);
++        cx.update(|cx| assert_eq!(view.read(cx).unmarks, 3));
++    }
++
+     struct ConfigurationTestView {
+         focus_handle: FocusHandle,
+         configuration: TextInputConfiguration,
++        composing: bool,
++        mounted: bool,
++        unmarks: usize,
+     }
+ 
+     impl Render for ConfigurationTestView {
+         fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+             let view = cx.entity();
+             let focus_handle = self.focus_handle.clone();
+-            div().size_full().track_focus(&self.focus_handle).child(
+-                canvas(
+-                    |_, _, _| {},
+-                    move |bounds, _, window, cx| {
+-                        window.handle_input(
+-                            &focus_handle,
+-                            ElementInputHandler::new(bounds, view),
+-                            cx,
+-                        );
+-                    },
+-                )
+-                .size_full(),
+-            )
++            div()
++                .size_full()
++                .track_focus(&self.focus_handle)
++                .children(self.mounted.then(|| {
++                    canvas(
++                        |_, _, _| {},
++                        move |bounds, _, window, cx| {
++                            window.handle_input(
++                                &focus_handle,
++                                ElementInputHandler::new(bounds, view),
++                                cx,
++                            );
++                        },
++                    )
++                    .size_full()
++                }))
+         }
+     }
+ 
+@@ -431,10 +550,14 @@
+             _window: &mut Window,
+             _cx: &mut Context<Self>,
+         ) -> Option<std::ops::Range<usize>> {
+-            None
+-        }
+-
+-        fn unmark_text(&mut self, _window: &mut Window, _cx: &mut Context<Self>) {}
++            self.composing.then_some(0..1)
++        }
++
++        fn unmark_text(&mut self, _window: &mut Window, cx: &mut Context<Self>) {
++            self.composing = false;
++            self.unmarks += 1;
++            cx.notify();
++        }
+ 
+         fn replace_text_in_range(
+             &mut self,
+@@ -451,8 +574,10 @@
+             _new_text: &str,
+             _new_selected_range: Option<std::ops::Range<usize>>,
+             _window: &mut Window,
+-            _cx: &mut Context<Self>,
++            cx: &mut Context<Self>,
+         ) {
++            self.composing = true;
++            cx.notify();
+         }
+ 
+         fn bounds_for_range(
+--- a/src/platform.rs
++++ b/src/platform.rs
+@@ -1489,6 +1489,7 @@
+ pub struct PlatformInputHandler {
+     cx: AsyncWindowContext,
+     handler: Box<dyn InputHandler>,
++    pub(crate) focus_id: Option<crate::FocusId>,
+ }
+ 
+ #[expect(missing_docs)]
+@@ -1501,7 +1502,21 @@
+ )]
+ impl PlatformInputHandler {
+     pub fn new(cx: AsyncWindowContext, handler: Box<dyn InputHandler>) -> Self {
+-        Self { cx, handler }
++        Self {
++            cx,
++            handler,
++            focus_id: None,
++        }
++    }
++
++    pub(crate) fn unmark_in_window(&mut self, window: &mut Window, cx: &mut App) {
++        if self.handler.marked_text_range(window, cx).is_some() {
++            self.handler.unmark_text(window, cx);
++        }
++    }
++
++    pub(crate) fn is_composing(&mut self, window: &mut Window, cx: &mut App) -> bool {
++        self.handler.marked_text_range(window, cx).is_some()
+     }
+ 
+     pub fn selected_text_range(&mut self, ignore_disabled_input: bool) -> Option<UTF16Selection> {
+@@ -1557,6 +1572,9 @@
+     ) {
+         self.cx
+             .update(|window, cx| {
++                // Remember a platform composition even if it starts and ends
++                // before the next paint (for example a rapid Escape).
++                window.note_text_input_composition();
+                 self.handler.replace_and_mark_text_in_range(
+                     range_utf16,
+                     new_text,
+--- a/src/window.rs
++++ b/src/window.rs
+@@ -1173,6 +1173,9 @@
+     /// input session can restart the IME connection).
+     last_text_input_configuration: Option<TextInputConfiguration>,
+     focused_text_input_active: bool,
++    text_input_owner: Option<FocusId>,
++    text_input_composing: bool,
++    text_input_reset: Option<Box<dyn FnMut(&mut Window)>>,
+     pub(crate) image_cache_stack: Vec<AnyImageCache>,
+     pub(crate) rendered_frame: Frame,
+     pub(crate) next_frame: Frame,
+@@ -2014,6 +2017,9 @@
+             requested_autoscroll: None,
+             last_text_input_configuration: None,
+             focused_text_input_active: false,
++            text_input_owner: None,
++            text_input_composing: false,
++            text_input_reset: None,
+             rendered_frame: Frame::new(DispatchTree::new(cx.keymap.clone(), cx.actions.clone())),
+             next_frame: Frame::new(DispatchTree::new(cx.keymap.clone(), cx.actions.clone())),
+             next_frame_callbacks,
+@@ -3145,13 +3151,48 @@
+         // paint_range indices remain valid for reuse_paint on the next frame.
+         // Search backwards to find the last Some entry, since reuse_paint may
+         // have copied None slots from the previous frame. (Fixes #50456)
+-        let focused_text_input_active = if let Some(mut input_handler) = self
++        let mut next_input_handler = self
+             .next_frame
+             .input_handlers
+             .iter_mut()
+             .rev()
+-            .find_map(|h| h.take())
++            .find_map(|h| h.take());
++        let next_owner = next_input_handler.as_ref().and_then(|h| h.focus_id);
++        let owner_retired = self.text_input_owner.is_some() && self.text_input_owner != next_owner;
++        let composing = self.text_input_reset.is_some()
++            && next_input_handler
++                .as_mut()
++                .is_some_and(|handler| handler.is_composing(self, cx));
++        // GPUIO: the platform's text context can outlive its editor. Run the
++        // adapter with no installed handler, after unmarking the retiring
++        // client, so synchronous platform callbacks cannot enter a new owner.
++        if self.text_input_reset.is_some()
++            && (owner_retired || (self.text_input_composing && !composing))
+         {
++            if owner_retired {
++                let retiring = self
++                    .rendered_frame
++                    .input_handlers
++                    .iter_mut()
++                    .chain(self.next_frame.input_handlers.iter_mut())
++                    .find(|entry| {
++                        entry
++                            .as_ref()
++                            .is_some_and(|h| h.focus_id == self.text_input_owner)
++                    })
++                    .and_then(Option::take);
++                if let Some(mut handler) = retiring {
++                    handler.unmark_in_window(self, cx);
++                }
++            }
++            if let Some(mut reset) = self.text_input_reset.take() {
++                reset(self);
++                self.text_input_reset = Some(reset);
++            }
++        }
++        self.text_input_owner = next_owner;
++        self.text_input_composing = composing;
++        let focused_text_input_active = if let Some(mut input_handler) = next_input_handler {
+             let accepts_text_input = input_handler.accepts_text_input(self, cx);
+             self.platform_window.set_input_handler(input_handler);
+             accepts_text_input
+@@ -3943,10 +3984,11 @@
+             .unwrap_or_default()
+     }
+ 
+-    /// Obtain the current element opacity. This method should only be called during the
+-    /// prepaint phase of element drawing.
++    /// Obtain the accumulated element opacity, including ancestor and state styles.
++    /// Call only during paint or prepaint. Read-only access lets custom animated
++    /// elements suspend frame requests when their effective opacity is zero.
+     #[inline]
+-    pub(crate) fn element_opacity(&self) -> f32 {
++    pub fn element_opacity(&self) -> f32 {
+         self.invalidator.debug_assert_paint_or_prepaint();
+         self.element_opacity
+     }
+@@ -5067,10 +5109,27 @@
+ 
+         if focus_handle.is_focused(self) {
+             let cx = self.to_async(cx);
+-            self.next_frame
+-                .input_handlers
+-                .push(Some(PlatformInputHandler::new(cx, Box::new(input_handler))));
+-        }
++            let mut handler = PlatformInputHandler::new(cx, Box::new(input_handler));
++            handler.focus_id = Some(focus_handle.id);
++            self.next_frame.input_handlers.push(Some(handler));
++        }
++    }
++
++    /// Install the window's platform text-context reset adapter. It is called
++    /// when the painted input owner changes or its marked composition ends,
++    /// with no platform input handler installed. Ordinary redraws of the same
++    /// composing owner do not reset the context. The old client is unmarked
++    /// before an owner change; its implementation decides what to do with its
++    /// provisional text. Replaces any previously installed adapter.
++    ///
++    /// The adapter must only reset platform state, without updating GPUI or
++    /// entering application code synchronously.
++    pub fn on_text_input_reset(&mut self, reset: impl FnMut(&mut Window) + 'static) {
++        self.text_input_reset = Some(Box::new(reset));
++    }
++
++    pub(crate) fn note_text_input_composition(&mut self) {
++        self.text_input_composing = true;
+     }
+ 
+     /// Forwards the focused input handler's [`TextInputConfiguration`] to the
+@@ -6611,6 +6670,17 @@
+         self.platform_window.play_system_bell()
+     }
+ 
++    /// Mark accessibility nodes produced by this prepaint scope as disabled,
++    /// preserving their IDs, roles and values. This only affects accessibility
++    /// output: the caller must separately enforce native input/focus policy.
++    pub fn with_a11y_disabled<R>(&mut self, f: impl FnOnce(&mut Self) -> R) -> R {
++        let previous = self.a11y.nodes.disabled_scope;
++        self.a11y.nodes.disabled_scope = true;
++        let result = f(self);
++        self.a11y.nodes.disabled_scope = previous;
++        result
++    }
++
+     /// Returns whether accessibility features are active for this frame,
+     /// i.e. whether assistive technology (such as a screen reader) is
+     /// connected and an accessibility tree is being built.
+--- a/src/window/a11y.rs
++++ b/src/window/a11y.rs
+@@ -365,6 +365,7 @@
+ }
+ 
+ pub(crate) struct A11yNodeBuilder {
++    pub(crate) disabled_scope: bool,
+     ids_stack: SmallVec<[NodeId; 16]>,
+     nodes_stack: SmallVec<[accesskit::Node; 16]>,
+     /// This is the exact type required by accesskit, so we can't just make it a
+@@ -386,6 +387,7 @@
+ impl A11yNodeBuilder {
+     fn new() -> Self {
+         Self {
++            disabled_scope: false,
+             ids_stack: SmallVec::new(),
+             nodes_stack: SmallVec::new(),
+             all_nodes: Vec::new(),
+@@ -422,9 +424,13 @@
+     /// top-of-stack node.
+     ///
+     /// Returns `true` if the node was successfully pushed.
+-    pub(crate) fn push(&mut self, id: NodeId, node: accesskit::Node) -> bool {
++    pub(crate) fn push(&mut self, id: NodeId, mut node: accesskit::Node) -> bool {
+         if !self.can_push(id) {
+             return false;
++        }
++
++        if self.disabled_scope {
++            node.set_disabled();
+         }
+ 
+         if let Some(parent) = self.nodes_stack.last_mut() {
+@@ -440,9 +446,13 @@
+     /// followed by a [`Self::pop`].
+     ///
+     /// Returns `true` if the node was successfully pushed.
+-    pub(crate) fn push_leaf(&mut self, id: NodeId, node: accesskit::Node) -> bool {
++    pub(crate) fn push_leaf(&mut self, id: NodeId, mut node: accesskit::Node) -> bool {
+         if !self.can_push(id) {
+             return false;
++        }
++
++        if self.disabled_scope {
++            node.set_disabled();
+         }
+ 
+         if let Some(parent) = self.nodes_stack.last_mut() {
+@@ -468,6 +478,7 @@
+ 
+     /// Push the root node to start a new frame.
+     fn begin_frame(&mut self, window_title: Option<&SharedString>) {
++        self.disabled_scope = false;
+         self.all_nodes.clear();
+         self.ids_stack.clear();
+         self.nodes_stack.clear();
+@@ -572,14 +583,53 @@
+         };
+ 
+         let nodes = std::mem::take(&mut self.all_nodes);
+-        let update = TreeUpdate {
++        let mut update = TreeUpdate {
+             nodes,
+             tree: Some(accesskit::Tree::new(ROOT_NODE_ID)),
+             tree_id: accesskit::TreeId::ROOT,
+             focus,
+         };
+ 
++        // GPUIO: disabling a semantic container disables its descendants while
++        // preserving their roles, names and values. Normalize only the output:
++        // cached source nodes must regain their own actions when re-enabled.
++        Self::inherit_disabled(&mut update);
++
+         Self::repair_tree_update(update)
++    }
++
++    fn inherit_disabled(update: &mut TreeUpdate) {
++        let mut pending: Vec<_> = update
++            .nodes
++            .iter()
++            .filter(|(_, node)| node.is_disabled())
++            .map(|(id, _)| *id)
++            .collect();
++        if pending.is_empty() {
++            return;
++        }
++        let positions: FxHashMap<_, _> = update
++            .nodes
++            .iter()
++            .enumerate()
++            .map(|(index, (id, _))| (*id, index))
++            .collect();
++        let mut visited = FxHashSet::default();
++        while let Some(id) = pending.pop() {
++            if !visited.insert(id) {
++                continue;
++            }
++            let Some(index) = positions.get(&id).copied() else {
++                continue;
++            };
++            let node = &mut update.nodes[index].1;
++            node.set_disabled();
++            node.clear_actions();
++            pending.extend(node.children().iter().copied());
++            if update.focus == id {
++                update.focus = ROOT_NODE_ID;
++            }
++        }
+     }
+ 
+     /// Accesskit panics on invalid [`TreeUpdate`]s. This function defensively
+@@ -655,6 +705,85 @@
+     }
+ 
+     #[test]
++    fn disabled_container_preserves_values_and_restores_original_child_actions() {
++        let mut builder = new_builder();
++        let container = NodeId(1);
++        let control = NodeId(2);
++        let fixed = NodeId(3);
++        let outside = NodeId(4);
++        let mut input = accesskit::Node::new(Role::TextInput);
++        input.set_label("Draft");
++        input.set_value("京都 👩‍💻");
++        input.add_action(accesskit::Action::Focus);
++        input.add_action(accesskit::Action::SetValue);
++        let mut permanently_disabled = input.clone();
++        permanently_disabled.set_disabled();
++
++        for disabled in [true, false, true, false] {
++            builder.begin_frame(None);
++            let mut parent = test_node();
++            if disabled {
++                parent.set_disabled();
++            }
++            assert!(builder.push(container, parent));
++            assert!(builder.push(control, input.clone()));
++            builder.set_focus(control);
++            builder.pop();
++            // Synthetic and ordinary children share the same output policy.
++            assert!(builder.push_leaf(fixed, permanently_disabled.clone()));
++            builder.pop();
++            assert!(builder.push_leaf(outside, input.clone()));
++            let update = builder.finalize();
++            let node = |id| &update.nodes.iter().find(|(key, _)| *key == id).unwrap().1;
++            assert_eq!(node(control).role(), Role::TextInput);
++            assert_eq!(node(control).label(), Some("Draft"));
++            assert_eq!(node(control).value(), Some("京都 👩‍💻"));
++            assert!(!node(control).is_hidden());
++            assert_eq!(node(control).is_disabled(), disabled);
++            assert_eq!(
++                node(control).supports_action(accesskit::Action::SetValue),
++                !disabled
++            );
++            assert!(node(fixed).is_disabled());
++            assert!(!node(fixed).supports_action(accesskit::Action::SetValue));
++            assert!(!node(outside).is_disabled());
++            assert!(node(outside).supports_action(accesskit::Action::SetValue));
++            assert_eq!(update.focus, if disabled { ROOT_NODE_ID } else { control });
++        }
++        assert!(!input.is_disabled());
++        assert!(input.supports_action(accesskit::Action::SetValue));
++    }
++
++    #[test]
++    fn disabled_prepaint_scope_needs_no_synthetic_identity_and_does_not_leak() {
++        let mut builder = new_builder();
++        let mut input = accesskit::Node::new(Role::TextInput);
++        input.set_value("retained draft");
++        input.add_action(accesskit::Action::SetValue);
++        for disabled in [false, true, false] {
++            builder.begin_frame(None);
++            builder.disabled_scope = disabled;
++            assert!(builder.push(NodeId(1), input.clone()));
++            assert!(builder.push_leaf(NodeId(2), input.clone()));
++            builder.pop();
++            builder.disabled_scope = false;
++            assert!(builder.push_leaf(NodeId(3), input.clone()));
++            let update = builder.finalize();
++            for (id, node) in update.nodes.iter().filter(|(id, _)| *id != ROOT_NODE_ID) {
++                assert_eq!(node.is_disabled(), disabled && *id != NodeId(3));
++                assert_eq!(
++                    node.supports_action(accesskit::Action::SetValue),
++                    !node.is_disabled()
++                );
++                assert_eq!(node.value(), Some("retained draft"));
++            }
++        }
++        builder.disabled_scope = true;
++        builder.begin_frame(None);
++        assert!(!builder.disabled_scope);
++    }
++
++    #[test]
+     fn active_descendant_honored_when_container_focused() {
+         let mut builder = new_builder();
+         let container = NodeId(1);

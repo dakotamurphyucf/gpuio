@@ -3,6 +3,11 @@
     domain, after generation validation, using the latest accepted closure. *)
 type 'action t
 
+(** Replace the description's sibling key without adding a layout wrapper.
+    Descendants, styles and callbacks are unchanged. A changed key replaces native
+    identity on the next reconciliation, just like a constructor's [~key]. *)
+val with_key : 'action t -> Key.t -> 'action t
+
 (** Preserve keyed identity while applying validated native semantics. General
     presentation roles apply to containers/text; Navigation requires a container.
     Link applies to buttons. Current-item metadata supports text/buttons only. Field
@@ -11,6 +16,30 @@ type 'action t
 val with_accessibility : 'action t -> Accessibility.t -> 'action t Core.Or_error.t
 
 val text : ?key:Key.t -> ?style:Style.t -> string -> 'action t
+
+(** One logical text flow with foreground runs. Uncovered ranges inherit [style].
+    Colors resolve against the current theme during reconciliation; missing tokens
+    return a preparation error. Color-only updates retain native selection; source
+    changes follow ordinary text selection behavior. Copy and default accessibility
+    expose the complete source string. This is ordinary text, not a native editor. *)
+val styled_text : ?key:Key.t -> ?style:Style.t -> Text_content.t -> 'action t
+
+(** Set or clear a text-glyph shimmer on ordinary [text] or [styled_text]. This
+    preserves the key, source, style and accessibility metadata. Other view kinds
+    are rejected. [Some config] requires valid UTF-8 of at most 16,384 bytes;
+    [None] clears the effect without applying its source-size limit. The native
+    painter falls back to static text above 256 lines or 4,096 shaped glyphs.
+    Each window frame additionally admits at most 64 visible animation candidates
+    and 16,384 shaped glyphs across admitted effects, in paint order. Rejected
+    effects keep ordinary text and pause; a later frame can resume them when
+    capacity becomes available. This bounds overlay work, not ordinary layout.
+
+    Experimental: mounted native rendering is implemented; public component
+    acceptance and host capability advertisement remain in progress. *)
+val with_text_shimmer
+  :  'action t
+  -> Text_shimmer.Config.t option
+  -> 'action t Core.Or_error.t
 
 (** Native chart backed by a scoped data registration. Style determines its size. *)
 val chart
@@ -31,11 +60,16 @@ val canvas
   -> 'action t
 
 (** Native Markdown/code/unified-diff display, backed by a scoped document
-    resource. Parsing, selection and copy are native; navigation is asynchronous. *)
+    resource. Parsing, selection and copy are native; navigation is asynchronous.
+
+    [on_diff] requires an explicit [Document.Config.diff] value. Navigation and
+    diff observations share the node's asynchronous handler. Mounted extended
+    diff controls are still under implementation. *)
 val document
   :  ?key:Key.t
   -> ?style:Style.t
   -> ?on_navigate:(Document.Navigation.t -> 'action)
+  -> ?on_diff:(Document.Diff.Event.t -> 'action)
   -> Document.Config.t
   -> 'action t
 
@@ -51,6 +85,20 @@ val button
   -> on_click:(unit -> 'action)
   -> string
   -> 'action t
+
+(** A single native link target around composed passive content. The accessible
+    name and Tab policy come from [config]; navigation is the supplied asynchronous
+    action. Allowed descendants are containers, text/styled text, images/icons,
+    avatars, loading indicators and animations without callbacks. Nested controls,
+    selectable text, scrolling and pointer shields are rejected. At most 4096
+    descendants and 128 content levels. Resource registrations stay caller-owned. *)
+val link
+  :  ?key:Key.t
+  -> ?style:Style.t
+  -> Link.Config.t
+  -> on_click:(unit -> 'action)
+  -> 'action t list
+  -> 'action t Core.Or_error.t
 
 (** Icon-only button with a required accessible label. The icon has no separate
     focus/action target. [style] customizes the button; the decoration styles its icon. *)
@@ -522,7 +570,8 @@ val container_query
   -> 'action t Core.Or_error.t
 
 (** Retained springs/sequences/shared repeats. Animated targets own matching
-    numeric style fields. Playback-only changes preserve run identity; new bodies
+    numeric style fields, except [Opacity_factor] which multiplies their resolved
+    style opacity. Playback-only changes preserve run identity; new bodies
     retarget from painted values and a higher restart token resets initial values.
     Events arrive in ordered batches using the latest accepted closure. Hidden
     content pauses independent timing; shared members rejoin the group phase.
@@ -573,7 +622,10 @@ val slider
   -> 'action t
 
 (** Native numeric editor placement. The stable controller identifies one native
-    owner. [initial] seeds it once; observations never reset draft/selection.
+    owner. [initial] seeds its committed value once. [initial_draft] optionally
+    seeds independent text, including unfinished/invalid numeric expressions;
+    omitted means formatted normalized value. Both are read only on creation.
+    Selection/undo/IME start fresh. Observations never reset draft/selection.
     Explicit commands update live state. Configuration changes preserve the
     draft and normalize the committed value in the new domain. *)
 val number_input
@@ -581,6 +633,7 @@ val number_input
   -> controller:Key.t
   -> config:Number_input.Config.t
   -> initial:Number_input.Value.t
+  -> ?initial_draft:Number_input.Draft.t
   -> on_event:(Number_input.Event.t -> 'action)
   -> unit
   -> 'action t
@@ -681,6 +734,41 @@ val drop_target
   -> ?style:Style.t
   -> config:Drag_and_drop.Target.t
   -> on_event:(Drag_and_drop.Target_event.t -> 'action)
+  -> 'action t list
+  -> 'action t
+
+(** Observe native bindings asynchronously. This ordinary container introduces
+    no focus stop. Replacing config retires the old handler/epoch; changing only
+    the callback preserves the subscription and uses the current callback.
+    The supplied editor context must belong to the enclosing window. *)
+val command_binding_scope
+  :  ?key:Key.t
+  -> ?style:Style.t
+  -> config:Command_binding.Config.t
+  -> on_update:(Command_binding.Observation.t -> 'action)
+  -> 'action t list
+  -> 'action t
+
+(** Retained highlight declaration. Empty config overrides an ancestor. Children
+    retain their identities; updates are asynchronous. Native painting integration
+    is in development and no highlight capability is advertised yet. *)
+val highlight_scope
+  :  ?key:Key.t
+  -> ?style:Style.t
+  -> config:Highlight.Config.t
+  -> ?on_update:(Highlight.Observation.t -> 'action)
+  -> 'action t list
+  -> 'action t
+
+(** General opt-in input observations. The region owns its focus and observation
+    binding; child native widgets retain their state. Policies execute in Rust and
+    callbacks run asynchronously. Changing config retires queued old observations;
+    changing only the callback uses the latest accepted closure. *)
+val input_region
+  :  ?key:Key.t
+  -> ?style:Style.t
+  -> config:Input_region.Config.t
+  -> on_event:(Input_region.Event.t -> 'action)
   -> 'action t list
   -> 'action t
 
@@ -825,6 +913,7 @@ module Expert : sig
   type 'action document =
     { config : Document.Config.t
     ; on_navigate : (Document.Navigation.t -> 'action) option
+    ; on_diff : (Document.Diff.Event.t -> 'action) option
     }
 
   type 'action slider =
@@ -838,6 +927,7 @@ module Expert : sig
     { controller : Key.t
     ; config : Number_input.Config.t
     ; initial : Number_input.Value.t
+    ; initial_draft : Number_input.Draft.t option
     ; on_event : Number_input.Event.t -> 'action
     }
 
@@ -881,6 +971,21 @@ module Expert : sig
   type 'action drop_target =
     { config : Drag_and_drop.Target.t
     ; on_event : Drag_and_drop.Target_event.t -> 'action
+    }
+
+  type 'action command_binding_scope =
+    { config : Command_binding.Config.t
+    ; on_update : Command_binding.Observation.t -> 'action
+    }
+
+  type 'action highlight_scope =
+    { config : Highlight.Config.t
+    ; on_update : (Highlight.Observation.t -> 'action) option
+    }
+
+  type 'action input_region =
+    { config : Input_region.Config.t
+    ; on_event : Input_region.Event.t -> 'action
     }
 
   type 'action pointer =
@@ -944,6 +1049,9 @@ module Expert : sig
       | Hover_card
       | Carousel
       | Chart_view
+      | Input_region
+      | Highlight_scope
+      | Link
     [@@deriving equal, sexp_of]
   end
 
@@ -1009,6 +1117,9 @@ module Expert : sig
     { key : Key.t option
     ; kind : Kind.t
     ; text : string
+    ; text_content : Text_content.t option
+    ; text_shimmer : Text_shimmer.Config.t option
+    ; link : Link.Config.t option
     ; style : Style.t
     ; on_click : (unit -> 'action) option
     ; editor : 'action editor option
@@ -1022,6 +1133,9 @@ module Expert : sig
     ; drag_source : 'action drag_source option
     ; drop_target : 'action drop_target option
     ; pointer : 'action pointer option
+    ; input_region : 'action input_region option
+    ; highlight_scope : 'action highlight_scope option
+    ; command_binding_scope : 'action command_binding_scope option
     ; notification : 'action notification option
     ; toast_stack : Toast.Stack.t option
     ; progress : Progress.Config.t option

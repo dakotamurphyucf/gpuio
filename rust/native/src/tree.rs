@@ -22,6 +22,7 @@ fn allows_children(kind: Kind) -> bool {
             | Kind::AnimationProgram
             | Kind::ContainerQuery
             | Kind::Button
+            | Kind::Link
             | Kind::CommandButton
             | Kind::FocusScope
             | Kind::Tooltip
@@ -31,6 +32,8 @@ fn allows_children(kind: Kind) -> bool {
             | Kind::Toast
             | Kind::ToastStack
             | Kind::PointerArea
+            | Kind::InputRegion
+            | Kind::HighlightScope
             | Kind::DragSource
             | Kind::DropTarget
     )
@@ -46,6 +49,7 @@ pub struct SliderMount {
 pub struct NumberInputMount {
     pub config: Arc<gpuio_protocol::number_input::Config>,
     pub initial: gpuio_protocol::number_input::Value,
+    pub initial_draft: Option<Arc<str>>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -72,8 +76,11 @@ pub struct Node {
     pub id: NodeId,
     pub kind: Kind,
     pub text: Arc<str>,
+    pub text_spans: Arc<[gpuio_protocol::text_content::Span]>,
+    pub text_shimmer: Option<Arc<gpuio_protocol::text_shimmer::Config>>,
     pub editor: Option<Arc<EditorConfig>>,
     pub control: Option<Control>,
+    pub link: Option<Arc<gpuio_protocol::link::Config>>,
     pub choice: Option<Arc<ChoiceConfig>>,
     pub focus_scope: Option<FocusScopeConfig>,
     pub overlay: Option<Arc<OverlayConfig>>,
@@ -96,6 +103,8 @@ pub struct Node {
     pub extension_command: Option<Arc<gpuio_protocol::extension::Command>>,
     pub split: Option<Arc<gpuio_protocol::split::Config>>,
     pub document: Option<Arc<gpuio_protocol::document::Config>>,
+    pub document_diff: Option<Arc<gpuio_protocol::document_diff::Config>>,
+    pub document_diff_epoch: i64,
     pub canvas: Option<Arc<gpuio_protocol::canvas_view::Config>>,
     pub chart: Option<Arc<gpuio_protocol::chart_view::Config>>,
     pub animation: Option<Arc<gpuio_protocol::animation::Config>>,
@@ -118,6 +127,9 @@ pub struct Node {
     pub drag_source: Option<Arc<gpuio_protocol::drag_drop::Source>>,
     pub drop_target: Option<Arc<gpuio_protocol::drag_drop::Target>>,
     pub pointer: Option<Arc<PointerConfig>>,
+    pub input_region: Option<Arc<gpuio_protocol::input::Config>>,
+    pub highlight_scope: Option<Arc<gpuio_protocol::highlight::Config>>,
+    pub command_binding: Option<Arc<gpuio_protocol::command_binding::Config>>,
     pub placement: Option<Placement>,
     pub combobox_filter: Option<ComboboxFilter>,
     pub choice_appearance: Option<Arc<ChoiceAppearance>>,
@@ -152,10 +164,9 @@ impl Node {
                 .otp_input
                 .as_ref()
                 .map_or(0, |s| s.config.retained_bytes() + s.initial.len())
-            + self
-                .number_input
-                .as_ref()
-                .map_or(0, |s| s.config.retained_bytes())
+            + self.number_input.as_ref().map_or(0, |s| {
+                s.config.retained_bytes() + s.initial_draft.as_ref().map_or(0, |draft| draft.len())
+            })
             + self
                 .slider
                 .as_ref()
@@ -224,6 +235,22 @@ impl Node {
                 .map_or(0, |config| config.retained_bytes())
             + self
                 .drop_target
+                .as_ref()
+                .map_or(0, |config| config.retained_bytes())
+            + self
+                .input_region
+                .as_ref()
+                .map_or(0, |config| config.retained_bytes())
+            + self
+                .document_diff
+                .as_ref()
+                .map_or(0, |config| config.retained_bytes())
+            + self.command_binding.as_ref().map_or(0, |config| {
+                config.retained_bytes()
+                    + 2 * (gpuio_protocol::command_binding::MAX_OBSERVATION_BYTES + 256)
+            })
+            + self
+                .highlight_scope
                 .as_ref()
                 .map_or(0, |config| config.retained_bytes())
             + self
@@ -296,6 +323,14 @@ impl Node {
             } else {
                 0
             }
+            + self
+                .text_shimmer
+                .as_ref()
+                .map_or(0, |_| crate::text_shimmer_clock::RESERVED_BYTES)
+            + std::mem::size_of_val(self.text_spans.as_ref())
+            + self.link.as_ref().map_or(0, |config| {
+                config.label.len() + std::mem::size_of::<gpuio_protocol::link::Config>()
+            })
             + std::mem::size_of_val(self.style.as_ref())
             + self
                 .style
@@ -314,6 +349,7 @@ struct Slot {
 
 #[derive(Debug)]
 pub struct Tree {
+    binding_owners: BTreeSet<NodeId>,
     window: WindowId,
     revision: i64,
     root: Option<NodeId>,
@@ -345,6 +381,7 @@ impl Tree {
     pub fn new(window: WindowId) -> Self {
         Self {
             window,
+            binding_owners: BTreeSet::new(),
             revision: 0,
             root: None,
             slots: Vec::new(),
@@ -354,6 +391,10 @@ impl Tree {
             chart_count: 0,
             retained_bytes: 0,
         }
+    }
+
+    pub fn binding_owners(&self) -> impl Iterator<Item = NodeId> + '_ {
+        self.binding_owners.iter().copied()
     }
 
     pub fn revision(&self) -> i64 {
@@ -437,6 +478,57 @@ impl Tree {
             cursor = node.parent;
         }
         None
+    }
+
+    /// Enumerate effective declarations at a native tree position, nearest scope
+    /// first and preserving declaration order within each scope. Shadow IDs
+    /// before callers filter by shortcut, enabled state or input policy: an inner
+    /// definition with no usable shortcut must still hide the outer definition.
+    /// The iterator borrows the tree; it retains no command snapshots or owners.
+    fn command_steps_from(
+        &self,
+        node: NodeId,
+    ) -> impl Iterator<Item = (NodeId, Option<&Arc<CommandConfig>>)> {
+        std::iter::successors(Some(node), |id| self.get(*id)?.parent).flat_map(|id| {
+            std::iter::once((id, None)).chain(
+                self.get(id)
+                    .and_then(|node| node.commands.as_ref())
+                    .into_iter()
+                    .flat_map(move |commands| {
+                        commands.iter().map(move |command| (id, Some(command)))
+                    }),
+            )
+        })
+    }
+
+    pub fn commands_from(
+        &self,
+        node: NodeId,
+    ) -> impl Iterator<Item = (NodeId, &Arc<CommandConfig>)> {
+        let mut seen = BTreeSet::new();
+        self.command_steps_from(node)
+            .filter_map(|(id, command)| command.map(|command| (id, command)))
+            .filter(move |(_, command)| seen.insert(command.id.as_str()))
+    }
+
+    /// Count ancestors and shadowed declarations as work too. A result is whole
+    /// or absent; exhausting the budget must never look like a missing command.
+    pub fn bounded_commands_from(
+        &self,
+        node: NodeId,
+        remaining: &mut usize,
+    ) -> Option<Vec<(NodeId, &Arc<CommandConfig>)>> {
+        let mut seen = BTreeSet::new();
+        let mut result = Vec::new();
+        for (id, command) in self.command_steps_from(node) {
+            *remaining = remaining.checked_sub(1)?;
+            if let Some(command) = command
+                && seen.insert(command.id.as_str())
+            {
+                result.push((id, command));
+            }
+        }
+        Some(result)
     }
 
     pub fn accepts_handler(&self, node: NodeId, handler: HandlerId) -> bool {
@@ -561,6 +653,14 @@ impl Tree {
         for slot in plan.changes.values() {
             if let Some(node) = &slot.node {
                 plan.validate_list(node)?;
+                if let Some(config) = &node.text_shimmer {
+                    if node.kind != Kind::Text || !config.is_valid() {
+                        return Err(ErrorCode::InvalidTree.into());
+                    }
+                    if node.text.len() > gpuio_protocol::text_shimmer::MAX_TEXT_BYTES {
+                        return Err(ErrorCode::LimitExceeded.into());
+                    }
+                }
                 if node.choice_appearance.is_some()
                     && !matches!(
                         node.kind,
@@ -605,6 +705,73 @@ impl Tree {
                             || !node.text.is_empty()
                             || node.control.is_some()
                             || node.choice.is_some()))
+                {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
+                if node.document_diff.is_some()
+                    && (node.document_diff_epoch <= 0
+                        || node.document.as_ref().is_none_or(|config| {
+                            config.mode != gpuio_protocol::document::Mode::Diff
+                        }))
+                {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
+                if (node.kind == Kind::Link) != node.link.is_some()
+                    || node.link.as_ref().is_some_and(|config| {
+                        !config.is_valid()
+                            || !node.text.is_empty()
+                            || (!config.disabled && node.handler.is_none())
+                    })
+                {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
+                if node.command_binding.as_ref().is_some_and(|config| {
+                    node.kind != Kind::Container || node.handler.is_none() || !config.is_valid()
+                        || !node.text.is_empty() || node.control.is_some() || node.choice.is_some()
+                        || matches!(config.context, gpuio_protocol::command_binding::Context::Editor(window, _) if window != self.window)
+                }) {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
+                if let Some(old) = self.get(node.id)
+                    && old.command_binding != node.command_binding
+                    && old.command_binding.is_some()
+                    && old.handler == node.handler
+                {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
+                if (node.kind == Kind::HighlightScope) != node.highlight_scope.is_some()
+                    || node.highlight_scope.as_ref().is_some_and(|config| {
+                        !config.is_valid()
+                            || !node.text.is_empty()
+                            || node.control.is_some()
+                            || node.choice.is_some()
+                    })
+                {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
+                if let Some(old) = self.get(node.id)
+                    && old.highlight_scope != node.highlight_scope
+                    && old.highlight_scope.is_some()
+                    && old.handler.is_some()
+                    && old.handler == node.handler
+                {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
+                if (node.kind == Kind::InputRegion) != node.input_region.is_some()
+                    || node.input_region.as_ref().is_some_and(|config| {
+                        !config.is_valid()
+                            || node.handler.is_none()
+                            || !node.text.is_empty()
+                            || node.control.is_some()
+                            || node.choice.is_some()
+                    })
+                {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
+                if let Some(old) = self.get(node.id)
+                    && old.input_region != node.input_region
+                    && old.input_region.is_some()
+                    && old.handler == node.handler
                 {
                     return Err(ErrorCode::InvalidTree.into());
                 }
@@ -741,6 +908,9 @@ impl Tree {
                     || node.number_input.as_ref().is_some_and(|number_input| {
                         !number_input.config.is_valid()
                             || !number_input.initial.is_valid()
+                            || number_input.initial_draft.as_ref().is_some_and(|draft| {
+                                !gpuio_protocol::number_input::valid_text(draft)
+                            })
                             || !node.text.is_empty()
                             || !node.children.is_empty()
                             || node.control.is_some()
@@ -985,6 +1155,8 @@ impl Tree {
                     | Kind::Toast
                     | Kind::ToastStack
                     | Kind::PointerArea
+                    | Kind::InputRegion
+                    | Kind::HighlightScope
                     | Kind::DragSource
                     | Kind::DropTarget
                     | Kind::CommandScope
@@ -1018,6 +1190,7 @@ impl Tree {
                     | Kind::ContainerQuery
                     | Kind::VirtualList
                     | Kind::Text
+                    | Kind::Link
                     | Kind::Button => {
                         if node.editor.is_some() {
                             return Err(ErrorCode::InvalidTree.into());
@@ -1061,6 +1234,7 @@ impl Tree {
         }
         for id in &dirty {
             plan.validate_button_icons(*id)?;
+            plan.validate_link_content(*id)?;
             plan.validate_table(plan.node(*id)?)?;
         }
         if let Some(root) = plan.root {
@@ -1121,6 +1295,22 @@ impl Tree {
                 programs.push((node.id, Some(config.clone())));
             }
         }
+        let mut binding_owners = self.binding_owners.clone();
+        for (index, slot) in &plan.changes {
+            if let Some(before) = self.slots.get(*index).and_then(|s| s.node.as_ref()) {
+                binding_owners.remove(&before.id);
+            }
+            if let Some(after) = slot
+                .node
+                .as_ref()
+                .filter(|node| node.command_binding.is_some())
+            {
+                binding_owners.insert(after.id);
+            }
+        }
+        if binding_owners.len() > gpuio_protocol::command_binding::MAX_OBSERVERS {
+            return Err(ErrorCode::LimitExceeded.into());
+        }
         let Plan {
             changes,
             root,
@@ -1143,6 +1333,7 @@ impl Tree {
         for (index, slot) in changes {
             self.slots[index] = slot;
         }
+        self.binding_owners = binding_owners;
         self.root = root;
         self.node_count = node_count;
         self.extension_count = extension_count;
@@ -1295,6 +1486,58 @@ impl Plan<'_> {
         Ok(())
     }
 
+    // The link root is the only activation/focus owner in composed content.
+    // Run for dirty ancestors too: Bind/SetStyle can invalidate a descendant
+    // without changing the structural edges.
+    fn validate_link_content(&self, id: NodeId) -> Result<(), ErrorCode> {
+        let root = self.node(id)?;
+        if root.kind != Kind::Link {
+            return Ok(());
+        }
+        let mut pending: Vec<_> = root.children.iter().map(|id| (*id, 1)).collect();
+        let mut count = 0;
+        while let Some((id, depth)) = pending.pop() {
+            count += 1;
+            if count > 4096 || depth > 128 {
+                return Err(ErrorCode::LimitExceeded);
+            }
+            let node = self.node(id)?;
+            if !matches!(
+                node.kind,
+                Kind::Container
+                    | Kind::Text
+                    | Kind::Image
+                    | Kind::Icon
+                    | Kind::Avatar
+                    | Kind::Loading
+                    | Kind::Animated
+                    | Kind::AnimationProgram
+            ) || node.handler.is_some()
+                || node.style.iter().any(|style| {
+                    let fields: &[Field] = match style {
+                        Style::Fields(fields) | Style::State(_, fields) => fields,
+                        _ => &[],
+                    };
+                    fields.iter().any(|field| {
+                        matches!(
+                            field,
+                            Field::UserSelect(true)
+                                | Field::Inert(true)
+                                | Field::Disabled(true)
+                                | Field::OverflowX(3)
+                                | Field::OverflowY(3)
+                                | Field::PointerOcclusion(1 | 2)
+                        )
+                    })
+                })
+            {
+                return Err(ErrorCode::InvalidTree);
+            }
+            pending.extend(node.children.iter().map(|id| (*id, depth + 1)));
+        }
+        Ok(())
+    }
+
     // Buttons retain one action/focus target. Their optional children represent
     // two fixed decorative icon slots, never nested controls or callbacks.
     // Run for dirty ancestors too: Bind/SetImage can invalidate a slot without
@@ -1364,6 +1607,9 @@ impl Plan<'_> {
             Op::Create(id, ..)
             | Op::Remove(id)
             | Op::SetText(id, ..)
+            | Op::SetStyledText(id, ..)
+            | Op::SetTextShimmer(id, ..)
+            | Op::SetLink(id, ..)
             | Op::SetStyle(id, ..)
             | Op::SetEditor(id, ..)
             | Op::SetControl(id, ..)
@@ -1404,6 +1650,7 @@ impl Plan<'_> {
             | Op::SetCanvas(id, ..)
             | Op::SetChart(id, ..)
             | Op::SetDocument(id, ..)
+            | Op::SetDocumentDiff(id, ..)
             | Op::SetExtension(id, ..)
             | Op::SetSplit(id, ..)
             | Op::SetProgress(id, ..)
@@ -1412,6 +1659,10 @@ impl Plan<'_> {
             | Op::SetDragSource(id, ..)
             | Op::SetDropTarget(id, ..)
             | Op::SetPointer(id, ..)
+            | Op::SetInputRegion(id, ..)
+            | Op::SetHighlightScope(id, ..)
+            | Op::SetCommandBinding(id, ..)
+            | Op::SetNumberInputDraft(id, ..)
             | Op::SetComboboxFilter(id, ..)
             | Op::SetChoiceAppearance(id, ..)
             | Op::Bind(id, ..)
@@ -1484,8 +1735,11 @@ impl Plan<'_> {
                             id: *id,
                             kind: *kind,
                             text: Arc::from(text.as_str()),
+                            text_spans: Arc::from([]),
+                            text_shimmer: None,
                             editor: None,
                             control: None,
+                            link: None,
                             choice: None,
                             choice_appearance: None,
                             combobox_filter: None,
@@ -1510,6 +1764,8 @@ impl Plan<'_> {
                             extension_command: None,
                             split: None,
                             document: None,
+                            document_diff: None,
+                            document_diff_epoch: 0,
                             canvas: None,
                             chart: None,
                             animation: None,
@@ -1532,6 +1788,9 @@ impl Plan<'_> {
                             drag_source: None,
                             drop_target: None,
                             pointer: None,
+                            input_region: None,
+                            highlight_scope: None,
+                            command_binding: None,
                             placement: None,
                             style: Arc::from([]),
                             handler: *handler,
@@ -1571,7 +1830,31 @@ impl Plan<'_> {
                     return Err(ErrorCode::InvalidTree);
                 }
                 validate_text(text)?;
-                self.node_mut(*id)?.text = Arc::from(text.as_str());
+                let node = self.node_mut(*id)?;
+                node.text = Arc::from(text.as_str());
+                node.text_spans = Arc::from([]);
+            }
+            Op::SetStyledText(id, content) => {
+                if self.node(*id)?.kind != Kind::Text || !content.is_valid() {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                let node = self.node_mut(*id)?;
+                node.text = Arc::from(content.text.as_str());
+                node.text_spans = Arc::from(content.spans.as_slice());
+            }
+            Op::SetTextShimmer(id, config) => {
+                if self.node(*id)?.kind != Kind::Text
+                    || config.is_some_and(|config| !config.is_valid())
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.text_shimmer = config.map(Arc::new);
+            }
+            Op::SetLink(id, config) => {
+                if self.node(*id)?.kind != Kind::Link || !config.is_valid() {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.link = Some(Arc::new(config.clone()));
             }
             Op::SetEditor(id, config) => {
                 if !matches!(
@@ -1600,6 +1883,26 @@ impl Plan<'_> {
                     return Err(ErrorCode::InvalidTree);
                 }
                 self.node_mut(*id)?.drop_target = Some(Arc::new(config.clone()));
+            }
+            Op::SetCommandBinding(id, config) => {
+                if self.node(*id)?.kind != Kind::Container
+                    || config.as_ref().is_some_and(|c| !c.is_valid())
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.command_binding = config.clone().map(Arc::new);
+            }
+            Op::SetHighlightScope(id, config) => {
+                if self.node(*id)?.kind != Kind::HighlightScope || !config.is_valid() {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.highlight_scope = Some(Arc::new(config.clone()));
+            }
+            Op::SetInputRegion(id, config) => {
+                if self.node(*id)?.kind != Kind::InputRegion || !config.is_valid() {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.input_region = Some(Arc::new(config.clone()));
             }
             Op::SetPointer(id, config) => {
                 if self.node(*id)?.kind != Kind::PointerArea || !config.is_valid() {
@@ -1864,10 +2167,30 @@ impl Plan<'_> {
                 {
                     return Err(ErrorCode::InvalidTree);
                 }
+                let initial_draft = self
+                    .node(*id)?
+                    .number_input
+                    .as_ref()
+                    .and_then(|mount| mount.initial_draft.clone());
                 self.node_mut(*id)?.number_input = Some(NumberInputMount {
                     config: Arc::new(config.clone()),
                     initial: *initial,
+                    initial_draft,
                 });
+            }
+            Op::SetNumberInputDraft(id, draft) => {
+                if draft
+                    .as_ref()
+                    .is_some_and(|draft| !gpuio_protocol::number_input::valid_text(draft))
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                let mount = self
+                    .node_mut(*id)?
+                    .number_input
+                    .as_mut()
+                    .ok_or(ErrorCode::InvalidTree)?;
+                mount.initial_draft = draft.as_deref().map(Arc::from);
             }
             Op::SetRating(id, config) => {
                 if self.node(*id)?.kind != Kind::Rating || !config.is_valid() {
@@ -1943,6 +2266,19 @@ impl Plan<'_> {
                     return Err(ErrorCode::InvalidTree);
                 }
                 self.node_mut(*id)?.chart = Some(Arc::new(config.clone()));
+            }
+            Op::SetDocumentDiff(id, epoch, config) => {
+                let node = self.node(*id)?;
+                if node.kind != Kind::DocumentView
+                    || *epoch <= node.document_diff_epoch
+                    || *epoch <= 0
+                    || config.as_ref().is_some_and(|config| !config.is_valid())
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                let node = self.node_mut(*id)?;
+                node.document_diff = config.clone().map(Arc::new);
+                node.document_diff_epoch = *epoch;
             }
             Op::SetDocument(id, config) => {
                 if self.node(*id)?.kind != Kind::DocumentView || !config.is_valid() {
@@ -2291,11 +2627,13 @@ pub fn validate_style(style: &[Style]) -> Result<(), ErrorCode> {
                     && !fields.iter().any(|field| {
                         matches!(
                             field,
-                            Field::PointerEvents(_)
+                            Field::PointerOcclusion(_)
+                                | Field::PointerEvents(_)
                                 | Field::UserSelect(_)
                                 | Field::SelectionColor(_)
                                 | Field::AccessibleName(_)
                                 | Field::Inert(_)
+                                | Field::Disabled(_)
                         )
                     })
             }

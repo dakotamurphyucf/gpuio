@@ -2105,6 +2105,7 @@ where
         let layout = self.header_layout.clone();
 
         header
+            .role(gpui::Role::RowGroup)
             .h_flex()
             .w_full()
             .flex_shrink_0()

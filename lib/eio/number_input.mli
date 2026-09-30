@@ -13,7 +13,23 @@ val create
   -> Bonsai.Cont.graph
   -> t Bonsai.Cont.t
 
-val view : ?style:Gpuio.Style.t -> t -> Gpuio_bonsai.View.t
+(** Mount-only seeds: [initial] overrides the committed value; [initial_draft]
+    supplies independent text, including an unfinished/invalid expression.
+    Omitting the draft formats the normalized committed value. Neither seed
+    replaces a live draft. Selection, IME and undo history start fresh.
+
+    [on_event] observes native events for this placement, alongside the
+    controller's normal observation and [create] event handlers. It does not run for
+    command replies: handle those results explicitly. Use the row lifetime to
+    guard this callback when mirroring application drafts from transient rows;
+    a retained controller's last snapshot can outlive its native placement. *)
+val view
+  :  ?style:Gpuio.Style.t
+  -> ?initial:Gpuio.Number_input.Value.t
+  -> ?initial_draft:Gpuio.Number_input.Draft.t
+  -> ?on_event:(Gpuio.Number_input.Event.t -> unit Bonsai.Effect.t)
+  -> t
+  -> Gpuio_bonsai.View.t
 
 (** Last native observation; absent before mounting. A retained controller can
     outlive its placement, in which case commands fail with [Stale_input]. *)

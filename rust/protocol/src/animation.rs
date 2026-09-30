@@ -1,7 +1,9 @@
 //! Bounded declarative motion data. Native frames never call an OCaml easing function.
 use binprot::macros::BinProtWrite;
 
-pub const PROPERTY_COUNT: usize = 11;
+pub const PROPERTY_COUNT: usize = 12;
+// Absolute opacity and its factor are mutually exclusive.
+pub const MAX_TARGETS: usize = PROPERTY_COUNT - 1;
 pub const MAX_TIME_MS: i64 = 86_400_000;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, BinProtWrite)]
@@ -18,11 +20,12 @@ pub enum Property {
     TopRightRadius,
     BottomLeftRadius,
     BottomRightRadius,
+    OpacityFactor,
 }
 impl Property {
     pub fn clamp(self, value: f64) -> f64 {
         match self {
-            Self::Opacity => value.clamp(0., 1.),
+            Self::Opacity | Self::OpacityFactor => value.clamp(0., 1.),
             Self::Top | Self::Right | Self::Bottom | Self::Left => {
                 value.clamp(-1_000_000., 1_000_000.)
             }
@@ -151,16 +154,10 @@ pub struct Config {
 }
 impl Config {
     pub fn is_valid(&self) -> bool {
-        let valid = |targets: &[Target]| {
-            !targets.is_empty()
-                && targets.len() <= PROPERTY_COUNT
-                && targets.iter().all(|t| t.property.accepts(t.value))
-                && targets.windows(2).all(|w| w[0].property < w[1].property)
-        };
         self.generation > 0
-            && valid(&self.targets)
+            && valid_targets(&self.targets)
             && self.initial.as_ref().is_none_or(|initial| {
-                valid(initial)
+                valid_targets(initial)
                     && initial.len() == self.targets.len()
                     && initial
                         .iter()
@@ -172,4 +169,17 @@ impl Config {
             && self.easing.is_valid()
             && (self.repeat == Repeat::Once || (self.initial.is_some() && self.duration_ms > 0))
     }
+}
+
+/// Canonically ordered, bounded targets. Absolute and multiplicative opacity
+/// are alternatives so a target never depends on evaluation order.
+pub(crate) fn valid_targets(targets: &[Target]) -> bool {
+    !targets.is_empty()
+        && targets.len() <= MAX_TARGETS
+        && targets.iter().all(|t| t.property.accepts(t.value))
+        && targets.windows(2).all(|w| w[0].property < w[1].property)
+        && !(targets.iter().any(|t| t.property == Property::Opacity)
+            && targets
+                .iter()
+                .any(|t| t.property == Property::OpacityFactor))
 }

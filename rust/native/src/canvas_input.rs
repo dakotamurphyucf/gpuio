@@ -251,7 +251,7 @@ pub(super) fn prepaint(state: &Shared, bounds: Bounds<Pixels>, window: &mut Wind
     hitbox
 }
 pub(super) fn paint(state: &Shared, hitbox: Hitbox, window: &mut Window) {
-    let (token, focus, gate, node, eligible) = {
+    let (token, focus, gate, node, eligible, bounds) = {
         let state = state.borrow();
         (
             state.input.token.clone(),
@@ -259,10 +259,16 @@ pub(super) fn paint(state: &Shared, hitbox: Hitbox, window: &mut Window) {
             state.input.gate.clone(),
             state.node,
             state.input_allowed(window, false),
+            state.input.bounds,
         )
     };
-    gate.borrow_mut()
-        .record(node, focus.clone(), eligible, focus.is_focused(window));
+    gate.borrow_mut().record(
+        node,
+        focus.clone(),
+        eligible,
+        focus.is_focused(window),
+        bounds,
+    );
     let down = state.clone();
     let down_token = token.clone();
     let down_hit = hitbox.clone();

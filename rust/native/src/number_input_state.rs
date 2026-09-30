@@ -136,6 +136,21 @@ impl State {
         initial: Value,
         editor: &EditorSnapshot,
     ) -> Result<Self, Error> {
+        let model = Self::with_initial_draft(config, initial, editor)?;
+        if !model.snapshot.is_settled() {
+            return Err(Error::NativeFailure);
+        }
+        Ok(model)
+    }
+
+    /// Explicit draft recovery on creation. The draft can be incomplete/invalid;
+    /// the committed value is normalized independently. This is not a restored
+    /// IME session or undo history, and cannot contain active composition.
+    pub fn with_initial_draft(
+        config: Arc<Config>,
+        initial: Value,
+        editor: &EditorSnapshot,
+    ) -> Result<Self, Error> {
         if !config.is_valid() {
             return Err(Error::InvalidConfig);
         }
@@ -154,7 +169,7 @@ impl State {
             composition: editor.composition.as_ref().map(selection),
             focused: editor.focused,
         };
-        if !snapshot.is_valid() || !snapshot.is_settled() {
+        if !snapshot.is_valid() || snapshot.composition.is_some() {
             return Err(Error::NativeFailure);
         }
         Ok(Self {

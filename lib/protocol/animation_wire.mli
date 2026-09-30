@@ -13,6 +13,7 @@ module Property : sig
     | Top_right_radius
     | Bottom_left_radius
     | Bottom_right_radius
+    | Opacity_factor
   [@@deriving bin_io, compare, equal, sexp_of]
 end
 

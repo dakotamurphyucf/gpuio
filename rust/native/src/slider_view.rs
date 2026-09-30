@@ -264,6 +264,8 @@ impl State {
             Some(CancelReason::Unmounted)
         } else if !self.route.gate.borrow().visible(self.route.node) {
             Some(CancelReason::Hidden)
+        } else if self.route.gate.borrow().disabled(self.route.node) {
+            Some(CancelReason::Disabled)
         } else if !self.route.gate.borrow().allows(self.route.node) {
             Some(CancelReason::Modal)
         } else if !self
@@ -645,15 +647,15 @@ pub(super) fn element(
             canvas(
                 |_, _, _| (),
                 move |bounds, _, window, _| {
-                    if bounds.size.width > px(0.)
-                        && bounds.size.height > px(0.)
-                        && bounds.intersects(&window.content_mask().bounds)
-                    {
+                    if bounds.size.width > px(0.) && bounds.size.height > px(0.) {
                         gate.borrow_mut().record_part(
                             node,
                             part as u16,
-                            record.clone(),
-                            focusable,
+                            super::focus::Target {
+                                handle: record.clone(),
+                                tab_stop: focusable,
+                                bounds,
+                            },
                             record.is_focused(window),
                         );
                     }

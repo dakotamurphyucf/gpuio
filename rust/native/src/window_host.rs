@@ -95,6 +95,8 @@ pub(super) fn capabilities() -> wire::Capabilities {
 }
 
 pub(super) fn watch(view: &View, window: &mut Window, cx: &mut Context<View>) {
+    #[cfg(target_os = "macos")]
+    super::window_macos::install_text_input_reset(window);
     let transport = view.transport.clone();
     let id = view.id;
     window.on_window_should_close(cx, move |_, _| {

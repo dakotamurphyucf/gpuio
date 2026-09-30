@@ -243,6 +243,9 @@ class Studio(Outline):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', type=Path, default=Path('.cache/signal-studio'))
+    parser.add_argument('--executable', type=Path,
+                        default=Path('_build/default/examples/signal_studio/main.exe'),
+                        help='Signal Studio executable, including an installed-library consumer')
     args = parser.parse_args()
     def timeout(_signal, _frame):
         raise TimeoutError("Signal Studio walkthrough exceeded 120 seconds")
@@ -250,7 +253,7 @@ def main():
     args.output.mkdir(parents=True, exist_ok=True)
     path = args.output / 'application.log'
     with path.open('w') as log:
-        child = subprocess.Popen(['_build/default/examples/signal_studio/main.exe', '--exit-on-close'], stdout=log, stderr=subprocess.STDOUT)
+        child = subprocess.Popen([str(args.executable.resolve()), '--exit-on-close'], stdout=log, stderr=subprocess.STDOUT)
         mac = None
         try:
             signal.alarm(120)

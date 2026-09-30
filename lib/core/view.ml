@@ -52,6 +52,9 @@ module Kind = struct
     | Hover_card
     | Carousel
     | Chart_view
+    | Input_region
+    | Highlight_scope
+    | Link
   [@@deriving equal, sexp_of]
 end
 
@@ -99,6 +102,7 @@ type 'action number_input =
   { controller : Key.t
   ; config : Number_input.Config.t
   ; initial : Number_input.Value.t
+  ; initial_draft : Number_input.Draft.t option
   ; on_event : Number_input.Event.t -> 'action
   }
 
@@ -175,6 +179,21 @@ type 'action drop_target =
   ; on_event : Drag_and_drop.Target_event.t -> 'action
   }
 
+type 'action command_binding_scope =
+  { config : Command_binding.Config.t
+  ; on_update : Command_binding.Observation.t -> 'action
+  }
+
+type 'action highlight_scope =
+  { config : Highlight.Config.t
+  ; on_update : (Highlight.Observation.t -> 'action) option
+  }
+
+type 'action input_region =
+  { config : Input_region.Config.t
+  ; on_event : Input_region.Event.t -> 'action
+  }
+
 type 'action pointer =
   { config : Pointer.Config.t
   ; on_event : Pointer.Event.t -> 'action
@@ -223,6 +242,7 @@ type 'action chart =
 type 'action document =
   { config : Document.Config.t
   ; on_navigate : (Document.Navigation.t -> 'action) option
+  ; on_diff : (Document.Diff.Event.t -> 'action) option
   }
 
 type 'action image =
@@ -256,6 +276,9 @@ type 'action t =
   { key : Key.t option
   ; kind : Kind.t
   ; text : string
+  ; text_content : Text_content.t option
+  ; text_shimmer : Text_shimmer.Config.t option
+  ; link : Link.Config.t option
   ; style : Style.t
   ; on_click : (unit -> 'action) option
   ; editor : 'action editor option
@@ -269,6 +292,9 @@ type 'action t =
   ; drag_source : 'action drag_source option
   ; drop_target : 'action drop_target option
   ; pointer : 'action pointer option
+  ; input_region : 'action input_region option
+  ; highlight_scope : 'action highlight_scope option
+  ; command_binding_scope : 'action command_binding_scope option
   ; notification : 'action notification option
   ; toast_stack : Toast.Stack.t option
   ; progress : Progress.Config.t option
@@ -303,10 +329,15 @@ type 'action t =
 
 type 'action toast = Toast_item of 'action t
 
+let with_key t key = { t with key = Some key }
+
 let text ?key ?(style = Style.empty) text =
   { key
   ; kind = Text
   ; text
+  ; text_content = None
+  ; text_shimmer = None
+  ; link = None
   ; style
   ; on_click = None
   ; editor = None
@@ -319,6 +350,9 @@ let text ?key ?(style = Style.empty) text =
   ; drag_source = None
   ; drop_target = None
   ; pointer = None
+  ; input_region = None
+  ; highlight_scope = None
+  ; command_binding_scope = None
   ; notification = None
   ; toast_stack = None
   ; progress = None
@@ -352,6 +386,21 @@ let text ?key ?(style = Style.empty) text =
   }
 ;;
 
+let styled_text ?key ?style content =
+  { (text ?key ?style (Text_content.text content)) with text_content = Some content }
+;;
+
+let with_text_shimmer t text_shimmer =
+  if not (Kind.equal t.kind Text)
+  then Or_error.error_string "text shimmer requires ordinary text"
+  else if
+    Option.is_some text_shimmer
+    && (String.length t.text > Gpuio_protocol.Text_shimmer_wire.max_text_bytes
+        || not (Stdlib.String.is_valid_utf_8 t.text))
+  then Or_error.error_string "text shimmer requires valid UTF-8 of at most 16384 bytes"
+  else Ok { t with text_shimmer }
+;;
+
 let animate_program ?key ?(style = Style.empty) ?on_event config children =
   { (text ?key ~style "") with
     kind = Animation_program
@@ -379,7 +428,7 @@ let with_accessibility t accessibility =
         | Otp_input
         | Calendar
         | Color_input ) ) -> true
-    | None, Some Link, (Button | Command_button) -> true
+    | None, Some Link, (Button | Command_button | Link) -> true
     | None, Some Navigation, Container -> true
     | None, Some (Tree _), Virtual_list -> true
     | None, Some (Tree_item _), Container -> true
@@ -402,6 +451,7 @@ let with_accessibility t accessibility =
         | Virtual_list
         | Text
         | Button
+        | Link
         | Command_button
         | Input
         | Textarea
@@ -422,7 +472,7 @@ let with_accessibility t accessibility =
     Option.is_none metadata.current
     ||
     match t.kind with
-    | Text | Button | Command_button -> true
+    | Text | Button | Command_button | Link -> true
     | _ -> false
   in
   if supported && current_supported
@@ -450,10 +500,10 @@ let canvas ?key ?(style = Style.empty) ?on_event config =
   { (text ?key ~style "") with kind = Canvas_view; canvas = Some { config; on_event } }
 ;;
 
-let document ?key ?(style = Style.empty) ?on_navigate config =
+let document ?key ?(style = Style.empty) ?on_navigate ?on_diff config =
   { (text ?key ~style "") with
     kind = Document_view
-  ; document = Some { config; on_navigate }
+  ; document = Some { config; on_navigate; on_diff }
   }
 ;;
 
@@ -465,6 +515,9 @@ let container ?key ?(style = Style.empty) defaults children =
   { key
   ; kind = Container
   ; text = ""
+  ; text_content = None
+  ; text_shimmer = None
+  ; link = None
   ; style = Style.merge [ Style.create_exn defaults; style ]
   ; on_click = None
   ; editor = None
@@ -477,6 +530,9 @@ let container ?key ?(style = Style.empty) defaults children =
   ; drag_source = None
   ; drop_target = None
   ; pointer = None
+  ; input_region = None
+  ; highlight_scope = None
+  ; command_binding_scope = None
   ; notification = None
   ; toast_stack = None
   ; progress = None
@@ -574,6 +630,9 @@ let button
   { key
   ; kind = Button
   ; text
+  ; text_content = None
+  ; text_shimmer = None
+  ; link = None
   ; style = button_style style
   ; on_click = (if disabled then None else Some on_click)
   ; editor = None
@@ -586,6 +645,9 @@ let button
   ; drag_source = None
   ; drop_target = None
   ; pointer = None
+  ; input_region = None
+  ; highlight_scope = None
+  ; command_binding_scope = None
   ; notification = None
   ; toast_stack = None
   ; progress = None
@@ -655,6 +717,9 @@ let toggle
   { key
   ; kind
   ; text
+  ; text_content = None
+  ; text_shimmer = None
+  ; link = None
   ; style = Style.merge [ defaults; style ]
   ; on_click = (if disabled then None else Some on_toggle)
   ; editor = None
@@ -667,6 +732,9 @@ let toggle
   ; drag_source = None
   ; drop_target = None
   ; pointer = None
+  ; input_region = None
+  ; highlight_scope = None
+  ; command_binding_scope = None
   ; notification = None
   ; toast_stack = None
   ; progress = None
@@ -732,6 +800,9 @@ let focus_scope ?key ?style ~config children =
   ; drag_source = None
   ; drop_target = None
   ; pointer = None
+  ; input_region = None
+  ; highlight_scope = None
+  ; command_binding_scope = None
   ; notification = None
   ; toast_stack = None
   ; progress = None
@@ -971,6 +1042,55 @@ let container_query ?key ?(style = Style.empty) ?on_select config presentations 
 
 let row ?key ?style children =
   container ?key ?style [ Display Flex; Direction Row ] children
+;;
+
+let link ?key ?style config ~on_click children =
+  let rec validate count = function
+    | [] -> Ok ()
+    | (child, depth) :: rest ->
+      let open Or_error.Let_syntax in
+      if count >= 4096 || depth > 128
+      then Or_error.error_string "link content exceeds 4096 nodes or 128 levels"
+      else if
+        (not
+           (List.mem
+              [ Kind.Container
+              ; Text
+              ; Image
+              ; Icon
+              ; Avatar
+              ; Loading
+              ; Animated
+              ; Animation_program
+              ]
+              child.kind
+              ~equal:Kind.equal))
+        || Option.is_some child.on_click
+        || Option.exists child.image ~f:(fun image -> Option.is_some image.on_change)
+        || Option.exists child.animation ~f:(fun animation ->
+          Option.is_some animation.on_event)
+        || Option.exists child.animation_program ~f:(fun animation ->
+          Option.is_some animation.on_event)
+      then Or_error.error_string "link content must be passive and have no callbacks"
+      else (
+        let%bind () = Style.Expert.validate_link_content child.style in
+        validate
+          (count + 1)
+          (List.rev_append
+             (List.map child.children ~f:(fun child -> child, depth + 1))
+             rest))
+  in
+  let%map.Or_error () = validate 0 (List.map children ~f:(fun child -> child, 1)) in
+  { (container
+       ?key
+       ?style
+       [ Display Flex; Direction Row; Align_items Center; Gap (Length.px_exn 8.) ]
+       children)
+    with
+    kind = Link
+  ; link = Some config
+  ; on_click = (if Link.Config.is_disabled config then None else Some on_click)
+  }
 ;;
 
 let column ?key ?style children =
@@ -1415,6 +1535,9 @@ let text_input
   { key = Some controller
   ; kind
   ; text = initial_text
+  ; text_content = None
+  ; text_shimmer = None
+  ; link = None
   ; style
   ; on_click = None
   ; editor = Some { controller; config; on_event }
@@ -1427,6 +1550,9 @@ let text_input
   ; drag_source = None
   ; drop_target = None
   ; pointer = None
+  ; input_region = None
+  ; highlight_scope = None
+  ; command_binding_scope = None
   ; notification = None
   ; toast_stack = None
   ; progress = None
@@ -1464,6 +1590,9 @@ let radio_group ?key ?(style = Style.empty) ~config ~on_select () =
   { key
   ; kind = Radio_group
   ; text = ""
+  ; text_content = None
+  ; text_shimmer = None
+  ; link = None
   ; style
   ; on_click = None
   ; editor = None
@@ -1477,6 +1606,9 @@ let radio_group ?key ?(style = Style.empty) ~config ~on_select () =
   ; drag_source = None
   ; drop_target = None
   ; pointer = None
+  ; input_region = None
+  ; highlight_scope = None
+  ; command_binding_scope = None
   ; notification = None
   ; toast_stack = None
   ; progress = None
@@ -1540,6 +1672,9 @@ let combobox
   { key = Some controller
   ; kind = Combobox
   ; text = initial_text
+  ; text_content = None
+  ; text_shimmer = None
+  ; link = None
   ; style
   ; on_click = None
   ; editor = None
@@ -1553,6 +1688,9 @@ let combobox
   ; drag_source = None
   ; drop_target = None
   ; pointer = None
+  ; input_region = None
+  ; highlight_scope = None
+  ; command_binding_scope = None
   ; notification = None
   ; toast_stack = None
   ; progress = None
@@ -1612,10 +1750,18 @@ let slider ?(style = Style.empty) ~controller ~config ~initial ~on_event () =
   }
 ;;
 
-let number_input ?(style = Style.empty) ~controller ~config ~initial ~on_event () =
+let number_input
+      ?(style = Style.empty)
+      ~controller
+      ~config
+      ~initial
+      ?initial_draft
+      ~on_event
+      ()
+  =
   { (text ~key:controller ~style "") with
     kind = Number_input
-  ; number_input = Some { controller; config; initial; on_event }
+  ; number_input = Some { controller; config; initial; initial_draft; on_event }
   }
 ;;
 
@@ -1680,6 +1826,26 @@ let drop_target ?key ?(style = Style.empty) ~config ~on_event children =
   { (column ?key ~style children) with
     kind = Drop_target
   ; drop_target = Some { config; on_event }
+  }
+;;
+
+let command_binding_scope ?key ?(style = Style.empty) ~config ~on_update children =
+  { (column ?key ~style children) with
+    command_binding_scope = Some { config; on_update }
+  }
+;;
+
+let highlight_scope ?key ?(style = Style.empty) ~config ?on_update children =
+  { (column ?key ~style children) with
+    kind = Highlight_scope
+  ; highlight_scope = Some { config; on_update }
+  }
+;;
+
+let input_region ?key ?(style = Style.empty) ~config ~on_event children =
+  { (column ?key ~style children) with
+    kind = Input_region
+  ; input_region = Some { config; on_event }
   }
 ;;
 
@@ -1872,6 +2038,7 @@ module Expert = struct
   type nonrec 'action document = 'action document =
     { config : Document.Config.t
     ; on_navigate : (Document.Navigation.t -> 'action) option
+    ; on_diff : (Document.Diff.Event.t -> 'action) option
     }
 
   type nonrec 'action slider = 'action slider =
@@ -1885,6 +2052,7 @@ module Expert = struct
     { controller : Key.t
     ; config : Number_input.Config.t
     ; initial : Number_input.Value.t
+    ; initial_draft : Number_input.Draft.t option
     ; on_event : Number_input.Event.t -> 'action
     }
 
@@ -1928,6 +2096,21 @@ module Expert = struct
   type nonrec 'action drop_target = 'action drop_target =
     { config : Drag_and_drop.Target.t
     ; on_event : Drag_and_drop.Target_event.t -> 'action
+    }
+
+  type nonrec 'action command_binding_scope = 'action command_binding_scope =
+    { config : Command_binding.Config.t
+    ; on_update : Command_binding.Observation.t -> 'action
+    }
+
+  type nonrec 'action highlight_scope = 'action highlight_scope =
+    { config : Highlight.Config.t
+    ; on_update : (Highlight.Observation.t -> 'action) option
+    }
+
+  type nonrec 'action input_region = 'action input_region =
+    { config : Input_region.Config.t
+    ; on_event : Input_region.Event.t -> 'action
     }
 
   type nonrec 'action pointer = 'action pointer =
@@ -1989,6 +2172,9 @@ module Expert = struct
     { key : Key.t option
     ; kind : Kind.t
     ; text : string
+    ; text_content : Text_content.t option
+    ; text_shimmer : Text_shimmer.Config.t option
+    ; link : Link.Config.t option
     ; style : Style.t
     ; on_click : (unit -> 'action) option
     ; editor : 'action editor option
@@ -2002,6 +2188,9 @@ module Expert = struct
     ; drag_source : 'action drag_source option
     ; drop_target : 'action drop_target option
     ; pointer : 'action pointer option
+    ; input_region : 'action input_region option
+    ; highlight_scope : 'action highlight_scope option
+    ; command_binding_scope : 'action command_binding_scope option
     ; notification : 'action notification option
     ; toast_stack : Toast.Stack.t option
     ; progress : Progress.Config.t option

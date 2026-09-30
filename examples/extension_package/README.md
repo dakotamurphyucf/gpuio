@@ -11,6 +11,8 @@ native activation sends a typed value observation. Values are 0â€“100, steps 1â€
 Payloads have fixed lengths and are validated before indexing. Each callback uses
 the revocable SDK event sink. Pointer disabling leaves keyboard and accessibility
 activation available; hidden/disabled/obsolete instances reject callbacks.
+The accessible button reports disabled state from its current event lease. The
+host group alone does not propagate that metadata to controls inside the package.
 
 The crate declares SDK version `=0.0.0`, patched to the selected GPUIO checkout by
 the application composer. These are experimental source packages, not published

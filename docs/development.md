@@ -83,6 +83,15 @@ run `python3 scripts/vendor_bonsai.py --record-archives`. Review the downloaded
 source, hashes and diffs before committing. Normal reconstruction omits that flag
 and verifies all hashes. Preserve upstream licenses and native-only Dune selection.
 
+GPUI core is vendored at the existing Zed revision with hidden-press cleanup
+and a read-only opacity accessor; see [its adaptation contract](design/gpui-core-adaptation.md).
+`python3 scripts/vendor_gpui.py --output <new-directory>` reconstructs it from the
+hash-verified upstream archive and patch. `--archive <path>` uses a local copy of
+the same archive. The command refuses to overwrite a destination. Compare the
+reconstruction with `vendor/gpui`; normal builds use the committed snapshot.
+Keep the root and generated application Cargo patches/lockfiles and Dune source
+dependencies aligned. Never patch a shared Cargo checkout.
+
 For opam, intentionally update `gpuio.opam`, resolve in the isolated root, and run
 `python3 scripts/lock_opam.py`. This pins the transitive closure and preserves the
 selected Linux-only Eio/uring pins, which cannot be installed on macOS. Both

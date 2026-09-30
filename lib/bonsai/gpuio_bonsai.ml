@@ -3,14 +3,20 @@ module Virtual_list = Virtual_list
 module Tree_rows = Tree_rows
 module Tree = Tree
 module Table = Table
+module Command_binding = Binding_observer
+module Settings = Settings_panel
 
 module View = struct
   type t = unit Bonsai.Effect.t Gpuio.View.t
   type toast = unit Bonsai.Effect.t Gpuio.View.toast
 
+  let with_key = Gpuio.View.with_key
   let with_accessibility = Gpuio.View.with_accessibility
   let drag_source = Gpuio.View.drag_source
   let drop_target = Gpuio.View.drop_target
+  let command_binding_scope = Gpuio.View.command_binding_scope
+  let highlight_scope = Gpuio.View.highlight_scope
+  let input_region = Gpuio.View.input_region
   let pointer_area = Gpuio.View.pointer_area
   let toast = Gpuio.View.toast
   let toast_stack = Gpuio.View.toast_stack
@@ -23,6 +29,12 @@ module View = struct
   let document = Gpuio.View.document
   let image = Gpuio.View.image
   let text = Gpuio.View.text
+  let styled_text = Gpuio.View.styled_text
+  let with_text_shimmer = Gpuio.View.with_text_shimmer
+
+  let link ?key ?style config ~on_click children =
+    Gpuio.View.link ?key ?style config ~on_click:(fun () -> on_click) children
+  ;;
 
   let button
         ?key

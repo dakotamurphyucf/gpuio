@@ -48,6 +48,7 @@ impl Drop for Reservation {
 pub struct Snapshot {
     pub revision: i64,
     pub generation: i64,
+    pub(crate) generation_first_revision: i64,
     pub status: Status,
     pub text: Rope,
     /// Prefix known unchanged from the immediately preceding revision.
@@ -109,6 +110,7 @@ impl Store {
         let snapshot = Arc::new(Snapshot {
             revision: 0,
             generation: 1,
+            generation_first_revision: 1,
             status: Status::Streaming,
             text: Rope::new(),
             unchanged_bytes: 0,
@@ -224,7 +226,8 @@ impl Store {
             return Err(Error::Incomplete);
         }
         let suffix = std::str::from_utf8(&stage.suffix).map_err(|_| Error::InvalidUtf8)?;
-        let mut text = entry.lease.snapshot().text.clone();
+        let previous = entry.lease.snapshot();
+        let mut text = previous.text.clone();
         let from = stage.update.from_byte as usize;
         text.remove(from..);
         text.insert(from, suffix);
@@ -232,6 +235,11 @@ impl Store {
         *entry.lease.0.borrow_mut() = Arc::new(Snapshot {
             revision,
             generation: stage.update.generation,
+            generation_first_revision: if previous.generation == stage.update.generation {
+                previous.generation_first_revision
+            } else {
+                revision
+            },
             status: stage.update.status,
             text,
             unchanged_bytes: from,

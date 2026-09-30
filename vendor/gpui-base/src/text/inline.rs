@@ -1,4 +1,4 @@
-use gpui::Corners;
+use gpui::{Corners, prelude::*};
 use std::{
     ops::Range,
     rc::Rc,
@@ -160,6 +160,13 @@ pub(super) fn text_size_ranges(
 /// A inline element used to render a inline text and support selectable.
 ///
 /// All text in TextView (including the CodeBlock) used this for text rendering.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum InlineInteraction {
+    Text,
+    AtomicObject,
+    BlockObject,
+}
+
 pub(super) struct Inline {
     id: ElementId,
     text: SharedString,
@@ -171,9 +178,56 @@ pub(super) struct Inline {
     paint_origin: Option<Point<Pixels>>,
     selection_bounds: Option<Bounds<Pixels>>,
     selection_source: Option<(Arc<Mutex<InlineState>>, Range<usize>)>,
+    range_backgrounds: Option<(Rc<dyn crate::input::RangeBackgrounds>, Range<usize>)>,
+    style_backgrounds: Vec<crate::input::RangeBackground>,
+    interaction: InlineInteraction,
+    semantic_sink: Option<(super::inline_semantics::Collector, usize)>,
+    suppress_semantics: bool,
     link_click_handler: Option<Arc<LinkClickHandlerFn>>,
 
     state: Arc<Mutex<InlineState>>,
+}
+
+pub(super) struct InlinePrepaint {
+    hitbox: Hitbox,
+    semantics: Vec<gpui::AnyElement>,
+}
+
+/// Partition rendered text in reading order. Adjacent style runs of the same
+/// link remain one accessible action; ordinary text is not duplicated beside it.
+pub(super) fn accessible_runs(
+    text: &str,
+    links: &[(Range<usize>, LinkMark)],
+) -> Vec<(Range<usize>, Option<LinkMark>)> {
+    let mut links = links.to_vec();
+    links.sort_by_key(|(range, _)| range.start);
+    let mut runs: Vec<(Range<usize>, Option<LinkMark>)> = Vec::new();
+    let mut cursor = 0;
+    for (range, link) in links {
+        if range.start < cursor
+            || range.is_empty()
+            || !text.is_char_boundary(range.start)
+            || !text.is_char_boundary(range.end)
+        {
+            continue;
+        }
+        if range.start > cursor {
+            runs.push((cursor..range.start, None));
+        }
+        cursor = range.end;
+        if let Some((previous, Some(previous_link))) = runs.last_mut()
+            && previous.end == range.start
+            && *previous_link == link
+        {
+            previous.end = range.end;
+        } else {
+            runs.push((range, Some(link)));
+        }
+    }
+    if cursor < text.len() {
+        runs.push((cursor..text.len(), None));
+    }
+    runs
 }
 
 /// The inline text state, used RefCell to keep the selection state.
@@ -183,6 +237,7 @@ pub(crate) struct InlineState {
     /// The text that actually rendering, matched with selection.
     pub(super) text: SharedString,
     pub(super) selection: Option<Selection>,
+    pub(super) displayed_fragment: Option<super::DisplayedFragment>,
 }
 
 impl InlineState {
@@ -215,14 +270,45 @@ impl Inline {
             paint_origin: None,
             selection_bounds: None,
             selection_source: None,
+            range_backgrounds: None,
+            style_backgrounds: Vec::new(),
+            interaction: InlineInteraction::Text,
+            semantic_sink: None,
+            suppress_semantics: false,
             link_click_handler,
             state,
         }
     }
 
+    pub(super) fn semantic_sink(
+        mut self,
+        sink: super::inline_semantics::Collector,
+        slot: usize,
+    ) -> Self {
+        self.semantic_sink = Some((sink, slot));
+        self
+    }
+
+    pub(super) fn suppress_semantics(mut self, suppress: bool) -> Self {
+        self.suppress_semantics = suppress;
+        self
+    }
+
     /// Use the resolved style captured by a deferred parent layout.
     pub(super) fn text_style(mut self, text_style: TextStyle) -> Self {
         self.text_style = Some(text_style);
+        self
+    }
+
+    /// Glyph presentation inside an atomic custom object. The object owns
+    /// selection, links and input; it must not acquire a second text controller.
+    pub(super) fn passive(mut self) -> Self {
+        self.interaction = InlineInteraction::AtomicObject;
+        self
+    }
+
+    pub(super) fn passive_block(mut self) -> Self {
+        self.interaction = InlineInteraction::BlockObject;
         self
     }
 
@@ -244,6 +330,133 @@ impl Inline {
     ) -> Self {
         self.selection_source = Some((state, range));
         self
+    }
+
+    fn semantic_elements(
+        &self,
+        owner: Option<&GlobalElementId>,
+        bounds: Bounds<Pixels>,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> Vec<gpui::AnyElement> {
+        if self.suppress_semantics {
+            return Vec::new();
+        }
+        if let Some((sink, _)) = &self.semantic_sink {
+            if !sink.enabled() {
+                return Vec::new();
+            }
+        } else if self.links.is_empty() || !window.is_a11y_active() {
+            return Vec::new();
+        }
+        let layout = self.styled_text.layout();
+        let height = layout.line_height();
+        let view = GlobalState::global(cx).text_view_state().cloned();
+        let mut elements = Vec::new();
+        for (range, link) in accessible_runs(&self.text, &self.links) {
+            let (Some(start), Some(end)) = (
+                layout.position_for_index(range.start),
+                layout.position_for_index(range.end),
+            ) else {
+                continue;
+            };
+            let area = if start.y == end.y {
+                Bounds::from_corners(
+                    point(start.x.min(end.x), start.y),
+                    point(start.x.max(end.x), end.y + height),
+                )
+            } else {
+                Bounds::from_corners(
+                    point(bounds.left(), start.y),
+                    point(bounds.right(), end.y + height),
+                )
+            };
+            if let Some((sink, slot)) = &self.semantic_sink {
+                sink.push(*slot, area, &self.text[range], link);
+                continue;
+            }
+            let id: SharedString = format!(
+                "semantic-{}-{}-{}",
+                range.start,
+                range.end,
+                link.as_ref().map_or("", |link| link.url.as_ref())
+            )
+            .into();
+            let text = self.text[range].to_owned();
+            let mut element = gpui::div().id(id).w(area.size.width).h(area.size.height);
+            if let Some(link) = link {
+                let text = if text.trim().is_empty() {
+                    link.url.to_string()
+                } else {
+                    text
+                };
+                let active = view.as_ref().is_some_and(|view| {
+                    view.update(cx, |state, _| {
+                        if link.source_start.is_none()
+                            || state.link_navigation.active != link.source_start
+                        {
+                            return false;
+                        }
+                        let Some(owner) = owner else {
+                            return false;
+                        };
+                        if state.link_active_owner.is_none() {
+                            state.link_active_owner = Some(owner.clone());
+                        }
+                        state.link_active_owner.as_ref() == Some(owner)
+                    })
+                });
+                let focus_target = view
+                    .as_ref()
+                    .filter(|_| link.source_start.is_some())
+                    .map(|view| (view.downgrade(), link.clone()));
+                let url = link.url;
+                let metadata_url = url.clone();
+                let handler = self.link_click_handler.clone();
+                element = element
+                    .role(gpui::Role::Link)
+                    .aria_label(text)
+                    .when(active, |element| element.aria_active_descendant())
+                    .when_some(focus_target, |element, (view, link)| {
+                        element.on_a11y_action(
+                            gpui::AccessibleAction::Focus,
+                            move |_, window, cx| {
+                                let _ = view
+                                    .update(cx, |state, cx| state.focus_link(&link, window, cx));
+                            },
+                        )
+                    })
+                    .a11y_synthetic_children(move |builder| {
+                        builder.parent_node().set_url(metadata_url.to_string())
+                    })
+                    .on_a11y_action(gpui::AccessibleAction::Click, move |_, window, cx| {
+                        handle_link_click(
+                            &handler,
+                            url.clone(),
+                            ClickEvent::Keyboard(gpui::KeyboardClickEvent {
+                                bounds: area,
+                                ..Default::default()
+                            }),
+                            window,
+                            cx,
+                        );
+                    });
+            } else {
+                element = element.role(gpui::Role::Label).aria_value(text);
+            }
+            let mut element = element.into_any_element();
+            element.prepaint_as_root(
+                area.origin,
+                gpui::size(
+                    gpui::AvailableSpace::Definite(area.size.width),
+                    gpui::AvailableSpace::Definite(area.size.height),
+                ),
+                window,
+                cx,
+            );
+            elements.push(element);
+        }
+        elements
     }
 
     /// Get link at given mouse position.
@@ -547,7 +760,7 @@ impl IntoElement for Inline {
 
 impl Element for Inline {
     type RequestLayoutState = ();
-    type PrepaintState = Hitbox;
+    type PrepaintState = InlinePrepaint;
 
     fn id(&self) -> Option<ElementId> {
         Some(self.id.clone())
@@ -555,6 +768,25 @@ impl Element for Inline {
 
     fn source_location(&self) -> Option<&'static std::panic::Location<'static>> {
         None
+    }
+
+    fn a11y_role(&self) -> Option<gpui::accesskit::Role> {
+        if self.suppress_semantics || self.semantic_sink.is_some() {
+            return None;
+        }
+        Some(if self.links.is_empty() {
+            gpui::accesskit::Role::Label
+        } else {
+            gpui::accesskit::Role::Group
+        })
+    }
+
+    fn write_a11y_info(&self, node: &mut gpui::accesskit::Node) {
+        // StyledText is painted directly below, bypassing its Element wrapper.
+        // Publish the same rendered text here; do not duplicate raw Markdown.
+        if self.links.is_empty() {
+            node.set_value(self.text.to_string());
+        }
     }
 
     fn request_layout(
@@ -568,7 +800,41 @@ impl Element for Inline {
             .text_style
             .clone()
             .unwrap_or_else(|| window.text_style());
-        let runs = text_runs(self.text.len(), &text_style, &self.highlights);
+        let (source_state, source_range) = self
+            .selection_source
+            .as_ref()
+            .map(|(state, range)| (state, range.clone()))
+            .unwrap_or((&self.state, 0..self.text.len()));
+        let fragment = source_state
+            .lock()
+            .ok()
+            .and_then(|state| state.displayed_fragment.clone());
+        self.range_backgrounds = fragment.and_then(|fragment| {
+            if fragment.text().get(source_range.clone()) != Some(self.text.as_ref()) {
+                return None;
+            }
+            let view = GlobalState::global(cx).text_view_state()?.read(cx);
+            let layer = view.text_backgrounds.as_ref()?.layer(&fragment)?;
+            Some((layer, source_range))
+        });
+        let mut runs = text_runs(self.text.len(), &text_style, &self.highlights);
+        self.style_backgrounds.clear();
+        if self.range_backgrounds.is_some() {
+            // StyledText normally paints backgrounds and glyphs together. Move
+            // only its backgrounds into our first pass so rounded prepared
+            // washes sit above syntax/mark colors and below the glyphs.
+            let mut offset = 0;
+            for run in &mut runs {
+                if let Some(color) = run.background_color.take() {
+                    self.style_backgrounds.push(crate::input::RangeBackground {
+                        bytes: offset..offset + run.len,
+                        color,
+                        radius: px(0.),
+                    });
+                }
+                offset += run.len;
+            }
+        }
 
         self.styled_text = StyledText::new(self.text.clone()).with_runs(runs);
         let (layout_id, _) =
@@ -593,11 +859,11 @@ impl Element for Inline {
 
         // Report this element's laid-out extent so an ancestor TextView with
         // `max_lines` can snap its clip to a whole-line boundary. The state
-        // stack only holds an entry during prepaint when that view set
-        // `max_lines`, so this is a no-op otherwise.
+        // stack also supplies the one-shot keyboard link reveal request.
         if let Some(text_view_state) = GlobalState::global(cx).text_view_state().cloned() {
             let state = text_view_state.read(cx);
-            if state.max_lines.is_some()
+            if self.interaction == InlineInteraction::Text
+                && state.max_lines.is_some()
                 && let Ok(mut line_spans) = state.line_spans.lock()
             {
                 line_spans.push(LineSpan {
@@ -608,8 +874,36 @@ impl Element for Inline {
             }
         }
 
-        let hitbox = window.insert_hitbox(bounds, HitboxBehavior::Normal);
-        hitbox
+        if self.semantic_sink.is_none()
+            && let Some(view) = GlobalState::global(cx).text_view_state().cloned()
+        {
+            let target = {
+                let state = view.read(cx);
+                state.link_reveal.filter(|_| !state.link_reveal_claimed)
+            };
+            if let Some(target) = target {
+                let layout = self.styled_text.layout();
+                if let Some((range, _)) = self
+                    .links
+                    .iter()
+                    .find(|(_, link)| link.source_start == Some(target))
+                    && let Some(start) = layout.position_for_index(range.start)
+                {
+                    // Reveal the start of the logical link, including when its
+                    // containing list/table block is taller than the viewport.
+                    window.request_autoscroll(Bounds::from_corners(
+                        start,
+                        point(start.x + px(2.), start.y + layout.line_height()),
+                    ));
+                    view.update(cx, |state, _| state.link_reveal_claimed = true);
+                }
+            }
+        }
+
+        InlinePrepaint {
+            hitbox: window.insert_hitbox(bounds, HitboxBehavior::Normal),
+            semantics: self.semantic_elements(id, bounds, window, cx),
+        }
     }
 
     fn paint(
@@ -624,10 +918,90 @@ impl Element for Inline {
     ) {
         let bounds = Bounds::new(self.paint_origin.unwrap_or(bounds.origin), bounds.size);
         let current_view = window.current_view();
-        let hitbox = prepaint;
+        for element in &mut prepaint.semantics {
+            element.paint(window, cx);
+        }
+        let hitbox = &prepaint.hitbox;
         let text_layout = self.styled_text.layout().clone();
+        if let Some((layers, source)) = &self.range_backgrounds {
+            let align = self
+                .text_style
+                .as_ref()
+                .map_or_else(|| window.text_style().text_align, |style| style.text_align);
+            super::backgrounds::paint(
+                &self.style_backgrounds,
+                0..self.text.len(),
+                &text_layout,
+                align,
+                window,
+            );
+            super::backgrounds::paint(layers.ranges(), source.clone(), &text_layout, align, window);
+        }
         self.styled_text
             .paint(global_id, None, bounds, &mut (), &mut (), window, cx);
+
+        if self.interaction != InlineInteraction::Text {
+            // Custom blocks already participate in whole-document copy. Keep
+            // select-all visible without inventing partial selection behavior.
+            if self.interaction == InlineInteraction::BlockObject
+                && let Some(view) = GlobalState::global(cx).text_view_state()
+                && view.read(cx).is_selectable()
+                && view.read(cx).is_all_selected()
+            {
+                Self::paint_selection(
+                    &Selection::new(0, self.text.len()),
+                    &text_layout,
+                    &bounds,
+                    window,
+                    view.read(cx).text_view_style.selection(),
+                );
+            }
+            return;
+        }
+
+        if self.semantic_sink.is_none()
+            && let Some(view) = GlobalState::global(cx).text_view_state()
+        {
+            let view = view.read(cx);
+            if view.focus_handle().is_focused(window)
+                && let Some(active) = view.link_navigation.active
+            {
+                for (range, link) in accessible_runs(&self.text, &self.links) {
+                    if link.as_ref().and_then(|link| link.source_start) != Some(active) {
+                        continue;
+                    }
+                    if let (Some(start), Some(end)) = (
+                        text_layout.position_for_index(range.start),
+                        text_layout.position_for_index(range.end),
+                    ) {
+                        let focus_bounds = if start.y == end.y {
+                            Bounds::from_corners(
+                                point(start.x.min(end.x), start.y),
+                                point(start.x.max(end.x), end.y + text_layout.line_height()),
+                            )
+                        } else {
+                            Bounds::from_corners(
+                                point(bounds.left(), start.y),
+                                point(bounds.right(), end.y + text_layout.line_height()),
+                            )
+                        };
+                        window.paint_quad(quad(
+                            focus_bounds,
+                            px(2.),
+                            gpui::transparent_black(),
+                            Edges {
+                                top: px(1.5),
+                                right: px(1.5),
+                                bottom: px(1.5),
+                                left: px(1.5),
+                            },
+                            view.text_view_style.link(),
+                            BorderStyle::default(),
+                        ));
+                    }
+                }
+            }
+        }
 
         // layout selections
         let (is_selectable, is_selection, selection) =
@@ -1088,8 +1462,37 @@ pub(super) mod test_fonts {
 
 #[cfg(test)]
 mod tests {
-    use super::{InlineHighlight, combine_highlights, point_in_text_selection, text_runs};
+    use super::{
+        InlineHighlight, LinkMark, accessible_runs, combine_highlights, point_in_text_selection,
+        text_runs,
+    };
     use gpui::{FontWeight, HighlightStyle, SharedString, TextStyle, point, px};
+
+    #[test]
+    fn accessible_links_partition_unicode_text_without_duplicating_style_runs() {
+        let text = "Before 世界 guide after";
+        let link = LinkMark {
+            url: "test:guide".into(),
+            ..Default::default()
+        };
+        let links = vec![(14..19, link.clone()), (7..14, link.clone())];
+        let runs = accessible_runs(text, &links);
+        assert_eq!(
+            runs,
+            vec![(0..7, None), (7..19, Some(link.clone())), (19..25, None)]
+        );
+        assert_eq!(
+            runs.iter()
+                .map(|(range, _)| &text[range.clone()])
+                .collect::<String>(),
+            text
+        );
+        // Invalid boundaries cannot panic or hide the remainder of the text.
+        assert_eq!(
+            accessible_runs(text, &[(8..10, link.clone()), (50..80, link)]),
+            vec![(0..text.len(), None)]
+        );
+    }
 
     fn mono(style: HighlightStyle) -> InlineHighlight {
         InlineHighlight {

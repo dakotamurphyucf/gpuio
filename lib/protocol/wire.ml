@@ -18,6 +18,7 @@ module Navigation_stack = Navigation_stack_wire
 module Container_query = Container_query_wire
 module Animation_program = Animation_program_wire
 module Document = Document_wire
+module Document_diff = Document_diff_wire
 module Chart = Chart_resource_wire
 module Canvas = Canvas_resource_wire
 module Canvas_view = Canvas_view_wire
@@ -29,7 +30,7 @@ module Desktop = Desktop_wire
 module Notification = Notification_wire
 
 let version = 1L
-let capabilities = 17592186044415L
+let capabilities = 36028797018963967L
 let max_message_bytes = 1_048_576
 
 module Kind = struct
@@ -83,84 +84,20 @@ module Kind = struct
     | Hover_card
     | Carousel
     | Chart_view
+    | Input_region
+    | Highlight_scope
+    | Link
   [@@deriving bin_io, equal, sexp_of]
 end
 
-module Shortcut_modifier = struct
-  type t =
-    | Primary
-    | Control
-    | Alt
-    | Shift
-    | Super
-  [@@deriving bin_io, equal, sexp_of]
-end
-
-module Shortcut_priority = struct
-  type t =
-    | Native_first
-    | Override
-  [@@deriving bin_io, equal, sexp_of]
-end
-
-module Shortcut_text_input = struct
-  type t =
-    | Modified_only
-    | Always
-    | Never
-  [@@deriving bin_io, equal, sexp_of]
-end
-
-module Shortcut = struct
-  type t =
-    { key : string
-    ; modifiers : Shortcut_modifier.t list
-    ; priority : Shortcut_priority.t
-    ; text_input : Shortcut_text_input.t
-    ; during_composition : bool
-    }
-  [@@deriving bin_io, equal, sexp_of]
-end
-
-module Native_command = struct
-  type t =
-    | Copy
-    | Cut
-    | Paste
-    | Select_all
-    | Undo
-    | Redo
-  [@@deriving bin_io, equal, sexp_of]
-end
-
-module Command_target = struct
-  type t =
-    | Callback
-    | Native of Native_command.t
-  [@@deriving bin_io, equal, sexp_of]
-end
-
-module Command = struct
-  type t =
-    { id : string
-    ; generation : int64
-    ; label : string
-    ; enabled : bool
-    ; checked : bool option
-    ; shortcuts : Shortcut.t list
-    ; target : Command_target.t
-    }
-  [@@deriving bin_io, equal, sexp_of]
-end
-
-module Command_source = struct
-  type t =
-    | Button of Node_id.t
-    | Shortcut
-    | Menu of Node_id.t
-    | Palette of Node_id.t
-  [@@deriving bin_io, equal, sexp_of]
-end
+module Shortcut_modifier = Command_wire.Shortcut_modifier
+module Shortcut_priority = Command_wire.Shortcut_priority
+module Shortcut_text_input = Command_wire.Shortcut_text_input
+module Shortcut = Command_wire.Shortcut
+module Native_command = Command_wire.Native_command
+module Command_target = Command_wire.Command_target
+module Command = Command_wire.Command
+module Command_source = Command_wire.Command_source
 
 module Tooltip_open_state = struct
   type t =
@@ -311,6 +248,7 @@ module Fill = struct
   type t =
     | Solid of Color.t
     | Linear_gradient of float * Color.t * float * Color.t * float
+    | Linear_gradient_in of int64 * float * Color.t * float * Color.t * float
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -394,6 +332,10 @@ module Field = struct
     | Selection_color of Color.t
     | Accessible_name of string
     | Inert of bool
+    | Pointer_occlusion of int64
+    | Border_style of int64
+    | Aspect_ratio of float
+    | Disabled of bool
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -631,76 +573,9 @@ module Toast_dismissal = struct
   [@@deriving bin_io, equal, sexp_of]
 end
 
-module Pointer = struct
-  module Button = struct
-    type t =
-      | Left
-      | Right
-      | Middle
-      | Back
-      | Forward
-    [@@deriving bin_io, equal, sexp_of]
-  end
-
-  module Cancel_reason = struct
-    type t =
-      | Escape
-      | Hidden
-      | Blocked
-      | Disabled
-      | Reconfigured
-      | Capture_lost
-      | Window_inactive
-      | Removed
-    [@@deriving bin_io, equal, sexp_of]
-  end
-
-  module Phase = struct
-    type t =
-      | Started
-      | Moved
-      | Released
-      | Cancelled of Cancel_reason.t
-    [@@deriving bin_io, equal, sexp_of]
-  end
-
-  module Modifiers = struct
-    type t =
-      { shift : bool
-      ; control : bool
-      ; alt : bool
-      ; command : bool
-      ; function_ : bool
-      }
-    [@@deriving bin_io, equal, sexp_of]
-  end
-
-  module Config = struct
-    type t =
-      { label : string
-      ; button : Button.t
-      ; disabled : bool
-      ; prevent_default : bool
-      ; stop_propagation : bool
-      }
-    [@@deriving bin_io, equal, sexp_of]
-  end
-
-  module Sample = struct
-    type t =
-      { gesture : int64
-      ; phase : Phase.t
-      ; button : Button.t
-      ; window_x : float
-      ; window_y : float
-      ; local_x : float
-      ; local_y : float
-      ; modifiers : Modifiers.t
-      }
-    [@@deriving bin_io, equal, sexp_of]
-  end
-end
-
+module Pointer = Pointer_wire
+module Input_region = Input_wire
+module Highlight = Highlight_wire
 module Drag_and_drop = Drag_and_drop_wire
 
 module Op = struct
@@ -761,6 +636,14 @@ module Op = struct
     | Set_table_cell of Node_id.t * Table.Cell.t
     | Table_command of Node_id.t * Table.Command.t
     | Set_chart of Node_id.t * Chart_view.Config.t
+    | Set_input_region of Node_id.t * Input_region.Config.t
+    | Set_highlight_scope of Node_id.t * Highlight.Config.t
+    | Set_document_diff of Node_id.t * int64 * Document_diff.Config.t option
+    | Set_styled_text of Node_id.t * Text_content_wire.t
+    | Set_link of Node_id.t * Link_wire.t
+    | Set_text_shimmer of Node_id.t * Text_shimmer_wire.Config.t option
+    | Set_command_binding of Node_id.t * Command_binding_wire.Config.t option
+    | Set_number_input_draft of Node_id.t * string option
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -1105,6 +988,23 @@ module Event = struct
         * int64
         * int64
         * Chart_view.Observation.t
+    | Input_observed of
+        Window_id.t * Node_id.t * Handler_id.t * int64 * Input_region.Event.t
+    | Highlight_observed of
+        Window_id.t * Node_id.t * Handler_id.t * int64 * Highlight.Observation.t
+    | Document_diff_event of
+        Window_id.t
+        * Node_id.t
+        * Handler_id.t
+        * int64
+        * Resource_id.t
+        * Document_diff.Event.t
+    | Command_binding_observed of
+        Window_id.t
+        * Node_id.t
+        * Handler_id.t
+        * int64
+        * Command_binding_wire.Observation.t
   [@@deriving bin_io, equal, sexp_of]
 
   let valid_snapshot (t : Editor.Snapshot.t) =
@@ -1251,6 +1151,14 @@ module Event = struct
       Int64.(revision >= 0L) && Drag_and_drop.Source_sample.is_valid sample
     | Drop_target_event (_, _, _, revision, sample) ->
       Int64.(revision >= 0L) && Drag_and_drop.Target_sample.is_valid sample
+    | Document_diff_event (_, _, _, revision, _, event) ->
+      Int64.(revision >= 0L) && Document_diff.Event.valid event
+    | Command_binding_observed (_, _, _, revision, observation) ->
+      Int64.(revision >= 0L) && Command_binding_wire.Observation.valid observation
+    | Highlight_observed (_, _, _, revision, observation) ->
+      Int64.(revision >= 0L) && Highlight.Observation.valid observation
+    | Input_observed (_, _, _, revision, event) ->
+      Int64.(revision >= 0L) && Input_region.Event.valid event
     | Pointer_event (_, _, _, revision, sample) ->
       Int64.(revision >= 0L && sample.gesture > 0L)
       && List.for_all
@@ -1335,7 +1243,8 @@ module Event = struct
       | Generational_id.Invalid_wire_handle
       | Drag_and_drop.Invalid_wire_data
       | Animation_program.Invalid_wire_batch
-      | File_dialog.Invalid_wire_result ->
+      | File_dialog.Invalid_wire_result
+      | Highlight.Invalid_wire_observation ->
         Or_error.error_string "malformed event envelope")
   ;;
 end

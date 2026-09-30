@@ -1,7 +1,7 @@
-# GPUIO macOS disclosure, outline and table adaptation
+# GPUIO macOS accessibility adaptation
 
 This is the published `accesskit_macos` **0.26.3**, at AccessKit revision
-`c88605b96d04431f9c3c792464a0f2f253480e94`, with four scoped patches.
+`c88605b96d04431f9c3c792464a0f2f253480e94`, with seven scoped patches.
 The upstream MIT/Apache-2.0 notices and both license texts are preserved. Source,
 archive checksum and original per-file checksums are recorded in `UPSTREAM.json`.
 Cargo uses the registry-normalized manifest, retaining its exact dependency ranges.
@@ -52,7 +52,10 @@ state. Actual AppKit tests cover mixed setters before the next application updat
 Reconstruction: download the crate archive from `UPSTREAM.json`, verify its SHA256,
 extract `Cargo.toml`, `Cargo.toml.orig`, README/CHANGELOG and `src/`, then apply
 `patch -p1 < expanded-state.patch` and then `patch -p1 < tree-state.patch` inside
-that directory, followed by `patch -p1 < tree-actions.patch` and `patch -p1 < table-state.patch`. Fetch LICENSE-APACHE and
+that directory, followed by `patch -p1 < tree-actions.patch`, `patch -p1 < table-state.patch`
+and `patch -p1 < document-semantics.patch`, then `patch -p1 < table-headers.patch`
+and `patch -p1 < initial-window-focus.patch`.
+Fetch LICENSE-APACHE and
 LICENSE-MIT from the pinned upstream Git revision and verify their recorded hashes.
 `UPSTREAM.json`, this note and the patches are GPUIO provenance additions. The
 registry archive's Cargo.lock and Cargo cache metadata are not build inputs.
@@ -91,3 +94,56 @@ Press, focus and desired-selection setters. It verifies queued order, a jump to
 row 50,001, unavailable data, pointer-independent accessibility and hidden/disabled
 retirement. Focus assertions activate the local test window; the harness closes
 it on success and failure. This is not VoiceOver speech or Linux GUI evidence.
+
+`document-semantics.patch` corrects the Heading role string to `AXHeading`
+(the same native role already used for DocSubtitle) and implements the legacy
+AppKit AXValue-settable query using the adapter's existing SetValue capability
+predicate. On macOS 14.5, external AX queries reported a read-only code document
+as settable even while `isAccessibilitySelectorAllowed:` returned false with
+read_only=true, text_ranges=false and no SetValue action. The narrow override
+fixes that mismatch and delegates other attribute queries to AppKit.
+
+The gallery's real macOS regression checks Markdown heading/list roles and
+Unicode body text, code/diff values, AXValue not settable, native focus, rejection
+of typing/backspace, collapse and remount. Existing editable fields must still
+accept AXValue replacement. The patch now maps a heading's AccessKit level to its
+numeric AXValue, following [WebKit's macOS heading value mapping](https://chromium.googlesource.com/external/Webkit/+/b4170928e42cb313b7c8304a796879ddb2ff7f12/Source/WebCore/accessibility/mac/WebAccessibilityObjectWrapperMac.mm).
+The painted children continue to supply its text. The external gallery regression
+reads level 1 and checks table row/cell indices through the existing table adapter.
+Ordinary link actions have separate passing evidence; complete rich-link behavior,
+selection ranges and VoiceOver reading remain release work. The expected native heading role is also
+described in [WebKit's heading mapping](https://bugs.webkit.org/show_bug.cgi?id=131920).
+
+`table-headers.patch` exposes the table's current column/row header nodes through
+`accessibilityColumnHeaderUIElements` and `accessibilityRowHeaderUIElements`.
+`accessibilityHeader` returns the nearest shared exposed row/group ancestor of
+the column headers, if one exists below the table. See [Apple's header API](https://developer.apple.com/documentation/appkit/nsaccessibility-c.protocol/accessibilitycolumnheaderuielements)
+and the [Core AAM 1.2 draft table mapping](https://www.w3.org/TR/2026/CRD-core-aam-1.2-20260923/#role-map-table).
+Getters traverse only the current filtered tree, reject hidden/retired tables,
+and stop at nested tables/grids/trees. Returned objects reuse the adapter's
+existing node identities; no synthetic header copies, offscreen materialization
+or new persistent caches are introduced. Column indices correlate these headers
+with cells. This does not implement an AXColumns object model or prove VoiceOver
+column navigation.
+
+The external gallery checks Markdown headers against the actual first-row cells
+and AXHeader against that row, including collapse/remount. The native 100k-row
+table regression checks its two painted headers and shared group, repeats after
+scrolling to logical row 50,001, and verifies retained hidden-table references no
+longer expose headers. The managed table now marks its existing header container
+as RowGroup while preserving the delegate's element identity. Empty row-header
+arrays are correct for these fixtures; row-selection buttons are not row headers.
+
+`initial-window-focus.patch` seeds the window adapter's host-focus state from
+`NSWindow.isKeyWindow` at installation. The pinned GPUI macOS backend can install
+the adapter after AppKit has already made a newly opened window key. Starting
+unconditionally unfocused then suppresses the accessible focused node until a
+later key-window transition, although keyboard editing already works. The
+generic view constructor retains its documented before-first-focus behavior.
+Subsequent focus updates, accessibility tree ownership and action routing are
+unchanged; the patch does not activate windows or synthesize focus events.
+
+The public gallery's Settings two-window regression checks initial `AXFocused`,
+inactive peer state, switching back, actual OS edits, independent resets and the
+surviving window after close. These external getter/input checks do not establish
+VoiceOver speech or focus-notification delivery. No dependency version changes.

@@ -278,3 +278,73 @@ name = "native_table_history"
 path = "tests/native_table_history.rs"
 harness = false
 required-features = ["native-tests"]
+
+[[test]]
+name = "native_input_region"
+harness = false
+required-features = ["native-tests"]
+
+[[test]]
+name = "native_highlight_host"
+harness = false
+required-features = ["native-tests"]
+
+[[test]]
+name = "native_highlight_paint"
+harness = false
+required-features = ["native-image-tests"]
+
+[[test]]
+name = "native_highlight_view"
+harness = false
+required-features = ["native-image-tests"]
+
+[[test]]
+name = "native_highlight_document"
+harness = false
+required-features = ["native-image-tests"]
+
+[[test]]
+name = "native_styled_text"
+harness = false
+required-features = ["native-image-tests"]
+
+[[test]]
+name = "native_link"
+harness = false
+required-features = ["native-image-tests"]
+
+[[test]]
+name = "native_border_style"
+harness = false
+required-features = ["native-image-tests"]
+
+[[test]]
+name = "native_text_shimmer_paint"
+harness = false
+required-features = ["native-image-tests"]
+
+[[test]]
+name = "native_text_shimmer_clock"
+harness = false
+required-features = ["native-image-tests"]
+
+[[test]]
+name = "native_text_shimmer_view"
+harness = false
+required-features = ["native-image-tests"]
+
+[[test]]
+name = "native_aspect_ratio"
+harness = false
+required-features = ["native-image-tests"]
+
+[[test]]
+name = "native_opacity_factor"
+harness = false
+required-features = ["native-image-tests"]
+
+[[test]]
+name = "native_command_binding"
+harness = false
+required-features = ["native-tests"]

@@ -67,6 +67,7 @@ let native ~id ~label ?(enabled = true) ?checked ?(shortcuts = []) action =
 let id t = t.id
 let label t = t.label
 let is_enabled t = t.enabled
+let shortcuts t = t.shortcuts
 
 module Registry = struct
   type 'action command = 'action t

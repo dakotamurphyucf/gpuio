@@ -707,3 +707,32 @@ fn revisioned_mixed_operations_preserve_validity_and_bounded_publication() {
     editor.revision -= 1;
     assert_eq!(state.observe(&editor), Err(Fault::InvalidObservation));
 }
+
+#[test]
+fn explicit_mount_draft_is_independent_from_normalized_committed_value() {
+    for text in ["", "-", "1e-", "invalid", "é", "99"] {
+        let editor = native_snapshot(text);
+        let mut state = State::with_initial_draft(config(), Value::Number(99.), &editor).unwrap();
+        assert_eq!(state.snapshot().draft, text);
+        assert_eq!(state.snapshot().committed, Value::Number(8.));
+        assert!(state.snapshot().composition.is_none());
+        assert!(State::new(config(), Value::Number(99.), &editor).is_err());
+        let mut editor = editor;
+        run(
+            &mut state,
+            &mut editor,
+            &Command::Cancel,
+            Source::Programmatic,
+        );
+        assert_eq!(state.snapshot().draft, "8");
+    }
+    for text in ["x\n", "x\r", "\0"] {
+        assert!(State::with_initial_draft(config(), Value::Empty, &native_snapshot(text)).is_err());
+    }
+    let mut editor = native_snapshot("é");
+    editor.composition = Some(EditorSelection { anchor: 0, head: 2 });
+    assert!(State::with_initial_draft(config(), Value::Empty, &editor).is_err());
+    editor.composition = None;
+    editor.selection.head = 1;
+    assert!(State::with_initial_draft(config(), Value::Empty, &editor).is_err());
+}

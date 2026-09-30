@@ -1,5 +1,7 @@
 //! Real GPUI layout through the production host, including sparse placeholders.
 use super::*;
+#[path = "list_selection_test.rs"]
+mod selection_lifecycle;
 use gpuio_protocol::list::{
     Config, IdRun, Order, Row, ScrollPolicy, ScrollRequest, ScrollTarget, Viewport,
 };
@@ -652,6 +654,7 @@ async fn exercise(cx: &mut gpui::AsyncApp, window: WindowHandle<View>) {
     super::native_test::mouse(cx, window, text_position, false);
     frame(cx, window).await;
     assert!(!selection.upgrade().unwrap().borrow().is_dragging());
+    let recycled = selection_lifecycle::exercise(cx, window).await;
     let owner = window
         .update(cx, |view, _, _| Rc::downgrade(&view.lists[&node(0)]))
         .unwrap();
@@ -659,7 +662,7 @@ async fn exercise(cx: &mut gpui::AsyncApp, window: WindowHandle<View>) {
     remove.extend(
         (1..=11)
             .filter(|id| *id != 2)
-            .map(|id| Op::Remove(node(id))),
+            .map(|id| Op::Remove(if id == 4 { recycled } else { node(id) })),
     );
     remove.push(Op::Remove(node(0)));
     apply(cx, window, remove);
@@ -925,6 +928,274 @@ fn demand_convergence(cx: &mut gpui::AsyncApp, window: WindowHandle<View>) {
     );
 }
 
+// A tall focused row fills the viewport, so native demand lists it only as a
+// pin. Cached neighbours still belong to the same overdraw window on later frames.
+async fn initial_reveal(cx: &mut gpui::AsyncApp, window: WindowHandle<View>, generation: i64) {
+    let root = NodeId::from_parts(0, generation).unwrap();
+    let rows: Vec<_> = (1..=3)
+        .map(|id| Row {
+            id,
+            node: NodeId::from_parts(id, generation).unwrap(),
+        })
+        .collect();
+    apply(
+        cx,
+        window,
+        vec![
+            Op::Create(root, Kind::VirtualList, String::new(), None),
+            Op::SetStyle(root, dimensions(420., 400.)),
+            Op::SetListConfig(
+                root,
+                Config {
+                    estimated_height: 200.,
+                    overscan: 400.,
+                    max_active: 3,
+                    scroll_policy: ScrollPolicy::KeepPosition,
+                    scrollbar: true,
+                    managed: true,
+                },
+            ),
+            Op::SetListOrder(
+                root,
+                Order {
+                    revision: 1,
+                    runs: vec![IdRun { first: 1, count: 3 }],
+                },
+            ),
+            Op::SetRoot(Some(root)),
+            Op::ScrollList(
+                root,
+                ScrollRequest {
+                    serial: 1,
+                    target: ScrollTarget::Reveal(2),
+                },
+            ),
+        ],
+    );
+    layout_frames(cx, window);
+    window
+        .update(cx, |view, _, _| {
+            let state = view.lists[&root].borrow();
+            assert_eq!(state.pending_reveal_row(), Some(2));
+            assert!(state.observed.as_ref().unwrap().requested.contains(&2));
+        })
+        .unwrap();
+    let mut materialize = Vec::new();
+    for (row, height) in rows.iter().zip([900., 650., 240.]) {
+        materialize.extend([
+            Op::Create(row.node, Kind::Text, format!("Reveal row {}", row.id), None),
+            Op::SetStyle(row.node, dimensions(400., height)),
+        ]);
+    }
+    materialize.extend([
+        Op::Splice(root, 0, 0, rows.iter().map(|row| row.node).collect()),
+        Op::SetListRows(root, rows.clone()),
+    ]);
+    apply(cx, window, materialize);
+    frame(cx, window).await;
+    layout_frames(cx, window);
+    window
+        .update(cx, |view, _, _| {
+            let state = view.lists[&root].borrow();
+            assert_eq!(state.pending_reveal_row(), None);
+            assert_eq!(state.observed.as_ref().unwrap().anchor, Some((2, 0.)));
+        })
+        .unwrap();
+
+    // A later explicit offset supersedes an unfinished reveal synchronously.
+    apply(
+        cx,
+        window,
+        vec![
+            Op::ScrollList(
+                root,
+                ScrollRequest {
+                    serial: 2,
+                    target: ScrollTarget::Reveal(3),
+                },
+            ),
+            Op::ScrollList(
+                root,
+                ScrollRequest {
+                    serial: 3,
+                    target: ScrollTarget::Offset(1, 0.),
+                },
+            ),
+        ],
+    );
+    window
+        .update(cx, |view, _, _| {
+            assert_eq!(view.lists[&root].borrow().pending_reveal_row(), None);
+        })
+        .unwrap();
+    layout_frames(cx, window);
+
+    // Real wheel dispatch cancels an intent before a subsequent paint can
+    // apply it, including when the wheel is already at the list boundary.
+    apply(
+        cx,
+        window,
+        vec![Op::ScrollList(
+            root,
+            ScrollRequest {
+                serial: 4,
+                target: ScrollTarget::Reveal(3),
+            },
+        )],
+    );
+    window
+        .update(cx, |view, window, cx| {
+            window.dispatch_event(
+                gpui::PlatformInput::ScrollWheel(gpui::ScrollWheelEvent {
+                    position: gpui::point(px(150.), px(80.)),
+                    delta: gpui::ScrollDelta::Pixels(gpui::point(px(0.), px(75.))),
+                    touch_phase: gpui::TouchPhase::Started,
+                    modifiers: Default::default(),
+                }),
+                cx,
+            );
+            assert_eq!(view.lists[&root].borrow().pending_reveal_row(), None);
+        })
+        .unwrap();
+
+    apply(
+        cx,
+        window,
+        vec![Op::ScrollList(
+            root,
+            ScrollRequest {
+                serial: 5,
+                target: ScrollTarget::Reveal(3),
+            },
+        )],
+    );
+    apply(
+        cx,
+        window,
+        vec![
+            Op::SetListRows(root, rows[..2].to_vec()),
+            Op::Splice(root, 2, 1, vec![]),
+            Op::Remove(rows[2].node),
+            Op::SetListOrder(
+                root,
+                Order {
+                    revision: 2,
+                    runs: vec![IdRun { first: 1, count: 2 }],
+                },
+            ),
+        ],
+    );
+    window
+        .update(cx, |view, _, _| {
+            assert_eq!(view.lists[&root].borrow().pending_reveal_row(), None);
+        })
+        .unwrap();
+    let mut cleanup = vec![Op::SetRoot(None), Op::Remove(root)];
+    cleanup.extend(rows[..2].iter().map(|row| Op::Remove(row.node)));
+    apply(cx, window, cleanup);
+    layout_frames(cx, window);
+    eprintln!(
+        "GPUIO_NATIVE_LIST_INITIAL_REVEAL_OK: unmeasured destination, real sparse materialization, superseding command, user wheel and retirement"
+    );
+}
+
+async fn focused_overdraw(cx: &mut gpui::AsyncApp, window: WindowHandle<View>, generation: i64) {
+    let root = NodeId::from_parts(0, generation).unwrap();
+    let rows: Vec<_> = (1..=3)
+        .map(|id| Row {
+            id,
+            node: NodeId::from_parts(id, generation).unwrap(),
+        })
+        .collect();
+    let mut operations = vec![
+        Op::Create(root, Kind::VirtualList, String::new(), None),
+        Op::SetStyle(root, dimensions(420., 400.)),
+        Op::SetListConfig(
+            root,
+            Config {
+                estimated_height: 200.,
+                overscan: 400.,
+                max_active: 8,
+                scroll_policy: ScrollPolicy::KeepPosition,
+                scrollbar: true,
+                managed: true,
+            },
+        ),
+        Op::SetListOrder(
+            root,
+            Order {
+                revision: 1,
+                runs: vec![IdRun { first: 1, count: 3 }],
+            },
+        ),
+    ];
+    for (row, height) in rows.iter().zip([700., 650., 240.]) {
+        operations.extend([
+            Op::Create(
+                row.node,
+                if row.id == 1 {
+                    Kind::Button
+                } else {
+                    Kind::Text
+                },
+                format!("Focus neighbour {}", row.id),
+                None,
+            ),
+            Op::SetStyle(row.node, dimensions(400., height)),
+        ]);
+    }
+    operations.extend([
+        Op::Splice(root, 0, 0, rows.iter().map(|row| row.node).collect()),
+        Op::SetListRows(root, rows.clone()),
+        Op::SetRoot(Some(root)),
+    ]);
+    apply(cx, window, operations);
+    frame(cx, window).await;
+    layout_frames(cx, window);
+    let observed = |cx: &mut gpui::AsyncApp| {
+        window
+            .update(cx, |view, _, _| {
+                view.lists[&root].borrow().observed.clone().unwrap()
+            })
+            .unwrap()
+    };
+    assert!(
+        observed(cx).requested.contains(&2),
+        "initial trailing neighbour was not measured"
+    );
+    window
+        .update(cx, |view, window, cx| {
+            view.buttons[&rows[0].node].focus.focus(window, cx);
+        })
+        .unwrap();
+    for _ in 0..6 {
+        layout_frame(cx, window);
+        let viewport = observed(cx);
+        assert_eq!((viewport.visible_first, viewport.visible_last), (0, 1));
+        assert_eq!(viewport.pinned, [1]);
+        assert!(
+            !viewport.requested.contains(&1),
+            "pins and demand are disjoint"
+        );
+        assert!(
+            viewport.requested.contains(&2),
+            "focus evicted cached neighbour: {viewport:?}"
+        );
+    }
+    window.update(cx, |_, window, cx| window.blur(cx)).unwrap();
+    layout_frames(cx, window);
+    let viewport = observed(cx);
+    assert!(viewport.pinned.is_empty());
+    assert!(viewport.requested.contains(&1) && viewport.requested.contains(&2));
+    let mut cleanup = vec![Op::SetRoot(None), Op::Remove(root)];
+    cleanup.extend(rows.iter().map(|row| Op::Remove(row.node)));
+    apply(cx, window, cleanup);
+    layout_frames(cx, window);
+    eprintln!(
+        "GPUIO_NATIVE_LIST_FOCUSED_OVERDRAW_OK: sole visible focus pin retains cached neighbour across frames and blur"
+    );
+}
+
 // Traverse every logical row twice with disjoint native identities. Weak probes
 // distinguish dropped payloads/resources from counters that merely look bounded.
 async fn history(cx: &mut gpui::AsyncApp, window: WindowHandle<View>) -> Vec<std::sync::Weak<str>> {
@@ -1135,11 +1406,21 @@ pub(crate) fn run() {
         cx.activate(true);
         cx.spawn(async move |cx| {
             let result = super::native_test::protect(async {
+                if std::env::args().any(|argument| argument == "--focused-overdraw") {
+                    focused_overdraw(cx, window, 1).await;
+                    return;
+                }
+                if std::env::args().any(|argument| argument == "--initial-reveal") {
+                    initial_reveal(cx, window, 1).await;
+                    return;
+                }
                 eprintln!("LIST_TEST applying initial source");
                 apply(cx, window, initial());
                 exercise(cx, window).await;
                 let cached_text = history(cx, window).await;
                 demand_convergence(cx, window);
+                focused_overdraw(cx, window, 2).await;
+                initial_reveal(cx, window, 3).await;
                 window
                     .update(cx, |_, window, _| window.remove_window())
                     .unwrap();

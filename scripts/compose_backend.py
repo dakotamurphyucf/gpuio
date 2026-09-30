@@ -29,7 +29,7 @@ def generate(manifest, output):
     interop = native["dependencies"]["ocaml-interop"]
     dependencies = []
     factories = []
-    source_paths = [root / "rust", root / "vendor/gpui-base", root / "vendor/accesskit-macos", root / "vendor/taffy"]
+    source_paths = [root / "rust", root / "vendor/gpui-base", root / "vendor/gpui", root / "vendor/accesskit-macos", root / "vendor/taffy"]
     component_paths = set()
     if not 1 <= len(config["components"]) <= 64:
         raise ValueError("expected 1..64 component packages")
@@ -81,6 +81,8 @@ ocaml-interop = {{ git = {json.dumps(interop['git'])}, rev = {json.dumps(interop
 ''' + "\n".join(dependencies) + f'\n\n[patch.crates-io]\ngpuio-extension-sdk = {{ path = {json.dumps(relative(root / "rust/extension-sdk"))} }}\n'
     cargo += f'accesskit_macos = {{ path = {json.dumps(relative(root / "vendor/accesskit-macos"))} }}\n'
     cargo += f'taffy = {{ path = {json.dumps(relative(root / "vendor/taffy"))} }}\n'
+    cargo += '\n[patch."https://github.com/zed-industries/zed.git"]\n'
+    cargo += f'gpui = {{ path = {json.dumps(relative(root / "vendor/gpui"))} }}\n'
     registration = f'''// Generated static registration. No OCaml values are stored in components.
 #[ocaml_interop::export]
 pub fn gpuio_{library}_initialize(_cr: &mut ocaml_interop::OCamlRuntime, _unit: ocaml_interop::OCaml<()>) {{

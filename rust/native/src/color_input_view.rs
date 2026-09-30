@@ -254,15 +254,21 @@ impl ColorInput {
         canvas(
             |_, _, _| (),
             move |bounds, _, window, _| {
-                if bounds.size.width > px(0.)
-                    && bounds.size.height > px(0.)
-                    && bounds.intersects(&window.content_mask().bounds)
-                {
+                if bounds.size.width > px(0.) && bounds.size.height > px(0.) {
                     let mut gate = gate.borrow_mut();
                     if editor && focus.is_focused(window) {
                         gate.remember_command_target(node);
                     }
-                    gate.record_part(node, part, focus.clone(), enabled, focus.is_focused(window));
+                    gate.record_part(
+                        node,
+                        part,
+                        super::focus::Target {
+                            handle: focus.clone(),
+                            tab_stop: enabled,
+                            bounds,
+                        },
+                        focus.is_focused(window),
+                    );
                 }
             },
         )
@@ -639,6 +645,8 @@ impl View {
             let s = instance.state.read(cx);
             let reason = if !self.visited.contains(id) || !s.route.gate.borrow().visible(*id) {
                 Some(c::CancelReason::Hidden)
+            } else if s.route.gate.borrow().disabled(*id) {
+                Some(c::CancelReason::Disabled)
             } else if !s.route.gate.borrow().allows(*id) {
                 Some(c::CancelReason::Modal)
             } else if s.capture.is_some() && s.access(true) == Access::Blocked {

@@ -18,6 +18,7 @@ struct Snapshot {
     window: WindowId,
     menu: NodeId,
     config: Arc<MenuConfig>,
+    disabled: bool,
     // Revision is intentionally omitted: unrelated tree commits must not replace
     // menus. Command/scope generations still guard the installed action payload.
     commands: Vec<(String, NodeId, Arc<CommandConfig>, bool)>,
@@ -44,7 +45,12 @@ fn initialize(cx: &mut App) {
         _closed: closed,
     });
 }
-fn items(menu: &MenuDefinition, routes: &BTreeMap<String, (Invoke, bool)>) -> Vec<gpui::MenuItem> {
+fn items(
+    menu: &MenuDefinition,
+    routes: &BTreeMap<String, (Invoke, bool)>,
+    disabled: bool,
+) -> Vec<gpui::MenuItem> {
+    let disabled = disabled || menu.disabled;
     menu.items
         .iter()
         .filter_map(|item| {
@@ -52,13 +58,13 @@ fn items(menu: &MenuDefinition, routes: &BTreeMap<String, (Invoke, bool)>) -> Ve
                 MenuItem::Separator => gpui::MenuItem::separator(),
                 MenuItem::Submenu(menu) => gpui::MenuItem::submenu(
                     gpui::Menu::new(menu.label.clone())
-                        .items(items(menu, routes))
-                        .disabled(menu.disabled),
+                        .items(items(menu, routes, disabled))
+                        .disabled(menu.disabled || disabled),
                 ),
                 MenuItem::Command(id) => {
                     let (action, available) = routes.get(id)?;
                     gpui::MenuItem::action(action.route.config.label.clone(), action.clone())
-                        .disabled(!available)
+                        .disabled(disabled || !available)
                         .checked(action.route.config.checked == Some(true))
                 }
             })
@@ -89,7 +95,7 @@ impl View {
         let origin = self
             .focus
             .borrow()
-            .focused_node(window)
+            .focused_node(window, cx)
             .or_else(|| {
                 self.editors
                     .iter()
@@ -110,7 +116,7 @@ impl View {
     ) {
         if action.window != self.id
             || !window.is_window_active()
-            || !self.focus.borrow().visible(action.menu)
+            || !self.focus.borrow().interactive(action.menu)
         {
             return;
         }
@@ -158,12 +164,14 @@ impl View {
             }
             return;
         };
+        let disabled = self.focus.borrow().disabled(id);
         let routes: BTreeMap<_, _> = config
             .command_ids()
             .into_iter()
             .filter_map(|command| {
                 let route = self.platform_route(tree, id, command, window, cx)?;
-                let available = self.command_available(&route.config, window, cx)
+                let available = !disabled
+                    && self.command_available(&route.config, window, cx)
                     && !self.focus.borrow().blocks_pointer(route.request().scope);
                 Some((
                     command.to_owned(),
@@ -183,6 +191,7 @@ impl View {
             window: self.id,
             menu: id,
             config: config.clone(),
+            disabled,
             commands: routes
                 .iter()
                 .map(|(id, (action, enabled))| {
@@ -200,8 +209,8 @@ impl View {
         }
         cx.set_menus(config.menus.iter().map(|menu| {
             gpui::Menu::new(menu.label.clone())
-                .items(items(menu, &routes))
-                .disabled(menu.disabled)
+                .items(items(menu, &routes, disabled))
+                .disabled(menu.disabled || disabled)
         }));
         cx.global_mut::<Installed>().snapshot = Some(snapshot);
     }

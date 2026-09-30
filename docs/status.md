@@ -5,6 +5,396 @@ Current checkpoint: milestones 1–6 are merged. Milestone 5's
 [required macOS/Linux CI](https://github.com/dakotamurphyucf/gpuio/actions/runs/36312697654)
 passed on `473407c`; all twelve tickets are Done.
 
+The [Settings composition](design/settings-composition.md) now supplies bounded
+Core metadata and a controlled Bonsai sidebar, native split, managed groups,
+responsive field layout, rich slots and explicit reset requests. Deterministic
+tests cover search/navigation, current-state resets, full-length identities,
+responsive control retention and page/row lifetimes. The page-visit test exposed
+and helped repair captured virtual-list effects surviving a generation revisit.
+Typed Boolean/choice/native-field helpers now pass identity/dispatch/semantic
+checks. Public text/numeric examples pass native mount-seed behavior and guarded
+reset commands. Atomic numeric mount seeds now recover unfinished drafts
+independently of committed values, with codec/admission/native command evidence.
+A dedicated Settings gallery now passes scoped keyboard editing, responsive
+identity, search/page draft recovery and export failure/cancellation checks.
+A fresh installed consumer passes those checks plus long-choice keyboard selection
+and Unicode paste. Placement-scoped observations now make unmounted editor resets
+safe; group reset controls, export validation and real native Save/Eio readback
+also pass scoped repository and fresh installed-consumer checks. Expanded repository and consumer checks
+pass pointer/keyboard resizing, custom-policy resets, focused-row retention and
+eviction across 48 groups, and independent two-window keyboard edits. A native
+warm-row overlap fix repairs navigation after focusing a tall row. The
+[initial second-window AX focus mismatch](evidence/window-accessibility-och17.md)
+is repaired with a scoped adapter initialization patch and passing two-window
+OS input/focus checks. Native [disabled subtrees](design/disabled-subtrees.md)
+now preserve discoverable controls while blocking input, stale AX/menu actions
+and active gestures; the public Settings gallery and a fresh installed consumer
+pass disabled-state and retained-identity checks. Actual US dead-key checks now
+pass composition retention across layout/theme/size changes, guarded and partial
+resets, commit/undo/redo and text/numeric owner retirement. They exposed and
+helped repair a window-level macOS input-context leak into the next editor.
+Rapid page/group navigation also exposed a reveal against estimated list heights;
+the destination now remains requested until its actual row is painted, with
+supersession, user-input cancellation and a scoped native sparse-row regression.
+The installed-consumer field matrix additionally passes all six standard control
+kinds across 24 variant/size/layout/theme cases, numeric bounds and saved-value
+remount/reset. Together with deterministic/native reset guards, the
+[acceptance map](design/settings-composition.md#local-source-row-acceptance-map--2026-09-30)
+now establishes local Settings source-row equivalence. Broader IME, other catalog
+reviews and release acceptance remain open.
+
+The [mounted native binding observer](design/command-binding-observations.md)
+now connects paired transport, Core View callbacks, Eio delivery and a Bonsai
+pending/latest-value adapter. A focused local macOS test passes actual widget
+bindings, child-driven composition changes, context/config/epoch replacement,
+coalescing, visibility recovery and cleanup. Core and native admission/lifecycle
+checks pass, and Bonsai tests preserve child state while fencing stale observation
+effects. The public gallery and a fresh installed-library consumer now pass
+20 live binding/name/identity cases, actual OS Copy and command invocation,
+query/config/page retirement and unchanged-epoch silence. Expanded native matrices
+pass nested shadowing/phase precedence, modal focus/restoration, sparse retained-row
+suspension/eviction, bounded-work recovery and independent-window close/reuse.
+The Kbd source row is locally a functional equivalent; Settings, the remaining
+catalog reviews and release gates are still open.
+
+[Typed keyboard labels](design/keyboard-labels.md) now format validated shortcuts
+for macOS/Linux, supply spoken names and filled/outline/plain keycaps, and expose
+ordered command declarations. Core/full Dune and a fresh installed consumer pass
+native geometry, GPU appearance, identity and explicit registration/disabled/routing
+checks. Effective native focus/context lookup is now implemented with scoped native
+and public gallery/consumer evidence above; whole-release acceptance work remains.
+
+The [rich Description list](design/description-lists.md) now provides validated
+column/span packing, rich term/value slots, both axes, label widths, sizes, borders
+and separators while preserving keyed native children. Four Core tests and full
+Dune pass; repository and fresh installed-consumer checks pass 75 layout/semantic
+order cases, 34 GPU cases, OS actions, draft/control retention and slot/page
+retirement. The source row is locally a functional equivalent. Settings,
+other catalog reviews and OCH-17 release gates remain open.
+
+The [rich Bubble/Message adapters](design/chat-composition.md) now provide typed
+surfaces/reactions, optional message slots, independent alignment and Ghost inset
+metadata. Core/full Dune checks and a fresh installed consumer pass scoped native
+geometry, GPU paint, keyboard/pointer actions, editor retention, streaming and
+cleanup. The managed transcript exposed a list/ancestor double-scroll defect;
+its [repair](evidence/scrolling-och11.md#milestone-07-managed-list-inside-an-ordinary-scroller)
+passes failing-before/native and actual desktop regressions. Native list history,
+selection/editor lifetimes, strict Clippy and 413 unit tests pass. The two source
+rows are locally functional equivalents; Settings and the wider
+catalog/release gates remain open.
+
+The [rich Tag adapter](design/presentation-tags.md) now supplies direct rich
+children, semantic/custom palettes, outline, size groups and native hover styles.
+Core checks pass; a fresh installed consumer passes 28 palette/outline GPU cases,
+native hover override/unset, size and reorder geometry, rich-only/empty content,
+30 OS actions and slot/page retirement with preserved caller state. The source
+row is locally a functional equivalent; wider catalog and release gates remain open.
+
+The [rich Alert adapter](design/presentation-alerts.md) now supplies typed variants,
+sizes, Card/Banner layouts, optional rich slots and a localized native close button.
+Core/full Dune checks pass. The repository gallery and fresh installed consumer
+pass 20 theme/variant/banner cases, eight size layouts, 21 OS body actions,
+disabled close, keyboard/pointer dismissal and control retirement. The consumer
+also passes GPU tint/border checks. The source row is locally a functional
+equivalent; the presentation family and wider release gates remain open.
+
+The [rich Marker adapter](design/presentation-markers.md) now provides typed
+Plain/Separator/Border composition, icon/content slots and native Spinner/Shimmer
+loading. Core validation/style/identity checks and the focused macOS gallery pass.
+A fresh installed consumer passes 18 theme/variant/icon cases and 21 OS keyboard
+actions, GPU text/rich/static paint, opacity refinement, reduced-motion recovery
+and page/slot retirement. The source row is locally a functional equivalent;
+Settings remains in the presentation review, alongside other
+catalog and OCH-17 release gates; Bubble/Message evidence is recorded above.
+
+Native [animation opacity factors](design/animation-opacity-factor.md) now supply
+the styling primitive for rich Marker loading. The bounded factor multiplies
+base/interaction opacity without adding a layout wrapper; absolute opacity remains
+unchanged. Independent bytes, validation and atomic rejection checks pass locally.
+A background macOS GPU fixture passes base/state/ancestor/descendant composition,
+layout, native pulse timing, reduced-motion idle and owner teardown. Rich Marker
+composition now has public gallery/consumer evidence above; wider release
+acceptance remains open.
+
+The [rich Attachment adapter](design/presentation-attachments.md) now composes
+typed status, size, axis, media/content/action slots and whole-card activation.
+Core checks cover retained identities/current callbacks, slot retirement, shimmer
+inheritance, image-only opacity and theme-relative alpha. The focused public macOS
+gallery passes 20 theme/layout/status cases, real keyboard and pointer actions,
+shielded action gaps/disabled buttons, decoded-image sizing and page teardown.
+A fresh installed consumer also passes decode-failure recovery, direct card
+pointer/accessibility activation and zero image/source counts after departure.
+Installed-consumer GPU checks additionally pass title motion/static restoration,
+image/overlay/description tinting, pending dashed paint, reduced-motion recovery,
+horizontal scroll and vertical parent routing. They exposed an invisible default
+dark highlight, repaired with an explicit white highlight. The Attachment source
+row is now locally validated as a functional equivalent; other catalog and release
+gates remain open. This does not establish Linux GUI, screen-reader or application
+performance acceptance.
+
+Native [aspect ratio](design/native-aspect-ratio.md) now exposes preferred
+proportional layout through validated styles, paired transport and capability bit
+50. Background GPU checks cover resizing, padded percentage widths, explicit
+dimensions, transferred min/max constraints and state/unset behavior. The public
+gallery and a fresh installed-library consumer pass twelve theme/ratio/width
+cases, thirteen keyboard actions, native identity/focus retention and page
+remount. This supplies the square-media primitive used by richer attachments;
+the broader release gates remain open.
+
+The [text-shimmer adapter](design/text-shimmer.md) now connects Core/Bonsai,
+validated live transport and native retained rendering. The mounted background
+fixture passes actual glyph paint, wrapped selection/copy, foreground spans,
+search underlays, native source accessibility labels, application-theme overrides,
+visibility/opacity/clipping, independent windows and owner disposal before app
+shutdown. An equal-text update regression also verifies that owners share the
+current Tree source allocation without restarting the effect. These complement the independent
+painter/clock matrices; they do not establish foreground keyboard/IME, screen-reader
+or whole-application idle/performance acceptance. A public gallery preview is
+implemented. Native retained-tab, responsive-branch and managed-row
+pause/eviction/remount checks now pass. They exposed and helped repair a hidden
+search-scope redraw loop and last-scope native-visibility recovery; the full
+mounted highlighting regression also passes. A shared per-window overlay budget
+now has native boundary, static-fallback, pause/recovery and independent-window
+evidence. Public normal-launch and independently installed consumer checks now
+pass eight theme/width/direction combinations, real keyboard Unicode Copy and
+effect toggling, identity, one-shot playback, reduced motion and page remount.
+They exposed a native clock defect that excluded visible layout time; a
+failing-before deterministic regression and passing public checks cover the
+repair. Marker integration now has scoped evidence above; measured application
+performance remains open. No shimmer capability is advertised yet.
+
+The [finite style-value audit](evidence/style-finite-values-och41.md) now covers
+seven keyword sets with pinned native GPUIX sources. Grid count/minimum and
+text-decoration replacement differences are explicit; paired OCaml/Rust bytes,
+atomic validation and native refinement checks pass locally without GUI windows.
+Fourteen further [native keyword sets](evidence/style-native-aliases-och41.md) now
+record aliases and state-local unset semantics against GPUIX's exact GPUI
+submodule. Alignment helper/refinement and layer-merge tests pass. The [numeric/shorthand audit](evidence/style-numeric-policies-och41.md) records
+limits, percentage and Auto/sign semantics, byte/count limits and ordered
+composition for 47 more field rows. Independent OCaml/native validation checks
+and atomic rejection pass; specialized-root behavior and release gates remain
+open.
+
+Solid and dashed border patterns now have a typed `Style.Border_style` API and
+negotiated field 67/bit 49. The [border contract](design/native-border-styles.md)
+records paired bytes, atomic invalid-value rejection, state-local resets and
+72 background GPU cases covering widths, radii, resizing and individual edges.
+Native hover/press transitions and idle teardown pass. The public style-gallery
+card also passes 16 normal-launch AX geometry/identity/state cases in both the
+repository app and a fresh installed-library consumer. Empty integration now also
+passes its scoped native consumer checks, as does pending-border paint in the
+Attachment adapter. Whole-release acceptance remains separate work.
+
+The richer [separator composition](design/presentation-separators.md) now exposes
+both axes, labels, solid/dashed patterns and independent slot styling without
+changing the original helper. Core identity/refinement checks and a fresh installed
+consumer pass 32 native geometry/state cases plus twelve long-label clipping/reset
+cases. Captured pixels verify the clip in both themes. The Separator source row
+is locally validated as a functional equivalent; wider release gates remain open.
+
+Ordinary two-axis containers now preserve diagonal scrolling. The new native
+[scroll regression](evidence/scrolling-och11.md#milestone-07-parity-two-axis-containers)
+reproduced a dropped Y component and now passes precise/discrete diagonals,
+boundary propagation, hovered-axis changes and retained-owner teardown alongside
+the existing nested transcript/composer/popup/modal suite. Physical trackpad,
+public-gallery and Linux desktop acceptance remain separate.
+
+Milestone 07 is in progress. OCH-41's public
+catalog now has an initial [presentation behavior review](catalog/presentation-review.md).
+The missing status-bar center region is implemented and passes 48 actual macOS
+gallery theme/size/slot combinations with geometry, keyboard and identity checks.
+Overlay badges now provide capped counts, zero hiding, dots and SVG icons while
+preserving the existing text-chip helper. Local native checks pass 36 kind/size/
+theme cases and 72 pointer/Return activations, uncapped AX labels, underlying
+control identity and scoped asset cleanup. Enhanced labels now supply inline
+secondary text, Unicode-aware prefix/all-match coloring and display masking.
+Local gallery checks pass 48 theme/width/configuration cases with real keyboard
+copy, native identity, masked AX source and cleanup. Group boxes now expose plain,
+filled and outline body panels plus independent header/body/footer styles, retaining
+the original card default. Local native checks pass 64 layout/theme/style/slot
+cases with checked-state/identity retention, 128 pointer/Return actions and page
+teardown/remount; the combined core gallery and full Dune checks pass. The
+presentation family remains only partially reviewed.
+Rich empty-state slots now add independently styled media/title/description,
+content and extras while retaining the string helper. Core tests and a native
+16-case gallery matrix pass layout, wrapping, action/focus identity and teardown;
+a scoped decoded-image case also passes. The [Empty review](catalog/presentation-review.md#empty-state-rich-slots)
+records the precise coverage and a functional-equivalent source mapping. A fresh
+installed-library consumer now passes 16 layout, ten border and twelve proportional
+typography cases with real keyboard actions, retained state/focus and scoped cleanup.
+The [composed-link review](design/composed-links.md) now records validated rich
+content, retained ownership and signed Tab policy through OCaml/Rust codecs,
+native admission and View/Bonsai rendering. Native and public-gallery checks pass
+image/avatar/loading/animation content, inherited styles, outer highlight scopes,
+one action/focus owner and scoped cleanup. A loading-child focus-entry defect and
+a nested SDK Tab-boundary defect have failing-before regressions and passing fixes.
+The gallery covers eight base cases plus rich previews with 42 native actions.
+Measured scroll reveal, fixed clipping, range thumbs, modal restoration and nearest
+extension focus ownership also pass locally on unlocked macOS. Earlier locked-
+desktop waits are excluded from acceptance.
+Composed links now negotiate bit 48 (`CAP_LINKS`); highlighting remains separately
+unadvertised. Paired Hello fixtures and session rejection tests cover the new
+required mask. A fresh installed-library consumer now passes all 42 Link native
+activations, focus/Tab/reveal, disabled recovery and scoped cleanup checks. Both
+Link source rows are locally validated functional equivalents; whole-release
+gates and the other presentation modules remain open.
+The remaining presentation modules have a
+[pinned behavior/gap review](catalog/presentation-gaps.md), including nested settings
+fields. These implementation plans and source snapshots do not mark the families
+accepted; settings composition
+remain, alongside the other catalog reviews.
+The [ordinary text-span API](design/text-content.md) now supplies bounded
+foreground runs through atomic bridge updates and View/Bonsai reconciliation.
+Local checks cover native GPU paint, wrapping, selection/copy and source AX labels.
+The public label helper and gallery build on this same text primitive.
+OCH-41's public
+[Component Studio](../examples/gallery/README.md) now has twenty-four preview sections, including Settings,
+including canvas, images/icons, charts, native motion, responsive layouts, native extensions, input/transfers, input observations, desktop services and styling details. The [gallery evidence](evidence/gallery-och41.md) records
+local macOS interaction, geometry, gallery expect tests, formatting and structural
+catalog checks, separately from earlier native document/Clippy regression checks.
+The current catalog maps every required v1 family to a gallery page. Detailed
+behavioral parity and release gates are still pending. The earlier 23-section
+walkthrough passes on both the repository application and a fresh independent
+consumer of installed public libraries. The consumer backend builds with its
+independent lockfile; this does not establish clean-machine distribution. The
+independent [Signal Studio consumer](evidence/signal-studio-och29.md) also passes
+its self-test and full AppKit input/layout/lifetime walkthrough locally. The
+[event audit](catalog/gpuix-events.json) records validated input contracts and remaining subtree
+highlighting and diff-control gaps. The [highlighting foundation](evidence/subtree-highlighting-och41.md)
+now has paired validated configuration, bounded text/range projections, an
+owned background-work pool, retained scope declarations, validated observation
+routing, bounded retained-tree collection, a GPUI executor service and an
+independently verified shaped-text highlight painter. Mounted ordinary/selectable
+text now passes GPU painting, queued observations, cosmetic reuse, source and
+visibility updates, and unmount cleanup. Installed code/diff/source-mode pages
+now pass rounded GPU highlights, selection precedence, native page/collapse changes,
+streaming revision replacement and owner disposal. Prepared Markdown headings,
+formatted/inline-code text, fences, tables and wrapped paragraphs now also pass
+focused native GPU/selection/streaming/collapse/cleanup checks. Declared custom
+text, literal HTML and image placeholders now share that painter; decoded images
+remove placeholder matches without changing document revisions. Focused native
+checks now also pass for 100k logical-list row reuse and independent windows;
+scroll clipping, retained tabs/disclosures and responsive branch changes now also
+have focused native evidence. Animated navigation now verifies selected-route
+counts and pixels, interrupted slides, reduced motion and transition disposal.
+Ordinary styled roots now pass native hover/pressed/focus visibility, hidden-base
+overrides, display-none and restyle checks. A pinned GPUI core patch now restores
+pressed-hide elements on release, cancels stale activation and passes controls
+regressions. Remaining style parity and application performance/resource
+acceptance are still open. sRGB/Oklab gradient interpolation now has an explicit public API, paired bytes,
+native validation, GPU midpoint checks and a public gallery toggle; see the
+[gradient evidence](evidence/gradient-color-spaces-och41.md). The public Find &
+highlight gallery now demonstrates
+live queries, ranges, nested exclusions, selected matches and growing/collapsed
+Markdown, with focused local native interaction evidence. Targeted Hebrew/Arabic
+and mixed-direction GPU checks now pass after fixing reordered-glyph range
+geometry; full typography/input acceptance
+remains broader than these cases. The gallery page count does
+not imply parity. Document selection colors now inherit and restore defaults with
+source/Markdown GPU evidence; the [selection audit](design/selection-style-audit.md)
+now records inherited document selection-disable behavior, restored native Markdown
+drag/copy through the window selection layer, retained focus-trap Copy isolation,
+and passing document/UI/editor/control regressions. Ordinary text now participates
+in window selection with scoped Copy, source retirement, whitespace preservation
+and mapped truncation. The new native fixture covers cross-node drag, keyboard
+Shift-click, reorder and hidden endpoint retirement. A mixed ordinary/Markdown
+fixture also checks focus-independent Copy, local Select All, source replacement
+and endpoint removal. Ordinary selection also passes independent-window Copy,
+close/reopen release and managed endpoint eviction/rematerialization checks.
+Guarded interior-row eviction now also verifies surviving endpoints, released
+payloads, current-generation rejoining and selected-source retirement.
+Ordinary pointer projection now preserves extended graphemes and uses shaped
+visual cells, with focused left/center/right, Hebrew/Arabic, soft-wrap and LF/CRLF
+Copy evidence. Native word/caret hits and keyboard-to-Shift-click anchors now use
+that geometry too, with focused accented/Hebrew/Arabic and whole-grapheme evidence.
+Two independent Markdown documents now pass shared Copy, local Select All, reorder,
+source replacement, unmount and node-generation reuse checks. Measured macOS
+pointer Copy source/code/table controls also pass with selection disabled, and
+Markdown single/double/triple-click drags respect inherited disable. Broader
+typography/input, mixed document modes, virtualization and the complete accessibility
+matrix remain open. General input regions now have mounted Core/Bonsai/native
+integration, native edge-case and public gallery evidence; remaining consumer/
+release acceptance stays open in the [input ledger](evidence/input-observations-och41.md). Start ellipsis and the complete cursor vocabulary now have
+paired codec, native validation and focused gallery evidence. OCH-17 is also in progress: the
+[native document accessibility repair](evidence/document-accessibility-och17.md)
+now exposes body text, read-only source/code, keyboard/AX inline-link activation
+and distant-link reveal. Parsed heading levels now reach macOS AXValue; Markdown
+tables expose row/cell structure with distinct identities and indices. The focused
+gallery passes level 1, wrapping-table counts/Unicode reading order and repeated
+collapse/remount. Table header queries now reuse painted cell/container identities;
+Markdown and 100k logical-row managed-table regressions pass, including far-row
+navigation and hidden-header retirement. Rich text/code and safe image-placeholder
+links now have one accessible name/action, ordered text, keyboard focus and queued navigation in the public
+fixture. Direct macOS AX focus now selects and reveals rich and ordinary links
+without activation, using the document's native focus owner and guarded current
+presentation. The full document walkthrough, focused retained-collapse check,
+native ownership/reset regressions and 225 Base text tests pass locally.
+Decoded image alternatives now have named Image nodes, single linked targets and
+silent decorative semantics in a public gallery preview. The explicit-empty-text
+parser defect is fixed; exact native reading order, focus/activation, collapse and
+remount pass with 226 Base text tests and seven native parser tests.
+The dark Markdown table-body contrast finding is also repaired: the native
+adapter supplies the document surface independently of Base's global theme.
+Actual GPU checks cover both table render paths, repeated appearance switches,
+painted colors and contrast; full document/selection/highlighting and public
+gallery regressions pass, with light/dark screenshots inspected. Custom-control
+accessibility, selection/ranges, complete
+table and screen-reader behavior remain open. The Base initial-render failure
+reproduced on unchanged `dc25013` is now fixed by applying the initial selection
+setting at keyed-state construction. Its unchanged threshold and all 224 text/
+selection tests pass; application idle/performance budgets remain separate. The post-reset collapse race now has a deterministic
+native regression and a generation-aware interaction repair. The full document
+walkthrough passes again; earlier fence-reveal timeouts remain recorded without
+an independently established cause. No full document
+screen-reader or Linux desktop acceptance is claimed.
+
+Deferred overlay, tooltip/hover-card, toast/stack and context-menu highlighting
+now passes native count/GPU/lifetime checks. Floating-panel visibility preserves
+its anchor; role swaps and child replacement reject obsolete samples. Toast stack
+state styles now apply consistently with individual notifications. The full
+native controls regression passes. See the [deferred visibility evidence](evidence/subtree-highlighting-och41.md#deferred-surface-visibility);
+document wrapper hover/press/focus visibility also passes source/Markdown GPU and
+retention checks, with an active-only hitbox correction in the pinned GPUI patch.
+Native diff gutter folding also passes source-byte geometry, hidden-row painting,
+selection precedence and result-reuse checks; folded/scrolled-out byte-range lookup
+now rejects positions that have no laid-out text. Remaining style/diff API parity,
+catalog and release gates are still open.
+
+Diff preparation now records bounded per-file metadata with shared path labels,
+paired old/new line coordinates and exact payload byte ranges. File boundaries
+close the preceding hunk; a native two-file test verifies that folding preserves
+the next header and its highlights. This is a foundation for the pending per-file
+collapse, line-limit/show-more and richer callback APIs, not completion of them.
+`Document.Diff` now has validated configuration/event domain values, paired
+standalone OCaml/Rust codecs and tested native managed/controlled state. Additive
+live transport, Core/Bonsai callbacks, configuration epochs and source-revision
+checks now have integration tests. Controlled collapse and preview settings now
+drive a mounted native editor with mapped selection, navigation, bounded pages,
+canonical search/raw return and additional shared-pool memory admission. Native
+GPU checks verify projected highlights, selection, hunk folding and owner disposal.
+Show more now passes native pointer/keyboard/macOS accessibility activation,
+managed/controlled observations, focus repair and retired-action rejection.
+Rich line observations now pass native pointer/Enter/toolbar-AX checks for exact
+Unicode/CRLF payloads, old/new coordinates, drag/gutter exclusion and installed
+revision provenance. Per-file gutter controls and metadata now pass native
+pointer, Tab/Space/Enter, macOS AX, managed/controlled state, callback replacement,
+scrolling alignment and focus cleanup checks. Source text remains selectable in
+the same editor. Filename-based syntax now uses separate old/new language contexts,
+bounded background work and complete diff-color fallback. Word emphasis pairs
+equal-length replacement groups and preserves syntax styling when disabled. The
+public gallery and an independently installed consumer now pass focused native
+diff controls, line events, streaming and theme/size/reset checks. Wide headers
+now pass actual horizontal-scroll geometry/clipping checks, and a native selection
+regression fixes file-button presses clearing selected source text. Streamed
+selection/copy and bounded-page focus retirement also pass. Combined
+gallery/consumer, performance and release gates remain; see the
+[diff controls evidence](evidence/diff-controls-och41.md).
+
+The macOS-first/Linux-deferral policy [PR #15](https://github.com/dakotamurphyucf/gpuio/pull/15)
+merged at `af7f6f0c0f9db1c64a8591d9e9a078aa73eacdec` after both required jobs in
+[CI run 36453260976](https://github.com/dakotamurphyucf/gpuio/actions/runs/36453260976)
+passed. These are the policy PR's checks, not hosted acceptance of the new gallery.
+
 Milestone 6's [PR #14](https://github.com/dakotamurphyucf/gpuio/pull/14) merged at
 `bdbae672c97b046fca5d7e0a0f5bb779e24cfd01` after
 [required macOS/Linux CI](https://github.com/dakotamurphyucf/gpuio/actions/runs/36432631460)

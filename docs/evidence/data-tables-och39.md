@@ -616,6 +616,14 @@ results, and the full OCH-39 completion audit is still pending.
 
 ## Native AppKit table semantics (2026-09-26)
 
+Milestone 07 follow-up (2026-09-29): the table's header arrays now reference the
+painted header cells, and AXHeader identifies their shared RowGroup. The native
+100k-row host regression verifies both headers before/after scrolling to row
+50,001 and checks that a retained hidden-table reference exposes no old headers.
+The existing input/clipboard/selection/style/lifetime suite still passes. See
+[header relationship evidence](document-accessibility-och17.md#table-header-relationships--2026-09-29)
+for exact commands and the separate VoiceOver/column-navigation boundary.
+
 The retained host's actual NSAccessibility objects now pass:
 
 - 100,000 logical data rows and two columns while mounted table/row/cell/header/

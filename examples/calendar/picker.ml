@@ -63,6 +63,18 @@ let selection actual expected =
   E.of_thunk (fun () -> assert (C.Selection.equal actual expected))
 ;;
 
+let draft stage picker =
+  match P.draft picker with
+  | Some snapshot -> snapshot
+  | None ->
+    raise_s
+      [%message
+        "Picker draft is not ready"
+          (stage : string)
+          ~is_open:(P.is_open picker : bool)
+          ~error:(P.error picker : Policy.Error.t option)]
+;;
+
 let cancel_during_confirmation picker =
   E.Expert.of_fun ~f:(fun ~callback ->
     E.Expert.eval (P.confirm picker) ~f:callback;
@@ -107,9 +119,7 @@ let exercise
   let%bind () = error closed Not_open in
   let%bind first = reopen () in
   let%bind () = E.of_thunk (fun () -> assert (P.is_open first)) in
-  let%bind () =
-    selection (C.Snapshot.selection (P.draft first |> Option.value_exn)) initial
-  in
+  let%bind () = selection (C.Snapshot.selection (draft "initial open" first)) initial in
   let%bind _ = replace first partial in
   let%bind rejected = P.confirm first in
   let%bind () = error rejected Incomplete_range in
@@ -131,7 +141,7 @@ let exercise
   let%bind () = settle window in
   let%bind third = reopen () in
   let%bind () =
-    selection (C.Snapshot.selection (P.draft third |> Option.value_exn)) replacement
+    selection (C.Snapshot.selection (draft "reopen after cancel" third)) replacement
   in
   let%bind () = P.cancel second in
   let%bind () = settle window in
@@ -150,7 +160,7 @@ let exercise
   let%bind () = settle window in
   let%bind remounted = current () in
   let%bind () =
-    selection (C.Snapshot.selection (P.draft remounted |> Option.value_exn)) replacement
+    selection (C.Snapshot.selection (draft "placement remount" remounted)) replacement
   in
   let%bind obsolete = P.confirm third in
   let%bind () = error obsolete (Native Stale_input) in
@@ -202,7 +212,7 @@ let exercise
   let%bind historical = reopen () in
   let%bind () =
     selection
-      (C.Snapshot.selection (P.draft historical |> Option.value_exn))
+      (C.Snapshot.selection (draft "restricted reopen" historical))
       C.Selection.empty
   in
   let%bind () = selection !application_value initial in
@@ -230,7 +240,7 @@ let exercise
   let%bind () = error stale Stale_session in
   let%bind single = reopen () in
   let%bind () =
-    selection (C.Snapshot.selection (P.draft single |> Option.value_exn)) single_initial
+    selection (C.Snapshot.selection (draft "single-mode open" single)) single_initial
   in
   let single_replacement = C.Selection.single (day "2024-03-01") |> ok in
   let%bind _ = replace single single_replacement in

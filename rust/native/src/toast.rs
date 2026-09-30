@@ -48,9 +48,9 @@ fn inherit_interaction(mut interaction: Interaction, styles: &[Style]) -> Intera
             for field in fields {
                 match field {
                     Field::PointerEvents(value) => interaction.pointer = *value,
-                    Field::UserSelect(value) => interaction.selectable = *value,
+                    Field::UserSelect(value) => interaction.selectable = Some(*value),
                     Field::SelectionColor(value) => {
-                        interaction.selection_color = super::color(value)
+                        interaction.selection_color = Some(super::color(value))
                     }
                     _ => (),
                 }
@@ -356,8 +356,22 @@ impl View {
             .gap(px(8.))
             .overflow_y_scroll()
             .on_hover(move |hover, window, cx| input(owner.clone(), id, Some(*hover), window, cx));
-        let (styled, _) = super::apply_styles(stack, &node.style, interaction, false);
+        let (styled, states) = super::apply_styles(stack, &node.style, interaction, false);
         stack = styled;
+        let [focused, hover, pressed, _, _, _, _] = states;
+        if let Some(style) = focused
+            && handle.contains_focused(window, cx)
+        {
+            gpui::Refineable::refine(stack.style(), &style);
+        }
+        if interaction.pointer {
+            if let Some(style) = hover {
+                stack = stack.hover(move |_| style);
+            }
+            if let Some(style) = pressed {
+                stack = stack.active(move |_| style);
+            }
+        }
         for child in node.children.iter() {
             stack = stack.child(self.element(tree, *child, interaction, window, cx));
         }
@@ -380,7 +394,9 @@ impl View {
             .map_or(0, |parent| self.focus.borrow().layer(parent))
             + 1;
         deferred(super::overlay::ViewportSurface {
-            content: frame.child(stack).into_any_element(),
+            content: frame
+                .child(super::highlight_style::Frame::new(stack, node, &self.focus))
+                .into_any_element(),
         })
         .with_priority(priority)
         .into_any_element()
@@ -510,12 +526,13 @@ impl View {
             canvas(
                 |_, _, _| (),
                 move |bounds, _, window, _| {
-                    if bounds.intersects(&window.content_mask().bounds) {
+                    if bounds.size.width > px(0.) && bounds.size.height > px(0.) {
                         gate.borrow_mut().record(
                             id,
                             record.clone(),
                             true,
                             record.is_focused(window),
+                            bounds,
                         );
                     }
                 },
@@ -553,7 +570,7 @@ impl View {
         crate::semantics::State {
             hidden: false,
             metadata: None,
-            element: panel,
+            element: super::highlight_style::Frame::new(panel, node, &self.focus),
             disabled: false,
             read_only: false,
             modal: false,

@@ -25,12 +25,59 @@ and retained canvas scene registration have separate capability bits. Canvas
 registration alone does not advertise a rendered canvas widget. Extension payloads
 require a registered schema and its bounded package-specific validation.
 Managed trees advertise bit 39 and managed tables bit 40, separately from the
-original retained-view-tree bit. Both language halves require the shared mask
-`2199023255551`; an older host fails capability negotiation instead of accepting
-unsupported tree/table input or commands.
+original retained-view-tree bit. Desktop integration, OS notifications and charts
+use bits 41–43. Extended cursor values and start ellipsis require bit 44
+(`CAP_STYLE_VALUES`); general input regions require bit 45 (`CAP_INPUT_REGIONS`).
+Explicit pointer/wheel occlusion requires bit 46 (`CAP_POINTER_OCCLUSION`) and
+appends style field 66 with native-default/pointer/pointer-and-scroll values 0–2.
+Atomic ordinary text foreground spans require bit 47 (`CAP_STYLED_TEXT`) and
+append Op59 `Set_styled_text`. Composed passive-content links require bit 48
+(`CAP_LINKS`), Kind51 `Link` and Op60 `Set_link`; their root owns one action/focus
+target. Solid/dashed border patterns require bit 49 (`CAP_BORDER_STYLES`) and
+append field 67 `Border_style` with values 0/1. Native proportional layout requires
+bit 50 (`CAP_ASPECT_RATIO`) and appends field 68 `Aspect_ratio` with a validated
+float width/height ratio. Multiplicative native animation opacity requires bit 51
+(`CAP_OPACITY_FACTOR`) and appends animation property tag 11 `Opacity_factor`,
+a finite factor in [0,1] mutually exclusive with absolute opacity in one target.
+Mounted command binding observations require bit 52 (`CAP_COMMAND_BINDINGS`),
+Op62 `Set_command_binding` and event 66 `Command_binding_observed`. Atomic numeric
+draft mount seeds require bit 53 (`CAP_NUMBER_INPUT_DRAFT`) and Op63
+`Set_number_input_draft (node, string option)`. The seed is bounded to 4096 UTF-8
+bytes without NUL/CR/LF, independent of the normalized committed value. Native
+creation consumes it; retained editors ignore seed changes. None restores the
+default formatted-value seed, while Some empty text is an explicit empty draft.
+The paired Core adapter sends the seed only when creating a numeric node.
+Inherited disabled subtrees require bit 54 (`CAP_DISABLED_SUBTREES`) and append
+Boolean style field 69 `Disabled`. It is base-only and preserves accessible
+roles/names/values while denying native input/focus and accessibility actions.
+An ancestor's true declaration cannot be overridden by a descendant's false.
+See [disabled subtrees](disabled-subtrees.md) for ownership and popup semantics.
+Both language halves require the current shared mask `36028797018963967`;
+an older host fails capability negotiation instead of accepting
+unsupported input, commands or style values. Existing style field tags and value
+IDs are unchanged: cursor additions occupy 10–21 and start ellipsis occupies 2.
 Correlated open/close/frame requests are distinct from per-window transactions.
 Acceptance and rendering are distinct events; rendering does not assert physical
 screen presentation. The client submits one transaction per window at a time.
+
+OCH-41's experimental text shimmer appends Op61 `Set_text_shimmer` with a node
+and optional validated configuration. It decorates ordinary Text; `None` clears
+without replacing the node or its source/spans. Native admission limits active
+sources to 16,384 UTF-8 bytes and reserves 1,024 payload bytes per declaration
+within existing window/session budgets. Core/Bonsai reconciliation, atomic
+retained-tree admission and mounted rendering are implemented. The experimental
+configuration now includes optional concrete appearance colors/mode; its standalone
+bound is 64 bytes. Capability advertisement remains pending public acceptance. See [the contract](text-shimmer.md). Existing tags
+and the current capability mask remain unchanged during this development stage.
+
+OCH-41's highlighting integration appends Kind50 `Highlight_scope`, Op57
+`Set_highlight_scope` and Event64 `Highlight_observed`. Configuration and optional
+observer bindings are validated; each observation carries a positive scope-local
+epoch plus typed state. Ready contains up to 16 total/stored counts, bounded before
+decoding allocation and checked against the bound configuration. These additions
+are under development: no highlighting capability is advertised until scheduling,
+painting and public native acceptance are complete. See the
+[highlighting contract](subtree-highlighting.md).
 
 Create chooses immutable node kind. Text/style/binding updates preserve identity.
 Style lists replace the previous list, so absent properties reset; repeated

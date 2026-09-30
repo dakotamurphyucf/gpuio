@@ -1,0 +1,210 @@
+open Core
+open Gpuio
+module B = Bonsai.Cont
+module V = Gpuio_bonsai.View
+
+let ok = Or_error.ok_exn
+let style = Style.create_exn
+let px = Length.px_exn
+let source = "/workspace/projects/native-studio/src/main.ml"
+
+let cursors : (string * Style.Cursor.t) array =
+  [| "Arrow", Arrow
+   ; "Text", Ibeam
+   ; "Pointer", Pointer
+   ; "Crosshair", Crosshair
+   ; "Move", Move
+   ; "Not allowed", Not_allowed
+   ; "Horizontal resize", Resize_horizontal
+   ; "Vertical resize", Resize_vertical
+   ; "Grab", Grab
+   ; "Grabbing", Grabbing
+   ; "Vertical text", Ibeam_vertical
+   ; "Column resize", Resize_column
+   ; "Row resize", Resize_row
+   ; "Northwest–southeast resize", Resize_nw_se
+   ; "Northeast–southwest resize", Resize_ne_sw
+   ; "Left resize", Resize_left
+   ; "Right resize", Resize_right
+   ; "Up resize", Resize_up
+   ; "Down resize", Resize_down
+   ; "Alias", Alias
+   ; "Copy", Copy
+   ; "Context menu", Context_menu
+  |]
+;;
+
+let component palette graph =
+  let aspect_preview = Aspect_preview.component palette graph in
+  let index, next =
+    B.state_machine0
+      ~default_model:0
+      ~apply_action:(fun _ index () -> (index + 1) % Array.length cursors)
+      graph
+  in
+  let narrow, toggle_width = B.toggle ~default_model:false graph in
+  let oklab, toggle_space = B.toggle ~default_model:false graph in
+  let dashed, toggle_pattern = B.toggle ~default_model:true graph in
+  let thick, toggle_stroke = B.toggle ~default_model:false graph in
+  let rounded, toggle_corners = B.toggle ~default_model:true graph in
+  let open B.Let_syntax in
+  let%arr p = palette
+  and aspect_preview = aspect_preview
+  and index = index
+  and next = next
+  and narrow = narrow
+  and toggle_width = toggle_width
+  and oklab = oklab
+  and toggle_space = toggle_space
+  and dashed = dashed
+  and toggle_pattern = toggle_pattern
+  and thick = thick
+  and toggle_stroke = toggle_stroke
+  and rounded = rounded
+  and toggle_corners = toggle_corners in
+  let label, cursor = cursors.(index) in
+  let width = if narrow then 140. else 250. in
+  let sample label overflow =
+    V.column
+      ~style:(style [ Gap (px 6.); Shrink 0. ])
+      [ Palette.text p ~muted:true label
+      ; V.text
+          ~key:(Key.of_string_exn label)
+          ~style:
+            (style
+               [ Width (px width)
+               ; Font_size 16.
+               ; Font_family "Menlo"
+               ; Foreground (Palette.foreground p)
+               ; White_space No_wrap
+               ; Text_overflow overflow
+               ; Overflow Hidden
+               ])
+          source
+      ]
+  in
+  let gradient =
+    Background.linear_gradient_in
+      (if oklab then Background.Color_space.Oklab else Srgb)
+      ~angle:90.
+      ~from:(Color.rgb_exn 0xff0000, 0.)
+      ~to_:(Color.rgb_exn 0x0000ff, 1.)
+    |> ok
+  in
+  V.column
+    ~style:(style [ Gap (px 20.) ])
+    [ Palette.card
+        p
+        ~title:"Keep the part that matters"
+        [ Palette.text
+            p
+            ~muted:true
+            "Truncation changes the painted text. The full path remains available to \
+             assistive technology."
+        ; Palette.button
+            p
+            (if narrow then "Widen text previews" else "Narrow text previews")
+            toggle_width
+        ; Palette.text p (sprintf "Text preview width: %.0f" width)
+        ; V.row
+            ~style:(style [ Gap (px 20.); Wrap Wrap ])
+            [ sample "Clip" Clip
+            ; sample "End ellipsis" Ellipsis
+            ; sample "Start ellipsis" Ellipsis_start
+            ]
+        ]
+    ; Palette.card
+        p
+        ~title:"A cursor for the task"
+        [ Palette.button p "Next cursor" (next ())
+        ; Palette.text
+            p
+            (sprintf "Cursor %d of %d: %s" (index + 1) (Array.length cursors) label)
+        ; (V.column
+             ~style:
+               (style
+                  [ Width (px 340.)
+                  ; Height (px 100.)
+                  ; Padding (px 20.)
+                  ; Radius 12.
+                  ; Background (Background.solid (Palette.background p))
+                  ; Border_width 1.
+                  ; Border_color (Palette.accent p)
+                  ; Cursor cursor
+                  ])
+             [ Palette.text p "Move your pointer over this surface" ]
+           |> fun view ->
+           V.with_accessibility
+             view
+             (Accessibility.create ~role:Group ~label:"Cursor preview surface" () |> ok)
+           |> ok)
+        ; Palette.text
+            p
+            ~muted:true
+            "Cursor artwork follows the platform. Column and horizontal resize share a \
+             shape on macOS, as do row and vertical resize."
+        ]
+    ; Palette.card
+        p
+        ~title:"A boundary with character"
+        [ Palette.text
+            p
+            ~muted:true
+            "Solid or dashed. Subtle or bold. Borders keep their shape as your layout \
+             changes."
+        ; V.row
+            ~style:(style [ Gap (px 12.); Wrap Wrap ])
+            [ Palette.button p "Change border pattern" toggle_pattern
+            ; Palette.button p "Change border weight" toggle_stroke
+            ; Palette.button p "Change border corners" toggle_corners
+            ]
+        ; Palette.text
+            p
+            (sprintf
+               "Border: %s · %d px · %s"
+               (if dashed then "dashed" else "solid")
+               (if thick then 4 else 1)
+               (if rounded then "rounded" else "square"))
+        ; (V.column
+             ~key:(Key.of_string_exn "border-preview")
+             ~style:
+               (style
+                  [ Width (px 340.)
+                  ; Height (px 90.)
+                  ; Padding (px 20.)
+                  ; Border_width (if thick then 4. else 1.)
+                  ; Border_style (if dashed then Dashed else Solid)
+                  ; Border_color (Palette.accent p)
+                  ; Radius (if rounded then 16. else 0.)
+                  ; Background (Background.solid (Palette.background p))
+                  ])
+             [ Palette.text p "A place for your next idea" ]
+           |> fun view ->
+           V.with_accessibility
+             view
+             (Accessibility.create ~role:Group ~label:"Border preview surface" () |> ok)
+           |> ok)
+        ]
+    ; Palette.card
+        p
+        ~title:"Color between the stops"
+        [ Palette.text
+            p
+            ~muted:true
+            "The same two colors, blended in different color spaces."
+        ; Palette.button p "Change gradient interpolation" toggle_space
+        ; Palette.text p (if oklab then "Interpolation: Oklab" else "Interpolation: sRGB")
+        ; (V.column
+             ~style:
+               (style
+                  [ Width (px 340.); Height (px 72.); Radius 12.; Background gradient ])
+             []
+           |> fun view ->
+           V.with_accessibility
+             view
+             (Accessibility.create ~role:Group ~label:"Gradient preview surface" () |> ok)
+           |> ok)
+        ]
+    ; aspect_preview
+    ]
+;;

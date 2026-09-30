@@ -136,9 +136,17 @@ impl TextViewSelectionAdapter {
                     return String::new();
                 };
                 let state = view.read(cx);
+                // A restyle can disable selection before the frame-end sweep
+                // removes this participant's previous registration.
+                if !state.is_selectable() {
+                    return String::new();
+                }
                 let last = state.parsed_content.document.blocks.len().saturating_sub(1);
                 let blocks = blocks_for_copy.borrow().block_range(selection_id, last);
-                state.selected_text_in(blocks)
+                // Normalize this renderer's paragraph-edge separators here.
+                // Trimming the window result would also strip neighboring plain
+                // text and make Copy depend on which participant has focus.
+                state.selected_text_in(blocks).trim().to_string()
             },
             cx,
         );

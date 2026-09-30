@@ -118,17 +118,28 @@ jobs:
           ./scripts/gpuio exec cargo clippy --locked -p gpuio-table-adapter --features native-tests --all-targets -- -D warnings
           ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_ui --no-run
           ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_editor --no-run
-          ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_controls --test native_table_host --test native_table_history --no-run
-          ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_scroll --test native_list --test native_document --test native_window --test native_tabs --test native_navigation --test native_tree --test native_carousel --test native_hover_card --test native_split --test native_extension --no-run
+          ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_controls --test native_command_binding --test native_table_host --test native_table_history --no-run
+          ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_scroll --test native_list --test native_highlight_host --test native_document --test native_window --test native_tabs --test native_navigation --test native_tree --test native_carousel --test native_hover_card --test native_split --test native_extension --no-run
           ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_animation --test native_animation_program --test native_presentation --test native_slider --test native_number_input --test native_otp_input --test native_calendar --test native_color_input --test native_drag_drop --test native_file_dialog --no-run
           ./scripts/gpuio exec cargo clippy --locked -p gpuio-native --features native-tests --all-targets -- -D warnings
-          ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-image-tests --test native_images --test native_image_views --test native_container_query --test native_presentation --test native_slider --test native_number_input --test native_otp_input --test native_calendar --test native_color_input --no-run
+          ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-image-tests --test native_images --test native_text_shimmer_paint --test native_text_shimmer_clock --test native_text_shimmer_view --test native_styled_text --test native_border_style --test native_aspect_ratio --test native_opacity_factor --test native_link --test native_highlight_paint --test native_highlight_view --test native_highlight_document --test native_image_views --test native_container_query --test native_presentation --test native_slider --test native_number_input --test native_otp_input --test native_calendar --test native_color_input --no-run
           ./scripts/gpuio exec cargo clippy --locked -p gpuio-native --features native-image-tests --all-targets -- -D warnings
           ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-canvas-tests --test native_canvas --test native_canvas_view --test native_canvas_input --test native_chart_paint --test native_chart_view --test native_chart_input --no-run
           ./scripts/gpuio exec cargo clippy --locked -p gpuio-native --features native-canvas-tests --all-targets -- -D warnings
       - name: Independent native extension consumer
         id: extension-consumer
         run: python3 scripts/test_extension_consumer.py 2>&1 | tee .cache/ci/extension-consumer.log
+      - name: Independent public gallery consumer
+        id: gallery-consumer
+        run: python3 scripts/test_extension_consumer.py --example gallery 2>&1 | tee .cache/ci/gallery-consumer.log
+      - name: macOS Settings keyboard composition
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 3
+        run: python3 scripts/test_gallery.py --section settings-composition --images .cache/ci/settings-composition 2>&1 | tee .cache/ci/macos-settings-composition.log
+      - name: macOS Settings field retention
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 3
+        run: python3 scripts/test_gallery.py --section settings-fields --images .cache/ci/settings-fields 2>&1 | tee .cache/ci/macos-settings-fields.log
       - name: Independent Signal Studio consumer
         id: signal-consumer
         run: |
@@ -196,7 +207,7 @@ jobs:
       - name: macOS public runtime checks
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
         run: |
-          python3 -c 'import subprocess; [subprocess.run(["_build/default/examples/runtime/main.exe", flag], check=True, timeout=90) for flag in ["--self-test", "--shutdown-test", "--last-window-test"]]' 2>&1 | tee .cache/ci/macos-runtime.log
+          python3 -c 'import subprocess; [subprocess.run(["_build/default/examples/runtime/main.exe", flag], check=True, timeout=90) for flag in ["--self-test", "--shutdown-test", "--last-window-test", "--worker-backtrace-test"]]' 2>&1 | tee .cache/ci/macos-runtime.log
           python3 -c 'import subprocess; [subprocess.run(["_build/default/examples/runtime/bench.exe", str(windows)] + mode, check=True, timeout=90) for windows in [1, 4] for mode in [[], ["--clock"]]]' 2>&1 | tee .cache/ci/macos-runtime-measurements.log
           _build/default/examples/runtime/bench_input.exe 2>&1 | tee .cache/ci/macos-runtime-input-core.log
       - name: macOS typed UI checks
@@ -208,6 +219,68 @@ jobs:
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
         run: |
           python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-tests", "--test", "native_controls"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-controls-native.log
+      - name: macOS native binding observation checks
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 - <<'PY' 2>&1 | tee .cache/ci/macos-command-binding-native.log
+          import os, signal, subprocess
+          process = subprocess.Popen(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-tests", "--test", "native_command_binding"], start_new_session=True)
+          try:
+              result = process.wait(timeout=90)
+          except subprocess.TimeoutExpired:
+              os.killpg(process.pid, signal.SIGTERM)
+              try:
+                  process.wait(timeout=5)
+              except subprocess.TimeoutExpired:
+                  os.killpg(process.pid, signal.SIGKILL)
+                  process.wait()
+              raise
+          raise SystemExit(result)
+          PY
+      - name: macOS native input-region checks
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-tests", "--test", "native_input_region"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-input-region-native.log
+      - name: macOS highlight worker lifecycle checks
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-tests", "--test", "native_highlight_host"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-highlight-host-native.log
+      - name: macOS shaped highlight paint checks
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-image-tests", "--test", "native_highlight_paint"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-highlight-paint-native.log
+      - name: macOS mounted highlight view checks
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-image-tests", "--test", "native_highlight_view"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-highlight-view-native.log
+      - name: macOS ordinary styled text checks
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-image-tests", "--test", "native_styled_text"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-styled-text-native.log
+      - name: macOS native text shimmer checks
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-image-tests", "--test", "native_text_shimmer_paint", "--test", "native_text_shimmer_clock", "--test", "native_text_shimmer_view"], check=True, timeout=180)' 2>&1 | tee .cache/ci/macos-text-shimmer-native.log
+      - name: macOS native border style checks
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-image-tests", "--test", "native_border_style"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-border-style-native.log
+      - name: macOS native aspect ratio checks
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-image-tests", "--test", "native_aspect_ratio"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-aspect-ratio-native.log
+      - name: macOS native opacity factor checks
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-image-tests", "--test", "native_opacity_factor"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-opacity-factor-native.log
+      - name: macOS composed link checks
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-image-tests", "--test", "native_link"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-link-native.log
+      - name: macOS native document highlighting checks
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-image-tests", "--test", "native_highlight_document"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-highlight-document-native.log
       - name: macOS native drag-drop and public lifecycle checks
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
         run: |
@@ -487,13 +560,13 @@ jobs:
           python3 - <<'PY'
           import json, os
           from pathlib import Path
-          result = {"required": False, "deferred_acceptance": "OCH-17",
+          result = {"required": False, "deferred_acceptance": "OCH-47",
                     "x11": os.environ["GPUIO_X11_OUTCOME"],
                     "wayland": os.environ["GPUIO_WAYLAND_OUTCOME"]}
           Path(".cache/ci").mkdir(parents=True, exist_ok=True)
           Path(".cache/ci/linux-gui-status.json").write_text(json.dumps(result, indent=2) + "\n")
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
-              summary.write("Linux GUI checks are informational; full acceptance is tracked in OCH-17.\n\n")
+              summary.write("Linux GUI checks are informational; full acceptance is tracked in OCH-47.\n\n")
               summary.write(f"X11: {result['x11']}; Wayland: {result['wayland']}\n")
           PY
       - name: Record environment

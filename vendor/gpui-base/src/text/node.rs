@@ -360,10 +360,25 @@ impl BlockNode {
 #[allow(unused)]
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct LinkMark {
+    /// Source identity shared by styled/line-wrapped pieces of one Markdown link.
+    pub source_start: Option<usize>,
     pub url: SharedString,
     /// Optional identifier for footnotes.
     pub identifier: Option<SharedString>,
     pub title: Option<SharedString>,
+}
+
+impl LinkMark {
+    pub(super) fn resolved(&self, references: &HashMap<SharedString, LinkMark>) -> Self {
+        let mut link = self
+            .identifier
+            .as_ref()
+            .and_then(|id| references.get(id))
+            .unwrap_or(self)
+            .clone();
+        link.source_start = self.source_start;
+        link
+    }
 }
 
 #[derive(Debug, Default, Clone, PartialEq)]
@@ -486,7 +501,7 @@ pub(crate) struct InlineNode {
     /// The text styles, each tuple contains the range of the text and the style.
     pub(crate) marks: Vec<(Range<usize>, TextMark)>,
 
-    state: Arc<Mutex<InlineState>>,
+    pub(super) state: Arc<Mutex<InlineState>>,
 }
 
 impl PartialEq for InlineNode {
@@ -1279,7 +1294,7 @@ impl Paragraph {
 #[derive(Debug, Clone)]
 pub struct CodeBlock {
     lang: Option<SharedString>,
-    state: Arc<Mutex<InlineState>>,
+    pub(super) state: Arc<Mutex<InlineState>>,
     highlight_cache: Arc<Mutex<Option<CachedCodeBlockHighlights>>>,
     pub span: Option<Span>,
 }
@@ -1477,6 +1492,7 @@ impl CodeBlock {
 /// A context for rendering nodes, contains link references.
 #[derive(Default, Clone)]
 pub(crate) struct NodeContext {
+    pub(crate) displayed_text: Option<Arc<super::DisplayedText>>,
     /// The byte offset of the node in the original markdown text.
     /// Used for incremental updates.
     pub(crate) offset: usize,
@@ -1665,11 +1681,7 @@ impl Paragraph {
                         });
 
                         // convert link references, replace link
-                        if let Some(identifier) = link_mark.identifier.as_ref() {
-                            if let Some(mark) = node_cx.link_refs.get(identifier) {
-                                link_mark = mark.clone();
-                            }
-                        }
+                        link_mark = link_mark.resolved(&node_cx.link_refs);
 
                         links.push((inner_range.clone(), link_mark));
                     }
@@ -1742,13 +1754,7 @@ impl Paragraph {
                 for (_, mark) in &inline_node.marks {
                     object_style = object_style.highlight(mark_highlight(mark, node_cx, cx).style);
                     if let Some(link) = &mark.link {
-                        object_link = Some(
-                            link.identifier
-                                .as_ref()
-                                .and_then(|id| node_cx.link_refs.get(id))
-                                .unwrap_or(link)
-                                .clone(),
-                        );
+                        object_link = Some(link.resolved(&node_cx.link_refs));
                         object_style.color = Some(node_cx.style.link());
                         object_style.underline = Some(gpui::UnderlineStyle {
                             thickness: px(1.),
@@ -1756,13 +1762,40 @@ impl Paragraph {
                         });
                     }
                 }
+                let linked = object_link.is_some();
                 let rendered_node = node.clone();
                 let extensions = node_cx.markdown_extensions.clone();
+                let projected = node_cx
+                    .displayed_text
+                    .as_ref()
+                    .and_then(|source| source.object_text(node));
                 items.push(InlineFlowItem::Object {
                     text: node.shared_text(),
+                    // A missing/invalid non-text element must not silently turn
+                    // its copy/AX alternative into unprojected fallback glyphs.
+                    fallback_text: node_cx
+                        .displayed_text
+                        .as_ref()
+                        .is_some_and(|source| source.object_is_non_text(node))
+                        .then(SharedString::default),
                     accessibility_label: node.shared_accessibility_name(),
                     id: node.source_range().map_or(items.len(), |range| range.start),
                     renderer: Arc::new(move |context, window, cx| {
+                        if let Some(state) = &projected {
+                            return Some(super::InlineElement::new(
+                                div().min_w(px(1.)).min_h(px(1.)).child(
+                                    Inline::new(
+                                        "projected-object",
+                                        state.clone(),
+                                        vec![],
+                                        vec![],
+                                        None,
+                                    )
+                                    .passive()
+                                    .suppress_semantics(linked),
+                                ),
+                            ));
+                        }
                         extensions.render_inline(&rendered_node, context, window, cx)
                     }),
                     selected: inline_node.custom_selection.clone(),
@@ -1813,11 +1846,7 @@ impl Paragraph {
                             ..Default::default()
                         });
 
-                        if let Some(identifier) = link_mark.identifier.as_ref()
-                            && let Some(mark) = node_cx.link_refs.get(identifier)
-                        {
-                            link_mark = mark.clone();
-                        }
+                        link_mark = link_mark.resolved(&node_cx.link_refs);
 
                         links.push((inner_range.clone(), link_mark));
                     }
@@ -2179,6 +2208,7 @@ impl BlockNode {
                 ..
             } => v_flex()
                 .id(("li", options.ix))
+                .role(gpui::Role::ListItem)
                 .w_full()
                 .min_w_0()
                 .when(*spread, |this| this.child(div()))
@@ -2421,6 +2451,13 @@ impl BlockNode {
                 cells.push(
                     div()
                         .id(("cell", ix))
+                        .role(if row_ix == 0 {
+                            gpui::Role::ColumnHeader
+                        } else {
+                            gpui::Role::Cell
+                        })
+                        .aria_row_index(row_ix)
+                        .aria_column_index(ix)
                         // Measured max-content width is the flex-basis;
                         // `flex_grow` (proportional to it) distributes extra
                         // space so a narrow table still fills the frame, while
@@ -2445,7 +2482,9 @@ impl BlockNode {
             }
             rows.push(
                 div()
-                    .id("row")
+                    .id(("row", row_ix))
+                    .role(gpui::Role::Row)
+                    .aria_row_index(row_ix)
                     .w_full()
                     .when(row_ix < row_count - 1, |this| this.border_b_1())
                     .border_color(style.border())
@@ -2489,7 +2528,14 @@ impl BlockNode {
                     // shrink-to-fit (their text wrapping), the definite
                     // `w(min_total_w)` keeps the floors once they are reached,
                     // letting the track exceed the viewport and scroll.
-                    div().min_w_full().w(px(min_total_w)).children(rows),
+                    div()
+                        .id("table-data")
+                        .role(gpui::Role::Table)
+                        .aria_row_count(row_count)
+                        .aria_column_count(col_count)
+                        .min_w_full()
+                        .w(px(min_total_w))
+                        .children(rows),
                 ),
             )
             // Custom actions row (e.g. copy / download) rendered below the
@@ -2537,6 +2583,13 @@ impl BlockNode {
                 cells.push(
                     div()
                         .id(("cell", ix))
+                        .role(if row_ix == 0 {
+                            gpui::Role::ColumnHeader
+                        } else {
+                            gpui::Role::Cell
+                        })
+                        .aria_row_index(row_ix)
+                        .aria_column_index(ix)
                         .overflow_hidden()
                         .when(align == ColumnumnAlign::Center, |this| this.text_center())
                         .when(align == ColumnumnAlign::Right, |this| this.text_right())
@@ -2554,7 +2607,9 @@ impl BlockNode {
 
             rows.push(
                 div()
-                    .id("row")
+                    .id(("row", row_ix))
+                    .role(gpui::Role::Row)
+                    .aria_row_index(row_ix)
                     .w_full()
                     .when(row_ix < row_count - 1, |this| this.border_b_1())
                     .border_color(style.border())
@@ -2578,6 +2633,9 @@ impl BlockNode {
             .child(
                 div()
                     .id(("table", options.ix))
+                    .role(gpui::Role::Table)
+                    .aria_row_count(row_count)
+                    .aria_column_count(col_lens.len())
                     .w_full()
                     .bg(cx.theme().tokens.colors.surface)
                     .border_1()
@@ -2625,6 +2683,7 @@ impl BlockNode {
                 .into_any_element(),
             BlockNode::Paragraph(paragraph) => div()
                 .id(("p", ix))
+                .role(gpui::Role::Paragraph)
                 .pb(mb)
                 .child(paragraph.render(node_cx, window, cx))
                 .into_any_element(),
@@ -2648,6 +2707,8 @@ impl BlockNode {
 
                 div()
                     .id(SharedString::from(format!("h{}-{}", level, ix)))
+                    .role(gpui::Role::Heading)
+                    .aria_level(*level as usize)
                     .pb(rems(0.3))
                     .whitespace_normal()
                     .text_size(text_size)
@@ -2679,6 +2740,7 @@ impl BlockNode {
                 children, ordered, ..
             } => v_flex()
                 .id((if *ordered { "ol" } else { "ul" }, ix))
+                .role(gpui::Role::List)
                 .w_full()
                 .min_w_0()
                 .pb(mb)
@@ -2710,6 +2772,19 @@ impl BlockNode {
                 .into_any_element(),
             BlockNode::CodeBlock(code_block) => code_block.render(&options, node_cx, window, cx),
             BlockNode::Custom(node) => {
+                if let Some(state) = node_cx
+                    .displayed_text
+                    .as_ref()
+                    .and_then(|source| source.object_text(node))
+                {
+                    return div()
+                        .pb(mb)
+                        .child(
+                            Inline::new(("projected-block", ix), state, vec![], vec![], None)
+                                .passive_block(),
+                        )
+                        .into_any_element();
+                }
                 let inner = match node_cx.markdown_extensions.render_block(node, window, cx) {
                     Some(rendered) => rendered,
                     None => div().child(node.as_text().to_string()).into_any_element(),

@@ -23,16 +23,20 @@ pub mod chart_view;
 pub mod color_input;
 pub mod color_value;
 mod command;
+pub mod command_binding;
 pub mod container_query;
 mod decode;
 pub mod desktop;
 pub mod document;
+pub mod document_diff;
 pub mod drag_drop;
 pub mod extension;
 pub mod file_dialog;
 pub mod file_path;
+pub mod highlight;
 mod id;
 pub mod image;
+pub mod input;
 pub mod list;
 pub mod loading;
 mod menu;
@@ -68,8 +72,14 @@ pub use id::{HandlerId, NodeId, ResourceId, WindowId};
 
 pub mod progress;
 
+pub mod link;
 pub mod table;
+pub mod text_content;
+pub mod text_shimmer;
+pub use decode::decode_link_config;
+pub use decode::decode_text_shimmer_config;
 pub mod toast;
+pub use decode::decode_text_content;
 pub mod tree_input;
 
 pub mod pointer;
@@ -81,3 +91,9 @@ pub mod split;
 pub mod numeric;
 
 pub mod slider;
+
+pub use decode::{decode_document_diff_config, decode_document_diff_event};
+pub use decode::{decode_highlight_config, decode_highlight_observation};
+pub use decode::{decode_input_config, decode_input_event};
+
+pub use decode::{decode_command_binding_config, decode_command_binding_observation};

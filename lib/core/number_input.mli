@@ -15,6 +15,17 @@ module Value : sig
   val of_float : float -> t Or_error.t
 end
 
+module Draft : sig
+  (** A mount seed, independent of the committed value. Single-line UTF-8 without
+      NUL, at most 4096 bytes. Empty, incomplete and invalid numeric expressions
+      are permitted; classification and committing use the current domain.
+      This contains no native selection, undo history or IME composition. *)
+  type t [@@deriving equal, sexp_of]
+
+  val of_string : string -> t Or_error.t
+  val to_string : t -> string
+end
+
 module Step_controls : sig
   type t =
     | Hidden

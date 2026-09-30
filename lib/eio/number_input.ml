@@ -77,13 +77,14 @@ let create window ~config ~initial ?on_event graph =
   }
 ;;
 
-let view ?style t =
+let view ?style ?initial ?initial_draft ?(on_event = fun _ -> Bonsai.Effect.Ignore) t =
   Gpuio.View.number_input
     ?style
     ~controller:t.controller
     ~config:t.config
-    ~initial:t.initial
-    ~on_event:t.on_event
+    ~initial:(Option.value initial ~default:t.initial)
+    ?initial_draft
+    ~on_event:(fun event -> Bonsai.Effect.Many [ t.on_event event; on_event event ])
     ()
 ;;
 

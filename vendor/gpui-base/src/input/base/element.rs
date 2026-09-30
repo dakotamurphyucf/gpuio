@@ -464,6 +464,12 @@ impl<M: InputModeKind> TextElement<M> {
 
         let active_id = state.active_selection().id;
         let mut scroll_offset = state.scroll_handle.offset();
+        // Resolve the request against this layout before using it for either
+        // caret or text geometry. Clamping only when storing the painted state
+        // leaves one frame at the unbounded requested offset.
+        let deferred_scroll_offset = state
+            .deferred_scroll_offset
+            .map(|offset| state.clamp_scroll_offset(offset, scroll_size, bounds.size));
         let mut current_row = None;
         let mut cursor_infos: Vec<CursorRenderInfo> = Vec::with_capacity(state.selections.len());
 
@@ -605,8 +611,7 @@ impl<M: InputModeKind> TextElement<M> {
             // Match the caret to the deferred scroll target (applied below) that
             // the text paints at; otherwise the caret follows the cursor-scroll
             // while the text uses the deferred offset, flashing it mid-field.
-            let cursor_scroll_x = state
-                .deferred_scroll_offset
+            let cursor_scroll_x = deferred_scroll_offset
                 .map(|offset| offset.x)
                 .unwrap_or(scroll_offset.x);
 
@@ -630,7 +635,7 @@ impl<M: InputModeKind> TextElement<M> {
             });
         }
 
-        if let Some(deferred_scroll_offset) = state.deferred_scroll_offset {
+        if let Some(deferred_scroll_offset) = deferred_scroll_offset {
             scroll_offset = deferred_scroll_offset;
         }
         scroll_offset.y = clamp_auto_grow_vertical_scroll_offset(
@@ -933,7 +938,21 @@ impl<M: InputModeKind> TextElement<M> {
         }
 
         let mut scroll_top = if let Some(deferred_scroll_offset) = state.deferred_scroll_offset {
-            deferred_scroll_offset.y
+            // Select source rows using the current content extent, before
+            // shaping. Ignore completion ghost rows here: they can extend the
+            // final scroll extent, but cannot introduce earlier source rows.
+            // This conservatively shapes at most one viewport of source rows;
+            // layout_cursors resolves the final offset including ghost height.
+            let height = line_height * total_lines
+                + empty_bottom_height(
+                    state.is_code_editor(),
+                    state.scroll_beyond_last_line,
+                    input_height,
+                    line_height,
+                );
+            deferred_scroll_offset
+                .y
+                .clamp((input_height - height).min(px(0.)), px(0.))
         } else {
             state.scroll_handle.offset().y
         };
@@ -1014,8 +1033,15 @@ impl<M: InputModeKind> TextElement<M> {
             px(0.)
         };
 
-        if state.mode.is_folding() {
-            // Add extra space for fold icons
+        if state.mode.is_folding()
+            || (state.readonly
+                && !state.soft_wrap
+                && state
+                    .row_adornments
+                    .as_ref()
+                    .is_some_and(|entries| entries.values().any(|entry| entry.gutter.is_some())))
+        {
+            // Row controls share the fold slot, including when no hunks exist.
             line_number_width += FOLD_ICON_HITBOX_WIDTH
         }
 
@@ -1617,6 +1643,8 @@ struct CursorRenderInfo {
 }
 
 pub(super) struct PrepaintState {
+    row_adornments: Vec<(Bounds<Pixels>, AnyElement)>,
+    range_backgrounds: Option<Rc<dyn crate::input::RangeBackgrounds>>,
     /// The lines of entire lines.
     last_layout: LastLayout,
     /// The lines only contains the visible lines in the viewport, based on `visible_range`.
@@ -1978,6 +2006,18 @@ impl<M: InputModeKind> Element for TextElement<M> {
                 )
                 .width;
         }
+        // Conservative extent: the longest source line plus the widest suffix.
+        // The original text layout and selection coordinates remain unchanged.
+        let row_adornments = (state.readonly && state.is_code_editor() && !state.soft_wrap)
+            .then(|| state.row_adornments.clone())
+            .flatten();
+        if let Some(entries) = &row_adornments {
+            longest_line_width += entries
+                .values()
+                .map(|entry| entry.suffix_width)
+                .max()
+                .unwrap_or(px(0.));
+        }
         last_layout.lines = Rc::new(lines);
 
         let (ghost_first_line, ghost_lines) = Self::layout_inline_completion(
@@ -2136,10 +2176,91 @@ impl<M: InputModeKind> Element for TextElement<M> {
                 cursor_scroll_offset,
                 state,
             )));
+        let range_backgrounds = state
+            .readonly
+            .then(|| state.extras.range_backgrounds())
+            .flatten();
         let fold_icon_layout =
             self.layout_fold_icons(original_x, &bounds, &last_layout, window, cx);
 
+        let mut adornment_elements = Vec::new();
+        let begin_adornments = self.state.read(cx).row_adornment_begin.clone();
+        if let Some(begin) = begin_adornments {
+            begin();
+        }
+        if let Some(entries) = row_adornments {
+            let text_left = original_x + last_layout.line_number_width;
+            let text_mask = input_bounds.intersect(&Bounds::new(
+                point(text_left, input_bounds.top()),
+                size(
+                    (input_bounds.right() - text_left).max(px(0.)),
+                    input_bounds.size.height,
+                ),
+            ));
+            let mut y = bounds.origin.y + last_layout.visible_top;
+            let align_scroll = match last_layout.text_align {
+                TextAlign::Right => (scroll_size.width - bounds.size.width).max(px(0.)),
+                TextAlign::Center => (scroll_size.width - bounds.size.width).half().max(px(0.)),
+                TextAlign::Left => px(0.),
+            };
+            for (line, row) in last_layout
+                .lines
+                .iter()
+                .zip(&last_layout.visible_buffer_lines)
+            {
+                if let Some(adornment) = entries.get(row) {
+                    let gutter = Bounds::new(
+                        point(
+                            original_x + last_layout.line_number_width
+                                - LINE_NUMBER_RIGHT_MARGIN
+                                - FOLD_ICON_HITBOX_WIDTH,
+                            y,
+                        ),
+                        size(FOLD_ICON_HITBOX_WIDTH, line_height),
+                    );
+                    let width = line.size(line_height).width;
+                    let suffix = Bounds::new(
+                        point(
+                            bounds.origin.x
+                                + last_layout.line_number_width
+                                + align_scroll
+                                + last_layout.alignment_offset(width)
+                                + width,
+                            y,
+                        ),
+                        size(adornment.suffix_width, line_height),
+                    );
+                    for (renderer, slot, mask) in [
+                        (&adornment.gutter, gutter, input_bounds),
+                        (&adornment.suffix, suffix, text_mask),
+                    ] {
+                        if let Some(renderer) = renderer
+                            && slot.size.width > px(0.)
+                            && slot.intersects(&mask)
+                        {
+                            let mut element = renderer(slot.size, window, cx);
+                            window.with_content_mask(
+                                Some(gpui::ContentMask { bounds: mask }),
+                                |window| {
+                                    element.prepaint_as_root(
+                                        slot.origin,
+                                        slot.size.into(),
+                                        window,
+                                        cx,
+                                    );
+                                },
+                            );
+                            adornment_elements.push((mask, element));
+                        }
+                    }
+                }
+                y += line.size(line_height).height;
+            }
+        }
+
         PrepaintState {
+            row_adornments: adornment_elements,
+            range_backgrounds,
             bounds,
             last_layout,
             scroll_size,
@@ -2273,6 +2394,43 @@ impl<M: InputModeKind> Element for TextElement<M> {
             // Ghost lines shift every later line down.
             if Some(buffer_line) == prepaint.current_row {
                 offset_y += prepaint.ghost_lines_height;
+            }
+        }
+
+        // Prepared document washes are independent ordered layers above syntax
+        // backgrounds and below native search/selection decoration. Preserve the
+        // frame's immutable owner even if the state changes before the next draw.
+        if let Some(backgrounds) = &prepaint.range_backgrounds {
+            for wash in backgrounds.ranges() {
+                let mut offset_y = invisible_top_padding;
+                for ((line, &buffer_line), &start) in prepaint
+                    .last_layout
+                    .lines
+                    .iter()
+                    .zip(prepaint.last_layout.visible_buffer_lines.iter())
+                    .zip(prepaint.last_layout.visible_line_byte_offsets.iter())
+                {
+                    let end = start.saturating_add(line.len());
+                    if wash.bytes.start < end && wash.bytes.end > start {
+                        line.paint_range_background(
+                            wash.bytes.start.max(start) - start..wash.bytes.end.min(end) - start,
+                            point(
+                                origin.x + prepaint.last_layout.line_number_width + scroll_offset,
+                                origin.y + offset_y,
+                            ),
+                            line_height,
+                            text_align,
+                            prepaint.last_layout.content_width,
+                            wash.color,
+                            wash.radius,
+                            window,
+                        );
+                    }
+                    offset_y += line.size(line_height).height;
+                    if Some(buffer_line) == prepaint.current_row {
+                        offset_y += prepaint.ghost_lines_height;
+                    }
+                }
             }
         }
 
@@ -2446,6 +2604,12 @@ impl<M: InputModeKind> Element for TextElement<M> {
             window,
             cx,
         );
+
+        for (mask, element) in &mut prepaint.row_adornments {
+            window.with_content_mask(Some(gpui::ContentMask { bounds: *mask }), |window| {
+                element.paint(window, cx);
+            });
+        }
 
         self.state.update(cx, |state, cx| {
             let geometry_changed = state.last_bounds != Some(bounds)

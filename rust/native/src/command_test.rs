@@ -430,6 +430,127 @@ pub(super) async fn exercise(
         events(transport).is_empty(),
         "disabled inner definition shadows the outer command"
     );
+    // Lookup must hide outer IDs before it filters shortcut or phase. A command
+    // with no shortcut is still a definition, not permission to use the outer one.
+    apply(
+        cx,
+        handle,
+        vec![Op::SetCommands(node(35), vec![config("run", 11, vec![])])],
+    );
+    frame(cx, handle).await;
+    key(cx, handle, &format!("{primary}-k"));
+    assert!(
+        events(transport).is_empty(),
+        "an unbound inner ID hides the outer binding"
+    );
+    let inner_override = config(
+        "run",
+        12,
+        vec![Shortcut {
+            priority: ShortcutPriority::Override,
+            ..shortcut("k", vec![ShortcutModifier::Primary])
+        }],
+    );
+    apply(
+        cx,
+        handle,
+        vec![Op::SetCommands(node(35), vec![inner_override])],
+    );
+    frame(cx, handle).await;
+    key(cx, handle, &format!("{primary}-k"));
+    assert_eq!(
+        events(transport),
+        [(node(35), "run".into(), 12)],
+        "override invokes once without exposing the shadowed native-first route"
+    );
+    let inner_run = config(
+        "run",
+        13,
+        vec![shortcut("k", vec![ShortcutModifier::Primary])],
+    );
+    let mut conflict = config(
+        "conflict",
+        14,
+        vec![shortcut("k", vec![ShortcutModifier::Primary])],
+    );
+    conflict.enabled = false;
+    apply(
+        cx,
+        handle,
+        vec![Op::SetCommands(
+            node(35),
+            vec![conflict.clone(), inner_run.clone()],
+        )],
+    );
+    frame(cx, handle).await;
+    key(cx, handle, &format!("{primary}-k"));
+    assert!(
+        events(transport).is_empty(),
+        "the first matching disabled declaration blocks later commands using that chord"
+    );
+    conflict.enabled = true;
+    conflict.generation = 15;
+    apply(
+        cx,
+        handle,
+        vec![Op::SetCommands(
+            node(35),
+            vec![conflict.clone(), inner_run.clone()],
+        )],
+    );
+    frame(cx, handle).await;
+    key(cx, handle, &format!("{primary}-k"));
+    assert_eq!(events(transport), [(node(35), "conflict".into(), 15)]);
+    apply(
+        cx,
+        handle,
+        vec![Op::SetCommands(
+            node(35),
+            vec![inner_run.clone(), conflict.clone()],
+        )],
+    );
+    frame(cx, handle).await;
+    key(cx, handle, &format!("{primary}-k"));
+    assert_eq!(
+        events(transport),
+        [(node(35), "run".into(), 13)],
+        "declaration order controls same-scope shortcut precedence"
+    );
+    conflict.enabled = false;
+    conflict.generation = 16;
+    conflict.shortcuts[0].priority = ShortcutPriority::Override;
+    apply(
+        cx,
+        handle,
+        vec![Op::SetCommands(
+            node(35),
+            vec![conflict.clone(), inner_run.clone()],
+        )],
+    );
+    frame(cx, handle).await;
+    key(cx, handle, &format!("{primary}-k"));
+    assert_eq!(
+        events(transport),
+        [(node(35), "run".into(), 13)],
+        "an unavailable Override does not consume the event before NativeFirst"
+    );
+    conflict.enabled = true;
+    conflict.generation = 17;
+    apply(
+        cx,
+        handle,
+        vec![Op::SetCommands(node(35), vec![inner_run, conflict])],
+    );
+    frame(cx, handle).await;
+    key(cx, handle, &format!("{primary}-k"));
+    assert_eq!(
+        events(transport),
+        [(node(35), "conflict".into(), 17)],
+        "an enabled Override consumes before the earlier NativeFirst declaration"
+    );
+    println!(
+        "GPUIO_COMMAND_RESOLUTION_OK: unbound shadowing, cross-phase override and disabled/ordered conflicts"
+    );
     apply(cx, handle, vec![Op::SetCommands(node(35), vec![])]);
     frame(cx, handle).await;
     key(cx, handle, &format!("{primary}-k"));

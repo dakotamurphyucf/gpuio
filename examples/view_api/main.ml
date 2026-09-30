@@ -139,6 +139,10 @@ let worker native notification_read ~self_test =
       | Tree_input _
       | Table_input _
       | Animation_endpoint _
+      | Input_observed _
+      | Highlight_observed _
+      | Command_binding_observed _
+      | Document_diff_event _
       | File_dialog_result _ -> ()
     in
     send (Hello (Wire.version, Wire.capabilities));

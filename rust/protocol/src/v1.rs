@@ -54,7 +54,34 @@ pub const CAP_MANAGED_TABLES: i64 = 1_i64 << 40;
 pub const CAP_DESKTOP: i64 = 1_i64 << 41;
 pub const CAP_OS_NOTIFICATIONS: i64 = 1_i64 << 42;
 pub const CAP_CHARTS: i64 = 1_i64 << 43;
-pub const CAPABILITIES: i64 = CAP_CHARTS
+/// Extended cursor values and start-ellipsis styles.
+pub const CAP_STYLE_VALUES: i64 = 1_i64 << 44;
+pub const CAP_INPUT_REGIONS: i64 = 1_i64 << 45;
+pub const CAP_POINTER_OCCLUSION: i64 = 1_i64 << 46;
+/// Atomic foreground runs on ordinary text, including selectable text.
+pub const CAP_STYLED_TEXT: i64 = 1_i64 << 47;
+/// Composed passive-content links with one native action/focus owner.
+pub const CAP_LINKS: i64 = 1_i64 << 48;
+/// Native solid/dashed border refinements, including state layers.
+pub const CAP_BORDER_STYLES: i64 = 1_i64 << 49;
+pub const CAP_ASPECT_RATIO: i64 = 1_i64 << 50;
+pub const CAP_OPACITY_FACTOR: i64 = 1_i64 << 51;
+pub const CAP_COMMAND_BINDINGS: i64 = 1_i64 << 52;
+pub const CAP_NUMBER_INPUT_DRAFT: i64 = 1_i64 << 53;
+/// Inherited native input/focus gating with discoverable disabled semantics.
+pub const CAP_DISABLED_SUBTREES: i64 = 1_i64 << 54;
+pub const CAPABILITIES: i64 = CAP_DISABLED_SUBTREES
+    | CAP_NUMBER_INPUT_DRAFT
+    | CAP_COMMAND_BINDINGS
+    | CAP_OPACITY_FACTOR
+    | CAP_ASPECT_RATIO
+    | CAP_BORDER_STYLES
+    | CAP_LINKS
+    | CAP_STYLED_TEXT
+    | CAP_POINTER_OCCLUSION
+    | CAP_INPUT_REGIONS
+    | CAP_STYLE_VALUES
+    | CAP_CHARTS
     | CAP_OS_NOTIFICATIONS
     | CAP_DESKTOP
     | CAP_MANAGED_TABLES
@@ -161,6 +188,9 @@ pub enum Kind {
     HoverCard,
     Carousel,
     ChartView,
+    InputRegion,
+    HighlightScope,
+    Link,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
@@ -280,6 +310,8 @@ pub enum Color {
 pub enum Fill {
     Solid(Color),
     LinearGradient(f64, Color, f64, Color, f64),
+    /// Explicit interpolation: 0=sRGB, 1=Oklab. Legacy tag1 remains sRGB.
+    LinearGradientIn(i64, f64, Color, f64, Color, f64),
 }
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]
 pub struct Shadow {
@@ -358,6 +390,10 @@ pub enum Field {
     SelectionColor(Color),
     AccessibleName(String),
     Inert(bool),
+    PointerOcclusion(i64),
+    BorderStyle(i64),
+    AspectRatio(f64),
+    Disabled(bool),
 }
 
 /// Initial portable refinements; adding tags requires explicit schema review.
@@ -681,6 +717,14 @@ pub enum Op {
     SetTableCell(NodeId, crate::table::Cell),
     TableCommand(NodeId, crate::table::Command),
     SetChart(NodeId, crate::chart_view::Config),
+    SetInputRegion(NodeId, crate::input::Config),
+    SetHighlightScope(NodeId, crate::highlight::Config),
+    SetDocumentDiff(NodeId, i64, Option<crate::document_diff::Config>),
+    SetStyledText(NodeId, crate::text_content::Content),
+    SetLink(NodeId, crate::link::Config),
+    SetTextShimmer(NodeId, Option<crate::text_shimmer::Config>),
+    SetCommandBinding(NodeId, Option<crate::command_binding::Config>),
+    SetNumberInputDraft(NodeId, Option<String>),
 }
 
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]
@@ -874,5 +918,28 @@ pub enum Event {
         i64,
         i64,
         crate::chart_view::Observation,
+    ),
+    InputObserved(WindowId, NodeId, HandlerId, i64, crate::input::Event),
+    HighlightObserved(
+        WindowId,
+        NodeId,
+        HandlerId,
+        i64,
+        crate::highlight::Observation,
+    ),
+    DocumentDiffEvent(
+        WindowId,
+        NodeId,
+        HandlerId,
+        i64,
+        crate::ResourceId,
+        crate::document_diff::Event,
+    ),
+    CommandBindingObserved(
+        WindowId,
+        NodeId,
+        HandlerId,
+        i64,
+        crate::command_binding::Observation,
     ),
 }

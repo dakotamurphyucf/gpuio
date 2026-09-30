@@ -212,11 +212,32 @@ impl Work {
                 }
                 Mode::Diff => {
                     let start = Instant::now();
-                    let diff = crate::document_diff::parse(&text, cancelled)
-                        .ok_or(Error::ResourceLimit)?;
+                    let diff = crate::document_diff::parse(&text, cancelled).ok_or_else(|| {
+                        if cancelled() {
+                            Error::Cancelled
+                        } else {
+                            Error::ResourceLimit
+                        }
+                    })?;
                     measurements.parse_us = start.elapsed().as_micros();
+                    let start = Instant::now();
+                    let runs = match crate::document_diff_syntax::highlight(
+                        &text,
+                        &diff,
+                        self.request.dark,
+                        cancelled,
+                    ) {
+                        Ok(runs) => runs,
+                        Err(highlight::Error::Cancelled) => return Err(Error::Cancelled),
+                        // Syntax is optional; keep complete diff semantics on a
+                        // grammar/work-limit failure, never a colored prefix.
+                        Err(highlight::Error::Limit | highlight::Error::Grammar) => {
+                            crate::document_diff::highlights(&diff, self.request.dark)
+                        }
+                    };
+                    measurements.highlight_us = start.elapsed().as_micros();
                     Prepared::Diff {
-                        runs: crate::document_diff::highlights(&diff, self.request.dark),
+                        runs,
                         document: diff,
                     }
                 }
@@ -266,6 +287,23 @@ pub struct Pool {
     pub peak_reserved_bytes: usize,
 }
 impl Pool {
+    /// Reserve mounted presentation storage in the same budget as parser work.
+    /// Call before allocating; dropping the charge releases these admission units.
+    pub fn reserve(&mut self, bytes: usize) -> Result<Charge, Error> {
+        if self.closed {
+            return Err(Error::Closed);
+        }
+        let reserved = self.reserved.load(Ordering::Relaxed);
+        if bytes > MAX_RESERVED_BYTES - reserved {
+            return Err(Error::ResourceLimit);
+        }
+        self.reserved.fetch_add(bytes, Ordering::Relaxed);
+        self.peak_reserved_bytes = self.peak_reserved_bytes.max(reserved + bytes);
+        Ok(Charge {
+            used: self.reserved.clone(),
+            bytes,
+        })
+    }
     pub fn request(&mut self, request: Request) -> Result<Handle, Error> {
         if self.closed {
             return Err(Error::Closed);
@@ -305,14 +343,12 @@ impl Pool {
                 continue;
             }
             // Conservative work/cache units, distinct from measured allocator RSS.
-            let bytes = 4096
-                + entry
-                    .request
-                    .snapshot
-                    .text
-                    .len()
-                    .min(highlight::MAX_HIGHLIGHT_BYTES)
-                    * 32;
+            let source_bytes = entry.request.snapshot.text.len();
+            let bytes = if matches!(entry.request.mode, Mode::Diff) {
+                crate::document_diff_syntax::work_units(source_bytes)
+            } else {
+                4096 + source_bytes.min(highlight::MAX_HIGHLIGHT_BYTES) * 32
+            };
             let reserved = self.reserved.load(Ordering::Relaxed);
             if bytes > MAX_RESERVED_BYTES - reserved {
                 entry.completed = entry.serial;
@@ -406,6 +442,22 @@ impl Pool {
 mod tests {
     use super::*;
     use crate::document_store::Store;
+
+    #[test]
+    fn presentation_reservations_share_the_work_budget_and_release_on_drop() {
+        let mut pool = Pool::default();
+        let first = pool.reserve(MAX_RESERVED_BYTES - 8).unwrap();
+        assert!(matches!(pool.reserve(9), Err(Error::ResourceLimit)));
+        let final_bytes = pool.reserve(8).unwrap();
+        assert_eq!(pool.reserved_bytes(), MAX_RESERVED_BYTES);
+        drop(first);
+        assert_eq!(pool.reserved_bytes(), 8);
+        pool.close();
+        assert!(matches!(pool.reserve(1), Err(Error::Closed)));
+        drop(final_bytes);
+        assert_eq!(pool.reserved_bytes(), 0);
+    }
+
     use gpuio_protocol::document::{Status, Update};
 
     fn request(text: &str) -> Request {
@@ -433,6 +485,29 @@ mod tests {
             dark: true,
             search: String::new(),
         }
+    }
+
+    #[test]
+    fn diff_syntax_limit_keeps_complete_diff_controls_and_colors() {
+        let text = format!(
+            "--- /dev/null\n+++ b/many.ml\n@@ -0,0 +1,3000 @@\n{}",
+            "+let value = 42 (* note *)\n".repeat(3000)
+        );
+        let mut request = request(&text);
+        request.mode = Mode::Diff;
+        let mut pool = Pool::default();
+        let handle = pool.request(request).unwrap();
+        let work = pool.next_work().unwrap();
+        pool.complete(work.run());
+        let ready = handle.take_ready().unwrap().unwrap();
+        let Prepared::Diff { document, runs } = ready.prepared else {
+            panic!("syntax limits must not disable diff controls")
+        };
+        assert_eq!(document.files[0].added, 3000);
+        assert_eq!(runs, crate::document_diff::highlights(&document, true));
+        assert_eq!(runs.last().unwrap().bytes.end, text.len());
+        drop(ready.charge);
+        assert_eq!(pool.reserved_bytes(), 0);
     }
 
     #[test]
