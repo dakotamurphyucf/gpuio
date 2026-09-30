@@ -1787,6 +1787,61 @@ module Alert = struct
   ;;
 end
 
+module Kbd = struct
+  module Variant = struct
+    type t =
+      | Filled
+      | Outline
+      | Plain
+    [@@deriving equal, sexp_of]
+  end
+
+  let create
+        (p : Appearance.t)
+        ~platform
+        ?key
+        ?style:(custom = Style.empty)
+        ?(variant = Variant.Filled)
+        ?accessible_name
+        shortcut
+    =
+    let label =
+      Option.value accessible_name ~default:(Shortcut.accessible_label shortcut ~platform)
+    in
+    let%bind.Or_error accessibility = Accessibility.create ~role:Label ~label () in
+    let defaults =
+      match variant with
+      | Plain -> Style.empty
+      | Filled | Outline ->
+        style
+          ([ Foreground p.muted
+           ; Padding_left (px 4.)
+           ; Padding_right (px 4.)
+           ; Padding_top (px 2.)
+           ; Padding_bottom (px 2.)
+           ; Min_width (px 20.)
+           ; Text_align Center
+           ; Radius 4.
+           ; Line_height (Length.percent_exn 100.)
+           ; Font_size 12.
+           ; White_space Normal
+           ; Shrink 0.
+           ]
+           @
+           match variant with
+           | Filled -> [ Background (solid p.raised) ]
+           | Outline ->
+             [ Background (solid p.surface); Border_width 1.; Border_color p.border ]
+           | Plain -> [])
+    in
+    View.text
+      ?key
+      ~style:(Style.merge [ defaults; custom ])
+      (Shortcut.format shortcut ~platform)
+    |> fun view -> View.with_accessibility view accessibility
+  ;;
+end
+
 let shortcut_label (p : Appearance.t) ?key ?style:(custom = Style.empty) names =
   View.row
     ?key

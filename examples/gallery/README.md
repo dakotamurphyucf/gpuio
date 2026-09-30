@@ -29,6 +29,13 @@ motion. Its focused normal-launch and installed-consumer checks pass on macOS:
 `python3 scripts/test_gallery.py --section shimmer`. See the exact coverage and
 remaining release gates in [the shimmer contract](../../docs/design/text-shimmer.md).
 
+The **Keys with meaning** card uses typed `Shortcut` values and `Presentation.Kbd`
+for filled/outline/plain keycaps, macOS/Linux formatting, accessible names and
+style overrides. Its explicit registration switch separates displaying a label
+from invoking a command. Run `python3 scripts/test_gallery.py --section keyboard-labels`;
+it also runs in `core` and `all`.
+See the [display contract and remaining native binding-query work](../../docs/design/keyboard-labels.md).
+
 The **Details that stay together** card uses `Presentation.Description_list`
 for rich term/value slots, columns/spans, horizontal/vertical cells, four sizes,
 borders and separators. Reflow and reorder preserve the embedded draft and

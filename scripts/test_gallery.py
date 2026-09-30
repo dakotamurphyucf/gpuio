@@ -41,6 +41,7 @@ def exercise(mac, images):
     exercise_chat_composition(mac, images)
     exercise_chat_list(mac, images)
     exercise_descriptions(mac, images)
+    exercise_keyboard_labels(mac, images)
     exercise_attachments(mac, images)
     exercise_groups(mac, images)
     exercise_separators(mac, images)
@@ -816,6 +817,139 @@ def exercise_groups(mac, images):
     print(f'GALLERY_GROUP_OK: {cases} theme/variant/style/slot cases; geometry, retained '
           f'checked state and native identity, {clicks} pointer/Return actions, '
           'real Space input, focus and teardown', flush=True)
+
+
+def exercise_keyboard_labels(mac, images):
+    """Declared chord labels: appearance, identity and explicit registration."""
+    mac.press(TITLE,'Presentation')
+    mac.wait_text(TITLE,'Keys with meaning')
+    focus_gallery_control(mac,'Keyboard preview draft','AXTextField')
+    mac.key(0,flags=1<<20);mac.key(0)
+    editor=mac.wait_find(TITLE,'Keyboard preview draft','AXTextField')
+    equal=mac.cf.CFEqual
+    equal.restype,equal.argtypes=C.c_bool,[C.c_void_p,C.c_void_p]
+    temporary=tempfile.TemporaryDirectory(prefix='gpuio-keyboard-labels-')
+    directory=images or Path(temporary.name)
+    names=['filled','outline','plain']
+    retained={}
+    cases=paints=0
+
+    def toggle(label):
+        activate(mac,mac.wait_find(TITLE,label,'AXCheckBox'));time.sleep(.1)
+
+    def cap(name):
+        root=mac.wait_find(TITLE,f'Keyboard {name} example','AXGroup')
+        children=mac.children(root,'AXChildren')
+        try:
+            assert len(children)==2,('keycap children',name,len(children))
+            node=children[1]
+            assert mac.text(node,'AXRole')=='AXStaticText', ('keycap role',name,mac.text(node,'AXRole'))
+            return mac.retain(node)
+        finally:
+            for child in children:mac.release(child)
+            mac.release(root)
+
+    def check(spoken,refined=False):
+        nonlocal cases
+        rects={}
+        for name in names:
+            node=cap(name)
+            try:
+                values,children=mac.node_values(node)
+                for child in children:mac.release(child)
+                assert spoken in values[1:4],('keycap accessible name',name,spoken,values[:4])
+                if name in retained:assert equal(retained[name],node),('keycap remounted',name)
+                else:retained[name]=mac.retain(node)
+                rects[name]=element_rect(mac,node)
+            finally:mac.release(node)
+        if not refined:
+            assert abs(rects['filled'][3]-16)<1 and abs(rects['outline'][3]-18)<1,('keycap default height',rects)
+            assert rects['plain'][3]>rects['filled'][3],('plain inherits typography',rects)
+        else:
+            assert abs(rects['filled'][3]-28)<1 and abs(rects['outline'][3]-30)<1,('refined cap height',rects)
+        current=mac.wait_find(TITLE,'Keyboard preview draft','AXTextField')
+        try:assert equal(editor,current),'keycap changes remounted editor'
+        finally:mac.release(current)
+        expect_field(mac,TITLE,'Keyboard preview draft','a')
+        cases+=1
+        return rects
+
+    def paint(theme,spoken,refined):
+        nonlocal paints
+        focus_gallery_control(mac,'Keyboard preview draft','AXTextField')
+        reveal_gallery_control(mac,'Keyboard filled example','AXGroup',scroll_fraction=.94)
+        rects=check(spoken,refined)
+        window=mac.window(TITLE)
+        try:wx,wy,ww,wh=element_rect(mac,window)
+        finally:mac.release(window)
+        GalleryMouse(mac).send(5,(wx+ww-25,wy+110))
+        time.sleep(.1)
+        path=directory/f'gallery-keyboard-{theme.lower()}-{int(refined)}.png'
+        screenshot(mac,path,title=TITLE);pixels=read_png(mac,path)
+        def rgb(x,y):return pixels.rgb((x-wx)*pixels.width/ww,(y-wy)*pixels.height/wh)
+        close=lambda a,b:max(abs(c-d) for c,d in zip(a,b))<=5
+        dark=theme=='Dark'
+        expected={'filled':(39,46,59) if dark else (240,242,246),
+                  'outline':(27,32,43) if dark else (255,255,255),
+                  'plain':(25,33,44) if dark else (255,255,255)}
+        for name,(x,y,w,h) in rects.items():
+            assert y>wy+165 and y+h<wy+wh-25,('keycap visibility',name,rects)
+            # Plain has no padding; sample beside its glyphs within the stretched
+            # column, rather than reading an antialiased text pixel.
+            observed=rgb(x+w-3,y+3)
+            assert close(observed,expected[name]),('keycap fill',theme,name,refined,observed,expected[name])
+        x,y,w,h=rects['outline']
+        border=(62,72,91) if dark else (211,217,227)
+        assert any(close(rgb(x+w/2,y+d),border) for d in [.25,.5,.75]),('keycap outline',theme)
+        paints+=1
+
+    def invoke(expected):
+        focus_gallery_control(mac,'Keyboard preview draft','AXTextField')
+        mac.key(40,flags=1<<20) # Command-K, independent of the preview platform.
+        time.sleep(.2)
+        mac.wait_text(TITLE,f'Keyboard invocations: {expected}')
+        expect_field(mac,TITLE,'Keyboard preview draft','a')
+
+    try:
+        check('Command + K')
+        invoke(0) # Displaying a chord alone never registers it.
+        toggle('Register example shortcut');invoke(1)
+        toggle('Enable example command');invoke(1)
+        toggle('Enable example command');invoke(2)
+        toggle('Linux keyboard labels');check('Control + K');invoke(3)
+        toggle('Register example shortcut');invoke(3)
+        toggle('Reverse keyboard labels');check('Control + K')
+        toggle('Reverse keyboard labels');check('Control + K')
+        # Formatting changes retain the same native text objects.
+        for old,new,spoken in [('k','delete','Delete'),('delete','left','Left arrow'),('left','é','É'),('é','k','K')]:
+            mac.press(TITLE,'Keyboard key: '+old)
+            mac.release(mac.wait_find(TITLE,'Keyboard key: '+new,'AXButton'))
+            check('Control + '+spoken)
+        toggle('Linux keyboard labels');check('Command + K')
+        theme_node=mac.find(TITLE,'Dark','AXButton')
+        initial='Dark' if theme_node else 'Light'
+        if theme_node:mac.release(theme_node)
+        for theme in [initial,'Light' if initial=='Dark' else 'Dark']:
+            paint(theme,'Command + K',False)
+            toggle('Refine keyboard labels');paint(theme,'Command + K',True);toggle('Refine keyboard labels')
+            if theme==initial:mac.press(TITLE,theme)
+        toggle('Show keyboard labels');wait_absent(mac,'Keyboard filled example','AXGroup')
+        toggle('Show keyboard labels')
+        for name in names:
+            replacement=cap(name)
+            try:assert not equal(retained[name],replacement),('removed keycap retained owner',name)
+            finally:mac.release(replacement)
+        mac.press(TITLE,'Runtime & windows');wait_absent(mac,'Keyboard preview draft','AXTextField')
+        mac.press(TITLE,'Presentation')
+        replacement=mac.wait_find(TITLE,'Keyboard preview draft','AXTextField')
+        try:assert not equal(editor,replacement),'keyboard page retained native editor'
+        finally:mac.release(replacement)
+        mac.wait_text(TITLE,'Keyboard invocations: 3')
+        print(f'GALLERY_KEYBOARD_LABELS_OK: {cases} layout/name/identity cases, {paints} GPU theme/refinement cases; explicit registration/disable/platform routing and slot/page retirement',flush=True)
+    finally:
+        mac.release(editor)
+        for node in retained.values():mac.release(node)
+        temporary.cleanup()
 
 
 def exercise_descriptions(mac, images):
@@ -5198,7 +5332,7 @@ def main():
     parser.add_argument('--trace-canvas', action='store_true')
     parser.add_argument('--trace-motion', action='store_true')
     parser.add_argument('--trace-windows', action='store_true')
-    parser.add_argument('--section', choices=['all', 'core', 'status-regions', 'badges', 'labels', 'shimmer', 'markers', 'alerts', 'tags', 'descriptions', 'chat-composition', 'chat-list', 'attachments', 'attachment-paint', 'groups', 'links', 'empty', 'separators', 'styles', 'borders', 'aspect-ratio', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'document-links', 'document-images', 'highlighting', 'canvas', 'assets', 'charts', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
+    parser.add_argument('--section', choices=['all', 'core', 'status-regions', 'badges', 'labels', 'shimmer', 'markers', 'alerts', 'tags', 'keyboard-labels', 'descriptions', 'chat-composition', 'chat-list', 'attachments', 'attachment-paint', 'groups', 'links', 'empty', 'separators', 'styles', 'borders', 'aspect-ratio', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'document-links', 'document-images', 'highlighting', 'canvas', 'assets', 'charts', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
     args = parser.parse_args()
     if args.images:
         args.images.mkdir(parents=True, exist_ok=True)
@@ -5235,6 +5369,8 @@ def main():
                 exercise_attachment_paint(mac, args.images)
             if args.section == 'attachments':
                 exercise_attachments(mac, args.images)
+            if args.section == 'keyboard-labels':
+                exercise_keyboard_labels(mac, args.images)
             if args.section == 'descriptions':
                 exercise_descriptions(mac, args.images)
             if args.section == 'chat-composition':

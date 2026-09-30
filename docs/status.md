@@ -5,6 +5,13 @@ Current checkpoint: milestones 1–6 are merged. Milestone 5's
 [required macOS/Linux CI](https://github.com/dakotamurphyucf/gpuio/actions/runs/36312697654)
 passed on `473407c`; all twelve tickets are Done.
 
+[Typed keyboard labels](design/keyboard-labels.md) now format validated shortcuts
+for macOS/Linux, supply spoken names and filled/outline/plain keycaps, and expose
+ordered command declarations. Core/full Dune and a fresh installed consumer pass
+native geometry, GPU appearance, identity and explicit registration/disabled/routing
+checks. Effective native focus/context binding lookup remains required OCH-41 work;
+this is partial Kbd coverage, not whole-source or release acceptance.
+
 The [rich Description list](design/description-lists.md) now provides validated
 column/span packing, rich term/value slots, both axes, label widths, sizes, borders
 and separators while preserving keyed native children. Four Core tests and full

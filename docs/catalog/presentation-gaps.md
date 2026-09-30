@@ -107,12 +107,15 @@ a shortcut. GPUIO's `shortcut_label` currently accepts strings; `Shortcut` valid
 single chords and `Command.Registry` handles declaration shadowing, but neither
 offers an effective-focused-binding query.
 
-Provide typed platform-aware display without implicitly adding multi-stroke input.
-Declared registry shortcuts and effective native focused bindings are distinct.
-If a native lookup is needed, use asynchronous observations with focus/registry
-revision fencing, never a synchronous OCaml callback. Test both Mac/Linux formatting,
-Primary resolution, Unicode/named/function keys, disabled/shadowed bindings and
-real invocation. Any lookup needs explicit missing/stale result behavior.
+Typed display now exists in `Shortcut.format` / `accessible_label` and
+`Presentation.Kbd`; `Command.shortcuts` exposes ordered declarations. The
+[contract](../design/keyboard-labels.md) records platform aliases, Unicode mapping,
+filled/outline/plain styles and the distinction between display and registration.
+Core/full Dune, the focused macOS native gallery and a fresh installed consumer
+pass. The source row remains **partial** because effective native
+context/focus binding lookup is still missing. Implement that with asynchronous
+revision-fenced observations, shared native routing policy and explicit
+missing/disabled/stale behavior; never substitute static declaration lookup.
 
 ## Loading markers
 

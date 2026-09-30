@@ -48,6 +48,10 @@ val id : _ t -> Id.t
 val label : _ t -> string
 val is_enabled : _ t -> bool
 
+(** Declared shortcuts in declaration order. This does not resolve native focus,
+    shadowing, competing bindings, editor availability or composition gates. *)
+val shortcuts : _ t -> Shortcut.t list
+
 module Registry : sig
   type 'action command := 'action t
   type 'action t

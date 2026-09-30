@@ -683,6 +683,35 @@ module Alert : sig
     -> 'action View.t
 end
 
+module Kbd : sig
+  module Variant : sig
+    type t =
+      | Filled
+      | Outline
+      | Plain
+    [@@deriving equal, sexp_of]
+  end
+
+  (** Display one typed chord without registering a shortcut or adding a focus
+      stop. [Filled] is the default: muted text, raised fill, 4px radius, 4px/2px
+      padding, minimum width 20px and 12px type. [Outline] uses the surface and
+      1px border. [Plain] inherits typography and has no keycap defaults.
+      [style] refines defaults in all variants; the root text identity is stable.
+      The default accessible name is [Shortcut.accessible_label]; override it
+      with nonempty localized UTF-8 without NUL, at most 4096 bytes (validated).
+      Platform is explicit; native availability is not queried. Application
+      commands/state/I/O remain caller-owned. *)
+  val create
+    :  Appearance.t
+    -> platform:Shortcut.Platform.t
+    -> ?key:Key.t
+    -> ?style:Style.t
+    -> ?variant:Variant.t
+    -> ?accessible_name:string
+    -> Shortcut.t
+    -> 'action View.t Or_error.t
+end
+
 (** Display only: these labels do not register shortcuts or commands. The caller
     supplies platform-appropriate, already formatted key names. *)
 val shortcut_label
