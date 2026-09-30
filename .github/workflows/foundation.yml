@@ -207,7 +207,7 @@ jobs:
       - name: macOS public runtime checks
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
         run: |
-          python3 -c 'import subprocess; [subprocess.run(["_build/default/examples/runtime/main.exe", flag], check=True, timeout=90) for flag in ["--self-test", "--shutdown-test", "--last-window-test"]]' 2>&1 | tee .cache/ci/macos-runtime.log
+          python3 -c 'import subprocess; [subprocess.run(["_build/default/examples/runtime/main.exe", flag], check=True, timeout=90) for flag in ["--self-test", "--shutdown-test", "--last-window-test", "--worker-backtrace-test"]]' 2>&1 | tee .cache/ci/macos-runtime.log
           python3 -c 'import subprocess; [subprocess.run(["_build/default/examples/runtime/bench.exe", str(windows)] + mode, check=True, timeout=90) for windows in [1, 4] for mode in [[], ["--clock"]]]' 2>&1 | tee .cache/ci/macos-runtime-measurements.log
           _build/default/examples/runtime/bench_input.exe 2>&1 | tee .cache/ci/macos-runtime-input-core.log
       - name: macOS typed UI checks

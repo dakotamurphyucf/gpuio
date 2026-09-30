@@ -1930,19 +1930,22 @@ let run_with_preflight
           | Error error -> Error error
           | Ok `Forwarded -> Ok `Forwarded
           | Ok `Primary ->
+            let record_backtraces = Stdlib.Printexc.backtrace_status () in
             let domain =
               Domain.spawn (fun () ->
-                try
-                  worker native read ~tick_hz ~max_tasks ~motion ~desktop initialize
-                with
-                | exn ->
-                  let bt = Stdlib.Printexc.get_raw_backtrace () in
-                  Gpuio_native.abort native;
-                  Stdlib.Printexc.raise_with_backtrace exn bt)
+                Stdlib.Printexc.record_backtrace record_backtraces;
+                let result =
+                  capture (fun () ->
+                    worker native read ~tick_hz ~max_tasks ~motion ~desktop initialize)
+                in
+                if Result.is_error result then Gpuio_native.abort native;
+                (* Carry the worker's backtrace as data. Raising here would make
+                   [Domain.join] replace its origin with the join call site. *)
+                result)
             in
             let native_result = capture (fun () -> Gpuio_native.run native) in
             if Result.is_error native_result then Gpuio_native.abort native;
-            let worker_result = capture (fun () -> Domain.join domain) in
+            let worker_result = capture (fun () -> Domain.join domain) |> Result.join in
             reraise_result worker_result;
             reraise_result native_result;
             Ok `Exited)))
