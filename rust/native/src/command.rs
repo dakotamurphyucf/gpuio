@@ -4,11 +4,15 @@ use super::View;
 use crate::session::CommandInvocation;
 use gpui::{App, Context, Focusable, Keystroke, Window};
 use gpuio_protocol::{HandlerId, NodeId, v1::*};
-use std::{collections::BTreeSet, sync::Arc};
+use std::sync::Arc;
 
 #[cfg(test)]
 #[path = "command_lifetime_test.rs"]
 mod lifetime_test;
+
+#[cfg(test)]
+#[path = "command_policy_test.rs"]
+mod policy_test;
 
 #[derive(Clone, PartialEq, Eq)]
 pub(super) struct Route {
@@ -48,7 +52,7 @@ impl Route {
         }
     }
 }
-fn keybinding(shortcut: &Shortcut) -> gpui::KeybindingKeystroke {
+fn keystroke(shortcut: &Shortcut) -> Keystroke {
     let mut modifiers = gpui::Modifiers::default();
     for modifier in &shortcut.modifiers {
         match modifier {
@@ -68,11 +72,75 @@ fn keybinding(shortcut: &Shortcut) -> gpui::KeybindingKeystroke {
             ShortcutModifier::Super => modifiers.platform = true,
         }
     }
-    gpui::KeybindingKeystroke::from_keystroke(Keystroke {
+    Keystroke {
         key: shortcut.key.clone(),
         key_char: None,
         modifiers,
-    })
+    }
+}
+
+/// Native input policy shared by routing and binding inspection. Availability
+/// and scope/modal gates are separate: the first matching declaration reserves
+/// the chord even when invocation subsequently fails those checks.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct InputContext {
+    editing: bool,
+    composing: bool,
+    focused_kind: Option<Kind>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum InputGate {
+    NativeNavigation,
+    Composition,
+    TextInput,
+}
+
+impl InputContext {
+    fn reserves_navigation(key: &Keystroke, focused_kind: Option<Kind>) -> bool {
+        (key.key == "tab"
+            && !key.modifiers.control
+            && !key.modifiers.platform
+            && !key.modifiers.alt)
+            || (!key.modifiers.modified()
+                && matches!(key.key.as_str(), "enter" | "space")
+                && focused_kind.is_some_and(|kind| {
+                    matches!(
+                        kind,
+                        Kind::Button | Kind::CommandButton | Kind::Checkbox | Kind::Switch
+                    )
+                }))
+    }
+
+    fn gate(self, shortcut: &Shortcut, key: &Keystroke) -> Option<InputGate> {
+        if shortcut.priority == ShortcutPriority::NativeFirst
+            && Self::reserves_navigation(key, self.focused_kind)
+        {
+            return Some(InputGate::NativeNavigation);
+        }
+        if self.composing && !shortcut.during_composition {
+            return Some(InputGate::Composition);
+        }
+        let allowed = match shortcut.text_input {
+            ShortcutTextInput::Always => true,
+            ShortcutTextInput::Never => !self.editing,
+            ShortcutTextInput::ModifiedOnly => {
+                !self.editing
+                    || key.modifiers.control
+                    || key.modifiers.platform
+                    || key.modifiers.alt
+            }
+        };
+        (!allowed).then_some(InputGate::TextInput)
+    }
+
+    fn matches(self, shortcut: &Shortcut, key: &Keystroke, priority: ShortcutPriority) -> bool {
+        shortcut.priority == priority
+            && self.gate(shortcut, key).is_none()
+            && key.should_match(&gpui::KeybindingKeystroke::from_keystroke(keystroke(
+                shortcut,
+            )))
+    }
 }
 impl View {
     pub(super) fn install_command_interceptor(&mut self, window: &Window, cx: &mut Context<Self>) {
@@ -290,30 +358,18 @@ impl View {
         cx: &mut Context<Self>,
     ) {
         let focused = self.focus.borrow().focused_node(window, cx);
-        if priority == ShortcutPriority::NativeFirst {
-            // Tab is handled by the native traversal adapter. Buttons synthesize
-            // Enter/Space clicks on key-up, after raw key-down bubbling.
-            let tab = key.key == "tab"
-                && !key.modifiers.control
-                && !key.modifiers.platform
-                && !key.modifiers.alt;
-            let activate = !key.modifiers.modified()
-                && matches!(key.key.as_str(), "enter" | "space")
-                && focused.is_some_and(|id| {
-                    self.session
-                        .borrow()
-                        .tree(self.id)
-                        .and_then(|tree| tree.get(id))
-                        .is_some_and(|node| {
-                            matches!(
-                                node.kind,
-                                Kind::Button | Kind::CommandButton | Kind::Checkbox | Kind::Switch
-                            )
-                        })
-                });
-            if tab || activate {
-                return;
-            }
+        let focused_kind = focused.and_then(|id| {
+            self.session
+                .borrow()
+                .tree(self.id)?
+                .get(id)
+                .map(|node| node.kind)
+        });
+        // Preserve the fast path: native navigation must not scan registries.
+        if priority == ShortcutPriority::NativeFirst
+            && InputContext::reserves_navigation(key, focused_kind)
+        {
+            return;
         }
         let editor = self
             .editors
@@ -344,47 +400,28 @@ impl View {
             || palette.is_some()
             || otp.is_some()
             || color.is_some();
+        let input = InputContext {
+            editing,
+            composing,
+            focused_kind,
+        };
         let route = {
             let session = self.session.borrow();
             let Some(tree) = session.tree(self.id) else {
                 return;
             };
-            let mut cursor = focused.or(tree.root());
-            let mut seen = BTreeSet::new();
-            let mut matched = None;
-            'scopes: while let Some(id) = cursor {
-                let Some(node) = tree.get(id) else {
-                    break;
-                };
-                if let Some(commands) = &node.commands {
-                    for command in commands.iter() {
-                        if !seen.insert(command.id.as_str()) {
-                            continue;
-                        }
-                        if command.shortcuts.iter().any(|shortcut| {
-                            let allow_text = match shortcut.text_input {
-                                ShortcutTextInput::Always => true,
-                                ShortcutTextInput::Never => !editing,
-                                ShortcutTextInput::ModifiedOnly => {
-                                    !editing
-                                        || key.modifiers.control
-                                        || key.modifiers.platform
-                                        || key.modifiers.alt
-                                }
-                            };
-                            shortcut.priority == priority
-                                && (!composing || shortcut.during_composition)
-                                && allow_text
-                                && key.should_match(&keybinding(shortcut))
-                        }) {
-                            matched = Some(Route::new(tree, id, command, CommandSource::Shortcut));
-                            break 'scopes;
-                        }
-                    }
-                }
-                cursor = node.parent;
-            }
-            matched
+            focused.or(tree.root()).and_then(|start| {
+                tree.commands_from(start)
+                    .find(|(_, command)| {
+                        command
+                            .shortcuts
+                            .iter()
+                            .any(|shortcut| input.matches(shortcut, key, priority))
+                    })
+                    .map(|(scope, command)| {
+                        Route::new(tree, scope, command, CommandSource::Shortcut)
+                    })
+            })
         };
         if let Some(route) = route
             && self.invoke_command(&route, window, cx)

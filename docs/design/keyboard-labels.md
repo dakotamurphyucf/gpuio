@@ -145,3 +145,9 @@ and retained results. Use the existing single-chord domain rather than silently
 adding sequences. Test nested/disabled shadowing, conflicts, focus transitions,
 IME gates, stale revisions, window isolation and actual invocation. Until that
 work lands, callers can display explicit declarations only.
+
+The [native observation design and shared resolver evidence](command-binding-observations.md)
+now specifies these requirements in more detail, including different same-phase
+and cross-phase conflict rules and the separate native widget keymap source.
+Actual routing uses the shared iterator/input policy and its native regressions
+pass. The public observation API and its lifecycle integration remain unfinished.

@@ -5,6 +5,14 @@ Current checkpoint: milestones 1–6 are merged. Milestone 5's
 [required macOS/Linux CI](https://github.com/dakotamurphyucf/gpuio/actions/runs/36312697654)
 passed on `473407c`; all twelve tickets are Done.
 
+The [native command-resolution foundation](design/command-binding-observations.md)
+now shares nearest-scope/declaration-order lookup and input gates with actual
+shortcut routing. New unit and real-window regressions cover unbound/disabled
+shadowing, same-phase conflicts and cross-phase fallthrough. The complete native
+library suite, command-session checks, native controls and strict Clippy pass.
+The asynchronous binding observer remains unimplemented; its design records the
+separate registry/native-widget keymaps and stale-snapshot requirements.
+
 [Typed keyboard labels](design/keyboard-labels.md) now format validated shortcuts
 for macOS/Linux, supply spoken names and filled/outline/plain keycaps, and expose
 ordered command declarations. Core/full Dune and a fresh installed consumer pass

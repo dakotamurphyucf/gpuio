@@ -469,6 +469,26 @@ impl Tree {
         None
     }
 
+    /// Enumerate effective declarations at a native tree position, nearest scope
+    /// first and preserving declaration order within each scope. Shadow IDs
+    /// before callers filter by shortcut, enabled state or input policy: an inner
+    /// definition with no usable shortcut must still hide the outer definition.
+    /// The iterator borrows the tree; it retains no command snapshots or owners.
+    pub fn commands_from(
+        &self,
+        node: NodeId,
+    ) -> impl Iterator<Item = (NodeId, &Arc<CommandConfig>)> {
+        let mut seen = BTreeSet::new();
+        std::iter::successors(Some(node), |id| self.get(*id)?.parent)
+            .flat_map(|id| {
+                self.get(id)
+                    .and_then(|node| node.commands.as_ref())
+                    .into_iter()
+                    .flat_map(move |commands| commands.iter().map(move |command| (id, command)))
+            })
+            .filter(move |(_, command)| seen.insert(command.id.as_str()))
+    }
+
     pub fn accepts_handler(&self, node: NodeId, handler: HandlerId) -> bool {
         self.get(node)
             .is_some_and(|node| node.handler == Some(handler))

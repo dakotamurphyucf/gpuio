@@ -115,7 +115,10 @@ Core/full Dune, the focused macOS native gallery and a fresh installed consumer
 pass. The source row remains **partial** because effective native
 context/focus binding lookup is still missing. Implement that with asynchronous
 revision-fenced observations, shared native routing policy and explicit
-missing/disabled/stale behavior; never substitute static declaration lookup.
+missing/disabled/stale behavior; never substitute static declaration lookup. The
+[observation design](../design/command-binding-observations.md) now records shared
+native resolution tests and the separate widget keymap source; its public observer
+and lifecycle remain unimplemented.
 
 ## Loading markers
 
