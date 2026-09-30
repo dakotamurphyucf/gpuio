@@ -1,10 +1,11 @@
 # Settings application composition
 
 OCH-41 work in progress. The bounded Core catalog/navigation/reset model is
-implemented in [Settings](../../lib/core/settings.mli). This is the foundation
-for a settings application, not an implemented renderer or a functional-equivalent
-catalog claim. Bonsai composition, typed field adapters and public/native consumer
-acceptance remain required.
+implemented in [Settings](../../lib/core/settings.mli), with a controlled
+[Bonsai composite](../../lib/bonsai/settings_panel.mli). Deterministic composition
+and lifetime checks pass. Typed field adapters, the public gallery and actual
+native/installed-consumer acceptance remain required; this is not yet a
+functional-equivalent catalog claim.
 
 ## Source and ownership
 
@@ -21,7 +22,7 @@ GPUIO separates three responsibilities:
 
 1. `Gpuio.Settings` owns immutable descriptive metadata and navigation intent.
    It contains no callbacks, native handles, values, tasks or persistence.
-2. The planned Bonsai composite owns the bounded active group presentation,
+2. The Bonsai composite owns the bounded active group presentation,
    sidebar requests, search presentation and native layout observations. Application
    field values/controllers and asynchronous tasks remain outside transient rows.
 3. Existing native input controllers own editing, composition, selection and undo.
@@ -90,10 +91,65 @@ plan does not promise atomic persistence across multiple settings, guarantee a
 native edit will succeed, or overwrite in-flight composition. The forthcoming
 adapter must make those outcomes visible and test them.
 
-## Required composite and field work
+## Implemented controlled composition
 
-The remaining implementation must use this model rather than a separate positional
-state machine:
+`Gpuio_bonsai.Settings.component` takes reactive metadata, appearance, a supplied
+search editor view, request/reset callbacks and an item renderer. It returns a
+view and active-group/budget observations, or a presentation error. It does not
+create an editor or infer application value types. Reducing a request and actually
+performing a reset remain application responsibilities.
+
+The sidebar uses ordinary disclosure and composed-link controls. Page and group
+IDs live in separate key namespaces, including full-length IDs and names that
+coincide with internal slot names. Page icons use passive composed-link content;
+rich page suffixes may contain ordinary controls. Current page/group destinations
+carry localized accessibility descriptions. Search, empty state, resize and reset
+labels are explicit. Invalid localized labels or unsupported icon contents are
+presentation errors.
+
+The native split defaults to a 250px sidebar with a 160..360px range. The caller
+must supply bounded dimensions. Groups use the managed native list, with a 200px
+estimated height, 400px overscan and 32 active groups by default; callers can
+replace these configurations. Native group reveal uses stable IDs. Repeated
+activation of the current group requests another reveal. Leaving a page or
+filtering out all its content retires its transient list and item computations;
+revisiting creates a fresh visit. Application values, editors and tasks must remain
+outside these computations. A page change starts a fresh viewport rather than
+implicitly persisting page-specific scroll positions.
+
+Keeping a controller alive does not by itself preserve an unmounted native editor
+session. The existing text/number controllers take fixed initial seeds; a later
+placement can otherwise recreate the original default. The field adapter must
+define how current application values and recoverable drafts seed a new mount,
+without replacing a live draft during ordinary observations. Native undo history,
+selection and IME state must not be described as surviving destruction. Focus and
+composition pins, acknowledged edits, explicit resets and remount recovery need
+actual native coverage before accepting the settings example.
+
+Sidebar-only changes preserve the group collection. With an unchanged group
+order, metadata changes update only affected collection entries and their height
+invalidations. Structural membership/order changes rebuild collection metadata.
+This is bounded composition behavior, not measured native scroll performance.
+
+A native width observer has empty breakpoint branches; it changes styles on one
+stable set of controls. Below 480 logical pixels the field layout is vertical;
+at or above 480 it is horizontal. This exact boundary is an explicit GPUIO choice
+(the pinned source treats 480 itself as vertical). An item can force vertical
+layout at any width. Group size controls spacing, and the chosen appearance and
+group variant feed the existing group-box adapter. Disabled normal/custom items
+wrap their entire content in native `Inert`. Native field names/help/error metadata
+are still the responsibility of supplied controls and the forthcoming helpers.
+
+The page-visit regression exposed an existing Bonsai virtual-list weakness:
+captured viewport, retention and controller effects could act after revisiting
+the same generation. Those effects, including tree-input delivery, now check the
+managed generation's lifetime at execution. This supplements native handler
+generation checks; it does not change wire formats or Rust ownership.
+
+## Remaining field and acceptance work
+
+The remaining implementation and native validation must use this model and
+composite rather than a separate positional state machine:
 
 - Searchable page/group sidebar, selected destinations and group reveal; native
   resizable split with source-equivalent 250px initial and 160..360px range.
@@ -134,6 +190,20 @@ selection, page and text budgets. Full Dune build/tests/format pass:
 GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 @test/view_api/runtest
 GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 @all @runtest @fmt
 ```
+
+Three Bonsai expect tests additionally cover optimized/unoptimized page visits,
+stable control reconciliation across 479/480/700/320px observations, repeat group
+reveal, stale reset intent, absent-result teardown/recovery, localized-label
+errors, disabled custom-row styles and independent ID namespaces (including
+256-byte IDs and internal slot-name collisions). A metadata change invalidates
+only its group; sidebar expansion leaves height revisions unchanged. A separate
+virtual-list regression exercises captured viewport/pin/controller effects after
+revisiting a generation, with current observations still accepted. Full Dune
+build/tests/format and the structural catalog audit pass locally.
+
+These checks synthesize observations and inspect Bonsai/Core reconciliation; they
+do not establish actual native breakpoint geometry, editor/IME preservation,
+disabled OS input, accessibility-reader behavior or scrolling performance.
 
 There is no Settings GUI or installed-consumer acceptance yet. Settings, OCH-41
 and milestone 07 remain incomplete. Required Linux non-GUI checks and OCH-17

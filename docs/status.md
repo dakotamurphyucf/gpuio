@@ -5,12 +5,14 @@ Current checkpoint: milestones 1–6 are merged. Milestone 5's
 [required macOS/Linux CI](https://github.com/dakotamurphyucf/gpuio/actions/runs/36312697654)
 passed on `473407c`; all twelve tickets are Done.
 
-The [Settings foundation](design/settings-composition.md) now supplies a bounded
-Core metadata model, distinct IDs, Unicode item search, stable preferred/effective
-selection, expansion reconciliation and current-state reset planning. Five expect
-tests cover navigation/filter recovery, search, resets and validation. This does
-not yet render a settings application: Bonsai composition, typed fields, native
-editing/resizing/virtualization and gallery/consumer acceptance remain required.
+The [Settings composition](design/settings-composition.md) now supplies bounded
+Core metadata and a controlled Bonsai sidebar, native split, managed groups,
+responsive field layout, rich slots and explicit reset requests. Deterministic
+tests cover search/navigation, current-state resets, full-length identities,
+responsive control retention and page/row lifetimes. The page-visit test exposed
+and helped repair captured virtual-list effects surviving a generation revisit.
+Typed fields, native editing/resizing/virtualization and gallery/consumer
+acceptance remain required; Settings is not yet a functional-equivalent claim.
 
 The [mounted native binding observer](design/command-binding-observations.md)
 now connects paired transport, Core View callbacks, Eio delivery and a Bonsai

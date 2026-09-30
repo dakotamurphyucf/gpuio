@@ -451,3 +451,50 @@ let%expect_test "tail following materializes appended rows before the next viewp
   Bonsai_driver.Expert.invalidate_observers driver;
   [%expect {| |}]
 ;;
+
+let%expect_test "revisiting a list generation fences captured callbacks and controllers" =
+  let generation = B.Expert.Var.create 0L in
+  let observations = ref 0 in
+  let driver =
+    create (fun graph ->
+      V.component
+        (module Int)
+        (B.return (source [ 0, "first"; 1, "second" ]))
+        ~row_key:key
+        ~config
+        ~generation:(B.Expert.Var.value generation)
+        ~on_viewport:(B.return (fun _ -> E.of_thunk (fun () -> Int.incr observations)))
+        ~render_row:(fun ~key:_ ~data ~lifetime:_ _ -> B.map data ~f:View.text)
+        graph)
+  in
+  let first = result driver in
+  display driver;
+  let old_controller = V.Output.controller first in
+  let old_viewport = (payload first).on_viewport |> Option.value_exn in
+  let old_retain = (payload first).on_retain |> Option.value_exn in
+  List.iter [ 1L; 0L ] ~f:(fun next ->
+    B.Expert.Var.set generation next;
+    ignore (result driver : int V.Output.t);
+    display driver);
+  Bonsai_driver.schedule_event
+    driver
+    (E.Many
+       [ V.Controller.reveal old_controller 0
+       ; old_viewport (observed [ 0 ])
+       ; old_retain [ key 1 ]
+       ]);
+  let revisited = result driver in
+  assert (V.Output.active_rows revisited = 0);
+  assert (Option.is_none (payload revisited).scroll);
+  assert (!observations = 0);
+  observe driver [ 1 ];
+  assert (V.Output.active_rows (result driver) = 1);
+  assert (!observations = 1);
+  display driver;
+  Bonsai_driver.Expert.invalidate_observers driver;
+  print_endline
+    "new visit accepts current observation; old viewport, pin and controller effects \
+     ignored";
+  [%expect
+    {| new visit accepts current observation; old viewport, pin and controller effects ignored |}]
+;;

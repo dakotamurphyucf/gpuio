@@ -4,6 +4,7 @@ module Tree_rows = Tree_rows
 module Tree = Tree
 module Table = Table
 module Command_binding = Binding_observer
+module Settings = Settings_panel
 
 module View = struct
   type t = unit Bonsai.Effect.t Gpuio.View.t

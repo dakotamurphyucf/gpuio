@@ -181,8 +181,12 @@ responsive resizing, focus reveal and application persistence failures.
 The [Core model and full composition contract](../design/settings-composition.md)
 now implement distinct IDs, bounded metadata/search, preferred/effective selection,
 expansion reconciliation and explicit reset scopes with latest-state/disabled
-guards. Five expect tests pass. The renderer, typed fields and public/native
-acceptance remain unfinished; this foundation does not establish equivalence.
+guards. Five Core expect tests pass. The controlled Bonsai composite now composes
+sidebar/split/managed groups, responsive stable field placements, rich page slots
+and reset requests. Three further expect tests check page/row lifetimes,
+reconciliation identity, namespace/disabled semantics and localized-label errors.
+Typed fields and public/native acceptance remain unfinished; this checkpoint
+does not establish equivalence.
 
 ## Delivery order
 

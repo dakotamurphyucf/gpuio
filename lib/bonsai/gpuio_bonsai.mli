@@ -5,6 +5,7 @@ module Tree_rows = Tree_rows
 module Tree = Tree
 module Table = Table
 module Command_binding = Binding_observer
+module Settings = Settings_panel
 
 (** The pure view API specialized to Bonsai effects. No driver, I/O runtime or
     scheduling policy is introduced here; window lifecycle scheduling is OCH-9. *)
