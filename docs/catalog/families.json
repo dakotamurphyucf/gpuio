@@ -6,7 +6,7 @@
       "id": "presentation",
       "owner": "OCH-33",
       "scope": "v1",
-      "audit_status": "partial behavioral review: status bar, overlay badge, label, group box and rich empty state functional equivalents; empty-state installed consumer passes layout, border and proportional typography checks; composed links validated locally with native/gallery evidence and capability negotiation, installed-consumer/catalog finalization pending; other modules pending",
+      "audit_status": "partial behavioral review: status bar, overlay badge, label, group box and rich empty state functional equivalents; empty-state installed consumer passes layout, border and proportional typography checks; richer separator implemented with Core checks, native/consumer acceptance pending; composed links validated locally with native/gallery evidence and capability negotiation, installed-consumer/catalog finalization pending; other modules pending",
       "public_interface": "lib/core/presentation.mli",
       "example": "examples/presentation",
       "evidence": [

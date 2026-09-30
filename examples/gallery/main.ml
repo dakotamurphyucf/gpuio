@@ -123,6 +123,9 @@ let main () =
   if not (List.exists catalog ~f:(Extension.Schema.equal Gpuio_example_counter.schema))
   then failwith "The gallery backend must provide the example.counter schema";
   let background = Array.exists (Sys.get_argv ()) ~f:(String.equal "--background") in
+  let trace_windows =
+    Array.exists (Sys.get_argv ()) ~f:(String.equal "--trace-windows")
+  in
   let startup_links =
     Array.filter_map (Sys.get_argv ()) ~f:(String.chop_prefix ~prefix:"--open-uri=")
     |> Array.to_list
@@ -153,6 +156,16 @@ let main () =
             (component ~app ~desktop ~motion ~open_window ~page ~appearance ~scale)
           |> ok
         in
+        if trace_windows
+        then (
+          let window_number = !serial in
+          App.Window.set_close_handler window (fun reason ->
+            E.of_thunk (fun () ->
+              Eio.traceln
+                "GALLERY_CLOSE_REQUEST window=%d reason=%s"
+                window_number
+                (Sexp.to_string (Window.Close_reason.sexp_of_t reason));
+              Window.Close_decision.Allow)));
         windows := window :: !windows)
     in
     App.on_reopen app (fun () -> E.of_thunk open_window);

@@ -426,6 +426,90 @@ let separator
   |> semantic Separator
 ;;
 
+module Separator = struct
+  let create
+        (p : Appearance.t)
+        ?key
+        ?style:(custom = Style.empty)
+        ?(line_style = Style.empty)
+        ?(label_style = Style.empty)
+        ?(axis = Axis.Horizontal)
+        ?(pattern = Style.Border_style.Solid)
+        ?color
+        ?label
+        ()
+    =
+    let dimensions, line_dimensions =
+      match axis with
+      | Horizontal ->
+        ( Width full :: (if Option.is_none label then [ Height (px 1.) ] else [])
+        , [ Width full; Height (px 1.); Border_top_width 1. ] )
+      | Vertical ->
+        ( Height full :: (if Option.is_none label then [ Width (px 1.) ] else [])
+        , [ Width (px 1.); Height full; Border_left_width 1. ] )
+    in
+    let line =
+      (* Auto insets use the parent's flex centering on both axes. A 50% offset
+         without compensating for the edge width clips a one-pixel plain root. *)
+      View.column
+        ~key:(internal_key "line")
+        ~style:
+          (Style.merge
+             [ style
+                 ([ Position Absolute
+                  ; Border_style pattern
+                  ; Border_color (Option.value color ~default:p.border)
+                  ]
+                  @ line_dimensions)
+             ; line_style
+             ])
+        []
+    in
+    let label =
+      Option.map label ~f:(fun text ->
+        View.text
+          ~key:(internal_key "label")
+          ~style:
+            (Style.merge
+               [ style
+                   [ Min_width (px 0.)
+                   ; Max_width full
+                   ; Padding_left (px 8.)
+                   ; Padding_right (px 8.)
+                   ; Padding_top (px 4.)
+                   ; Padding_bottom (px 4.)
+                   ; Font_size 12.
+                   ; Foreground p.muted
+                   ; Background (solid p.surface)
+                   ; White_space Normal
+                   ; Text_align Center
+                   ]
+               ; label_style
+               ])
+          text)
+    in
+    View.column
+      ?key
+      ~style:
+        (Style.merge
+           [ style
+               ([ Position Relative
+                ; Min_width (px 0.)
+                ; Min_height (px 0.)
+                ; Shrink 0.
+                ; Align_items Center
+                ; Justify_content Center
+                ; Overflow_x Hidden
+                ; Overflow_y Hidden
+                ]
+                @ dimensions)
+           ; custom
+           ])
+      (line :: Option.to_list label)
+    |> semantic Separator
+  ;;
+end
+
 module Group_variant = struct
   type t =
     | Card

@@ -238,6 +238,14 @@ and compact-spacing controls demonstrate proportional line height and an explici
 pixel override without replacing the rich content.
 
 
+The Presentation page's **Space with intention** card previews
+`Presentation.Separator.create`: horizontal/vertical lines, optional labels,
+solid/dashed patterns, width and custom colors. The focused geometry/identity
+driver is `python3 scripts/test_gallery.py --section separators`; source acceptance
+status is tracked in the [separator design](../../docs/design/presentation-separators.md).
+`--trace-windows` logs the app's close-request reasons while preserving its normal
+Allow decision; it can help distinguish a close request from lost AX access.
+
 The Styling details page includes solid/dashed borders with independent weight
 and corner controls. `python3 scripts/test_gallery.py --section borders` exercises
 that card's theme, native identity/geometry and retained page state; the separate

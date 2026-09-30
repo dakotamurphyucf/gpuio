@@ -173,6 +173,34 @@ val separator
   -> unit
   -> 'action View.t
 
+module Separator : sig
+  (** Centered decorative line with an optional wrapping text label. Horizontal
+      defaults to full width; vertical defaults to full height and needs a bounded
+      parent height. Without a label, the cross-axis size is one logical pixel.
+      The root has Separator semantics and introduces no focus stop.
+
+      [style] refines the root, [line_style] the absolute line, and [label_style]
+      the label. The label defaults to the appearance surface behind muted text;
+      refine its background when placing the separator on another surface.
+      [color] defaults to the appearance border color. [pattern] defaults to Solid;
+      Dashed uses the pinned GPUI border pattern, not a custom dash array.
+
+      The original [separator] helper retains its background-rectangle styling
+      contract; this richer composition does not change existing calls. *)
+  val create
+    :  Appearance.t
+    -> ?key:Key.t
+    -> ?style:Style.t
+    -> ?line_style:Style.t
+    -> ?label_style:Style.t
+    -> ?axis:Axis.t
+    -> ?pattern:Style.Border_style.t
+    -> ?color:Color.t
+    -> ?label:string
+    -> unit
+    -> 'action View.t
+end
+
 module Group_variant : sig
   type t =
     | Card

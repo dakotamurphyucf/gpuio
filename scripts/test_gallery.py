@@ -34,6 +34,7 @@ def exercise(mac, images):
     exercise_badges(mac, images)
     exercise_labels(mac, images)
     exercise_groups(mac, images)
+    exercise_separators(mac, images)
     exercise_links(mac, images)
     exercise_empty(mac, images)
     if images:
@@ -220,6 +221,7 @@ def exercise_links(mac, images):
         for label in labels:
             x, y, w, h = reveal_gallery_control(mac, label, 'AXLink')
             point = (x + 28, y + h / 2)
+            print('GALLERY_RICH_LINK_POINTER', label, (x, y, w, h), point, flush=True)
             mouse.check_owner(point)
             mouse.send(5, point)
             mouse.send(1, point)
@@ -297,6 +299,90 @@ def exercise_links(mac, images):
           '42 pointer/Return/Space/AX '
           'actions, stable identity, signed Tab/reverse order and focused non-stop anchors '
           'with viewport reveal, disabled recovery and scoped SVG cleanup', flush=True)
+
+
+def exercise_separators(mac, images):
+    mac.wait_text(TITLE, 'Room between ideas.')
+    focus_gallery_control(mac, 'Keep separator updates', 'AXCheckBox')
+    original = mac.wait_find(TITLE, 'Keep separator updates', 'AXCheckBox')
+    root = mac.wait_find(TITLE, 'Rich separator preview', 'AXSplitter')
+    equal = mac.cf.CFEqual
+    equal.restype, equal.argtypes = C.c_bool, [C.c_void_p, C.c_void_p]
+    boolean = mac.cf.CFBooleanGetValue
+    boolean.restype, boolean.argtypes = C.c_bool, [C.c_void_p]
+    toggles = {'Vertical separator': False, 'Dashed separator': False,
+               'Label separator': True, 'Narrow separator': False,
+               'Custom separator colors': False}
+
+    def toggle(name, wanted):
+        if toggles[name] != wanted:
+            activate(mac, mac.wait_find(TITLE, name, 'AXCheckBox'))
+            toggles[name] = wanted
+
+    theme = mac.find(TITLE, 'Dark', 'AXButton')
+    current, alternate = ('Dark', 'Light') if theme else ('Light', 'Dark')
+    if theme:
+        mac.release(theme)
+    cases = 0
+    try:
+        mac.key(49)
+        for appearance in (current, alternate):
+            for vertical in (False, True):
+                toggle('Vertical separator', vertical)
+                for dashed in (False, True):
+                    toggle('Dashed separator', dashed)
+                    for labelled in (False, True):
+                        toggle('Label separator', labelled)
+                        for narrow in (False, True):
+                            toggle('Narrow separator', narrow)
+                            toggle('Custom separator colors', narrow)
+                            mac.wait_text(TITLE, f'Separator: {"vertical" if vertical else "horizontal"} · '
+                                          f'{"dashed" if dashed else "solid"} · '
+                                          f'{"labelled" if labelled else "plain"} · '
+                                          f'{"narrow" if narrow else "wide"} · '
+                                          f'{"custom" if narrow else "default"}')
+                            reveal_gallery_control(mac, 'Separator frame', 'AXGroup')
+                            updated = mac.wait_find(TITLE, 'Rich separator preview', 'AXSplitter')
+                            control = mac.wait_find(TITLE, 'Keep separator updates', 'AXCheckBox')
+                            frame = mac.wait_find(TITLE, 'Separator frame', 'AXGroup')
+                            value = mac.attr(control, 'AXValue')
+                            try:
+                                assert equal(root, updated) and equal(original, control), 'Separator restyle remounted retained nodes'
+                                assert value and boolean(value), 'Separator restyle reset caller state'
+                                x, y, w, h = element_rect(mac, updated)
+                                fx, fy, fw, fh = element_rect(mac, frame)
+                                assert abs(x + w / 2 - fx - fw / 2) < 1
+                                assert abs(y + h / 2 - fy - fh / 2) < 1
+                                assert abs((h if vertical else w) - (fh if vertical else fw)) < 1
+                                cross = w if vertical else h
+                                assert cross >= 20 if labelled else abs(cross - 1) < 1
+                                assert x >= fx - 1 and y >= fy - 1 and x + w <= fx + fw + 1 and y + h <= fy + fh + 1
+                            finally:
+                                if value:
+                                    mac.release(value)
+                                for node in (updated, control, frame):
+                                    mac.release(node)
+                            expect_focus(mac, 'Keep separator updates', 'AXCheckBox')
+                            if labelled:
+                                mac.release(mac.wait_find(TITLE, 'Continue · 世界', 'AXStaticText'))
+                            else:
+                                wait_absent(mac, 'Continue · 世界', 'AXStaticText')
+                            cases += 1
+                            if images and not narrow and labelled:
+                                screenshot(mac, images / f'gallery-separator-{appearance.lower()}-'
+                                           f'{"vertical" if vertical else "horizontal"}-'
+                                           f'{"dashed" if dashed else "solid"}.png', title=TITLE)
+            mac.press(TITLE, appearance)
+            mac.release(mac.wait_find(TITLE, alternate if appearance == current else current, 'AXButton'))
+    finally:
+        mac.release(original)
+        mac.release(root)
+    mac.press(TITLE, 'Runtime & windows')
+    wait_absent(mac, 'Rich separator preview', 'AXSplitter')
+    mac.press(TITLE, 'Presentation')
+    mac.release(mac.wait_find(TITLE, 'Rich separator preview', 'AXSplitter'))
+    print(f'GALLERY_SEPARATOR_OK: {cases} theme/axis/pattern/label/width cases, centered geometry, '
+          'native identity, checked state/focus and page retirement', flush=True)
 
 
 def exercise_empty(mac, images):
@@ -2297,6 +2383,9 @@ class GalleryMouse:
                         'Pointer target is occluded', point,
                         {'expected_pid': mac.pid, 'actual_pid': owner.value,
                          'hit_status': hit_status, 'pid_status': pid_status})
+            subrole = mac.text(hit, 'AXSubrole')
+            assert subrole not in ('AXCloseButton', 'AXMinimizeButton', 'AXZoomButton'), (
+                'Content pointer target hit a window control', point, subrole)
         finally:
             if hit.value:
                 mac.release(hit)
@@ -3119,7 +3208,8 @@ def main():
     parser.add_argument('--background', action='store_true', help='Launch without focus; input scenarios may explicitly raise the window')
     parser.add_argument('--trace-canvas', action='store_true')
     parser.add_argument('--trace-motion', action='store_true')
-    parser.add_argument('--section', choices=['all', 'core', 'status-regions', 'badges', 'labels', 'groups', 'links', 'empty', 'styles', 'borders', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'document-links', 'document-images', 'highlighting', 'canvas', 'assets', 'charts', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
+    parser.add_argument('--trace-windows', action='store_true')
+    parser.add_argument('--section', choices=['all', 'core', 'status-regions', 'badges', 'labels', 'groups', 'links', 'empty', 'separators', 'styles', 'borders', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'document-links', 'document-images', 'highlighting', 'canvas', 'assets', 'charts', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
     args = parser.parse_args()
     if args.images:
         args.images.mkdir(parents=True, exist_ok=True)
@@ -3133,6 +3223,7 @@ def main():
                                   *(['--background'] if args.background else []),
                                   *(['--trace-canvas'] if args.trace_canvas else []),
                                   *(['--trace-motion'] if args.trace_motion else []),
+                                  *(['--trace-windows'] if args.trace_windows else []),
                                   *(['--trace-input'] if args.section in ('all', 'input') else []),
                                   *(['--open-uri=gpuio-studio://preview/startup'] if args.section in ('all', 'desktop') else [])],
                                  cwd=repo, env=env, stdout=log, stderr=subprocess.STDOUT, text=True)
@@ -3143,6 +3234,8 @@ def main():
                 exercise(mac, args.images)
             if args.section == 'links':
                 exercise_links(mac, args.images)
+            if args.section == 'separators':
+                exercise_separators(mac, args.images)
             if args.section == 'empty':
                 exercise_empty(mac, args.images)
             if args.section == 'groups':

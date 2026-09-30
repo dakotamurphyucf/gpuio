@@ -449,3 +449,13 @@ then loses the gallery window before the 38th observation. This remains an
 incomplete Link run, with no established cause for the window's disappearance.
 The independent Link acceptance rows remain pending; the passing border check
 is not substituted for them.
+
+The later installed consumer used for Empty's successful acceptance also remains
+incomplete for Link: a run lost all AX windows while waiting for activation 35
+(34 successful activations); the diagnostic retry stopped before a rich-preview
+click because Chrome covered that point. The driver now prints the rich target's
+rectangle/point and rejects window close/minimize/zoom controls even when they
+belong to the same process. No cause for the earlier window disappearance is
+established. The gallery's optional `--trace-windows` records future close-request
+reasons while preserving normal application decisions. No Link acceptance status
+changes on the basis of these interrupted runs.
