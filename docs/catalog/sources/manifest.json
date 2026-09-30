@@ -312,5 +312,13 @@
     "source": "crates/component/src/tag.rs",
     "snapshot": "component-tag.rs.txt",
     "sha256": "1c22daa1254063593c23d076eb3b35e5f6521940937cc4fa15bf08964c982e8d"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/shimmer.rs",
+    "snapshot": "component-shimmer.rs.txt",
+    "sha256": "ae2bd2fcf00758afb368ff8a045805655039c15c54d705c158587a00a8f73c7c"
   }
 ]

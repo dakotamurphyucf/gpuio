@@ -5,6 +5,13 @@ Current checkpoint: milestones 1–6 are merged. Milestone 5's
 [required macOS/Linux CI](https://github.com/dakotamurphyucf/gpuio/actions/runs/36312697654)
 passed on `473407c`; all twelve tickets are Done.
 
+The [text-shimmer foundation](design/text-shimmer.md) now has typed configuration
+and paired standalone codecs for duration, relative/pixel spread, sweep direction,
+one-shot/loop behavior and optional highlight color. Core/Rust checks cover exact
+bytes, validation and bounded configuration. Mounted glyph animation, bridge
+integration and Attachment/Marker acceptance remain in progress; this is distinct
+from the existing rectangular loading placeholder.
+
 The [finite style-value audit](evidence/style-finite-values-och41.md) now covers
 seven keyword sets with pinned native GPUIX sources. Grid count/minimum and
 text-decoration replacement differences are explicit; paired OCaml/Rust bytes,

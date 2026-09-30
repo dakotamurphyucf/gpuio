@@ -92,10 +92,11 @@
       "public_interface": "lib/core/loading.mli",
       "example": "examples/presentation",
       "evidence": [
-        "docs/evidence/presentation-components-och33.md"
+        "docs/evidence/presentation-components-och33.md",
+        "docs/design/text-shimmer.md"
       ],
       "gallery_page": "presentation",
-      "contract": "Native animation and reduced-motion/static policy; no invented completion value.",
+      "contract": "Native skeleton/spinner/placeholder animation and reduced-motion/static policy; no invented completion value. Glyph shimmer currently has configuration/codecs only; mounted rendering and acceptance remain pending.",
       "upstream_modules": [
         "component/shimmer",
         "component/skeleton",
