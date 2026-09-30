@@ -13,7 +13,14 @@ val create
   -> Bonsai.Cont.graph
   -> t Bonsai.Cont.t
 
-val view : ?style:Gpuio.Style.t -> t -> Gpuio_bonsai.View.t
+(** [initial] overrides the committed-value seed for the next native mount only.
+    It never replaces a live draft. It does not restore an unfinished numeric
+    draft, selection, IME or undo history after native destruction. *)
+val view
+  :  ?style:Gpuio.Style.t
+  -> ?initial:Gpuio.Number_input.Value.t
+  -> t
+  -> Gpuio_bonsai.View.t
 
 (** Last native observation; absent before mounting. A retained controller can
     outlive its placement, in which case commands fail with [Stale_input]. *)

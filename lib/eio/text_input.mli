@@ -13,7 +13,11 @@ val create
   -> Bonsai.Cont.graph
   -> t Bonsai.Cont.t
 
-val view : ?style:Gpuio.Style.t -> t -> Gpuio_bonsai.View.t
+(** [initial_text] overrides the creation seed for the next native mount only.
+    It never replaces a live draft. Use an application-owned value when a field
+    can be removed and remounted; validate it for the configured mode first.
+    Selection, IME and undo history do not survive native destruction. *)
+val view : ?style:Gpuio.Style.t -> ?initial_text:string -> t -> Gpuio_bonsai.View.t
 
 (** Last native observation, absent before the first mount. A stored controller
     may refer to an unmounted lease; commands then return [Stale_editor]. *)
@@ -39,6 +43,19 @@ val select
 val replace
   :  t
   -> ?if_revision:Gpuio.Text_input.Revision.t
+  -> selection:Gpuio.Text_input.Selection_policy.t
+  -> undo:Gpuio.Text_input.Undo_policy.t
+  -> string
+  -> (Gpuio.Text_input.Snapshot.t, Gpuio.Text_input.Command_error.t) Result.t
+       Bonsai.Effect.t
+
+(** Replace only the native lease and revision in [expected]. A later remount
+    cannot receive the replacement even if its revision matches. Active IME
+    composition is rejected. Useful for explicit resets after confirmation;
+    application metadata/disabled policy must also be rechecked by the caller. *)
+val replace_if_unchanged
+  :  t
+  -> Gpuio.Text_input.Snapshot.t
   -> selection:Gpuio.Text_input.Selection_policy.t
   -> undo:Gpuio.Text_input.Undo_policy.t
   -> string

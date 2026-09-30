@@ -3,7 +3,8 @@
 OCH-41 work in progress. The bounded Core catalog/navigation/reset model is
 implemented in [Settings](../../lib/core/settings.mli), with a controlled
 [Bonsai composite](../../lib/bonsai/settings_panel.mli). Deterministic composition
-and lifetime checks pass. Typed field adapters, the public gallery and actual
+and lifetime checks pass. Typed field helpers and editor mount-seed primitives
+are implemented. Complete field integration, the public gallery and actual
 native/installed-consumer acceptance remain required; this is not yet a
 functional-equivalent catalog claim.
 
@@ -118,13 +119,15 @@ outside these computations. A page change starts a fresh viewport rather than
 implicitly persisting page-specific scroll positions.
 
 Keeping a controller alive does not by itself preserve an unmounted native editor
-session. The existing text/number controllers take fixed initial seeds; a later
-placement can otherwise recreate the original default. The field adapter must
-define how current application values and recoverable drafts seed a new mount,
-without replacing a live draft during ordinary observations. Native undo history,
-selection and IME state must not be described as surviving destruction. Focus and
-composition pins, acknowledged edits, explicit resets and remount recovery need
-actual native coverage before accepting the settings example.
+session. The text/number controllers now expose explicit mount-seed overrides on
+`view`: `initial_text` and `initial`, respectively. Omitting the override keeps
+the original creation seed. Supplying current application data allows a later
+placement to start with that data, without replacing a live draft during ordinary
+observations. Numeric `initial` seeds the committed value; preserving a distinct
+unfinished numeric draft across unmount remains adapter/native work. Native undo
+history, selection and IME state must not be described as surviving destruction.
+Focus/composition pins and the complete field-remount policy still need Settings
+gallery coverage.
 
 Sidebar-only changes preserve the group collection. With an unchanged group
 order, metadata changes update only affected collection entries and their height
@@ -145,6 +148,34 @@ captured viewport, retention and controller effects could act after revisiting
 the same generation. Those effects, including tree-input delivery, now check the
 managed generation's lifetime at execution. This supplements native handler
 generation checks; it does not change wire formats or Rust ownership.
+
+## Typed field helpers and editor commands
+
+[`Gpuio.Settings_field`](../../lib/core/settings_field.mli) supplies controlled
+switch/checkbox helpers, typed dropdown collections and a decorator for existing
+native text/number/other form controls. The Settings panel owns the visible item
+title. Field metadata names the native control and supplies semantic help/error
+relationships; helpers display help/error in stable slots below that control.
+Avoid repeating the same help in both item and field metadata. Size controls
+spacing/font; control-specific configurations remain explicit. Horizontal helpers
+default to 256px, vertical to full width, with caller style refinements.
+
+Boolean callbacks are toggle intents reduced against current application state,
+so two queued activations are not two copies of a captured negation. Typed
+`Choices.create` takes a comparator and pairs application values with stable native
+options. Both values and IDs must be unique; labels may repeat. Reordering or
+renaming options does not redefine identity. Absent selection is supported;
+foreign selected values return errors. Disabled options can stay selected but
+cannot be activated natively. The ordinary `Choice.Appearance` controls popup
+styles, dimensions and visible-row budget, including scrolling long option sets.
+
+Text and numeric fields use their existing Eio controllers with `control`; there
+is no new editing runtime or implicit setter. Text now exposes
+`replace_if_unchanged`, matching the numeric controller's guarded replacement:
+the expected snapshot identifies both native lease and revision. Explicit reset
+handlers must also recheck application metadata/disabled/reset policy and report
+native errors. The existing native command path rejects active composition;
+this checkpoint does not add new OS IME acceptance evidence.
 
 ## Remaining field and acceptance work
 
@@ -205,6 +236,21 @@ These checks synthesize observations and inspect Bonsai/Core reconciliation; the
 do not establish actual native breakpoint geometry, editor/IME preservation,
 disabled OS input, accessibility-reader behavior or scrolling performance.
 
-There is no Settings GUI or installed-consumer acceptance yet. Settings, OCH-41
+Three field-helper expect tests cover typed choice mapping/ambiguity, relabeling
+and reordering, native dispatch policy, queued Boolean intents, semantic help/error
+and editor identity across annotation/layout changes. The public text-input
+example passes two actual background macOS windows (single/multiline), confirming
+mount-seed changes leave live text unchanged, remount uses the supplied text,
+fresh guarded resets succeed and stale revisions/leases fail. The public numeric
+example passes its command/history/policy checks plus a changed mount seed leaving
+the live `1e-` draft unchanged and taking effect after remount. These are native
+programmatic command tests, not physical-keyboard or OS IME qualification:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec _build/default/examples/text_input/main.exe --self-test
+GPUIO_JOBS=2 ./scripts/gpuio exec _build/default/examples/numeric/number.exe --self-test
+```
+
+There is no complete Settings GUI or installed-consumer acceptance yet. Settings, OCH-41
 and milestone 07 remain incomplete. Required Linux non-GUI checks and OCH-17
 release gates remain; full Linux desktop qualification is deferred to OCH-47.

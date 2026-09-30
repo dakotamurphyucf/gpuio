@@ -10,6 +10,7 @@ let component ~self_test ~completed ~mode window graph =
   let open B.Let_syntax in
   let submission, set_submission = B.state "Press Enter to submit" graph in
   let shown, set_shown = B.state true graph in
+  let mount_text, set_mount_text = B.state "" ~equal:String.equal graph in
   let sleep = B.Clock.sleep graph in
   let started = ref false in
   let submissions = ref [] in
@@ -18,7 +19,7 @@ let component ~self_test ~completed ~mode window graph =
       ~mode
       ~label:"Message"
       ~placeholder:"Type a message"
-      ~auto_focus:true
+      ~auto_focus:(not self_test)
       ()
     |> Or_error.ok_exn
   in
@@ -32,6 +33,7 @@ let component ~self_test ~completed ~mode window graph =
         ]
   in
   let editor = Controller.create window ~config:(B.return config) ~on_submit graph in
+  let peek_editor = B.peek editor graph in
   let observed = B.map editor ~f:Controller.snapshot in
   B.Edge.on_change
     observed
@@ -39,7 +41,9 @@ let component ~self_test ~completed ~mode window graph =
     ~callback:
       (let%arr editor = editor
        and sleep = sleep
-       and set_shown = set_shown in
+       and set_shown = set_shown
+       and set_mount_text = set_mount_text
+       and peek_editor = peek_editor in
        fun observation ->
          let open E.Let_syntax in
          let%bind begin_test =
@@ -112,6 +116,40 @@ let component ~self_test ~completed ~mode window graph =
            let%bind () =
              E.of_thunk (fun () -> assert (String.is_empty (Input.Snapshot.text cleared)))
            in
+           let%bind () = set_mount_text "recovered é界" in
+           let%bind () = sleep (Time_ns.Span.of_sec 0.1) in
+           let%bind unchanged = Controller.read_snapshot editor >>= expect in
+           let%bind () =
+             E.of_thunk (fun () ->
+               assert (String.is_empty (Input.Snapshot.text unchanged)))
+           in
+           let%bind reset =
+             Controller.replace_if_unchanged
+               editor
+               unchanged
+               ~selection:End
+               ~undo:Record
+               "explicit reset"
+             >>= expect
+           in
+           let%bind stale_reset =
+             Controller.replace_if_unchanged
+               editor
+               unchanged
+               ~selection:End
+               ~undo:Record
+               "obsolete reset"
+           in
+           let%bind () =
+             E.of_thunk (fun () ->
+               assert (String.equal (Input.Snapshot.text reset) "explicit reset");
+               assert (
+                 Result.equal
+                   Input.Snapshot.equal
+                   Input.Command_error.equal
+                   stale_reset
+                   (Error Stale_revision)))
+           in
            let%bind () = set_shown false in
            let%bind () = sleep (Time_ns.Span.of_sec 0.1) in
            let%bind stale = Controller.focus editor in
@@ -124,12 +162,63 @@ let component ~self_test ~completed ~mode window graph =
                    stale
                    (Error Stale_editor)))
            in
+           let%bind () = set_shown true in
+           let rec await_remount attempts =
+             let%bind () = sleep (Time_ns.Span.of_sec 0.05) in
+             let%bind current = peek_editor in
+             match current with
+             | Bonsai.Computation_status.Active current ->
+               (match Controller.snapshot current with
+                | Some snapshot
+                  when not
+                         (Gpuio_protocol.Node_id.equal
+                            (Input.Expert.node snapshot)
+                            (Input.Expert.node reset)) -> E.return (current, snapshot)
+                | _ when attempts > 0 -> await_remount (attempts - 1)
+                | _ ->
+                  E.of_thunk (fun () -> failwith "editor remount observation timed out"))
+             | Inactive ->
+               E.of_thunk (fun () -> failwith "editor controller became inactive")
+           in
+           let%bind current, recovered = await_remount 40 in
+           let%bind stale_reset =
+             Controller.replace_if_unchanged
+               current
+               reset
+               ~selection:End
+               ~undo:Record
+               "wrong lease"
+           in
+           let%bind () =
+             E.of_thunk (fun () ->
+               assert (String.equal (Input.Snapshot.text recovered) "recovered é界");
+               assert (
+                 Result.equal
+                   Input.Snapshot.equal
+                   Input.Command_error.equal
+                   stale_reset
+                   (Error Stale_editor)))
+           in
+           let%bind final_reset =
+             Controller.replace_if_unchanged
+               current
+               recovered
+               ~selection:End
+               ~undo:Record
+               "fresh reset"
+             >>= expect
+           in
+           let%bind () =
+             E.of_thunk (fun () ->
+               assert (String.equal (Input.Snapshot.text final_reset) "fresh reset"))
+           in
            E.of_thunk (fun () ->
              incr completed;
              App.Window.close window)))
     graph;
   let%arr editor = editor
   and submission = submission
+  and mount_text = mount_text
   and shown = shown in
   View.column
     ~style:
@@ -139,6 +228,7 @@ let component ~self_test ~completed ~mode window graph =
      @ (if shown
         then
           [ Controller.view
+              ~initial_text:mount_text
               ~style:
                 (Gpuio.Style.create_exn
                    [ Width (Gpuio.Length.px_exn 400.)
@@ -160,6 +250,7 @@ let () =
     List.iter [ Input.Mode.Single_line; Multiline ] ~f:(fun mode ->
       App.open_window
         app
+        ~focus:(not self_test)
         ~title:"GPUIO native text input"
         ~width:460.
         ~height:320.
@@ -171,5 +262,5 @@ let () =
     assert (!completed = 2);
     print_endline
       "GPUIO_EDITOR_PUBLIC_OK: two windows, UTF-8 selection, revision guard, undo/redo, \
-       stale unmount, close")
+       stale unmount, mount seed recovery, explicit reset lease/revision guards, close")
 ;;

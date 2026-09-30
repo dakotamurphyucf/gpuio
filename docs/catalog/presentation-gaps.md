@@ -185,8 +185,10 @@ guards. Five Core expect tests pass. The controlled Bonsai composite now compose
 sidebar/split/managed groups, responsive stable field placements, rich page slots
 and reset requests. Three further expect tests check page/row lifetimes,
 reconciliation identity, namespace/disabled semantics and localized-label errors.
-Typed fields and public/native acceptance remain unfinished; this checkpoint
-does not establish equivalence.
+Typed Boolean/choice/native-field helpers also pass identity/semantics checks;
+public editor examples pass native mount-seed behavior and guarded resets.
+Unfinished numeric draft recovery, complete field integration and public/native
+acceptance remain unfinished; this checkpoint does not establish equivalence.
 
 ## Delivery order
 

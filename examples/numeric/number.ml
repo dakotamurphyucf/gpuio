@@ -59,6 +59,7 @@ let settle window = E.bind (frame window) ~f:(fun () -> frame window)
 let component ~self_test ~completed window graph =
   let open B.Let_syntax in
   let shown, set_shown = B.state true graph in
+  let mount_value, set_mount_value = B.state (value 1.5) ~equal:N.Value.equal graph in
   let disabled, set_disabled = B.state false graph in
   let read_only, set_read_only = B.state false graph in
   let status, set_status = B.state "Enter commits; Escape restores; arrows step" graph in
@@ -106,6 +107,7 @@ let component ~self_test ~completed window graph =
        and stacked = stacked
        and hidden = hidden
        and set_shown = set_shown
+       and set_mount_value = set_mount_value
        and set_disabled = set_disabled
        and set_read_only = set_read_only in
        fun (number_snapshot, stacked_snapshot, hidden_snapshot) ->
@@ -215,6 +217,11 @@ let component ~self_test ~completed window graph =
            let%bind () = check stacked "2.5" (value 2.5) in
            let%bind hidden = Controller.step hidden Decrease >>= expect in
            let%bind () = check hidden "1.5" (value 1.5) in
+           let%bind partial = draft number "1e-" >>= expect in
+           let%bind () = set_mount_value (value 4.5) in
+           let%bind () = settle window in
+           let%bind unchanged = Controller.read_snapshot number >>= expect in
+           let%bind () = check unchanged "1e-" (N.Snapshot.committed partial) in
            let%bind () = set_shown false in
            let%bind () = settle window in
            let%bind stale = Controller.read_snapshot number in
@@ -225,7 +232,7 @@ let component ~self_test ~completed window graph =
            let%bind () = error stale Stale_input in
            let%bind current = E.of_thunk (fun () -> Option.value_exn !latest) in
            let%bind mounted = Controller.read_snapshot current >>= expect in
-           let%bind () = check mounted "1.5" (value 1.5) in
+           let%bind () = check mounted "4.5" (value 4.5) in
            let%bind stale =
              Controller.replace_value_if_unchanged
                current
@@ -259,6 +266,7 @@ let component ~self_test ~completed window graph =
   and stacked = stacked
   and hidden = hidden
   and shown = shown
+  and mount_value = mount_value
   and set_shown = set_shown
   and disabled = disabled
   and set_disabled = set_disabled
@@ -276,7 +284,7 @@ let component ~self_test ~completed window graph =
          ^ Int64.to_string (N.Revision.to_int64 (N.Snapshot.revision snapshot))
        | Error error -> Sexp.to_string (N.Command_error.sexp_of_t error))
   in
-  let mode title controller =
+  let mode ?initial title controller =
     let observed =
       Option.value_map
         (Controller.snapshot controller)
@@ -291,6 +299,7 @@ let component ~self_test ~completed window graph =
       ~style:(Gpuio.Style.create_exn [ Gap (Gpuio.Length.px_exn 8.) ])
       [ View.text title
       ; Controller.view
+          ?initial
           ~style:
             (Gpuio.Style.create_exn
                [ Width (Gpuio.Length.px_exn 360.); Height (Gpuio.Length.px_exn 44.) ])
@@ -306,7 +315,7 @@ let component ~self_test ~completed window graph =
       (Gpuio.Style.create_exn
          [ Padding (Gpuio.Length.px_exn 24.); Gap (Gpuio.Length.px_exn 16.) ])
     ([ View.text "Native numeric editors"; View.text "Bounds −2 to 8 · Step 0.5" ]
-     @ (if shown then [ mode "Side steppers" number ] else [])
+     @ (if shown then [ mode ~initial:mount_value "Side steppers" number ] else [])
      @ [ View.text status
        ; row
            [ View.button ~on_click:(report (Controller.commit number)) "Commit"
@@ -351,5 +360,5 @@ let () =
     assert !completed;
     print_endline
       "GPUIO_NUMBER_PUBLIC_OK: three modes, commands/events, drafts/commit/history, \
-       guards, policy, remount and close")
+       guards, policy, mount seed preserves live draft, remount and close")
 ;;

@@ -11,8 +11,11 @@ responsive field layout, rich slots and explicit reset requests. Deterministic
 tests cover search/navigation, current-state resets, full-length identities,
 responsive control retention and page/row lifetimes. The page-visit test exposed
 and helped repair captured virtual-list effects surviving a generation revisit.
-Typed fields, native editing/resizing/virtualization and gallery/consumer
-acceptance remain required; Settings is not yet a functional-equivalent claim.
+Typed Boolean/choice/native-field helpers now pass identity/dispatch/semantic
+checks. Public text/numeric examples pass native mount-seed behavior and guarded
+reset commands. Unfinished numeric draft recovery, complete field integration,
+native resizing/virtualization and gallery/consumer acceptance remain required;
+Settings is not yet a functional-equivalent claim.
 
 The [mounted native binding observer](design/command-binding-observations.md)
 now connects paired transport, Core View callbacks, Eio delivery and a Bonsai
