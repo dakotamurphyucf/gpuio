@@ -16,6 +16,7 @@ module Property = struct
     | Top_right_radius
     | Bottom_left_radius
     | Bottom_right_radius
+    | Opacity_factor
   [@@deriving equal, sexp_of]
 end
 
@@ -36,13 +37,14 @@ module Target = struct
     | Top_right_radius -> [ Top_right_radius ]
     | Bottom_left_radius -> [ Bottom_left_radius ]
     | Bottom_right_radius -> [ Bottom_right_radius ]
+    | Opacity_factor -> [ Opacity_factor ]
   ;;
 
   let valid ({ property; value } : W.Target.t) =
     Float.is_finite value
     &&
     match property with
-    | Opacity -> Float.(value >= 0. && value <= 1.)
+    | Opacity | Opacity_factor -> Float.(value >= 0. && value <= 1.)
     | Top | Right | Bottom | Left -> Float.(value >= -1_000_000. && value <= 1_000_000.)
     | Width
     | Height
@@ -65,6 +67,10 @@ module Target = struct
     then
       Or_error.error_string
         "animation targets must be nonempty, finite and within property bounds"
+    else if
+      List.exists fields ~f:(fun t -> W.Property.equal t.property Opacity)
+      && List.exists fields ~f:(fun t -> W.Property.equal t.property Opacity_factor)
+    then Or_error.error_string "opacity and opacity factor cannot share a target"
     else if
       Option.is_some
         (List.find_consecutive_duplicate fields ~equal:(fun a b ->

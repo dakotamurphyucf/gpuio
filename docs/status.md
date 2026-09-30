@@ -5,6 +5,14 @@ Current checkpoint: milestones 1–6 are merged. Milestone 5's
 [required macOS/Linux CI](https://github.com/dakotamurphyucf/gpuio/actions/runs/36312697654)
 passed on `473407c`; all twelve tickets are Done.
 
+Native [animation opacity factors](design/animation-opacity-factor.md) now supply
+the styling primitive for rich Marker loading. The bounded factor multiplies
+base/interaction opacity without adding a layout wrapper; absolute opacity remains
+unchanged. Independent bytes, validation and atomic rejection checks pass locally.
+A background macOS GPU fixture passes base/state/ancestor/descendant composition,
+layout, native pulse timing, reduced-motion idle and owner teardown. Rich Marker
+composition, public gallery/consumer and wider release acceptance remain open.
+
 The [rich Attachment adapter](design/presentation-attachments.md) now composes
 typed status, size, axis, media/content/action slots and whole-card activation.
 Core checks cover retained identities/current callbacks, slot retirement, shimmer

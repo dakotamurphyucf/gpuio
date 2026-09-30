@@ -363,3 +363,8 @@ pub fn run_native_border_style_test() {
 pub fn run_native_aspect_ratio_test() {
     host::aspect_ratio_test::run();
 }
+
+#[cfg(feature = "native-image-tests")]
+pub fn run_native_opacity_factor_test() {
+    host::opacity_factor_test::run();
+}

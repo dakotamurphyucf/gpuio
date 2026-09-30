@@ -565,7 +565,8 @@ val container_query
   -> 'action t Core.Or_error.t
 
 (** Retained springs/sequences/shared repeats. Animated targets own matching
-    numeric style fields. Playback-only changes preserve run identity; new bodies
+    numeric style fields, except [Opacity_factor] which multiplies their resolved
+    style opacity. Playback-only changes preserve run identity; new bodies
     retarget from painted values and a higher restart token resets initial values.
     Events arrive in ordered batches using the latest accepted closure. Hidden
     content pauses independent timing; shared members rejoin the group phase.

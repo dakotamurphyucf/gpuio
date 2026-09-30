@@ -9,9 +9,15 @@ fn window(g: i64) -> WindowId {
 
 #[test]
 fn negotiation_advertises_extended_styles_without_waiving_unknown_bits() {
-    for required in [CAP_LINKS, CAP_BORDER_STYLES, CAP_ASPECT_RATIO, CAPABILITIES] {
+    for required in [
+        CAP_LINKS,
+        CAP_BORDER_STYLES,
+        CAP_ASPECT_RATIO,
+        CAP_OPACITY_FACTOR,
+        CAPABILITIES,
+    ] {
         let mut session = Session::default();
-        for invalid in [-1, CAPABILITIES | (1_i64 << 51)] {
+        for invalid in [-1, CAPABILITIES | (1_i64 << 52)] {
             assert_eq!(
                 session.hello(VERSION, invalid),
                 Err(ErrorCode::UnsupportedCapability)

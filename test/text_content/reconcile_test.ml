@@ -141,5 +141,5 @@ let%expect_test "styled text requires a paired host capability" =
   |> ok
   |> String.iter ~f:(fun c -> printf "%02x" (Char.to_int c));
   print_endline "";
-  [%expect {| 0001fcffffffffffff0700 |}]
+  [%expect {| 0001fcffffffffffff0f00 |}]
 ;;

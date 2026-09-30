@@ -338,3 +338,8 @@ required-features = ["native-image-tests"]
 name = "native_aspect_ratio"
 harness = false
 required-features = ["native-image-tests"]
+
+[[test]]
+name = "native_opacity_factor"
+harness = false
+required-features = ["native-image-tests"]

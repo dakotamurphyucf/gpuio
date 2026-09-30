@@ -16,7 +16,14 @@ module Property : sig
     | Top_right_radius
     | Bottom_left_radius
     | Bottom_right_radius
+    | Opacity_factor
   [@@deriving equal, sexp_of]
+
+  (** [Opacity] replaces the element's style opacity. [Opacity_factor] multiplies
+      its resolved base/interaction opacity, including background and children,
+      without adding a layout wrapper. The factor is in [0,1]; 1 preserves the
+      original style. A target cannot contain both opacity properties. Ancestor
+      opacity still multiplies normally. *)
 end
 
 module Target : sig

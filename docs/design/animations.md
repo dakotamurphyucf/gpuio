@@ -10,10 +10,12 @@ links the final PR checks/merge status.
 ## Configuration
 
 `Animation.Target.create` validates a nonempty property set: width, height, top,
-right, bottom, left, opacity and four corner radii. `Radius` is an OCaml shorthand
+right, bottom, left, opacity, multiplicative opacity and four corner radii. `Radius` is an OCaml shorthand
 for all four corners. Duplicate properties after expansion are errors. Geometry
 uses logical pixels, with the same finite bounds as the style API; opacity is in
-[0,1]. Numeric targets deliberately exclude `auto` and percentage interpolation.
+[0,1]. Absolute opacity and [multiplicative opacity](animation-opacity-factor.md)
+cannot occur in the same target; the latter preserves base/interaction styling.
+Numeric targets deliberately exclude `auto` and percentage interpolation.
 
 `Animation.Config.create` accepts a target, optional initial values, duration,
 delay, easing and repetition. Initial and target property sets must match.

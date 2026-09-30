@@ -1061,7 +1061,22 @@ impl View {
                     .map(|(state, _)| state.borrow().styles.clone())
             })
             .unwrap_or_else(|| node.style.clone());
-        let (styled, mut states) = apply_styles(element, &styles, interaction, disabled);
+        let factor = animation
+            .as_ref()
+            .and_then(|(_, sample)| animation::opacity_factor(&sample.values))
+            .or_else(|| {
+                program
+                    .as_ref()
+                    .and_then(|(_, sample)| animation::opacity_factor(&sample.frame.values))
+            });
+        let (mut styled, mut states) = apply_styles(element, &styles, interaction, disabled);
+        if let Some(factor) = factor {
+            let style = styled.style();
+            style.opacity = Some(style.opacity.unwrap_or(1.) * factor);
+            for state in states.iter_mut().flatten() {
+                animation::factor_state_opacity(state, factor);
+            }
+        }
         if let Some(config) = &node.overlay {
             for state in states.iter_mut().flatten() {
                 overlay::constrain_state_style(config.kind, state);
@@ -1141,7 +1156,7 @@ impl View {
         }
         if disabled {
             element.style().mouse_cursor = None;
-            element = element.opacity(0.5);
+            element = element.opacity(0.5 * factor.unwrap_or(1.));
             if let Some(style) = disabled_style {
                 element.style().refine(&style);
             }
@@ -2541,3 +2556,7 @@ pub(crate) mod border_style_test;
 #[cfg(feature = "native-image-tests")]
 #[path = "text_shimmer_view_test.rs"]
 pub(crate) mod text_shimmer_view_test;
+
+#[cfg(feature = "native-image-tests")]
+#[path = "opacity_factor_test.rs"]
+pub(crate) mod opacity_factor_test;

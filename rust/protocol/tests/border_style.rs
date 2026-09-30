@@ -31,10 +31,10 @@ fn border_pattern_field_fixtures_and_bounded_request_decode() {
 #[test]
 fn border_patterns_have_a_distinct_required_capability() {
     assert_eq!(CAP_BORDER_STYLES, 1_i64 << 49);
-    assert_eq!(CAPABILITIES, (1_i64 << 51) - 1);
+    assert_eq!(CAPABILITIES, (1_i64 << 52) - 1);
     for (required, expected) in [
         (CAP_BORDER_STYLES, "0001fc0000000000000200"),
-        (CAPABILITIES, "0001fcffffffffffff0700"),
+        (CAPABILITIES, "0001fcffffffffffff0f00"),
     ] {
         let hello = Message::Hello(VERSION, required);
         let mut bytes = vec![];

@@ -36,8 +36,10 @@ append Op59 `Set_styled_text`. Composed passive-content links require bit 48
 target. Solid/dashed border patterns require bit 49 (`CAP_BORDER_STYLES`) and
 append field 67 `Border_style` with values 0/1. Native proportional layout requires
 bit 50 (`CAP_ASPECT_RATIO`) and appends field 68 `Aspect_ratio` with a validated
-float width/height ratio. Both language halves require the
-current shared mask `2251799813685247`;
+float width/height ratio. Multiplicative native animation opacity requires bit 51
+(`CAP_OPACITY_FACTOR`) and appends animation property tag 11 `Opacity_factor`,
+a finite factor in [0,1] mutually exclusive with absolute opacity in one target.
+Both language halves require the current shared mask `4503599627370495`;
 an older host fails capability negotiation instead of accepting
 unsupported input, commands or style values. Existing style field tags and value
 IDs are unchanged: cursor additions occupy 10–21 and start ellipsis occupies 2.

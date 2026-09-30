@@ -191,8 +191,8 @@ impl Decoder<'_> {
         crate::ResourceId::from_parts(self.int()?, self.int()?).ok_or(DecodeError::Malformed)
     }
     fn animation_targets(&mut self) -> Result<Vec<crate::animation::Target>, DecodeError> {
-        use crate::animation::{PROPERTY_COUNT, Property, Target};
-        let count = self.count(PROPERTY_COUNT)?;
+        use crate::animation::{MAX_TARGETS, Property, Target};
+        let count = self.count(MAX_TARGETS)?;
         (0..count)
             .map(|_| {
                 let property = match self.tag()? {
@@ -207,6 +207,7 @@ impl Decoder<'_> {
                     8 => Property::TopRightRadius,
                     9 => Property::BottomLeftRadius,
                     10 => Property::BottomRightRadius,
+                    11 => Property::OpacityFactor,
                     _ => return Err(DecodeError::Malformed),
                 };
                 Ok(Target {

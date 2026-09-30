@@ -47,7 +47,8 @@ Malformed ratios reject the complete transaction before publication, including
 preceding text changes. Revision and retained-byte accounting stay unchanged.
 
 Capability bit 50 (`CAP_ASPECT_RATIO`) requires a matching host. The full mask
-is now `2251799813685247`. A paired client/host rebuild is required; an older host
+at introduction was `2251799813685247`; see [bridge-v1](bridge-v1.md) for
+the current aggregate mask. A paired client/host rebuild is required; an older host
 cannot silently ignore a layout property.
 
 | Payload | Hex |
@@ -56,7 +57,7 @@ cannot silently ignore a layout property.
 | Ratio 1 | `44000000000000f03f` |
 | Ratio 2 | `440000000000000040` |
 | Hello requiring aspect ratio | `0001fc0000000000000400` |
-| Hello requiring all current capabilities | `0001fcffffffffffff0700` |
+| Hello requiring all capabilities at introduction | `0001fcffffffffffff0700` |
 
 ## Validation
 

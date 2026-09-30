@@ -65,7 +65,9 @@ pub const CAP_LINKS: i64 = 1_i64 << 48;
 /// Native solid/dashed border refinements, including state layers.
 pub const CAP_BORDER_STYLES: i64 = 1_i64 << 49;
 pub const CAP_ASPECT_RATIO: i64 = 1_i64 << 50;
-pub const CAPABILITIES: i64 = CAP_ASPECT_RATIO
+pub const CAP_OPACITY_FACTOR: i64 = 1_i64 << 51;
+pub const CAPABILITIES: i64 = CAP_OPACITY_FACTOR
+    | CAP_ASPECT_RATIO
     | CAP_BORDER_STYLES
     | CAP_LINKS
     | CAP_STYLED_TEXT

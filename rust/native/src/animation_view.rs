@@ -170,9 +170,22 @@ pub(super) fn apply(style: &mut gpui::StyleRefinement, values: &Values) {
             Property::TopRightRadius => Field::TopRightRadius(value),
             Property::BottomLeftRadius => Field::BottomLeftRadius(value),
             Property::BottomRightRadius => Field::BottomRightRadius(value),
+            Property::OpacityFactor => unreachable!("factor is handled by the host's style layers"),
         };
         crate::style::refine(style, std::slice::from_ref(&field));
     }
+}
+
+/// Apply only to explicitly declared interaction opacity. An absent state value
+/// must continue to inherit the already multiplied base, not multiply it twice.
+pub(super) fn factor_state_opacity(style: &mut gpui::StyleRefinement, factor: f32) {
+    style.opacity = style.opacity.map(|opacity| opacity * factor);
+}
+
+pub(super) fn opacity_factor(values: &Values) -> Option<f32> {
+    values
+        .get(Property::OpacityFactor)
+        .map(|value| value as f32)
 }
 pub(super) fn paint(state: &Rc<RefCell<State>>, sample: Sample) -> gpui::AnyElement {
     let state = Rc::downgrade(state);

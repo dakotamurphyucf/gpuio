@@ -74,6 +74,7 @@ const PROPERTIES: [Property; PROPERTY_COUNT] = [
     Property::TopRightRadius,
     Property::BottomLeftRadius,
     Property::BottomRightRadius,
+    Property::OpacityFactor,
 ];
 impl Timeline {
     /// New mounts use the declared initial values. With no initial values a
