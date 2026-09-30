@@ -226,6 +226,101 @@ let tag
        ])
 ;;
 
+module Tag = struct
+  module Size = struct
+    type t =
+      | XSmall
+      | Small
+      | Medium
+      | Large
+    [@@deriving equal, sexp_of]
+  end
+
+  module Palette = struct
+    type t =
+      { background : Color.t
+      ; foreground : Color.t
+      ; border : Color.t
+      }
+    [@@deriving equal, sexp_of]
+
+    let create ~background ~foreground ~border = { background; foreground; border }
+  end
+
+  module Variant = struct
+    type t =
+      | Primary
+      | Secondary
+      | Danger
+      | Success
+      | Warning
+      | Info
+      | Custom of Palette.t
+    [@@deriving equal, sexp_of]
+  end
+
+  let palette (p : Appearance.t) variant ~outline =
+    let semantic ink =
+      Palette.create
+        ~background:ink
+        ~foreground:(if outline then ink else p.on_solid)
+        ~border:ink
+    in
+    match variant with
+    | Variant.Primary | Info -> semantic p.accent
+    | Danger -> semantic p.danger
+    | Success -> semantic p.success
+    | Warning -> semantic p.warning
+    | Secondary ->
+      Palette.create
+        ~background:p.raised
+        ~foreground:(if outline then p.muted else p.foreground)
+        ~border:p.border
+    | Custom t -> t
+  ;;
+
+  let create
+        (p : Appearance.t)
+        ?key
+        ?style:(custom = Style.empty)
+        ?(size = Size.Medium)
+        ?(variant = Variant.Secondary)
+        ?(outline = false)
+        children
+    =
+    let padding_x, padding_y, radius =
+      match size with
+      | XSmall | Small -> 6., 2., 4.
+      | Medium | Large -> 10., 4., 8.
+    in
+    let palette = palette p variant ~outline in
+    let background =
+      if outline
+      then Color.rgba ~red:255 ~green:255 ~blue:255 ~alpha:0 |> Or_error.ok_exn
+      else palette.background
+    in
+    let base =
+      style
+        [ Align_items Center
+        ; Min_width (px 0.)
+        ; Border_width 1.
+        ; Radius radius
+        ; Padding_left (px padding_x)
+        ; Padding_right (px padding_x)
+        ; Padding_top (px padding_y)
+        ; Padding_bottom (px padding_y)
+        ; Font_size 12.
+        ; Line_height (Length.percent_exn 125.)
+        ; Background (solid background)
+        ; Foreground palette.foreground
+        ; Border_color palette.border
+        ]
+      |> fun s -> Style.with_state_exn s Hovered [ Opacity 0.9 ]
+    in
+    View.row ?key ~style:(Style.merge [ base; custom ]) children
+  ;;
+end
+
 let badge
       (p : Appearance.t)
       ?key

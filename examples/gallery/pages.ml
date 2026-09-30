@@ -69,6 +69,7 @@ let presentation app window palette graph =
   let shimmer_preview = Shimmer_preview.component palette graph in
   let marker_preview = Marker_preview.component palette graph in
   let alert_preview = Alert_preview.component palette graph in
+  let tag_preview = Tag_preview.component palette graph in
   let group_preview = Group_preview.component palette graph in
   let empty_preview = Empty_preview.component app window palette graph in
   let separator_preview = Separator_preview.component palette graph in
@@ -87,6 +88,7 @@ let presentation app window palette graph =
   and shimmer_preview = shimmer_preview
   and marker_preview = marker_preview
   and alert_preview = alert_preview
+  and tag_preview = tag_preview
   and label_preview = label_preview
   and group_preview = group_preview
   and empty_preview = empty_preview
@@ -125,6 +127,7 @@ let presentation app window palette graph =
     ; Palette.card p ~title:"A little light, in motion" [ shimmer_preview ]
     ; Palette.card p ~title:"Signals that stay out of the way" [ marker_preview ]
     ; Palette.card p ~title:"A clear next step" [ alert_preview ]
+    ; Palette.card p ~title:"Small details, useful actions" [ tag_preview ]
     ; Palette.card p ~title:"Structure with flexibility" [ group_preview ]
     ; Palette.card p ~title:"Space with intention" [ separator_preview ]
     ; Palette.card p ~title:"Follow your curiosity" [ link_preview ]

@@ -141,6 +141,67 @@ val tag
   -> string
   -> 'action View.t
 
+module Tag : sig
+  module Size : sig
+    type t =
+      | XSmall
+      | Small
+      | Medium
+      | Large
+    [@@deriving equal, sexp_of]
+  end
+
+  module Palette : sig
+    type t [@@deriving equal, sexp_of]
+
+    (** Colors may be ordinary theme tokens. A custom palette's foreground and
+        border remain unchanged in outline mode; only its background clears. *)
+    val create : background:Color.t -> foreground:Color.t -> border:Color.t -> t
+  end
+
+  module Variant : sig
+    type t =
+      | Primary
+      | Secondary
+      | Danger
+      | Success
+      | Warning
+      | Info
+      | Custom of Palette.t
+    [@@deriving equal, sexp_of]
+  end
+
+  (** Rich content-only tag. Children are direct flex children with no placeholder
+      label or automatic gap. The root adds no role, live region, focus stop or
+      action; ordinary child controls retain their native behavior. Caller-owned
+      keys preserve identity on reorder; hiding/removing children retires them.
+
+      Default Secondary/Medium/filled. XS/Small use 6px horizontal/2px vertical
+      padding and 4px radius; Medium/Large use 10/4px and 8px radius, matching the
+      source's two size groups. Font 12px, line height 125%, border 1px.
+      [style] refines all defaults, including radius (16px maps rounded_full).
+
+      Primary/Info use Appearance's accent, semantic variants their corresponding
+      color, and Secondary raised/foreground/border. Filled semantic variants use
+      on_solid; outlines use the semantic ink (Secondary muted). Custom palettes
+      supply all three colors and cover application-specific named color scales.
+
+      Default hovered opacity is 0.9, an absolute value affecting the entire tag.
+      A base opacity alone does not remove it: override Hovered opacity or unset
+      it on the supplied style to retain base opacity while hovered. No OCaml
+      hover callback or native resource owner is added. Legacy [tag]/[badge] are
+      unchanged. *)
+  val create
+    :  Appearance.t
+    -> ?key:Key.t
+    -> ?style:Style.t
+    -> ?size:Size.t
+    -> ?variant:Variant.t
+    -> ?outline:bool
+    -> 'action View.t list
+    -> 'action View.t
+end
+
 (** A colored dot accompanied by readable text; color is never the only signal. *)
 val marker
   :  Appearance.t

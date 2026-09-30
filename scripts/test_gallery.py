@@ -37,6 +37,7 @@ def exercise(mac, images):
     exercise_shimmer(mac, images)
     exercise_markers(mac, images)
     exercise_alerts(mac, images)
+    exercise_tags(mac, images)
     exercise_attachments(mac, images)
     exercise_groups(mac, images)
     exercise_separators(mac, images)
@@ -812,6 +813,179 @@ def exercise_groups(mac, images):
     print(f'GALLERY_GROUP_OK: {cases} theme/variant/style/slot cases; geometry, retained '
           f'checked state and native identity, {clicks} pointer/Return actions, '
           'real Space input, focus and teardown', flush=True)
+
+
+def exercise_tags(mac, images):
+    """Rich tags: real hover compositing, child keys, native paint and OS actions."""
+    mac.press(TITLE,'Presentation')
+    mac.wait_text(TITLE,'Small details, useful actions')
+    action=mac.wait_find(TITLE,'Tag action','AXButton')
+    equal=mac.cf.CFEqual
+    equal.restype,equal.argtypes=C.c_bool,[C.c_void_p,C.c_void_p]
+    mouse=GalleryMouse(mac)
+    temporary=tempfile.TemporaryDirectory(prefix='gpuio-tag-')
+    directory=images or Path(temporary.name)
+    serial=actions=cases=0
+    variant,size,hover_mode='Secondary','M','Default'
+    variants=['Primary','Secondary','Danger','Success','Warning','Info','Custom']
+
+    def toggle(label):
+        activate(mac,mac.wait_find(TITLE,label,'AXCheckBox'))
+        time.sleep(.08)
+
+    def cycle(prefix,current,values):
+        mac.press(TITLE,prefix+current)
+        value=values[(values.index(current)+1)%len(values)]
+        mac.release(mac.wait_find(TITLE,prefix+value,'AXButton'))
+        return value
+
+    def identity():
+        node=mac.wait_find(TITLE,'Tag action','AXButton')
+        try: assert equal(action,node), 'Tag reconfiguration remounted action'
+        finally: mac.release(node)
+
+    def root_rect():
+        node=mac.wait_find(TITLE,'Tag preview','AXGroup')
+        try: return element_rect(mac,node)
+        finally: mac.release(node)
+
+    def window_rect():
+        node=mac.window(TITLE)
+        try: return element_rect(mac,node)
+        finally: mac.release(node)
+
+    def reveal():
+        reveal_gallery_control(mac,'Tag action','AXButton')
+        wx,wy,ww,wh=window_rect()
+        mouse.send(5,(wx+ww-25,wy+110))
+        time.sleep(.08)
+
+    def paint(theme,outline,opacity=1.,hover=False):
+        nonlocal serial
+        x,y,w,h=root_rect()
+        wx,wy,ww,wh=window_rect()
+        assert abs(w-280)<1 and y>=wy+160 and y+h<wy+wh-15, ('tag bounds',x,y,w,h)
+        if hover:
+            point=(x+w-5,y+h/2)
+            mouse.check_owner(point)
+            mouse.send(5,point)
+            time.sleep(.15)
+        path=directory/f'gallery-tag-paint-{serial:03d}.png'
+        serial+=1
+        screenshot(mac,path,title=TITLE)
+        pixels=read_png(mac,path)
+        def rgb(px,py):
+            return pixels.rgb((px-wx)*pixels.width/ww,(py-wy)*pixels.height/wh)
+        dark=theme=='Dark'
+        parent=(25,33,44) if dark else (255,255,255)
+        accent=(163,181,255) if dark else (64,88,183)
+        bg,border={
+            'Primary':(accent,accent), 'Info':(accent,accent),
+            'Secondary':((39,46,59),(62,72,91)) if dark else ((240,242,246),(211,217,227)),
+            'Danger':((255,160,175),(255,160,175)) if dark else ((183,52,75),(183,52,75)),
+            'Success':((139,214,175),(139,214,175)) if dark else ((33,115,76),(33,115,76)),
+            'Warning':((241,199,132),(241,199,132)) if dark else ((135,85,11),(135,85,11)),
+            'Custom':((16,21,29),(137,221,201)) if dark else ((241,244,247),(9,110,91))}[variant]
+        def blend(color): return tuple(round(c*opacity+b*(1-opacity)) for c,b in zip(color,parent))
+        background=parent if outline else blend(bg)
+        edge=tuple(round(c*opacity+b*(1-opacity)) for c,b in zip(border,background))
+        close=lambda a,b:max(abs(x-y) for x,y in zip(a,b))<=5
+        actual=rgb(x+w-5,y+h/2)
+        assert close(actual,background), ('tag fill/hover',theme,variant,outline,opacity,actual,background)
+        edges=[rgb(x+w/2,y+h-d) for d in [.25,.5,.75]]
+        assert any(close(c,edge) for c in edges), ('tag border/hover',theme,variant,outline,opacity,edges,edge)
+        return actual
+
+    node=mac.find(TITLE,'Dark','AXButton')
+    initial='Dark' if node else 'Light'
+    if node: mac.release(node)
+    try:
+        for theme in [initial,'Light' if initial=='Dark' else 'Dark']:
+            for _ in range(7):
+                focus_gallery_control(mac,'Tag action','AXButton')
+                for outline in [False,True]:
+                    if outline: toggle('Tag outline')
+                    reveal()
+                    identity()
+                    paint(theme,outline)
+                    expect_focus(mac,'Tag action','AXButton')
+                    mac.key(36)
+                    actions+=1
+                    mac.wait_text(TITLE,f'Tag actions: {actions}')
+                    cases+=1
+                toggle('Tag outline')
+                variant=cycle('Tag variant: ',variant,variants)
+            sizes={}
+            for _ in range(4):
+                reveal()
+                sizes[size]=root_rect()[3]
+                identity()
+                size=cycle('Tag size: ',size,['XS','S','M','L'])
+            assert abs(sizes['XS']-sizes['S'])<.1 and abs(sizes['M']-sizes['L'])<.1 and abs(sizes['M']-sizes['S']-4)<.2, sizes
+            # Use a strongly contrasting palette for observable hover alpha.
+            while variant!='Primary': variant=cycle('Tag variant: ',variant,variants)
+            for mode,rest,active in [('Default',1.,.9),('Override',.65,.4),('Unset',.65,.65)]:
+                assert hover_mode==mode
+                reveal()
+                before=paint(theme,False,rest)
+                after=paint(theme,False,active,hover=True)
+                if mode=='Unset': assert before==after, 'Unset hover changed base opacity'
+                else: assert max(abs(a-b) for a,b in zip(before,after))>5, 'hover was not observable'
+                identity()
+                hover_mode=cycle('Tag hover: ',hover_mode,['Default','Override','Unset'])
+            toggle('Round tag corners')
+            toggle('Reverse tag children')
+            reveal()
+            identity()
+            label=mac.wait_find(TITLE,'Ready · 京都','AXStaticText')
+            try:
+                assert element_rect(mac,action)[0] < element_rect(mac,label)[0], 'reverse did not change order'
+            finally: mac.release(label)
+            if images: screenshot(mac,images/f'gallery-tag-{theme.lower()}.png',title=TITLE)
+            toggle('Reverse tag children')
+            toggle('Round tag corners')
+            # Return to the same variant for the next full matrix.
+            while variant!='Secondary': variant=cycle('Tag variant: ',variant,variants)
+            if theme==initial: mac.press(TITLE,theme)
+        toggle('Tag label')
+        wait_absent(mac,'Ready · 京都','AXStaticText')
+        identity()
+        focus_gallery_control(mac,'Tag action','AXButton')
+        mac.key(49)
+        actions+=1
+        mac.wait_text(TITLE,f'Tag actions: {actions}')
+        toggle('Tag action slot')
+        wait_absent(mac,'Tag action','AXButton')
+        root=mac.wait_find(TITLE,'Tag preview','AXGroup')
+        children=mac.children(root,'AXChildren')
+        try: assert not children, 'empty tag inserted placeholder accessibility nodes'
+        finally:
+            for child in children: mac.release(child)
+            mac.release(root)
+        toggle('Tag action slot')
+        replacement=mac.wait_find(TITLE,'Tag action','AXButton')
+        assert not equal(action,replacement), 'removed action retained native identity'
+        mac.release(action)
+        action=replacement
+        toggle('Tag label')
+        mac.press(TITLE,'Runtime & windows')
+        wait_absent(mac,'Tag action','AXButton')
+        mac.press(TITLE,'Refresh resource counts')
+        mac.wait_text(TITLE,'Registered source bytes: 0')
+        mac.press(TITLE,'Presentation')
+        replacement=mac.wait_find(TITLE,'Tag action','AXButton')
+        assert not equal(action,replacement), 'page retained native action'
+        mac.release(action)
+        action=replacement
+        mac.wait_text(TITLE,f'Tag actions: {actions}')
+        focus_gallery_control(mac,'Tag action','AXButton')
+        mac.key(36)
+        actions+=1
+        mac.wait_text(TITLE,f'Tag actions: {actions}')
+        print(f'GALLERY_TAG_OK: {cases} theme/variant/outline GPU cases, two size groups, native hover/override/unset pixels, reorder and rich-only/empty content, {actions} OS actions, retained focus/identity, slot/page retirement and state recovery',flush=True)
+    finally:
+        mac.release(action)
+        temporary.cleanup()
 
 
 def exercise_alerts(mac, images):
@@ -4454,7 +4628,7 @@ def main():
     parser.add_argument('--trace-canvas', action='store_true')
     parser.add_argument('--trace-motion', action='store_true')
     parser.add_argument('--trace-windows', action='store_true')
-    parser.add_argument('--section', choices=['all', 'core', 'status-regions', 'badges', 'labels', 'shimmer', 'markers', 'alerts', 'attachments', 'attachment-paint', 'groups', 'links', 'empty', 'separators', 'styles', 'borders', 'aspect-ratio', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'document-links', 'document-images', 'highlighting', 'canvas', 'assets', 'charts', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
+    parser.add_argument('--section', choices=['all', 'core', 'status-regions', 'badges', 'labels', 'shimmer', 'markers', 'alerts', 'tags', 'attachments', 'attachment-paint', 'groups', 'links', 'empty', 'separators', 'styles', 'borders', 'aspect-ratio', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'document-links', 'document-images', 'highlighting', 'canvas', 'assets', 'charts', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
     args = parser.parse_args()
     if args.images:
         args.images.mkdir(parents=True, exist_ok=True)
@@ -4491,6 +4665,8 @@ def main():
                 exercise_attachment_paint(mac, args.images)
             if args.section == 'attachments':
                 exercise_attachments(mac, args.images)
+            if args.section == 'tags':
+                exercise_tags(mac, args.images)
             if args.section == 'alerts':
                 exercise_alerts(mac, args.images)
             if args.section == 'markers':

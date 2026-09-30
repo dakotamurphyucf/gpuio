@@ -300,9 +300,9 @@ hosted CI, performance or clean-machine distribution acceptance.
 
 The other presentation modules have a
 [pinned source and behavior review](presentation-gaps.md), including nested
-settings fields. Empty, Separator, Attachment, Marker and Alert now have explicit local
+settings fields. Empty, Separator, Attachment, Marker, Alert and Tag have explicit local
 functional-equivalent evidence; the ledger distinguishes them from the remaining
-Tag, Bubble, Message, Description, Kbd and Settings gaps.
+Bubble, Message, Description, Kbd and Settings gaps.
 Source review alone does not establish functional equivalence. Prior OCH-33 evidence
 still applies only to the APIs it actually tests. Other catalog families,
 consumer/CI/distribution checks and the complete OCH-17 scope remain open.
@@ -480,3 +480,22 @@ The consumer additionally checks actual GPU tint/border paint in both themes and
 custom border refinement. This accepts the scoped source row locally on macOS;
 VoiceOver, Linux, aggregate performance, distribution and other catalog/release
 gates remain separate.
+
+## Tag: functional equivalent
+
+`Presentation.Tag` maps [component/tag](sources/component-tag.rs.txt) with direct
+rich children, semantic/custom palettes, independent outline, size aliases, radius
+and native hovered-opacity refinement. Existing string tag/badge helpers remain
+unchanged. The [contract](../design/presentation-tags.md) records the source named-
+color-scale mapping to application palettes/tokens, geometry, opacity layering,
+style precedence and ordinary child ownership. The root adds no action/live role
+or mandatory text node.
+
+Four Core tests include palette/outline, custom tokens/alpha, direct children,
+style override/unset and 56 retained-action transitions. The final independently
+installed gallery consumer passes 28 theme/palette/outline GPU cases, eight size
+measurements, native pointer-hover default/override/unset, reordered children,
+rich-control-only/empty content, 30 OS Return/Space actions and slot/page retirement.
+Caller state survives native remount. This accepts the local macOS source row;
+whole-family, hosted/platform, accessibility, performance and distribution gates
+remain open.

@@ -29,6 +29,13 @@ motion. Its focused normal-launch and installed-consumer checks pass on macOS:
 `python3 scripts/test_gallery.py --section shimmer`. See the exact coverage and
 remaining release gates in [the shimmer contract](../../docs/design/text-shimmer.md).
 
+The **Small details, useful actions** card uses `Presentation.Tag` for rich
+content, semantic/custom palettes, outline, sizes, rounded corners and native
+hover refinement. Remove the label to keep a control-only tag, reorder children,
+or remove both slots. Run `python3 scripts/test_gallery.py --section tags`; this
+check is also included in `core` and `all`.
+See the [Tag contract](../../docs/design/presentation-tags.md).
+
 The **A clear next step** card uses `Presentation.Alert` for semantic variants,
 Card/Banner layout, optional title/close, icon choices, sizes, style refinement
 and narrow-width wrapping. Dismiss with pointer or keyboard, test disabled close,

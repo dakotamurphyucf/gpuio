@@ -18,6 +18,29 @@ adds public inline-code/bold and safe image-placeholder links, with exact AX
 reading-order/action checks and retained keyboard navigation. Its focused result
 is separate from the combined/installed-consumer checkpoints below.
 
+## Rich tags — focused checkpoint, 2026-09-30
+
+The Presentation card **Small details, useful actions** uses `Presentation.Tag`:
+direct rich children, seven semantic/custom palettes, outline, size groups,
+rounded corners, reorder and native hover override/unset. The [contract and
+commands](../design/presentation-tags.md) document source mapping and paint-layer
+semantics, preserving the original helpers.
+
+The complete native result is from a fresh installed-library consumer on macOS
+14.5 arm64: 28 theme/palette/outline GPU cases, eight size measurements, default/
+overridden/unset pointer-hover opacity, rich-only/empty content, reorder geometry,
+30 OS Return/Space actions, retained focus/identity and slot/page retirement.
+Caller state survives remount and registered source bytes reach zero on departure.
+The bounded process exits 0 and is reaped, reporting `GALLERY_TAG_OK` and
+`GPUIO_GALLERY_AX_OK: section=tags`. Its light screenshot was reviewed. The earlier
+repository-native run is only partial evidence; its opacity reference was corrected
+without a renderer change or weaker tolerance.
+
+Core palette/style/lifecycle tests and full Dune build/tests/format pass.
+The driver is part of `all`/`core`; this
+checkpoint does not claim a new whole-gallery run, hosted CI, VoiceOver, Linux GUI,
+application performance or clean-machine distribution.
+
 ## Rich alerts — focused checkpoint, 2026-09-30
 
 The Presentation page's **A clear next step** card exposes the public
