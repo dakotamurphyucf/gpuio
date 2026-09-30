@@ -5456,6 +5456,155 @@ def exercise_runtime(mac, images):
 
 
 
+def exercise_settings_composition(mac):
+    """Actual US-layout dead-key composition; does not change the input source."""
+    carbon = C.CDLL('/System/Library/Frameworks/Carbon.framework/Carbon')
+    current = carbon.TISCopyCurrentKeyboardInputSource
+    current.restype, current.argtypes = C.c_void_p, []
+    property_ = carbon.TISGetInputSourceProperty
+    property_.restype, property_.argtypes = C.c_void_p, [C.c_void_p, C.c_void_p]
+    source = current()
+    if not source:
+        raise RuntimeError('No active macOS keyboard input source')
+    try:
+        name = C.c_void_p.in_dll(carbon, 'kTISPropertyInputSourceID').value
+        value = property_(source, name)
+        buffer = C.create_string_buffer(1024)
+        if not value or not mac.get_string(value, buffer, len(buffer), 0x08000100):
+            raise RuntimeError('Cannot read the active keyboard input source')
+        source_id = buffer.value.decode()
+        if source_id != 'com.apple.keylayout.US':
+            raise RuntimeError(f'Settings dead-key check requires the US input source; current={source_id}. No input source was changed.')
+    finally:
+        mac.release(source)
+    print('SETTINGS_COMPOSITION_INPUT_SOURCE', source_id, flush=True)
+    mac.press(TITLE, 'Settings')
+    label, role = 'Settings workspace name', 'AXTextField'
+    help_ = 'Finish composing text before resetting this field.'
+    def stored(text):
+        mac.release(mac.wait_find(TITLE, f'Stored name: {text} · region: Americas · model: 000 · custom: 0', 'AXStaticText'))
+    focus_gallery_control(mac, label, role)
+    mac.key(0, flags=1 << 20)
+    mac.key(0)
+    expect_field(mac, TITLE, label, 'a')
+    stored('a')
+    original = mac.wait_find(TITLE, label, role)
+    equal = mac.cf.CFEqual
+    equal.restype, equal.argtypes = C.c_bool, [C.c_void_p, C.c_void_p]
+    def composing(text, saved):
+        mac.wait_text(TITLE, help_)
+        expect_field(mac, TITLE, label, text)
+        stored(saved)
+        expect_focus(mac, label, role)
+        current = mac.wait_find(TITLE, label, role)
+        try:
+            assert equal(original, current), 'Composition lost its native editor identity'
+        finally:
+            mac.release(current)
+    try:
+        mac.key(14, flags=1 << 19)  # Option+E starts the OS dead-key preedit.
+        composing('a´', 'a')
+        for before, after in [
+            ('Narrow settings', 'Widen settings'),
+            ('Widen settings', 'Narrow settings'),
+            ('Outline groups', 'Filled groups'),
+            ('Filled groups', 'Plain groups'),
+            ('Plain groups', 'Card groups'),
+            ('Card groups', 'Outline groups'),
+            ('Medium fields', 'Large fields'),
+            ('Large fields', 'Small fields'),
+            ('Small fields', 'Medium fields'),
+            ('Dark', 'Light'),
+            ('Light', 'Dark'),
+        ]:
+            mac.press(TITLE, before)
+            mac.release(mac.wait_find(TITLE, after, 'AXButton'))
+            composing('a´', 'a')
+        mac.press(TITLE, 'Reset workspace-name')
+        mac.wait_text(TITLE, 'Name reset: Composing')
+        composing('a´', 'a')
+        # One native reset fails while a separate Boolean reset can succeed.
+        activate(mac, mac.wait_find(TITLE, 'Settings notifications', 'AXCheckBox'))
+        expect_enabled(mac, 'Reset notifications', True)
+        composing('a´', 'a')
+        mac.press(TITLE, 'Reset entire page')
+        mac.wait_text(TITLE, 'Name reset: Composing')
+        expect_enabled(mac, 'Reset notifications', False)
+        composing('a´', 'a')
+        mac.key(14)  # E commits the actual composed character.
+        expect_field(mac, TITLE, label, 'aé')
+        stored('aé')
+        absent(mac, help_, 'AXStaticText')
+        mac.key(6, flags=1 << 20)  # Command+Z: one native composition undo.
+        expect_field(mac, TITLE, label, 'a')
+        stored('a')
+        mac.key(6, flags=(1 << 20) | (1 << 17))
+        expect_field(mac, TITLE, label, 'aé')
+        stored('aé')
+        mac.key(14, flags=1 << 19)
+        composing('aé´', 'aé')
+        # An explicit page departure retires preedit, not the saved setting.
+        activate(mac, mac.wait_find(TITLE, 'Advanced', 'AXLink'))
+        mac.release(mac.wait_find(TITLE, 'Experiment 00', 'AXStaticText'))
+        absent(mac, label, role)
+        stored('aé')
+        activate(mac, mac.wait_find(TITLE, 'Workspace', 'AXLink'))
+        expect_field(mac, TITLE, label, 'aé')
+        stored('aé')
+        current = mac.wait_find(TITLE, label, role)
+        try:
+            assert not equal(original, current), 'Page retirement retained the old native owner'
+        finally:
+            mac.release(current)
+        absent(mac, help_, 'AXStaticText')
+        mac.press(TITLE, 'Reset workspace-name')
+        expect_field(mac, TITLE, label, 'Northstar')
+        stored('Northstar')
+    finally:
+        mac.release(original)
+    activate(mac, mac.wait_find(TITLE, 'Generation', 'AXLink'))
+    numeric = 'Settings response budget'
+    numeric_help = 'Finish composing text before resetting this number.'
+    focus_gallery_control(mac, numeric, role)
+    mac.key(0, flags=1 << 20)
+    for code in (18, 14, 27):  # 1e- is a persistent unfinished numeric draft.
+        mac.key(code)
+    expect_field(mac, TITLE, numeric, '1e-')
+    mac.wait_text(TITLE, 'Finish this number before committing.')
+    mac.key(14, flags=1 << 19)
+    mac.wait_text(TITLE, numeric_help)
+    expect_field(mac, TITLE, numeric, '1e-´')
+    mac.press(TITLE, 'Reset budget')
+    mac.wait_text(TITLE, 'Budget reset: Composing')
+    expect_field(mac, TITLE, numeric, '1e-´')
+    activate(mac, mac.wait_find(TITLE, 'Advanced', 'AXLink'))
+    mac.release(mac.wait_find(TITLE, 'Experiment 00', 'AXStaticText'))
+    absent(mac, numeric, role)
+    activate(mac, mac.wait_find(TITLE, 'Workspace', 'AXLink'))
+    activate(mac, mac.wait_find(TITLE, 'Generation', 'AXLink'))
+    expect_field(mac, TITLE, numeric, '1e-')
+    absent(mac, numeric_help, 'AXStaticText')
+    focus_gallery_control(mac, numeric, role)
+    mac.key(53)  # Cancel the draft, restoring the separate committed value.
+    expect_field(mac, TITLE, numeric, '25')
+    expect_enabled(mac, 'Reset budget', False)
+    # Escape ends composition in the same owner. Its OS dead-key context must
+    # also end, or the subsequent replacement receives the canceled accent.
+    mac.key(0, flags=1 << 20)
+    mac.key(18)
+    mac.key(14, flags=1 << 19)
+    mac.wait_text(TITLE, numeric_help)
+    expect_field(mac, TITLE, numeric, '1´')
+    mac.key(53)
+    absent(mac, numeric_help, 'AXStaticText')
+    mac.key(0, flags=1 << 20)
+    mac.key(19)
+    expect_field(mac, TITLE, numeric, '2')
+    mac.key(53)
+    expect_field(mac, TITLE, numeric, '25')
+    print('GALLERY_SETTINGS_COMPOSITION_OK: real US dead-key input, stable preedit/focus/identity across layout/theme/size changes, committed-value mirroring, reset rejection/partial success, native undo/redo and page retirement', flush=True)
+
+
 def exercise_settings_resize(mac, original):
     """Drive the public native divider, preserving the editor and its draft."""
     label = 'Settings sidebar width'
@@ -5865,6 +6014,10 @@ def exercise_settings(mac, images):
         mac.wait_text(TITLE, 'No matching settings')
         mac.key(0, flags=1 << 20)
         mac.key(51)  # clear query
+        # Clearing search restores the preferred group (Generation), rather
+        # than promising that the first group is visible after remount.
+        expect_field(mac, TITLE, 'Settings response budget', '25')
+        activate(mac, mac.wait_find(TITLE, 'Make it yours', 'AXLink'))
         expect_field(mac, TITLE, 'Settings workspace name', 'a')
         # A whole-page reset must include filtered-out native editor placements.
         def search_keys(keys):
@@ -5962,7 +6115,7 @@ def main():
     parser.add_argument('--trace-canvas', action='store_true')
     parser.add_argument('--trace-motion', action='store_true')
     parser.add_argument('--trace-windows', action='store_true')
-    parser.add_argument('--section', choices=['all', 'core', 'settings', 'settings-windows', 'status-regions', 'badges', 'labels', 'shimmer', 'markers', 'alerts', 'tags', 'keyboard-labels', 'binding-observations', 'descriptions', 'chat-composition', 'chat-list', 'attachments', 'attachment-paint', 'groups', 'links', 'empty', 'separators', 'styles', 'borders', 'aspect-ratio', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'document-links', 'document-images', 'highlighting', 'canvas', 'assets', 'charts', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
+    parser.add_argument('--section', choices=['all', 'core', 'settings', 'settings-windows', 'settings-composition', 'status-regions', 'badges', 'labels', 'shimmer', 'markers', 'alerts', 'tags', 'keyboard-labels', 'binding-observations', 'descriptions', 'chat-composition', 'chat-list', 'attachments', 'attachment-paint', 'groups', 'links', 'empty', 'separators', 'styles', 'borders', 'aspect-ratio', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'document-links', 'document-images', 'highlighting', 'canvas', 'assets', 'charts', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
     args = parser.parse_args()
     if args.images:
         args.images.mkdir(parents=True, exist_ok=True)
@@ -6027,6 +6180,8 @@ def main():
                 exercise_borders(mac, args.images)
             if args.section in ('all', 'settings'):
                 exercise_settings(mac, args.images)
+            if args.section == 'settings-composition':
+                exercise_settings_composition(mac)
             if args.section in ('all', 'styles'):
                 exercise_styles(mac, args.images)
             if args.section in ('all', 'pickers'):

@@ -132,6 +132,10 @@ jobs:
       - name: Independent public gallery consumer
         id: gallery-consumer
         run: python3 scripts/test_extension_consumer.py --example gallery 2>&1 | tee .cache/ci/gallery-consumer.log
+      - name: macOS Settings keyboard composition
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 3
+        run: python3 scripts/test_gallery.py --section settings-composition --images .cache/ci/settings-composition 2>&1 | tee .cache/ci/macos-settings-composition.log
       - name: Independent Signal Studio consumer
         id: signal-consumer
         run: |

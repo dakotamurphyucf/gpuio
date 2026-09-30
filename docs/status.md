@@ -29,8 +29,14 @@ is repaired with a scoped adapter initialization patch and passing two-window
 OS input/focus checks. Native [disabled subtrees](design/disabled-subtrees.md)
 now preserve discoverable controls while blocking input, stale AX/menu actions
 and active gestures; the public Settings gallery and a fresh installed consumer
-pass disabled-state and retained-identity checks. Composition retention
-and complete reset/field/style edge coverage remain open;
+pass disabled-state and retained-identity checks. Actual US dead-key checks now
+pass composition retention across layout/theme/size changes, guarded and partial
+resets, commit/undo/redo and text/numeric owner retirement. They exposed and
+helped repair a window-level macOS input-context leak into the next editor.
+Rapid page/group navigation also exposed a reveal against estimated list heights;
+the destination now remains requested until its actual row is painted, with
+supersession, user-input cancellation and a scoped native sparse-row regression.
+Broader IME and complete reset/field/style edge coverage remain open;
 Settings is not yet a functional-equivalent claim.
 
 The [mounted native binding observer](design/command-binding-observations.md)

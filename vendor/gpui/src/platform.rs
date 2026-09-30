@@ -1489,6 +1489,7 @@ impl From<TileId> for etagere::AllocId {
 pub struct PlatformInputHandler {
     cx: AsyncWindowContext,
     handler: Box<dyn InputHandler>,
+    pub(crate) focus_id: Option<crate::FocusId>,
 }
 
 #[expect(missing_docs)]
@@ -1501,7 +1502,21 @@ pub struct PlatformInputHandler {
 )]
 impl PlatformInputHandler {
     pub fn new(cx: AsyncWindowContext, handler: Box<dyn InputHandler>) -> Self {
-        Self { cx, handler }
+        Self {
+            cx,
+            handler,
+            focus_id: None,
+        }
+    }
+
+    pub(crate) fn unmark_in_window(&mut self, window: &mut Window, cx: &mut App) {
+        if self.handler.marked_text_range(window, cx).is_some() {
+            self.handler.unmark_text(window, cx);
+        }
+    }
+
+    pub(crate) fn is_composing(&mut self, window: &mut Window, cx: &mut App) -> bool {
+        self.handler.marked_text_range(window, cx).is_some()
     }
 
     pub fn selected_text_range(&mut self, ignore_disabled_input: bool) -> Option<UTF16Selection> {
@@ -1557,6 +1572,9 @@ impl PlatformInputHandler {
     ) {
         self.cx
             .update(|window, cx| {
+                // Remember a platform composition even if it starts and ends
+                // before the next paint (for example a rapid Escape).
+                window.note_text_input_composition();
                 self.handler.replace_and_mark_text_in_range(
                     range_utf16,
                     new_text,

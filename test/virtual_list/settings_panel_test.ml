@@ -280,6 +280,30 @@ let%expect_test "Settings page visits and responsive field lifetime" =
     |}]
 ;;
 
+let%expect_test "rapid page and group navigation preserves the final reveal" =
+  List.iter [ false; true ] ~f:(fun optimize ->
+    let model = B.Expert.Var.create initial in
+    let driver = driver ~optimize model (ref []) (ref 0) in
+    ignore (cycle driver : Panel.Output.t);
+    ignore (observe driver [ "Basics" ] : Panel.Output.t);
+    ignore (send driver (click (result driver) "Advanced") : Panel.Output.t);
+    ignore (send driver (click (result driver) "Network") : Panel.Output.t);
+    let output = observe driver [ "Connection" ] in
+    let page = click output "General" in
+    let group = click output "Advanced" in
+    let output = send driver (E.Many [ page; group ]) in
+    print_s
+      [%sexp
+        (optimize : bool)
+      , ((list output).scroll : Gpuio.Virtual_list.Scroll_request.t option)];
+    Bonsai_driver.Expert.invalidate_observers driver);
+  [%expect
+    {|
+    (false (((serial 1) (target (Reveal Advanced)))))
+    (true (((serial 1) (target (Reveal Advanced)))))
+    |}]
+;;
+
 let%expect_test
     "Settings IDs use separate namespaces and disabled custom content is disabled"
   =

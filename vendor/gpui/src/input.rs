@@ -304,6 +304,9 @@ mod tests {
             move |_, cx| ConfigurationTestView {
                 focus_handle: cx.focus_handle(),
                 configuration: custom,
+                composing: false,
+                mounted: true,
+                unmarks: 0,
             }
         });
         let view = window.root(cx).unwrap();
@@ -381,28 +384,144 @@ mod tests {
         );
     }
 
+    #[gpui::test]
+    fn text_input_reset_preserves_redraws_and_retires_hidden_owners(cx: &mut TestAppContext) {
+        use crate::PlatformWindow as _;
+        use std::{cell::Cell, rc::Rc};
+        let resets = Rc::new(Cell::new(0));
+        let window = cx.add_window({
+            let resets = resets.clone();
+            move |window, cx| {
+                window.on_text_input_reset(move |window| {
+                    assert!(window.platform_window.take_input_handler().is_none());
+                    resets.set(resets.get() + 1);
+                });
+                ConfigurationTestView {
+                    focus_handle: cx.focus_handle(),
+                    configuration: Default::default(),
+                    composing: false,
+                    mounted: true,
+                    unmarks: 0,
+                }
+            }
+        });
+        let view = window.root(cx).unwrap();
+        let window = AnyWindowHandle::from(window);
+        let draw = |cx: &mut TestAppContext| {
+            cx.update_window(window, |_, window, cx| window.draw(cx).clear(cx))
+                .unwrap();
+        };
+        cx.update_window(window, |_, window, cx| {
+            window.focus(&view.read(cx).focus_handle.clone(), cx);
+        })
+        .unwrap();
+        draw(cx);
+        view.update(cx, |view, cx| {
+            view.composing = true;
+            cx.notify();
+        });
+        draw(cx);
+        draw(cx);
+        view.update(cx, |view, cx| {
+            view.configuration.autocorrect = true;
+            cx.notify();
+        });
+        draw(cx);
+        assert_eq!(
+            resets.get(),
+            0,
+            "redraw/configuration must preserve composition"
+        );
+        cx.update(|cx| assert_eq!(view.read(cx).unmarks, 0));
+
+        // A native commit/cancel ends the platform session even without blur.
+        view.update(cx, |view, cx| {
+            view.composing = false;
+            cx.notify();
+        });
+        draw(cx);
+        draw(cx);
+        assert_eq!(resets.get(), 1);
+
+        view.update(cx, |view, cx| {
+            view.composing = true;
+            cx.notify();
+        });
+        draw(cx);
+        cx.update_window(window, |_, window, cx| window.blur(cx))
+            .unwrap();
+        draw(cx);
+        assert_eq!(resets.get(), 2);
+        cx.update(|cx| assert!(!view.read(cx).composing));
+        cx.update(|cx| assert_eq!(view.read(cx).unmarks, 1));
+
+        cx.update_window(window, |_, window, cx| {
+            window.focus(&view.read(cx).focus_handle.clone(), cx);
+        })
+        .unwrap();
+        view.update(cx, |view, cx| {
+            view.composing = true;
+            cx.notify();
+        });
+        draw(cx);
+        // Removing only the painted input keeps both the entity and FocusId
+        // alive: cleanup cannot depend on dropping either of them.
+        view.update(cx, |view, cx| {
+            view.mounted = false;
+            cx.notify();
+        });
+        draw(cx);
+        draw(cx);
+        assert_eq!(resets.get(), 3);
+        cx.update(|cx| assert!(!view.read(cx).composing));
+        cx.update(|cx| assert_eq!(view.read(cx).unmarks, 2));
+
+        view.update(cx, |view, cx| {
+            view.mounted = true;
+            cx.notify();
+        });
+        draw(cx);
+        let mut platform = cx.test_window(window);
+        let mut handler = platform.take_input_handler().unwrap();
+        handler.replace_and_mark_text_in_range(None, "x", Some(1..1));
+        handler.unmark_text();
+        platform.set_input_handler(handler);
+        // Both OS callbacks happened before any paint. Sampling only the
+        // marked range at frame boundaries would miss this ended session.
+        draw(cx);
+        draw(cx);
+        assert_eq!(resets.get(), 4);
+        cx.update(|cx| assert_eq!(view.read(cx).unmarks, 3));
+    }
+
     struct ConfigurationTestView {
         focus_handle: FocusHandle,
         configuration: TextInputConfiguration,
+        composing: bool,
+        mounted: bool,
+        unmarks: usize,
     }
 
     impl Render for ConfigurationTestView {
         fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
             let view = cx.entity();
             let focus_handle = self.focus_handle.clone();
-            div().size_full().track_focus(&self.focus_handle).child(
-                canvas(
-                    |_, _, _| {},
-                    move |bounds, _, window, cx| {
-                        window.handle_input(
-                            &focus_handle,
-                            ElementInputHandler::new(bounds, view),
-                            cx,
-                        );
-                    },
-                )
-                .size_full(),
-            )
+            div()
+                .size_full()
+                .track_focus(&self.focus_handle)
+                .children(self.mounted.then(|| {
+                    canvas(
+                        |_, _, _| {},
+                        move |bounds, _, window, cx| {
+                            window.handle_input(
+                                &focus_handle,
+                                ElementInputHandler::new(bounds, view),
+                                cx,
+                            );
+                        },
+                    )
+                    .size_full()
+                }))
         }
     }
 
@@ -431,10 +550,14 @@ mod tests {
             _window: &mut Window,
             _cx: &mut Context<Self>,
         ) -> Option<std::ops::Range<usize>> {
-            None
+            self.composing.then_some(0..1)
         }
 
-        fn unmark_text(&mut self, _window: &mut Window, _cx: &mut Context<Self>) {}
+        fn unmark_text(&mut self, _window: &mut Window, cx: &mut Context<Self>) {
+            self.composing = false;
+            self.unmarks += 1;
+            cx.notify();
+        }
 
         fn replace_text_in_range(
             &mut self,
@@ -451,8 +574,10 @@ mod tests {
             _new_text: &str,
             _new_selected_range: Option<std::ops::Range<usize>>,
             _window: &mut Window,
-            _cx: &mut Context<Self>,
+            cx: &mut Context<Self>,
         ) {
+            self.composing = true;
+            cx.notify();
         }
 
         fn bounds_for_range(

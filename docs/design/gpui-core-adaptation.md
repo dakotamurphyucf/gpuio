@@ -78,6 +78,41 @@ unrelated siblings. Native and public gallery acceptance is tracked in the
 rerun those checks as well as the existing focus/active-descendant unit suite.
 This is not a claim of VoiceOver or Linux desktop qualification.
 
+## Window text-input context lifetime
+
+The pinned macOS backend uses one NSView input context across native editor
+owners. Removing a composing editor replaced its input handler but left the
+OS conversion session alive: an actual US Option-E accent from the retired
+Settings name field appeared in the next numeric field (`´1e-` instead of
+`1e-`). Changing only the OCaml saved draft cannot repair this platform state.
+
+The local GPUI adaptation attaches the existing focus identity to each painted
+input handler and supplies an opt-in `Window::on_text_input_reset` adapter.
+During frame handoff, an owner change unmarks the previous client before calling
+the adapter. Ending a composition also calls it, including a platform composition
+that starts and ends between paints. The adapter runs with no platform input
+handler installed, so synchronous OS text-client callbacks cannot edit the next
+owner or re-enter GPUI. Unmarking uses the old client's own text policy; this
+does not impose a new universal commit/cancel policy on all editor types.
+
+GPUIO installs a macOS adapter on every application window that invokes
+`NSTextInputContext.discardMarkedText`. Apple requires the client marked range
+to be cleared when discarding the conversion session.
+[Apple documentation](https://developer.apple.com/documentation/appkit/nstextinputcontext/discardmarkedtext%28%29?language=objc).
+The adapter neither changes the keyboard source nor activates the window.
+Ordinary draws, layout/style/configuration changes and cached paint of the same
+composing owner preserve its session. Other platforms do not install this hook;
+their required build/unit checks remain separate from desktop qualification.
+
+The GPUI input unit suite checks redraw/configuration retention, completed
+composition, blur, removal of a painted input while its entity and focus handle
+remain alive, and mark/unmark callbacks coalesced before a paint. It also checks
+that no platform handler is installed during reset. The public Settings
+`--section settings-composition` regression exercises real US dead-key input,
+owner retirement and fresh typing after Escape. This does not qualify multilingual
+candidate panels, VoiceOver or Linux IME behavior. Rerun these checks and the
+native editor/numeric/OTP regressions before changing the adaptation.
+
 ## Read-only accumulated opacity
 
 Custom text-shimmer paint needs the opacity actually computed by GPUI, including

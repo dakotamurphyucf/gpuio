@@ -1173,6 +1173,9 @@ pub struct Window {
     /// input session can restart the IME connection).
     last_text_input_configuration: Option<TextInputConfiguration>,
     focused_text_input_active: bool,
+    text_input_owner: Option<FocusId>,
+    text_input_composing: bool,
+    text_input_reset: Option<Box<dyn FnMut(&mut Window)>>,
     pub(crate) image_cache_stack: Vec<AnyImageCache>,
     pub(crate) rendered_frame: Frame,
     pub(crate) next_frame: Frame,
@@ -2014,6 +2017,9 @@ impl Window {
             requested_autoscroll: None,
             last_text_input_configuration: None,
             focused_text_input_active: false,
+            text_input_owner: None,
+            text_input_composing: false,
+            text_input_reset: None,
             rendered_frame: Frame::new(DispatchTree::new(cx.keymap.clone(), cx.actions.clone())),
             next_frame: Frame::new(DispatchTree::new(cx.keymap.clone(), cx.actions.clone())),
             next_frame_callbacks,
@@ -3145,13 +3151,48 @@ impl Window {
         // paint_range indices remain valid for reuse_paint on the next frame.
         // Search backwards to find the last Some entry, since reuse_paint may
         // have copied None slots from the previous frame. (Fixes #50456)
-        let focused_text_input_active = if let Some(mut input_handler) = self
+        let mut next_input_handler = self
             .next_frame
             .input_handlers
             .iter_mut()
             .rev()
-            .find_map(|h| h.take())
+            .find_map(|h| h.take());
+        let next_owner = next_input_handler.as_ref().and_then(|h| h.focus_id);
+        let owner_retired = self.text_input_owner.is_some() && self.text_input_owner != next_owner;
+        let composing = self.text_input_reset.is_some()
+            && next_input_handler
+                .as_mut()
+                .is_some_and(|handler| handler.is_composing(self, cx));
+        // GPUIO: the platform's text context can outlive its editor. Run the
+        // adapter with no installed handler, after unmarking the retiring
+        // client, so synchronous platform callbacks cannot enter a new owner.
+        if self.text_input_reset.is_some()
+            && (owner_retired || (self.text_input_composing && !composing))
         {
+            if owner_retired {
+                let retiring = self
+                    .rendered_frame
+                    .input_handlers
+                    .iter_mut()
+                    .chain(self.next_frame.input_handlers.iter_mut())
+                    .find(|entry| {
+                        entry
+                            .as_ref()
+                            .is_some_and(|h| h.focus_id == self.text_input_owner)
+                    })
+                    .and_then(Option::take);
+                if let Some(mut handler) = retiring {
+                    handler.unmark_in_window(self, cx);
+                }
+            }
+            if let Some(mut reset) = self.text_input_reset.take() {
+                reset(self);
+                self.text_input_reset = Some(reset);
+            }
+        }
+        self.text_input_owner = next_owner;
+        self.text_input_composing = composing;
+        let focused_text_input_active = if let Some(mut input_handler) = next_input_handler {
             let accepts_text_input = input_handler.accepts_text_input(self, cx);
             self.platform_window.set_input_handler(input_handler);
             accepts_text_input
@@ -5068,10 +5109,27 @@ impl Window {
 
         if focus_handle.is_focused(self) {
             let cx = self.to_async(cx);
-            self.next_frame
-                .input_handlers
-                .push(Some(PlatformInputHandler::new(cx, Box::new(input_handler))));
+            let mut handler = PlatformInputHandler::new(cx, Box::new(input_handler));
+            handler.focus_id = Some(focus_handle.id);
+            self.next_frame.input_handlers.push(Some(handler));
         }
+    }
+
+    /// Install the window's platform text-context reset adapter. It is called
+    /// when the painted input owner changes or its marked composition ends,
+    /// with no platform input handler installed. Ordinary redraws of the same
+    /// composing owner do not reset the context. The old client is unmarked
+    /// before an owner change; its implementation decides what to do with its
+    /// provisional text. Replaces any previously installed adapter.
+    ///
+    /// The adapter must only reset platform state, without updating GPUI or
+    /// entering application code synchronously.
+    pub fn on_text_input_reset(&mut self, reset: impl FnMut(&mut Window) + 'static) {
+        self.text_input_reset = Some(Box::new(reset));
+    }
+
+    pub(crate) fn note_text_input_composition(&mut self) {
+        self.text_input_composing = true;
     }
 
     /// Forwards the focused input handler's [`TextInputConfiguration`] to the

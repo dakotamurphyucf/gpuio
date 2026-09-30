@@ -771,7 +771,10 @@ mod tests {
             let update = builder.finalize();
             for (id, node) in update.nodes.iter().filter(|(id, _)| *id != ROOT_NODE_ID) {
                 assert_eq!(node.is_disabled(), disabled && *id != NodeId(3));
-                assert_eq!(node.supports_action(accesskit::Action::SetValue), !node.is_disabled());
+                assert_eq!(
+                    node.supports_action(accesskit::Action::SetValue),
+                    !node.is_disabled()
+                );
                 assert_eq!(node.value(), Some("retained draft"));
             }
         }

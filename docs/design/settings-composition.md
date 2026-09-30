@@ -12,6 +12,32 @@ and native Save/Eio readback. Complete field/reset integration and wider
 native acceptance remain required; this is not yet a
 functional-equivalent catalog claim.
 
+## Native composition and saved preview values
+
+The gallery records every native observation revision but mirrors name text and
+numeric draft/value into its saved model only outside marked composition. This
+preserves revision ordering without exporting provisional preedit. The next
+composition-free observation can update the model. Explicit page departure
+retires the editor and seeds a new owner from the last saved value/draft; it
+does not serialize or revive a platform IME session.
+
+Active fields display composition-specific reset guidance. A native reset during
+composition reports `Composing`, preserves the field and does not prevent other
+independent resets in the same request from succeeding. This is deliberately
+non-atomic. Layout, field size, group style and theme changes retain the native
+owner, focus, preedit and undo state.
+
+`python3 scripts/test_gallery.py --section settings-composition` exercises actual
+OS keyboard events with the existing `com.apple.keylayout.US` source. It reads
+the source without changing it and fails clearly if the prerequisite is absent.
+Coverage includes eleven responsive/style/size/theme refinements, individual and
+partial page-reset rejection, composition commit/undo/redo, text and numeric
+page retirement, unfinished numeric draft recovery and Escape followed by new
+typing. The cross-owner accent leak exposed by this test is repaired at the
+[native window text-context boundary](gpui-core-adaptation.md#window-text-input-context-lifetime).
+This scoped US dead-key evidence is not full Settings/catalog acceptance or
+multilingual IME/candidate-window qualification.
+
 ## Source and ownership
 
 The pinned [settings module](../catalog/sources/component-setting-mod.rs.txt)
@@ -133,8 +159,9 @@ observation. Omitting it formats the committed value. See the
 [numeric mount contract](numeric-inputs.md#milestone-07-independent-draft-mount-seeds).
 Native undo history, selection and IME state do not survive destruction.
 The gallery now checks a focused Boolean row pin, blur-driven eviction and saved
-value recovery across 48 groups. Native editor composition retention and the
-complete field-remount policy still need Settings gallery coverage.
+value recovery across 48 groups. The scoped US dead-key checks above cover native
+composition retention and text/numeric page retirement; the complete field-remount
+policy still needs Settings gallery coverage.
 
 Sidebar-only changes preserve the group collection. With an unchanged group
 order, metadata changes update only affected collection entries and their height
@@ -372,10 +399,19 @@ initialization patch now passes initial focus, inactive-peer state, switching
 back and actual independent edits; see [window accessibility evidence](../evidence/window-accessibility-och17.md).
 No VoiceOver acceptance is claimed.
 
-The driver waits for actual intermediate page content when testing draft recovery;
-rapid coalesced navigation is not qualified by those steps. IME/composition
-retention, complete field/style/size and partial-native-failure/reset-race coverage,
-and application performance remain open. Settings is not yet a functional-equivalent claim.
+The ordinary driver waits for intermediate page content when testing draft
+recovery. The separate US dead-key check also returns through the page and group
+links without waiting between those two actions. That exposed an initial native
+list reveal using estimated heights before real group rows arrived. Native reveal
+now retains its destination until actual row paint, requests that bounded row
+ahead of ordinary viewport demand and reanchors an offscreen materialized target
+by row identity. New scroll commands, pointer/wheel intent, target removal and
+owner retirement cancel it; no recurring timer is added. A native sparse-row
+fixture covers pre-layout reveal, materialization, supersession and cancellation.
+The Bonsai expect check verifies the final request under coalesced navigation.
+The US dead-key check adds composition retention and partial `Composing` reset-failure
+coverage. Broader IME, complete field/style/size and reset-race coverage, and
+application performance remain open. Settings is not yet a functional-equivalent claim.
 
 ```sh
 GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 examples/gallery/main.exe @test/gallery/runtest @examples/gallery/files/test/runtest
@@ -418,3 +454,27 @@ python3 scripts/test_gallery.py --section settings --executable /private/tmp/gpu
 Both repository and consumer GUI checks use a 180-second process-group watchdog.
 The temporary workspace is recorded evidence only, not a build dependency or a
 clean-machine distribution claim. No Linux GUI or VoiceOver acceptance is added.
+
+## Composition and initial-reveal checkpoint — 2026-09-30
+
+A newly installed gallery consumer passes both the actual US dead-key scenario
+and the full Settings walkthrough after the native text-context and initial-reveal
+repairs. Clearing search now explicitly checks restoration of the preferred group
+before navigating back to inspect the saved name. The earlier test had accidentally
+relied on the defective reveal leaving the first group visible.
+
+```sh
+GPUIO_JOBS=2 python3 scripts/test_extension_consumer.py --example gallery --workspace /private/tmp/gpuio-composition-20260930-2
+python3 scripts/test_gallery.py --section settings-composition --executable /private/tmp/gpuio-composition-20260930-2/consumer/_build/default/main.exe
+python3 scripts/test_gallery.py --section settings --executable /private/tmp/gpuio-composition-20260930-2/consumer/_build/default/main.exe
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j 2 @all @runtest @fmt
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-native --lib
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy --locked -j 2 -p gpuio-native --features native-tests --all-targets -- -D warnings
+```
+
+All passed on local macOS 14.5 arm64; native units report 422 passed and two
+ignored. GUI checks used bounded process groups and closed normally. Native
+tree and nested-scroll checks also pass after the reveal change. This does not
+establish multilingual IME, VoiceOver, Linux desktop or whole-release acceptance.
+The independently captured [initial black frame](../evidence/window-startup-och17.md)
+remains an open startup issue.

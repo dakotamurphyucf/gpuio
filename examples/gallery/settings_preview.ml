@@ -100,14 +100,22 @@ let component ~save window palette graph =
   let number_visit = ref None in
   let mirror_name visit event =
     E.of_thunk (fun () ->
-      let revision, text =
+      let revision, text, composing =
         match event with
         | Text_input.Event.Changed snapshot ->
-          Text_input.Snapshot.revision snapshot, Text_input.Snapshot.text snapshot
+          ( Text_input.Snapshot.revision snapshot
+          , Text_input.Snapshot.text snapshot
+          , Option.is_some (Text_input.Snapshot.composition snapshot) )
         | Submitted submission ->
-          Text_input.Submission.revision submission, Text_input.Submission.text submission
+          ( Text_input.Submission.revision submission
+          , Text_input.Submission.text submission
+          , false )
       in
-      if Visit.observe visit ~revision:(Text_input.Revision.to_int64 revision)
+      (* Record every revision, but persist only text outside native composition.
+         A delayed older reply must not replace data during a newer preedit. *)
+      if
+        Visit.observe visit ~revision:(Text_input.Revision.to_int64 revision)
+        && not composing
       then update (Model.Action.Name text))
   in
   let mirror_number visit event =
@@ -125,6 +133,7 @@ let component ~save window palette graph =
           visit
           ~revision:
             (Number_input.Revision.to_int64 (Number_input.Snapshot.revision snapshot))
+        && Option.is_none (Number_input.Snapshot.composition snapshot)
       then
         update
           (Model.Action.Budget
@@ -452,7 +461,12 @@ let component ~save window palette graph =
           | F.Name ->
             Settings_field.control
               (field
-                 ~help:"Changes are kept when you switch settings pages."
+                 ~help:
+                   (if
+                      Option.exists (Text.snapshot name) ~f:(fun snapshot ->
+                        Option.is_some (Text_input.Snapshot.composition snapshot))
+                    then "Finish composing text before resetting this field."
+                    else "Changes are kept when you switch settings pages.")
                  ?error:
                    (if String.is_empty (String.strip (Model.name state))
                     then Some "Enter a workspace name."
@@ -484,7 +498,12 @@ let component ~save window palette graph =
             Settings_field.control
               (field
                  ?error
-                 ~help:"Press Enter to commit; Escape restores the committed value."
+                 ~help:
+                   (if
+                      Option.exists (Number.snapshot number) ~f:(fun snapshot ->
+                        Option.is_some (Number_input.Snapshot.composition snapshot))
+                    then "Finish composing text before resetting this number."
+                    else "Press Enter to commit; Escape restores the committed value.")
                  "Settings response budget")
               ~layout
               ~size

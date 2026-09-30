@@ -211,3 +211,33 @@ for commands and the separate accessibility limitations. The initial AX focus
 mismatch is now repaired with [its own evidence](window-accessibility-och17.md). These
 checks do not establish whole-application performance, VoiceOver or Linux desktop
 acceptance.
+
+## Milestone 07: reveal before row measurement
+
+The Settings composition regression subsequently exposed a separate cold-page
+case. Both rapid page/group link actions arrived, but native `Reveal` ran before
+the new list had layout bounds, then against placeholder heights. Materializing
+the tall first group left the requested second group below the viewport. Keeping
+warm neighbours alone cannot handle a new page with no measured rows.
+
+The native list now retains one reveal destination until the actual row is
+painted in its viewport. It requests that destination after existing focus pins
+and before ordinary visible/overscan demand, within the existing active budget.
+An offscreen materialized destination anchors by row identity, avoiding reliance
+on estimated prefix heights. A short row must fit vertically; an oversized row
+shows its leading edge. Changed measured bounds can request a following frame;
+missing managed rows wait for the normal observation response without an idle
+redraw timer. Insufficient active capacity reports budget exhaustion.
+
+A newer accepted scroll command supersedes the intent. Wheel/pointer input,
+target removal, hidden/retired owners and canceled tree-focus ownership clear it.
+No protocol field, unbounded queue or row-history cache is added.
+
+`native_list --initial-reveal` covers a request before first layout, bounded
+destination demand, actual 900/650/240px rows replacing 200px placeholders,
+completion, supersession, wheel cancellation and target removal. It is also part
+of the default native list suite. The public Settings `settings-composition`
+check exercises rapid return through page/group links without intervening delays.
+The Bonsai expect fixture independently verifies the final coalesced reveal under
+both optimization modes. These are behavior checks, not application frame-time
+or Linux desktop acceptance.

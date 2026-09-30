@@ -930,6 +930,175 @@ fn demand_convergence(cx: &mut gpui::AsyncApp, window: WindowHandle<View>) {
 
 // A tall focused row fills the viewport, so native demand lists it only as a
 // pin. Cached neighbours still belong to the same overdraw window on later frames.
+async fn initial_reveal(cx: &mut gpui::AsyncApp, window: WindowHandle<View>, generation: i64) {
+    let root = NodeId::from_parts(0, generation).unwrap();
+    let rows: Vec<_> = (1..=3)
+        .map(|id| Row {
+            id,
+            node: NodeId::from_parts(id, generation).unwrap(),
+        })
+        .collect();
+    apply(
+        cx,
+        window,
+        vec![
+            Op::Create(root, Kind::VirtualList, String::new(), None),
+            Op::SetStyle(root, dimensions(420., 400.)),
+            Op::SetListConfig(
+                root,
+                Config {
+                    estimated_height: 200.,
+                    overscan: 400.,
+                    max_active: 3,
+                    scroll_policy: ScrollPolicy::KeepPosition,
+                    scrollbar: true,
+                    managed: true,
+                },
+            ),
+            Op::SetListOrder(
+                root,
+                Order {
+                    revision: 1,
+                    runs: vec![IdRun { first: 1, count: 3 }],
+                },
+            ),
+            Op::SetRoot(Some(root)),
+            Op::ScrollList(
+                root,
+                ScrollRequest {
+                    serial: 1,
+                    target: ScrollTarget::Reveal(2),
+                },
+            ),
+        ],
+    );
+    layout_frames(cx, window);
+    window
+        .update(cx, |view, _, _| {
+            let state = view.lists[&root].borrow();
+            assert_eq!(state.pending_reveal_row(), Some(2));
+            assert!(state.observed.as_ref().unwrap().requested.contains(&2));
+        })
+        .unwrap();
+    let mut materialize = Vec::new();
+    for (row, height) in rows.iter().zip([900., 650., 240.]) {
+        materialize.extend([
+            Op::Create(row.node, Kind::Text, format!("Reveal row {}", row.id), None),
+            Op::SetStyle(row.node, dimensions(400., height)),
+        ]);
+    }
+    materialize.extend([
+        Op::Splice(root, 0, 0, rows.iter().map(|row| row.node).collect()),
+        Op::SetListRows(root, rows.clone()),
+    ]);
+    apply(cx, window, materialize);
+    frame(cx, window).await;
+    layout_frames(cx, window);
+    window
+        .update(cx, |view, _, _| {
+            let state = view.lists[&root].borrow();
+            assert_eq!(state.pending_reveal_row(), None);
+            assert_eq!(state.observed.as_ref().unwrap().anchor, Some((2, 0.)));
+        })
+        .unwrap();
+
+    // A later explicit offset supersedes an unfinished reveal synchronously.
+    apply(
+        cx,
+        window,
+        vec![
+            Op::ScrollList(
+                root,
+                ScrollRequest {
+                    serial: 2,
+                    target: ScrollTarget::Reveal(3),
+                },
+            ),
+            Op::ScrollList(
+                root,
+                ScrollRequest {
+                    serial: 3,
+                    target: ScrollTarget::Offset(1, 0.),
+                },
+            ),
+        ],
+    );
+    window
+        .update(cx, |view, _, _| {
+            assert_eq!(view.lists[&root].borrow().pending_reveal_row(), None);
+        })
+        .unwrap();
+    layout_frames(cx, window);
+
+    // Real wheel dispatch cancels an intent before a subsequent paint can
+    // apply it, including when the wheel is already at the list boundary.
+    apply(
+        cx,
+        window,
+        vec![Op::ScrollList(
+            root,
+            ScrollRequest {
+                serial: 4,
+                target: ScrollTarget::Reveal(3),
+            },
+        )],
+    );
+    window
+        .update(cx, |view, window, cx| {
+            window.dispatch_event(
+                gpui::PlatformInput::ScrollWheel(gpui::ScrollWheelEvent {
+                    position: gpui::point(px(150.), px(80.)),
+                    delta: gpui::ScrollDelta::Pixels(gpui::point(px(0.), px(75.))),
+                    touch_phase: gpui::TouchPhase::Started,
+                    modifiers: Default::default(),
+                }),
+                cx,
+            );
+            assert_eq!(view.lists[&root].borrow().pending_reveal_row(), None);
+        })
+        .unwrap();
+
+    apply(
+        cx,
+        window,
+        vec![Op::ScrollList(
+            root,
+            ScrollRequest {
+                serial: 5,
+                target: ScrollTarget::Reveal(3),
+            },
+        )],
+    );
+    apply(
+        cx,
+        window,
+        vec![
+            Op::SetListRows(root, rows[..2].to_vec()),
+            Op::Splice(root, 2, 1, vec![]),
+            Op::Remove(rows[2].node),
+            Op::SetListOrder(
+                root,
+                Order {
+                    revision: 2,
+                    runs: vec![IdRun { first: 1, count: 2 }],
+                },
+            ),
+        ],
+    );
+    window
+        .update(cx, |view, _, _| {
+            assert_eq!(view.lists[&root].borrow().pending_reveal_row(), None);
+        })
+        .unwrap();
+    let mut cleanup = vec![Op::SetRoot(None), Op::Remove(root)];
+    cleanup.extend(rows[..2].iter().map(|row| Op::Remove(row.node)));
+    apply(cx, window, cleanup);
+    layout_frames(cx, window);
+    eprintln!(
+        "GPUIO_NATIVE_LIST_INITIAL_REVEAL_OK: unmeasured destination, real sparse materialization, superseding command, user wheel and retirement"
+    );
+}
+
 async fn focused_overdraw(cx: &mut gpui::AsyncApp, window: WindowHandle<View>, generation: i64) {
     let root = NodeId::from_parts(0, generation).unwrap();
     let rows: Vec<_> = (1..=3)
@@ -1241,12 +1410,17 @@ pub(crate) fn run() {
                     focused_overdraw(cx, window, 1).await;
                     return;
                 }
+                if std::env::args().any(|argument| argument == "--initial-reveal") {
+                    initial_reveal(cx, window, 1).await;
+                    return;
+                }
                 eprintln!("LIST_TEST applying initial source");
                 apply(cx, window, initial());
                 exercise(cx, window).await;
                 let cached_text = history(cx, window).await;
                 demand_convergence(cx, window);
                 focused_overdraw(cx, window, 2).await;
+                initial_reveal(cx, window, 3).await;
                 window
                     .update(cx, |_, window, _| window.remove_window())
                     .unwrap();
