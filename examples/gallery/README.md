@@ -225,3 +225,12 @@ actual OS links, notifications and a disposable file-handler fixture. It targets
 only fixture applications/notifications, closes its windows and unregisters
 fixture bundles afterward. An existing notification denial is not overridden.
 This local fixture is not a signed/notarized release or clean-machine acceptance.
+
+The Presentation page's **A useful empty state** card includes
+`Presentation.Empty_state` rich helpers alongside the original string helper.
+Toggle media/title/description/content/extras independently; compare centered and
+leading layouts, narrow wrapping, intrinsic avatar rows, an icon frame and scoped
+raster media. A checkbox keeps its Bonsai model as neighboring slots change;
+removing its own content slot retires the native control. Run the focused native
+check with `python3 scripts/test_gallery.py --section empty`. The root is borderless
+by default; the shared dashed-border extension remains pending.

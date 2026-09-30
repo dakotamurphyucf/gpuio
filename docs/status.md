@@ -40,6 +40,11 @@ the original card default. Local native checks pass 64 layout/theme/style/slot
 cases with checked-state/identity retention, 128 pointer/Return actions and page
 teardown/remount; the combined core gallery and full Dune checks pass. The
 presentation family remains only partially reviewed.
+Rich empty-state slots now add independently styled media/title/description,
+content and extras while retaining the string helper. Core tests and a native
+16-case gallery matrix pass layout, wrapping, action/focus identity and teardown;
+a scoped decoded-image case also passes. The [Empty review](catalog/presentation-review.md#empty-state-rich-slots)
+records the precise coverage and the remaining custom dashed-border requirement.
 The [composed-link review](design/composed-links.md) identifies remaining rich
 content and Tab-policy gaps. A validated `Link.Config` and matching bounded
 OCaml/Rust data codecs now extend through native admission, View/Bonsai rendering

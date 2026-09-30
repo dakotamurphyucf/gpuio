@@ -35,6 +35,7 @@ def exercise(mac, images):
     exercise_labels(mac, images)
     exercise_groups(mac, images)
     exercise_links(mac, images)
+    exercise_empty(mac, images)
     if images:
         screenshot(mac, images / 'gallery-presentation-dark.png', title=TITLE)
     mac.release(mac.wait_find(TITLE, 'Aster avatar', 'AXImage'))
@@ -292,6 +293,162 @@ def exercise_links(mac, images):
           '42 pointer/Return/Space/AX '
           'actions, stable identity, signed Tab/reverse order and focused non-stop anchors '
           'with viewport reveal, disabled recovery and scoped SVG cleanup', flush=True)
+
+
+def exercise_empty(mac, images):
+    """Public rich slots: geometry, native identity and independent action owners."""
+    mac.wait_text(TITLE, 'Make space for a fresh start.')
+    raise_gallery(mac)
+    equal = mac.cf.CFEqual
+    equal.restype, equal.argtypes = C.c_bool, [C.c_void_p, C.c_void_p]
+    boolean = mac.cf.CFBooleanGetValue
+    boolean.restype, boolean.argtypes = C.c_bool, [C.c_void_p]
+    original = mac.wait_find(TITLE, 'Keep empty-state updates', 'AXCheckBox')
+    clicks = cases = 0
+    toggles = {'Frame empty media': False, 'Align empty slots to start': False,
+               'Narrow empty preview': False}
+
+    def checked(node):
+        value = mac.attr(node, 'AXValue')
+        try:
+            assert value, 'Missing checkbox value'
+            return bool(boolean(value))
+        finally:
+            if value:
+                mac.release(value)
+
+    def toggle(name, wanted):
+        if toggles[name] != wanted:
+            activate(mac, mac.wait_find(TITLE, name, 'AXCheckBox'))
+            toggles[name] = wanted
+
+    def rect(label, role='AXGroup'):
+        node = mac.wait_find(TITLE, label, role)
+        try:
+            return element_rect(mac, node)
+        finally:
+            mac.release(node)
+
+    def retained():
+        node = mac.wait_find(TITLE, 'Keep empty-state updates', 'AXCheckBox')
+        try:
+            assert equal(original, node), 'Another slot replaced the content control'
+            assert checked(node), 'Another slot reset the caller-owned checked model'
+        finally:
+            mac.release(node)
+
+    theme = mac.find(TITLE, 'Dark', 'AXButton')
+    current, alternate = ('Dark', 'Light') if theme else ('Light', 'Dark')
+    if theme:
+        mac.release(theme)
+    try:
+        focus_gallery_control(mac, 'Keep empty-state updates', 'AXCheckBox')
+        mac.key(49)
+        deadline = time.monotonic() + 5
+        while not checked(original):
+            assert time.monotonic() < deadline, 'Initial Space did not check the control'
+            time.sleep(.025)
+        for appearance in (current, alternate):
+            for framed in (False, True):
+                toggle('Frame empty media', framed)
+                for leading in (False, True):
+                    toggle('Align empty slots to start', leading)
+                    wide_height = None
+                    for narrow in (False, True):
+                        toggle('Narrow empty preview', narrow)
+                        mac.wait_text(TITLE, f'Empty layout: {"icon" if framed else "unframed"} · '
+                                      f'{"start" if leading else "center"} · '
+                                      f'{"narrow" if narrow else "wide"}')
+                        retained()
+                        expect_focus(mac, 'Keep empty-state updates', 'AXCheckBox')
+                        reveal_gallery_control(mac, 'Create first item', 'AXButton')
+                        media = rect('Empty rich media')
+                        title = rect('Empty rich title')
+                        description = rect('Empty rich description')
+                        content = rect('Empty rich content')
+                        extra = rect('Import instead', 'AXButton')
+                        for above, below in zip((media, title, description, content),
+                                                (title, description, content, extra)):
+                            assert above[1] + above[3] <= below[1] + 1, 'Slots overlap or reorder'
+                        assert media[2] > 0 and media[3] > 0, 'Media lost intrinsic dimensions'
+                        anchor = content[0] if leading else content[0] + content[2] / 2
+                        for slot in (media, title, description):
+                            edge = slot[0] if leading else slot[0] + slot[2] / 2
+                            assert abs(edge - anchor) <= 2, 'Independent slot alignment diverged'
+                        if framed:
+                            assert abs(media[2] - 32) <= 1 and abs(media[3] - 32) <= 1
+                        else:
+                            alex = rect('Empty preview Alex', 'AXImage')
+                            sam = rect('Empty preview Sam', 'AXImage')
+                            assert alex[2] > 0 and sam[2] > 0
+                            assert alex[0] + alex[2] <= sam[0] + 1, 'Avatar row collapsed'
+                        if narrow:
+                            assert description[3] > wide_height, 'Narrow rich description must wrap'
+                        else:
+                            wide_height = description[3]
+                        focus_gallery_control(mac, 'Create first item', 'AXButton')
+                        mac.key(36)
+                        clicks += 1
+                        mac.wait_text(TITLE, f'Empty actions: {clicks}')
+                        expect_focus(mac, 'Create first item')
+                        focus_gallery_control(mac, 'Keep empty-state updates', 'AXCheckBox')
+                        cases += 1
+                        if images and not narrow and not leading and not framed:
+                            reveal_gallery_control(mac, 'Import instead', 'AXButton')
+                            screenshot(mac, images / f'gallery-empty-{appearance.lower()}.png', title=TITLE)
+            mac.press(TITLE, appearance)
+            mac.release(mac.wait_find(TITLE, alternate if appearance == current else current, 'AXButton'))
+        for toggle_label, absent_label, role in [
+                ('Empty media', 'Empty rich media', 'AXGroup'),
+                ('Empty title', 'Empty rich title', 'AXGroup'),
+                ('Empty description', 'Read the empty-state guide', 'AXButton'),
+                ('Empty extras', 'Import instead', 'AXButton')]:
+            activate(mac, mac.wait_find(TITLE, toggle_label, 'AXCheckBox'))
+            wait_absent(mac, absent_label, role)
+            retained()
+            expect_focus(mac, 'Keep empty-state updates', 'AXCheckBox')
+            activate(mac, mac.wait_find(TITLE, toggle_label, 'AXCheckBox'))
+            mac.release(mac.wait_find(TITLE, absent_label, role))
+            retained()
+        for label in ('Read the empty-state guide', 'Import instead'):
+            mac.press(TITLE, label)
+            clicks += 1
+            mac.wait_text(TITLE, f'Empty actions: {clicks}')
+        focus_gallery_control(mac, 'Keep empty-state updates', 'AXCheckBox')
+        toggle('Frame empty media', False)
+        toggle('Align empty slots to start', False)
+        toggle('Narrow empty preview', False)
+        activate(mac, mac.wait_find(TITLE, 'Use image empty media', 'AXCheckBox'))
+        mac.wait_text(TITLE, 'Empty image decoded: 96 × 48')
+        picture = rect('Empty media image', 'AXImage')
+        assert abs(picture[2] - 96) <= 1 and abs(picture[3] - 48) <= 1
+        retained()
+        expect_focus(mac, 'Keep empty-state updates', 'AXCheckBox')
+        if images:
+            reveal_gallery_control(mac, 'Empty media image', 'AXImage')
+            screenshot(mac, images / 'gallery-empty-image.png', title=TITLE)
+        activate(mac, mac.wait_find(TITLE, 'Empty content', 'AXCheckBox'))
+        wait_absent(mac, 'Keep empty-state updates', 'AXCheckBox')
+        wait_absent(mac, 'Create first item', 'AXButton')
+        activate(mac, mac.wait_find(TITLE, 'Empty content', 'AXCheckBox'))
+        restored = mac.wait_find(TITLE, 'Keep empty-state updates', 'AXCheckBox')
+        try:
+            assert checked(restored), 'Caller-owned model must survive an absent slot'
+            assert not equal(original, restored), 'Removed native control must retire'
+        finally:
+            mac.release(restored)
+    finally:
+        mac.release(original)
+    mac.press(TITLE, 'Runtime & windows')
+    wait_absent(mac, 'Rich empty state', 'AXGroup')
+    mac.press(TITLE, 'Refresh resource counts')
+    mac.wait_text(TITLE, 'Registered source bytes: 0')
+    mac.wait_text(TITLE, 'Images: 0 · Charts: 0 · Canvases: 0')
+    mac.press(TITLE, 'Presentation')
+    mac.wait_text(TITLE, f'Empty actions: {clicks}')
+    print(f'GALLERY_EMPTY_OK: {cases} theme/media/alignment/width cases; intrinsic media, '
+          f'wrapped slots, retained identity/focus, {clicks} Return/AX actions, '
+          'native Space, decoded media, optional retirement and asset teardown', flush=True)
 
 
 def exercise_groups(mac, images):
@@ -2833,7 +2990,7 @@ def main():
                         help='Run an independently built gallery instead of the repository executable')
     parser.add_argument('--trace-canvas', action='store_true')
     parser.add_argument('--trace-motion', action='store_true')
-    parser.add_argument('--section', choices=['all', 'core', 'status-regions', 'badges', 'labels', 'groups', 'links', 'styles', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'document-links', 'document-images', 'highlighting', 'canvas', 'assets', 'charts', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
+    parser.add_argument('--section', choices=['all', 'core', 'status-regions', 'badges', 'labels', 'groups', 'links', 'empty', 'styles', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'document-links', 'document-images', 'highlighting', 'canvas', 'assets', 'charts', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
     args = parser.parse_args()
     if args.images:
         args.images.mkdir(parents=True, exist_ok=True)
@@ -2856,6 +3013,8 @@ def main():
                 exercise(mac, args.images)
             if args.section == 'links':
                 exercise_links(mac, args.images)
+            if args.section == 'empty':
+                exercise_empty(mac, args.images)
             if args.section == 'groups':
                 exercise_groups(mac, args.images)
             if args.section == 'labels':

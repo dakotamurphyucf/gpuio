@@ -277,3 +277,76 @@ with proposed contracts and acceptance work. Those rows remain incomplete;
 source review does not establish functional equivalence. Prior OCH-33 evidence
 still applies only to the APIs it actually tests. Other catalog families,
 consumer/CI/distribution checks and the complete OCH-17 scope remain open.
+
+## Empty state: rich slots
+
+Source: [component/empty](sources/component-empty.rs.txt), including `Empty`,
+`EmptyHeader`, `EmptyMedia`/`EmptyMediaVariant`, `EmptyTitle`, `EmptyDescription`
+and `EmptyContent`. Public equivalent for rich composition:
+`Presentation.Empty_state`. The existing `Presentation.empty_state` keeps its
+string convenience API and original layout.
+
+The new module offers `media`, `title`, `description`, `header`, `content` and
+`create`, each built from ordinary Views with independently refined styles.
+Media defaults to an intrinsic-width column suitable for avatar rows; `Icon`
+adds a muted 32-logical-pixel frame. Header slots appear in media/title/description
+order, followed by content and then extras. Header and content default to a
+384-logical-pixel width cap. These concrete metrics are style defaults, not new
+application theme requirements or physical-DPI behavior.
+
+Named slots use stable keyed wrappers. Extra children occupy a separate keyed
+column whose alignment/style can be refined with `children_style`; user keys
+cannot collide with the root's named slots. This intentional wrapper structure
+preserves the identity of surviving controls across slot changes. It is not a
+promise to preserve a removed control's native identity: the caller's model can
+survive an absent slot, while its native control is recreated on return.
+
+```ocaml
+let module Empty = Presentation.Empty_state in
+Empty.create appearance
+  ~header:
+    (Empty.header
+       ~title:(Empty.title [ View.text "A fresh start" ])
+       ~description:
+         (Empty.description appearance [ View.text "Create your first collection." ])
+       ())
+  ~content:
+    (Empty.content [ View.button "Create collection" ~on_click:on_create ])
+  []
+```
+
+No new controller, task, opcode, capability or synchronous callback is introduced.
+Images borrow existing asset handles; registration and I/O remain scoped
+application work. The compositions add no focus stop or implicit live announcement.
+Ordinary child controls retain keyboard, pointer and accessibility behavior.
+
+Three Core expect tests cover 128 slot/order/absence cases in light/dark,
+64 appearance/media/slot transitions retaining checked content and current actions,
+retired-action fencing, key isolation, idle reconciliation, custom style precedence
+and reset, and unchanged empty/Unicode/long text. The full isolated Dune
+`@all @runtest @fmt` passes.
+
+The public gallery's **A useful empty state** card adds a configurable rich
+preview. Its focused macOS driver covers 16 theme/media/alignment/width cases,
+actual slot bounds and wrapping, intrinsic avatar rows and icon dimensions,
+retained AX identity/focus, real Space input, 18 Return/AX activations, optional
+slot removal/recreation and page cleanup. The decoded-image case additionally
+checks scoped raster media and source retirement. Run:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 @test/view_api/runtest examples/gallery/main.exe @fmt
+python3 scripts/test_gallery.py --section empty --images scratch/empty-gallery
+```
+
+The extended run passes locally on macOS arm64 with `GALLERY_EMPTY_OK` and
+`GPUIO_GALLERY_AX_OK: section=empty`. It observes the real 96×48 decode, measures
+the image and retires registered source bytes on page departure. Dark/light and
+raster-media screenshots were visually inspected. The scoped image stays enabled
+when departing the page, so cleanup is exercised with mounted image content.
+Screenshots alone do not establish the separately asserted input behavior.
+
+**Remaining:** the pinned root specifies dashed borders even though its default
+border width is zero. Visible custom dashed borders still need the shared native
+border-style contract. Do not claim that style parity from the default borderless
+appearance. Fresh Linux/installed-consumer and full gallery/CI checks remain
+separate; OCH-17 release and deferred OCH-47 Linux desktop gates are unchanged.

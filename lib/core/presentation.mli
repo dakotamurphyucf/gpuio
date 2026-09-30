@@ -238,6 +238,71 @@ val empty_state
   -> unit
   -> 'action View.t
 
+(** Rich empty-state compositions. Use [empty_state] for the existing string-based
+    convenience layout. These helpers accept ordinary views and own no resources,
+    effects or focus handles. Text remains accessible; no automatic live region
+    or additional focus stop is introduced. *)
+module Empty_state : sig
+  module Media_variant : sig
+    type t =
+      | Unframed
+      | Icon
+    [@@deriving equal, sexp_of]
+  end
+
+  (** Intrinsically sized media column, suitable for an image or avatar row.
+      [Icon] adds a 32-logical-pixel muted rounded frame. Child styles retain their
+      ordinary precedence over inherited defaults. *)
+  val media
+    :  Appearance.t
+    -> ?key:Key.t
+    -> ?style:Style.t
+    -> ?variant:Media_variant.t
+    -> 'action View.t list
+    -> 'action View.t
+
+  val title : ?key:Key.t -> ?style:Style.t -> 'action View.t list -> 'action View.t
+
+  val description
+    :  Appearance.t
+    -> ?key:Key.t
+    -> ?style:Style.t
+    -> 'action View.t list
+    -> 'action View.t
+
+  (** Optional rich slots appear in media/title/description order. Stable wrappers
+      preserve surviving controls when another slot is added or removed. Defaults
+      center the slots in a full-width header, capped at 384 logical pixels. *)
+  val header
+    :  ?key:Key.t
+    -> ?style:Style.t
+    -> ?media:'action View.t
+    -> ?title:'action View.t
+    -> ?description:'action View.t
+    -> unit
+    -> 'action View.t
+
+  (** Centered action/input column, full width capped at 384 logical pixels.
+      Styles may change its axis, alignment, gap and width. *)
+  val content : ?key:Key.t -> ?style:Style.t -> 'action View.t list -> 'action View.t
+
+  (** Named header/content precede extra children. Extras have a separate keyed
+      wrapper, so their keys do not collide with named slots; [children_style]
+      refines that wrapper's centered column. Missing slots add no placeholders.
+      Root and helper styles refine defaults independently; omit a previous custom
+      style to reset it. The root has no visible background or border by default.
+      Asset registration, input models, async work and visibility remain caller-owned. *)
+  val create
+    :  Appearance.t
+    -> ?key:Key.t
+    -> ?style:Style.t
+    -> ?children_style:Style.t
+    -> ?header:'action View.t
+    -> ?content:'action View.t
+    -> 'action View.t list
+    -> 'action View.t
+end
+
 (** [live] defaults to Polite. Use Off for persistent information, Assertive only
     for urgent changes. Reconciliation emits semantics only when they change. *)
 val alert

@@ -596,6 +596,160 @@ let empty_state
   |> semantic Group
 ;;
 
+module Empty_state = struct
+  module Media_variant = struct
+    type t =
+      | Unframed
+      | Icon
+    [@@deriving equal, sexp_of]
+  end
+
+  let media
+        (p : Appearance.t)
+        ?key
+        ?style:(custom = Style.empty)
+        ?(variant = Media_variant.Unframed)
+        children
+    =
+    let frame =
+      match variant with
+      | Unframed -> []
+      | Icon ->
+        [ Width (px 32.)
+        ; Height (px 32.)
+        ; Radius 8.
+        ; Background (solid p.raised)
+        ; Foreground p.foreground
+        ; Font_size 16.
+        ]
+    in
+    View.column
+      ?key
+      ~style:
+        (Style.merge
+           [ style
+               ([ Shrink 0.
+                ; Align_items Center
+                ; Justify_content Center
+                ; Margin_bottom (px 8.)
+                ]
+                @ frame)
+           ; custom
+           ])
+      children
+  ;;
+
+  let title ?key ?style:(custom = Style.empty) children =
+    View.column
+      ?key
+      ~style:
+        (Style.merge
+           [ style
+               [ Min_width (px 0.)
+               ; Max_width full
+               ; Font_size 14.
+               ; Font_weight 500
+               ; White_space Normal
+               ]
+           ; custom
+           ])
+      children
+  ;;
+
+  let description (p : Appearance.t) ?key ?style:(custom = Style.empty) children =
+    View.column
+      ?key
+      ~style:
+        (Style.merge
+           [ style
+               [ Width full
+               ; Min_width (px 0.)
+               ; Font_size 14.
+               ; Line_height (px 22.75)
+               ; Foreground p.muted
+               ; White_space Normal
+               ]
+           ; custom
+           ])
+      children
+  ;;
+
+  let column_style gap =
+    style
+      [ Width full
+      ; Max_width (px 384.)
+      ; Min_width (px 0.)
+      ; Align_items Center
+      ; Gap (px gap)
+      ]
+  ;;
+
+  let header ?key ?style:(custom = Style.empty) ?media ?title ?description () =
+    View.column
+      ?key
+      ~style:(Style.merge [ column_style 8.; custom ])
+      (List.filter_opt
+         [ optional_slot "media" media
+         ; optional_slot "title" title
+         ; optional_slot "description" description
+         ])
+  ;;
+
+  let content ?key ?style:(custom = Style.empty) children =
+    View.column
+      ?key
+      ~style:(Style.merge [ column_style 10.; style [ Font_size 14. ]; custom ])
+      children
+  ;;
+
+  let create
+        (p : Appearance.t)
+        ?key
+        ?style:(custom = Style.empty)
+        ?(children_style = Style.empty)
+        ?header
+        ?content
+        children
+    =
+    let extras =
+      if List.is_empty children
+      then None
+      else
+        Some
+          (View.column
+             ~key:(internal_key "extra")
+             ~style:
+               (Style.merge
+                  [ style [ Min_width (px 0.); Gap (px 16.); Align_items Center ]
+                  ; children_style
+                  ])
+             children)
+    in
+    View.column
+      ?key
+      ~style:
+        (Style.merge
+           [ style
+               [ Width full
+               ; Min_width (px 0.)
+               ; Grow 1.
+               ; Align_items Center
+               ; Justify_content Center
+               ; Gap (px 16.)
+               ; Padding (px 24.)
+               ; Radius 12.
+               ; Border_color p.border
+               ; Text_align Center
+               ; Foreground p.foreground
+               ]
+           ; custom
+           ])
+      (List.filter_opt
+         [ optional_slot "header" header; optional_slot "content" content; extras ])
+    |> semantic Group
+  ;;
+end
+
 let alert
       (p : Appearance.t)
       ?key
