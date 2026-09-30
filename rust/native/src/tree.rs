@@ -76,6 +76,7 @@ pub struct Node {
     pub kind: Kind,
     pub text: Arc<str>,
     pub text_spans: Arc<[gpuio_protocol::text_content::Span]>,
+    pub text_shimmer: Option<Arc<gpuio_protocol::text_shimmer::Config>>,
     pub editor: Option<Arc<EditorConfig>>,
     pub control: Option<Control>,
     pub link: Option<Arc<gpuio_protocol::link::Config>>,
@@ -317,6 +318,10 @@ impl Node {
             } else {
                 0
             }
+            + self
+                .text_shimmer
+                .as_ref()
+                .map_or(0, |_| crate::text_shimmer_clock::RESERVED_BYTES)
             + std::mem::size_of_val(self.text_spans.as_ref())
             + self.link.as_ref().map_or(0, |config| {
                 config.label.len() + std::mem::size_of::<gpuio_protocol::link::Config>()
@@ -586,6 +591,14 @@ impl Tree {
         for slot in plan.changes.values() {
             if let Some(node) = &slot.node {
                 plan.validate_list(node)?;
+                if let Some(config) = &node.text_shimmer {
+                    if node.kind != Kind::Text || !config.is_valid() {
+                        return Err(ErrorCode::InvalidTree.into());
+                    }
+                    if node.text.len() > gpuio_protocol::text_shimmer::MAX_TEXT_BYTES {
+                        return Err(ErrorCode::LimitExceeded.into());
+                    }
+                }
                 if node.choice_appearance.is_some()
                     && !matches!(
                         node.kind,
@@ -1498,6 +1511,7 @@ impl Plan<'_> {
             | Op::Remove(id)
             | Op::SetText(id, ..)
             | Op::SetStyledText(id, ..)
+            | Op::SetTextShimmer(id, ..)
             | Op::SetLink(id, ..)
             | Op::SetStyle(id, ..)
             | Op::SetEditor(id, ..)
@@ -1623,6 +1637,7 @@ impl Plan<'_> {
                             kind: *kind,
                             text: Arc::from(text.as_str()),
                             text_spans: Arc::from([]),
+                            text_shimmer: None,
                             editor: None,
                             control: None,
                             link: None,
@@ -1726,6 +1741,14 @@ impl Plan<'_> {
                 let node = self.node_mut(*id)?;
                 node.text = Arc::from(content.text.as_str());
                 node.text_spans = Arc::from(content.spans.as_slice());
+            }
+            Op::SetTextShimmer(id, config) => {
+                if self.node(*id)?.kind != Kind::Text
+                    || config.is_some_and(|config| !config.is_valid())
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.text_shimmer = config.map(Arc::new);
             }
             Op::SetLink(id, config) => {
                 if self.node(*id)?.kind != Kind::Link || !config.is_valid() {

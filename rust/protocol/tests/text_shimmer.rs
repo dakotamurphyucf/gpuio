@@ -146,3 +146,73 @@ fn configuration_cross_product_has_bounded_wire_and_retained_size() {
     }
     assert_eq!(count, 576);
 }
+
+#[test]
+fn op61_set_clear_match_ocaml_and_reject_malformed_live_configs() {
+    use gpuio_protocol::{NodeId, WindowId, v1::*};
+    let packet = |config| {
+        Message::Apply(Transaction {
+            window: WindowId::from_parts(0, 1).unwrap(),
+            base: 0,
+            revision: 1,
+            operations: vec![Op::SetTextShimmer(
+                NodeId::from_parts(0, 1).unwrap(),
+                config,
+            )],
+        })
+    };
+    let bytes = |packet: &Message| {
+        let mut bytes = vec![];
+        packet.binprot_write(&mut bytes).unwrap();
+        bytes
+    };
+    for (config, expected) in [
+        (
+            Some(minimal()),
+            "0300010001013d0001010100000000000000e03f00010100",
+        ),
+        (None, "0300010001013d000100"),
+    ] {
+        let message = packet(config);
+        let encoded = bytes(&message);
+        assert_eq!(
+            encoded
+                .iter()
+                .map(|b| format!("{b:02x}"))
+                .collect::<String>(),
+            expected
+        );
+        assert_eq!(gpuio_protocol::decode(&encoded), Ok(message));
+        for end in 0..encoded.len() {
+            assert!(gpuio_protocol::decode(&encoded[..end]).is_err());
+        }
+        let mut trailing = encoded;
+        trailing.push(0);
+        assert!(gpuio_protocol::decode(&trailing).is_err());
+    }
+    // Operation option, then configuration spread/direction/repeat/Boolean/color option.
+    for index in [9, 11, 20, 21, 22, 23] {
+        let mut malformed = bytes(&packet(Some(minimal())));
+        malformed[index] = 2;
+        assert!(
+            gpuio_protocol::decode(&malformed).is_err(),
+            "tag at {index}"
+        );
+    }
+    for config in [
+        Config {
+            duration_ms: 0,
+            ..minimal()
+        },
+        Config {
+            spread: Spread::Relative(f64::NAN),
+            ..minimal()
+        },
+        Config {
+            highlight: Some(-1),
+            ..minimal()
+        },
+    ] {
+        assert!(gpuio_protocol::decode(&bytes(&packet(Some(config)))).is_err());
+    }
+}

@@ -271,6 +271,7 @@ type 'action t =
   ; kind : Kind.t
   ; text : string
   ; text_content : Text_content.t option
+  ; text_shimmer : Text_shimmer.Config.t option
   ; link : Link.Config.t option
   ; style : Style.t
   ; on_click : (unit -> 'action) option
@@ -326,6 +327,7 @@ let text ?key ?(style = Style.empty) text =
   ; kind = Text
   ; text
   ; text_content = None
+  ; text_shimmer = None
   ; link = None
   ; style
   ; on_click = None
@@ -376,6 +378,17 @@ let text ?key ?(style = Style.empty) text =
 
 let styled_text ?key ?style content =
   { (text ?key ?style (Text_content.text content)) with text_content = Some content }
+;;
+
+let with_text_shimmer t text_shimmer =
+  if not (Kind.equal t.kind Text)
+  then Or_error.error_string "text shimmer requires ordinary text"
+  else if
+    Option.is_some text_shimmer
+    && (String.length t.text > Gpuio_protocol.Text_shimmer_wire.max_text_bytes
+        || not (Stdlib.String.is_valid_utf_8 t.text))
+  then Or_error.error_string "text shimmer requires valid UTF-8 of at most 16384 bytes"
+  else Ok { t with text_shimmer }
 ;;
 
 let animate_program ?key ?(style = Style.empty) ?on_event config children =
@@ -493,6 +506,7 @@ let container ?key ?(style = Style.empty) defaults children =
   ; kind = Container
   ; text = ""
   ; text_content = None
+  ; text_shimmer = None
   ; link = None
   ; style = Style.merge [ Style.create_exn defaults; style ]
   ; on_click = None
@@ -606,6 +620,7 @@ let button
   ; kind = Button
   ; text
   ; text_content = None
+  ; text_shimmer = None
   ; link = None
   ; style = button_style style
   ; on_click = (if disabled then None else Some on_click)
@@ -691,6 +706,7 @@ let toggle
   ; kind
   ; text
   ; text_content = None
+  ; text_shimmer = None
   ; link = None
   ; style = Style.merge [ defaults; style ]
   ; on_click = (if disabled then None else Some on_toggle)
@@ -1506,6 +1522,7 @@ let text_input
   ; kind
   ; text = initial_text
   ; text_content = None
+  ; text_shimmer = None
   ; link = None
   ; style
   ; on_click = None
@@ -1559,6 +1576,7 @@ let radio_group ?key ?(style = Style.empty) ~config ~on_select () =
   ; kind = Radio_group
   ; text = ""
   ; text_content = None
+  ; text_shimmer = None
   ; link = None
   ; style
   ; on_click = None
@@ -1639,6 +1657,7 @@ let combobox
   ; kind = Combobox
   ; text = initial_text
   ; text_content = None
+  ; text_shimmer = None
   ; link = None
   ; style
   ; on_click = None
@@ -2117,6 +2136,7 @@ module Expert = struct
     ; kind : Kind.t
     ; text : string
     ; text_content : Text_content.t option
+    ; text_shimmer : Text_shimmer.Config.t option
     ; link : Link.Config.t option
     ; style : Style.t
     ; on_click : (unit -> 'action) option

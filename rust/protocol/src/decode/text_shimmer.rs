@@ -3,7 +3,7 @@ use crate::text_shimmer::{Config, Direction, MAX_CONFIG_BYTES, Repeat, Spread};
 use std::io::Cursor;
 
 impl Decoder<'_> {
-    fn text_shimmer_config(&mut self) -> Result<Config, DecodeError> {
+    pub(super) fn text_shimmer_config(&mut self) -> Result<Config, DecodeError> {
         let config = Config {
             duration_ms: self.int()?,
             spread: match self.tag()? {

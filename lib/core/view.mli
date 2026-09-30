@@ -19,6 +19,19 @@ val text : ?key:Key.t -> ?style:Style.t -> string -> 'action t
     expose the complete source string. This is ordinary text, not a native editor. *)
 val styled_text : ?key:Key.t -> ?style:Style.t -> Text_content.t -> 'action t
 
+(** Set or clear a text-glyph shimmer on ordinary [text] or [styled_text]. This
+    preserves the key, source, style and accessibility metadata. Other view kinds
+    are rejected. [Some config] requires valid UTF-8 of at most 16,384 bytes;
+    [None] clears the effect without applying its source-size limit. The native
+    painter falls back to static text above 256 lines or 4,096 shaped glyphs.
+
+    Experimental: description/transport integration precedes mounted rendering;
+    this feature is not yet advertised as a host capability. *)
+val with_text_shimmer
+  :  'action t
+  -> Text_shimmer.Config.t option
+  -> 'action t Core.Or_error.t
+
 (** Native chart backed by a scoped data registration. Style determines its size. *)
 val chart
   :  ?key:Key.t
@@ -1073,6 +1086,7 @@ module Expert : sig
     ; kind : Kind.t
     ; text : string
     ; text_content : Text_content.t option
+    ; text_shimmer : Text_shimmer.Config.t option
     ; link : Link.Config.t option
     ; style : Style.t
     ; on_click : (unit -> 'action) option

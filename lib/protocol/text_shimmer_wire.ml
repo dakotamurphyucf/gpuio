@@ -1,6 +1,7 @@
 open Core
 
-(* A fixed-size standalone configuration. No live operation/capability yet. *)
+(* Fixed-size configuration for standalone and live operation decoding. *)
+let max_text_bytes = 16384
 let max_config_bytes = 32
 
 module Spread = struct

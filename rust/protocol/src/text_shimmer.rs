@@ -1,8 +1,9 @@
 //! Text-glyph shimmer configuration, distinct from rectangular loading placeholders.
-//! Standalone codec foundation; not yet a negotiated mounted operation.
+//! Shared standalone/live operation codec; not yet a negotiated rendering capability.
 use binprot::macros::BinProtWrite;
 
 pub const MAX_CONFIG_BYTES: usize = 32;
+pub const MAX_TEXT_BYTES: usize = 16_384;
 
 #[derive(Clone, Copy, Debug, PartialEq, BinProtWrite)]
 pub enum Spread {

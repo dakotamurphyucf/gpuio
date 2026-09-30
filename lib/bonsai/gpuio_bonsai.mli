@@ -145,6 +145,9 @@ module View : sig
   (** See [Gpuio.View.styled_text] for foreground, selection and theme semantics. *)
   val styled_text : ?key:Gpuio.Key.t -> ?style:Gpuio.Style.t -> Gpuio.Text_content.t -> t
 
+  (** See [Gpuio.View.with_text_shimmer], including its experimental status. *)
+  val with_text_shimmer : t -> Gpuio.Text_shimmer.Config.t option -> t Or_error.t
+
   val button
     :  ?key:Gpuio.Key.t
     -> ?style:Gpuio.Style.t

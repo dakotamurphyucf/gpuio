@@ -10,6 +10,12 @@ use std::{
     time::{Duration, Instant},
 };
 
+/// Conservative retained admission reservation per declared effect, including
+/// its Arc config, owner/RefCell/Rc allocations, map entry and one weak wake.
+/// The source Arc shares the tree's already-accounted string allocation. This
+/// is an admission allowance, not a measurement of allocator/process overhead.
+pub const RESERVED_BYTES: usize = 1024;
+
 pub struct Clock {
     origin: Instant,
     #[cfg(any(test, feature = "native-image-tests"))]

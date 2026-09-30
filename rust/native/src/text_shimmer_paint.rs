@@ -14,7 +14,7 @@ use gpuio_protocol::text_shimmer::{Config, Direction, Spread};
 pub const LAYERS: usize = 12;
 pub const MAX_GLYPHS: usize = 4096;
 pub const MAX_LINES: usize = 256;
-pub const MAX_TEXT_BYTES: usize = 16_384;
+pub use gpuio_protocol::text_shimmer::MAX_TEXT_BYTES;
 
 #[derive(Clone, Copy)]
 pub struct Appearance {

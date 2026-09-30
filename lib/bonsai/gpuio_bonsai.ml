@@ -26,6 +26,7 @@ module View = struct
   let image = Gpuio.View.image
   let text = Gpuio.View.text
   let styled_text = Gpuio.View.styled_text
+  let with_text_shimmer = Gpuio.View.with_text_shimmer
 
   let link ?key ?style config ~on_click children =
     Gpuio.View.link ?key ?style config ~on_click:(fun () -> on_click) children

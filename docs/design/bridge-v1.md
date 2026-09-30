@@ -43,6 +43,15 @@ Correlated open/close/frame requests are distinct from per-window transactions.
 Acceptance and rendering are distinct events; rendering does not assert physical
 screen presentation. The client submits one transaction per window at a time.
 
+OCH-41's experimental text shimmer appends Op61 `Set_text_shimmer` with a node
+and optional validated configuration. It decorates ordinary Text; `None` clears
+without replacing the node or its source/spans. Native admission limits active
+sources to 16,384 UTF-8 bytes and reserves 1,024 payload bytes per declaration
+within existing window/session budgets. Core/Bonsai reconciliation and atomic
+retained-tree admission are implemented; mounted rendering and capability
+advertisement remain pending. See [the contract](text-shimmer.md). Existing tags
+and the current capability mask remain unchanged during this development stage.
+
 OCH-41's highlighting integration appends Kind50 `Highlight_scope`, Op57
 `Set_highlight_scope` and Event64 `Highlight_observed`. Configuration and optional
 observer bindings are validated; each observation carries a positive scope-local

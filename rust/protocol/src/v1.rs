@@ -709,6 +709,7 @@ pub enum Op {
     SetDocumentDiff(NodeId, i64, Option<crate::document_diff::Config>),
     SetStyledText(NodeId, crate::text_content::Content),
     SetLink(NodeId, crate::link::Config),
+    SetTextShimmer(NodeId, Option<crate::text_shimmer::Config>),
 }
 
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]

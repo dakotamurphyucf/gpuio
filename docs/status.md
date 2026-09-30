@@ -6,17 +6,18 @@ Current checkpoint: milestones 1–6 are merged. Milestone 5's
 passed on `473407c`; all twelve tickets are Done.
 
 The [text-shimmer foundation](design/text-shimmer.md) now has typed configuration
-and paired standalone codecs for duration, relative/pixel spread, sweep direction,
+and paired codecs for duration, relative/pixel spread, sweep direction,
 one-shot/loop behavior and optional highlight color. Core/Rust checks cover exact
-bytes, validation and bounded configuration. Mounted glyph animation, bridge
-integration and Attachment/Marker acceptance remain in progress; this is distinct
-from the existing rectangular loading placeholder.
+bytes, validation and bounded configuration. Mounted glyph animation and
+Attachment/Marker acceptance remain in progress; this is distinct from the existing
+rectangular loading placeholder.
 The native glyph painter now independently passes background GPU checks for
 wrapping, RTL/alignment, start/end ellipses, clipping, reverse direction, emoji,
 static/reduced-motion output, selection backgrounds and both default themes.
 The native retained clock now also passes controlled-time GPU/frame checks for
 one-shot completion, coalesced wakes, cosmetic reuse, pause/resume, weak unmount
-and window-close disposal. Live retained-tree/bridge/Core/Bonsai integration and
+and window-close disposal. The optional Core/Bonsai text decoration now has live
+transport/reconciliation and atomic retained-tree admission. Mounted Host/painter integration and
 keyboard/AX acceptance remain open; this is not application-level idle evidence.
 
 The [finite style-value audit](evidence/style-finite-values-och41.md) now covers

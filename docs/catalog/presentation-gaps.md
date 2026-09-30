@@ -39,9 +39,10 @@ Share dashed borders and text shimmer with separator/marker work. Card activatio
 needs intentional event/focus/AX semantics alongside independent actions; do not
 relax composed Link's passive-content constraint to admit nested controls.
 The shared [text-shimmer foundation](../design/text-shimmer.md) now has paired,
-validated standalone codecs, a native glyph painter and independent retained-clock
-GPU/lifecycle checks. Live transport and actual keyed-node lifetime integration
-remain pending; this does not complete Attachment or Marker behavior.
+validated standalone/live codecs, Core/Bonsai reconciliation and atomic native
+tree admission, a native glyph painter and independent retained-clock GPU/lifecycle
+checks. Mounted Host/painter and actual keyed-node lifetime integration remain
+pending; this does not complete Attachment or Marker behavior.
 Native acceptance must cover action gaps, keyboard/AX activation, layout/state
 changes, image failure, reduced motion, cancellation/unmount and bounded resources.
 

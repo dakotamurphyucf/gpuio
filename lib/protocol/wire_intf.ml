@@ -777,6 +777,7 @@ module type S = sig
       | Set_document_diff of Node_id.t * int64 * Document_diff.Config.t option
       | Set_styled_text of Node_id.t * Text_content_wire.t
       | Set_link of Node_id.t * Link_wire.t
+      | Set_text_shimmer of Node_id.t * Text_shimmer_wire.Config.t option
     [@@deriving bin_io, equal, sexp_of]
   end
 

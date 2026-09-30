@@ -1036,6 +1036,7 @@ impl Decoder<'_> {
             57 => Op::SetHighlightScope(self.node()?, self.highlight_config()?),
             59 => Op::SetStyledText(self.node()?, self.text_content()?),
             60 => Op::SetLink(self.node()?, self.link_config()?),
+            61 => Op::SetTextShimmer(self.node()?, self.option(Self::text_shimmer_config)?),
             58 => {
                 let node = self.node()?;
                 let epoch = self.int()?;

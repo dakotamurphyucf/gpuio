@@ -906,6 +906,18 @@ let rec mount builder ~depth previous view =
     then
       Option.iter text_content ~f:(fun content ->
         emit builder (Set_styled_text (id, content)));
+    let previous_shimmer =
+      Option.bind previous ~f:(fun mounted ->
+        (View.Expert.describe mounted.view).text_shimmer)
+    in
+    if
+      not
+        (Option.equal Text_shimmer.Config.equal previous_shimmer description.text_shimmer)
+    then
+      emit
+        builder
+        (Set_text_shimmer
+           (id, Option.map description.text_shimmer ~f:Text_shimmer.Expert.to_wire));
     Option.iter description.link ~f:(fun config ->
       let previous_config =
         Option.bind previous ~f:(fun mounted -> (View.Expert.describe mounted.view).link)

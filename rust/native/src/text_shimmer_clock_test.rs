@@ -205,3 +205,18 @@ fn invisible_content_and_instances_do_not_share_progress() {
         assert!(!paint(&second));
     }
 }
+
+#[test]
+fn admission_reservation_covers_fixed_state_and_callback_payloads() {
+    // Budget fixed payloads explicitly; the extra 512 bytes allow for allocation,
+    // BTreeMap entry and callback boxing overhead. Source bytes are shared with
+    // the retained tree; no source-sized allocation belongs to this clock.
+    let fixed = std::mem::size_of::<State>()
+        + std::mem::size_of::<RefCell<State>>()
+        + std::mem::size_of::<Config>()
+        + std::mem::size_of::<Owner>()
+        + std::mem::size_of::<Driver>()
+        + std::mem::size_of::<gpui::EntityId>()
+        + 4 * std::mem::size_of::<usize>();
+    assert!(fixed + 512 <= RESERVED_BYTES);
+}

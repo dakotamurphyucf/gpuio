@@ -1,9 +1,10 @@
 # Text shimmer
 
 OCH-41, implementation in progress. `Text_shimmer` supplies validated configuration
-and paired standalone OCaml/Rust codecs. The native glyph painter and retained
-clock have independent GPU/frame-lifecycle evidence. They do **not** yet animate a mounted public view,
-add a live bridge operation, or advertise a capability. The existing
+and paired standalone/live OCaml/Rust codecs. The native glyph painter and retained
+clock have independent GPU/frame-lifecycle evidence. Core/Bonsai descriptions now
+reconcile an optional decoration into native retained-tree state. They do **not**
+yet animate a mounted public view or advertise a capability. The existing
 `Loading.Kind.Shimmer` remains a rectangular placeholder effect.
 
 The pinned [component source](../catalog/sources/component-shimmer.rs.txt) is
@@ -61,8 +62,8 @@ Painter admission is all-or-static: at most 16,384 laid-out UTF-8 bytes, 256 log
 lines and 4,096 shaped glyphs. Exceeding any limit reports Capacity and leaves the
 whole original text unchanged; it never paints a highlighted prefix. These limits
 bound the adapter's work, not the underlying ordinary-text layout or application
-memory. The future public View constructor/bridge must expose validated admission
-and account for simultaneous instances before release. The fixed-phase constructor
+memory. The public View constructor/bridge enforces the source bound; each native
+declaration reserves 1,024 bytes in the existing window/session payload budget. The fixed-phase constructor
 schedules no animation; the retained Owner below attaches a weak native driver.
 
 ## Native timing and ownership
@@ -105,6 +106,33 @@ The tests use a controlled native clock and explicitly deliver GPUI's frame
 callbacks. They measure this effect's frame demand, not application FPS, real-time
 latency, idle power or whole-application performance.
 
+## Public description and atomic transport
+
+`View.with_text_shimmer view (Some config)` decorates ordinary `View.text` or
+`View.styled_text`; `None` clears it. Core and Bonsai have the same contract. The
+key, source, style, metadata and spans remain on the same text node; this is not a
+wrapper or action/focus owner. Enabling requires valid UTF-8 of at most 16,384
+bytes. Clearing imposes no effect-specific source bound. Other kinds reject both
+set and clear. This is experimental until the mounted Host adapter is connected.
+
+Appended operation 61 is `Set_text_shimmer (node, Config option)`. Configuration
+updates/clear preserve node generation, source and spans; ordinary plain/styled
+source updates preserve the decoration. Native source admission checks the final
+transaction state, so growing source beyond the limit while clearing the effect
+succeeds in either operation order. Invalid configuration, kind, stale generation,
+source size or aggregate budget rejects the entire transaction without changing
+the acknowledged revision or any node. Existing operation bytes and capability
+mask remain unchanged during this integration stage.
+
+A native declaration reserves 1,024 bytes within existing 64 MiB/window and
+256 MiB/session retained-payload admission. The allowance covers optional config,
+clock-owner state, map allocation and one weak queued callback; this is not a
+measurement of process/allocator overhead. The eventual Host owner must share the
+Tree's source `Arc`, already charged by its UTF-8 size. Clearing/unmount releases
+the allowance; paused and hidden declarations retain it. Fixed node slots remain
+separately bounded by the tree's existing node-count policy. No glyph cache or
+source-sized duplicate is introduced by this admission change.
+
 ## Remaining live integration
 
 These are implementation requirements, **not completed acceptance**:
@@ -121,8 +149,9 @@ These are implementation requirements, **not completed acceptance**:
 - Connect the tested native Owner to actual node generations/windows and verify
   conditional, managed-row and style-state visibility/opacity. The independent
   fixture does not establish retained-tree cleanup or whole-window frame demand.
-- Add checked transport, Core/Bonsai reconciliation and atomic rejection before
-  advertising the feature. Preserve source identity when clearing the effect.
+- Connect the completed checked transport/Core/Bonsai/retained-tree path to the
+  Host renderer before advertising the feature. Verify mounted identity and state
+  when clearing the effect; reconciliation evidence alone is insufficient.
 - Test actual GPU glyph paint (not only a changing animation phase), RTL/wrapping/
   ellipsis/emoji, selection and AX source, Full/Reduce transitions, one-shot idle,
   hidden/unmount/window-close cleanup, and independent instances. Then add public
@@ -188,3 +217,37 @@ clipped/omitted/Reduce/static/transparent/empty/emoji/capacity idle paths,
 Reduce arriving between paint and wake, independent owners, weak unmount,
 fresh remount and owner disposal on window close. The fixed-phase painter suite
 passes again after the clock integration. Neither test needs desktop focus.
+
+The following description/transport/admission stage passes the full local Dune
+build, expect suite and formatting check. Three additional Core/Bonsai expect
+cases cover exact operation-61 set/clear packets, kind/UTF-8/source bounds,
+metadata preservation, no-op reuse, discarded preparation, plain/styled source
+changes and clearing while growing the source. The independent Rust live packet
+case checks the same bytes, strict tags, truncations and invalid configuration.
+Four native non-GUI tests cover atomic rollback, source-order semantics, shared
+source/span allocations, exact payload-budget boundaries, stale generations and
+independent Session windows with clear/close release. Both existing styled-text
+admission regressions and eight shimmer clock/painter/color unit tests also pass.
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j 2 @all @runtest @fmt
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -p gpuio-protocol -j 2 --test text_shimmer
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -p gpuio-native -j 2 --test text_shimmer --test styled_text
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -p gpuio-native -j 2 --lib text_shimmer
+```
+
+No GUI window was opened for this stage. The first combined Dune test/format run
+reported formatting differences; applying the pinned formatter resolved them,
+with no expectation promotion or test-behavior change. Mounted rendering,
+keyboard/AX, public component examples/consumer, Linux and release gates remain
+open; none is implied by these pure transport/admission checks.
+
+Strict protocol and native Clippy also pass for this stage:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy --locked -p gpuio-protocol -j 2 --all-targets -- -D warnings
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy --locked -p gpuio-native -j 2 --lib --test text_shimmer --test styled_text --features native-image-tests -- -D warnings
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo fmt --all --check
+python3 scripts/audit_component_catalog.py
+git diff --check
+```
