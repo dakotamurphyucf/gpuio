@@ -42,6 +42,7 @@ def exercise(mac, images):
     exercise_chat_list(mac, images)
     exercise_descriptions(mac, images)
     exercise_keyboard_labels(mac, images)
+    exercise_binding_observations(mac, images)
     exercise_attachments(mac, images)
     exercise_groups(mac, images)
     exercise_separators(mac, images)
@@ -950,6 +951,137 @@ def exercise_keyboard_labels(mac, images):
         mac.release(editor)
         for node in retained.values():mac.release(node)
         temporary.cleanup()
+
+
+def exercise_binding_observations(mac, images):
+    """Public mounted observer: live focus, declarations, native keymaps and retirement."""
+    mac.press(TITLE, 'Presentation')
+    mac.wait_text(TITLE, 'Shortcuts in context')
+    focus_gallery_control(mac, 'Live binding draft', 'AXTextField')
+    mac.key(0, flags=1 << 20); mac.key(0)
+    editor = mac.wait_find(TITLE, 'Live binding draft', 'AXTextField')
+    equal = mac.cf.CFEqual
+    equal.restype, equal.argtypes = C.c_bool, [C.c_void_p, C.c_void_p]
+    clipboard_env = dict(os.environ, LANG='en_US.UTF-8')
+    saved = subprocess.run(['/usr/bin/pbpaste'], capture_output=True, check=True, env=clipboard_env).stdout
+    cases = 0
+
+    def toggle(label):
+        activate(mac, mac.wait_find(TITLE, label, 'AXCheckBox'))
+        time.sleep(.1)
+
+    def row(name, status, cap=None):
+        nonlocal cases
+        mac.wait_text(TITLE, name + ': ' + status)
+        root = mac.wait_find(TITLE, 'Live binding ' + name, 'AXGroup')
+        children = mac.children(root, 'AXChildren')
+        try:
+            assert len(children) == (2 if cap else 1), ('binding row children', name, len(children), cap)
+            if cap:
+                values, descendants = mac.node_values(children[1])
+                for child in descendants: mac.release(child)
+                assert values[0] == 'AXStaticText' and cap in values[1:4], ('observed keycap', values, cap)
+        finally:
+            for child in children: mac.release(child)
+            mac.release(root)
+        current = mac.wait_find(TITLE, 'Live binding draft', 'AXTextField')
+        try: assert equal(editor, current), 'binding observation remounted editor'
+        finally: mac.release(current)
+        expect_field(mac, TITLE, 'Live binding draft', 'a')
+        cases += 1
+
+    def epoch():
+        node = mac.wait_find(TITLE, 'Binding sample: ', 'AXStaticText', contains=True)
+        try:
+            values, children = mac.node_values(node)
+            for child in children: mac.release(child)
+            return next(int(text.split(': ')[1]) for text in values[1:4] if text.startswith('Binding sample: '))
+        finally: mac.release(node)
+
+    def invoke(keycode, count):
+        focus_gallery_control(mac, 'Live binding draft', 'AXTextField')
+        mac.key(keycode, flags=1 << 20)
+        time.sleep(.15)
+        mac.wait_text(TITLE, f'Live invocations: {count}')
+        expect_field(mac, TITLE, 'Live binding draft', 'a')
+
+    def mode(old, new):
+        mac.press(TITLE, 'Binding context: ' + old)
+        mac.release(mac.wait_find(TITLE, 'Binding context: ' + new, 'AXButton'))
+
+    try:
+        row('Preview action', 'Available (override)', 'Command + K')
+        row('Copy', 'Native widget binding', 'Command + C')
+        time.sleep(.2)
+        before = epoch(); time.sleep(.4)
+        assert epoch() == before, 'unchanged live observer produced repeated samples'
+        # Follow the observed Copy chord through actual OS input.
+        mac.key(0, flags=1 << 20); mac.key(8, flags=1 << 20)
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            if subprocess.run(['/usr/bin/pbpaste'], capture_output=True, check=True, env=clipboard_env).stdout == b'a':
+                break
+            time.sleep(.05)
+        else: raise AssertionError('observed native Copy chord did not copy the selection')
+        invoke(40, 1)
+        toggle('Enable live shortcut'); row('Preview action', 'Disabled', 'Command + K')
+        invoke(40, 1)
+        toggle('Register live shortcut'); row('Preview action', 'Not registered')
+        toggle('Use alternate live shortcut')
+        toggle('Register live shortcut'); row('Preview action', 'Disabled', 'Command + L')
+        toggle('Enable live shortcut'); row('Preview action', 'Available (override)', 'Command + L')
+        invoke(40, 1); invoke(37, 2)
+        toggle('Linux live labels')
+        row('Preview action', 'Available (override)', 'Control + L')
+        row('Copy', 'Native widget binding', 'Super + C')
+        toggle('Linux live labels')
+        mode('Focused', 'Editor')
+        focus_gallery_control(mac, 'Run preview action', 'AXButton')
+        row('Preview action', 'Declared', 'Command + L')
+        row('Copy', 'Declared', 'Command + C')
+        mode('Editor', 'Here')
+        row('Preview action', 'Declared', 'Command + L')
+        wait_absent(mac, 'Live binding Copy', 'AXGroup')
+        mode('Here', 'Native')
+        row('Copy', 'Declared', 'Command + C')
+        wait_absent(mac, 'Live binding Preview action', 'AXGroup')
+        toggle('Invalid native facts'); mac.wait_text(TITLE, 'Invalid native context')
+        wait_absent(mac, 'Live binding Copy', 'AXGroup')
+        toggle('Invalid native facts'); row('Copy', 'Declared', 'Command + C')
+        assert epoch() == 1, 'configuration replacement did not restart the epoch'
+        mode('Native', 'Focused')
+        row('Copy', 'No binding in this context')
+        focus_gallery_control(mac, 'Live binding draft', 'AXTextField')
+        row('Copy', 'Native widget binding', 'Command + C')
+        toggle('Show live bindings'); mac.wait_text(TITLE, 'Live bindings hidden')
+        wait_absent(mac, 'Live binding Copy', 'AXGroup')
+        invoke(37, 3)  # Observation retirement does not unregister the command.
+        toggle('Show live bindings'); row('Copy', 'Native widget binding', 'Command + C')
+        for _ in range(2):
+            theme = mac.find(TITLE, 'Dark', 'AXButton')
+            old = 'Dark' if theme else 'Light'
+            if theme: mac.release(theme)
+            mac.press(TITLE, old)
+            row('Preview action', 'Available (override)', 'Command + L')
+            row('Copy', 'Native widget binding', 'Command + C')
+        if images:
+            reveal_gallery_control(mac, 'Live binding Copy', 'AXGroup')
+            screenshot(mac, images / 'gallery-binding-observations.png', title=TITLE)
+        mac.wait_text(TITLE, 'Live invocations: 3')
+        mac.press(TITLE, 'Runtime & windows')
+        wait_absent(mac, 'Live binding draft', 'AXTextField')
+        wait_absent(mac, 'Live binding Copy', 'AXGroup')
+        mac.press(TITLE, 'Presentation')
+        replacement = mac.wait_find(TITLE, 'Live binding draft', 'AXTextField')
+        try: assert not equal(editor, replacement), 'page departure retained native binding editor'
+        finally: mac.release(replacement)
+        focus_gallery_control(mac, 'Live binding draft', 'AXTextField')
+        mac.wait_text(TITLE, 'Copy: Native widget binding')
+        mac.wait_text(TITLE, 'Live invocations: 3')
+        print(f'GALLERY_BINDING_OBSERVATIONS_OK: {cases} live binding/name/identity cases, OS Copy and shortcut invocation, context/config replacement, idle silence, observer/page retirement', flush=True)
+    finally:
+        mac.release(editor)
+        subprocess.run(['/usr/bin/pbcopy'], input=saved, check=True, env=clipboard_env)
 
 
 def exercise_descriptions(mac, images):
@@ -5332,7 +5464,7 @@ def main():
     parser.add_argument('--trace-canvas', action='store_true')
     parser.add_argument('--trace-motion', action='store_true')
     parser.add_argument('--trace-windows', action='store_true')
-    parser.add_argument('--section', choices=['all', 'core', 'status-regions', 'badges', 'labels', 'shimmer', 'markers', 'alerts', 'tags', 'keyboard-labels', 'descriptions', 'chat-composition', 'chat-list', 'attachments', 'attachment-paint', 'groups', 'links', 'empty', 'separators', 'styles', 'borders', 'aspect-ratio', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'document-links', 'document-images', 'highlighting', 'canvas', 'assets', 'charts', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
+    parser.add_argument('--section', choices=['all', 'core', 'status-regions', 'badges', 'labels', 'shimmer', 'markers', 'alerts', 'tags', 'keyboard-labels', 'binding-observations', 'descriptions', 'chat-composition', 'chat-list', 'attachments', 'attachment-paint', 'groups', 'links', 'empty', 'separators', 'styles', 'borders', 'aspect-ratio', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'document-links', 'document-images', 'highlighting', 'canvas', 'assets', 'charts', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
     args = parser.parse_args()
     if args.images:
         args.images.mkdir(parents=True, exist_ok=True)
@@ -5369,6 +5501,8 @@ def main():
                 exercise_attachment_paint(mac, args.images)
             if args.section == 'attachments':
                 exercise_attachments(mac, args.images)
+            if args.section == 'binding-observations':
+                exercise_binding_observations(mac, args.images)
             if args.section == 'keyboard-labels':
                 exercise_keyboard_labels(mac, args.images)
             if args.section == 'descriptions':

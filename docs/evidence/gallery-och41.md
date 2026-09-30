@@ -18,6 +18,28 @@ adds public inline-code/bold and safe image-placeholder links, with exact AX
 reading-order/action checks and retained keyboard navigation. Its focused result
 is separate from the combined/installed-consumer checkpoints below.
 
+## Live binding observations — focused checkpoint, 2026-09-30
+
+The Presentation card **Shortcuts in context** uses only public Core/Bonsai/Eio
+APIs for live Focused/Editor/Here/Native_context queries. It displays returned
+registry shortcuts and native strokes independently of command registration.
+Changing or hiding the query preserves the editor's native identity and draft.
+
+Both the repository application and a fresh installed-library consumer pass
+20 binding/name/identity cases, actual OS Copy/clipboard and enabled/disabled/
+unregistered/replaced-chord invocation, hypothetical editor queries while a
+button is focused, invalid native facts/recovery, config epoch reset, unchanged
+epoch silence, query retirement and page remount. Caller invocation state survives
+page departure; the old native editor does not. Both themes are exercised; the
+dark screenshot was visually inspected. No pixel comparison is claimed here.
+
+The [observer contract](../design/command-binding-observations.md#public-gallery)
+records exact commands and remaining acceptance. Both bounded GUI processes
+exit successfully and are reaped. Full Dune build/tests/format and the structural
+catalog audit pass. This section is wired into `core`/`all`; a fresh combined
+gallery run, broader native context/lifetime/workload matrices, hosted CI and
+OCH-17 release qualification remain separate. Kbd is still partial.
+
 ## Rich tags — focused checkpoint, 2026-09-30
 
 The Presentation card **Small details, useful actions** uses `Presentation.Tag`:

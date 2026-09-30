@@ -11,15 +11,17 @@ pending/latest-value adapter. A focused local macOS test passes actual widget
 bindings, child-driven composition changes, context/config/epoch replacement,
 coalescing, visibility recovery and cleanup. Core and native admission/lifecycle
 checks pass, and Bonsai tests preserve child state while fencing stale observation
-effects. Gallery/installed-consumer examples and broader native matrices remain
-required; Kbd parity and release acceptance are still incomplete.
+effects. The public gallery and a fresh installed-library consumer now pass
+20 live binding/name/identity cases, actual OS Copy and command invocation,
+query/config/page retirement and unchanged-epoch silence. Broader native matrices
+remain required; Kbd parity and release acceptance are still incomplete.
 
 [Typed keyboard labels](design/keyboard-labels.md) now format validated shortcuts
 for macOS/Linux, supply spoken names and filled/outline/plain keycaps, and expose
 ordered command declarations. Core/full Dune and a fresh installed consumer pass
 native geometry, GPU appearance, identity and explicit registration/disabled/routing
 checks. Effective native focus/context lookup is now implemented with scoped native
-evidence above; public gallery/consumer and wider acceptance work remain.
+and public gallery/consumer evidence above; wider acceptance work remains.
 
 The [rich Description list](design/description-lists.md) now provides validated
 column/span packing, rich term/value slots, both axes, label widths, sizes, borders
@@ -198,7 +200,7 @@ gates and the other presentation modules remain open.
 The remaining presentation modules have a
 [pinned behavior/gap review](catalog/presentation-gaps.md), including nested settings
 fields. These implementation plans and source snapshots do not mark the families
-accepted; native binding-observer gallery/acceptance and settings composition
+accepted; broader native binding-observer acceptance and settings composition
 remain, alongside the other catalog reviews.
 The [ordinary text-span API](design/text-content.md) now supplies bounded
 foreground runs through atomic bridge updates and View/Bonsai reconciliation.

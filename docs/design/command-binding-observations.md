@@ -4,8 +4,10 @@ OCH-41 implementation contract. The native observer, paired transport, Core View
 callback, Eio delivery and Bonsai value adapter are implemented. A focused local
 macOS test passes actual widget-keymap lookup, composition-driven changes without
 a retained-tree update, configuration/epoch replacement, coalescing, visibility
-recovery and retirement. Public gallery/installed-consumer coverage and the wider
-catalog/release gates remain open; this is not full Kbd or milestone acceptance.
+recovery and retirement. The public gallery now demonstrates the observer and
+passes scoped macOS input/lifecycle checks in both the repository and a fresh
+installed-library consumer; wider native matrices and the
+catalog/release gates remain open. This is not full Kbd or milestone acceptance.
 
 ## Public interface
 
@@ -235,9 +237,44 @@ The native test uses a bounded process-group watchdog and closes its window on
 success or assertion failure. Required macOS CI now includes it; hosted results
 are not implied by these local checks.
 
-Public gallery/independently installed consumer examples, broader native matrices
+Broader native matrices
 (nested/modal/retained-row/independent-window/workload cases), consolidated catalog
 acceptance and all OCH-17 macOS release gates remain required. Linux build/unit/
 private-bus/consumer checks remain required; full Linux desktop qualification is
 still deferred to OCH-47. Do not mark Kbd, OCH-41 or milestone 07 complete from this
 checkpoint.
+
+## Public gallery
+
+Component Studio's **Shortcuts in context** card uses public APIs only. The
+editor controller is outside the query branch, so changing the context or hiding
+the observer does not remove the editor. It demonstrates Focused, Editor, Here
+and Native_context queries, independent registration/enabling, chord replacement,
+macOS/Linux label formatting, invalid facts and observation retirement.
+The preview renders every returned native stroke, and keeps query state separate
+from the command invocation counter.
+
+The focused macOS driver passes 20 binding/name/identity cases in both the
+repository app and a fresh installed-library consumer: live widget Copy
+lookup, actual OS Command-C clipboard behavior, registered/unregistered/disabled
+and replacement-chord invocation, hypothetical editor lookup while a button is
+focused, declaration/native-only target sets, invalid-context recovery and epoch
+reset, silent unchanged epochs, query hide/remount, both application themes and
+page departure/remount. Callback counts distinguish inspection from invocation.
+The clipboard is restored; the window exits successfully and is reaped.
+The independent consumer stages packages under its own prefix and builds with a
+separate backend lockfile without installing into any opam switch. It reuses the
+local toolchain/native sources; this is not clean-machine distribution evidence.
+Both runs report `GALLERY_BINDING_OBSERVATIONS_OK` and
+`GPUIO_GALLERY_AX_OK: section=binding-observations`. Full Dune build/tests/format,
+Python syntax and the structural catalog audit also pass. The dark screenshot
+was inspected; this is not a GPU pixel assertion, OS IME or VoiceOver qualification.
+
+```sh
+python3 scripts/test_gallery.py --section binding-observations
+GPUIO_JOBS=2 python3 scripts/test_extension_consumer.py --example gallery --workspace /private/tmp/gpuio-m7-binding-consumer-20260930
+python3 scripts/test_gallery.py --section binding-observations --executable /private/tmp/gpuio-m7-binding-consumer-20260930/consumer/_build/default/main.exe
+```
+
+The focused section is included in `core` and `all`. A fresh combined gallery run,
+hosted CI and the release gates remain separate acceptance work.

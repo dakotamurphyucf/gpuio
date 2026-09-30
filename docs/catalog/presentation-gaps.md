@@ -117,9 +117,10 @@ Core callback and Bonsai value adapter, with configuration/epoch fencing and a
 separate bounded latest-value mailbox class. `Presentation.Kbd.of_native_stroke`
 displays the native domain without expanding registration. The
 [observation contract](../design/command-binding-observations.md) records shared
-resolution, widget keymap lookup and scoped native/lifecycle evidence. The source
-row remains **partial** pending observer gallery/installed-consumer examples and
-broader native context/lifetime/workload acceptance.
+resolution, widget keymap lookup and scoped native/lifecycle evidence. The
+public gallery and installed-consumer examples pass 20 scoped live-binding cases,
+OS Copy and command invocation, identity and retirement. The source row remains
+**partial** pending broader native context/lifetime/workload acceptance.
 
 ## Loading markers
 
@@ -178,8 +179,8 @@ responsive resizing, focus reveal and application persistence failures.
 Composed Link, shared dashed borders and Empty/Separator composition now have
 scoped native and installed-consumer evidence, as do shared text shimmer and the
 rich Attachment/Marker, Alert, Tag, Bubble/Message and Description adapters.
-Remaining presentation modules are Kbd and Settings: native binding-observer
-gallery/acceptance and settings composition.
+Remaining presentation modules are Kbd and Settings: broader native
+binding-observer acceptance and settings composition.
 Each family needs public gallery examples and meaningful native acceptance before
 its ledger status changes. Reuse ordinary views where possible; introduce native
 state or protocol operations only for concrete missing behavior.

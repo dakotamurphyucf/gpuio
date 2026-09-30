@@ -5,8 +5,8 @@ pure display portion of the pinned [Kbd source](../catalog/sources/component-kbd
 (gpui-kit `84f57fdfcb4910623fb0bb7f795b077e249f9271`). `Command.shortcuts` exposes
 ordered declarations for display. The legacy string-list `shortcut_label` remains
 unchanged. This is **partial source coverage**: effective native action/context/
-focus binding lookup now has a mounted observer; gallery/consumer acceptance
-for that observer remains required OCH-41 work.
+focus binding lookup now has a mounted observer with public gallery/consumer
+evidence; broader native acceptance remains required OCH-41 work.
 
 ```ocaml
 let shortcut =
@@ -147,6 +147,7 @@ are observational data only; registration remains single-chord.
 
 The [native observation contract and evidence](command-binding-observations.md)
 records the contexts, suppression states, lifecycle, limits and scoped macOS
-validation. Public gallery/installed-consumer examples and broader native
+validation. Public gallery and installed-consumer examples pass 20 scoped live
+binding/name/identity cases and actual OS Copy/command invocation. Broader native
 nested/modal/retained-row/window/workload matrices remain required. Keep the Kbd
 source row partial until that acceptance is complete.

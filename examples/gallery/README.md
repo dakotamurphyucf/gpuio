@@ -34,7 +34,17 @@ for filled/outline/plain keycaps, macOS/Linux formatting, accessible names and
 style overrides. Its explicit registration switch separates displaying a label
 from invoking a command. Run `python3 scripts/test_gallery.py --section keyboard-labels`;
 it also runs in `core` and `all`.
-See the [display contract and remaining native binding-query work](../../docs/design/keyboard-labels.md).
+See the [display contract](../../docs/design/keyboard-labels.md).
+
+The **Shortcuts in context** card uses `Gpuio_bonsai.Command_binding.component`
+to show live application and native Copy bindings. Switch between focused,
+specific-editor, local-declaration and native-context queries; enable/register
+commands independently of showing their bindings. Native strokes use
+`Presentation.Kbd.of_native_stroke`, including ordered sequence display.
+Query changes preserve the editor placement. Run
+`python3 scripts/test_gallery.py --section binding-observations`; the section
+also runs in `core` and `all`. See the [native observation contract and remaining
+acceptance](../../docs/design/command-binding-observations.md).
 
 The **Details that stay together** card uses `Presentation.Description_list`
 for rich term/value slots, columns/spans, horizontal/vertical cells, four sizes,

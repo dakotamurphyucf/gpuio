@@ -76,6 +76,7 @@ let presentation app window palette graph =
   let chat_list_preview = Chat_list_preview.component app window palette graph in
   let description_preview = Description_preview.component window palette graph in
   let keyboard_preview = Keyboard_preview.component window palette graph in
+  let binding_preview = Binding_preview.component window palette graph in
   let group_preview = Group_preview.component palette graph in
   let empty_preview = Empty_preview.component app window palette graph in
   let separator_preview = Separator_preview.component palette graph in
@@ -99,6 +100,7 @@ let presentation app window palette graph =
   and chat_list_preview = chat_list_preview
   and description_preview = description_preview
   and keyboard_preview = keyboard_preview
+  and binding_preview = binding_preview
   and label_preview = label_preview
   and group_preview = group_preview
   and empty_preview = empty_preview
@@ -142,6 +144,7 @@ let presentation app window palette graph =
     ; Palette.card p ~title:"A conversation in motion" [ chat_list_preview ]
     ; Palette.card p ~title:"Details that stay together" [ description_preview ]
     ; Palette.card p ~title:"Keys with meaning" [ keyboard_preview ]
+    ; Palette.card p ~title:"Shortcuts in context" [ binding_preview ]
     ; Palette.card p ~title:"Structure with flexibility" [ group_preview ]
     ; Palette.card p ~title:"Space with intention" [ separator_preview ]
     ; Palette.card p ~title:"Follow your curiosity" [ link_preview ]
