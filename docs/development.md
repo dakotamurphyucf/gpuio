@@ -83,8 +83,8 @@ run `python3 scripts/vendor_bonsai.py --record-archives`. Review the downloaded
 source, hashes and diffs before committing. Normal reconstruction omits that flag
 and verifies all hashes. Preserve upstream licenses and native-only Dune selection.
 
-GPUI core is vendored at the existing Zed revision with a small hidden-press
-cleanup patch; see [its adaptation contract](design/gpui-core-adaptation.md).
+GPUI core is vendored at the existing Zed revision with hidden-press cleanup
+and a read-only opacity accessor; see [its adaptation contract](design/gpui-core-adaptation.md).
 `python3 scripts/vendor_gpui.py --output <new-directory>` reconstructs it from the
 hash-verified upstream archive and patch. `--archive <path>` uses a local copy of
 the same archive. The command refuses to overwrite a destination. Compare the

@@ -216,6 +216,7 @@ impl State {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn element(
     spans: &[gpuio_protocol::text_content::Span],
     state: Rc<RefCell<State>>,
@@ -227,6 +228,7 @@ pub fn element(
         crate::highlight_paint::Paint,
         crate::highlight_paint::SharedCache,
     )>,
+    shimmer: Option<crate::text_shimmer_clock::Decoration<'_>>,
 ) -> gpui::AnyElement {
     let (source, focus) = {
         let s = state.borrow();
@@ -304,7 +306,7 @@ pub fn element(
             .left_0()
             .size_full(),
         )
-        .child(text);
+        .child(crate::text_shimmer_clock::decorate(text, shimmer));
     if pointer {
         element = element.cursor_text();
         let down_state = state.clone();

@@ -18,6 +18,7 @@ let minimal : W.Config.t =
   ; repeat = Loop
   ; animated = true
   ; highlight = None
+  ; appearance = None
   }
 ;;
 
@@ -28,6 +29,7 @@ let explicit : W.Config.t =
   ; repeat = Once
   ; animated = false
   ; highlight = Some 0xffff_ffffL
+  ; appearance = None
   }
 ;;
 
@@ -41,10 +43,10 @@ let%expect_test "independent Rust fixtures cover every variant and optional colo
   print_s [%sexp (S.Expert.to_wire S.Config.default : W.Config.t)];
   [%expect
     {|
-    0100000000000000e03f00010100
-    fd60ea000001000000000010604001000001fcffffffff00000000
+    0100000000000000e03f0001010000
+    fd60ea000001000000000010604001000001fcffffffff0000000000
     ((duration_ms 2000) (spread (Relative 0.3)) (direction Left_to_right)
-     (repeat Loop) (animated true) (highlight ()))
+     (repeat Loop) (animated true) (highlight ()) (appearance ()))
     |}]
 ;;
 
@@ -145,7 +147,14 @@ let%expect_test "cross product bounds encoded and retained configuration size" =
             List.iter [ false; true ] ~f:(fun animated ->
               List.iter [ None; Some 0L; Some 0xffff_ffffL ] ~f:(fun highlight ->
                 let t : W.Config.t =
-                  { duration_ms; spread; direction; repeat; animated; highlight }
+                  { duration_ms
+                  ; spread
+                  ; direction
+                  ; repeat
+                  ; animated
+                  ; highlight
+                  ; appearance = None
+                  }
                 in
                 let bytes = encode t in
                 assert (String.length bytes <= W.max_config_bytes);
@@ -153,4 +162,46 @@ let%expect_test "cross product bounds encoded and retained configuration size" =
                 Int.incr count))))));
   print_s [%sexp (!count : int)];
   [%expect {| 576 |}]
+;;
+
+let%expect_test
+    "explicit appearance resolves application tokens and has independent bytes"
+  =
+  let theme =
+    Gpuio.Theme.create
+      [ "text", Gpuio.Color.rgba ~red:0 ~green:0 ~blue:0 ~alpha:1 |> ok
+      ; "surface", Gpuio.Color.rgba ~red:0 ~green:0 ~blue:0 ~alpha:2 |> ok
+      ]
+    |> ok
+  in
+  let appearance =
+    S.Appearance.create
+      ~dark:true
+      ~foreground:(Gpuio.Color.token_exn "text")
+      ~background:(Gpuio.Color.token_exn "surface")
+      ~theme
+      ()
+    |> ok
+  in
+  let config = S.Config.create ~appearance () |> ok |> S.Expert.to_wire in
+  let wire = { minimal with appearance = config.appearance } in
+  assert (W.Config.equal (W.Config.decode (encode wire) |> ok) wire);
+  print_endline (hex (encode wire));
+  assert (
+    Result.is_error
+      (S.Appearance.create
+         ~dark:false
+         ~foreground:(Gpuio.Color.token_exn "missing")
+         ~background:(Gpuio.Color.rgb_exn 0)
+         ()));
+  List.iter [ -1L; 0x1_0000_0000L ] ~f:(fun color ->
+    List.iter
+      [ { W.Appearance.foreground = color; background = 0L; dark = true }
+      ; { W.Appearance.foreground = 0L; background = color; dark = false }
+      ]
+      ~f:(fun appearance ->
+        let invalid = { minimal with appearance = Some appearance } in
+        assert (Result.is_error (S.Expert.of_wire invalid));
+        assert (Result.is_error (W.Config.decode (encode invalid)))));
+  [%expect {| 0100000000000000e03f0001010001010201 |}]
 ;;

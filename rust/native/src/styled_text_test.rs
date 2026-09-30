@@ -34,7 +34,7 @@ fn content(text: &str, first: i64, second: i64) -> Content {
         ],
     }
 }
-fn apply(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, operations: Vec<Op>) {
+pub(super) fn apply(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, operations: Vec<Op>) {
     handle
         .update(cx, |view, window, cx| {
             let base = view.session.borrow().tree(view.id).unwrap().revision();
@@ -53,7 +53,7 @@ fn apply(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, operations: Vec<Op
         })
         .unwrap();
 }
-fn draw(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>) {
+pub(super) fn draw(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>) {
     cx.update_window(handle.into(), |_, window, cx| {
         window.refresh();
         window.draw(cx).clear(cx);
@@ -91,7 +91,10 @@ fn painted(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, top: f32) -> [us
         })
         .unwrap()
 }
-fn geometry(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>) -> Vec<gpui::Point<gpui::Pixels>> {
+pub(super) fn geometry(
+    cx: &mut gpui::AsyncApp,
+    handle: WindowHandle<View>,
+) -> Vec<gpui::Point<gpui::Pixels>> {
     handle
         .update(cx, |view, _, _| {
             let state = view.selections[&id(2)].borrow();
@@ -104,7 +107,10 @@ fn geometry(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>) -> Vec<gpui::Po
         })
         .unwrap()
 }
-fn assert_geometry(actual: &[gpui::Point<gpui::Pixels>], expected: &[gpui::Point<gpui::Pixels>]) {
+pub(super) fn assert_geometry(
+    actual: &[gpui::Point<gpui::Pixels>],
+    expected: &[gpui::Point<gpui::Pixels>],
+) {
     assert_eq!(actual.len(), expected.len());
     for (actual, expected) in actual.iter().zip(expected) {
         // CoreText may sum f32 advances in different run groups. The measured
@@ -120,7 +126,7 @@ fn assert_geometry(actual: &[gpui::Point<gpui::Pixels>], expected: &[gpui::Point
         );
     }
 }
-fn copied(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>) -> String {
+pub(super) fn copied(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>) -> String {
     editor_test::key(cx, handle, "secondary-c");
     cx.update(|cx| {
         cx.read_from_clipboard()
@@ -129,7 +135,10 @@ fn copied(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>) -> String {
     })
 }
 #[cfg(target_os = "macos")]
-fn accessible_labels(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>) -> Vec<String> {
+pub(super) fn accessible_labels(
+    cx: &mut gpui::AsyncApp,
+    handle: WindowHandle<View>,
+) -> Vec<String> {
     use objc2::{msg_send, runtime::AnyObject};
     use objc2_foundation::NSString;
     use raw_window_handle::HasWindowHandle;

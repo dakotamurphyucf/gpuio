@@ -126,6 +126,7 @@ fn config() -> Config {
         repeat: Repeat::Loop,
         animated: true,
         highlight: Some(0xff0000ff),
+        appearance: None,
     }
 }
 

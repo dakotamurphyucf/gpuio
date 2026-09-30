@@ -17,6 +17,7 @@ fn config() -> Config {
         repeat: Repeat::Loop,
         animated: true,
         highlight: None,
+        appearance: None,
     }
 }
 fn tx(tree: &Tree, operations: Vec<Op>) -> Transaction {

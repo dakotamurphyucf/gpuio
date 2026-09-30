@@ -5,20 +5,18 @@ Current checkpoint: milestones 1–6 are merged. Milestone 5's
 [required macOS/Linux CI](https://github.com/dakotamurphyucf/gpuio/actions/runs/36312697654)
 passed on `473407c`; all twelve tickets are Done.
 
-The [text-shimmer foundation](design/text-shimmer.md) now has typed configuration
-and paired codecs for duration, relative/pixel spread, sweep direction,
-one-shot/loop behavior and optional highlight color. Core/Rust checks cover exact
-bytes, validation and bounded configuration. Mounted glyph animation and
-Attachment/Marker acceptance remain in progress; this is distinct from the existing
-rectangular loading placeholder.
-The native glyph painter now independently passes background GPU checks for
-wrapping, RTL/alignment, start/end ellipses, clipping, reverse direction, emoji,
-static/reduced-motion output, selection backgrounds and both default themes.
-The native retained clock now also passes controlled-time GPU/frame checks for
-one-shot completion, coalesced wakes, cosmetic reuse, pause/resume, weak unmount
-and window-close disposal. The optional Core/Bonsai text decoration now has live
-transport/reconciliation and atomic retained-tree admission. Mounted Host/painter integration and
-keyboard/AX acceptance remain open; this is not application-level idle evidence.
+The [text-shimmer adapter](design/text-shimmer.md) now connects Core/Bonsai,
+validated live transport and native retained rendering. The mounted background
+fixture passes actual glyph paint, wrapped selection/copy, foreground spans,
+search underlays, native source accessibility labels, application-theme overrides,
+visibility/opacity/clipping, independent windows and owner disposal before app
+shutdown. An equal-text update regression also verifies that owners share the
+current Tree source allocation without restarting the effect. These complement the independent
+painter/clock matrices; they do not establish foreground keyboard/IME, screen-reader
+or whole-application idle/performance acceptance. A public gallery preview is
+implemented; its normal-launch/installed-consumer acceptance, conditional/managed
+rows, aggregate work and Attachment/Marker integration remain open. No shimmer
+capability is advertised yet.
 
 The [finite style-value audit](evidence/style-finite-values-och41.md) now covers
 seven keyword sets with pinned native GPUIX sources. Grid count/minimum and

@@ -1,5 +1,5 @@
 use super::{DecodeError, Decoder};
-use crate::text_shimmer::{Config, Direction, MAX_CONFIG_BYTES, Repeat, Spread};
+use crate::text_shimmer::{Appearance, Config, Direction, MAX_CONFIG_BYTES, Repeat, Spread};
 use std::io::Cursor;
 
 impl Decoder<'_> {
@@ -23,6 +23,13 @@ impl Decoder<'_> {
             },
             animated: self.boolean()?,
             highlight: self.option(Self::int)?,
+            appearance: self.option(|decoder| {
+                Ok(Appearance {
+                    foreground: decoder.int()?,
+                    background: decoder.int()?,
+                    dark: decoder.boolean()?,
+                })
+            })?,
         };
         if config.is_valid() {
             Ok(config)

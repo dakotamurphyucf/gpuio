@@ -3943,10 +3943,11 @@ impl Window {
             .unwrap_or_default()
     }
 
-    /// Obtain the current element opacity. This method should only be called during the
-    /// prepaint phase of element drawing.
+    /// Obtain the accumulated element opacity, including ancestor and state styles.
+    /// Call only during paint or prepaint. Read-only access lets custom animated
+    /// elements suspend frame requests when their effective opacity is zero.
     #[inline]
-    pub(crate) fn element_opacity(&self) -> f32 {
+    pub fn element_opacity(&self) -> f32 {
         self.invalidator.debug_assert_paint_or_prepaint();
         self.element_opacity
     }

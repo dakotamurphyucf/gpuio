@@ -25,8 +25,8 @@ val styled_text : ?key:Key.t -> ?style:Style.t -> Text_content.t -> 'action t
     [None] clears the effect without applying its source-size limit. The native
     painter falls back to static text above 256 lines or 4,096 shaped glyphs.
 
-    Experimental: description/transport integration precedes mounted rendering;
-    this feature is not yet advertised as a host capability. *)
+    Experimental: mounted native rendering is implemented; public component
+    acceptance and host capability advertisement remain in progress. *)
 val with_text_shimmer
   :  'action t
   -> Text_shimmer.Config.t option

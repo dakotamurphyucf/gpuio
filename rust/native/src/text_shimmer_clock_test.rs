@@ -9,6 +9,7 @@ fn config(repeat: Repeat) -> Config {
         repeat,
         animated: true,
         highlight: Some(0xff0000ff),
+        appearance: None,
     }
 }
 
@@ -143,6 +144,24 @@ fn updates_are_atomic_drivers_are_stamped_and_no_rendered_element_owns_the_clock
     paint(&owner);
     at(&clock, 250);
     assert_eq!(sample(&owner), 0.25);
+    let old_source = Arc::downgrade(&owner.0.borrow().source);
+    let replacement: Arc<str> = Arc::from("Working");
+    owner
+        .update(replacement.clone(), config(Repeat::Loop))
+        .unwrap();
+    assert!(
+        Arc::ptr_eq(&replacement, &owner.0.borrow().source),
+        "equal text must share the current tree allocation"
+    );
+    assert!(
+        old_source.upgrade().is_none(),
+        "an equal source update must release the old allocation"
+    );
+    assert_eq!(
+        driver.sample(false).unwrap().1.phase,
+        0.25,
+        "allocation replacement preserves phase and paint-driver stamp"
+    );
     let old_stamp = owner.0.borrow().stamp.clone();
     let mut invalid = config(Repeat::Loop);
     invalid.duration_ms = 0;
@@ -211,8 +230,7 @@ fn admission_reservation_covers_fixed_state_and_callback_payloads() {
     // Budget fixed payloads explicitly; the extra 512 bytes allow for allocation,
     // BTreeMap entry and callback boxing overhead. Source bytes are shared with
     // the retained tree; no source-sized allocation belongs to this clock.
-    let fixed = std::mem::size_of::<State>()
-        + std::mem::size_of::<RefCell<State>>()
+    let fixed = std::mem::size_of::<RefCell<State>>()
         + std::mem::size_of::<Config>()
         + std::mem::size_of::<Owner>()
         + std::mem::size_of::<Driver>()

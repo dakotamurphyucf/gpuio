@@ -111,7 +111,8 @@ impl Text {
     }
 
     fn overlay(&self, window: &mut Window, cx: &mut App) -> Report {
-        if !self.config.is_valid()
+        if window.element_opacity() <= 0.
+            || !self.config.is_valid()
             || !self.config.animated
             || self.sample.reduced_motion
             || !self.sample.phase.is_finite()
@@ -128,15 +129,23 @@ impl Text {
         if layout.len() > MAX_TEXT_BYTES {
             return Report::Capacity;
         }
+        let appearance = self
+            .config
+            .appearance
+            .map_or(self.appearance, |value| Appearance {
+                foreground: rgba(value.foreground as u32).into(),
+                background: rgba(value.background as u32).into(),
+                dark: value.dark,
+            });
         let text_style = window.text_style();
         let highlight = self.config.highlight.map_or_else(
             || {
                 crate::text_shimmer_color::highlight(
                     text_style.color,
-                    if self.appearance.dark {
-                        self.appearance.foreground
+                    if appearance.dark {
+                        appearance.foreground
                     } else {
-                        self.appearance.background
+                        appearance.background
                     },
                 )
             },
@@ -177,7 +186,7 @@ impl Text {
         if masks.iter().all(Option::is_none) {
             return Report::OutsideBand;
         }
-        let peak: f32 = if self.appearance.dark { 0.6 } else { 0.75 };
+        let peak: f32 = if appearance.dark { 0.6 } else { 0.75 };
         let color = highlight.opacity(1. - (1. - peak).powf(1. / LAYERS as f32));
         let line_height = layout.line_height();
         let mut calls = 0;

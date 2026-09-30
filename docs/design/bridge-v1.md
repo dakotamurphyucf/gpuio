@@ -47,9 +47,10 @@ OCH-41's experimental text shimmer appends Op61 `Set_text_shimmer` with a node
 and optional validated configuration. It decorates ordinary Text; `None` clears
 without replacing the node or its source/spans. Native admission limits active
 sources to 16,384 UTF-8 bytes and reserves 1,024 payload bytes per declaration
-within existing window/session budgets. Core/Bonsai reconciliation and atomic
-retained-tree admission are implemented; mounted rendering and capability
-advertisement remain pending. See [the contract](text-shimmer.md). Existing tags
+within existing window/session budgets. Core/Bonsai reconciliation, atomic
+retained-tree admission and mounted rendering are implemented. The experimental
+configuration now includes optional concrete appearance colors/mode; its standalone
+bound is 64 bytes. Capability advertisement remains pending public acceptance. See [the contract](text-shimmer.md). Existing tags
 and the current capability mask remain unchanged during this development stage.
 
 OCH-41's highlighting integration appends Kind50 `Highlight_scope`, Op57

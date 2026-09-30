@@ -26,6 +26,17 @@ end
 module Direction = W.Direction
 module Repeat = W.Repeat
 
+module Appearance = struct
+  type t = W.Appearance.t [@@deriving equal, sexp_of]
+
+  let create ~dark ~foreground ~background ?(theme = Theme.default) () =
+    let open Or_error.Let_syntax in
+    let%bind foreground = Theme.resolve theme foreground in
+    let%map background = Theme.resolve theme background in
+    { W.Appearance.foreground; background; dark }
+  ;;
+end
+
 module Config = struct
   type t = W.Config.t [@@deriving equal, sexp_of]
 
@@ -40,6 +51,7 @@ module Config = struct
         ?(repeat = Repeat.Loop)
         ?(animated = true)
         ?highlight
+        ?appearance
         ?(theme = Theme.default)
         ()
     =
@@ -60,6 +72,7 @@ module Config = struct
         ; repeat
         ; animated
         ; highlight
+        ; appearance
         }
   ;;
 

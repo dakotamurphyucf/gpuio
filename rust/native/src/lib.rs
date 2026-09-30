@@ -97,6 +97,10 @@ pub fn run_native_text_shimmer_paint_test() {
 pub fn run_native_text_shimmer_clock_test() {
     text_shimmer_clock::native_test::run();
 }
+#[cfg(feature = "native-image-tests")]
+pub fn run_native_text_shimmer_view_test() {
+    host::text_shimmer_view_test::run();
+}
 mod text_projection;
 mod transport;
 pub mod tree;

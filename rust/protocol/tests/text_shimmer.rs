@@ -9,6 +9,7 @@ fn minimal() -> Config {
         repeat: Repeat::Loop,
         animated: true,
         highlight: None,
+        appearance: None,
     }
 }
 
@@ -20,6 +21,7 @@ fn explicit() -> Config {
         repeat: Repeat::Once,
         animated: false,
         highlight: Some(0xffff_ffff),
+        appearance: None,
     }
 }
 
@@ -32,10 +34,10 @@ fn encode(config: &Config) -> Vec<u8> {
 #[test]
 fn independent_ocaml_fixtures_and_strict_tags() {
     for (config, expected) in [
-        (minimal(), "0100000000000000e03f00010100"),
+        (minimal(), "0100000000000000e03f0001010000"),
         (
             explicit(),
-            "fd60ea000001000000000010604001000001fcffffffff00000000",
+            "fd60ea000001000000000010604001000001fcffffffff0000000000",
         ),
     ] {
         let bytes = encode(&config);
@@ -131,6 +133,7 @@ fn configuration_cross_product_has_bounded_wire_and_retained_size() {
                                 repeat,
                                 animated,
                                 highlight,
+                                appearance: None,
                             };
                             assert!(config.is_valid());
                             let bytes = encode(&config);
@@ -169,7 +172,7 @@ fn op61_set_clear_match_ocaml_and_reject_malformed_live_configs() {
     for (config, expected) in [
         (
             Some(minimal()),
-            "0300010001013d0001010100000000000000e03f00010100",
+            "0300010001013d0001010100000000000000e03f0001010000",
         ),
         (None, "0300010001013d000100"),
     ] {
@@ -214,5 +217,49 @@ fn op61_set_clear_match_ocaml_and_reject_malformed_live_configs() {
         },
     ] {
         assert!(gpuio_protocol::decode(&bytes(&packet(Some(config)))).is_err());
+    }
+}
+
+#[test]
+fn explicit_appearance_matches_ocaml_and_validates_both_colors_and_tags() {
+    let config = Config {
+        appearance: Some(Appearance {
+            foreground: 1,
+            background: 2,
+            dark: true,
+        }),
+        ..minimal()
+    };
+    let bytes = encode(&config);
+    assert_eq!(
+        bytes.iter().map(|b| format!("{b:02x}")).collect::<String>(),
+        "0100000000000000e03f0001010001010201"
+    );
+    assert_eq!(decode(&bytes), Ok(config));
+    for index in [14, 17] {
+        let mut bad = bytes.clone();
+        bad[index] = 2;
+        assert!(decode(&bad).is_err());
+    }
+    for color in [-1, 0x1_0000_0000] {
+        for appearance in [
+            Appearance {
+                foreground: color,
+                background: 0,
+                dark: true,
+            },
+            Appearance {
+                foreground: 0,
+                background: color,
+                dark: false,
+            },
+        ] {
+            let config = Config {
+                appearance: Some(appearance),
+                ..minimal()
+            };
+            assert!(!config.is_valid());
+            assert!(decode(&encode(&config)).is_err());
+        }
     }
 }

@@ -2,7 +2,7 @@
 //! Shared standalone/live operation codec; not yet a negotiated rendering capability.
 use binprot::macros::BinProtWrite;
 
-pub const MAX_CONFIG_BYTES: usize = 32;
+pub const MAX_CONFIG_BYTES: usize = 64;
 pub const MAX_TEXT_BYTES: usize = 16_384;
 
 #[derive(Clone, Copy, Debug, PartialEq, BinProtWrite)]
@@ -32,6 +32,19 @@ pub enum Repeat {
     Loop,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
+pub struct Appearance {
+    pub foreground: i64,
+    pub background: i64,
+    pub dark: bool,
+}
+
+impl Appearance {
+    pub fn is_valid(&self) -> bool {
+        (0..=0xffff_ffff).contains(&self.foreground) && (0..=0xffff_ffff).contains(&self.background)
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, BinProtWrite)]
 pub struct Config {
     pub duration_ms: i64,
@@ -40,11 +53,13 @@ pub struct Config {
     pub repeat: Repeat,
     pub animated: bool,
     pub highlight: Option<i64>,
+    pub appearance: Option<Appearance>,
 }
 
 impl Config {
     pub fn is_valid(&self) -> bool {
-        (1..=60_000).contains(&self.duration_ms)
+        self.appearance.as_ref().is_none_or(Appearance::is_valid)
+            && (1..=60_000).contains(&self.duration_ms)
             && self.spread.is_valid()
             && self
                 .highlight

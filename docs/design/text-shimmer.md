@@ -1,11 +1,12 @@
 # Text shimmer
 
-OCH-41, implementation in progress. `Text_shimmer` supplies validated configuration
-and paired standalone/live OCaml/Rust codecs. The native glyph painter and retained
-clock have independent GPU/frame-lifecycle evidence. Core/Bonsai descriptions now
-reconcile an optional decoration into native retained-tree state. They do **not**
-yet animate a mounted public view or advertise a capability. The existing
-`Loading.Kind.Shimmer` remains a rectangular placeholder effect.
+OCH-41, implementation in progress. `Text_shimmer` now connects typed Core/Bonsai
+text descriptions, atomic live transport and the native retained Host to one
+shaped glyph layout. Plain/selectable text, foreground spans and search underlays
+share that layout. A background mounted fixture verifies GPU output, logical
+selection/copy and native source labels. Capability advertisement, public gallery
+and installed-consumer acceptance remain open. `Loading.Kind.Shimmer` remains a
+separate rectangular placeholder effect.
 
 The pinned [component source](../catalog/sources/component-shimmer.rs.txt) is
 gpui-kit `84f57fdfcb4910623fb0bb7f795b077e249f9271`. The snapshot is verified against
@@ -37,10 +38,26 @@ policy. Color, spread and duration are validated again on admission in both
 languages. Configurations contain no source text, resource handles or collections.
 
 The standalone encoding is duration (bin_prot integer), tagged spread (float64),
-direction, repetition, animated Boolean and optional RGBA integer, in that order.
+direction, repetition, animated Boolean, optional RGBA integer and optional
+appearance (foreground RGBA, background RGBA, dark Boolean), in that order.
 Both decoders reject malformed tags, nonfinite values, invalid ranges, truncation
-and trailing bytes. Input is bounded to 32 bytes before parsing. Public domain
+and trailing bytes. Input is bounded to 64 bytes before parsing. Public domain
 types do not expose generated deserialization as a validation bypass.
+
+## Appearance and application themes
+
+`Appearance.create ~dark ~foreground ~background ?theme ()` resolves application
+colors once. Pass the result as `Config.create ~appearance`; update it when the
+application theme changes. Appearance changes are cosmetic and preserve elapsed
+time. With no override the Host uses the system window's light/dark semantic
+palette. This default does not pretend that an application's custom theme must
+match the operating system. Explicit highlight color still overrides the target;
+appearance selects the layer opacity. The gallery supplies its actual palette.
+
+The adapter reads GPUI's accumulated paint opacity through a narrow read-only
+[core accessor](gpui-core-adaptation.md#read-only-accumulated-opacity). Zero opacity
+suppresses the overlay and wakes even when it comes from an ancestor or native
+interaction state; partially transparent text uses normal GPUI compositing.
 
 ## Native painting
 
@@ -79,7 +96,7 @@ globally synchronized loop phase.
 | --- | --- |
 | New owner/remount | Starts at phase zero on its first eligible paint. |
 | Source, duration, direction or repetition | Restarts. |
-| Highlight color, spread or external style | Preserves elapsed time. |
+| Highlight color, appearance, spread or external style | Preserves elapsed time. |
 | `animated=false`, reduced motion, clipped or omitted content | Pauses; a later eligible paint resumes. |
 | Completed Once | Remains complete through cosmetic or playback changes; source/timing changes or remount restart it. |
 | Invalid configuration or source over 16,384 UTF-8 bytes | Rejects atomically, preserving old source/configuration/time. |
@@ -90,7 +107,12 @@ effect. This matters because a fully clipped element can skip paint entirely.
 Empty/whitespace text, emoji-only paint, transparent highlights and painter-capacity
 fallbacks do not request recurring frames. The host must explicitly suspend a
 retained owner omitted by a conditional branch, and drop owners on unmount/close.
-The future tree adapter must apply these rules to its actual keyed-node lifecycle.
+The Host owns a generation-keyed map and a per-window clock. Accepted updates
+retire removed/cleared owners immediately; each render suspends existing owners
+before constructing visible text. Owners share the Tree source Arc, including
+replacement allocations with equal text (for example, a span-only update). Retained
+branches keep their paused owner; virtual eviction/remount must use a fresh one.
+The conditional/virtualized integration matrix remains to be verified.
 
 There is at most one outstanding GPUI frame callback per owner. The callback
 carries no source, configuration or phase; delivery checks the current owner and
@@ -113,7 +135,8 @@ latency, idle power or whole-application performance.
 key, source, style, metadata and spans remain on the same text node; this is not a
 wrapper or action/focus owner. Enabling requires valid UTF-8 of at most 16,384
 bytes. Clearing imposes no effect-specific source bound. Other kinds reject both
-set and clear. This is experimental until the mounted Host adapter is connected.
+set and clear. The mounted Host adapter is connected; broader public component
+and release acceptance remain in progress.
 
 Appended operation 61 is `Set_text_shimmer (node, Config option)`. Configuration
 updates/clear preserve node generation, source and spans; ordinary plain/styled
@@ -121,41 +144,34 @@ source updates preserve the decoration. Native source admission checks the final
 transaction state, so growing source beyond the limit while clearing the effect
 succeeds in either operation order. Invalid configuration, kind, stale generation,
 source size or aggregate budget rejects the entire transaction without changing
-the acknowledged revision or any node. Existing operation bytes and capability
-mask remain unchanged during this integration stage.
+the acknowledged revision or any node. Operations before 61 and the capability mask remain unchanged. The unreleased
+operation-61 configuration now includes optional appearance; rebuild paired halves
+together during this experimental stage.
 
 A native declaration reserves 1,024 bytes within existing 64 MiB/window and
 256 MiB/session retained-payload admission. The allowance covers optional config,
 clock-owner state, map allocation and one weak queued callback; this is not a
-measurement of process/allocator overhead. The eventual Host owner must share the
+measurement of process/allocator overhead. The Host owner shares the
 Tree's source `Arc`, already charged by its UTF-8 size. Clearing/unmount releases
 the allowance; paused and hidden declarations retain it. Fixed node slots remain
 separately bounded by the tree's existing node-count policy. No glyph cache or
 source-sized duplicate is introduced by this admission change.
 
-## Remaining live integration
+## Remaining integration and acceptance
 
 These are implementation requirements, **not completed acceptance**:
 
-- Decorate the ordinary text layout so enabling/disabling a title's progress state
-  can preserve its native identity, selection and accessible source. It must not
-  become a second text node, focus stop or live announcement.
-- Preserve the independently tested painter's geometry/clipping when adding the
-  mounted ordinary/selectable-text paths, foreground spans and subtree highlights.
-  Its selection-background pixel test is not real keyboard/clipboard acceptance.
-- Keep animation scheduling in Rust. No frame callback or timer crosses into
-  OCaml. Bound work for long labels and many visible simultaneous instances;
-  record the chosen admission policy before exposing a View constructor.
-- Connect the tested native Owner to actual node generations/windows and verify
-  conditional, managed-row and style-state visibility/opacity. The independent
-  fixture does not establish retained-tree cleanup or whole-window frame demand.
-- Connect the completed checked transport/Core/Bonsai/retained-tree path to the
-  Host renderer before advertising the feature. Verify mounted identity and state
-  when clearing the effect; reconciliation evidence alone is insufficient.
-- Test actual GPU glyph paint (not only a changing animation phase), RTL/wrapping/
-  ellipsis/emoji, selection and AX source, Full/Reduce transitions, one-shot idle,
-  hidden/unmount/window-close cleanup, and independent instances. Then add public
-  Attachment/Marker examples and an installed-library consumer.
+- Complete the conditional/managed-row and application-level lifetime matrix.
+  The mounted fixture covers ordinary text owners, native interaction-state
+  opacity, visibility/clipping, clear, generation replacement, independent
+  windows and owner disposal before application shutdown.
+- Measure aggregate visible work/frame performance and whole-window idle/resource
+  behavior. Per-text glyph limits and owner admission do not establish application
+  FPS, latency, power or a global paint-work budget.
+- Finish foreground OS keyboard/clipboard, screen-reader and public gallery/
+  installed-consumer acceptance. Dispatched GPUI keys are not physical input.
+- Add Attachment/Marker examples and complete their source behavior review before
+  accepting those families or advertising the shimmer capability.
 
 ## Current local evidence
 
@@ -164,7 +180,7 @@ byte fixtures covering all variants and optional color. Both enumerate 576 valid
 boundary combinations and reject malformed configuration, every fixture
 truncation, trailing data and invalid tags. Core also checks sub-millisecond
 rounding and token resolution with preserved alpha. These tests establish the
-configuration/codec contract only; native and release evidence remain pending.
+configuration/codec contract only; later native stages are recorded below.
 
 Local macOS 14.5 arm64 commands, through the repository's isolated environment:
 
@@ -177,7 +193,7 @@ git diff --check
 ```
 
 All passed. No GUI window was opened for this configuration-only change. Required
-Linux checks, mounted native acceptance and whole-release CI remain separate.
+Linux checks and whole-release CI remain separate. Mounted evidence appears below.
 
 The subsequent native painter change passes these local commands:
 
@@ -238,9 +254,9 @@ GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -p gpuio-native -j 2 --lib
 
 No GUI window was opened for this stage. The first combined Dune test/format run
 reported formatting differences; applying the pinned formatter resolved them,
-with no expectation promotion or test-behavior change. Mounted rendering,
-keyboard/AX, public component examples/consumer, Linux and release gates remain
-open; none is implied by these pure transport/admission checks.
+with no expectation promotion or test-behavior change. These pure transport/
+admission checks do not establish mounted rendering, keyboard/AX, public component
+examples/consumer, Linux or release acceptance.
 
 Strict protocol and native Clippy also pass for this stage:
 
@@ -251,3 +267,51 @@ GPUIO_JOBS=2 ./scripts/gpuio exec cargo fmt --all --check
 python3 scripts/audit_component_catalog.py
 git diff --check
 ```
+
+### Mounted Host integration
+
+The mounted stage passes on macOS 14.5 arm64 through the repository's isolated
+environment. The fixture uses accepted Session transactions, the actual Host,
+GPU readback, controlled native clocks and real AppKit source-label queries:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -p gpuio-native -j 2 --features native-image-tests --test native_text_shimmer_view --no-run
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy --locked -p gpuio-native -j 2 --lib --tests --features native-image-tests -- -D warnings
+```
+
+The built executable passed under a 120-second process-group deadline, printed
+`GPUIO_NATIVE_TEXT_SHIMMER_VIEW_OK`, closed both background windows and exited zero.
+Its checks cover unchanged wrap/selection/copied Unicode source, span colors,
+search backgrounds, exactly two logical source accessibility labels, application
+theme overrides, twenty renders coalesced into one pending wake, native hover/
+pressed/focus opacity, ancestor visibility/display/clipping, reduced motion and
+static playback, clear, one-shot completion and generation replacement. A second
+actual Host window progresses independently and remains live after the first
+closes; both owners retire before application shutdown. GPUI-dispatched key/mouse
+events and AppKit label queries do not establish physical keyboard/IME or
+screen-reader acceptance.
+
+Review found an owner retaining the previous allocation after a value-equal
+styled-source update. A unit regression first failed on the required shared-source
+identity, then passed after the owner adopted the current Tree allocation without
+resetting elapsed time or invalidating its paint driver. The final mounted fixture
+also verifies this sharing after an actual span update. This protects the existing
+source-memory accounting; the fixed owner reservation is not an RSS measurement.
+
+The final full Dune `@all @runtest @fmt` check, five protocol tests, four native
+admission tests, two existing styled-text admission tests, eight shimmer unit
+tests and strict protocol/native Clippy all pass. The standalone painter, retained
+clock and existing styled-text native fixtures also pass with the integration.
+Initial fixture failures were corrected without relaxing assertions: creation now
+respects dense node-slot ordering, and native accessibility waits for the existing
+lazy AppKit initialization before querying labels. The first gallery build found
+an incorrect style constructor; the final full build passes after using `Radius`.
+
+The read-only GPUI opacity accessor reconstructs byte-for-byte from the pinned
+archive plus the checked patch. Catalog audit, workflow lint, formatting and diff
+checks pass. The public Presentation page now includes a paused-by-default preview
+with source refresh, width, direction, playback, enable/clear and explicit theme
+controls. It compiles with the full gallery; normal-launch interaction and fresh
+installed-consumer acceptance remain pending. No capability or catalog-family
+completion is claimed from this checkpoint. Required Linux and hosted release
+checks remain open.

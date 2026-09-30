@@ -54,3 +54,18 @@ event evidence; successful compilation alone is insufficient. Reconstruct and
 compare the vendored tree, review lockfile changes, and preserve the required
 Linux build/unit/private-bus/consumer gates. macOS GUI evidence does not qualify
 the deferred Linux desktop milestone.
+
+## Read-only accumulated opacity
+
+Custom text-shimmer paint needs the opacity actually computed by GPUI, including
+ancestors, interaction states and animated styles. The patch makes the existing
+`Window::element_opacity` getter public and corrects its documentation to allow
+paint or prepaint, matching its existing phase assertion. It does not change
+opacity calculation, accumulation or rendering. The shimmer adapter suppresses
+its overlay and recurring wake when that value is zero. Copying only declared
+node styles would miss inherited and state-specific opacity.
+
+The updated patch and archive hashes reconstruct exactly to `vendor/gpui` with
+`scripts/vendor_gpui.py --archive <verified archive> --output <new directory>`.
+Mounted shimmer tests cover zero-opacity ancestors and restoration; this accessor
+does not establish whole-application idle or Linux graphical acceptance.

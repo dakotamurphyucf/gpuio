@@ -1,8 +1,8 @@
 open Core
 
 (** Configuration for a highlight moving over laid-out text glyphs, distinct from
-    [Loading.Kind.Shimmer]'s rectangular placeholder. Rendering integration is in
-    development; constructing this value alone does not animate a view. *)
+    [Loading.Kind.Shimmer]'s rectangular placeholder. Apply to ordinary text with
+    [View.with_text_shimmer]; configuration alone does not animate a view. *)
 module Spread : sig
   type t [@@deriving equal, sexp_of]
 
@@ -32,6 +32,22 @@ module Repeat : sig
   [@@deriving equal, sexp_of]
 end
 
+module Appearance : sig
+  type t [@@deriving equal, sexp_of]
+
+  (** Application-owned theme, independent of the platform's light/dark setting.
+      Colors resolve against [theme] now. Recreate on application theme changes.
+      [dark] selects foreground (true) or background (false) as the default
+      highlight target, and the corresponding native layer opacity. *)
+  val create
+    :  dark:bool
+    -> foreground:Color.t
+    -> background:Color.t
+    -> ?theme:Theme.t
+    -> unit
+    -> t Or_error.t
+end
+
 module Config : sig
   type t [@@deriving equal, sexp_of]
 
@@ -41,7 +57,9 @@ module Config : sig
 
       An explicit [highlight] is resolved against [theme] now, preserving alpha;
       an undefined token is an error. Recreate on theme changes when using tokens.
-      Omitting it requests the native theme/inherited-text default. No theme token
+      Omitting it requests the appearance/inherited-text default. [appearance]
+      overrides the system light/dark palette for application-owned themes.
+      No theme token
       is required when [highlight] is omitted. The effect owns no OCaml timer,
       task or callback. *)
   val create
@@ -51,6 +69,7 @@ module Config : sig
     -> ?repeat:Repeat.t
     -> ?animated:bool
     -> ?highlight:Color.t
+    -> ?appearance:Appearance.t
     -> ?theme:Theme.t
     -> unit
     -> t Or_error.t

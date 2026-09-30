@@ -56,6 +56,7 @@ fn config(repeat: Repeat) -> Config {
         repeat,
         animated: true,
         highlight: Some(0xff0000ff),
+        appearance: None,
     }
 }
 fn at(clock: &Clock, ms: u64) {

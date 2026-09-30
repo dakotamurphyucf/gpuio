@@ -183,6 +183,8 @@ struct View {
     highlight_documents: Rc<RefCell<Rc<()>>>,
     input_pointer_inside: Rc<std::cell::Cell<bool>>,
     selections: BTreeMap<NodeId, Rc<RefCell<crate::selection::State>>>,
+    text_shimmers: BTreeMap<NodeId, crate::text_shimmer_clock::Owner>,
+    text_shimmer_clock: Rc<crate::text_shimmer_clock::Clock>,
     editors: BTreeMap<NodeId, editor::Instance>,
     root_focus: Option<gpui::FocusHandle>,
     focus: focus::Shared,
@@ -398,6 +400,9 @@ fn pointer_enabled(tree: &crate::tree::Tree, mut id: NodeId) -> bool {
         id = parent;
     }
 }
+#[path = "text_shimmer_view.rs"]
+mod text_shimmer_view;
+
 impl View {
     fn new(id: WindowId, session: SharedSession, transport: Arc<Transport>) -> Self {
         Self {
@@ -421,6 +426,8 @@ impl View {
             highlight_documents: Default::default(),
             input_pointer_inside: Rc::new(std::cell::Cell::new(true)),
             selections: BTreeMap::new(),
+            text_shimmers: BTreeMap::new(),
+            text_shimmer_clock: Default::default(),
             editors: BTreeMap::new(),
             root_focus: None,
             radios: BTreeMap::new(),
@@ -463,6 +470,7 @@ impl View {
         }
     }
     fn update_editors(&mut self, dirty: &[NodeId], window: &mut Window, cx: &mut Context<Self>) {
+        self.sync_text_shimmers();
         self.install_command_interceptor(window, cx);
         self.install_pointer_observer(window, cx);
         self.install_menu_observers(window, cx);
@@ -1311,6 +1319,8 @@ impl View {
             }
             selection.borrow_mut().update(node.text.clone());
             let highlight = self.highlight_for(tree, id);
+            let selection_scope = self.focus.borrow().selection_scope(id);
+            let shimmer = self.text_shimmer(node, window);
             element = element.child(crate::selection::element(
                 &node.text_spans,
                 selection,
@@ -1319,8 +1329,9 @@ impl View {
                     .unwrap_or_else(|| rgba(0x386ac880).into()),
                 interaction.pointer,
                 cx.entity_id(),
-                self.focus.borrow().selection_scope(id),
+                selection_scope,
                 highlight,
+                shimmer,
             ));
         } else if matches!(node.kind, Kind::Checkbox | Kind::Switch) {
             element = element.child(control_indicator(node.kind, checked, indeterminate));
@@ -1354,22 +1365,22 @@ impl View {
                 Kind::TabPanel | Kind::Panel | Kind::NavigationStack | Kind::Carousel
             )
         {
-            if let Some((paint, cache)) = self.highlight_for(tree, id) {
+            let highlight = self.highlight_for(tree, id);
+            let shimmer = self.text_shimmer(node, window);
+            if highlight.is_some() || shimmer.is_some() || !node.text_spans.is_empty() {
                 let text = crate::styled_text::element(
                     gpui::SharedString::from(label.clone()),
                     &node.text_spans,
                 );
-                let layout = text.layout().clone();
-                element = element
-                    .child(crate::highlight_paint::underlay(
-                        label, layout, paint, cache,
-                    ))
-                    .child(text);
-            } else if !node.text_spans.is_empty() {
-                element = element.child(crate::styled_text::element(
-                    gpui::SharedString::from(label),
-                    &node.text_spans,
-                ));
+                if let Some((paint, cache)) = highlight {
+                    element = element.child(crate::highlight_paint::underlay(
+                        label,
+                        text.layout().clone(),
+                        paint,
+                        cache,
+                    ));
+                }
+                element = element.child(crate::text_shimmer_clock::decorate(text, shimmer));
             } else {
                 element = element.child(gpui::SharedString::from(label));
             }
@@ -1754,6 +1765,7 @@ impl Render for View {
             self.render_count += 1;
         }
         self.refresh_list_pins(window, cx);
+        self.sync_text_shimmers();
         self.visited.clear();
         self.focus.borrow_mut().clear_surfaces();
         let shared = self.session.clone();
@@ -2505,3 +2517,7 @@ pub(crate) mod link_test;
 #[cfg(feature = "native-image-tests")]
 #[path = "border_style_test.rs"]
 pub(crate) mod border_style_test;
+
+#[cfg(feature = "native-image-tests")]
+#[path = "text_shimmer_view_test.rs"]
+pub(crate) mod text_shimmer_view_test;

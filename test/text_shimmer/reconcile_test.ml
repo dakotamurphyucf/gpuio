@@ -32,6 +32,7 @@ let%expect_test "op61 has independent native set/clear transaction fixtures" =
     ; repeat = Loop
     ; animated = true
     ; highlight = None
+    ; appearance = None
     }
   in
   List.iter [ Some minimal; None ] ~f:(fun config ->
@@ -49,7 +50,7 @@ let%expect_test "op61 has independent native set/clear transaction fixtures" =
     print_endline "");
   [%expect
     {|
-    0300010001013d0001010100000000000000e03f00010100
+    0300010001013d0001010100000000000000e03f0001010000
     0300010001013d000100
     |}]
 ;;

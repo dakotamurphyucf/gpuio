@@ -328,3 +328,8 @@ required-features = ["native-image-tests"]
 name = "native_text_shimmer_clock"
 harness = false
 required-features = ["native-image-tests"]
+
+[[test]]
+name = "native_text_shimmer_view"
+harness = false
+required-features = ["native-image-tests"]

@@ -96,7 +96,7 @@
         "docs/design/text-shimmer.md"
       ],
       "gallery_page": "presentation",
-      "contract": "Native skeleton/spinner/placeholder animation and reduced-motion/static policy; no invented completion value. Glyph shimmer has validated configuration/live transport, Core/Bonsai reconciliation and atomic retained-tree admission, a native painter and independent retained-clock GPU/lifecycle checks; mounted Host/painter integration and acceptance remain pending.",
+      "contract": "Native skeleton/spinner/placeholder animation and reduced-motion/static policy; no invented completion value. Glyph shimmer has Core/Bonsai/live transport and mounted Host/selection/highlight integration, explicit application appearances and focused background GPU/lifecycle checks. Public gallery/consumer, conditional/managed-row and aggregate-performance acceptance remain pending.",
       "upstream_modules": [
         "component/shimmer",
         "component/skeleton",

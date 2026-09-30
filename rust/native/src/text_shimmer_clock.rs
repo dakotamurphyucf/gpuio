@@ -167,10 +167,14 @@ impl Owner {
     pub fn update(&self, source: Arc<str>, config: Config) -> Result<(), Error> {
         validate(&source, config)?;
         let mut state = self.0.borrow_mut();
-        if state.source == source && state.config == config {
+        let same_source = Arc::ptr_eq(&state.source, &source) || state.source == source;
+        if same_source && state.config == config {
+            // Styled source updates may allocate equal bytes. Share the current
+            // tree allocation rather than retaining an unaccounted old copy.
+            state.source = source;
             return Ok(());
         }
-        let restart = state.source != source
+        let restart = !same_source
             || state.config.duration_ms != config.duration_ms
             || state.config.direction != config.direction
             || state.config.repeat != config.repeat;
@@ -266,3 +270,61 @@ mod tests;
 #[cfg(feature = "native-image-tests")]
 #[path = "text_shimmer_clock_native_test.rs"]
 pub(crate) mod native_test;
+
+/// Borrow only during element construction; the returned paint element contains
+/// a weak driver. This keeps plain/selectable/highlighted text on one layout path.
+pub struct Decoration<'a> {
+    pub owner: &'a Owner,
+    pub appearance: Appearance,
+}
+
+pub fn decorate(text: StyledText, decoration: Option<Decoration<'_>>) -> gpui::AnyElement {
+    use gpui::IntoElement;
+    match decoration {
+        Some(decoration) => decoration
+            .owner
+            .element(text, decoration.appearance)
+            .into_any_element(),
+        None => text.into_any_element(),
+    }
+}
+
+#[cfg(feature = "native-image-tests")]
+pub(crate) mod probe {
+    use super::*;
+    pub struct Probe(Weak<RefCell<State>>);
+    #[derive(Debug)]
+    pub struct Snapshot {
+        pub phase: f32,
+        pub running: bool,
+        pub pending: bool,
+        pub notifications: usize,
+    }
+    impl Clock {
+        pub(crate) fn set_time(&self, millis: u64) {
+            self.test_now.set(Some(Duration::from_millis(millis)));
+        }
+    }
+    impl Owner {
+        pub(crate) fn probe(&self) -> Probe {
+            Probe(Rc::downgrade(&self.0))
+        }
+    }
+    impl Probe {
+        pub(crate) fn shares_source(&self, source: &Arc<str>) -> bool {
+            self.0
+                .upgrade()
+                .is_some_and(|state| Arc::ptr_eq(&state.borrow().source, source))
+        }
+        pub(crate) fn snapshot(&self) -> Option<Snapshot> {
+            let state = self.0.upgrade()?;
+            let state = state.borrow();
+            Some(Snapshot {
+                phase: state.elapsed.as_secs_f32() / state.duration().as_secs_f32(),
+                running: state.running,
+                pending: state.pending,
+                notifications: state.notifications,
+            })
+        }
+    }
+}
