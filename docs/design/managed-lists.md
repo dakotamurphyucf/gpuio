@@ -80,6 +80,13 @@ resize, tail jump, focused-row retention and disposal. The extended test also ch
 composition through the macOS text client, held selection, intentional source
 deletion and full-history resource bounds. These are local macOS checks.
 
+Wheel movement consumed by a list does not also move an ordinary ancestor.
+Nested child scrollers receive events first; unconsumed list-boundary and
+horizontal-only events remain available to ancestors. The native Frame observes
+actual position changes within each event and retains only a weak owner; it does
+not synthesize a second scroll operation. See the focused
+[routing regression](../evidence/scrolling-och11.md#milestone-07-managed-list-inside-an-ordinary-scroller).
+
 The first native metadata layer uses positive logical row IDs independent of
 native node handles. Consecutive IDs are encoded as runs: an initial 100,000-row
 order occupies eight bin_prot bytes, verified independently in OCaml and Rust.

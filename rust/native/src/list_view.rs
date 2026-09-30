@@ -838,6 +838,33 @@ impl Element for Frame {
         window: &mut Window,
         cx: &mut App,
     ) {
+        // GPUI's list updates its offset but leaves the wheel event bubbling.
+        // Register outside its listener: capture snapshots the position, then
+        // our bubble callback runs after the list and any nested scroll child.
+        // Consume actual list movement only; boundaries and horizontal-only
+        // input remain available to ordinary ancestor scrollers. Reading each
+        // event's starting position also handles several events in one frame.
+        let owner = Rc::downgrade(&self.state);
+        let mut before = None;
+        window.on_mouse_event(move |event: &gpui::ScrollWheelEvent, phase, _, cx| {
+            if !bounds.contains(&event.position) {
+                before = None;
+                return;
+            }
+            let Some(owner) = owner.upgrade() else {
+                return;
+            };
+            let current = owner.borrow().native.handle().logical_scroll_top();
+            let current = (current.item_ix, current.offset_in_item);
+            match phase {
+                gpui::DispatchPhase::Capture => before = Some(current),
+                gpui::DispatchPhase::Bubble => {
+                    if before.take().is_some_and(|old| old != current) {
+                        cx.stop_propagation();
+                    }
+                }
+            }
+        });
         // Materialized overscan is not a new Tab destination. The list owns its
         // scrolling/focus handoff; ordinary ancestor reveal cannot reveal a row
         // through this viewport. Floating descendants paint outside this scope.

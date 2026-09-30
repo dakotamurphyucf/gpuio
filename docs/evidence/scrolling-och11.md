@@ -109,3 +109,56 @@ not physical trackpad momentum, a public-gallery run or Linux desktop acceptance
 Strict native/protocol all-target Clippy with `native-image-tests` and
 `-D warnings`, Rust/OCaml formatting, catalog verification and diff checks also
 passed. Hosted CI remains part of consolidated milestone validation.
+
+## Milestone-07: managed list inside an ordinary scroller
+
+The public Bubble/Message transcript preview exposed another propagation gap.
+An actual macOS one-pixel wheel event moved a message from Y=564 to Y=562 while
+the list viewport itself moved from Y=560 to Y=559. Both list and parent consumed
+the same event. This differs from the earlier row-retention and per-parse layout
+defects; it is a concrete extra source of apparent jumping in nested layouts.
+
+The focused `scroll_list_test.rs` reproduces the defect through real GPUI layout:
+the list moved one pixel and the ancestor offset incorrectly became `(0, -1)`.
+GPUI's list listener updates its position without stopping propagation. The GPUIO
+Frame now records the logical position during capture and, after the native list
+listener runs, consumes the event only if that position changed. It holds a weak
+owner. No fork, protocol, OCaml callback or per-frame OCaml work was added.
+
+The corrected native scroll binary passes its existing ordinary/two-axis cases
+and `GPUIO_LIST_SCROLL_ROUTING_OK`:
+
+- Precise, discrete and multiple same-frame events move the list without moving
+  its ordinary ancestor.
+- A nested child scroller consumes its own movement. At that child's boundary,
+  the list consumes movement before the ancestor.
+- At the list boundary an unconsumed event reaches the ancestor; horizontal-only
+  events also reach a horizontally scrollable ancestor.
+- Removing the list immediately releases its owner despite installed callbacks.
+
+Local macOS arm64 commands:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j2 -p gpuio-native --features native-image-tests --test native_scroll --test native_list --no-run
+```
+
+The Cargo-reported `native_scroll` binary ran under a 120-second process-group
+watchdog and exited zero. The pre-fix run failed the ancestor-offset assertion;
+an earlier fixture attempt used an ordinary-element probe for the specialized
+list and was corrected to use `ListState.viewport_bounds` before reproduction.
+This is native layout with synthetic GPUI input. The broader `native_list` binary
+also exits zero under a 180-second watchdog: exact anchors, editor/selection,
+two 100,000-row traversals, bounded warm demand and resource release all pass.
+Native/protocol all-target Clippy with `native-image-tests -D warnings` and 413
+native unit tests pass (two ignored tests remain ignored).
+
+The repaired repository gallery's `--section chat-list` OS-input walkthrough now
+passes the original one-pixel sequence: sixteen forward/reverse events preserve
+the outer viewport and warm control identities. It also records 82 retained-AX
+stream samples with no downward rebound and a stationary outside draft, preserves
+paused history during offscreen document appends, activates an out-of-flow reaction
+inside reserved row space, restores the current document after jumping to latest,
+and observes zero source bytes after page departure. These samples describe the
+bounded fixture, not frame pacing or a general performance guarantee. Final
+installed-consumer and consolidated hosted gates remain open. Linux GUI and
+physical-trackpad acceptance remain separate.
