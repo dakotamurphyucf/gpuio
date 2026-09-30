@@ -233,11 +233,11 @@ identity, and drive real keyboard/pointer actions. These scoped checks do not
 constitute a full VoiceOver journey, physical display-scale transition, arbitrary
 application layout, Linux desktop or release performance acceptance.
 
-## Links: native composition implemented, full acceptance pending
+## Links: locally validated functional equivalents
 
 Both [base/link](sources/base-link.rs.txt) and
 [component/link](sources/component-link.rs.txt) have been reviewed in detail.
-They are **not yet functional-equivalent acceptance rows**. Existing
+They are **functional-equivalent source rows, locally validated on macOS**. Existing
 `Presentation.link` covers text, styles, asynchronous actions and disabled fencing;
 the development composed view now adds rich content and explicit Tab policy. The legacy
 styled component's ineffective disabled flag and pointer-only behavior are not
@@ -259,8 +259,11 @@ viewport-containment checks, without manually scrolling successor links into vie
 Native coverage includes nested axes, fixed clips and range thumbs in a modal trap;
 see the [focus evidence](../evidence/focus-reveal-och41.md). Nested native extension groups now also pass nearest-owner traversal, internal
 Tab boundaries, retained updates, modal leaf restoration and disabled fencing.
-Composed links negotiate bit 48 (`CAP_LINKS`). Fresh installed-consumer validation
-and consolidated catalog/release integration remain pending at this checkpoint.
+Composed links negotiate bit 48 (`CAP_LINKS`). The fresh installed-library consumer
+now passes the full eight-case/rich-content walkthrough, all 42 native activations,
+Tab policy/reveal, disabled recovery, scoped cleanup and clean shutdown. The
+dated acceptance in the design records exact coverage and reproduction commands.
+Whole-family/catalog and release integration remain separate.
 
 Styled text under an outer highlight scope now has focused Core/native evidence:
 foreground glyphs and wash paint, cosmetic/source updates, selection suppression,
@@ -270,7 +273,7 @@ settles the extension-group contract. Consolidated release acceptance remains se
 
 ## Remaining presentation modules
 
-The link rows above remain incomplete. The other presentation modules have a
+The other presentation modules have a
 [pinned source and behavior review](presentation-gaps.md), including nested
 settings fields. Empty and Separator now have explicit local functional-equivalent
 evidence; the ledger distinguishes them from the remaining rich-slot/layout,

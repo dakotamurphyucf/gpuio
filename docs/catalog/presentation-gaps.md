@@ -1,9 +1,11 @@
 # Remaining presentation contracts — OCH-41
 
 Source review at GPUIO `f8c2a22`, gpui-kit
-`84f57fdfcb4910623fb0bb7f795b077e249f9271`. These are identified gaps and proposed
-implementation directions, **not functional-equivalence acceptance**. Existing
-OCH-33 tests remain evidence only for their actual public API and behavior.
+`84f57fdfcb4910623fb0bb7f795b077e249f9271`. The initial review identified gaps and
+proposed implementation directions; source inspection alone was not acceptance.
+Rows below explicitly record subsequent local acceptance where evidence exists.
+All remaining gaps stay open. Existing OCH-33 tests remain evidence only for
+their actual public API and behavior.
 
 The linked snapshots were checked byte-for-byte against the manifest-pinned
 archive after verifying its SHA256. All 21 files, including the eleven settings
@@ -148,8 +150,8 @@ responsive resizing, focus reveal and application persistence failures.
 
 ## Delivery order
 
-Finish composed Link installed-consumer acceptance. Shared dashed borders and
-Empty/Separator composition now have scoped evidence. Remaining work includes
+Composed Link, shared dashed borders and Empty/Separator composition now have
+scoped native and installed-consumer evidence. Remaining work includes
 text-shimmer contracts, rich attachment/chat slots, description layout/identity,
 typed keyboard labels and marker/settings composition.
 Each family needs public gallery examples and meaningful native acceptance before

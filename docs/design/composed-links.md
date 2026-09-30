@@ -1,9 +1,9 @@
 # Composed links and native focus policy
 
 OCH-41/OCH-17; pinned-source review at GPUIO `1785139`.
-Status: **native content/focus contract validated locally on macOS; bit 48
-(`CAP_LINKS`) now negotiates composed links**. Fresh installed-consumer verification
-and release integration are recorded separately below. The dated development
+Status: **base/component Link rows are functional equivalents, locally validated
+on macOS including a fresh installed-library consumer; bit 48 (`CAP_LINKS`)
+negotiates composed links**. Whole-release integration remains separate. The dated development
 checkpoints retain historical counts and limitations; the current scope is summarized
 here and in the final native-focus checkpoint.
 Existing `Presentation.link` continues to provide a text-only Link-semantic button.
@@ -459,3 +459,32 @@ belong to the same process. No cause for the earlier window disappearance is
 established. The gallery's optional `--trace-windows` records future close-request
 reasons while preserving normal application decisions. No Link acceptance status
 changes on the basis of these interrupted runs.
+
+## Installed-consumer acceptance — 2026-09-30
+
+The fresh consumer used for Separator acceptance also completes the entire Link
+walkthrough against installed public libraries and its independent locked native
+backend. On macOS 14.5 arm64, `--section links --trace-windows` passes eight
+theme/content/icon cases plus image/avatar/loading previews, all 42 real pointer,
+Return, Space and AX activations, stable native identity, signed forward/reverse
+Tab ordering, focused non-stop anchors, measured viewport reveal, disabled
+recovery and scoped source/image cleanup. Both `GALLERY_COMPOSED_LINK_OK` and
+`GPUIO_GALLERY_AX_OK: section=links` are present; the final trace records a normal
+`Window_close` request and the process exits successfully. Earlier partial runs
+remain excluded; the successful run does not retrospectively establish their
+failure causes.
+
+Reproduce using a fresh workspace:
+
+```sh
+GPUIO_JOBS=2 python3 scripts/test_extension_consumer.py --example gallery \
+  --workspace /private/tmp/gpuio-link-review --run --gallery-section links
+```
+
+Together with the native ownership/focus/style/resource checks above, this closes
+the two source-row mappings in the presentation ledger. The accepted contract
+remains explicit: one action/focus owner with bounded passive content, application-
+owned routing/opening, signed ordering distinct from Tab opt-out, and stronger
+disabled/keyboard behavior than the legacy styled source. Whole-gallery/hosted CI,
+required Linux checks and OCH-17 release qualification remain outstanding. No
+full VoiceOver or Linux desktop acceptance follows from this focused walkthrough.

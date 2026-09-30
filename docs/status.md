@@ -76,8 +76,10 @@ extension focus ownership also pass locally on unlocked macOS. Earlier locked-
 desktop waits are excluded from acceptance.
 Composed links now negotiate bit 48 (`CAP_LINKS`); highlighting remains separately
 unadvertised. Paired Hello fixtures and session rejection tests cover the new
-required mask. Fresh installed-consumer/catalog finalization and whole-release
-gates are still pending for this checkpoint; the presentation family remains partial.
+required mask. A fresh installed-library consumer now passes all 42 Link native
+activations, focus/Tab/reveal, disabled recovery and scoped cleanup checks. Both
+Link source rows are locally validated functional equivalents; whole-release
+gates and the other presentation modules remain open.
 The other eleven presentation modules now have a
 [pinned behavior/gap review](catalog/presentation-gaps.md), including nested settings
 fields. These implementation plans and source snapshots do not mark the families
