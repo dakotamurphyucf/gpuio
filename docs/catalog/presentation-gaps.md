@@ -178,6 +178,12 @@ functionality. Test filtering/empty results, selected-page disappearance/recover
 reset scopes and disabled/custom fields, in-flight edits, IME/input identity,
 responsive resizing, focus reveal and application persistence failures.
 
+The [Core model and full composition contract](../design/settings-composition.md)
+now implement distinct IDs, bounded metadata/search, preferred/effective selection,
+expansion reconciliation and explicit reset scopes with latest-state/disabled
+guards. Five expect tests pass. The renderer, typed fields and public/native
+acceptance remain unfinished; this foundation does not establish equivalence.
+
 ## Delivery order
 
 Composed Link, shared dashed borders and Empty/Separator composition now have
