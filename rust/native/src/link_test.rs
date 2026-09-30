@@ -3,6 +3,8 @@
 use super::*;
 use gpuio_protocol::link::Config;
 use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
+#[path = "link_nonstop_test.rs"]
+mod nonstop_test;
 #[path = "link_scroll_test.rs"]
 mod scroll_test;
 
@@ -310,6 +312,45 @@ async fn exercise(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, transport
         vec![id(1)],
         "Tab opt-out still receives pointer activation"
     );
+    // A non-stop remains an ordering anchor after pointer/AX focus. Filtering
+    // it out before finding current focus wrongly jumps to the first/last stop.
+    key(cx, handle, "tab");
+    focused(cx, handle, 4);
+    focus(cx, handle, 1);
+    draw(cx, handle);
+    key(cx, handle, "shift-tab");
+    focused(cx, handle, 5);
+    #[cfg(target_os = "macos")]
+    {
+        accessible(cx, handle, 1, AxAction::Focus);
+        super::editor_test::frame(cx, handle).await;
+        focused(cx, handle, 1);
+        key(cx, handle, "tab");
+        focused(cx, handle, 4);
+    }
+    // Changing the policy while focused preserves the native handle and anchor.
+    focus(cx, handle, 4);
+    apply(
+        cx,
+        handle,
+        vec![Op::SetLink(
+            id(4),
+            Config {
+                tab_stop: false,
+                ..config(4, 20)
+            },
+        )],
+    );
+    draw(cx, handle);
+    focused(cx, handle, 4);
+    key(cx, handle, "tab");
+    focused(cx, handle, 2);
+    focus(cx, handle, 4);
+    draw(cx, handle);
+    key(cx, handle, "shift-tab");
+    focused(cx, handle, 5);
+    assert!(presses(transport).is_empty(), "traversal never activates");
+    apply(cx, handle, vec![Op::SetLink(id(4), config(4, 20))]);
     apply(
         cx,
         handle,
@@ -370,6 +411,7 @@ async fn exercise(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, transport
     }
     key(cx, handle, "shift-tab");
     focused(cx, handle, 2);
+    nonstop_test::exercise_trap(cx, handle, transport);
     click(cx, handle, 6);
     assert!(
         presses(transport).is_empty(),

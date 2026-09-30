@@ -257,10 +257,11 @@ group ordering and content/style coverage remain open. No Link capability is adv
 
 ## Remaining presentation modules
 
-The link rows above remain incomplete. Component `alert`, `attachment`, `bubble`, `description_list`,
-`empty`, `kbd`, `link`, `marker`, `message`, `separator`, `setting`,
-and `tag` retain pending detailed reviews. Prior OCH-33 implementation evidence
-still applies to the GPUIO APIs it actually tests. Nested types/builders, settings
-field behaviors, style/semantics and commands must be checked before broader
-equivalence claims. Other catalog families, consumer/CI/distribution checks and
-the complete OCH-17 acceptance scope remain open.
+The link rows above remain incomplete. The other eleven modules now have a
+[pinned source and behavior review](presentation-gaps.md), including nested
+settings fields. It identifies remaining rich-slot/layout, dashed separator,
+attachment status, text-shimmer, keyboard-label and settings-composition gaps,
+with proposed contracts and acceptance work. Those rows remain incomplete;
+source review does not establish functional equivalence. Prior OCH-33 evidence
+still applies only to the APIs it actually tests. Other catalog families,
+consumer/CI/distribution checks and the complete OCH-17 scope remain open.

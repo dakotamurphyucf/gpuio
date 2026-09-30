@@ -33,6 +33,7 @@ let component app window palette graph =
   in
   let disabled, toggle_disabled = B.toggle ~default_model:false graph in
   let tab_stop, toggle_tab_stop = B.toggle ~default_model:true graph in
+  let skip_release, toggle_skip_release = B.toggle ~default_model:false graph in
   let reverse, toggle_reverse = B.toggle ~default_model:false graph in
   let detailed, toggle_detail = B.toggle ~default_model:true graph in
   let decorated, toggle_icon = B.toggle ~default_model:true graph in
@@ -46,6 +47,8 @@ let component app window palette graph =
   and toggle_disabled = toggle_disabled
   and tab_stop = tab_stop
   and toggle_tab_stop = toggle_tab_stop
+  and skip_release = skip_release
+  and toggle_skip_release = toggle_skip_release
   and reverse = reverse
   and toggle_reverse = toggle_reverse
   and detailed = detailed
@@ -62,10 +65,15 @@ let component app window palette graph =
     let checkbox label enabled toggle =
       V.checkbox ~state:(if enabled then Checked else Unchecked) ~on_toggle:toggle label
     in
-    let link name subtitle order =
+    let link ?(skip_tab = false) name subtitle order =
       let index = if reverse then 40 - order else order in
       let config =
-        Link.Config.create ~label:("Open " ^ name) ~disabled ~tab_stop ~tab_index:index ()
+        Link.Config.create
+          ~label:("Open " ^ name)
+          ~disabled
+          ~tab_stop:(tab_stop && not skip_tab)
+          ~tab_index:index
+          ()
         |> ok
       in
       let icon =
@@ -119,10 +127,15 @@ let component app window palette graph =
           ~style:(style [ Gap (px 12.); Wrap Wrap ])
           [ checkbox "Link descriptions" detailed toggle_detail
           ; checkbox "Link icons" decorated toggle_icon
+          ; checkbox "Skip Release in Tab order" skip_release toggle_skip_release
           ]
       ; link "Design guide" "Principles, patterns, and a little inspiration · 世界" 10
       ; link "API reference" "Small interfaces. Native possibilities." 30
-      ; link "Release notes" "What changed, and what you can build next." 20
+      ; link
+          ~skip_tab:skip_release
+          "Release notes"
+          "What changed, and what you can build next."
+          20
       ; Palette.text p ~muted:true (sprintf "Link opens: %d" clicks)
       ; Palette.text
           p

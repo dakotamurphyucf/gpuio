@@ -214,6 +214,24 @@ pub(super) async fn exercise(
     focused(cx, handle, 1);
     frame(cx, handle).await;
     visible(cx, handle, id(1));
+    apply(
+        cx,
+        handle,
+        vec![Op::SetLink(
+            id(1),
+            Config {
+                tab_stop: false,
+                ..config(1, 10)
+            },
+        )],
+    );
+    frame(cx, handle).await;
+    focused(cx, handle, 1);
+    key(cx, handle, "tab");
+    frame(cx, handle).await;
+    focused(cx, handle, 3);
+    focus(cx, handle, 1);
+    frame(cx, handle).await;
     key(cx, handle, "shift-tab");
     frame(cx, handle).await;
     handle
@@ -273,6 +291,33 @@ pub(super) async fn exercise(
         frame(cx, handle).await;
         focused(cx, handle, 13);
     }
+    // Index-zero fallback still needs the non-stop's anchor when other native
+    // handles have been excluded by a fixed clip. Here order is 1, 2, outside.
+    apply(
+        cx,
+        handle,
+        vec![
+            Op::SetStyle(id(2), position(130., 0., 120., 50.)),
+            Op::SetLink(
+                id(2),
+                Config {
+                    tab_stop: false,
+                    ..config(2, 0)
+                },
+            ),
+        ],
+    );
+    frame(cx, handle).await;
+    focus(cx, handle, 2);
+    frame(cx, handle).await;
+    key(cx, handle, "tab");
+    frame(cx, handle).await;
+    focused(cx, handle, 13);
+    focus(cx, handle, 2);
+    frame(cx, handle).await;
+    key(cx, handle, "shift-tab");
+    frame(cx, handle).await;
+    focused(cx, handle, 1);
     // Vertical scrolling cannot expose horizontal overflow. Negative content
     // beyond the clamped origin must not be made reachable by an outer scroller.
     let mut vertical = box_style(320., 180.);
@@ -286,6 +331,7 @@ pub(super) async fn exercise(
         handle,
         vec![
             Op::SetStyle(id(0), vec![Style::Fields(vertical)]),
+            Op::SetLink(id(2), config(2, 0)),
             Op::SetStyle(id(2), position(0., 320., 420., 240.)),
             Op::SetStyle(id(4), position(-200., 0., 120., 50.)),
         ],

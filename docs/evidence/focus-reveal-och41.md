@@ -85,3 +85,37 @@ Broader native compound/group ordering, passive content/style/race coverage,
 fresh installed consumers, required hosted checks and release qualification
 remain. Linux desktop qualification stays deferred to OCH-47; no Linux GUI
 acceptance is inferred from these macOS results.
+
+## Follow-up: non-stop anchors
+
+At baseline `f8c2a22`, extending `native_link` to Tab after clicking an opted-out
+link failed at the expected successor assertion. Fallback traversal had removed
+the focused anchor while filtering destinations. The fix retains eligible
+non-stops in the ordered records and searches one bounded cycle for a stop.
+
+Local macOS `native_link` now passes that exact regression and the added
+`link_nonstop_test.rs` matrix: signed/zero/tied indices, retained focus on policy
+changes, pointer re-entry, both directions and wrap, all-nonstop trap fallback,
+missing anchor and single-stop cycles. The main fixture also checks direct AppKit
+AX focus on a non-stop; `link_scroll_test.rs` checks zero-index fixed-clip fallback
+and a non-stop adjacent to native range-slider parts. Markers:
+`GPUIO_LINK_NONSTOP_OK`, `GPUIO_LINK_SCROLL_OK`, `GPUIO_COMPOSED_LINK_OK`.
+
+The test window closes and the bounded runner reaps the process on failure or
+success. This is GPUI-dispatched input plus direct AppKit AX, not a VoiceOver or
+physical keyboard/trackpad claim. Broader Link and release acceptance remain open.
+
+The public gallery now exposes **Skip Release in Tab order**. Its external
+`--section links` automation passes **eight theme/content/icon cases and 36
+pointer/Return/Space/AX activations**, including AX focus on the middle non-stop
+followed by Tab to its successor, pointer activation followed by Shift-Tab to its
+predecessor, and Return activation while opted out. Successor bounds must fit
+the actual preview viewport; identity, disabled recovery, scoped SVG cleanup and
+shutdown still pass. This updates the earlier 34-action gallery checkpoint.
+
+Follow-up regression checks pass locally: native controls, sliders and input
+regions; 400 native unit tests (the same two private-bus cases intentionally
+ignored); strict native/protocol all-target Clippy; full Dune build/tests/format,
+then the gallery build/format check after adding the new toggle; and the source
+catalog audit. Logs/reproduction commands use `GPUIO_JOBS=2` and the repository
+environment. No new fork or protocol/capability change was required.

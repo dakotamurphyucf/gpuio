@@ -1419,7 +1419,9 @@ impl Manager {
         let mut entries = self
             .entries
             .iter()
-            .filter(|entry| entry.tab_stop && self.eligible(entry.node))
+            // Pointer/AX focus may be on a non-stop. Keep its position as the
+            // traversal anchor; only destinations must opt into Tab navigation.
+            .filter(|entry| self.eligible(entry.node))
             .collect::<Vec<_>>();
         // Paint rebuilds entries even when no tree update schedules finish_frame.
         // Order the current frame here too; otherwise a cosmetic redraw silently
@@ -1427,22 +1429,30 @@ impl Manager {
         if entries.iter().any(|entry| entry.tab_index != 0) {
             entries.sort_by_key(|entry| entry.tab_index);
         }
-        if entries.is_empty() {
-            if let Some(scope) = self.active {
-                window.focus(&self.scopes[&scope].handle, cx);
-            }
-            return;
-        }
         let current = entries
             .iter()
             .position(|entry| entry.handle.is_focused(window));
-        let next = if reverse {
-            current.map_or(entries.len() - 1, |i| {
-                (i + entries.len() - 1) % entries.len()
-            })
+        let next = if let Some(current) = current {
+            // At most one full cycle, including the anchor when it is the only
+            // stop. No intermediate focus changes or unbounded all-nonstop loop.
+            (1..=entries.len())
+                .map(|offset| {
+                    if reverse {
+                        (current + entries.len() - offset) % entries.len()
+                    } else {
+                        (current + offset) % entries.len()
+                    }
+                })
+                .find(|&index| entries[index].tab_stop)
+        } else if reverse {
+            entries.iter().rposition(|entry| entry.tab_stop)
         } else {
-            current.map_or(0, |i| (i + 1) % entries.len())
+            entries.iter().position(|entry| entry.tab_stop)
         };
-        window.focus(&entries[next].handle, cx);
+        if let Some(next) = next {
+            window.focus(&entries[next].handle, cx);
+        } else if let Some(scope) = self.active {
+            window.focus(&self.scopes[&scope].handle, cx);
+        }
     }
 }

@@ -211,6 +211,26 @@ def exercise_links(mac, images):
                 toggle('Link descriptions')
             mac.press(TITLE, appearance)
             mac.release(mac.wait_find(TITLE, alternate if appearance == current else current, 'AXButton'))
+        # Focused non-stops remain anchors between their signed-order neighbors.
+        # AX focus and OS pointer events exercise distinct entry routes.
+        toggle('Skip Release in Tab order')
+        focus_gallery_control(mac, labels[1], 'AXLink')
+        mac.key(48)
+        expect_revealed(labels[2])
+        x, y, w, h = reveal_gallery_control(mac, labels[1], 'AXLink')
+        point = (x + 28, y + h / 2)
+        mouse.check_owner(point)
+        mouse.send(5, point)
+        mouse.send(1, point)
+        mouse.send(2, point)
+        activated()
+        expect_focus(mac, labels[1], 'AXLink')
+        mac.key(48, 1 << 17)
+        expect_revealed(labels[0])
+        focus_gallery_control(mac, labels[1], 'AXLink')
+        mac.key(36)
+        activated()
+        toggle('Skip Release in Tab order')
         toggle('Reverse link order')
         mac.wait_text(TITLE, 'Link order: API · Release · Design')
         focus_gallery_control(mac, labels[2], 'AXLink')
@@ -248,8 +268,9 @@ def exercise_links(mac, images):
     mac.wait_text(TITLE, 'Images: 0 · Charts: 0 · Canvases: 0')
     mac.press(TITLE, 'Presentation')
     mac.release(mac.wait_find(TITLE, labels[0], 'AXLink'))
-    print('GALLERY_COMPOSED_LINK_OK: 8 theme/content/icon cases, 34 pointer/Return/Space/AX '
-          'actions, stable identity, signed Tab/reverse order with viewport reveal, disabled recovery and scoped SVG cleanup', flush=True)
+    print('GALLERY_COMPOSED_LINK_OK: 8 theme/content/icon cases, 36 pointer/Return/Space/AX '
+          'actions, stable identity, signed Tab/reverse order and focused non-stop anchors '
+          'with viewport reveal, disabled recovery and scoped SVG cleanup', flush=True)
 
 
 def exercise_groups(mac, images):

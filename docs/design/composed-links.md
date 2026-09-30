@@ -158,6 +158,28 @@ negative unreachable content, oversized targets and idle settling. See the
 [focus/reveal evidence](../evidence/focus-reveal-och41.md) for final regression
 commands and the precise platform scope.
 
+### Focused non-stops remain traversal anchors
+
+An eligible link with `tab_stop=false` can still be focused through pointer or
+explicit accessibility input. Fallback navigation retains that entry while
+locating current focus, then searches at most one cycle for the next Tab stop.
+Previously, filtering non-stops first lost the anchor and incorrectly jumped to
+the first/last stop. The native regression reproduced this before the fix.
+
+This applies to stable signed ordering and tied paint order, including index-zero
+fallback used for traps or excluded fixed-clipped controls. A missing anchor
+chooses the first/last stop; a scope without stops focuses its root. Traversal
+never briefly focuses intermediate records. Changing Tab participation preserves
+the current native handle and focus. Native tests cover pointer/AX anchors,
+dynamic opt-out, signed/zero/tied indices, forward/reverse wrapping, all-nonstop
+traps, one-stop cycles, fixed clipping and neighboring range-slider thumbs.
+
+The pinned base Button/Link/Checkbox/Switch `.tab_group()` calls found during
+review are test-harness wrappers, not production component groups. GPUIO's host
+does not create native Tab groups; its deferred overlay adapter does not use the
+base Popover group. Full docking is post-v1. This corrects the source-review
+assumption without claiming untested extension-owned group/path ordering.
+
 Broader mixed native compound/group ordering, full passive animation/avatar/content
 coverage, style/AX metadata refinements, pending-action races and fresh consumer/
 release checks remain. No Link capability bit is advertised yet.

@@ -49,6 +49,14 @@ Tab ordering regression is fixed. Measured ordinary-scroll focus reveal now pass
 native boundary checks and actual public-gallery viewport containment. Broader
 mixed compound/group ordering and content coverage remain open; no Link capability
 is advertised and the link rows are not yet accepted. See the design for the precise passing scope and remaining validation.
+Fallback Tab navigation now keeps clicked/AX-focused non-stops as ordering
+anchors. The native regression failed before the fix and passes signed/zero/tied
+indices, trap/no-stop/wrap behavior, fixed clipping and mixed range-thumb cases.
+The other eleven presentation modules now have a
+[pinned behavior/gap review](catalog/presentation-gaps.md), including nested settings
+fields. These implementation plans and source snapshots do not mark the families
+accepted; rich slots/layout, dashed lines, text shimmer, typed keyboard labels and
+settings composition still need implementation and native coverage.
 The [ordinary text-span API](design/text-content.md) now supplies bounded
 foreground runs through atomic bridge updates and View/Bonsai reconciliation.
 Local checks cover native GPU paint, wrapping, selection/copy and source AX labels.
