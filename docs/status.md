@@ -5,6 +5,14 @@ Current checkpoint: milestones 1–6 are merged. Milestone 5's
 [required macOS/Linux CI](https://github.com/dakotamurphyucf/gpuio/actions/runs/36312697654)
 passed on `473407c`; all twelve tickets are Done.
 
+The [binding-inspection data model](design/command-binding-observations.md#paired-data-contract)
+now has paired bounded codecs and a typed Core API for ordered registry/native
+results, editor leases, complete native key sequences and explicit unavailable
+states. Full local Dune build/expect/format checks, all 250 Rust protocol tests
+and strict protocol Clippy pass. The mounted native
+observer, capability negotiation, Bonsai value adapter and gallery integration
+remain required; these constructors do not query a window or register shortcuts.
+
 The [native command-resolution foundation](design/command-binding-observations.md)
 now shares nearest-scope/declaration-order lookup and input gates with actual
 shortcut routing. New unit and real-window regressions cover unbound/disabled

@@ -2,6 +2,8 @@ use crate::{HandlerId, NodeId, WindowId, v1::*};
 use binprot::BinProtRead;
 use std::io::{Cursor, Read};
 
+mod command_binding;
+pub use command_binding::{decode_command_binding_config, decode_command_binding_observation};
 mod input;
 mod link;
 mod text_content;
@@ -686,7 +688,7 @@ impl Decoder<'_> {
 
     fn shortcut(&mut self) -> Result<Shortcut, DecodeError> {
         Ok(Shortcut {
-            key: self.text()?,
+            key: self.bounded_text(256)?,
             modifiers: self.list(5, |this| {
                 Ok(match this.tag()? {
                     0 => ShortcutModifier::Primary,

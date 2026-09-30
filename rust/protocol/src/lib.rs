@@ -23,6 +23,7 @@ pub mod chart_view;
 pub mod color_input;
 pub mod color_value;
 mod command;
+pub mod command_binding;
 pub mod container_query;
 mod decode;
 pub mod desktop;
@@ -94,3 +95,5 @@ pub mod slider;
 pub use decode::{decode_document_diff_config, decode_document_diff_event};
 pub use decode::{decode_highlight_config, decode_highlight_observation};
 pub use decode::{decode_input_config, decode_input_event};
+
+pub use decode::{decode_command_binding_config, decode_command_binding_observation};

@@ -4,6 +4,8 @@
  (inline_tests
   (deps
    (sandbox preserve_file_kind)
+   command-binding-config.hex
+   command-binding-observation.hex
    table-transaction.hex
    table-event.hex
    table-intents.hex
@@ -311,3 +313,5 @@
 (copy_files ../fixtures/input-request.hex)
 
 (copy_files ../fixtures/input-events.hex)
+
+(copy_files ../fixtures/command-binding-*.hex)
