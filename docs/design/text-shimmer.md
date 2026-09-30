@@ -1,8 +1,8 @@
 # Text shimmer
 
 OCH-41, implementation in progress. `Text_shimmer` supplies validated configuration
-and paired standalone OCaml/Rust codecs. A native glyph painter now has independent
-GPU evidence at fixed phases. It does **not** yet animate a mounted public view,
+and paired standalone OCaml/Rust codecs. The native glyph painter and retained
+clock have independent GPU/frame-lifecycle evidence. They do **not** yet animate a mounted public view,
 add a live bridge operation, or advertise a capability. The existing
 `Loading.Kind.Shimmer` remains a rectangular placeholder effect.
 
@@ -41,7 +41,7 @@ Both decoders reject malformed tags, nonfinite values, invalid ranges, truncatio
 and trailing bytes. Input is bounded to 32 bytes before parsing. Public domain
 types do not expose generated deserialization as a validation bypass.
 
-## Native integration requirements
+## Native painting
 
 The independent painter wraps `StyledText`, delegates its layout/prepaint/base
 paint, then paints at most twelve clipped monochrome glyph layers. It introduces
@@ -62,10 +62,52 @@ lines and 4,096 shaped glyphs. Exceeding any limit reports Capacity and leaves t
 whole original text unchanged; it never paints a highlighted prefix. These limits
 bound the adapter's work, not the underlying ordinary-text layout or application
 memory. The future public View constructor/bridge must expose validated admission
-and account for simultaneous instances before release. No animation is scheduled
-by this paint-only adapter.
+and account for simultaneous instances before release. The fixed-phase constructor
+schedules no animation; the retained Owner below attaches a weak native driver.
 
-Remaining implementation requirements, **not completed acceptance**:
+## Native timing and ownership
+
+`text_shimmer_clock::Owner` is one native node/window lifetime. A mounted adapter
+owns its sole strong handle. Paint drivers and queued frame callbacks hold only
+weak references; neither keeps a removed owner or its clock alive. A window can
+share one native monotonic `Clock` among its owners. Timelines begin independently
+on the first eligible paint, rather than following the upstream component's
+globally synchronized loop phase.
+
+| Change | Timing behavior |
+| --- | --- |
+| New owner/remount | Starts at phase zero on its first eligible paint. |
+| Source, duration, direction or repetition | Restarts. |
+| Highlight color, spread or external style | Preserves elapsed time. |
+| `animated=false`, reduced motion, clipped or omitted content | Pauses; a later eligible paint resumes. |
+| Completed Once | Remains complete through cosmetic or playback changes; source/timing changes or remount restart it. |
+| Invalid configuration or source over 16,384 UTF-8 bytes | Rejects atomically, preserving old source/configuration/time. |
+
+Construction of a rendered element advances prior running time and disarms its
+owner **before layout**. Visible paint re-arms it only when the painter admits the
+effect. This matters because a fully clipped element can skip paint entirely.
+Empty/whitespace text, emoji-only paint, transparent highlights and painter-capacity
+fallbacks do not request recurring frames. The host must explicitly suspend a
+retained owner omitted by a conditional branch, and drop owners on unmount/close.
+The future tree adapter must apply these rules to its actual keyed-node lifecycle.
+
+There is at most one outstanding GPUI frame callback per owner. The callback
+carries no source, configuration or phase; delivery checks the current owner and
+reduced-motion state before notifying its native view. Source/config updates
+invalidate old paint-driver stamps without accumulating replacement callbacks.
+An already queued wake may drain after suspension/removal, but cannot restart an
+ineligible or retired owner. Closing the window releases its remaining owner even
+with a pending weak wake. No timer or frame callback crosses into OCaml.
+
+Native time is monotonic and backward samples are clamped. Loop time is reduced
+modulo the duration before float conversion; Once time saturates at completion.
+The tests use a controlled native clock and explicitly deliver GPUI's frame
+callbacks. They measure this effect's frame demand, not application FPS, real-time
+latency, idle power or whole-application performance.
+
+## Remaining live integration
+
+These are implementation requirements, **not completed acceptance**:
 
 - Decorate the ordinary text layout so enabling/disabling a title's progress state
   can preserve its native identity, selection and accessible source. It must not
@@ -76,10 +118,9 @@ Remaining implementation requirements, **not completed acceptance**:
 - Keep animation scheduling in Rust. No frame callback or timer crosses into
   OCaml. Bound work for long labels and many visible simultaneous instances;
   record the chosen admission policy before exposing a View constructor.
-- Use node generation/window ownership for animation state. Source/timing changes
-  and remounts must have explicit restart semantics; cosmetic updates must not
-  restart accidentally. One-shot completion must become idle. Hidden, clipped,
-  removed and reduced-motion text must not sustain frame requests.
+- Connect the tested native Owner to actual node generations/windows and verify
+  conditional, managed-row and style-state visibility/opacity. The independent
+  fixture does not establish retained-tree cleanup or whole-window frame demand.
 - Add checked transport, Core/Bonsai reconciliation and atomic rejection before
   advertising the feature. Preserve source identity when clearing the effect.
 - Test actual GPU glyph paint (not only a changing animation phase), RTL/wrapping/
@@ -131,6 +172,19 @@ tolerance for color-dependent raster dilation. Text geometry/source must remain
 identical; static and emoji-only images must be byte-identical. Paint calls are
 bounded by twelve times the admitted glyph count.
 
-These are fixed-phase painter tests, not continuous animation, scheduler/idle,
-public View, OS keyboard/IME, screen-reader or Linux desktop acceptance. The
-source rows remain incomplete until those applicable integration gates pass.
+These are fixed-phase painter tests, not public View, OS keyboard/IME,
+screen-reader or Linux desktop acceptance. The source rows remain incomplete
+until their applicable integration gates pass.
+
+The subsequent retained-clock change passes seven combined shimmer unit tests
+and strict native Clippy, using the same commands above. It also builds
+`--test native_text_shimmer_clock --test native_text_shimmer_paint --no-run` with
+`native-image-tests`. Both built executables pass under the 120-second deadline
+wrapper, returning zero; the clock fixture prints
+`GPUIO_NATIVE_TEXT_SHIMMER_CLOCK_OK` and `GPUIO_NATIVE_TEXT_SHIMMER_CLOSE_OK`.
+Its background window checks visible GPU progress, one-shot final pixels/idle,
+fifty renders coalesced into one pending wake, style/configuration reuse,
+clipped/omitted/Reduce/static/transparent/empty/emoji/capacity idle paths,
+Reduce arriving between paint and wake, independent owners, weak unmount,
+fresh remount and owner disposal on window close. The fixed-phase painter suite
+passes again after the clock integration. Neither test needs desktop focus.

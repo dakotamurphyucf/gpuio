@@ -1,6 +1,7 @@
 //! Bounded glyph overlay; shaping, selection and accessible source stay owned by
 //! the supplied StyledText. Animation phase comes from the native owner, not an
-//! OCaml timer. This adapter itself never schedules frames or retains an owner.
+//! OCaml timer. Fixed samples schedule no frames. An optional weak native driver
+//! supplies timing and requests wakes after eligible paint; it retains no owner.
 //!
 //! Glyph traversal/masks adapted from gpui-kit84f57fd component/shimmer.rs.
 //! Copyright 2024-2026 Longbridge. Apache-2.0; see docs/catalog/sources/gpui-kit-LICENSE.
@@ -49,6 +50,7 @@ pub fn element(text: StyledText, config: Config, sample: Sample, appearance: App
         config,
         sample,
         appearance,
+        driver: None,
         #[cfg(feature = "native-image-tests")]
         probe: None,
     }
@@ -59,6 +61,7 @@ pub struct Text {
     config: Config,
     sample: Sample,
     appearance: Appearance,
+    driver: Option<crate::text_shimmer_clock::Driver>,
     #[cfg(feature = "native-image-tests")]
     probe: Option<std::rc::Rc<std::cell::Cell<Report>>>,
 }
@@ -102,6 +105,11 @@ fn alignment(align: TextAlign, available: Pixels, width: Pixels) -> Pixels {
 }
 
 impl Text {
+    pub(crate) fn with_driver(mut self, driver: crate::text_shimmer_clock::Driver) -> Self {
+        self.driver = Some(driver);
+        self
+    }
+
     fn overlay(&self, window: &mut Window, cx: &mut App) -> Report {
         if !self.config.is_valid()
             || !self.config.animated
@@ -295,7 +303,19 @@ impl Element for Text {
     ) {
         self.text
             .paint(id, inspector, bounds, layout, prepaint, window, cx);
-        let report = self.overlay(window, cx);
+        let report = if let Some(driver) = &self.driver {
+            if let Some((config, sample)) = driver.sample(cx.reduce_motion()) {
+                self.config = config;
+                self.sample = sample;
+                let report = self.overlay(window, cx);
+                driver.painted(report, window, cx);
+                report
+            } else {
+                Report::Inactive
+            }
+        } else {
+            self.overlay(window, cx)
+        };
         #[cfg(feature = "native-image-tests")]
         if let Some(probe) = &self.probe {
             probe.set(report);
