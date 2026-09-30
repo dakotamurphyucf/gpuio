@@ -29,6 +29,13 @@ motion. Its focused normal-launch and installed-consumer checks pass on macOS:
 `python3 scripts/test_gallery.py --section shimmer`. See the exact coverage and
 remaining release gates in [the shimmer contract](../../docs/design/text-shimmer.md).
 
+The **Details that stay together** card uses `Presentation.Description_list`
+for rich term/value slots, columns/spans, horizontal/vertical cells, four sizes,
+borders and separators. Reflow and reorder preserve the embedded draft and
+controls. Run `python3 scripts/test_gallery.py --section descriptions`; the check
+also runs in `core` and `all`. See [the contract and native/installed-consumer
+evidence](../../docs/design/description-lists.md).
+
 The **Room for a conversation** card previews the new typed `Presentation.Bubble`
 and `Presentation.Message` compositions: optional slots, Ghost spacing, independent
 alignment, native reaction buttons, an editor and bounded streaming Markdown/code.

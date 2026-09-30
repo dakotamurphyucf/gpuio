@@ -5,6 +5,14 @@ Current checkpoint: milestones 1–6 are merged. Milestone 5's
 [required macOS/Linux CI](https://github.com/dakotamurphyucf/gpuio/actions/runs/36312697654)
 passed on `473407c`; all twelve tickets are Done.
 
+The [rich Description list](design/description-lists.md) now provides validated
+column/span packing, rich term/value slots, both axes, label widths, sizes, borders
+and separators while preserving keyed native children. Four Core tests and full
+Dune pass; repository and fresh installed-consumer checks pass 75 layout/semantic
+order cases, 34 GPU cases, OS actions, draft/control retention and slot/page
+retirement. The source row is locally a functional equivalent. Kbd, Settings,
+other catalog reviews and OCH-17 release gates remain open.
+
 The [rich Bubble/Message adapters](design/chat-composition.md) now provide typed
 surfaces/reactions, optional message slots, independent alignment and Ghost inset
 metadata. Core/full Dune checks and a fresh installed consumer pass scoped native
@@ -13,7 +21,7 @@ cleanup. The managed transcript exposed a list/ancestor double-scroll defect;
 its [repair](evidence/scrolling-och11.md#milestone-07-managed-list-inside-an-ordinary-scroller)
 passes failing-before/native and actual desktop regressions. Native list history,
 selection/editor lifetimes, strict Clippy and 413 unit tests pass. The two source
-rows are locally functional equivalents; Description, Kbd, Settings and the wider
+rows are locally functional equivalents; Kbd, Settings and the wider
 catalog/release gates remain open.
 
 The [rich Tag adapter](design/presentation-tags.md) now supplies direct rich
@@ -37,7 +45,7 @@ loading. Core validation/style/identity checks and the focused macOS gallery pas
 A fresh installed consumer passes 18 theme/variant/icon cases and 21 OS keyboard
 actions, GPU text/rich/static paint, opacity refinement, reduced-motion recovery
 and page/slot retirement. The source row is locally a functional equivalent;
-Description, Kbd and Settings remain in the presentation review, alongside other
+Kbd and Settings remain in the presentation review, alongside other
 catalog and OCH-17 release gates; Bubble/Message evidence is recorded above.
 
 Native [animation opacity factors](design/animation-opacity-factor.md) now supply

@@ -429,6 +429,65 @@ val description_list
   -> 'action Description.t list
   -> 'action View.t
 
+module Description_list : sig
+  module Size : sig
+    type t =
+      | XSmall
+      | Small
+      | Medium
+      | Large
+    [@@deriving equal, sexp_of]
+  end
+
+  module Item : sig
+    type 'action t
+
+    (** Rich term and definition slots. Span is 1..10; the list constructor
+        additionally checks it against the chosen column count. Slot styles refine padding,
+        color and width defaults, retaining Term/Definition semantic parents. *)
+    val create
+      :  key:Key.t
+      -> ?span:int
+      -> ?style:Style.t
+      -> ?term_style:Style.t
+      -> ?definition_style:Style.t
+      -> term:'action View.t list
+      -> definition:'action View.t list
+      -> unit
+      -> 'action t Or_error.t
+
+    (** A full-row, 8px-high band plus a following 1px row border when applicable.
+        It participates in key validation. *)
+    val separator : key:Key.t -> ?style:Style.t -> unit -> 'action t
+  end
+
+  (** Pack items in order into 1..10 columns (default 3), breaking before an item
+      whose span would exceed the row. Separators occupy their own row. A partial
+      row shares remaining width equally among its cells beyond their span-based
+      widths, matching the source flex layout. Duplicate keys and spans exceeding
+      [columns] are rejected.
+
+      Horizontal cells use [label_width] (default 120px); Vertical cells stack the
+      slots. Width must be nonnegative Px/Percent even when Vertical. Border defaults
+      true and applies to both axes. XSmall/Small share padding/gap; unbordered
+      slots have no default padding. Root and item styles refine defaults.
+
+      Entries remain direct keyed children across packing/axis changes, so stable
+      descendants retain native ownership. Deliberately overriding placement styles
+      can alter packing. Editors, resources, state and I/O remain caller-owned. *)
+  val create
+    :  Appearance.t
+    -> ?key:Key.t
+    -> ?style:Style.t
+    -> ?columns:int
+    -> ?axis:Axis.t
+    -> ?size:Size.t
+    -> ?label_width:Length.t
+    -> ?bordered:bool
+    -> 'action Item.t list
+    -> 'action View.t Or_error.t
+end
+
 val empty_state
   :  Appearance.t
   -> ?key:Key.t

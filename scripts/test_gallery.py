@@ -40,6 +40,7 @@ def exercise(mac, images):
     exercise_tags(mac, images)
     exercise_chat_composition(mac, images)
     exercise_chat_list(mac, images)
+    exercise_descriptions(mac, images)
     exercise_attachments(mac, images)
     exercise_groups(mac, images)
     exercise_separators(mac, images)
@@ -815,6 +816,214 @@ def exercise_groups(mac, images):
     print(f'GALLERY_GROUP_OK: {cases} theme/variant/style/slot cases; geometry, retained '
           f'checked state and native identity, {clicks} pointer/Return actions, '
           'real Space input, focus and teardown', flush=True)
+
+
+def exercise_descriptions(mac, images):
+    """Rich description packing, semantic pairs and retained native children."""
+    mac.press(TITLE,'Presentation')
+    mac.wait_text(TITLE,'Details that stay together')
+    focus_gallery_control(mac,'Description value','AXTextField')
+    mac.key(0,flags=1<<20);mac.key(0)
+    editor=mac.wait_find(TITLE,'Description value','AXTextField')
+    term_action=mac.wait_find(TITLE,'Description term action','AXButton')
+    value_action=mac.wait_find(TITLE,'Description value action','AXButton')
+    equal=mac.cf.CFEqual
+    equal.restype,equal.argtypes=C.c_bool,[C.c_void_p,C.c_void_p]
+    columns=3;vertical=False;bordered=True;mixed=False;separators=False;reversed_items=False
+    cases=actions=paint_cases=0
+    temporary=tempfile.TemporaryDirectory(prefix='gpuio-description-')
+    directory=images or Path(temporary.name)
+
+    def toggle(label):
+        activate(mac,mac.wait_find(TITLE,label,'AXCheckBox'));time.sleep(.1)
+
+    def cycle(prefix,value,values):
+        mac.press(TITLE,prefix+str(value))
+        result=values[(values.index(value)+1)%len(values)]
+        mac.release(mac.wait_find(TITLE,prefix+str(result),'AXButton'))
+        return result
+
+    def identity(value_present=True):
+        for label,role,old in [('Description value','AXTextField',editor),('Description term action','AXButton',term_action)]+([('Description value action','AXButton',value_action)] if value_present else []):
+            current=mac.wait_find(TITLE,label,role)
+            try:assert equal(current,old),('description control remounted',label)
+            finally:mac.release(current)
+        expect_field(mac,TITLE,'Description value','a')
+
+    def reading_order(root):
+        pairs=[]
+        def visit(node):
+            subrole=mac.text(node,'AXSubrole')
+            children=mac.children(node,'AXChildren')
+            try:
+                if subrole in ('AXTerm','AXDefinition'):
+                    assert len(children)==1, ('semantic slot children',subrole,len(children))
+                    pairs.append((subrole,mac.text(children[0],'AXTitle')))
+                else:
+                    for child in children:visit(child)
+            finally:
+                for child in children:mac.release(child)
+        visit(root)
+        return pairs
+
+    def slot(n,kind):
+        child=mac.wait_find(TITLE,f'Description {kind} {n}','AXGroup')
+        parent=mac.attr(child,'AXParent')
+        try:
+            assert parent and mac.text(parent,'AXSubrole')==('AXTerm' if kind=='term' else 'AXDefinition'),('description semantic parent',kind,mac.text(parent,'AXSubrole') if parent else None)
+            return element_rect(mac,parent)
+        finally:mac.release(parent);mac.release(child)
+
+    def geometry():
+        nonlocal cases
+        root=mac.wait_find(TITLE,'Workspace details','AXList')
+        try:
+            x,y,w,h=element_rect(mac,root)
+            pairs=reading_order(root)
+        finally:mac.release(root)
+        border=1 if bordered else 0
+        inner=w-2*border
+        spans=[1,min(2,columns),1,1,1,columns,1] if mixed else [1]*12
+        entries=list(enumerate(spans))
+        if reversed_items:entries.reverse()
+        assert pairs==[(role,f'Description {kind} {n}') for n,_ in entries for role,kind in [('AXTerm','term'),('AXDefinition','definition')]], ('description reading order',pairs,entries)
+        if separators:entries[3:3]=[(None,columns),(None,columns)]
+        rows=[];used=0
+        for n,span in entries:
+            if not rows or used+span>columns:rows.append([]);used=0
+            rows[-1].append((n,span));used+=span
+        previous_y=None
+        for row in rows:
+            cells=[(n,span) for n,span in row if n is not None]
+            if not cells:continue
+            extra=(columns-sum(span for _,span in cells))/columns/len(cells)
+            offset=0.;row_y=None
+            for n,span in cells:
+                tx,ty,tw,th=slot(n,'term')
+                dx,dy,dw,dh=slot(n,'definition')
+                cell_width=inner*(span/columns+extra)
+                assert abs(tx-(x+border+offset))<1,('description cell x',columns,n,tx,x+border+offset,vertical,w)
+                if row_y is None:row_y=ty
+                else:assert abs(ty-row_y)<1,('description unexpectedly wrapped',columns,n,row_y,ty,vertical,w)
+                if vertical:
+                    assert abs(tw-cell_width)<1 and abs(dw-cell_width)<1,('stacked cell width',columns,n,tw,dw,cell_width)
+                    assert abs(dx-tx)<1 and abs(dy-(ty+th))<1,('stacked term/definition order',n,(tx,ty,tw,th),(dx,dy,dw,dh))
+                else:
+                    assert abs(dx-(tx+tw))<1 and abs(dy-ty)<1,('horizontal term/definition order',n,(tx,ty,tw,th),(dx,dy,dw,dh))
+                    if cell_width>=100:assert abs(tw+dw-cell_width)<1,('horizontal cell width',n,tw,dw,cell_width)
+                offset+=cell_width
+            if previous_y is not None:assert row_y>previous_y+5,('description row order',previous_y,row_y)
+            previous_y=row_y
+        cases+=1
+
+    def paint(theme,refined=False):
+        nonlocal paint_cases
+        focus_gallery_control(mac,'Description term action','AXButton')
+        reveal_gallery_control(mac,'Description term 2','AXGroup')
+        window=mac.window(TITLE)
+        try:wx,wy,ww,wh=element_rect(mac,window)
+        finally:mac.release(window)
+        GalleryMouse(mac).send(5,(wx+ww-25,wy+110))
+        time.sleep(.08)
+        tx,ty,tw,th=slot(2,'term');dx,dy,dw,dh=slot(2,'definition')
+        assert ty>=wy+160 and ty+th<=wy+wh-15,('description paint visibility',ty,th,wy,wh)
+        path=directory/f'gallery-description-paint-{paint_cases:03d}.png'
+        screenshot(mac,path,title=TITLE)
+        pixels=read_png(mac,path)
+        def rgb(x,y):return pixels.rgb((x-wx)*pixels.width/ww,(y-wy)*pixels.height/wh)
+        dark=theme=='Dark'
+        parent=(25,33,44) if dark else (255,255,255)
+        label=((45,57,73) if dark else (211,220,229)) if refined else ((39,46,59) if dark else (240,242,246)) if bordered else parent
+        close=lambda a,b:max(abs(c-d) for c,d in zip(a,b))<=5
+        assert close(rgb(tx+tw-4,ty+th/2),label),('description label fill',theme,vertical,bordered,refined,rgb(tx+tw-4,ty+th/2),label)
+        assert close(rgb(dx+dw-3,dy+dh/2),parent),('description value fill',theme,rgb(dx+dw-3,dy+dh/2),parent)
+        if bordered:
+            edge=(62,72,91) if dark else (211,217,227)
+            samples=[rgb(tx+tw/2,ty+th-d) if vertical else rgb(tx+tw-d,ty+th/2) for d in [.25,.5,.75]]
+            assert any(close(value,edge) for value in samples),('description slot border',theme,vertical,samples,edge)
+        paint_cases+=1
+
+    try:
+        for _ in range(10):
+            for axis in [False,True]:
+                if axis:toggle('Vertical description');vertical=True
+                geometry();identity()
+            toggle('Vertical description');vertical=False
+            columns=cycle('Description columns: ',columns,list(range(1,11)))
+        toggle('Mixed description spans');mixed=True
+        for _ in range(10):
+            geometry();identity()
+            columns=cycle('Description columns: ',columns,list(range(1,11)))
+        toggle('Description separators');separators=True
+        geometry();identity()
+        toggle('Reverse description entries');reversed_items=True
+        geometry();identity()
+        toggle('Vertical description');vertical=True
+        geometry();identity()
+        toggle('Mixed description spans');mixed=False
+        toggle('Description separators');separators=False
+        toggle('Reverse description entries');reversed_items=False
+        width='720.0'
+        for _ in range(4):
+            while columns!=10:columns=cycle('Description columns: ',columns,list(range(1,11)))
+            geometry();identity()
+            width=cycle('Description width: ',width,['720.0','607.3','541.0','333.3'])
+        while columns!=3:columns=cycle('Description columns: ',columns,list(range(1,11)))
+        for _ in range(2):
+            focus_gallery_control(mac,'Description term action','AXButton');mac.key(36);actions+=1
+            mac.wait_text(TITLE,f'Description actions: {actions}')
+            focus_gallery_control(mac,'Description value action','AXButton');mac.key(49);actions+=1
+            mac.wait_text(TITLE,f'Description actions: {actions}')
+            toggle('Vertical description');vertical=not vertical
+            geometry();identity()
+        toggle('Long description value');geometry();identity();toggle('Long description value')
+        toggle('Bordered description');bordered=False
+        geometry();identity();toggle('Bordered description');bordered=True
+        toggle('Proportional description labels');geometry();identity();toggle('Proportional description labels')
+        toggle('Refine description slots');geometry();identity();toggle('Refine description slots')
+        # Sizes, both bordered axes and real theme paint. All cells remain under
+        # their original keyed parents while native line packing changes.
+        theme_node=mac.find(TITLE,'Dark','AXButton')
+        initial_theme='Dark' if theme_node else 'Light'
+        if theme_node:mac.release(theme_node)
+        size_name='M'
+        for theme in [initial_theme,'Light' if initial_theme=='Dark' else 'Dark']:
+            for _ in range(2):
+                for _ in range(2):
+                    for _ in range(4):
+                        geometry();identity()
+                        parent=slot(2,'term')
+                        child=mac.wait_find(TITLE,'Description term 2','AXGroup')
+                        try:content=element_rect(mac,child)
+                        finally:mac.release(child)
+                        padding={'XS':(4,2),'S':(4,2),'M':(8,4),'L':(12,6)}[size_name] if bordered else (0,0)
+                        edge=1 if bordered and not vertical else 0
+                        assert abs(content[0]-parent[0]-padding[0]-edge)<1 and abs(content[1]-parent[1]-padding[1])<1, ('description size padding',size_name,vertical,bordered,parent,content)
+                        paint(theme)
+                        size_name=cycle('Description size: ',size_name,['XS','S','M','L'])
+                    toggle('Bordered description');bordered=not bordered
+                toggle('Vertical description');vertical=not vertical
+            toggle('Refine description slots');paint(theme,True);identity();toggle('Refine description slots')
+            if theme==initial_theme:mac.press(TITLE,theme)
+        if images:
+            focus_gallery_control(mac,'Description value','AXTextField')
+            reveal_gallery_control(mac,'Workspace details','AXList',scroll_fraction=.94)
+            screenshot(mac,images/'gallery-description.png',title=TITLE)
+        toggle('Description value action visible');wait_absent(mac,'Description value action','AXButton');identity(False)
+        toggle('Description value action visible')
+        replacement=mac.wait_find(TITLE,'Description value action','AXButton')
+        assert not equal(value_action,replacement),'removed definition action retained native identity'
+        mac.release(value_action);value_action=replacement
+        mac.press(TITLE,'Runtime & windows');wait_absent(mac,'Description value','AXTextField')
+        mac.press(TITLE,'Presentation')
+        replacement=mac.wait_find(TITLE,'Description value','AXTextField')
+        try:assert not equal(editor,replacement),'page retained old description editor'
+        finally:mac.release(replacement)
+        mac.wait_text(TITLE,f'Description actions: {actions}')
+        print(f'GALLERY_DESCRIPTION_OK: {cases} packing/axis/width/style cases; {paint_cases} GPU theme/size/axis/border/refinement cases, native Term/Definition parents, {actions} OS actions, rich control/editor retention and slot/page retirement',flush=True)
+    finally:
+        mac.release(editor);mac.release(term_action);mac.release(value_action)
+        temporary.cleanup()
 
 
 def exercise_chat_composition(mac, images):
@@ -4989,7 +5198,7 @@ def main():
     parser.add_argument('--trace-canvas', action='store_true')
     parser.add_argument('--trace-motion', action='store_true')
     parser.add_argument('--trace-windows', action='store_true')
-    parser.add_argument('--section', choices=['all', 'core', 'status-regions', 'badges', 'labels', 'shimmer', 'markers', 'alerts', 'tags', 'chat-composition', 'chat-list', 'attachments', 'attachment-paint', 'groups', 'links', 'empty', 'separators', 'styles', 'borders', 'aspect-ratio', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'document-links', 'document-images', 'highlighting', 'canvas', 'assets', 'charts', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
+    parser.add_argument('--section', choices=['all', 'core', 'status-regions', 'badges', 'labels', 'shimmer', 'markers', 'alerts', 'tags', 'descriptions', 'chat-composition', 'chat-list', 'attachments', 'attachment-paint', 'groups', 'links', 'empty', 'separators', 'styles', 'borders', 'aspect-ratio', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'document-links', 'document-images', 'highlighting', 'canvas', 'assets', 'charts', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
     args = parser.parse_args()
     if args.images:
         args.images.mkdir(parents=True, exist_ok=True)
@@ -5026,6 +5235,8 @@ def main():
                 exercise_attachment_paint(mac, args.images)
             if args.section == 'attachments':
                 exercise_attachments(mac, args.images)
+            if args.section == 'descriptions':
+                exercise_descriptions(mac, args.images)
             if args.section == 'chat-composition':
                 exercise_chat_composition(mac, args.images)
             if args.section == 'chat-list':

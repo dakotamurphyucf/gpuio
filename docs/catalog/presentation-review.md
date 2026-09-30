@@ -300,9 +300,9 @@ hosted CI, performance or clean-machine distribution acceptance.
 
 The other presentation modules have a
 [pinned source and behavior review](presentation-gaps.md), including nested
-settings fields. Empty, Separator, Attachment, Marker, Alert, Tag, Bubble and Message
-have explicit local functional-equivalent evidence; Description, Kbd and Settings
-remain open.
+settings fields. Empty, Separator, Attachment, Marker, Alert, Tag, Bubble, Message
+and Description have explicit local functional-equivalent evidence; Kbd and
+Settings remain open.
 Source review alone does not establish functional equivalence. Prior OCH-33 evidence
 still applies only to the APIs it actually tests. Other catalog families,
 consumer/CI/distribution checks and the complete OCH-17 scope remain open.
@@ -523,3 +523,20 @@ by that sequence has a focused failing-before regression and a passing repair.
 Native list selection/editor/full-history regression checks still pass. This is
 scoped macOS functional equivalence, with broader accessibility, platform,
 performance, distribution and release gates open.
+
+## DescriptionList: functional equivalent
+
+`Presentation.Description_list` composes rich Term/Definition slots with validated
+1..10 columns/spans, horizontal or vertical cells, fixed/percentage label width,
+size/border choices and full-row separators. Flat keyed cells retain native owners
+while regrouping; partial rows distribute spare width equally after span bases,
+matching the pinned source. The original string-term helper remains unchanged.
+
+The [contract and evidence](../design/description-lists.md) records source defaults,
+intentional input rejection, theme mappings, caller ownership and ordinary style
+refinement. Four Core tests and full Dune pass. Repository and fresh installed
+consumer runs pass 75 geometry/reading-order cases, 34 GPU cases, four actual
+keyboard actions, retained draft/control identity and slot/page retirement.
+The Presentation gallery card and `--section descriptions` expose this behavior.
+This is local macOS source equivalence; broader family, CI, VoiceOver, IME,
+performance, distribution and required Linux non-GUI gates remain separate.

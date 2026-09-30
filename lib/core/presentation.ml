@@ -1062,6 +1062,243 @@ let description_list
   |> semantic Description_list
 ;;
 
+module Description_list = struct
+  module Size = struct
+    type t =
+      | XSmall
+      | Small
+      | Medium
+      | Large
+    [@@deriving equal, sexp_of]
+  end
+
+  module Item = struct
+    type 'action entry =
+      { span : int
+      ; term_style : Style.t
+      ; definition_style : Style.t
+      ; term : 'action View.t list
+      ; definition : 'action View.t list
+      }
+
+    type 'action content =
+      | Entry of 'action entry
+      | Separator
+
+    type 'action t =
+      { key : Key.t
+      ; style : Style.t
+      ; content : 'action content
+      }
+
+    let create
+          ~key
+          ?(span = 1)
+          ?(style = Style.empty)
+          ?(term_style = Style.empty)
+          ?(definition_style = Style.empty)
+          ~term
+          ~definition
+          ()
+      =
+      if span < 1 || span > 10
+      then Or_error.error_string "description span must be in 1..10"
+      else
+        Ok
+          { key
+          ; style
+          ; content = Entry { span; term_style; definition_style; term; definition }
+          }
+    ;;
+
+    let separator ~key ?(style = Style.empty) () = { key; style; content = Separator }
+
+    let span t ~columns =
+      match t.content with
+      | Entry e -> e.span
+      | Separator -> columns
+    ;;
+  end
+
+  let create
+        (p : Appearance.t)
+        ?key
+        ?style:(custom = Style.empty)
+        ?(columns = 3)
+        ?(axis = Axis.Horizontal)
+        ?(size = Size.Medium)
+        ?(label_width = px 120.)
+        ?(bordered = true)
+        items
+    =
+    let open Or_error.Let_syntax in
+    let%bind () =
+      if columns < 1 || columns > 10
+      then Or_error.error_string "description columns must be in 1..10"
+      else if List.exists items ~f:(fun item -> Item.span item ~columns > columns)
+      then Or_error.error_string "description span exceeds column count"
+      else Ok ()
+    in
+    let%bind () =
+      match Length.Expert.to_wire label_width with
+      | Auto -> Or_error.error_string "description label width must be definite"
+      | Px n | Percent n ->
+        if Float.(n < 0.)
+        then Or_error.error_string "description label width must be nonnegative"
+        else Ok ()
+    in
+    let%bind () =
+      match
+        List.find_a_dup
+          (List.map items ~f:(fun item -> item.Item.key))
+          ~compare:Key.compare
+      with
+      | None -> Ok ()
+      | Some key ->
+        Or_error.errorf "duplicate description item key: %s" (Key.to_string key)
+    in
+    let gap, padding_x, padding_y =
+      match size with
+      | XSmall | Small -> 2., 4., 2.
+      | Medium -> 4., 8., 4.
+      | Large -> 8., 12., 6.
+    in
+    let padding_x, padding_y = if bordered then padding_x, padding_y else 0., 0. in
+    let last_row, _, packed =
+      List.fold items ~init:(0, 0, []) ~f:(fun (row, used, packed) item ->
+        let span = Item.span item ~columns in
+        let row, used = if used + span > columns then row + 1, 0 else row, used in
+        row, used + span, (item, row, used = 0) :: packed)
+    in
+    let children =
+      List.rev_map packed ~f:(fun (item, row, first) ->
+        let row_border = if bordered && row < last_row then 1. else 0. in
+        match item.Item.content with
+        | Separator ->
+          View.row
+            ~key:item.key
+            ~style:
+              (Style.merge
+                 [ style
+                     [ Basis full
+                     ; Grow 0.
+                     ; Shrink 0.
+                     ; Width full
+                     ; Height (px (8. +. row_border))
+                     ; Border_bottom_width row_border
+                     ; Border_color p.border
+                     ]
+                 ; (if bordered
+                    then style [ Background (solid p.raised) ]
+                    else Style.empty)
+                 ; item.style
+                 ])
+            []
+          |> semantic Separator
+        | Entry { span; term_style; definition_style; term; definition } ->
+          let horizontal = Axis.equal axis Horizontal in
+          let term =
+            View.column
+              ~key:(internal_key "term")
+              ~style:
+                (Style.merge
+                   [ style
+                       [ Min_width (px 0.)
+                       ; Font_size 14.
+                       ; Foreground p.muted
+                       ; Padding_left (px padding_x)
+                       ; Padding_right (px padding_x)
+                       ; Padding_top (px padding_y)
+                       ; Padding_bottom (px padding_y)
+                       ]
+                   ; (if horizontal
+                      then style [ Width label_width; Shrink 0.; Align_self Stretch ]
+                      else Style.empty)
+                   ; (if bordered
+                      then
+                        style
+                          ([ Background (solid p.raised); Border_color p.border ]
+                           @
+                           if horizontal
+                           then
+                             [ Border_right_width 1.
+                             ; Border_left_width (if first then 0. else 1.)
+                             ]
+                           else [ Border_bottom_width 1. ])
+                      else Style.empty)
+                   ; term_style
+                   ])
+              term
+            |> semantic Term
+          in
+          let definition =
+            View.column
+              ~key:(internal_key "definition")
+              ~style:
+                (Style.merge
+                   [ style
+                       [ Min_width (px 0.)
+                       ; Grow 1.
+                       ; Overflow Hidden
+                       ; Padding_left (px padding_x)
+                       ; Padding_right (px padding_x)
+                       ; Padding_top (px padding_y)
+                       ; Padding_bottom (px padding_y)
+                       ]
+                   ; definition_style
+                   ])
+              definition
+            |> semantic Definition
+          in
+          View.row
+            ~key:item.key
+            ~style:
+              (Style.merge
+                 [ style
+                     [ Direction (if horizontal then Row else Column)
+                     ; Basis
+                         (Length.percent_exn
+                            (100. *. Float.of_int span /. Float.of_int columns))
+                     ; Grow 1.
+                     ; Shrink 1.
+                     ; Min_width (px 0.)
+                     ; Align_self Stretch
+                     ; Overflow_x Hidden
+                     ; Border_bottom_width row_border
+                     ; Border_color p.border
+                     ]
+                 ; item.style
+                 ])
+            [ term; definition ])
+    in
+    Ok
+      (View.row
+         ?key
+         ~style:
+           (Style.merge
+              [ style
+                  [ Width full
+                  ; Min_width (px 0.)
+                  ; Wrap Wrap
+                  ; Align_items Stretch
+                  ; Align_content Start
+                  ; Column_gap (px 0.)
+                  ; Row_gap (px (if bordered then 0. else gap))
+                  ; Overflow Hidden
+                  ; Font_size 14.
+                  ; Line_height (Length.percent_exn 125.)
+                  ; Foreground p.foreground
+                  ]
+              ; (if bordered
+                 then style [ Border_width 1.; Border_color p.border; Radius 8. ]
+                 else Style.empty)
+              ; custom
+              ])
+         children
+       |> semantic Description_list)
+  ;;
+end
+
 let empty_state
       (p : Appearance.t)
       ?key

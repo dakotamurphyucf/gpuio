@@ -89,12 +89,14 @@ spans and full-row separators. Upstream clamps columns to 1..10 but accepts
 unchecked spans; oversized/zero spans are not a behavior to reproduce. Rows pack
 by accumulated spans; border rendering actually applies in either axis.
 
-Current `Description` accepts a string term and View definition, with a single
-column of row/stacked entries. Design validated columns/spans and rich terms.
-Specify reject/normalization policy before implementation. Verify packing against
-independent examples and actual wrapped geometry/AX term-definition reading order.
-Changing row parents can remount stateful entries despite stable leaf keys; choose
-a structure that preserves the promised identity and test it through regrouping.
+`Presentation.Description_list` now supplies validated columns/spans, rich
+term/value slots, fixed/percentage label widths, both axes, four sizes, borders
+and separators. Direct keyed cells preserve native owners through regrouping;
+invalid counts/spans and duplicate keys are rejected. The legacy helper remains.
+The [contract and evidence](../design/description-lists.md) records four Core tests,
+75 native layout/reading-order cases, 34 GPU theme/size/border cases, OS actions,
+draft/control retention and slot/page retirement in a fresh installed consumer.
+This source row is locally a functional equivalent; broader release gates remain.
 
 ## Keyboard labels
 
@@ -168,9 +170,9 @@ responsive resizing, focus reveal and application persistence failures.
 
 Composed Link, shared dashed borders and Empty/Separator composition now have
 scoped native and installed-consumer evidence, as do shared text shimmer and the
-rich Attachment/Marker, Alert and Tag adapters. Remaining presentation modules are
-Bubble, Message, Description, Kbd and Settings. These include rich chat slots,
-description layout/identity, typed keyboard labels and settings composition.
+rich Attachment/Marker, Alert, Tag, Bubble/Message and Description adapters.
+Remaining presentation modules are Kbd and Settings: typed keyboard labels and
+settings composition.
 Each family needs public gallery examples and meaningful native acceptance before
 its ledger status changes. Reuse ordinary views where possible; introduce native
 state or protocol operations only for concrete missing behavior.
