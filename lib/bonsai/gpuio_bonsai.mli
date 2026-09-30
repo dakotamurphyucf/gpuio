@@ -11,6 +11,7 @@ module View : sig
   type t = unit Bonsai.Effect.t Gpuio.View.t
   type toast = unit Bonsai.Effect.t Gpuio.View.toast
 
+  val with_key : t -> Gpuio.Key.t -> t
   val with_accessibility : t -> Gpuio.Accessibility.t -> t Or_error.t
 
   val link

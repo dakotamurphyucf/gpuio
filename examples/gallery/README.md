@@ -29,6 +29,16 @@ motion. Its focused normal-launch and installed-consumer checks pass on macOS:
 `python3 scripts/test_gallery.py --section shimmer`. See the exact coverage and
 remaining release gates in [the shimmer contract](../../docs/design/text-shimmer.md).
 
+The **Signals that stay out of the way** card uses `Presentation.Marker` for
+Plain/Separator/Border status rows. Toggle busy state, Spinner/Shimmer, custom or
+empty icons, typed/rich content and an empty typed label. Typed text shimmers;
+rich-only content pulses; the adjacent **Steady** label remains unchanged. The
+action retains its counter and focus across loading/layout changes. Style and
+compact-width controls demonstrate refinements. Removing the rich slot intentionally
+retires its action; adding it back preserves the Bonsai counter. The focused check
+is `python3 scripts/test_gallery.py --section markers`; it is also part of `core`
+and `all`. See the [Marker contract](../../docs/design/presentation-markers.md).
+
 The Presentation page's **Structure with flexibility** card uses
 `Presentation.group_box` with Card/Plain/Filled/Outline variants. Toggle its
 header/footer and independent slot styles while keeping the body checkbox state.

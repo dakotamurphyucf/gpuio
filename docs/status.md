@@ -5,13 +5,23 @@ Current checkpoint: milestones 1–6 are merged. Milestone 5's
 [required macOS/Linux CI](https://github.com/dakotamurphyucf/gpuio/actions/runs/36312697654)
 passed on `473407c`; all twelve tickets are Done.
 
+The [rich Marker adapter](design/presentation-markers.md) now provides typed
+Plain/Separator/Border composition, icon/content slots and native Spinner/Shimmer
+loading. Core validation/style/identity checks and the focused macOS gallery pass.
+A fresh installed consumer passes 18 theme/variant/icon cases and 21 OS keyboard
+actions, GPU text/rich/static paint, opacity refinement, reduced-motion recovery
+and page/slot retirement. The source row is locally a functional equivalent;
+Alert, Tag, Bubble, Message, Description, Kbd and Settings remain in the presentation
+review, alongside other catalog and OCH-17 release gates.
+
 Native [animation opacity factors](design/animation-opacity-factor.md) now supply
 the styling primitive for rich Marker loading. The bounded factor multiplies
 base/interaction opacity without adding a layout wrapper; absolute opacity remains
 unchanged. Independent bytes, validation and atomic rejection checks pass locally.
 A background macOS GPU fixture passes base/state/ancestor/descendant composition,
 layout, native pulse timing, reduced-motion idle and owner teardown. Rich Marker
-composition, public gallery/consumer and wider release acceptance remain open.
+composition now has public gallery/consumer evidence above; wider release
+acceptance remains open.
 
 The [rich Attachment adapter](design/presentation-attachments.md) now composes
 typed status, size, axis, media/content/action slots and whole-card activation.
@@ -57,9 +67,8 @@ pass eight theme/width/direction combinations, real keyboard Unicode Copy and
 effect toggling, identity, one-shot playback, reduced motion and page remount.
 They exposed a native clock defect that excluded visible layout time; a
 failing-before deterministic regression and passing public checks cover the
-repair. Measured application performance and Marker integration remain
-open. No shimmer
-capability is advertised yet.
+repair. Marker integration now has scoped evidence above; measured application
+performance remains open. No shimmer capability is advertised yet.
 
 The [finite style-value audit](evidence/style-finite-values-och41.md) now covers
 seven keyword sets with pinned native GPUIX sources. Grid count/minimum and
@@ -139,8 +148,8 @@ gates and the other presentation modules remain open.
 The remaining presentation modules have a
 [pinned behavior/gap review](catalog/presentation-gaps.md), including nested settings
 fields. These implementation plans and source snapshots do not mark the families
-accepted; remaining rich slots/layout, Marker loading, typed keyboard labels and
-settings composition still need implementation and native coverage.
+accepted; remaining rich slots/layout, typed keyboard labels and settings
+composition still need implementation and native coverage.
 The [ordinary text-span API](design/text-content.md) now supplies bounded
 foreground runs through atomic bridge updates and View/Bonsai reconciliation.
 Local checks cover native GPU paint, wrapping, selection/copy and source AX labels.

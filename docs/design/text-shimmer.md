@@ -208,8 +208,9 @@ These are implementation requirements, **not completed acceptance**:
   FPS, latency, power or whole-application bounds.
 - Finish foreground OS keyboard/clipboard, screen-reader and public gallery/
   installed-consumer acceptance. Dispatched GPUI keys are not physical input.
-- Add Attachment/Marker examples and complete their source behavior review before
-  accepting those families or advertising the shimmer capability.
+- Attachment/Marker examples now have scoped source review and native/consumer
+  evidence in their linked contracts below. Complete remaining family/release
+  acceptance before advertising the shimmer capability.
 
 ## Current local evidence
 
@@ -499,6 +500,8 @@ GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j 2 @all @runtest @fmt
 
 All three commands pass locally; each focused GUI run was bounded by a 480-second
 process-group wrapper and exited normally. The full Dune check, Rust formatting,
-Python syntax and structural catalog audit also pass. Attachment/Marker adapters,
-whole-application measurements and hosted release gates remain open. No shimmer
+Python syntax and structural catalog audit also pass. Later
+[Attachment](presentation-attachments.md) and [Marker](presentation-markers.md)
+adapter checkpoints record their scoped native/consumer acceptance.
+Whole-application measurements and hosted release gates remain open. No shimmer
 capability bit is advertised by this checkpoint.

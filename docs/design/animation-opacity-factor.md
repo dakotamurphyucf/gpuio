@@ -1,8 +1,9 @@
 # Animation opacity factors
 
 OCH-41 adds `Animation.Property.Opacity_factor` to support rich Marker loading
-without remounting content or wrapping it in a different layout. Marker integration
-is still pending. The existing `Opacity` property continues to replace the styled
+without remounting content or wrapping it in a different layout. The public
+[Marker adapter](presentation-markers.md) now has focused native and installed-
+consumer evidence. The existing `Opacity` property continues to replace the styled
 opacity, including its interaction overrides.
 
 A factor multiplies the animated element's resolved base/interaction opacity.
@@ -93,4 +94,5 @@ GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -p gpuio-native -j 2 --fea
 The native GUI process ran with a 90-second process-group deadline, closed its
 background window and exited normally. CI builds the fixture on both platforms
 and runs the bounded GPU check on macOS; hosted results are still pending.
-Public Marker/gallery, installed consumer and release acceptance remain separate.
+Public Marker/gallery and installed-consumer results are recorded in the
+[Marker contract](presentation-markers.md); wider release acceptance remains open.

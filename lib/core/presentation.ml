@@ -398,6 +398,304 @@ let marker
     ]
 ;;
 
+module Marker = struct
+  module Variant = struct
+    type t =
+      | Plain
+      | Separator
+      | Border
+    [@@deriving equal, sexp_of]
+  end
+
+  module Loading_style = struct
+    type t =
+      | Spinner
+      | Shimmer
+    [@@deriving equal, sexp_of]
+  end
+
+  module Spinner = struct
+    type t = Loading.Config.t
+
+    let create ?(label = "Loading") ?animated ?period () =
+      Loading.Config.create ~kind:Spinner ~label ?animated ?period ()
+    ;;
+
+    let default = create () |> Or_error.ok_exn
+  end
+
+  let validate_keys keys =
+    match List.find_a_dup keys ~compare:Key.compare with
+    | None -> Ok ()
+    | Some key -> Or_error.errorf "duplicate marker item key: %s" (Key.to_string key)
+  ;;
+
+  module Icon = struct
+    type 'action t =
+      { key : Key.t
+      ; style : Style.t
+      ; children : 'action View.t list
+      }
+
+    let create ~key ?(style = Style.empty) children = { key; style; children }
+
+    let view t =
+      View.row
+        ~key:t.key
+        ~style:
+          (Style.merge
+             [ style
+                 [ Width (px 16.)
+                 ; Height (px 16.)
+                 ; Shrink 0.
+                 ; Grow 0.
+                 ; Align_items Center
+                 ; Justify_content Center
+                 ]
+             ; t.style
+             ])
+        t.children
+    ;;
+  end
+
+  module Content = struct
+    module Item = struct
+      type 'action t =
+        | Text of Key.t * Style.t * string
+        | Element of Key.t * 'action View.t
+
+      let text ~key ?(style = Style.empty) text =
+        if
+          String.length text > Gpuio_protocol.Text_shimmer_wire.max_text_bytes
+          || not (Stdlib.String.is_valid_utf_8 text)
+        then
+          Or_error.error_string "marker text must be valid UTF-8 of at most 16384 bytes"
+        else Ok (Text (key, style, text))
+      ;;
+
+      let element ~key view = Element (key, view)
+
+      let key = function
+        | Text (key, _, _) | Element (key, _) -> key
+      ;;
+
+      let is_text = function
+        | Text _ -> true
+        | Element _ -> false
+      ;;
+
+      let view t ~shimmer =
+        match t with
+        | Text (key, style, text) ->
+          View.text ~key ~style text
+          |> fun view -> View.with_text_shimmer view shimmer |> Or_error.ok_exn
+        | Element (key, view) -> View.with_key view key
+      ;;
+    end
+
+    type 'action t =
+      { key : Key.t
+      ; style : Style.t
+      ; items : 'action Item.t list
+      }
+
+    let create ~key ?(style = Style.empty) items =
+      Or_error.map
+        (validate_keys (List.map items ~f:Item.key))
+        ~f:(fun () -> { key; style; items })
+    ;;
+
+    let factor value =
+      Animation.Target.create [ Opacity_factor, value ] |> Or_error.ok_exn
+    ;;
+
+    let stage milliseconds value =
+      Animation.Stage.create
+        ~timing:
+          (Animation.Timing.tween
+             ~easing:Animation.Easing.ease_in_out
+             (Time_ns.Span.of_ms (Float.of_int milliseconds))
+           |> Or_error.ok_exn)
+        ~target:(factor value)
+        ()
+      |> Or_error.ok_exn
+    ;;
+
+    let still =
+      Animation.Program.create ~initial:(factor 1.) [ stage 0 1. ] |> Or_error.ok_exn
+    ;;
+
+    let pulse shimmer =
+      let config = Text_shimmer.Expert.to_wire shimmer in
+      if not config.animated
+      then still
+      else (
+        let first = config.duration_ms / 2 in
+        let repeat =
+          match config.repeat with
+          | Once -> Animation.Repeat.Once
+          | Loop -> Loop
+        in
+        Animation.Program.create
+          ~initial:(factor 1.)
+          ~repeat
+          [ stage first 0.6; stage (config.duration_ms - first) 1. ]
+        |> Or_error.ok_exn)
+    ;;
+
+    let view t ~variant ~loading ~shimmer =
+      let program =
+        if loading && not (List.exists t.items ~f:Item.is_text)
+        then pulse shimmer
+        else still
+      in
+      let separator = Variant.equal variant Separator in
+      View.animate_program
+        ~key:t.key
+        ~style:
+          (Style.merge
+             [ style
+                 ([ Display Flex; Direction Row; Min_width (px 0.) ]
+                  @ if separator then [ Grow 0.; Shrink 0.; Text_align Center ] else [])
+             ; t.style
+             ])
+        program
+        (List.map t.items ~f:(fun item ->
+           Item.view item ~shimmer:(Option.some_if loading shimmer)))
+    ;;
+  end
+
+  module Item = struct
+    type 'action t =
+      | Icon of 'action Icon.t
+      | Content of 'action Content.t
+      | Element of Key.t * 'action View.t
+
+    let icon t = Icon t
+    let content t = Content t
+    let element ~key view = Element (key, view)
+
+    let key = function
+      | Icon t -> t.Icon.key
+      | Content t -> t.Content.key
+      | Element (key, _) -> key
+    ;;
+
+    let is_icon = function
+      | Icon _ -> true
+      | Content _ | Element _ -> false
+    ;;
+
+    let view t ~variant ~loading ~shimmer =
+      match t with
+      | Icon t -> Icon.view t
+      | Content t -> Content.view t ~variant ~loading ~shimmer
+      | Element (key, view) -> View.with_key view key
+    ;;
+  end
+
+  let create
+        (p : Appearance.t)
+        ?key
+        ?style:(custom = Style.empty)
+        ?(separator_style = Style.empty)
+        ?(variant = Variant.Plain)
+        ?(loading = false)
+        ?(loading_style = Loading_style.Spinner)
+        ?(spinner = Spinner.default)
+        ?shimmer
+        items
+    =
+    let open Or_error.Let_syntax in
+    let keys = List.map items ~f:Item.key in
+    let%bind () = validate_keys keys in
+    let%bind () =
+      if
+        List.exists keys ~f:(fun key ->
+          String.is_prefix (Key.to_string key) ~prefix:"gpuio:marker:")
+      then
+        Or_error.error_string
+          "marker item keys must not use the reserved gpuio:marker: prefix"
+      else Ok ()
+    in
+    let shimmer = Option.value shimmer ~default:p.text_shimmer in
+    let is_separator = Variant.equal variant Separator in
+    let line name margin =
+      View.row
+        ~key:(internal_key name)
+        ~style:
+          (Style.merge
+             [ style
+                 [ Grow 1.
+                 ; Basis (px 0.)
+                 ; Min_width (px 0.)
+                 ; Height (px 1.)
+                 ; margin
+                 ; Background (solid p.border)
+                 ]
+             ; separator_style
+             ])
+        []
+    in
+    let automatic_spinner =
+      if
+        loading
+        && Loading_style.equal loading_style Spinner
+        && not (List.exists items ~f:Item.is_icon)
+      then
+        [ Icon.view
+            (Icon.create
+               ~key:(internal_key "gpuio:marker:spinner")
+               [ View.loading
+                   ~key:(internal_key "spinner")
+                   ~style:(style [ Width (px 16.); Height (px 16.); Foreground p.muted ])
+                   ~config:spinner
+                   ()
+               ])
+        ]
+      else []
+    in
+    let children =
+      (if is_separator then [ line "gpuio:marker:before" (Margin_right (px 4.)) ] else [])
+      @ automatic_spinner
+      @ List.map items ~f:(fun item ->
+        Item.view
+          item
+          ~variant
+          ~loading:(loading && Loading_style.equal loading_style Shimmer)
+          ~shimmer)
+      @ if is_separator then [ line "gpuio:marker:after" (Margin_left (px 4.)) ] else []
+    in
+    let variant_style =
+      match variant with
+      | Plain -> []
+      | Separator -> [ Justify_content Center ]
+      | Border ->
+        [ Border_bottom_width 1.; Border_color p.border; Padding_bottom (px 8.) ]
+    in
+    Ok
+      (View.row
+         ?key
+         ~style:
+           (Style.merge
+              [ style
+                  ([ Width full
+                   ; Min_height (px 16.)
+                   ; Min_width (px 0.)
+                   ; Align_items Center
+                   ; Gap (px 8.)
+                   ; Font_size 14.
+                   ; Line_height (Length.percent_exn 150.)
+                   ; Foreground p.muted
+                   ; Text_align Left
+                   ]
+                   @ variant_style)
+              ; custom
+              ])
+         children)
+  ;;
+end
+
 let link (p : Appearance.t) ?key ?style:(custom = Style.empty) ?disabled ~on_click text =
   let transparent = Color.rgba ~red:0 ~green:0 ~blue:0 ~alpha:0 |> Or_error.ok_exn in
   let base =

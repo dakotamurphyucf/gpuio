@@ -18,6 +18,30 @@ adds public inline-code/bold and safe image-placeholder links, with exact AX
 reading-order/action checks and retained keyboard navigation. Its focused result
 is separate from the combined/installed-consumer checkpoints below.
 
+## Rich markers — focused checkpoint, 2026-09-30
+
+The Presentation page's **Signals that stay out of the way** card now showcases
+`Presentation.Marker`: Plain/Separator/Border, Spinner/Shimmer, typed and empty
+icons/text, rich controls, custom opacity/lines and compact width. The
+[contract](../design/presentation-markers.md) records source mapping, bounds,
+identity, explicit accessibility and native ownership.
+
+The repository walkthrough passes 18 theme/variant/icon combinations and 20 OS
+Return/Space actions. A fresh installed consumer adds text-only shimmer and rich-
+slot removal/reinsertion, for 21 actions. Both check retained focus/native identity,
+actual glyph/rich/static pixels, default/custom divider and border paint, reduced
+motion, recovery and page retirement. The consumer retains caller state while
+replacing disposed native controls; registered source bytes reach zero on departure.
+Both bounded runs pass and close/reap their windows. The final driver reports
+`GALLERY_MARKER_OK` and `GPUIO_GALLERY_AX_OK: section=markers`.
+
+Full Dune build/tests/format pass; the final gallery checkbox extension was
+subsequently built/formatted and validated in the consumer. The latter uses a
+separate installed prefix/backend lockfile with the existing toolchain and native
+sources, not a clean machine. The focused driver is wired into `all`/`core`, but
+this checkpoint does not claim a new complete-gallery run, hosted CI, VoiceOver,
+IME, Linux GUI, application-performance or distribution acceptance.
+
 ## Rich attachments — focused checkpoint, 2026-09-30
 
 `Presentation.Attachment` adds explicit status, size, orientation, keyed content,

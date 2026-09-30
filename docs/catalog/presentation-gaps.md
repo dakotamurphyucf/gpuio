@@ -51,7 +51,8 @@ managed-row pause/eviction/remount. Public gallery and fresh installed-consumer
 checks now pass both themes, widths and directions, actual keyboard Copy/effect
 toggling, stable native identity, playback/reduced motion and page remount. A
 visible-layout clock defect has a failing-before regression and passing repair.
-Aggregate-performance acceptance and Marker integration remain pending.
+The [Marker integration](../design/presentation-markers.md) now has scoped native
+and installed-consumer evidence. Aggregate-performance acceptance remains pending.
 The shared per-window shimmer budget has native limit/fallback/recovery evidence;
 that enforces work ceilings without establishing application frame-time budgets.
 Attachment's [acceptance record](../design/presentation-attachments.md) now covers
@@ -125,12 +126,13 @@ only without a typed icon. Typed text shimmers; arbitrary elements in mixed cont
 remain unchanged. If content has no typed text, the whole rich content instead
 pulses opacity from 0.6 to 1.0 times its base opacity. Reduced motion disables it.
 
-The current dot/label helper and rectangle `Loading.Kind.Shimmer` do not provide
-glyph shimmer. Add explicit rich marker slots/loading behavior and evaluate a
-small shared native text-shimmer primitive for Marker and AttachmentTitle. Existing
-animation programs may cover the rich-content opacity fallback. Preserve AX text
-and explicit status announcements. Test mixed/text-only/rich-only content, role/id,
-icon override, reduced motion and stopping/cleanup under completion and unmount.
+`Presentation.Marker` now supplies this composition, preserving the original
+dot/label helper. Typed text uses shared native glyph shimmer; rich-only content
+uses the native opacity factor on a stable animation root. The [contract and
+acceptance](../design/presentation-markers.md) document exact source mappings,
+key/UTF-8 validation, explicit semantics, smooth-pulse easing, native owner limits
+and native/installed-consumer matrices. The source row is locally validated as a
+functional equivalent; this does not complete the presentation family or release.
 
 ## Settings application composition
 
@@ -170,9 +172,10 @@ responsive resizing, focus reveal and application persistence failures.
 ## Delivery order
 
 Composed Link, shared dashed borders and Empty/Separator composition now have
-scoped native and installed-consumer evidence. Remaining work includes
-text-shimmer contracts, rich attachment/chat slots, description layout/identity,
-typed keyboard labels and marker/settings composition.
+scoped native and installed-consumer evidence, as do shared text shimmer and the
+rich Attachment/Marker adapters. Remaining presentation modules are Alert, Tag,
+Bubble, Message, Description, Kbd and Settings. These include rich chat slots,
+description layout/identity, typed keyboard labels and settings composition.
 Each family needs public gallery examples and meaningful native acceptance before
 its ledger status changes. Reuse ordinary views where possible; introduce native
 state or protocol operations only for concrete missing behavior.

@@ -35,6 +35,7 @@ def exercise(mac, images):
     exercise_badges(mac, images)
     exercise_labels(mac, images)
     exercise_shimmer(mac, images)
+    exercise_markers(mac, images)
     exercise_attachments(mac, images)
     exercise_groups(mac, images)
     exercise_separators(mac, images)
@@ -810,6 +811,239 @@ def exercise_groups(mac, images):
     print(f'GALLERY_GROUP_OK: {cases} theme/variant/style/slot cases; geometry, retained '
           f'checked state and native identity, {clicks} pointer/Return actions, '
           'real Space input, focus and teardown', flush=True)
+
+
+def exercise_markers(mac, images):
+    """Public composition, OS activation, retained controls and native glyph/pulse paint."""
+    mac.press(TITLE, 'Motion & rhythm')
+    mac.press(TITLE, 'Use full motion')
+    mac.wait_text(TITLE, 'Motion preference: Full')
+    mac.press(TITLE, 'Presentation')
+    mac.wait_text(TITLE, 'Signals that stay out of the way')
+    action = mac.wait_find(TITLE, 'Marker action', 'AXButton')
+    equal = mac.cf.CFEqual
+    equal.restype, equal.argtypes = C.c_bool, [C.c_void_p, C.c_void_p]
+    mouse = GalleryMouse(mac)
+    temporary = tempfile.TemporaryDirectory(prefix='gpuio-marker-')
+    directory = images or Path(temporary.name)
+    serial = actions = cases = 0
+    variant, loading_style, icon = 'Plain', 'Spinner', 'None'
+
+    def toggle(label):
+        activate(mac, mac.wait_find(TITLE, label, 'AXCheckBox'))
+        time.sleep(.08)
+
+    def identity():
+        node = mac.wait_find(TITLE, 'Marker action', 'AXButton')
+        try:
+            assert equal(action, node), 'Marker reconfiguration remounted its action'
+        finally:
+            mac.release(node)
+
+    def reveal():
+        reveal_gallery_control(mac, 'Marker action', 'AXButton')
+        window = mac.window(TITLE)
+        try:
+            wx,wy,ww,wh = element_rect(mac,window)
+        finally:
+            mac.release(window)
+        mouse.send(5,(wx+ww-25,wy+110))
+        time.sleep(.08)
+
+    def capture(nodes):
+        nonlocal serial
+        window = mac.window(TITLE)
+        try:
+            wx,wy,ww,wh = element_rect(mac,window)
+        finally:
+            mac.release(window)
+        rectangles = [element_rect(mac,node) for node in nodes]
+        path = directory / f'gallery-marker-{serial:03d}.png'
+        serial += 1
+        screenshot(mac,path,title=TITLE)
+        pixels = read_png(mac,path)
+        result=[]
+        for x,y,w,h in rectangles:
+            assert wx<=x and wy<y and x+w<=wx+ww and y+h<wy+wh, ('marker sample clipped',x,y,w,h)
+            result.append(((x,y,w,h),tuple(pixels.rgb((x-wx+(i+.5)*w/120)*pixels.width/ww,(y-wy+(j+.5)*h/24)*pixels.height/wh) for j in range(24) for i in range(120))))
+        return result
+
+    def difference(a,b):
+        assert all(abs(x-y)<.2 for x,y in zip(a[0],b[0])), ('animation changed marker layout',a[0],b[0])
+        return sum(max(abs(x-y) for x,y in zip(p,q))>5 for p,q in zip(a[1],b[1]))
+
+    def paint_check(animated_label, static_labels, reveal_label=None):
+        nodes=[mac.wait_find(TITLE,label,role) for label,role in ([animated_label] if animated_label else [])+static_labels]
+        try:
+            if reveal_label:
+                reveal_gallery_control(mac,*reveal_label)
+            else:
+                reveal()
+            before=capture(nodes)
+            most=0
+            deadline=time.monotonic()+(4 if animated_label else .55)
+            while time.monotonic()<deadline:
+                time.sleep(.17)
+                after=capture(nodes)
+                start=1 if animated_label else 0
+                for i in range(start,len(nodes)):
+                    assert difference(before[i],after[i])==0, 'Loading affected static rich/root content'
+                if animated_label:
+                    most=max(most,difference(before[0],after[0]))
+                    if most>=8: break
+            if animated_label:
+                assert most>=8, ('No marker animation',animated_label,most)
+                print('GALLERY_MARKER_PIXELS',animated_label[0],most,flush=True)
+        finally:
+            for node in nodes: mac.release(node)
+
+    def variant_paint(theme, variant, refined=False):
+        nonlocal serial
+        reveal()
+        root = mac.wait_find(TITLE,'Marker preview','AXGroup')
+        window = mac.window(TITLE)
+        try:
+            x,y,w,h = element_rect(mac,root)
+            wx,wy,ww,wh = element_rect(mac,window)
+        finally:
+            mac.release(root)
+            mac.release(window)
+        assert abs(w-532)<1 and h>=42, ('marker full-width/min-height',w,h)
+        path=directory/f'gallery-marker-{serial:03d}.png'
+        serial+=1
+        screenshot(mac,path,title=TITLE)
+        pixels=read_png(mac,path)
+        def rgb(py):
+            return pixels.rgb((x+w-5-wx)*pixels.width/ww,(py-wy)*pixels.height/wh)
+        surface=(25,33,44) if theme=='Dark' else (255,255,255)
+        border=(62,72,91) if theme=='Dark' else (211,217,227)
+        accent=(137,221,201) if theme=='Dark' else (9,110,91)
+        close=lambda a,b:max(abs(x-y) for x,y in zip(a,b))<=5
+        center=[rgb(y+h/2+delta) for delta in [-.5,-.25,0,.25,.5]]
+        bottom=[rgb(y+h-delta) for delta in [.25,.5,.75]]
+        if variant=='Separator':
+            assert any(close(c,accent if refined else border) for c in center), ('separator not painted',center)
+        else:
+            assert all(close(c,surface) for c in center), ('unexpected divider',variant,center)
+        if variant=='Border':
+            assert any(close(c,border) for c in bottom), ('bottom border not painted',bottom)
+        else:
+            assert all(close(c,surface) for c in bottom), ('unexpected bottom border',variant,bottom)
+
+    def cycle(prefix,current,values):
+        mac.press(TITLE,prefix+current)
+        value=values[(values.index(current)+1)%len(values)]
+        mac.release(mac.wait_find(TITLE,prefix+value,'AXButton'))
+        return value
+
+    theme_node=mac.find(TITLE,'Dark','AXButton')
+    initial='Dark' if theme_node else 'Light'
+    if theme_node: mac.release(theme_node)
+    try:
+        for theme in [initial,'Light' if initial=='Dark' else 'Dark']:
+            for _ in range(3):
+                variant_paint(theme,variant)
+                focus_gallery_control(mac,'Marker action','AXButton')
+                toggle('Marker busy')
+                for _ in range(3):
+                    identity()
+                    if icon=='None': mac.release(mac.wait_find(TITLE,'Marker activity','AXProgressIndicator'))
+                    else: absent(mac,'Marker activity','AXProgressIndicator')
+                    expect_focus(mac,'Marker action','AXButton')
+                    mac.key(36)
+                    actions+=1
+                    mac.wait_text(TITLE,f'Marker actions: {actions}')
+                    icon=cycle('Marker icon: ',icon,['None','Custom','Empty'])
+                    cases+=1
+                toggle('Marker busy')
+                absent(mac,'Marker activity','AXProgressIndicator')
+                variant=cycle('Marker variant: ',variant,['Plain','Separator','Border'])
+            loading_style=cycle('Marker loading: ',loading_style,['Spinner','Shimmer'])
+            toggle('Marker busy')
+            absent(mac,'Marker activity','AXProgressIndicator')
+            paint_check(('Thinking · 京都','AXStaticText'),[('Marker action','AXButton'),('Steady','AXStaticText')])
+            toggle('Marker typed text')
+            paint_check(('Marker action','AXButton'),[('Steady','AXStaticText')])
+            toggle('Refine marker styles')
+            paint_check(('Marker action','AXButton'),[('Steady','AXStaticText')])
+            variant=cycle('Marker variant: ',variant,['Plain','Separator','Border'])
+            variant_paint(theme,variant,refined=True)
+            variant=cycle('Marker variant: ',variant,['Plain','Separator','Border'])
+            variant=cycle('Marker variant: ',variant,['Plain','Separator','Border'])
+            toggle('Marker typed text')
+            toggle('Empty marker text')
+            paint_check(None,[('Marker action','AXButton'),('Steady','AXStaticText')])
+            toggle('Empty marker text')
+            toggle('Marker busy')
+            paint_check(None,[('Thinking · 京都','AXStaticText'),('Marker action','AXButton'),('Steady','AXStaticText')])
+            toggle('Compact marker')
+            reveal()
+            identity()
+            focus_gallery_control(mac,'Marker action','AXButton')
+            mac.key(49)
+            actions+=1
+            mac.wait_text(TITLE,f'Marker actions: {actions}')
+            toggle('Compact marker')
+            toggle('Refine marker styles')
+            loading_style=cycle('Marker loading: ',loading_style,['Spinner','Shimmer'])
+            if theme==initial:
+                mac.press(TITLE,theme)
+        # Reduced-motion branch is driven by the actual native application policy.
+        mac.press(TITLE,'Motion & rhythm')
+        mac.press(TITLE,'Use reduced motion')
+        mac.wait_text(TITLE,'Motion preference: Reduced')
+        mac.press(TITLE,'Presentation')
+        mac.wait_text(TITLE,'Signals that stay out of the way')
+        restored=mac.wait_find(TITLE,'Marker action','AXButton')
+        assert not equal(action,restored), 'Page teardown retained the native action'
+        mac.release(action)
+        action=restored
+        loading_style=cycle('Marker loading: ',loading_style,['Spinner','Shimmer'])
+        toggle('Marker busy')
+        paint_check(None,[('Thinking · 京都','AXStaticText'),('Marker action','AXButton'),('Steady','AXStaticText')])
+        toggle('Marker typed text')
+        paint_check(None,[('Marker action','AXButton'),('Steady','AXStaticText')])
+        identity()
+        mac.press(TITLE,'Runtime & windows')
+        mac.press(TITLE,'Refresh resource counts')
+        mac.wait_text(TITLE,'Registered source bytes: 0')
+        absent(mac,'Marker action','AXButton')
+        mac.press(TITLE,'Motion & rhythm')
+        mac.press(TITLE,'Use full motion')
+        mac.wait_text(TITLE,'Motion preference: Full')
+        mac.press(TITLE,'Presentation')
+        replacement=mac.wait_find(TITLE,'Marker action','AXButton')
+        assert not equal(action,replacement), 'Completed page retained the native action'
+        mac.release(action)
+        action=replacement
+        paint_check(('Marker action','AXButton'),[('Steady','AXStaticText')])
+        toggle('Marker busy')
+        toggle('Marker typed text')
+        loading_style=cycle('Marker loading: ',loading_style,['Spinner','Shimmer'])
+        mac.wait_text(TITLE,f'Marker actions: {actions}')
+        # Removing the rich slot intentionally retires its action; the surviving
+        # typed text still shimmers with the same content owner and layout policy.
+        toggle('Marker rich content')
+        absent(mac,'Marker action','AXButton')
+        loading_style=cycle('Marker loading: ',loading_style,['Spinner','Shimmer'])
+        toggle('Marker busy')
+        paint_check(('Thinking · 京都','AXStaticText'),[('Steady','AXStaticText')],reveal_label=('Thinking · 京都','AXStaticText'))
+        toggle('Marker busy')
+        toggle('Marker rich content')
+        replacement=mac.wait_find(TITLE,'Marker action','AXButton')
+        assert not equal(action,replacement), 'Removed rich slot retained native action'
+        mac.release(action)
+        action=replacement
+        loading_style=cycle('Marker loading: ',loading_style,['Spinner','Shimmer'])
+        reveal()
+        focus_gallery_control(mac,'Marker action','AXButton')
+        mac.key(36)
+        actions+=1
+        mac.wait_text(TITLE,f'Marker actions: {actions}')
+        print(f'GALLERY_MARKER_OK: {cases} theme/variant/icon cases, {actions} OS Return/Space actions, retained identity/focus, typed and empty-text policy, text-only/mixed/rich/static GPU paint, divider/border pixels, opacity refinement, compact layout, native reduced/full recovery and page/slot retirement',flush=True)
+    finally:
+        mac.release(action)
+        temporary.cleanup()
 
 
 def exercise_shimmer(mac, images):
@@ -4004,7 +4238,7 @@ def main():
     parser.add_argument('--trace-canvas', action='store_true')
     parser.add_argument('--trace-motion', action='store_true')
     parser.add_argument('--trace-windows', action='store_true')
-    parser.add_argument('--section', choices=['all', 'core', 'status-regions', 'badges', 'labels', 'shimmer', 'attachments', 'attachment-paint', 'groups', 'links', 'empty', 'separators', 'styles', 'borders', 'aspect-ratio', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'document-links', 'document-images', 'highlighting', 'canvas', 'assets', 'charts', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
+    parser.add_argument('--section', choices=['all', 'core', 'status-regions', 'badges', 'labels', 'shimmer', 'markers', 'attachments', 'attachment-paint', 'groups', 'links', 'empty', 'separators', 'styles', 'borders', 'aspect-ratio', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'document-links', 'document-images', 'highlighting', 'canvas', 'assets', 'charts', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
     args = parser.parse_args()
     if args.images:
         args.images.mkdir(parents=True, exist_ok=True)
@@ -4041,6 +4275,8 @@ def main():
                 exercise_attachment_paint(mac, args.images)
             if args.section == 'attachments':
                 exercise_attachments(mac, args.images)
+            if args.section == 'markers':
+                exercise_markers(mac, args.images)
             if args.section == 'shimmer':
                 exercise_shimmer(mac, args.images)
             if args.section == 'labels':

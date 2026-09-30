@@ -150,6 +150,112 @@ val marker
   -> string
   -> 'action View.t
 
+module Marker : sig
+  module Variant : sig
+    type t =
+      | Plain
+      | Separator
+      | Border
+    [@@deriving equal, sexp_of]
+  end
+
+  module Loading_style : sig
+    type t =
+      | Spinner
+      | Shimmer
+    [@@deriving equal, sexp_of]
+  end
+
+  module Spinner : sig
+    type t
+
+    (** Localized native progress-indicator label, default "Loading". Same label,
+        animation and period bounds as [Loading.Config.create]; kind is Spinner.
+        The indicator adds no focus stop or live announcement. *)
+    val create
+      :  ?label:string
+      -> ?animated:bool
+      -> ?period:Time_ns.Span.t
+      -> unit
+      -> t Or_error.t
+
+    val default : t
+  end
+
+  module Icon : sig
+    type 'action t
+
+    (** A 16px square, nonshrinking centered slot; style refines those defaults.
+        Even an empty typed icon suppresses the automatic spinner. *)
+    val create : key:Key.t -> ?style:Style.t -> 'action View.t list -> 'action t
+  end
+
+  module Content : sig
+    module Item : sig
+      type 'action t
+
+      (** Valid UTF-8, at most 16384 bytes even when not loading. Empty typed text
+          still counts as text and suppresses the rich-only pulse. *)
+      val text : key:Key.t -> ?style:Style.t -> string -> 'action t Or_error.t
+
+      (** Uses this key directly on the supplied view; adds no layout wrapper. *)
+      val element : key:Key.t -> 'action View.t -> 'action t
+    end
+
+    type 'action t
+
+    (** Rejects duplicate item keys. Content is a stable native animation root,
+        including while static, preserving descendant identity across loading and
+        variant changes. Styles apply directly to this root. Each mounted content
+        consumes one of the application's 1024 advanced animation owner slots;
+        use managed lists for large histories. Idle content requests no frames. *)
+    val create
+      :  key:Key.t
+      -> ?style:Style.t
+      -> 'action Item.t list
+      -> 'action t Or_error.t
+  end
+
+  module Item : sig
+    type 'action t
+
+    val icon : 'action Icon.t -> 'action t
+    val content : 'action Content.t -> 'action t
+    val element : key:Key.t -> 'action View.t -> 'action t
+  end
+
+  (** Full-width muted row, minimum height 16px, gap 8px. [Separator] centers
+      content between decorative lines; [Border] adds a bottom border and padding.
+      [style] refines the row; [separator_style] refines each line.
+
+      Loading defaults to false, style to Spinner. A typed Icon suppresses the
+      automatic spinner; arbitrary elements do not. Shimmer applies only to typed
+      text. Content without any typed text instead pulses its entire styled opacity
+      by 0.6..1, using two native ease-in-out stages over the shimmer duration.
+      This is a smooth pulse, not exact cosine easing. Mixed rich children and
+      root-level arbitrary elements are unchanged. [shimmer] inherits Appearance's
+      configuration, including duration/repeat/animated; reduced motion restores
+      ordinary paint natively. Stopping restores a factor of one immediately.
+
+      Children own their ordinary interaction/accessibility behavior. The row adds
+      no live region; callers can apply [View.with_accessibility] explicitly.
+      Item keys must be unique and must not use the reserved prefix
+      [gpuio:marker:]. Violations are rejected before reconciliation. Legacy
+      [marker]'s dot/string behavior is unchanged. *)
+  val create
+    :  Appearance.t
+    -> ?key:Key.t
+    -> ?style:Style.t
+    -> ?separator_style:Style.t
+    -> ?variant:Variant.t
+    -> ?loading:bool
+    -> ?loading_style:Loading_style.t
+    -> ?spinner:Spinner.t
+    -> ?shimmer:Text_shimmer.Config.t
+    -> 'action Item.t list
+    -> 'action View.t Or_error.t
+end
+
 (** Uses native button keyboard/AX activation with Link semantics. Activation
     delivers the supplied action; opening a URL is an explicit application job. *)
 val link

@@ -300,9 +300,9 @@ hosted CI, performance or clean-machine distribution acceptance.
 
 The other presentation modules have a
 [pinned source and behavior review](presentation-gaps.md), including nested
-settings fields. Empty, Separator and Attachment now have explicit local
+settings fields. Empty, Separator, Attachment and Marker now have explicit local
 functional-equivalent evidence; the ledger distinguishes them from the remaining
-rich-slot/layout, Marker loading, keyboard-label and settings-composition gaps.
+Alert, Tag, Bubble, Message, Description, Kbd and Settings gaps.
 Source review alone does not establish functional equivalence. Prior OCH-33 evidence
 still applies only to the APIs it actually tests. Other catalog families,
 consumer/CI/distribution checks and the complete OCH-17 scope remain open.
@@ -438,3 +438,23 @@ This evidence is macOS 14.5 arm64 local behavior, not a clean-machine, VoiceOver
 physical display-transition or Linux desktop qualification. Fresh required Linux
 checks, full-gallery/hosted CI and OCH-17 release gates remain separate; deferred
 OCH-47 Linux desktop scope is unchanged.
+
+## Marker: functional equivalent
+
+Source: [component/marker](sources/component-marker.rs.txt). Public equivalent:
+`Presentation.Marker`, with the original dot/string helper preserved.
+
+| Source surface | GPUIO contract and evidence |
+| --- | --- |
+| Plain/Separator/Border | Typed variants, full-width muted row, centered flexible separators or bottom border. Root/icon/content/line styles refine defaults. Native geometry and default/refined edge pixels pass in both themes. |
+| Typed Icon/Content/Text and arbitrary elements | Keyed abstract slot types reject duplicate keys; typed text validates UTF-8 and the 16-KiB shimmer limit. Arbitrary views remain direct flex children through `View.with_key`. An empty typed Icon suppresses the automatic spinner. |
+| Spinner/Shimmer loading | Named native spinner; text-only/mixed glyph shimmer; rich-only opacity pulse; empty typed text suppresses that pulse. Root arbitrary elements remain static. Exact duration/repeat mapping uses two ease-in-out stages instead of the source cosine. Native timing and reduced-motion policy require no per-frame OCaml callbacks. |
+| Interaction and lifetime | Stable Content animation roots retain rich controls, focus and current callbacks across configuration changes. Explicit removal/page departure retires native controls; caller state persists. Each mounted Content, including static content, uses one of 1024 advanced animation owner slots; managed lists bound long histories. |
+| Semantics | Presentational root, named ProgressIndicator spinner, ordinary source text/control roles. Applications opt into status/live metadata. Core metadata and native AX/OS-keyboard checks do not establish VoiceOver acceptance. |
+
+The [contract and evidence](../design/presentation-markers.md) records Core
+validation/style/reconciliation checks, 18 native theme/variant/icon cases, GPU
+text/rich/static paint, focus and page disposal. A fresh installed-library consumer
+adds text-only loading and explicit rich-slot retirement/reinsertion, with 21 OS
+Return/Space activations. This is scoped local macOS functional equivalence; other
+catalog, performance, hosted CI, Linux and distribution gates remain open.

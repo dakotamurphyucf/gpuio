@@ -322,6 +322,8 @@ type 'action t =
 
 type 'action toast = Toast_item of 'action t
 
+let with_key t key = { t with key = Some key }
+
 let text ?key ?(style = Style.empty) text =
   { key
   ; kind = Text

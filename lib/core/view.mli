@@ -3,6 +3,11 @@
     domain, after generation validation, using the latest accepted closure. *)
 type 'action t
 
+(** Replace the description's sibling key without adding a layout wrapper.
+    Descendants, styles and callbacks are unchanged. A changed key replaces native
+    identity on the next reconciliation, just like a constructor's [~key]. *)
+val with_key : 'action t -> Key.t -> 'action t
+
 (** Preserve keyed identity while applying validated native semantics. General
     presentation roles apply to containers/text; Navigation requires a container.
     Link applies to buttons. Current-item metadata supports text/buttons only. Field
