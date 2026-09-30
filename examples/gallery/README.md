@@ -36,6 +36,14 @@ identity. Masked values submit only bullets; default accessibility and copy expo
 that replacement text. This is display masking, not a password editor.
 The focused native check is `python3 scripts/test_gallery.py --section labels`.
 
+The composed-link card offers **Rich link previews**: an image-backed avatar,
+an image and a native loading indicator, each sharing its link's single action
+and focus target. The scoped SVG registration is reused by the passive previews.
+The counter and **Last opened** label show the actual destination; no browser is
+opened. Toggle descriptions, decoration, disabled state and Tab policy while
+retaining link identity. Leaving the page retires the content and its resources.
+Run `python3 scripts/test_gallery.py --section links` for the focused walkthrough.
+
 The Input observations page wraps a retained native editor with public
 `View.input_region` subscriptions. Capture/bubble and enable controls update the
 observer without replacing the editor. A floating action uses explicit pointer

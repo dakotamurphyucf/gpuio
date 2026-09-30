@@ -27,7 +27,7 @@ fn dimensions(width: f64, height: f64) -> Vec<Style> {
         Field::Shrink(0.),
     ])]
 }
-async fn frame(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>) {
+pub(super) async fn frame(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>) {
     super::super::editor_test::frame(cx, handle).await;
     super::super::editor_test::frame(cx, handle).await;
 }
@@ -36,7 +36,7 @@ async fn pause(cx: &mut gpui::AsyncApp) {
         .timer(Duration::from_millis(140))
         .await;
 }
-async fn idle(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>) {
+pub(super) async fn idle(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>) {
     frame(cx, handle).await;
     pause(cx).await;
     let before = handle.update(cx, |view, _, _| view.render_count).unwrap();
@@ -48,7 +48,7 @@ async fn idle(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>) {
 }
 
 #[track_caller]
-fn events(
+pub(super) fn events(
     cx: &mut gpui::AsyncApp,
     handle: WindowHandle<View>,
     transport: &Transport,
@@ -311,9 +311,25 @@ pub(super) async fn exercise(
     #[cfg(feature = "native-image-tests")]
     avatar_pixels(cx, handle);
     for child in [16, 17, 19, 21] {
+        focus(cx, handle, 5);
+        draw(cx, handle);
+        focused(cx, handle, 5);
         click(cx, handle, child);
         focused(cx, handle, 22);
         events(cx, handle, transport, false, Some(id(22)));
+        apply(
+            cx,
+            handle,
+            vec![Op::SetText(id(23), format!("Activated preview {child}"))],
+        );
+        frame(cx, handle).await;
+        focused(cx, handle, 22);
+        events(cx, handle, transport, true, None);
+        #[cfg(target_os = "macos")]
+        assert_eq!(
+            accessible(cx, handle, 22, AxAction::InspectFocus),
+            Some(true)
+        );
     }
     key(cx, handle, "tab");
     focused(cx, handle, 5);
@@ -381,6 +397,11 @@ pub(super) async fn exercise(
     super::super::native_test::mouse(cx, handle, center, false);
     draw(cx, handle);
     events(cx, handle, transport, true, None);
+    focus(cx, handle, 5);
+    draw(cx, handle);
+    click(cx, handle, 17);
+    focused(cx, handle, 5);
+    events(cx, handle, transport, false, None);
     apply(cx, handle, vec![Op::SetLink(id(22), config(22, 0))]);
     draw(cx, handle);
     events(cx, handle, transport, true, None);

@@ -248,12 +248,18 @@ The [composed-link design](../design/composed-links.md) records every builder
 mapping, validated configuration, transport fixture, native focus-order hazard
 and required implementation/validation phases. Native admission, view/reconciliation
 and focused macOS checks now pass. The public gallery covers eight theme/content/icon
-cases and 34 native activations, identity, Tab policy and scoped SVG disposal.
+cases plus image-backed avatar/image/loading content, 42 native activations,
+identity, Tab policy and scoped SVG disposal. Native checks also cover shared
+retired image leases, replacement pixels, inherited state styles/reset, motion
+geometry and disposal. The rich preview exposed a loading-child focus-entry
+defect; both a failing-before native regression and the final public walkthrough
+now pass after the renderer correction.
 The initial offscreen traversal defect now has measured native reveal and public
 viewport-containment checks, without manually scrolling successor links into view.
 Native coverage includes nested axes, fixed clips and range thumbs in a modal trap;
 see the [focus evidence](../evidence/focus-reveal-och41.md). Broader mixed native
-group ordering and content/style coverage remain open. No Link capability is advertised; both rows remain incomplete.
+group ordering, highlighting/style edge cases and release integration remain open.
+No Link capability is advertised; both rows remain incomplete.
 
 ## Remaining presentation modules
 

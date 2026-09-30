@@ -147,6 +147,7 @@ struct Interaction {
     pointer: bool,
     selectable: Option<bool>,
     selection_color: Option<gpui::Hsla>,
+    link_content: bool,
 }
 impl Default for Interaction {
     fn default() -> Self {
@@ -154,6 +155,7 @@ impl Default for Interaction {
             pointer: true,
             selectable: None,
             selection_color: None,
+            link_content: false,
         }
     }
 }
@@ -796,10 +798,15 @@ impl View {
                 .overflow_hidden()
                 .text_color(rgba(0x8b98abff))
                 .role(gpui::Role::ProgressIndicator)
-                .aria_label(config.label.clone())
-                .on_mouse_down(gpui::MouseButton::Left, |_, window, _| {
+                .aria_label(config.label.clone());
+            // A standalone indicator preserves existing focus. Inside a Link,
+            // let mouse-down reach the root's native focus behavior; cancelling
+            // it would activate the destination while leaving keyboard focus behind.
+            if !interaction.link_content {
+                element = element.on_mouse_down(gpui::MouseButton::Left, |_, window, _| {
                     window.prevent_default()
                 });
+            }
             if self.focus.borrow().visible(id) {
                 element = element.child(loading::indicator(
                     config,
@@ -1393,6 +1400,7 @@ impl View {
             let child_interaction = if node.kind == Kind::Link {
                 Interaction {
                     selectable: Some(false),
+                    link_content: true,
                     ..interaction
                 }
             } else {

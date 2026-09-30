@@ -37,8 +37,12 @@ let component app window palette graph =
   let reverse, toggle_reverse = B.toggle ~default_model:false graph in
   let detailed, toggle_detail = B.toggle ~default_model:true graph in
   let decorated, toggle_icon = B.toggle ~default_model:true graph in
-  let clicks, click =
-    B.state_machine0 ~default_model:0 ~apply_action:(fun _ n () -> n + 1) graph
+  let rich, toggle_rich = B.toggle ~default_model:false graph in
+  let activity, click =
+    B.state_machine0
+      ~default_model:(0, None)
+      ~apply_action:(fun _ (count, _) name -> count + 1, Some name)
+      graph
   in
   let open B.Let_syntax in
   let%arr p = palette
@@ -55,17 +59,20 @@ let component app window palette graph =
   and toggle_detail = toggle_detail
   and decorated = decorated
   and toggle_icon = toggle_icon
-  and clicks = clicks
+  and rich = rich
+  and toggle_rich = toggle_rich
+  and activity = activity
   and click = click in
   match resources with
   | Preview_scope.Loading -> Palette.text p "Preparing link preview…"
   | Failed error ->
     Palette.text p ("Link preview unavailable: " ^ Error.to_string_hum error)
   | Ready asset ->
+    let clicks, last_opened = activity in
     let checkbox label enabled toggle =
       V.checkbox ~state:(if enabled then Checked else Unchecked) ~on_toggle:toggle label
     in
-    let link ?(skip_tab = false) name subtitle order =
+    let link ?(skip_tab = false) ~preview name subtitle order =
       let index = if reverse then 40 - order else order in
       let config =
         Link.Config.create
@@ -77,9 +84,49 @@ let component app window palette graph =
         |> ok
       in
       let icon =
-        V.icon
-          ~style:(style [ Width (px 24.); Height (px 24.) ])
-          (Icon.Config.create ~asset ~description:Image.Description.decorative () |> ok)
+        if not rich
+        then
+          V.icon
+            ~style:(style [ Width (px 24.); Height (px 24.) ])
+            (Icon.Config.create ~asset ~description:Image.Description.decorative () |> ok)
+        else (
+          let preview_style = style [ Width (px 32.); Height (px 32.); Shrink 0. ] in
+          match preview with
+          | `Avatar ->
+            V.avatar
+              ~style:
+                (Style.merge
+                   [ preview_style
+                   ; style [ Background (Background.solid (Palette.accent p)) ]
+                   ])
+              (Avatar.Config.create
+                 ~asset
+                 ~fallback:(Avatar.Fallback.create "DG" |> ok)
+                 ~description:Image.Description.decorative
+                 ())
+          | `Image ->
+            V.image
+              ~style:
+                (Style.merge
+                   [ preview_style
+                   ; style
+                       [ Background (Background.solid (Palette.accent p))
+                       ; Padding (px 5.)
+                       ; Radius 8.
+                       ]
+                   ])
+              (Image.Config.create ~asset ~description:Image.Description.decorative ())
+          | `Loading ->
+            V.loading
+              ~style:preview_style
+              ~config:
+                (Loading.Config.create
+                   ~kind:Spinner
+                   ~label:"Updating release preview"
+                   ~animated:true
+                   ()
+                 |> ok)
+              ())
       in
       let content =
         V.column
@@ -101,7 +148,7 @@ let component app window palette graph =
              ; Border_color (Palette.border p)
              ])
         config
-        ~on_click:(fun () -> click ())
+        ~on_click:(fun () -> click name)
         [ V.row
             ~key:(Key.of_string_exn "content")
             ~style:(style [ Gap (px 16.); Align_items Center ])
@@ -128,15 +175,25 @@ let component app window palette graph =
           [ checkbox "Link descriptions" detailed toggle_detail
           ; checkbox "Link icons" decorated toggle_icon
           ; checkbox "Skip Release in Tab order" skip_release toggle_skip_release
+          ; checkbox "Rich link previews" rich toggle_rich
           ]
-      ; link "Design guide" "Principles, patterns, and a little inspiration · 世界" 10
-      ; link "API reference" "Small interfaces. Native possibilities." 30
+      ; link
+          ~preview:`Avatar
+          "Design guide"
+          "Principles, patterns, and a little inspiration · 世界"
+          10
+      ; link ~preview:`Image "API reference" "Small interfaces. Native possibilities." 30
       ; link
           ~skip_tab:skip_release
+          ~preview:`Loading
           "Release notes"
           "What changed, and what you can build next."
           20
       ; Palette.text p ~muted:true (sprintf "Link opens: %d" clicks)
+      ; Palette.text
+          p
+          ~muted:true
+          ("Last opened: " ^ Option.value last_opened ~default:"Choose a destination")
       ; Palette.text
           p
           ~muted:true

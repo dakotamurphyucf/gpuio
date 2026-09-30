@@ -3,6 +3,9 @@
 use super::*;
 use gpuio_protocol::link::Config;
 use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
+#[cfg(feature = "native-image-tests")]
+#[path = "link_asset_test.rs"]
+mod asset_test;
 #[path = "link_content_test.rs"]
 mod content_test;
 #[path = "link_nonstop_test.rs"]
@@ -100,6 +103,7 @@ fn click(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, slot: i64) {
 #[derive(Clone, Copy)]
 enum AxAction {
     Inspect,
+    InspectFocus,
     Focus,
     Press,
 }
@@ -146,6 +150,10 @@ fn accessible_named(
                 let enabled: Bool = msg_send![object, isAccessibilityEnabled];
                 match action {
                     AxAction::Inspect => (),
+                    AxAction::InspectFocus => {
+                        let focused: Bool = msg_send![object, isAccessibilityFocused];
+                        return Some(focused.as_bool());
+                    }
                     AxAction::Focus => {
                         let _: () = msg_send![object,setAccessibilityFocused:true];
                     }
@@ -465,6 +473,8 @@ async fn exercise(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, transport
     focused(cx, handle, 2);
     scroll_test::exercise(cx, handle, transport).await;
     content_test::exercise(cx, handle, transport).await;
+    #[cfg(feature = "native-image-tests")]
+    asset_test::exercise(cx, handle, transport).await;
     let mut remove = vec![Op::SetRoot(None)];
     remove.extend((6..=9).map(|slot| Op::Remove(id(slot))));
     remove.extend((0..=5).map(|slot| Op::Remove(id(slot))));
@@ -493,6 +503,8 @@ pub(crate) fn run() {
     gpui_platform::application().run(move |cx| {
         cx.set_quit_mode(gpui::QuitMode::Explicit);
         gpui_base::init(cx);
+        #[cfg(feature = "native-image-tests")]
+        crate::image_host::init(cx);
         let motion_watch = crate::motion_preference::init(cx);
         let session = Rc::new(RefCell::new(Session::default()));
         session.borrow_mut().hello(VERSION, CAPABILITIES).unwrap();
@@ -521,6 +533,8 @@ pub(crate) fn run() {
             let result = native_test::protect(exercise(cx, handle, &transport)).await;
             *task_failure.borrow_mut() = result.err();
             motion_watch.borrow_mut().take();
+            #[cfg(feature = "native-image-tests")]
+            crate::image_host::shutdown(cx).await;
             let _ = handle.update(cx, |_, window, _| window.remove_window());
             cx.update(stop_application);
         })

@@ -204,10 +204,9 @@ The macOS `native_link` run with `native-image-tests` passes:
 
 This uses GPUI-dispatched pointer/keyboard input in a foreground macOS window,
 direct AppKit accessibility actions and actual GPU readback. It is not VoiceOver,
-physical keyboard/IME, Linux GUI or release performance acceptance. Image-backed
-avatars/images, broader style refinements and mixed native group ordering remain
-separate from this fallback/motion fixture. No production code or dependency was
-changed for these checks, and no Link capability bit is advertised yet.
+physical keyboard/IME, Linux GUI or release performance acceptance. No production
+code or dependency was changed in that checkpoint (`05f9e0c`). The following
+image/style work identified a focus gap in that test's initial conditions.
 
 Reproduction in the isolated checkout:
 
@@ -220,6 +219,60 @@ GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy -p gpuio-native -p gpuio-protocol
 Fresh consumer/release checks and remaining content/style/group acceptance remain
 open. Native in-flight pointer fencing and Core queued stale-event rejection now
 have separate evidence; neither alone implies every pending native action path.
+
+### Image composition and loading-child focus
+
+The added native image fixture mounts an Image and Avatar from one encoded PNM
+source, retires its registration before the first paint, and checks actual GPU
+pixels. Replacing the shared source changes both interiors while retaining the
+link's native focus handle. Measured foreground colors cover root/text inheritance
+through base/hover/pressed/focused/disabled states, an explicit avatar override,
+and removal of all state refinements. Replacement followed by unmount before the
+next paint retires both image owners and all encoded-source charges. Raw events
+remain limited to the root action and transaction paint acknowledgements; the
+window becomes idle afterward. This does not simulate a deliberately delayed
+decoder completion or assert that every decoded cache entry is immediately evicted.
+
+The public rich-preview walkthrough exposed a real focus defect: clicking a
+loading child activated its Link but left focus on the previous destination, so
+Return then activated that previous link. Loading's standalone mouse-down handler
+called `prevent_default`, suppressing the parent's ordinary focus behavior.
+Rendering now carries explicit Link-content context through passive descendants
+and lets loading mouse-down reach that root. Standalone indicators keep their
+existing focus-preserving behavior; disabled Link routing still rejects focus
+and actions. No protocol change or fork patch is needed.
+
+The regression starts with a different ordinary button focused before **each**
+passive-child click, then checks native focus, a simulated application text update,
+and AppKit AX focus. It failed before the renderer change and passes afterward,
+including a disabled root's loading child. The earlier sequential child-click
+fixture already had the root focused after clicking the avatar; that was
+insufficient to establish loading-child focus entry. The native presentation
+suite also passes loading cycles/idle/minimize and existing rating/AX behavior.
+
+The gallery now offers `Rich link previews` and `Last opened` feedback using only
+public OCaml APIs. The latter lets automation verify the destination in addition
+to the shared counter. Image-backed Avatar, Image and Loading replace the SVG
+icons while preserving link identity; their assets remain scoped to the page.
+The final local macOS walkthrough passes eight theme/content/icon cases plus the
+three rich previews, **42 pointer/Return/Space/AX actions**, signed Tab policy and
+viewport reveal, disabled recovery, root identity and zero image/source counts
+after departure. Rich content stays enabled through departure so the cleanup
+check includes the loading and image-backed branches. The rich-preview screenshot
+was inspected. This is external AppKit automation, distinct from native fixtures'
+GPUI-dispatched input. No Link capability bit or whole-family/release acceptance
+is implied by this checkpoint.
+
+Local validation for this renderer/gallery checkpoint: `native_link` and
+`native_presentation` with `native-image-tests`; full isolated Dune
+`@all @runtest @fmt`, followed by a gallery build/format check after its final
+cosmetic adjustment; native/protocol all-target Clippy with `-D warnings`;
+catalog source audit and Python parsing. Rust library tests pass 400 native tests
+(two private-bus tests require the separate isolated-bus invocation) and 37 protocol
+unit tests. The gallery command was
+`python3 scripts/test_gallery.py --section links --images <local-artifact-directory>`.
+All GUI processes were reaped. These commands used the pinned repository toolchain
+on macOS 14.5 arm64; required Linux CI and full release gates remain separate.
 
 ## Full implementation and acceptance contract
 
