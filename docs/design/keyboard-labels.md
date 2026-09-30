@@ -5,8 +5,9 @@ pure display portion of the pinned [Kbd source](../catalog/sources/component-kbd
 (gpui-kit `84f57fdfcb4910623fb0bb7f795b077e249f9271`). `Command.shortcuts` exposes
 ordered declarations for display. The legacy string-list `shortcut_label` remains
 unchanged. This is **partial source coverage**: effective native action/context/
-focus binding lookup now has a mounted observer with public gallery/consumer
-evidence; broader native acceptance remains required OCH-41 work.
+focus binding lookup now has a mounted observer with public gallery/consumer and
+expanded native context/lifetime/workload evidence. The Kbd source row is locally
+a functional equivalent; consolidated catalog and release gates remain open.
 
 ```ocaml
 let shortcut =
@@ -148,6 +149,11 @@ are observational data only; registration remains single-chord.
 The [native observation contract and evidence](command-binding-observations.md)
 records the contexts, suppression states, lifecycle, limits and scoped macOS
 validation. Public gallery and installed-consumer examples pass 20 scoped live
-binding/name/identity cases and actual OS Copy/command invocation. Broader native
-nested/modal/retained-row/window/workload matrices remain required. Keep the Kbd
-source row partial until that acceptance is complete.
+binding/name/identity cases and actual OS Copy/command invocation. Native
+nested/modal/retained-row/window/workload matrices also pass. The source row is
+locally a functional equivalent with deliberate interface differences: application
+actions use typed command IDs; native actions are the six supported edit actions;
+specific focus is an editor lease, not a borrowed Rust FocusHandle. Samples are
+asynchronous, and native sequences retain every stroke instead of only the first.
+Arbitrary Rust Action objects and focus handles are not transported into OCaml.
+This does not establish whole-release, VoiceOver, OS IME or Linux GUI acceptance.

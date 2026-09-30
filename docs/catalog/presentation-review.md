@@ -301,8 +301,10 @@ hosted CI, performance or clean-machine distribution acceptance.
 The other presentation modules have a
 [pinned source and behavior review](presentation-gaps.md), including nested
 settings fields. Empty, Separator, Attachment, Marker, Alert, Tag, Bubble, Message
-and Description have explicit local functional-equivalent evidence; Kbd and
-Settings remain open.
+and Description have explicit local functional-equivalent evidence. Kbd now also
+has [typed-display and binding-observer evidence](../design/keyboard-labels.md),
+including public installed-consumer and expanded native lifetime/context cases.
+Settings remains open.
 Source review alone does not establish functional equivalence. Prior OCH-33 evidence
 still applies only to the APIs it actually tests. Other catalog families,
 consumer/CI/distribution checks and the complete OCH-17 scope remain open.

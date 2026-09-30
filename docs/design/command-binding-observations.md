@@ -6,8 +6,10 @@ macOS test passes actual widget-keymap lookup, composition-driven changes withou
 a retained-tree update, configuration/epoch replacement, coalescing, visibility
 recovery and retirement. The public gallery now demonstrates the observer and
 passes scoped macOS input/lifecycle checks in both the repository and a fresh
-installed-library consumer; wider native matrices and the
-catalog/release gates remain open. This is not full Kbd or milestone acceptance.
+installed-library consumer. The expanded native context, row, workload and window
+matrices also pass. Together with the typed-display evidence, this establishes a
+local functional equivalent for the Kbd source row. Whole-catalog/release gates
+remain open.
 
 ## Public interface
 
@@ -237,12 +239,44 @@ The native test uses a bounded process-group watchdog and closes its window on
 success or assertion failure. Required macOS CI now includes it; hosted results
 are not implied by these local checks.
 
-Broader native matrices
-(nested/modal/retained-row/independent-window/workload cases), consolidated catalog
-acceptance and all OCH-17 macOS release gates remain required. Linux build/unit/
+Consolidated catalog acceptance and all OCH-17 macOS release gates remain required. Linux build/unit/
 private-bus/consumer checks remain required; full Linux desktop qualification is
-still deferred to OCH-47. Do not mark Kbd, OCH-41 or milestone 07 complete from this
-checkpoint.
+still deferred to OCH-47. The local Kbd source mapping does not complete OCH-41 or
+milestone 07.
+
+### Expanded native matrix — 2026-09-30
+
+The same `native_command_binding` target now additionally passes:
+
+- A nearer disabled or unbound command shadows the same outer ID. A different
+  disabled/enabled command reserves its chord within a phase. A failed Override
+  permits NativeFirst; a successful competing Override suppresses it. Post-paint
+  observations are checked against the production dispatcher on the same tree.
+- A trapping native focus scope moves focus to its button, changes the effective
+  registry path, and restores the original editor/conflict on removal. The editor
+  retains its focus handle throughout registry insertion/removal and modal use.
+- A sparse 1,000-row managed list renders observers in the first and last rows.
+  Scrolling suspends the unrendered row and recovers its original subscription
+  with a higher epoch. Eviction prunes queued observations before delivery.
+- A valid registry of 1,024 commands with four distinct shortcuts each and a
+  64-target query reaches the work limit and reports Capacity. Forced unchanged
+  frames remain silent. Reducing the registry recovers Ready, with true missing
+  entries distinguished from the surviving command's four candidates.
+- Two real windows share one session/mailbox and reuse identical node/handler IDs.
+  Their values and epochs remain independent. Closing a window prunes its queued
+  samples without losing the survivor's; reopening its slot with a new window
+  generation starts a fresh epoch and does not revive old output.
+
+All four fixture markers pass and the process exits successfully under the local
+120-second watchdog. Auxiliary windows open without requesting foreground focus;
+the first fixture window exercises actual GPUI focus. Dispatcher calls are native
+test injection, not additional physical OS-keyboard evidence. The public gallery
+provides the separate OS shortcut/clipboard checks below. No production fix or
+dependency/fork change was needed for these matrices. Final strict native Clippy
+(`--all-targets --features native-tests --locked -- -D warnings`), workspace
+rustfmt and the structural catalog audit pass. The previously passing full Dune,
+protocol and native unit results remain separate evidence for unchanged code;
+this checkpoint adds native fixture coverage and documentation only.
 
 ## Public gallery
 

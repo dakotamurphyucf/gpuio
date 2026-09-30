@@ -13,22 +13,25 @@ coalescing, visibility recovery and cleanup. Core and native admission/lifecycle
 checks pass, and Bonsai tests preserve child state while fencing stale observation
 effects. The public gallery and a fresh installed-library consumer now pass
 20 live binding/name/identity cases, actual OS Copy and command invocation,
-query/config/page retirement and unchanged-epoch silence. Broader native matrices
-remain required; Kbd parity and release acceptance are still incomplete.
+query/config/page retirement and unchanged-epoch silence. Expanded native matrices
+pass nested shadowing/phase precedence, modal focus/restoration, sparse retained-row
+suspension/eviction, bounded-work recovery and independent-window close/reuse.
+The Kbd source row is locally a functional equivalent; Settings, the remaining
+catalog reviews and release gates are still open.
 
 [Typed keyboard labels](design/keyboard-labels.md) now format validated shortcuts
 for macOS/Linux, supply spoken names and filled/outline/plain keycaps, and expose
 ordered command declarations. Core/full Dune and a fresh installed consumer pass
 native geometry, GPU appearance, identity and explicit registration/disabled/routing
 checks. Effective native focus/context lookup is now implemented with scoped native
-and public gallery/consumer evidence above; wider acceptance work remains.
+and public gallery/consumer evidence above; whole-release acceptance work remains.
 
 The [rich Description list](design/description-lists.md) now provides validated
 column/span packing, rich term/value slots, both axes, label widths, sizes, borders
 and separators while preserving keyed native children. Four Core tests and full
 Dune pass; repository and fresh installed-consumer checks pass 75 layout/semantic
 order cases, 34 GPU cases, OS actions, draft/control retention and slot/page
-retirement. The source row is locally a functional equivalent. Kbd, Settings,
+retirement. The source row is locally a functional equivalent. Settings,
 other catalog reviews and OCH-17 release gates remain open.
 
 The [rich Bubble/Message adapters](design/chat-composition.md) now provide typed
@@ -39,7 +42,7 @@ cleanup. The managed transcript exposed a list/ancestor double-scroll defect;
 its [repair](evidence/scrolling-och11.md#milestone-07-managed-list-inside-an-ordinary-scroller)
 passes failing-before/native and actual desktop regressions. Native list history,
 selection/editor lifetimes, strict Clippy and 413 unit tests pass. The two source
-rows are locally functional equivalents; Kbd, Settings and the wider
+rows are locally functional equivalents; Settings and the wider
 catalog/release gates remain open.
 
 The [rich Tag adapter](design/presentation-tags.md) now supplies direct rich
@@ -63,7 +66,7 @@ loading. Core validation/style/identity checks and the focused macOS gallery pas
 A fresh installed consumer passes 18 theme/variant/icon cases and 21 OS keyboard
 actions, GPU text/rich/static paint, opacity refinement, reduced-motion recovery
 and page/slot retirement. The source row is locally a functional equivalent;
-Kbd and Settings remain in the presentation review, alongside other
+Settings remains in the presentation review, alongside other
 catalog and OCH-17 release gates; Bubble/Message evidence is recorded above.
 
 Native [animation opacity factors](design/animation-opacity-factor.md) now supply
@@ -200,7 +203,7 @@ gates and the other presentation modules remain open.
 The remaining presentation modules have a
 [pinned behavior/gap review](catalog/presentation-gaps.md), including nested settings
 fields. These implementation plans and source snapshots do not mark the families
-accepted; broader native binding-observer acceptance and settings composition
+accepted; settings composition
 remain, alongside the other catalog reviews.
 The [ordinary text-span API](design/text-content.md) now supplies bounded
 foreground runs through atomic bridge updates and View/Bonsai reconciliation.

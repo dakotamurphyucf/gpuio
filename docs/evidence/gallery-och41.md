@@ -37,8 +37,10 @@ The [observer contract](../design/command-binding-observations.md#public-gallery
 records exact commands and remaining acceptance. Both bounded GUI processes
 exit successfully and are reaped. Full Dune build/tests/format and the structural
 catalog audit pass. This section is wired into `core`/`all`; a fresh combined
-gallery run, broader native context/lifetime/workload matrices, hosted CI and
-OCH-17 release qualification remain separate. Kbd is still partial.
+gallery run, hosted CI and OCH-17 release qualification remain separate. The
+subsequent [expanded native matrix](../design/command-binding-observations.md#expanded-native-matrix--2026-09-30)
+also passes nested/modal contexts, retained rows, workload limits and independent
+windows. Together these establish local functional equivalence for the Kbd row.
 
 ## Rich tags — focused checkpoint, 2026-09-30
 

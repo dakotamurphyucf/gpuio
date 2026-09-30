@@ -1,5 +1,11 @@
 //! Actual-window query routing, child-only changes, coalescing and retirement.
 use super::*;
+#[path = "command_binding_context_test.rs"]
+mod contexts;
+#[path = "command_binding_retention_test.rs"]
+mod retention;
+#[path = "command_binding_windows_test.rs"]
+mod windows;
 use gpuio_protocol::{HandlerId, command_binding as binding};
 use std::{
     os::fd::{AsRawFd, FromRawFd, OwnedFd},
@@ -61,6 +67,7 @@ fn apply(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, operations: Vec<Op
                 })
                 .unwrap();
             view.update_editors(&applied.dirty, window, cx);
+            view.list_actions(&applied.lists, window, cx);
             cx.notify();
         })
         .unwrap();
@@ -295,6 +302,9 @@ async fn exercise(cx: &mut gpui::AsyncApp, window: WindowHandle<View>, transport
         registry(&observations(transport)[&node(3)]),
         binding::Disposition::Override
     );
+    contexts::exercise(cx, window, transport).await;
+    retention::exercise(cx, window, transport).await;
+    windows::exercise(cx, window, transport).await;
     apply(
         cx,
         window,

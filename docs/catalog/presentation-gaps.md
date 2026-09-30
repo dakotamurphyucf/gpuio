@@ -119,8 +119,12 @@ displays the native domain without expanding registration. The
 [observation contract](../design/command-binding-observations.md) records shared
 resolution, widget keymap lookup and scoped native/lifecycle evidence. The
 public gallery and installed-consumer examples pass 20 scoped live-binding cases,
-OS Copy and command invocation, identity and retirement. The source row remains
-**partial** pending broader native context/lifetime/workload acceptance.
+OS Copy and command invocation, identity and retirement. Expanded native cases
+also pass nested ID/chord shadowing, cross-phase precedence, modal focus/restoration,
+sparse retained-row suspension/eviction, capacity/recovery and independent-window
+close/generation reuse. The source row is a **local functional equivalent** within
+the [typed action/focus contract](../design/keyboard-labels.md#native-binding-observations);
+consolidated catalog and release gates remain separate.
 
 ## Loading markers
 
@@ -179,8 +183,9 @@ responsive resizing, focus reveal and application persistence failures.
 Composed Link, shared dashed borders and Empty/Separator composition now have
 scoped native and installed-consumer evidence, as do shared text shimmer and the
 rich Attachment/Marker, Alert, Tag, Bubble/Message and Description adapters.
-Remaining presentation modules are Kbd and Settings: broader native
-binding-observer acceptance and settings composition.
+Typed Kbd display and native binding observations also have scoped native and
+installed-consumer evidence. Settings composition remains in this presentation
+review.
 Each family needs public gallery examples and meaningful native acceptance before
 its ledger status changes. Reuse ordinary views where possible; introduce native
 state or protocol operations only for concrete missing behavior.
