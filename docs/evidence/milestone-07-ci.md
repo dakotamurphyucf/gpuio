@@ -128,6 +128,35 @@ separate deliberate-failure cleanup check. This accommodates the observed hosted
 throughput; it is not a release latency or memory budget. Named-hardware
 performance and a completed hosted traversal remain required.
 
+## Completed local full-history rerun
+
+`GPUIO_JOBS=2 python3 scripts/test_table_history.py` completed successfully on the
+local M1 Max/macOS 14.5 machine. The full traversal executable was built at the
+`e54d279` checkpoint, before subsequent grid-placement work began.
+
+| Measurement | Result |
+| --- | ---: |
+| Logical rows / traversals / visits | 100,000 / 2 / 200,000 |
+| Active rows / cells | at most 128 / 512 |
+| Peak retired text payloads retained at batch checks | 0 |
+| Retired text after unmount | 0 |
+| Baseline / peak admission accounting | 19,200,689 / 19,659,441 bytes |
+| Peak mounted accounting above baseline | 458,752 bytes |
+| Initial / final process peak RSS | 80,150,528 / 249,806,848 bytes |
+| Traversal duration | 809.3 seconds |
+
+The window-release marker passed. The runner's separate deliberate-failure
+invocation rebuilt while local grid-placement protocol work was in progress;
+it produced the expected assertion, cleanup and verified-failure-exit markers,
+and the parent runner exited zero. That short cleanup run is evidence for the
+newer working tree's failure path; the complete traversal metrics above apply
+to the pre-grid executable. Both child processes exited and were reaped.
+
+This hidden-window debug workload exercises actual retained layout and ownership.
+It does not establish physical input-to-paint latency, a named release performance
+budget, or complete traversal on the hosted runner. The 1,800-second limit is a
+bounded test execution allowance, not a frame-time requirement.
+
 ## Remaining validation
 
 The public date-picker failure is still unreproduced locally: both its original
