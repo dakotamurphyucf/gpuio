@@ -837,6 +837,164 @@ val bubble
   -> 'action View.t
   -> 'action View.t
 
+module Alignment : sig
+  type t =
+    | Start
+    | End
+  [@@deriving equal, sexp_of]
+end
+
+module Bubble : sig
+  module Variant : sig
+    type t =
+      | Filled
+      | Secondary
+      | Muted
+      | Tinted
+      | Outline
+      | Ghost
+      | Destructive
+    [@@deriving equal, sexp_of]
+  end
+
+  module Reactions : sig
+    module Side : sig
+      type t =
+        | Top
+        | Bottom
+      [@@deriving equal, sexp_of]
+    end
+
+    module Item : sig
+      type 'action t
+
+      (** Ordinary native button, with full pill radius applied after [style].
+          Name validation/queued actions are the same as [View.button]. Typed
+          actions suppress the wrapper's decorative padding. *)
+      val action
+        :  key:Key.t
+        -> ?style:Style.t
+        -> ?accessible_name:string
+        -> ?disabled:bool
+        -> ?leading_icon:Icon.Decoration.t
+        -> ?trailing_icon:Icon.Decoration.t
+        -> on_click:(unit -> 'action)
+        -> string
+        -> 'action t
+
+      (** Direct arbitrary child; retains its styling, even if it is a button. *)
+      val element : key:Key.t -> 'action View.t -> 'action t
+    end
+
+    type 'action t
+
+    (** Rejects duplicate item keys. Default Bottom/End, absolute offset -20px,
+        side inset 12px, 3px surface-colored border and rounded wrapper. Any typed
+        action removes the default 6px/2px decorative padding. Style refines wrapper
+        defaults. Changing side/alignment retains surviving native controls. *)
+    val create
+      :  ?style:Style.t
+      -> ?side:Side.t
+      -> ?alignment:Alignment.t
+      -> 'action Item.t list
+      -> 'action t Or_error.t
+  end
+
+  type 'action t
+
+  (** Stateless descriptor retaining authoritative variant metadata for Message.
+      Default Filled; root max width 80%, Ghost width/max width 100%. Optional
+      alignment sets self alignment and opposite auto margin; omission leaves
+      parent alignment in charge. [style] refines root layout, [content_style] the
+      separate visible surface. Ghost removes surface padding/border/radius.
+
+      Reactions sit outside normal layout and do not enlarge measured row height.
+      Reserve margin/row spacing for them; ancestor clipping still applies. This
+      helper owns no application tasks, models or timers. *)
+  val create
+    :  Appearance.t
+    -> ?key:Key.t
+    -> ?style:Style.t
+    -> ?content_style:Style.t
+    -> ?variant:Variant.t
+    -> ?alignment:Alignment.t
+    -> ?reactions:'action Reactions.t
+    -> 'action View.t list
+    -> 'action t
+
+  val variant : 'action t -> Variant.t
+  val view : 'action t -> 'action View.t
+
+  (** Annotate the root without losing variant metadata used by Message. Uses
+      [View.with_accessibility]'s validation; keys, styles and children are retained. *)
+  val with_accessibility : 'action t -> Accessibility.t -> 'action t Or_error.t
+
+  val group : ?key:Key.t -> ?style:Style.t -> 'action View.t list -> 'action View.t
+end
+
+module Message : sig
+  module Avatar : sig
+    type 'action t
+
+    (** Minimum width 32px, rounded/clipped surface, bottom aligned. Height follows
+        content; supplied styles may set a custom size. *)
+    val create : ?style:Style.t -> 'action View.t list -> 'action t
+  end
+
+  module Header : sig
+    type 'action t
+
+    (** Horizontal content inset defaults to 12px unless the content contains a
+        typed Ghost bubble. An explicit Boolean overrides that inherited policy. *)
+    val create : ?style:Style.t -> ?content_inset:bool -> 'action View.t list -> 'action t
+  end
+
+  module Content : sig
+    module Item : sig
+      type 'action t
+
+      val bubble : key:Key.t -> 'action Bubble.t -> 'action t
+      val element : key:Key.t -> 'action View.t -> 'action t
+    end
+
+    type 'action t
+
+    (** Rejects duplicate keys. Typed bubbles contribute Ghost metadata; arbitrary
+        views do not. Message aligns the column's children without changing any
+        bubble's own explicit alignment. *)
+    val create : ?style:Style.t -> 'action Item.t list -> 'action t Or_error.t
+  end
+
+  module Footer : sig
+    type 'action t
+
+    (** Same content-inset inheritance as Header. Footer stays outside the avatar/
+        body row. Default avatar-column margin is 40px; footer styles refine this
+        last so a custom avatar width can supply the matching margin. *)
+    val create : ?style:Style.t -> ?content_inset:bool -> 'action View.t list -> 'action t
+  end
+
+  (** Optional named slots with stable native parents. Default Start; End reverses
+      the avatar/body row. Avatar bottom aligns with the header/content stack;
+      footer growth does not move that row's bottom edge. Root and stack styles
+      refine layout independently. No role/live region/focus stop is added;
+      supplied views retain ordinary semantics and caller-owned state. *)
+  val create
+    :  Appearance.t
+    -> ?key:Key.t
+    -> ?style:Style.t
+    -> ?stack_style:Style.t
+    -> ?alignment:Alignment.t
+    -> ?avatar:'action Avatar.t
+    -> ?header:'action Header.t
+    -> ?content:'action Content.t
+    -> ?footer:'action Footer.t
+    -> unit
+    -> 'action View.t
+
+  val group : ?key:Key.t -> ?style:Style.t -> 'action View.t list -> 'action View.t
+end
+
 val tool_result
   :  Appearance.t
   -> ?key:Key.t

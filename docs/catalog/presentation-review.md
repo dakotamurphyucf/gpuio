@@ -300,9 +300,9 @@ hosted CI, performance or clean-machine distribution acceptance.
 
 The other presentation modules have a
 [pinned source and behavior review](presentation-gaps.md), including nested
-settings fields. Empty, Separator, Attachment, Marker, Alert and Tag have explicit local
-functional-equivalent evidence; the ledger distinguishes them from the remaining
-Bubble, Message, Description, Kbd and Settings gaps.
+settings fields. Empty, Separator, Attachment, Marker, Alert, Tag, Bubble and Message
+have explicit local functional-equivalent evidence; Description, Kbd and Settings
+remain open.
 Source review alone does not establish functional equivalence. Prior OCH-33 evidence
 still applies only to the APIs it actually tests. Other catalog families,
 consumer/CI/distribution checks and the complete OCH-17 scope remain open.
@@ -499,3 +499,27 @@ rich-control-only/empty content, 30 OS Return/Space actions and slot/page retire
 Caller state survives native remount. This accepts the local macOS source row;
 whole-family, hosted/platform, accessibility, performance and distribution gates
 remain open.
+
+## Bubble and Message: functional equivalents
+
+`Presentation.Bubble` is a typed descriptor with seven surfaces, independent root/
+content styling, optional alignment and typed/arbitrary reactions. Its validated
+accessibility setter preserves the Ghost metadata used by
+`Presentation.Message.Content.Item.bubble`. Message provides optional independently
+styled Avatar/Header/Content/Footer, reversed end alignment, a footer outside the
+body row and predictable inherited/explicit insets. Neither composition owns
+conversation state, native editors, document sources or tasks.
+
+The [contract and evidence](../design/chat-composition.md) documents source mapping,
+explicit Appearance palettes, separate root/surface boxes and measured spacing for
+absolute reactions. Five Core tests cover validation, metadata, all optional slots,
+style refinement, retained callbacks and retirement. A fresh installed macOS
+consumer passes 28 layouts, fourteen GPU surface cases, 72 body/reaction actions,
+editor value/focus retention, streaming Markdown/code and slot/page cleanup.
+Its bounded 100-message managed transcript additionally checks monotonic growth,
+stationary draft, paused history, offscreen updates, reaction hit areas/spacing,
+sixteen one-pixel wheel events and warm identity. A native propagation defect found
+by that sequence has a focused failing-before regression and a passing repair.
+Native list selection/editor/full-history regression checks still pass. This is
+scoped macOS functional equivalence, with broader accessibility, platform,
+performance, distribution and release gates open.

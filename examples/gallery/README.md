@@ -29,6 +29,18 @@ motion. Its focused normal-launch and installed-consumer checks pass on macOS:
 `python3 scripts/test_gallery.py --section shimmer`. See the exact coverage and
 remaining release gates in [the shimmer contract](../../docs/design/text-shimmer.md).
 
+The **Room for a conversation** card previews the new typed `Presentation.Bubble`
+and `Presentation.Message` compositions: optional slots, Ghost spacing, independent
+alignment, native reaction buttons, an editor and bounded streaming Markdown/code.
+Run `python3 scripts/test_gallery.py --section chat-composition` for the focused
+walkthrough. The **A conversation in motion** card puts these compositions in a
+100-message managed transcript with a 12-row bound, explicit reaction spacing,
+a scoped streaming document and an outside draft. Use `--section chat-list` for
+streaming/history, nested scrolling and cleanup checks. See the exact evidence
+and remaining release gates in the [contract](../../docs/design/chat-composition.md).
+Both sections are also invoked by `core` and `all`; the expanded combined run
+remains a consolidated release check.
+
 The **Small details, useful actions** card uses `Presentation.Tag` for rich
 content, semantic/custom palettes, outline, sizes, rounded corners and native
 hover refinement. Remove the label to keep a control-only tag, reorder children,

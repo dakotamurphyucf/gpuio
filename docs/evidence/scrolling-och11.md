@@ -159,6 +159,8 @@ stream samples with no downward rebound and a stationary outside draft, preserve
 paused history during offscreen document appends, activates an out-of-flow reaction
 inside reserved row space, restores the current document after jumping to latest,
 and observes zero source bytes after page departure. These samples describe the
-bounded fixture, not frame pacing or a general performance guarantee. Final
-installed-consumer and consolidated hosted gates remain open. Linux GUI and
-physical-trackpad acceptance remain separate.
+bounded fixture, not frame pacing or a general performance guarantee. A fresh
+installed-library consumer also passes the same sequence, explicitly checks the
+twelve-row bound and offscreen document absence, and records 85 stable stream
+samples in its final run; see [chat composition](../design/chat-composition.md).
+Consolidated hosted gates, Linux GUI and physical-trackpad acceptance remain separate.

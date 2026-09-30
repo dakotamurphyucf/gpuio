@@ -61,30 +61,25 @@ reduced motion, page teardown and image/source release. Application task
 cancellation stays caller-owned; aggregate performance/resource acceptance is
 still a release gate.
 
-[Bubble](sources/component-bubble.rs.txt) provides
-Filled/Secondary/Muted/Tinted/Outline/Ghost/Destructive surfaces, optional start/end
-alignment, separate content/reaction slots and groups. Ordinary bubbles default
-to 80% maximum width; Ghost uses full width with no surface padding/border/radius.
-Reactions attach outside top/bottom using a fixed 1.25rem offset, with start/end
-placement. Typed buttons get rounded treatment and suppress decorative wrapper
-padding; arbitrary elements retain their styles. The current single-column helper
-needs variant and reaction composition. Test reaction hit areas, keyboard/AX,
-ancestor clipping and managed-row measurement, particularly while streaming.
+[Bubble](sources/component-bubble.rs.txt) and
+[Message](sources/component-message.rs.txt) now have locally validated functional
+equivalents in `Presentation.Bubble` and `Presentation.Message`, retaining the
+legacy helpers. The [contract and acceptance](../design/chat-composition.md)
+records seven surfaces, independent root/content alignment and styles, typed
+reactions, optional message slots, Ghost inset metadata and caller-owned resources.
+Root and explicitly aligned surface bounds are distinct; reactions anchor to the
+root, and callers reserve measured space for their out-of-flow controls.
 
-[Message](sources/component-message.rs.txt) supports independently styled optional
-avatar/header/content/footer, root/stack styling and start/end alignment. The
-avatar bottom-aligns with the header/content row; footer is outside that row with
-an avatar-column inset. End reverses the row. Typed bubble insertion records Ghost
-metadata to choose inherited header/footer inset defaults; arbitrary children do
-not. Content alignment aligns its column's children; it does not rewrite each
-Bubble's own alignment property. The current required-author helper puts avatar
-in its header and cannot express this geometry by root style alone.
-
-Draft a rich message composition contract while retaining the simple helper.
-Explicit slot/inset overrides must remain predictable. Test absent slots, mixed
-bubbles, large Markdown/code, footer growth, selection and streaming in managed
-rows. Native input ownership and row identity must survive these layout updates;
-the existing scroll-jitter fixes are required regressions.
+Core tests, the public macOS gallery and a fresh installed consumer cover 28
+layout cases, fourteen GPU surfaces, 72 control actions, editor identity/focus,
+streaming, clipping, slot/page retirement and zero source bytes after departure.
+A 100-message managed preview covers bounded rows, monotonic streamed growth,
+stationary draft, paused-history updates, reaction spacing, sixteen one-pixel OS
+wheel events and warm identity. It exposed and helped repair a native list/parent
+double-scroll defect, with failing-before native and passing native/public tests.
+The broader native list regression still passes selection/editor lifetimes and
+two 100,000-row traversals. Full accessibility, performance and release gates
+remain open; this does not establish Linux GUI or clean-machine distribution.
 
 ## Structured descriptions
 

@@ -2186,6 +2186,453 @@ let bubble
     [ content ]
 ;;
 
+module Alignment = struct
+  type t =
+    | Start
+    | End
+  [@@deriving equal, sexp_of]
+
+  let style = function
+    | Start -> Style.Align.Start
+    | End -> End
+  ;;
+end
+
+let validate_chat_keys keys =
+  match List.find_a_dup keys ~compare:Key.compare with
+  | None -> Ok ()
+  | Some key -> Or_error.errorf "duplicate chat item key: %s" (Key.to_string key)
+;;
+
+module Bubble = struct
+  module Variant = struct
+    type t =
+      | Filled
+      | Secondary
+      | Muted
+      | Tinted
+      | Outline
+      | Ghost
+      | Destructive
+    [@@deriving equal, sexp_of]
+  end
+
+  module Reactions = struct
+    module Side = struct
+      type t =
+        | Top
+        | Bottom
+      [@@deriving equal, sexp_of]
+    end
+
+    module Item = struct
+      type 'action t =
+        { key : Key.t
+        ; is_action : bool
+        ; view : 'action View.t
+        }
+
+      let action
+            ~key
+            ?style:(custom = Style.empty)
+            ?accessible_name
+            ?disabled
+            ?leading_icon
+            ?trailing_icon
+            ~on_click
+            text
+        =
+        let view =
+          View.button
+            ~key
+            ~style:(Style.merge [ custom; style [ Radius 999. ] ])
+            ?accessible_name
+            ?disabled
+            ?leading_icon
+            ?trailing_icon
+            ~on_click
+            text
+        in
+        { key; is_action = true; view }
+      ;;
+
+      let element ~key view = { key; is_action = false; view = View.with_key view key }
+    end
+
+    type 'action t =
+      { style : Style.t
+      ; side : Side.t
+      ; alignment : Alignment.t
+      ; items : 'action Item.t list
+      }
+
+    let create
+          ?(style = Style.empty)
+          ?(side = Side.Bottom)
+          ?(alignment = Alignment.End)
+          items
+      =
+      Or_error.map
+        (validate_chat_keys (List.map items ~f:(fun t -> t.Item.key)))
+        ~f:(fun () -> { style; side; alignment; items })
+    ;;
+
+    let view t (p : Appearance.t) =
+      let has_action = List.exists t.items ~f:(fun t -> t.Item.is_action) in
+      let edge =
+        match t.side with
+        | Top -> Top (px (-20.))
+        | Bottom -> Bottom (px (-20.))
+      in
+      let inset =
+        match t.alignment with
+        | Start -> Left (px 12.)
+        | End -> Right (px 12.)
+      in
+      View.row
+        ~key:(internal_key "reactions")
+        ~style:
+          (Style.merge
+             [ style
+                 ([ Position Absolute
+                  ; Grow 0.
+                  ; Shrink 0.
+                  ; Align_items Center
+                  ; Justify_content Center
+                  ; Gap (px 4.)
+                  ; Radius 999.
+                  ; Border_width 3.
+                  ; Border_color p.surface
+                  ; Background (solid p.raised)
+                  ; Foreground p.foreground
+                  ; Font_size 14.
+                  ; Line_height (Length.percent_exn 125.)
+                  ; edge
+                  ; inset
+                  ]
+                  @
+                  if has_action
+                  then []
+                  else
+                    [ Padding_left (px 6.)
+                    ; Padding_right (px 6.)
+                    ; Padding_top (px 2.)
+                    ; Padding_bottom (px 2.)
+                    ])
+             ; t.style
+             ])
+        (List.map t.items ~f:(fun t -> t.Item.view))
+    ;;
+  end
+
+  type 'action t =
+    { variant : Variant.t
+    ; view : 'action View.t
+    }
+
+  let variant t = t.variant
+  let view t = t.view
+
+  let with_accessibility t metadata =
+    Or_error.map (View.with_accessibility t.view metadata) ~f:(fun view ->
+      { t with view })
+  ;;
+
+  let create
+        (p : Appearance.t)
+        ?key
+        ?style:(custom = Style.empty)
+        ?(content_style = Style.empty)
+        ?(variant = Variant.Filled)
+        ?alignment
+        ?reactions
+        children
+    =
+    let clear = Color.rgba ~red:0 ~green:0 ~blue:0 ~alpha:0 |> Or_error.ok_exn in
+    let tint c alpha = Color.with_opacity c alpha |> Or_error.ok_exn in
+    let background, foreground, border =
+      match variant with
+      | Filled -> p.accent, p.on_solid, clear
+      | Secondary | Muted -> p.raised, p.foreground, clear
+      | Tinted -> tint p.accent 0.12, p.foreground, clear
+      | Outline -> p.surface, p.foreground, p.border
+      | Ghost -> clear, p.foreground, clear
+      | Destructive -> tint p.danger 0.1, p.danger, clear
+    in
+    let ghost = Variant.equal variant Ghost in
+    let alignment_style =
+      Option.to_list (Option.map alignment ~f:(fun a -> Align_self (Alignment.style a)))
+    in
+    let surface =
+      View.column
+        ~key:(internal_key "content")
+        ~style:
+          (Style.merge
+             [ style
+                 ([ Min_width (px 0.)
+                  ; Max_width full
+                  ; Overflow Hidden
+                  ; Radius (if ghost then 0. else 16.)
+                  ; Border_width (if ghost then 0. else 1.)
+                  ; Border_color border
+                  ; Background (solid background)
+                  ; Foreground foreground
+                  ; Padding_left (px (if ghost then 0. else 12.))
+                  ; Padding_right (px (if ghost then 0. else 12.))
+                  ; Padding_top (px (if ghost then 0. else 8.))
+                  ; Padding_bottom (px (if ghost then 0. else 8.))
+                  ; Font_size 14.
+                  ; Line_height (Length.percent_exn 162.5)
+                  ]
+                  @ alignment_style)
+             ; content_style
+             ])
+        children
+    in
+    let margin =
+      match alignment with
+      | None -> []
+      | Some Start -> [ Margin_right Length.auto ]
+      | Some End -> [ Margin_left Length.auto ]
+    in
+    let view =
+      View.column
+        ?key
+        ~style:
+          (Style.merge
+             [ style
+                 ([ Position Relative
+                  ; Min_width (px 0.)
+                  ; Grow 0.
+                  ; Shrink 0.
+                  ; Gap (px 4.)
+                  ; Max_width (Length.percent_exn (if ghost then 100. else 80.))
+                  ]
+                  @ (if ghost then [ Width full ] else [])
+                  @ alignment_style
+                  @ margin)
+             ; custom
+             ])
+        (surface :: Option.to_list (Option.map reactions ~f:(fun t -> Reactions.view t p)))
+    in
+    { variant; view }
+  ;;
+
+  let group ?key ?style:(custom = Style.empty) children =
+    View.column
+      ?key
+      ~style:(Style.merge [ style [ Min_width (px 0.); Gap (px 8.) ]; custom ])
+      children
+  ;;
+end
+
+module Message = struct
+  module Avatar = struct
+    type 'action t =
+      { style : Style.t
+      ; children : 'action View.t list
+      }
+
+    let create ?(style = Style.empty) children = { style; children }
+
+    let view t (p : Appearance.t) =
+      View.row
+        ~key:(internal_key "avatar")
+        ~style:
+          (Style.merge
+             [ style
+                 [ Position Relative
+                 ; Min_width (px 32.)
+                 ; Grow 0.
+                 ; Shrink 0.
+                 ; Align_items Center
+                 ; Justify_content Center
+                 ; Align_self End
+                 ; Overflow Hidden
+                 ; Radius 999.
+                 ; Background (solid p.raised)
+                 ]
+             ; t.style
+             ])
+        t.children
+    ;;
+  end
+
+  module Metadata_slot = struct
+    type 'action t =
+      { style : Style.t
+      ; content_inset : bool option
+      ; children : 'action View.t list
+      }
+
+    let create ?(style = Style.empty) ?content_inset children =
+      { style; content_inset; children }
+    ;;
+
+    let view t (p : Appearance.t) ~name ~inherited_inset ~margins =
+      let inset = Option.value t.content_inset ~default:inherited_inset in
+      View.row
+        ~key:(internal_key name)
+        ~style:
+          (Style.merge
+             [ style
+                 ([ Max_width full
+                  ; Min_width (px 0.)
+                  ; Gap (px 4.)
+                  ; Font_size 12.
+                  ; Line_height (Length.percent_exn 125.)
+                  ; Font_weight 500
+                  ; Foreground p.muted
+                  ]
+                  @ (if inset
+                     then [ Padding_left (px 12.); Padding_right (px 12.) ]
+                     else [])
+                  @ margins)
+             ; t.style
+             ])
+        t.children
+    ;;
+  end
+
+  module Header = Metadata_slot
+  module Footer = Metadata_slot
+
+  module Content = struct
+    module Item = struct
+      type 'action t =
+        { key : Key.t
+        ; bubble : 'action Bubble.t option
+        ; view : 'action View.t
+        }
+
+      let bubble ~key bubble =
+        { key; bubble = Some bubble; view = View.with_key (Bubble.view bubble) key }
+      ;;
+
+      let element ~key view = { key; bubble = None; view = View.with_key view key }
+    end
+
+    type 'action t =
+      { style : Style.t
+      ; items : 'action Item.t list
+      }
+
+    let create ?(style = Style.empty) items =
+      Or_error.map
+        (validate_chat_keys (List.map items ~f:(fun t -> t.Item.key)))
+        ~f:(fun () -> { style; items })
+    ;;
+
+    let has_ghost t =
+      List.exists t.items ~f:(fun item ->
+        Option.exists item.Item.bubble ~f:(fun b ->
+          Bubble.Variant.equal (Bubble.variant b) Ghost))
+    ;;
+
+    let view t ~alignment =
+      View.column
+        ~key:(internal_key "content")
+        ~style:
+          (Style.merge
+             [ style
+                 [ Width full
+                 ; Max_width full
+                 ; Min_width (px 0.)
+                 ; Gap (px 10.)
+                 ; Align_items (Alignment.style alignment)
+                 ]
+             ; t.style
+             ])
+        (List.map t.items ~f:(fun t -> t.Item.view))
+    ;;
+  end
+
+  let create
+        (p : Appearance.t)
+        ?key
+        ?style:(custom = Style.empty)
+        ?(stack_style = Style.empty)
+        ?(alignment = Alignment.Start)
+        ?avatar
+        ?header
+        ?content
+        ?footer
+        ()
+    =
+    let inherited_inset = not (Option.exists content ~f:Content.has_ghost) in
+    let stack =
+      View.column
+        ~key:(internal_key "stack")
+        ~style:
+          (Style.merge
+             [ style
+                 [ Width full
+                 ; Min_width (px 0.)
+                 ; Gap (px 10.)
+                 ; Align_items (Alignment.style alignment)
+                 ]
+             ; stack_style
+             ])
+        (List.filter_opt
+           [ Option.map header ~f:(fun t ->
+               Header.view t p ~name:"header" ~inherited_inset ~margins:[])
+           ; Option.map content ~f:(fun t -> Content.view t ~alignment)
+           ])
+    in
+    let row =
+      View.row
+        ~key:(internal_key "row")
+        ~style:
+          (style
+             [ Width full
+             ; Min_width (px 0.)
+             ; Align_items End
+             ; Gap (px 8.)
+             ; Direction
+                 (match alignment with
+                  | Start -> Row
+                  | End -> Row_reverse)
+             ])
+        (Option.to_list (Option.map avatar ~f:(fun t -> Avatar.view t p)) @ [ stack ])
+    in
+    let margins =
+      if Option.is_none avatar
+      then []
+      else
+        [ (match alignment with
+           | Start -> Margin_left (px 40.)
+           | End -> Margin_right (px 40.))
+        ]
+    in
+    View.column
+      ?key
+      ~style:
+        (Style.merge
+           [ style
+               [ Position Relative
+               ; Width full
+               ; Min_width (px 0.)
+               ; Gap (px 10.)
+               ; Font_size 14.
+               ; Line_height (Length.percent_exn 125.)
+               ; Align_items (Alignment.style alignment)
+               ]
+           ; custom
+           ])
+      (row
+       :: Option.to_list
+            (Option.map footer ~f:(fun t ->
+               Footer.view t p ~name:"footer" ~inherited_inset ~margins)))
+  ;;
+
+  let group ?key ?style:(custom = Style.empty) children =
+    View.column
+      ?key
+      ~style:(Style.merge [ style [ Min_width (px 0.); Gap (px 8.) ]; custom ])
+      children
+  ;;
+end
+
 let tool_result (p : Appearance.t) ?key ?style ~title ?status ?actions ?footer content =
   let header =
     View.row

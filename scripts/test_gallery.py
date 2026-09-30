@@ -38,6 +38,8 @@ def exercise(mac, images):
     exercise_markers(mac, images)
     exercise_alerts(mac, images)
     exercise_tags(mac, images)
+    exercise_chat_composition(mac, images)
+    exercise_chat_list(mac, images)
     exercise_attachments(mac, images)
     exercise_groups(mac, images)
     exercise_separators(mac, images)
@@ -104,7 +106,7 @@ def exercise(mac, images):
         expect_field(mac, TITLE, 'Document title', 'A place for good ideas')
 
 
-def reveal_gallery_control(mac, label, role):
+def reveal_gallery_control(mac, label, role, *, scroll_fraction=.78):
     # This helper sends desktop pointer events. Re-establish window ownership
     # for each action group; raising does not request focus on the target leaf.
     # The owner guard below still rejects occlusion before sending a click/wheel.
@@ -115,7 +117,7 @@ def reveal_gallery_control(mac, label, role):
         wx, wy, ww, wh = element_rect(mac, window)
     finally:
         mac.release(window)
-    point = (wx + ww * .78, wy + wh * .67)
+    point = (wx + ww * scroll_fraction, wy + wh * .67)
     create = mac.cg.CGEventCreateScrollWheelEvent
     create.restype, create.argtypes = C.c_void_p, [C.c_void_p, C.c_uint, C.c_uint, C.c_int]
     locate = mac.cg.CGEventSetLocation
@@ -138,7 +140,7 @@ def reveal_gallery_control(mac, label, role):
         finally:
             mac.release(event)
         time.sleep(.08)
-    raise RuntimeError(f'{label} did not become visible')
+    raise RuntimeError(f'{label} did not become visible: control={(x,y,w,h)}, window={(wx,wy,ww,wh)}')
 
 
 def exercise_links(mac, images):
@@ -813,6 +815,365 @@ def exercise_groups(mac, images):
     print(f'GALLERY_GROUP_OK: {cases} theme/variant/style/slot cases; geometry, retained '
           f'checked state and native identity, {clicks} pointer/Return actions, '
           'real Space input, focus and teardown', flush=True)
+
+
+def exercise_chat_composition(mac, images):
+    """Native message geometry, reaction hit areas and editor/stream ownership."""
+    mac.press(TITLE,'Presentation')
+    mac.wait_text(TITLE,'Room for a conversation')
+    mac.release(mac.wait_find(TITLE,'Bubble payload','AXGroup'))
+    editor=mac.wait_find(TITLE,'Message draft','AXTextField')
+    body=mac.wait_find(TITLE,'Message body action','AXButton')
+    reaction=mac.wait_find(TITLE,'React to message','AXButton')
+    equal=mac.cf.CFEqual
+    equal.restype,equal.argtypes=C.c_bool,[C.c_void_p,C.c_void_p]
+    mouse=GalleryMouse(mac)
+    variant='Secondary'
+    variants=['Filled','Secondary','Muted','Tinted','Outline','Ghost','Destructive']
+    actions=reactions=cases=0
+    typed=True
+    temporary=tempfile.TemporaryDirectory(prefix='gpuio-chat-composition-')
+    directory=images or Path(temporary.name)
+    paint_cases=0
+
+    def toggle(label):
+        activate(mac,mac.wait_find(TITLE,label,'AXCheckBox'))
+        time.sleep(.1)
+
+    def cycle(prefix,current,values):
+        mac.press(TITLE,prefix+current)
+        value=values[(values.index(current)+1)%len(values)]
+        mac.release(mac.wait_find(TITLE,prefix+value,'AXButton'))
+        return value
+
+    def rect(label,role='AXGroup'):
+        node=mac.wait_find(TITLE,label,role)
+        try: return element_rect(mac,node)
+        finally: mac.release(node)
+
+    def identity(check_reaction=True):
+        for label,role,old in [('Message draft','AXTextField',editor),('Message body action','AXButton',body)]+([('React to message','AXButton',reaction)] if check_reaction else []):
+            node=mac.wait_find(TITLE,label,role)
+            try: assert equal(old,node), ('chat control remounted',label)
+            finally: mac.release(node)
+        expect_field(mac,TITLE,'Message draft','a')
+
+    def counts():
+        mac.wait_text(TITLE,f'Message actions: {actions} · reactions: {reactions}')
+
+    def surface():
+        x,y,w,h=rect('Bubble payload')
+        horizontal,vertical=(0,0) if variant=='Ghost' else (13,9)
+        return x-horizontal,y-vertical,w+2*horizontal,h+2*vertical
+
+    def paint(theme):
+        nonlocal paint_cases
+        reveal_gallery_control(mac,'Bubble payload','AXGroup')
+        window=mac.window(TITLE)
+        try: wx,wy,ww,wh=element_rect(mac,window)
+        finally: mac.release(window)
+        mouse.send(5,(wx+ww-25,wy+110))
+        time.sleep(.08)
+        x,y,w,h=surface()
+        assert y>=wy+160 and y+h<=wy+wh-15, ('bubble paint visibility',x,y,w,h)
+        path=directory/f'gallery-bubble-paint-{paint_cases:02d}.png'
+        screenshot(mac,path,title=TITLE)
+        pixels=read_png(mac,path)
+        def rgb(px,py):
+            return pixels.rgb((px-wx)*pixels.width/ww,(py-wy)*pixels.height/wh)
+        dark=theme=='Dark'
+        parent=(25,33,44) if dark else (255,255,255)
+        accent=(163,181,255) if dark else (64,88,183)
+        danger=(255,160,175) if dark else (183,52,75)
+        blend=lambda color,alpha:tuple(round(c*alpha+b*(1-alpha)) for c,b in zip(color,parent))
+        fill={
+            'Filled':accent,
+            'Secondary':(39,46,59) if dark else (240,242,246),
+            'Muted':(39,46,59) if dark else (240,242,246),
+            'Tinted':blend(accent,.12),
+            'Outline':(27,32,43) if dark else (255,255,255),
+            'Ghost':parent,
+            'Destructive':blend(danger,.1)}[variant]
+        close=lambda a,b:max(abs(c-d) for c,d in zip(a,b))<=5
+        point=(x+w-4,y+12) if variant=='Ghost' else (x+4,y+h/2)
+        actual=rgb(*point)
+        assert close(actual,fill), ('bubble fill',theme,variant,actual,fill)
+        if variant=='Outline':
+            border=(62,72,91) if dark else (211,217,227)
+            samples=[rgb(x+d,y+h/2) for d in [.25,.5,.75]]
+            assert any(close(sample,border) for sample in samples), ('bubble border',theme,samples,border)
+        paint_cases+=1
+
+    def geometry(end=False,top=False,start=False,compact=False,bubble_end=None):
+        x,y,w,h=rect('Composed message')
+        sx,sy,sw,sh=surface()
+        bx,by,bw,bh=rect('Composed bubble')
+        ax,ay,aw,ah=rect('Message avatar')
+        assert abs(w-(360 if compact else 560))<1, ('message width',w)
+        expected=(w-40)*(1 if variant=='Ghost' else .8)
+        assert abs(bw-expected)<1, ('bubble root width',variant,bw,expected)
+        if bubble_end is None:
+            assert abs(sw-bw)<1, ('unconstrained surface stretch',sw,bw)
+        else:
+            assert sw<=bw+1 and abs((sx+sw if bubble_end else sx)-(bx+bw if bubble_end else bx))<1, ('explicit surface alignment',bubble_end,sx,sw,bx,bw)
+        assert abs(sy-by)<1 and abs(sh-bh)<1, ('surface/root vertical bounds',(sy,sh),(by,bh))
+        assert abs(ay+ah-(sy+sh))<1, ('avatar bottom',ay+ah,sy+sh)
+        if end:
+            assert abs(ax+aw-(x+w))<1, ('end avatar alignment',ax,aw,x,w)
+        else:
+            assert abs(ax-x)<1, ('start avatar alignment',ax,x)
+        bubble_end=end if bubble_end is None else bubble_end
+        assert abs((bx+bw if bubble_end else bx)-(x+w-(40 if end else 0) if bubble_end else x+(0 if end else 40)))<1, ('independent bubble alignment',end,bubble_end,bx,bw,x,w)
+        inset=0 if variant=='Ghost' else 12
+        for label in ['Message header','Message footer']:
+            tx,ty,tw,th=rect(label,'AXStaticText')
+            assert abs((tx+tw if end else tx)-(x+w-40-inset if end else x+40+inset))<1, ('metadata inset',label,variant,(tx,tw),x,w,inset)
+        rx,ry,rw,rh=element_rect(mac,reaction)
+        pad_x,pad_y=(3,3) if typed else (9,5)
+        assert abs((rx-pad_x if start else rx+rw+pad_x)-(bx+12 if start else bx+bw-12))<1, ('reaction edge',start,rx,rw,sx,sw)
+        assert abs((ry-pad_y if top else ry+rh+pad_y)-(sy-20 if top else sy+sh+20))<1, ('reaction side',top,(ry,rh),(sy,sh))
+        return (sx-x,sy-y,sw,sh),(ax-x,ay-y,aw,ah)
+
+    def click_reaction(top=False):
+        x,y,w,h=reveal_gallery_control(mac,'React to message','AXButton')
+        point=(x+w/2,y+3 if top else y+h-3)
+        mouse.check_owner(point)
+        mouse.send(5,point);mouse.send(1,point);mouse.send(2,point)
+
+    node=mac.find(TITLE,'Dark','AXButton')
+    initial='Dark' if node else 'Light'
+    if node:mac.release(node)
+    try:
+        focus_gallery_control(mac,'Message draft','AXTextField')
+        mac.key(0,flags=1<<20);mac.key(0)
+        expect_field(mac,TITLE,'Message draft','a')
+        for theme in [initial,'Light' if initial=='Dark' else 'Dark']:
+            for _ in range(7):
+                for end in [False,True]:
+                    if end:toggle('Message end aligned')
+                    identity()
+                    geometry(end=end)
+                    if not end:paint(theme)
+                    focus_gallery_control(mac,'Message body action','AXButton')
+                    mac.key(36);actions+=1;counts()
+                    focus_gallery_control(mac,'React to message','AXButton')
+                    mac.key(49);reactions+=1;counts()
+                    cases+=1
+                toggle('Message end aligned')
+                variant=cycle('Bubble variant: ',variant,variants)
+            if images:
+                reveal_gallery_control(mac,'Message body action','AXButton')
+                screenshot(mac,images/f'gallery-chat-composition-{theme.lower()}.png',title=TITLE)
+            if theme==initial:mac.press(TITLE,theme)
+        for typed_case in [True,False]:
+            if not typed_case:toggle('Typed reaction action');typed=False
+            for top in [False,True]:
+                if top:toggle('Top reactions')
+                for start in [False,True]:
+                    if start:toggle('Start reactions')
+                    identity();geometry(top=top,start=start)
+                    click_reaction(top);reactions+=1;counts()
+                    toggle('Clip bubble overflow')
+                    click_reaction(top)
+                    time.sleep(.2);counts()
+                    toggle('Clip bubble overflow')
+                    click_reaction(top);reactions+=1;counts()
+                toggle('Start reactions')
+            toggle('Top reactions')
+        toggle('Typed reaction action');typed=True
+        identity()
+        edge=cycle('Bubble edge: ','Inherit',['Inherit','Start','End'])
+        geometry(bubble_end=False)
+        toggle('Message end aligned');geometry(end=True,bubble_end=False);identity()
+        edge=cycle('Bubble edge: ',edge,['Inherit','Start','End'])
+        geometry(end=True,bubble_end=True)
+        toggle('Message end aligned');geometry(bubble_end=True);identity()
+        edge=cycle('Bubble edge: ',edge,['Inherit','Start','End'])
+        # Footer changes leave the avatar/body row in place, measured relative to root.
+        before=geometry()
+        toggle('Expand message footer')
+        after=geometry()
+        assert all(abs(a-b)<1 for old,new in zip(before,after) for a,b in zip(old,new)), ('footer changed row geometry',before,after)
+        toggle('Expand message footer')
+        toggle('Compact message');geometry(compact=True);identity();toggle('Compact message')
+        # Typed Ghost metadata, explicit override and arbitrary-view policy.
+        while variant!='Ghost':variant=cycle('Bubble variant: ',variant,variants)
+        hx=rect('Message header','AXStaticText')[0]-rect('Composed message')[0]
+        inset=cycle('Message inset: ','Inherit',['Inherit','Yes','No'])
+        assert abs(rect('Message header','AXStaticText')[0]-rect('Composed message')[0]-hx-12)<1
+        inset=cycle('Message inset: ',inset,['Inherit','Yes','No'])
+        assert abs(rect('Message header','AXStaticText')[0]-rect('Composed message')[0]-hx)<1
+        inset=cycle('Message inset: ',inset,['Inherit','Yes','No'])
+        toggle('Typed message bubble')
+        assert abs(rect('Message header','AXStaticText')[0]-rect('Composed message')[0]-hx-12)<1
+        identity();toggle('Typed message bubble')
+        # Streaming Markdown/code changes native flow height, not editor identity/text.
+        toggle('Message Markdown')
+        mac.release(mac.wait_find(TITLE,'Composed message document','AXGroup'))
+        focus_gallery_control(mac,'Message draft','AXTextField')
+        for chunk in range(1,4):
+            old_h=rect('Bubble payload')[3]
+            mac.press(TITLE,'Append message chunk')
+            mac.wait_text(TITLE,f'Stream chunks: {chunk}')
+            deadline=time.monotonic()+10
+            while rect('Bubble payload')[3] <= old_h+5:
+                if time.monotonic()>deadline:raise RuntimeError('streamed Markdown did not grow')
+                time.sleep(.05)
+            identity();expect_focus(mac,'Message draft','AXTextField')
+            geometry()
+        toggle('Show message reactions')
+        wait_absent(mac,'React to message','AXButton');identity(check_reaction=False)
+        toggle('Show message reactions')
+        replacement=mac.wait_find(TITLE,'React to message','AXButton')
+        assert not equal(reaction,replacement)
+        mac.release(reaction);reaction=replacement
+        for control,label,role in [('Show message avatar','Message avatar','AXGroup'),('Show message header','Message header','AXStaticText'),('Show message footer','Message footer','AXStaticText')]:
+            toggle(control);wait_absent(mac,label,role);identity();toggle(control)
+        mac.press(TITLE,'Runtime & windows')
+        wait_absent(mac,'Message draft','AXTextField')
+        mac.press(TITLE,'Refresh resource counts')
+        mac.wait_text(TITLE,'Registered source bytes: 0')
+        mac.press(TITLE,'Presentation')
+        replacement=mac.wait_find(TITLE,'Message body action','AXButton')
+        assert not equal(body,replacement)
+        mac.release(body);body=replacement
+        counts();mac.wait_text(TITLE,'Stream chunks: 0')
+        print(f'GALLERY_CHAT_COMPOSITION_OK: {cases} theme/variant/alignment cases; {paint_cases} GPU surfaces; {actions} body and {reactions} reaction actions; avatar/footer geometry, native editor retention, reaction clipping, Ghost insets, Markdown streaming and page retirement',flush=True)
+    finally:
+        mac.release(editor);mac.release(body);mac.release(reaction)
+        temporary.cleanup()
+
+
+def exercise_chat_list(mac, images):
+    """Public managed rows: measured reaction spacing, anchor and streamed growth."""
+    mac.press(TITLE,'Presentation')
+    mac.wait_text(TITLE,'A conversation in motion')
+    raise_gallery(mac)
+    time.sleep(.2)  # Allow AppKit's asynchronous activation before the first wheel.
+    focus_gallery_control(mac,'Transcript draft','AXTextField')
+    # Native focus first reveals the distant card. Send subsequent reveal wheels
+    # beside the nested viewport, so they reach the page instead of the rows.
+    reveal_gallery_control(mac,'Managed conversation','AXList',scroll_fraction=.94)
+    reveal_gallery_control(mac,'Transcript draft','AXTextField',scroll_fraction=.94)
+    mac.key(0,flags=1<<20);mac.key(0)
+    editor=mac.wait_find(TITLE,'Transcript draft','AXTextField')
+    equal=mac.cf.CFEqual
+    equal.restype,equal.argtypes=C.c_bool,[C.c_void_p,C.c_void_p]
+    mouse=GalleryMouse(mac)
+    retained=[]
+
+    def rect(label,role='AXGroup'):
+        node=mac.wait_find(TITLE,label,role)
+        try:return element_rect(mac,node)
+        finally:mac.release(node)
+
+    def identity():
+        current=mac.wait_find(TITLE,'Transcript draft','AXTextField')
+        try:assert equal(current,editor),'Managed row work recreated the outside draft'
+        finally:mac.release(current)
+        expect_field(mac,TITLE,'Transcript draft','a')
+        status=mac.wait_find(TITLE,'Managed chunks:',contains=True)
+        try:
+            values,_children=mac.node_values(status)
+            try:
+                match=re.search(r'retained rows: (\d+)/12', ' '.join(value or '' for value in values))
+                assert match and 0<int(match[1])<=12, ('managed row budget',values)
+            finally:
+                for child in _children:mac.release(child)
+        finally:mac.release(status)
+
+    def append(chunk):
+        mac.press(TITLE,'Append transcript chunk')
+        mac.wait_text(TITLE,f'Managed chunks: {chunk} ·')
+
+    try:
+        mac.press(TITLE,'Transcript latest')
+        mac.release(mac.wait_find(TITLE,'Managed streamed answer','AXGroup'))
+        reveal_gallery_control(mac,'Managed conversation','AXList',scroll_fraction=.94)
+        preceding=mac.wait_find(TITLE,'Managed message 99','AXGroup')
+        retained.append(preceding)
+        # Read retained AX objects directly while preparation/layout changes; a
+        # whole-window traversal between samples could miss a brief rebound.
+        samples=[]
+        append_button=mac.wait_find(TITLE,'Append transcript chunk','AXButton')
+        retained.append(append_button)
+        for _ in range(3):
+            samples.append((element_rect(mac,preceding)[1],element_rect(mac,editor)[1]))
+            mac.perform(append_button,'AXPress')
+            until=time.monotonic()+.45
+            while time.monotonic()<until:
+                samples.append((element_rect(mac,preceding)[1],element_rect(mac,editor)[1]))
+                time.sleep(.01)
+        mac.wait_text(TITLE,'Managed chunks: 3 ·')
+        deltas=[b[0]-a[0] for a,b in zip(samples,samples[1:])]
+        assert not [d for d in deltas if d>1],('stream moved preceding row down',samples)
+        assert sum(d< -1 for d in deltas)>=2,('too few observed growth steps',samples)
+        assert max(y for _,y in samples)-min(y for _,y in samples)<.5,('outside draft moved',samples)
+        identity();expect_focus(mac,'Transcript draft','AXTextField')
+        mac.press(TITLE,'Transcript history')
+        row=mac.wait_find(TITLE,'Managed message 50','AXGroup')
+        wait_absent(mac,'Managed streamed answer','AXGroup')
+        action=mac.wait_find(TITLE,'React to row 51','AXButton')
+        retained.extend([row,action])
+        time.sleep(.15)
+        before=element_rect(mac,row)
+        for chunk in range(4,7):
+            append(chunk)
+            time.sleep(.1)
+            after=element_rect(mac,row)
+            assert all(abs(a-b)<.5 for a,b in zip(before,after)),('stream moved paused history',before,after)
+            identity();expect_focus(mac,'Transcript draft','AXTextField')
+        # Absolute controls fit within caller-reserved measured row padding.
+        rx,ry,rw,rh=element_rect(mac,action)
+        mx,my,mw,mh=rect('Managed message 51')
+        nx,ny,nw,nh=rect('Managed message 52')
+        assert ry+rh>my+mh and ry+rh+4<=ny,('reaction spacing',(ry,rh),(my,mh),ny)
+        point=(rx+rw/2,ry+rh-3)
+        mouse.check_owner(point)
+        mouse.send(5,point);mouse.send(1,point);mouse.send(2,point)
+        mac.wait_text(TITLE,'/12 · reactions: 1')
+        gx,gy,gw,gh=rect('Managed conversation','AXList')
+        point=(gx+gw/2,gy+gh/2)
+        create=mac.cg.CGEventCreateScrollWheelEvent
+        create.restype,create.argtypes=C.c_void_p,[C.c_void_p,C.c_uint,C.c_uint,C.c_int]
+        locate=mac.cg.CGEventSetLocation
+        locate.restype,locate.argtypes=None,[C.c_void_p,GalleryMouse.Point]
+        for delta in [-1]*8+[1]*8:
+            old_y=element_rect(mac,row)[1]
+            old_viewport=rect('Managed conversation','AXList')
+            mouse.check_owner(point);mouse.send(5,point)
+            event=create(None,0,1,delta)
+            assert event
+            try:locate(event,GalleryMouse.Point(*point));mouse.post(0,event)
+            finally:mac.release(event)
+            time.sleep(.08)
+            current=mac.wait_find(TITLE,'React to row 51','AXButton')
+            try:assert equal(action,current),'small scroll replaced warm reaction control'
+            finally:mac.release(current)
+            new_y=element_rect(mac,row)[1]
+            new_viewport=rect('Managed conversation','AXList')
+            assert abs((new_y-old_y)-delta)<.75,('small scroll geometry',delta,old_y,new_y,old_viewport,new_viewport)
+            assert all(abs(a-b)<.5 for a,b in zip(old_viewport,new_viewport)),('list wheel moved outer page',old_viewport,new_viewport)
+        assert abs(element_rect(mac,row)[1]-before[1])<.75,'reverse scroll did not restore anchor'
+        mac.press(TITLE,'Transcript latest')
+        mac.wait_text(TITLE,'Update 6')
+        identity()
+        if images:
+            reveal_gallery_control(mac,'Managed conversation','AXList',scroll_fraction=.94)
+            screenshot(mac,images/'gallery-managed-chat.png',title=TITLE)
+        mac.press(TITLE,'Runtime & windows')
+        wait_absent(mac,'Transcript draft','AXTextField')
+        mac.press(TITLE,'Refresh resource counts')
+        mac.wait_text(TITLE,'Registered source bytes: 0')
+        mac.press(TITLE,'Presentation')
+        mac.wait_text(TITLE,'Managed chunks: 0 ·')
+        replacement=mac.wait_find(TITLE,'Transcript draft','AXTextField')
+        try:assert not equal(editor,replacement),'page retained old native draft owner'
+        finally:mac.release(replacement)
+        print(f'GALLERY_CHAT_LIST_OK: 100 logical / max12 managed rows; {len(samples)} stream samples, monotonic growth/stable draft; paused history anchor, outside-bubble reaction spacing/action, 16 one-pixel scrolls and warm identity; offscreen source/remount and page cleanup',flush=True)
+    finally:
+        mac.release(editor)
+        for node in retained:mac.release(node)
 
 
 def exercise_tags(mac, images):
@@ -4628,7 +4989,7 @@ def main():
     parser.add_argument('--trace-canvas', action='store_true')
     parser.add_argument('--trace-motion', action='store_true')
     parser.add_argument('--trace-windows', action='store_true')
-    parser.add_argument('--section', choices=['all', 'core', 'status-regions', 'badges', 'labels', 'shimmer', 'markers', 'alerts', 'tags', 'attachments', 'attachment-paint', 'groups', 'links', 'empty', 'separators', 'styles', 'borders', 'aspect-ratio', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'document-links', 'document-images', 'highlighting', 'canvas', 'assets', 'charts', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
+    parser.add_argument('--section', choices=['all', 'core', 'status-regions', 'badges', 'labels', 'shimmer', 'markers', 'alerts', 'tags', 'chat-composition', 'chat-list', 'attachments', 'attachment-paint', 'groups', 'links', 'empty', 'separators', 'styles', 'borders', 'aspect-ratio', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'document-links', 'document-images', 'highlighting', 'canvas', 'assets', 'charts', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
     args = parser.parse_args()
     if args.images:
         args.images.mkdir(parents=True, exist_ok=True)
@@ -4665,6 +5026,10 @@ def main():
                 exercise_attachment_paint(mac, args.images)
             if args.section == 'attachments':
                 exercise_attachments(mac, args.images)
+            if args.section == 'chat-composition':
+                exercise_chat_composition(mac, args.images)
+            if args.section == 'chat-list':
+                exercise_chat_list(mac, args.images)
             if args.section == 'tags':
                 exercise_tags(mac, args.images)
             if args.section == 'alerts':
