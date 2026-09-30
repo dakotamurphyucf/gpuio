@@ -742,9 +742,14 @@ impl Element for Frame {
                 .iter()
                 .filter_map(|row| index.position(*row))
                 .collect();
-            let overlaps = previous_positions
-                .iter()
-                .any(|position| (visible_first..visible_last).contains(position));
+            // Requested rows exclude focus pins. If the focused row fills the
+            // viewport, it can be the only visible row and absent from that
+            // vector; actual visible-range overlap must still retain neighbours.
+            let overlaps = (previous.visible_first < visible_last as i64
+                && (visible_first as i64) < previous.visible_last)
+                || previous_positions
+                    .iter()
+                    .any(|position| (visible_first..visible_last).contains(position));
             if overlaps {
                 overscan.extend(previous_positions);
             }

@@ -5456,6 +5456,294 @@ def exercise_runtime(mac, images):
 
 
 
+def exercise_settings_resize(mac, original):
+    """Drive the public native divider, preserving the editor and its draft."""
+    label = 'Settings sidebar width'
+    def rectangle():
+        node = mac.wait_find(TITLE, label, 'AXSplitter')
+        try:
+            return element_rect(mac, node)
+        finally:
+            mac.release(node)
+    def settled_x(expected):
+        deadline = time.monotonic() + 8
+        while time.monotonic() < deadline:
+            actual = rectangle()[0]
+            # Native drag coordinates and AX frames may round by one logical pixel.
+            if abs(actual - expected) <= 1.5:
+                return
+            time.sleep(.04)
+        raise AssertionError(('Settings divider position', expected, actual))
+    def drag(dx):
+        x, y, w, h = reveal_gallery_control(mac, label, 'AXSplitter')
+        start = (x + w / 2, y + h / 2)
+        mouse, point = GalleryMouse(mac), start
+        mouse.check_owner(start)
+        mouse.send(5, start)
+        mouse.send(1, start)
+        try:
+            for step in range(1, 13):
+                point = (start[0] + dx * step / 12, start[1])
+                mouse.check_owner(point)
+                mouse.send(6, point)
+                time.sleep(.02)
+        finally:
+            mouse.send(2, point)
+    initial = rectangle()[0]
+    drag(60)
+    settled_x(initial + 60)
+    focus_gallery_control(mac, label, 'AXSplitter')
+    mac.key(123)  # Left: native 16px keyboard resize.
+    settled_x(initial + 44)
+    mac.key(124)
+    settled_x(initial + 60)
+    drag(-60)
+    settled_x(initial)
+    expect_field(mac, TITLE, 'Settings workspace name', 'a')
+    current = mac.wait_find(TITLE, 'Settings workspace name', 'AXTextField')
+    try:
+        assert mac.cf.CFEqual(original, current), 'Native resizing replaced the name editor'
+    finally:
+        mac.release(current)
+    print('GALLERY_SETTINGS_RESIZE_OK: pointer and keyboard geometry, retained editor/draft', flush=True)
+
+
+def exercise_settings_policy(mac):
+    focus_gallery_control(mac, 'Managed preferences', 'AXLink')
+    mac.key(36)  # Real keyboard navigation moves focus out of the editor.
+    mac.release(mac.wait_find(TITLE, 'Managed preferences', 'AXStaticText'))
+    # Disabled Settings rows currently use Inert: contents paint but are absent
+    # from native focus/accessibility, including their reset controls.
+    wait_absent(mac, 'Settings custom action', 'AXButton')
+    wait_absent(mac, 'Reset custom', 'AXButton')
+    wait_absent(mac, 'Settings organization policy', 'AXCheckBox')
+    activate(mac, mac.wait_find(TITLE, 'Lock custom setting', 'AXCheckBox'))
+    expect_enabled(mac, 'Settings custom action', True)
+    deadline = time.monotonic() + 8
+    while True:
+        control = mac.wait_find(TITLE, 'Settings custom action', 'AXButton')
+        divider = mac.wait_find(TITLE, 'Settings sidebar width', 'AXSplitter')
+        try:
+            x, y, w, h = element_rect(mac, control)
+            dx, dy, dw, dh = element_rect(mac, divider)
+        finally:
+            mac.release(control)
+            mac.release(divider)
+        if w > 0 and h > 0 and x >= dx + dw - 1 and y >= dy and y + h <= dy + dh:
+            break
+        assert time.monotonic() < deadline, ('Custom target not visible in Settings', (x,y,w,h), (dx,dy,dw,dh))
+        time.sleep(.04)
+    focus_gallery_control(mac, 'Settings custom action', 'AXButton')
+    mac.key(36)
+    mac.wait_text(TITLE, 'custom: 1')
+    mac.key(36)
+    mac.wait_text(TITLE, 'custom: 2')
+    expect_enabled(mac, 'Reset custom', True)
+    activate(mac, mac.wait_find(TITLE, 'Lock custom setting', 'AXCheckBox'))
+    wait_absent(mac, 'Settings custom action', 'AXButton')
+    wait_absent(mac, 'Reset custom', 'AXButton')
+    mac.key(36)  # The formerly focused custom control must no longer activate.
+    # Dirty, disabled data is intentionally excluded from whole-page reset.
+    mac.press(TITLE, 'Reset entire page')
+    mac.wait_text(TITLE, 'custom: 2')
+    activate(mac, mac.wait_find(TITLE, 'Lock custom setting', 'AXCheckBox'))
+    expect_enabled(mac, 'Reset custom', True)
+    mac.press(TITLE, 'Reset custom')
+    mac.wait_text(TITLE, 'custom: 0')
+    expect_enabled(mac, 'Reset custom', False)
+    activate(mac, mac.wait_find(TITLE, 'Lock custom setting', 'AXCheckBox'))
+    activate(mac, mac.wait_find(TITLE, 'Make it yours', 'AXLink'))
+    print('GALLERY_SETTINGS_POLICY_OK: locked custom input/reset, OS activation and retained dirty data', flush=True)
+
+
+def exercise_settings_virtualization(mac):
+    equal = mac.cf.CFEqual
+    equal.restype, equal.argtypes = C.c_bool, [C.c_void_p, C.c_void_p]
+    activate(mac, mac.wait_find(TITLE, 'Advanced', 'AXLink'))
+    expand = mac.find(TITLE, 'Expand Advanced', 'AXButton')
+    if expand:
+        activate(mac, expand)
+    original = mac.wait_find(TITLE, 'Settings feature 00', 'AXCheckBox')
+    boolean = mac.cf.CFBooleanGetValue
+    boolean.restype, boolean.argtypes = C.c_bool, [C.c_void_p]
+    def expect_checked(label, expected):
+        deadline = time.monotonic() + 8
+        while time.monotonic() < deadline:
+            node = mac.wait_find(TITLE, label, 'AXCheckBox')
+            value = mac.attr(node, 'AXValue')
+            try:
+                if value and bool(boolean(value)) == expected:
+                    return
+            finally:
+                if value:
+                    mac.release(value)
+                mac.release(node)
+            time.sleep(.03)
+        raise AssertionError((label, 'checked', expected))
+    def active_features():
+        found = set()
+        def visit(node):
+            values, children = mac.node_values(node)
+            try:
+                if values[0] == 'AXCheckBox' and values[1].startswith('Settings feature '):
+                    found.add(values[1])
+                for child in children:
+                    visit(child)
+            finally:
+                for child in children:
+                    mac.release(child)
+        window = mac.window(TITLE)
+        try:
+            visit(window)
+        finally:
+            mac.release(window)
+        assert 0 < len(found) <= 32, ('Managed group budget', len(found))
+        return found
+    try:
+        expect_checked('Settings feature 00', False)
+        focus_gallery_control(mac, 'Settings feature 00', 'AXCheckBox')
+        mac.key(49)
+        expect_checked('Settings feature 00', True)
+        before = active_features()
+        activate(mac, mac.wait_find(TITLE, 'Experiment 47', 'AXLink'))
+        mac.release(mac.wait_find(TITLE, 'Settings feature 47', 'AXCheckBox'))
+        # AXPress requests navigation without moving focus from the first row.
+        retained = mac.wait_find(TITLE, 'Settings feature 00', 'AXCheckBox')
+        try:
+            assert equal(original, retained), 'Focused row was replaced'
+        finally:
+            mac.release(retained)
+        expect_focus(mac, 'Settings feature 00', 'AXCheckBox')
+        focus_gallery_control(mac, 'Settings feature 47', 'AXCheckBox')
+        wait_absent(mac, 'Settings feature 00', 'AXCheckBox')
+        after = active_features()
+        activate(mac, mac.wait_find(TITLE, 'Experiment 00', 'AXLink'))
+        expect_checked('Settings feature 00', True)
+        remounted = mac.wait_find(TITLE, 'Settings feature 00', 'AXCheckBox')
+        try:
+            assert not equal(original, remounted), 'Eviction did not retire native row'
+        finally:
+            mac.release(remounted)
+        mac.press(TITLE, 'Reset feature-00')
+        expect_checked('Settings feature 00', False)
+        print('GALLERY_SETTINGS_VIRTUALIZATION_OK: 48 groups, focused pin, blur eviction, '
+              f'remounted saved state; AX materialized counts {len(before)}/{len(after)}', flush=True)
+    finally:
+        mac.release(original)
+    activate(mac, mac.wait_find(TITLE, 'Workspace', 'AXLink'))
+    activate(mac, mac.wait_find(TITLE, 'Make it yours', 'AXLink'))
+
+
+def exercise_settings_windows(mac):
+    """Independent application data and native owners in two normal windows."""
+    mac.press(TITLE, 'Settings')
+    activate(mac, mac.wait_find(TITLE, 'Workspace', 'AXLink'))
+    activate(mac, mac.wait_find(TITLE, 'Make it yours', 'AXLink'))
+    def titles():
+        windows = mac.children(mac.app, 'AXWindows')
+        try:
+            return {mac.text(window, 'AXTitle') for window in windows}
+        finally:
+            for window in windows:
+                mac.release(window)
+    previous, second = titles(), None
+    mac.press(TITLE, 'New window')
+    try:
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline:
+            created = titles() - previous
+            if created:
+                assert len(created) == 1, created
+                second = created.pop()
+                break
+            time.sleep(.04)
+        assert second, 'New gallery window did not appear'
+        mac.press(second, 'Settings')
+        expect_field(mac, second, 'Settings workspace name', 'Northstar')
+        expect_field(mac, TITLE, 'Settings workspace name', 'Northstar')
+        def focus_field(title):
+            # AXRaise orders a window but need not make it the AppKit key window.
+            # Use an actual click before routing physical keys between windows.
+            window = mac.window(title)
+            field = mac.wait_find(title, 'Settings workspace name', 'AXTextField')
+            try:
+                mac.set(mac.app, 'AXFrontmost', mac.true)
+                mac.perform(window, 'AXRaise')
+                mac.set(window, 'AXMain', mac.true)
+                x, y, w, h = element_rect(mac, field)
+                mouse, point = GalleryMouse(mac), (x + w / 2, y + h / 2)
+                mouse.check_owner(point)
+                system = mac.ax.AXUIElementCreateSystemWide()
+                hit = C.c_void_p()
+                try:
+                    code = mac.ax.AXUIElementCopyElementAtPosition(system, *point, C.byref(hit))
+                    assert not code and hit.value
+                    hit_window = (mac.retain(hit) if mac.text(hit, 'AXRole') == 'AXWindow'
+                                  else mac.attr(hit, 'AXWindow'))
+                    try:
+                        assert hit_window and mac.text(hit_window, 'AXTitle') == title, (
+                            'Another gallery window covers the input target', title)
+                    finally:
+                        if hit_window:
+                            mac.release(hit_window)
+                finally:
+                    if hit.value:
+                        mac.release(hit)
+                    mac.release(system)
+                mouse.send(5, point)
+                mouse.send(1, point)
+                mouse.send(2, point)
+                time.sleep(.08)
+                mouse.send(1, point)
+                mouse.send(2, point)
+            finally:
+                mac.release(field)
+                mac.release(window)
+            # Actual edits below prove keyboard ownership independently. The
+            # initial AXFocused flag in a new second window can report false;
+            # retain that observation for the separate accessibility audit.
+            field = mac.wait_find(title, 'Settings workspace name', 'AXTextField')
+            focused = mac.attr(field, 'AXFocused')
+            boolean = mac.cf.CFBooleanGetValue
+            boolean.restype, boolean.argtypes = C.c_bool, [C.c_void_p]
+            try:
+                print('GALLERY_SETTINGS_FOCUS_OBSERVATION', title,
+                      bool(focused and boolean(focused)), flush=True)
+            finally:
+                if focused:
+                    mac.release(focused)
+                mac.release(field)
+        focus_field(second)
+        mac.key(0, flags=1 << 20)
+        mac.key(11)  # b in the second window
+        expect_field(mac, second, 'Settings workspace name', 'b')
+        expect_field(mac, TITLE, 'Settings workspace name', 'Northstar')
+        focus_field(TITLE)
+        mac.key(0, flags=1 << 20)
+        mac.key(7)  # x in the first window
+        expect_field(mac, TITLE, 'Settings workspace name', 'x')
+        expect_field(mac, second, 'Settings workspace name', 'b')
+        mac.press(TITLE, 'Reset workspace-name')
+        expect_field(mac, TITLE, 'Settings workspace name', 'Northstar')
+        expect_field(mac, second, 'Settings workspace name', 'b')
+        mac.close(second)
+        second = None
+        focus_field(TITLE)
+        mac.key(0, flags=1 << 20)
+        mac.key(7)
+        expect_field(mac, TITLE, 'Settings workspace name', 'x')
+        mac.press(TITLE, 'Reset workspace-name')
+        expect_field(mac, TITLE, 'Settings workspace name', 'Northstar')
+        print('GALLERY_SETTINGS_WINDOWS_OK: independent OS edits/resets, remaining window usable after close', flush=True)
+    finally:
+        if second:
+            window = mac.window(second)
+            if window:
+                mac.release(window)
+                mac.close(second)
+        raise_gallery(mac)
+
+
 def exercise_settings(mac, images):
     mac.press(TITLE, 'Settings')
     mac.wait_text(TITLE, 'Make it yours')
@@ -5468,6 +5756,7 @@ def exercise_settings(mac, images):
         mac.key(0)
         expect_field(mac, TITLE, 'Settings workspace name', 'a')
         mac.wait_text(TITLE, 'Stored name: a')
+        exercise_settings_resize(mac, original)
         mac.press(TITLE, 'Narrow settings')
         expect_field(mac, TITLE, 'Settings workspace name', 'a')
         current = mac.wait_find(TITLE, 'Settings workspace name', 'AXTextField')
@@ -5498,7 +5787,9 @@ def exercise_settings(mac, images):
         expect_field(mac, TITLE, 'Settings response budget', '1e-')
         mac.wait_text(TITLE, 'Finish this number before committing.')
         activate(mac, mac.wait_find(TITLE, 'Advanced', 'AXLink'))
+        mac.release(mac.wait_find(TITLE, 'Settings feature 00', 'AXCheckBox'))
         activate(mac, mac.wait_find(TITLE, 'Workspace', 'AXLink'))
+        expect_field(mac, TITLE, 'Settings workspace name', 'a')
         activate(mac, mac.wait_find(TITLE, 'Generation', 'AXLink'))
         expect_field(mac, TITLE, 'Settings response budget', '1e-')
         focus_gallery_control(mac, 'Settings response budget', 'AXTextField')
@@ -5637,6 +5928,8 @@ def exercise_settings(mac, images):
                 assert '1e-' not in content, 'Uncommitted numeric draft was exported'
             finally:
                 exported.unlink(missing_ok=True)
+        exercise_settings_policy(mac)
+        exercise_settings_virtualization(mac)
         if images:
             screenshot(mac, images / 'gallery-settings.png', title=TITLE)
     finally:
@@ -5761,6 +6054,8 @@ def main():
                 exercise_desktop(mac, args.images, second_title=('GPUIO · Component Studio 5' if args.section == 'all' else SECOND))
             if args.section in ('all', 'runtime'):
                 exercise_runtime(mac, args.images)
+            if args.section in ('all', 'settings'):
+                exercise_settings_windows(mac)
             mac.close(TITLE)
             if child.wait(timeout=15) != 0:
                 raise RuntimeError('Gallery exited unsuccessfully')

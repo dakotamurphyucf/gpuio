@@ -20,8 +20,12 @@ identity, search/page draft recovery and export failure/cancellation checks.
 A fresh installed consumer passes those checks plus long-choice keyboard selection
 and Unicode paste. Placement-scoped observations now make unmounted editor resets
 safe; group reset controls, export validation and real native Save/Eio readback
-also pass scoped repository and fresh installed-consumer checks. Native resizing/virtualization, complete
-reset/field edge coverage and the remaining native acceptance cases are still required;
+also pass scoped repository and fresh installed-consumer checks. Expanded repository and consumer checks
+pass pointer/keyboard resizing, custom-policy resets, focused-row retention and
+eviction across 48 groups, and independent two-window keyboard edits. A native
+warm-row overlap fix repairs navigation after focusing a tall row. Disabled-row
+discoverability, initial second-window AX focus reporting, composition retention
+and complete reset/field/style edge coverage remain open;
 Settings is not yet a functional-equivalent claim.
 
 The [mounted native binding observer](design/command-binding-observations.md)

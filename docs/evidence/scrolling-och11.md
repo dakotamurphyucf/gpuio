@@ -164,3 +164,49 @@ installed-library consumer also passes the same sequence, explicitly checks the
 twelve-row bound and offscreen document absence, and records 85 stable stream
 samples in its final run; see [chat composition](../design/chat-composition.md).
 Consolidated hosted gates, Linux GUI and physical-trackpad acceptance remain separate.
+
+## Milestone 07: focused-row overdraw
+
+The Settings gallery exposed loss of warm neighbouring rows when a tall focused
+row alone filled the viewport. Native demand separates `pinned` from `requested`:
+the focused row disappeared from `requested`, and the overlap check consequently
+discarded neighbouring rows despite an unchanged visible range. A later group
+reveal used placeholder heights; replacing placeholders with real groups could
+leave the destination below the viewport.
+
+`list_view::Frame` now also checks overlap between the previous and current
+visible ranges, in addition to overlap with previously requested rows. It retains
+neighbours within the existing nearest-first active budget. It adds no pins,
+retries, cache history, protocol fields or OCaml work per frame. All experimental
+Settings-specific navigation changes were discarded.
+
+The dedicated native fixture uses 700/650/240px rows, a 400px viewport and 400px
+overscan. After focusing the first native button, it verifies six frames where
+row 1 remains a pin and row 2 remains requested, then checks demand after blur.
+This exercises actual GPUI layout and programmatic native focus; it is separate
+from physical keyboard/IME acceptance.
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j2 -p gpuio-native --features native-image-tests --test native_list --no-run
+# Run the Cargo-reported native_list executable with --focused-overdraw.
+```
+
+The dedicated fixture passes locally on macOS 14.5 arm64. Restoring only the old
+overlap predicate makes it fail with `requested=[]`, `pinned=[1]` and an unchanged
+`0..1` visible range; the corrected predicate retains the neighbouring row. The
+complete native list suite also exits zero under a 240-second process-group
+watchdog, including selection/editor retention, exact anchors, two 100,000-row
+traversals, bounded demand and this focused-row regression. Its stress phases
+use direct layout/paint calls and remove roots between fixtures; the desktop
+window can appear blank during those phases. This is not an appearance check.
+All 421 native unit tests pass (two additional tests remain ignored), as do full
+Dune build/expect/format checks and native all-target Clippy with
+`--features native-image-tests -- -D warnings`.
+
+The repository gallery and a fresh installed-library consumer also pass the expanded Settings walkthrough:
+actual sidebar drag/keyboard resize, policy reset exclusions, 48-group focused
+retention and blur/eviction/remount, native export and two-window OS input isolation.
+See [Settings evidence](../design/settings-composition.md#public-gallery-integration-checkpoint--2026-09-30)
+for commands and the separate AX focus-reporting/disabled-row limitations. These
+checks do not establish whole-application performance, VoiceOver or Linux desktop
+acceptance.

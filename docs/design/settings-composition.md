@@ -132,8 +132,9 @@ observations. Numeric `initial` seeds the committed value; the optional validate
 observation. Omitting it formats the committed value. See the
 [numeric mount contract](numeric-inputs.md#milestone-07-independent-draft-mount-seeds).
 Native undo history, selection and IME state do not survive destruction.
-Focus/composition pins and the complete field-remount policy still need Settings
-gallery coverage.
+The gallery now checks a focused Boolean row pin, blur-driven eviction and saved
+value recovery across 48 groups. Native editor composition retention and the
+complete field-remount policy still need Settings gallery coverage.
 
 Sidebar-only changes preserve the group collection. With an unchanged group
 order, metadata changes update only affected collection entries and their height
@@ -147,7 +148,10 @@ at or above 480 it is horizontal. This exact boundary is an explicit GPUIO choic
 layout at any width. Group size controls spacing, and the chosen appearance and
 group variant feed the existing group-box adapter. Disabled normal/custom items
 wrap their entire content in native `Inert`. Native field names/help/error metadata
-are still the responsibility of supplied controls and the forthcoming helpers.
+are the responsibility of supplied controls and the typed field helpers.
+`Inert` keeps painting but removes its subtree from accessibility and focus; it
+does not expose disabled controls with `AXEnabled=false`. Disabled-field
+discoverability therefore remains an explicit accessibility acceptance gap.
 
 The page-visit regression exposed an existing Bonsai virtual-list weakness:
 captured viewport, retention and controller effects could act after revisiting
@@ -331,8 +335,7 @@ by guarded reset. The user's original plain-text clipboard contents were restore
 its own locked native backend and did not install into or change the opam switch.
 
 Expanded repository and fresh installed-consumer runs additionally pass the intended
-group reset while
-preserving another group's dirty model choice, whole-page resets of text and
+group reset while preserving another group's dirty model choice, whole-page resets of text and
 numeric fields absent under search, remount with reset values, blank-name export
 rejection without a Save panel, and successful native Save selection followed by
 actual Eio export/readback after prior injected failure/cancellation. The test
@@ -340,16 +343,42 @@ uses a unique `/private/tmp` filename and removes the export afterward. Group
 buttons are selected by their accessibility help text, so navigation timing cannot
 accidentally choose a different identically labelled button.
 
-Multiwindow settings isolation, group eviction/retention, physical split resizing,
-IME and full disabled/custom/partial-failure reset coverage remain open. The tests do not
-establish those behaviors or whole-application performance.
+The expanded repository and installed-consumer runs additionally pass native pointer
+sidebar dragging,
+16px Left/Right resizing and name-editor identity/draft retention (drag geometry
+allows 1.5 logical pixels for native/AX rounding). Keyboard custom actions work
+when unlocked; locking removes their native focus/AX subtree and whole-page reset
+preserves the disabled dirty value. Unlocking permits its explicit reset.
+
+Across 48 Advanced groups, real Space changes the first row. Navigating to the
+last group retains the focused first native owner; moving focus permits eviction.
+Returning creates a new native owner with the saved value, and Reset clears it.
+The sampled AX materialized counts are 3/3 within the 32-group budget; these are
+fixture observations, not total-memory or performance measurements. The test
+exposed a [native warm-row retention defect](../evidence/scrolling-och11.md#milestone-07-focused-row-overdraw)
+when the sole visible row was a focus pin. Including actual visible-range overlap
+in warm-set retention repairs the scoped navigation reproducer without changing
+scroll commands, the active budget or the wire protocol.
+
+Two normal windows also pass actual mouse/keyboard edits, independent reset and
+continued editing after closing the other window. Native hit testing checks which
+window owns the input point. The second window's initial `AXFocused` observation
+is false despite successful targeted keyboard input; the test records this and
+asserts actual resulting data independently. Correct focus reporting remains open
+for the accessibility audit. No VoiceOver acceptance is claimed.
+
+The driver waits for actual intermediate page content when testing draft recovery;
+rapid coalesced navigation is not qualified by those steps. IME/composition
+retention, complete field/style/size and partial-native-failure/reset-race coverage,
+accessibility discoverability/focus reporting and application performance remain
+open. Settings is not yet a functional-equivalent claim.
 
 ```sh
 GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 examples/gallery/main.exe @test/gallery/runtest @examples/gallery/files/test/runtest
 python3 scripts/test_gallery.py --section settings
 GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 @all @runtest @fmt
-GPUIO_JOBS=2 python3 scripts/test_extension_consumer.py --example gallery --workspace /private/tmp/gpuio-settings-reset-20260930-1
-python3 scripts/test_gallery.py --section settings --executable /private/tmp/gpuio-settings-reset-20260930-1/consumer/_build/default/main.exe
+GPUIO_JOBS=2 python3 scripts/test_extension_consumer.py --example gallery --workspace /private/tmp/gpuio-settings-overdraw-20260930-1
+python3 scripts/test_gallery.py --section settings --executable /private/tmp/gpuio-settings-overdraw-20260930-1/consumer/_build/default/main.exe
 ```
 
 The filesystem/model tests, full Dune build/expect/format suite, Python driver

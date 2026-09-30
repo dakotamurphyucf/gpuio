@@ -928,6 +928,105 @@ fn demand_convergence(cx: &mut gpui::AsyncApp, window: WindowHandle<View>) {
     );
 }
 
+// A tall focused row fills the viewport, so native demand lists it only as a
+// pin. Cached neighbours still belong to the same overdraw window on later frames.
+async fn focused_overdraw(cx: &mut gpui::AsyncApp, window: WindowHandle<View>, generation: i64) {
+    let root = NodeId::from_parts(0, generation).unwrap();
+    let rows: Vec<_> = (1..=3)
+        .map(|id| Row {
+            id,
+            node: NodeId::from_parts(id, generation).unwrap(),
+        })
+        .collect();
+    let mut operations = vec![
+        Op::Create(root, Kind::VirtualList, String::new(), None),
+        Op::SetStyle(root, dimensions(420., 400.)),
+        Op::SetListConfig(
+            root,
+            Config {
+                estimated_height: 200.,
+                overscan: 400.,
+                max_active: 8,
+                scroll_policy: ScrollPolicy::KeepPosition,
+                scrollbar: true,
+                managed: true,
+            },
+        ),
+        Op::SetListOrder(
+            root,
+            Order {
+                revision: 1,
+                runs: vec![IdRun { first: 1, count: 3 }],
+            },
+        ),
+    ];
+    for (row, height) in rows.iter().zip([700., 650., 240.]) {
+        operations.extend([
+            Op::Create(
+                row.node,
+                if row.id == 1 {
+                    Kind::Button
+                } else {
+                    Kind::Text
+                },
+                format!("Focus neighbour {}", row.id),
+                None,
+            ),
+            Op::SetStyle(row.node, dimensions(400., height)),
+        ]);
+    }
+    operations.extend([
+        Op::Splice(root, 0, 0, rows.iter().map(|row| row.node).collect()),
+        Op::SetListRows(root, rows.clone()),
+        Op::SetRoot(Some(root)),
+    ]);
+    apply(cx, window, operations);
+    frame(cx, window).await;
+    layout_frames(cx, window);
+    let observed = |cx: &mut gpui::AsyncApp| {
+        window
+            .update(cx, |view, _, _| {
+                view.lists[&root].borrow().observed.clone().unwrap()
+            })
+            .unwrap()
+    };
+    assert!(
+        observed(cx).requested.contains(&2),
+        "initial trailing neighbour was not measured"
+    );
+    window
+        .update(cx, |view, window, cx| {
+            view.buttons[&rows[0].node].focus.focus(window, cx);
+        })
+        .unwrap();
+    for _ in 0..6 {
+        layout_frame(cx, window);
+        let viewport = observed(cx);
+        assert_eq!((viewport.visible_first, viewport.visible_last), (0, 1));
+        assert_eq!(viewport.pinned, [1]);
+        assert!(
+            !viewport.requested.contains(&1),
+            "pins and demand are disjoint"
+        );
+        assert!(
+            viewport.requested.contains(&2),
+            "focus evicted cached neighbour: {viewport:?}"
+        );
+    }
+    window.update(cx, |_, window, cx| window.blur(cx)).unwrap();
+    layout_frames(cx, window);
+    let viewport = observed(cx);
+    assert!(viewport.pinned.is_empty());
+    assert!(viewport.requested.contains(&1) && viewport.requested.contains(&2));
+    let mut cleanup = vec![Op::SetRoot(None), Op::Remove(root)];
+    cleanup.extend(rows.iter().map(|row| Op::Remove(row.node)));
+    apply(cx, window, cleanup);
+    layout_frames(cx, window);
+    eprintln!(
+        "GPUIO_NATIVE_LIST_FOCUSED_OVERDRAW_OK: sole visible focus pin retains cached neighbour across frames and blur"
+    );
+}
+
 // Traverse every logical row twice with disjoint native identities. Weak probes
 // distinguish dropped payloads/resources from counters that merely look bounded.
 async fn history(cx: &mut gpui::AsyncApp, window: WindowHandle<View>) -> Vec<std::sync::Weak<str>> {
@@ -1138,11 +1237,16 @@ pub(crate) fn run() {
         cx.activate(true);
         cx.spawn(async move |cx| {
             let result = super::native_test::protect(async {
+                if std::env::args().any(|argument| argument == "--focused-overdraw") {
+                    focused_overdraw(cx, window, 1).await;
+                    return;
+                }
                 eprintln!("LIST_TEST applying initial source");
                 apply(cx, window, initial());
                 exercise(cx, window).await;
                 let cached_text = history(cx, window).await;
                 demand_convergence(cx, window);
+                focused_overdraw(cx, window, 2).await;
                 window
                     .update(cx, |_, window, _| window.remove_window())
                     .unwrap();

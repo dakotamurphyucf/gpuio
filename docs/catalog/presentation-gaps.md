@@ -194,7 +194,11 @@ reset/field edge coverage and full native acceptance remain unfinished. Group
 reset controls, unmounted-editor reset lifetimes, export validation and real
 native Save/Eio readback now pass scoped repository and fresh installed-consumer checks. A fresh
 installed consumer also passes the scoped checks, long-choice keyboard selection
-and Unicode paste; this checkpoint does not establish equivalence.
+and Unicode paste. An expanded consumer passes physical split/keyboard resizing,
+custom-policy exclusions, 48-group focused retention/eviction/remount and
+two-window keyboard/reset/close isolation. Disabled-row discoverability, initial
+second-window AX focus reporting, composition and complete field/style/reset-edge
+coverage remain open; this checkpoint does not establish equivalence.
 
 ## Delivery order
 
