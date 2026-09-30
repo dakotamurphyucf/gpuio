@@ -188,7 +188,11 @@ reconciliation identity, namespace/disabled semantics and localized-label errors
 Typed Boolean/choice/native-field helpers also pass identity/semantics checks;
 public editor examples pass native mount-seed behavior and guarded resets.
 Numeric draft/value seeds now support atomic unfinished-draft recovery on remount.
-Complete field integration and public/native acceptance remain unfinished; this checkpoint does not establish equivalence.
+A dedicated public gallery now passes scoped native editing, responsive identity,
+search/page draft recovery and export failure/cancellation checks. Complete
+reset/field integration and full native acceptance remain unfinished. A fresh
+installed consumer also passes the scoped checks, long-choice keyboard selection
+and Unicode paste; this checkpoint does not establish equivalence.
 
 ## Delivery order
 

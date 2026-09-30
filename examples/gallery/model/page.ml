@@ -2,6 +2,7 @@ open Core
 
 type t =
   | Presentation
+  | Settings
   | Styles
   | Controls
   | Text_inputs
@@ -28,6 +29,7 @@ type t =
 
 let all =
   [ Presentation
+  ; Settings
   ; Styles
   ; Controls
   ; Text_inputs
@@ -55,6 +57,7 @@ let all =
 
 let title = function
   | Presentation -> "Presentation"
+  | Settings -> "Settings"
   | Styles -> "Styling details"
   | Controls -> "Selection & actions"
   | Text_inputs -> "Text editing"
@@ -81,6 +84,7 @@ let title = function
 
 let description = function
   | Presentation -> "Expressive building blocks for thoughtful interfaces."
+  | Settings -> "A place for preferences, with room to grow."
   | Styles -> "Small choices that make the interface feel considered."
   | Controls -> "Native controls that respond to pointer, keyboard and assistive tools."
   | Text_inputs -> "Native editing, Unicode, selection and composition."
@@ -107,6 +111,7 @@ let description = function
 
 let key = function
   | Presentation -> "presentation"
+  | Settings -> "settings"
   | Styles -> "styles"
   | Controls -> "controls"
   | Text_inputs -> "text-inputs"

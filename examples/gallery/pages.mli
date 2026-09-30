@@ -1,5 +1,6 @@
 val component
-  :  app:Gpuio_eio.App.t
+  :  save_settings:(Gpuio.File_path.t -> string -> unit Core.Or_error.t)
+  -> app:Gpuio_eio.App.t
   -> desktop:Desktop_session.t
   -> motion:Gpuio.Animation.Preference.t Bonsai.Cont.Expert.Var.t
   -> Gpuio_eio.App.Window.t

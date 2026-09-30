@@ -15,8 +15,11 @@ Typed Boolean/choice/native-field helpers now pass identity/dispatch/semantic
 checks. Public text/numeric examples pass native mount-seed behavior and guarded
 reset commands. Atomic numeric mount seeds now recover unfinished drafts
 independently of committed values, with codec/admission/native command evidence.
-Complete field integration, native resizing/virtualization and gallery/consumer
-acceptance remain required;
+A dedicated Settings gallery now passes scoped keyboard editing, responsive
+identity, search/page draft recovery and export failure/cancellation checks.
+A fresh installed consumer passes those checks plus long-choice keyboard selection
+and Unicode paste. Complete reset/field integration, native resizing/virtualization
+and the remaining native acceptance cases are still required;
 Settings is not yet a functional-equivalent claim.
 
 The [mounted native binding observer](design/command-binding-observations.md)
@@ -224,13 +227,13 @@ foreground runs through atomic bridge updates and View/Bonsai reconciliation.
 Local checks cover native GPU paint, wrapping, selection/copy and source AX labels.
 The public label helper and gallery build on this same text primitive.
 OCH-41's public
-[Component Studio](../examples/gallery/README.md) now has twenty-three preview sections,
+[Component Studio](../examples/gallery/README.md) now has twenty-four preview sections, including Settings,
 including canvas, images/icons, charts, native motion, responsive layouts, native extensions, input/transfers, input observations, desktop services and styling details. The [gallery evidence](evidence/gallery-och41.md) records
 local macOS interaction, geometry, gallery expect tests, formatting and structural
 catalog checks, separately from earlier native document/Clippy regression checks.
 The current catalog maps every required v1 family to a gallery page. Detailed
-behavioral parity and release gates are still pending. The complete 23-section
-walkthrough now passes on both the repository application and a fresh independent
+behavioral parity and release gates are still pending. The earlier 23-section
+walkthrough passes on both the repository application and a fresh independent
 consumer of installed public libraries. The consumer backend builds with its
 independent lockfile; this does not establish clean-machine distribution. The
 independent [Signal Studio consumer](evidence/signal-studio-och29.md) also passes

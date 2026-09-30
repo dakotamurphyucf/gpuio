@@ -18,6 +18,21 @@ adds public inline-code/bold and safe image-placeholder links, with exact AX
 reading-order/action checks and retained keyboard navigation. Its focused result
 is separate from the combined/installed-consumer checkpoints below.
 
+## Settings page — focused checkpoint, 2026-09-30
+
+The new twenty-fourth page uses public Settings/Core/Bonsai/Eio composition and
+application-owned data/controllers outside virtual rows. The repository driver
+passes actual keyboard text/numeric editing, responsive native identity, four
+variants, page/filter draft restoration, numeric Cancel to committed value,
+guarded text reset, injected task failure and native export-dialog cancellation
+with retry. A fresh installed-library consumer also passes these checks, model 249 keyboard
+selection/reset and Unicode clipboard paste. Model and real Eio file-replacement
+expect tests and the full Dune build/expect/format suite pass separately.
+The [Settings contract](../design/settings-composition.md#public-gallery-integration-checkpoint--2026-09-30)
+records the exact scope and unfinished reset/native requirements. This
+new focused check does not extend the earlier complete 23-section result into a
+complete 24-section or release acceptance claim.
+
 ## Live binding observations — focused checkpoint, 2026-09-30
 
 The Presentation card **Shortcuts in context** uses only public Core/Bonsai/Eio
@@ -338,7 +353,8 @@ physical IME/screen-reader claim follows from this walkthrough.
 | Desktop services | Shared identity/link/notification receivers, per-window metadata, actual packaged OS links, picker/open/reveal, notification permission/presentation/replacement/action/dismissal | Gallery default-handler reassignment and release packaging/clean-machine gates |
 | Runtime & windows | Public diagnostics, observed content geometry, native file picker cancellation | Broader window command matrix |
 
-The gallery now has 23 sections, covered by the latest combined checkpoint above.
+The earlier combined checkpoint covers 23 sections. The gallery now has 24, with
+Settings validated separately as recorded above.
 See the [highlighting evidence](subtree-highlighting-och41.md) for the focused
 cases and inline-code theme correction.
 

@@ -404,10 +404,11 @@ let editors window palette graph =
     ]
 ;;
 
-let component ~app ~desktop ~motion window ~page ~palette graph =
+let component ~save_settings ~app ~desktop ~motion window ~page ~palette graph =
   let open B.Let_syntax in
   match%sub page with
   | Page.Presentation -> presentation app window palette graph
+  | Settings -> Settings_preview.component ~save:save_settings window palette graph
   | Styles -> Styles_page.component palette graph
   | Controls -> controls window palette graph
   | Text_inputs -> editors window palette graph

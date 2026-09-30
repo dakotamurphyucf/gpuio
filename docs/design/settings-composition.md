@@ -4,8 +4,11 @@ OCH-41 work in progress. The bounded Core catalog/navigation/reset model is
 implemented in [Settings](../../lib/core/settings.mli), with a controlled
 [Bonsai composite](../../lib/bonsai/settings_panel.mli). Deterministic composition
 and lifetime checks pass. Typed field helpers and editor mount-seed primitives
-are implemented. Complete field integration, the public gallery and actual
-native/installed-consumer acceptance remain required; this is not yet a
+are implemented. A dedicated public gallery page now exercises native editing,
+responsive identity, search/page draft recovery and export failure/cancellation.
+A fresh installed-library consumer passes the same scoped checks plus long-choice
+keyboard selection and Unicode paste. Complete field/reset integration and wider
+native acceptance remain required; this is not yet a
 functional-equivalent catalog claim.
 
 ## Source and ownership
@@ -254,6 +257,72 @@ GPUIO_JOBS=2 ./scripts/gpuio exec _build/default/examples/text_input/main.exe --
 GPUIO_JOBS=2 ./scripts/gpuio exec _build/default/examples/numeric/number.exe --self-test
 ```
 
-There is no complete Settings GUI or installed-consumer acceptance yet. Settings, OCH-41
-and milestone 07 remain incomplete. Required Linux non-GUI checks and OCH-17
+## Public gallery integration checkpoint — 2026-09-30
+
+Component Studio now has a dedicated **Settings** page, using the public model,
+composite and field helpers. Its typed example model lives in
+`examples/gallery/model/settings_state.mli`; the renderer/controller integration
+is `examples/gallery/settings_preview.ml`. Values and native controllers live
+outside transient group/item computations. The example includes text, independent
+numeric draft/committed value, Boolean fields, three typed regions, 250 stable
+model choices, a policy-locked custom action, a disabled organization preference
+and 48 virtualized Advanced groups. Four group variants, three field sizes and
+narrow/wide controls exercise the existing composite rather than a separate demo
+implementation. Identical focus/selection observations do not republish application
+values or rebuild the catalog.
+
+Reset requests resolve against current metadata. Multi-field loops recheck the
+original scope after asynchronous native reads; visible text/number replacements
+also fence native identity and revision, and retain the existing IME rejection.
+**Unfinished case:** an unmounted text/number field currently reports the native
+unavailable/stale error instead of resetting its stored seed. Other eligible fields
+can already have reset; no atomic multi-field reset is promised. Complete this
+case with explicit application/native lifetime fencing before accepting the
+Settings row. Do not silently ignore failed editor resets.
+
+Export is explicit: the native Save panel selects a destination, then a scoped
+Eio task writes one immutable, versioned example snapshot. The snapshot includes
+committed numeric values, not the separate draft or native selection/history/IME.
+`examples/gallery/files/settings_file.mli` documents the 64 KiB write bound,
+exclusive temporary sibling, file sync, atomic rename, cleanup and durability
+limits. Filesystem work does not run during rendering/filtering. An explicit
+**Try failed export** action injects writer failure through the same task lane;
+it does not pretend an OS error occurred. Errors retain application data. Export
+cancellation clears busy state, and retired scopes cannot overwrite a new visit's
+status. This is an example export format, not framework settings persistence.
+
+Two model expect tests cover queued Boolean intents, policy-locked custom actions,
+current reset scopes, navigation-independent data/drafts, validated choices and
+56 stable field identities. The filesystem expect test performs actual Eio writes,
+size-bound rejection, failed destination replacement with original-data retention,
+temporary cleanup and destination-symlink replacement.
+
+The repository's macOS `--section settings` driver passes actual keyboard edits,
+AX identity across responsive changes, four group variants, text and unfinished
+numeric draft recovery across page visits, Escape to committed value, empty search
+and clearing recovery, guarded text reset, injected export failure and native Save
+panel cancellation/retry. A fresh independent consumer of staged public packages
+passes all of these checks, keyboard End/Return selection of model 249 followed by
+reset to model 0, and actual AppKit clipboard paste of `Aster 京都 👩‍💻` followed
+by guarded reset. The user's original clipboard was restored. Consumer build used
+its own locked native backend and did not install into or change the opam switch.
+
+Multiwindow settings isolation, group eviction/retention, physical split resizing,
+IME and complete reset/export success acceptance remain open. The tests do not
+establish those behaviors or whole-application performance.
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 examples/gallery/main.exe @test/gallery/runtest @examples/gallery/files/test/runtest
+python3 scripts/test_gallery.py --section settings
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 @all @runtest @fmt
+GPUIO_JOBS=2 python3 scripts/test_extension_consumer.py --example gallery --workspace /private/tmp/gpuio-settings-gallery-20260930-1
+python3 scripts/test_gallery.py --section settings --executable /private/tmp/gpuio-settings-gallery-20260930-1/consumer/_build/default/main.exe
+```
+
+The filesystem/model tests, full Dune build/expect/format suite, Python driver
+syntax check and structural catalog audit pass locally. Both native runs used a
+180-second process-group watchdog and closed/reaped normally. The temporary
+consumer path is evidence only; builds never depend on it.
+
+Settings, OCH-41 and milestone 07 remain incomplete. Required Linux non-GUI checks and OCH-17
 release gates remain; full Linux desktop qualification is deferred to OCH-47.

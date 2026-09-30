@@ -5455,6 +5455,104 @@ def exercise_runtime(mac, images):
     mac.wait_text(TITLE, 'File selection cancelled')
 
 
+
+def exercise_settings(mac, images):
+    mac.press(TITLE, 'Settings')
+    mac.wait_text(TITLE, 'Make it yours')
+    original = mac.wait_find(TITLE, 'Settings workspace name', 'AXTextField')
+    equal = mac.cf.CFEqual
+    equal.restype, equal.argtypes = C.c_bool, [C.c_void_p, C.c_void_p]
+    try:
+        focus_gallery_control(mac, 'Settings workspace name', 'AXTextField')
+        mac.key(0, flags=1 << 20)
+        mac.key(0)
+        expect_field(mac, TITLE, 'Settings workspace name', 'a')
+        mac.wait_text(TITLE, 'Stored name: a')
+        mac.press(TITLE, 'Narrow settings')
+        expect_field(mac, TITLE, 'Settings workspace name', 'a')
+        current = mac.wait_find(TITLE, 'Settings workspace name', 'AXTextField')
+        try:
+            assert equal(original, current), 'Responsive settings replaced the editor'
+        finally:
+            mac.release(current)
+        mac.press(TITLE, 'Widen settings')
+        for label in ['Outline groups', 'Filled groups', 'Plain groups', 'Card groups']:
+            mac.press(TITLE, label)
+            expect_field(mac, TITLE, 'Settings workspace name', 'a')
+        activate(mac, mac.wait_find(TITLE, 'Advanced', 'AXLink'))
+        mac.wait_text(TITLE, 'Experiment 00')
+        activate(mac, mac.wait_find(TITLE, 'Workspace', 'AXLink'))
+        expect_field(mac, TITLE, 'Settings workspace name', 'a')
+        remounted = mac.wait_find(TITLE, 'Settings workspace name', 'AXTextField')
+        try:
+            assert not equal(original, remounted), 'Page departure did not retire editor'
+        finally:
+            mac.release(remounted)
+        # Keep the numeric draft independent from its committed value across visits.
+        activate(mac, mac.wait_find(TITLE, 'Generation', 'AXLink'))
+        focus_gallery_control(mac, 'Settings response budget', 'AXTextField')
+        mac.key(0, flags=1 << 20)
+        mac.key(18)  # 1
+        mac.key(14)  # e
+        mac.key(27)  # minus
+        expect_field(mac, TITLE, 'Settings response budget', '1e-')
+        mac.wait_text(TITLE, 'Finish this number before committing.')
+        activate(mac, mac.wait_find(TITLE, 'Advanced', 'AXLink'))
+        activate(mac, mac.wait_find(TITLE, 'Workspace', 'AXLink'))
+        activate(mac, mac.wait_find(TITLE, 'Generation', 'AXLink'))
+        expect_field(mac, TITLE, 'Settings response budget', '1e-')
+        focus_gallery_control(mac, 'Settings response budget', 'AXTextField')
+        mac.key(53)  # Escape restores committed 25
+        expect_field(mac, TITLE, 'Settings response budget', '25')
+        focus_gallery_control(mac, 'Settings model', 'AXPopUpButton')
+        mac.key(49)  # Space opens the native popup
+        mac.key(119)  # End reaches the last of 250 virtualized options
+        mac.key(36)
+        mac.wait_text(TITLE, 'model: 249')
+        mac.press(TITLE, 'Reset model')
+        mac.wait_text(TITLE, 'model: 000')
+        # Search removes and remounts whole groups without deleting application drafts.
+        focus_gallery_control(mac, 'Search settings', 'AXTextField')
+        mac.key(0)  # a matches broad metadata
+        mac.key(0, flags=1 << 20)
+        mac.key(6)
+        mac.key(6)  # zz: no matching setting
+        mac.wait_text(TITLE, 'No matching settings')
+        mac.key(0, flags=1 << 20)
+        mac.key(51)  # clear query
+        expect_field(mac, TITLE, 'Settings workspace name', 'a')
+        mac.press(TITLE, 'Reset workspace-name')
+        expect_field(mac, TITLE, 'Settings workspace name', 'Northstar')
+        mac.wait_text(TITLE, 'Stored name: Northstar')
+        mac.press(TITLE, 'Try failed export')
+        mac.wait_text(TITLE, 'Export failed: Preview writer is unavailable.')
+        expect_field(mac, TITLE, 'Settings workspace name', 'Northstar')
+        # Paste through AppKit, retaining the user's previous clipboard.
+        clipboard_env = dict(os.environ, LANG='en_US.UTF-8', LC_ALL='en_US.UTF-8')
+        previous_clipboard = subprocess.run(['/usr/bin/pbpaste'], capture_output=True, check=True, env=clipboard_env).stdout
+        try:
+            text = 'Aster 京都 👩‍💻'
+            subprocess.run(['/usr/bin/pbcopy'], input=text.encode(), check=True, env=clipboard_env)
+            focus_gallery_control(mac, 'Settings workspace name', 'AXTextField')
+            mac.key(0, flags=1 << 20)
+            mac.key(9, flags=1 << 20)
+            expect_field(mac, TITLE, 'Settings workspace name', text)
+            mac.wait_text(TITLE, 'Stored name: ' + text)
+            mac.press(TITLE, 'Reset workspace-name')
+            expect_field(mac, TITLE, 'Settings workspace name', 'Northstar')
+        finally:
+            subprocess.run(['/usr/bin/pbcopy'], input=previous_clipboard, check=True, env=clipboard_env)
+        mac.press(TITLE, 'Export settings…')
+        mac.release(mac.wait_find(TITLE, 'Cancel', 'AXButton'))
+        mac.press(TITLE, 'Cancel')
+        mac.press(TITLE, 'Try failed export')
+        mac.wait_text(TITLE, 'Export failed: Preview writer is unavailable.')
+        if images:
+            screenshot(mac, images / 'gallery-settings.png', title=TITLE)
+    finally:
+        mac.release(original)
+    print('GALLERY_SETTINGS_OK: keyboard/Unicode edits, responsive identity, variants, page/search draft recovery, long choices, guarded resets, export failure/cancel/retry', flush=True)
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--images', type=Path)
@@ -5464,7 +5562,7 @@ def main():
     parser.add_argument('--trace-canvas', action='store_true')
     parser.add_argument('--trace-motion', action='store_true')
     parser.add_argument('--trace-windows', action='store_true')
-    parser.add_argument('--section', choices=['all', 'core', 'status-regions', 'badges', 'labels', 'shimmer', 'markers', 'alerts', 'tags', 'keyboard-labels', 'binding-observations', 'descriptions', 'chat-composition', 'chat-list', 'attachments', 'attachment-paint', 'groups', 'links', 'empty', 'separators', 'styles', 'borders', 'aspect-ratio', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'document-links', 'document-images', 'highlighting', 'canvas', 'assets', 'charts', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
+    parser.add_argument('--section', choices=['all', 'core', 'settings', 'status-regions', 'badges', 'labels', 'shimmer', 'markers', 'alerts', 'tags', 'keyboard-labels', 'binding-observations', 'descriptions', 'chat-composition', 'chat-list', 'attachments', 'attachment-paint', 'groups', 'links', 'empty', 'separators', 'styles', 'borders', 'aspect-ratio', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'document-links', 'document-images', 'highlighting', 'canvas', 'assets', 'charts', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
     args = parser.parse_args()
     if args.images:
         args.images.mkdir(parents=True, exist_ok=True)
@@ -5527,6 +5625,8 @@ def main():
                 exercise_status_regions(mac, args.images)
             if args.section == 'borders':
                 exercise_borders(mac, args.images)
+            if args.section in ('all', 'settings'):
+                exercise_settings(mac, args.images)
             if args.section in ('all', 'styles'):
                 exercise_styles(mac, args.images)
             if args.section in ('all', 'pickers'):

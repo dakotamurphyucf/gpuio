@@ -21,6 +21,21 @@ on the current page preserve native text and selection. Preview model state is
 local to its Bonsai branch and survives page changes. Transient modal, chooser and
 in-app toast state is cleared on departure. Application-owned OS notification/link state survives page and window changes. At most four windows are opened by the gallery.
 
+The **Settings** page composes the public Settings model/panel/field APIs with
+application-owned values and native editor controllers. Explore two settings pages,
+48 Advanced groups, typed switches/checkboxes, text, independent numeric drafts,
+three regions, a 250-option model dropdown, a policy-locked custom control and
+four group variants. Narrow/wide changes retain the editor; filtering/page visits
+restore stored text and numeric drafts with fresh native editing sessions.
+**Export settings…** asks for a destination and writes a committed-value preview
+snapshot through Eio; **Try failed export** deliberately injects a task failure
+without dropping edits. Export is an example format, not an application settings
+service. The focused driver is `python3 scripts/test_gallery.py --section settings`.
+The repository and a fresh installed consumer pass scoped interaction checks,
+including consumer long-choice keyboard selection and Unicode paste.
+Unmounted-editor reset behavior and full native acceptance remain open;
+see the [Settings contract](../../docs/design/settings-composition.md).
+
 The Presentation page's **A little light, in motion** card demonstrates selectable
 text-glyph shimmer with explicit application-theme colors. It starts paused. Use
 Start/Pause, reverse, one sweep, width and effect toggles; Refresh changes the

@@ -13,7 +13,18 @@ let style = Style.create_exn
 let px = Length.px_exn
 let full = Length.percent_exn 100.
 
-let component ~app ~desktop ~motion ~open_window ~page ~appearance ~scale window graph =
+let component
+      ~save_settings
+      ~app
+      ~desktop
+      ~motion
+      ~open_window
+      ~page
+      ~appearance
+      ~scale
+      window
+      graph
+  =
   let open B.Let_syntax in
   B.Edge.on_change
     (B.Expert.Var.value appearance)
@@ -32,7 +43,15 @@ let component ~app ~desktop ~motion ~open_window ~page ~appearance ~scale window
     Palette.create a s
   in
   let content =
-    Pages.component ~app ~desktop ~motion window ~page:page_value ~palette graph
+    Pages.component
+      ~save_settings
+      ~app
+      ~desktop
+      ~motion
+      window
+      ~page:page_value
+      ~palette
+      graph
   in
   let%arr page_value = page_value
   and p = palette
@@ -130,7 +149,13 @@ let main () =
     Array.filter_map (Sys.get_argv ()) ~f:(String.chop_prefix ~prefix:"--open-uri=")
     |> Array.to_list
   in
-  App.run_desktop Desktop_session.identity ~startup_links (fun _env app ->
+  App.run_desktop Desktop_session.identity ~startup_links (fun env app ->
+    let save_settings path contents =
+      Gpuio_gallery_files.Settings_file.save
+        Eio.Path.(Eio.Stdenv.fs env / Gpuio.File_path.to_string path)
+        ~random:(Eio.Stdenv.secure_random env)
+        contents
+    in
     let desktop = Desktop_session.create app in
     let motion = B.Expert.Var.create Animation.Preference.System in
     let windows = ref [] in
@@ -153,7 +178,15 @@ let main () =
             ~title:(sprintf "GPUIO · Component Studio %d" !serial)
             ~width:1120.
             ~height:820.
-            (component ~app ~desktop ~motion ~open_window ~page ~appearance ~scale)
+            (component
+               ~save_settings
+               ~app
+               ~desktop
+               ~motion
+               ~open_window
+               ~page
+               ~appearance
+               ~scale)
           |> ok
         in
         if trace_windows
