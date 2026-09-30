@@ -59,6 +59,9 @@ for directory in ("model", "files", "notifications"):
 if args.example == "gallery":
     shutil.copytree(root / "examples/charts/samples", consumer / "chart_samples")
 (consumer / "dune-project").write_text("(lang dune 3.21)\n(name independent_extension_consumer)\n")
+# Dune runs Cargo from this outside-checkout workspace. Preserve the repository
+# pin there too, rather than falling back to the developer's global Rust default.
+shutil.copyfile(root / "rust-toolchain.toml", consumer / "rust-toolchain.toml")
 (consumer / ".ocamlformat").write_text((root / ".ocamlformat").read_text())
 (consumer / "native.json").write_text(json.dumps({
     "library": manifest["library"], "gpuio": str(root),
