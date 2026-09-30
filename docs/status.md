@@ -5,13 +5,21 @@ Current checkpoint: milestones 1–6 are merged. Milestone 5's
 [required macOS/Linux CI](https://github.com/dakotamurphyucf/gpuio/actions/runs/36312697654)
 passed on `473407c`; all twelve tickets are Done.
 
+The [rich Alert adapter](design/presentation-alerts.md) now supplies typed variants,
+sizes, Card/Banner layouts, optional rich slots and a localized native close button.
+Core/full Dune checks pass. The repository gallery and fresh installed consumer
+pass 20 theme/variant/banner cases, eight size layouts, 21 OS body actions,
+disabled close, keyboard/pointer dismissal and control retirement. The consumer
+also passes GPU tint/border checks. The source row is locally a functional
+equivalent; the presentation family and wider release gates remain open.
+
 The [rich Marker adapter](design/presentation-markers.md) now provides typed
 Plain/Separator/Border composition, icon/content slots and native Spinner/Shimmer
 loading. Core validation/style/identity checks and the focused macOS gallery pass.
 A fresh installed consumer passes 18 theme/variant/icon cases and 21 OS keyboard
 actions, GPU text/rich/static paint, opacity refinement, reduced-motion recovery
 and page/slot retirement. The source row is locally a functional equivalent;
-Alert, Tag, Bubble, Message, Description, Kbd and Settings remain in the presentation
+Tag, Bubble, Message, Description, Kbd and Settings remain in the presentation
 review, alongside other catalog and OCH-17 release gates.
 
 Native [animation opacity factors](design/animation-opacity-factor.md) now supply

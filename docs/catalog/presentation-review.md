@@ -300,9 +300,9 @@ hosted CI, performance or clean-machine distribution acceptance.
 
 The other presentation modules have a
 [pinned source and behavior review](presentation-gaps.md), including nested
-settings fields. Empty, Separator, Attachment and Marker now have explicit local
+settings fields. Empty, Separator, Attachment, Marker and Alert now have explicit local
 functional-equivalent evidence; the ledger distinguishes them from the remaining
-Alert, Tag, Bubble, Message, Description, Kbd and Settings gaps.
+Tag, Bubble, Message, Description, Kbd and Settings gaps.
 Source review alone does not establish functional equivalence. Prior OCH-33 evidence
 still applies only to the APIs it actually tests. Other catalog families,
 consumer/CI/distribution checks and the complete OCH-17 scope remain open.
@@ -458,3 +458,25 @@ text/rich/static paint, focus and page disposal. A fresh installed-library consu
 adds text-only loading and explicit rich-slot retirement/reinsertion, with 21 OS
 Return/Space activations. This is scoped local macOS functional equivalence; other
 catalog, performance, hosted CI, Linux and distribution gates remain open.
+
+## Alert: functional equivalent
+
+`Presentation.Alert` maps the pinned [Alert](sources/component-alert.rs.txt)
+through ordinary native views, preserving the existing helpers. The
+[contract](../design/presentation-alerts.md) records variants, four sizes,
+Card/Banner, optional rich title/body/icon, independent styles, validated localized
+close configuration and caller-owned visibility. Banner omits title/radius while
+retaining the renderer's border. GPUIO semantic colors and default text glyphs
+are explicit palette/artwork choices. Live defaults Off; applications opt into
+announcements. Close is an ordinary accessible native button.
+
+Core tests cover validation, style precedence, theme alpha and explicit semantics.
+Forty configuration transitions retain body/close identities and current callbacks
+without cosmetic live-metadata updates; hiding fences old actions and showing
+remounts. The public gallery and fresh installed consumer pass 20 theme/variant/
+banner cases, eight size layouts, title bounds/wrapping, icon modes, 21 OS body
+actions, disabled close, Space/pointer dismissal and slot/hide/page retirement.
+The consumer additionally checks actual GPU tint/border paint in both themes and
+custom border refinement. This accepts the scoped source row locally on macOS;
+VoiceOver, Linux, aggregate performance, distribution and other catalog/release
+gates remain separate.

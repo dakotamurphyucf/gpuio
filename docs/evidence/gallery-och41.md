@@ -18,6 +18,28 @@ adds public inline-code/bold and safe image-placeholder links, with exact AX
 reading-order/action checks and retained keyboard navigation. Its focused result
 is separate from the combined/installed-consumer checkpoints below.
 
+## Rich alerts — focused checkpoint, 2026-09-30
+
+The Presentation page's **A clear next step** card exposes the public
+`Presentation.Alert` variants, sizes, title/icon/close slots, Card/Banner,
+style overrides, narrow width and caller-owned dismissal. The [contract and
+commands](../design/presentation-alerts.md) record precise source differences,
+validation, native behavior and scope.
+
+The normal application and independently installed consumer pass 20 theme/variant/
+banner cases, eight size layouts, title single-line bounds, wrapped body growth,
+retained native control identity/focus, 21 OS body actions, disabled close and
+Space/pointer dismissal. Close-slot removal, hiding and page departure retire
+controls without losing caller counters. The consumer also passes actual GPU
+background/border samples and custom border refinement. Both bounded processes
+exit successfully and are reaped. Final markers: `GALLERY_ALERT_OK` and
+`GPUIO_GALLERY_AX_OK: section=alerts`.
+
+Full Dune build/tests/format and structural checks pass. No Rust/protocol/fork
+change is involved. This establishes local macOS functional equivalence for the
+source row; it does not establish a fresh whole-gallery run, hosted CI, VoiceOver,
+Linux GUI, application performance or clean-machine distribution.
+
 ## Rich markers — focused checkpoint, 2026-09-30
 
 The Presentation page's **Signals that stay out of the way** card now showcases

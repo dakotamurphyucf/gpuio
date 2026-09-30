@@ -29,6 +29,14 @@ motion. Its focused normal-launch and installed-consumer checks pass on macOS:
 `python3 scripts/test_gallery.py --section shimmer`. See the exact coverage and
 remaining release gates in [the shimmer contract](../../docs/design/text-shimmer.md).
 
+The **A clear next step** card uses `Presentation.Alert` for semantic variants,
+Card/Banner layout, optional title/close, icon choices, sizes, style refinement
+and narrow-width wrapping. Dismiss with pointer or keyboard, test disabled close,
+and restore the alert while its counters remain in caller state. Run the focused
+native check with `python3 scripts/test_gallery.py --section alerts`; it also runs
+in `core` and `all`.
+See the [Alert contract](../../docs/design/presentation-alerts.md).
+
 The **Signals that stay out of the way** card uses `Presentation.Marker` for
 Plain/Separator/Border status rows. Toggle busy state, Spinner/Shimmer, custom or
 empty icons, typed/rich content and an empty typed label. Typed text shimmers;

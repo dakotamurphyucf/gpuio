@@ -36,6 +36,7 @@ def exercise(mac, images):
     exercise_labels(mac, images)
     exercise_shimmer(mac, images)
     exercise_markers(mac, images)
+    exercise_alerts(mac, images)
     exercise_attachments(mac, images)
     exercise_groups(mac, images)
     exercise_separators(mac, images)
@@ -811,6 +812,221 @@ def exercise_groups(mac, images):
     print(f'GALLERY_GROUP_OK: {cases} theme/variant/style/slot cases; geometry, retained '
           f'checked state and native identity, {clicks} pointer/Return actions, '
           'real Space input, focus and teardown', flush=True)
+
+
+def exercise_alerts(mac, images):
+    """Rich Alert public controls, native geometry, OS activation and dismissal."""
+    mac.press(TITLE, 'Presentation')
+    mac.wait_text(TITLE, 'A clear next step')
+    action = mac.wait_find(TITLE, 'Alert action', 'AXButton')
+    close = mac.wait_find(TITLE, 'Dismiss alert', 'AXButton')
+    equal = mac.cf.CFEqual
+    equal.restype, equal.argtypes = C.c_bool, [C.c_void_p, C.c_void_p]
+    mouse = GalleryMouse(mac)
+    temporary = tempfile.TemporaryDirectory(prefix="gpuio-alert-")
+    directory = images or Path(temporary.name)
+    serial = 0
+    actions = cases = 0
+    variant, size, icon = 'Default', 'M', 'Default'
+    title = 'A small interruption, a clear next step'
+    message = 'Your workspace is safe. Review the details, then continue where you left off. 京都'
+
+    def toggle(label):
+        activate(mac, mac.wait_find(TITLE, label, 'AXCheckBox'))
+        time.sleep(.08)
+
+    def identity():
+        for label, retained in [('Alert action', action), ('Dismiss alert', close)]:
+            node = mac.wait_find(TITLE, label, 'AXButton')
+            try:
+                assert equal(retained, node), f'{label} remounted during reconfiguration'
+            finally:
+                mac.release(node)
+
+    def cycle(prefix, current, values):
+        mac.press(TITLE, prefix + current)
+        value = values[(values.index(current) + 1) % len(values)]
+        mac.release(mac.wait_find(TITLE, prefix + value, 'AXButton'))
+        return value
+
+    def root_rect():
+        root = mac.wait_find(TITLE, 'Alert preview', 'AXGroup')
+        try:
+            return element_rect(mac, root)
+        finally:
+            mac.release(root)
+
+    def geometry(banner, compact=False):
+        reveal_gallery_control(mac, 'Alert action', 'AXButton')
+        x,y,w,h = root_rect()
+        assert abs(w-(350 if compact else 560)) < 1, ('alert width',w)
+        body = mac.wait_find(TITLE, message, 'AXStaticText')
+        try:
+            bx,by,bw,bh = element_rect(mac, body)
+        finally:
+            mac.release(body)
+        ax,ay,aw,ah = element_rect(mac,action)
+        cx,cy,cw,ch = element_rect(mac,close)
+        assert x <= bx and bx+bw <= cx+1 and by >= y and by+bh <= y+h+1, ('body clipped/overlap', (x,y,w,h),(bx,by,bw,bh),(cx,cy,cw,ch))
+        assert ay >= by+bh-1 and ax+aw <= cx+1 and ay+ah <= y+h+1, 'rich action escaped body'
+        assert cx+cw <= x+w+1 and cy >= y, 'close outside root'
+        if banner:
+            absent(mac,title,'AXStaticText')
+        else:
+            title_node=mac.wait_find(TITLE,title,'AXStaticText')
+            try:
+                _,_,tw,th=element_rect(mac,title_node)
+                assert th <= 22 and tw <= w, ('title failed single-line truncation',tw,th)
+            finally:
+                mac.release(title_node)
+        return h
+
+    def paint(theme, variant, refined=False):
+        nonlocal serial
+        x,y,w,h=root_rect()
+        window=mac.window(TITLE)
+        try:
+            wx,wy,ww,wh=element_rect(mac,window)
+        finally:
+            mac.release(window)
+        # The left padding and vertical edge contain no glyphs or controls.
+        assert y+h/2 > wy+160 and y+h/2 < wy+wh-20
+        path=directory/f'gallery-alert-paint-{serial:03d}.png'
+        serial+=1
+        screenshot(mac,path,title=TITLE)
+        pixels=read_png(mac,path)
+        def rgb(offset):
+            return pixels.rgb((x+offset-wx)*pixels.width/ww,(y+h/2-wy)*pixels.height/wh)
+        dark=theme=='Dark'
+        parent=(25,33,44) if dark else (255,255,255)
+        surface=(27,32,43) if dark else (255,255,255)
+        border=(62,72,91) if dark else (211,217,227)
+        accents={'Info':(163,181,255) if dark else (64,88,183),
+                 'Success':(139,214,175) if dark else (33,115,76),
+                 'Warning':(241,199,132) if dark else (135,85,11),
+                 'Error':(255,160,175) if dark else (183,52,75)}
+        def mix(ink,alpha,base):
+            return tuple(round(a*alpha+b*(1-alpha)) for a,b in zip(ink,base))
+        if variant=='Default':
+            background=surface
+        else:
+            background=mix(accents[variant],10/255,parent)
+            border=mix(accents[variant],77/255,background)
+        if refined:
+            border=(137,221,201) if dark else (9,110,91)
+        close=lambda a,b:max(abs(x-y) for x,y in zip(a,b))<=5
+        assert close(rgb(6),background), ('alert background tint',theme,variant,rgb(6),background)
+        edge=[rgb(o) for o in [.25,.5,.75]]
+        assert any(close(c,border) for c in edge), ('alert border tint',theme,variant,edge,border)
+
+    def click_close():
+        x,y,w,h = reveal_gallery_control(mac, 'Dismiss alert', 'AXButton')
+        point=(x+w/2,y+h/2)
+        mouse.check_owner(point)
+        mouse.send(5,point)
+        mouse.send(1,point)
+        mouse.send(2,point)
+
+    node=mac.find(TITLE,'Dark','AXButton')
+    initial='Dark' if node else 'Light'
+    if node: mac.release(node)
+    try:
+        for theme in [initial, 'Light' if initial=='Dark' else 'Dark']:
+            for _ in range(5):
+                focus_gallery_control(mac,'Alert action','AXButton')
+                for banner in [False,True]:
+                    if banner: toggle('Alert banner')
+                    identity()
+                    geometry(banner)
+                    paint(theme,variant)
+                    expect_focus(mac,'Alert action','AXButton')
+                    mac.key(36)
+                    actions+=1
+                    mac.wait_text(TITLE,f'Alert actions: {actions}')
+                    cases+=1
+                toggle('Alert banner')
+                variant=cycle('Alert variant: ',variant,['Default','Info','Success','Warning','Error'])
+            heights={}
+            for _ in range(4):
+                heights[size]=geometry(False)
+                identity()
+                size=cycle('Alert size: ',size,['XS','S','M','L'])
+            assert heights['XS'] < heights['S'] < heights['M'] < heights['L'], heights
+            for _ in range(3):
+                icon=cycle('Alert icon: ',icon,['Default','Custom','Hidden'])
+                identity()
+                geometry(False)
+            toggle('Compact alert')
+            compact_h=geometry(False,compact=True)
+            toggle('Compact alert')
+            assert compact_h > geometry(False), 'narrow body did not wrap/grow'
+            toggle('Refine alert styles')
+            geometry(False)
+            paint(theme,variant,refined=True)
+            identity()
+            if images:
+                screenshot(mac, images / f'gallery-alert-{theme.lower()}.png', title=TITLE)
+            toggle('Refine alert styles')
+            if theme==initial:
+                mac.press(TITLE,theme)
+        toggle('Alert title')
+        absent(mac,title,'AXStaticText')
+        identity()
+        toggle('Alert title')
+        mac.release(mac.wait_find(TITLE,title,'AXStaticText'))
+        toggle('Disable alert close')
+        identity()
+        click_close()
+        mac.wait_text(TITLE,'Alert dismissals: 0')
+        identity()
+        toggle('Disable alert close')
+        # Removing only the close slot must keep the body action alive.
+        toggle('Alert close control')
+        wait_absent(mac,'Dismiss alert','AXButton')
+        node=mac.wait_find(TITLE,'Alert action','AXButton')
+        try: assert equal(node,action)
+        finally: mac.release(node)
+        toggle('Alert close control')
+        replacement=mac.wait_find(TITLE,'Dismiss alert','AXButton')
+        assert not equal(close,replacement), 'removed close retained native identity'
+        mac.release(close)
+        close=replacement
+        focus_gallery_control(mac,'Dismiss alert','AXButton')
+        mac.key(49)
+        mac.wait_text(TITLE,'Alert dismissals: 1')
+        wait_absent(mac,'Alert action','AXButton')
+        absent(mac,title,'AXStaticText')
+        absent(mac,'Alert preview','AXGroup')
+        mac.press(TITLE,'Restore alert')
+        replacement=mac.wait_find(TITLE,'Alert action','AXButton')
+        assert not equal(action,replacement), 'hidden alert retained native action'
+        mac.release(action)
+        action=replacement
+        replacement=mac.wait_find(TITLE,'Dismiss alert','AXButton')
+        assert not equal(close,replacement), 'hidden alert retained close action'
+        mac.release(close)
+        close=replacement
+        mac.wait_text(TITLE,f'Alert actions: {actions}')
+        click_close()
+        mac.wait_text(TITLE,'Alert dismissals: 2')
+        wait_absent(mac,'Alert action','AXButton')
+        mac.press(TITLE,'Restore alert')
+        mac.release(mac.wait_find(TITLE,'Alert action','AXButton'))
+        mac.press(TITLE,'Runtime & windows')
+        wait_absent(mac,'Alert action','AXButton')
+        mac.press(TITLE,'Refresh resource counts')
+        mac.wait_text(TITLE,'Registered source bytes: 0')
+        mac.press(TITLE,'Presentation')
+        mac.wait_text(TITLE,f'Alert actions: {actions}')
+        focus_gallery_control(mac,'Alert action','AXButton')
+        mac.key(36)
+        actions+=1
+        mac.wait_text(TITLE,f'Alert actions: {actions}')
+        print(f'GALLERY_ALERT_OK: {cases} theme/variant/banner cases, eight size layouts, custom/hidden icons, wrapping/styles, tint/border pixels, {actions} OS body actions, disabled close, keyboard/pointer dismissal, slot/hide/page retirement and retained caller state',flush=True)
+    finally:
+        mac.release(action)
+        mac.release(close)
+        temporary.cleanup()
 
 
 def exercise_markers(mac, images):
@@ -4238,7 +4454,7 @@ def main():
     parser.add_argument('--trace-canvas', action='store_true')
     parser.add_argument('--trace-motion', action='store_true')
     parser.add_argument('--trace-windows', action='store_true')
-    parser.add_argument('--section', choices=['all', 'core', 'status-regions', 'badges', 'labels', 'shimmer', 'markers', 'attachments', 'attachment-paint', 'groups', 'links', 'empty', 'separators', 'styles', 'borders', 'aspect-ratio', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'document-links', 'document-images', 'highlighting', 'canvas', 'assets', 'charts', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
+    parser.add_argument('--section', choices=['all', 'core', 'status-regions', 'badges', 'labels', 'shimmer', 'markers', 'alerts', 'attachments', 'attachment-paint', 'groups', 'links', 'empty', 'separators', 'styles', 'borders', 'aspect-ratio', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'document-links', 'document-images', 'highlighting', 'canvas', 'assets', 'charts', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
     args = parser.parse_args()
     if args.images:
         args.images.mkdir(parents=True, exist_ok=True)
@@ -4275,6 +4491,8 @@ def main():
                 exercise_attachment_paint(mac, args.images)
             if args.section == 'attachments':
                 exercise_attachments(mac, args.images)
+            if args.section == 'alerts':
+                exercise_alerts(mac, args.images)
             if args.section == 'markers':
                 exercise_markers(mac, args.images)
             if args.section == 'shimmer':

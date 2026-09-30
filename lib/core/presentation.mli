@@ -476,6 +476,93 @@ val banner
   -> 'action View.t list
   -> 'action View.t
 
+module Alert : sig
+  module Variant : sig
+    type t =
+      | Default
+      | Info
+      | Success
+      | Warning
+      | Error
+    [@@deriving equal, sexp_of]
+  end
+
+  module Size : sig
+    type t =
+      | XSmall
+      | Small
+      | Medium
+      | Large
+    [@@deriving equal, sexp_of]
+  end
+
+  module Layout : sig
+    type t =
+      | Card
+      | Banner
+    [@@deriving equal, sexp_of]
+  end
+
+  module Icon : sig
+    (** Default uses a semantic text glyph; Custom accepts ordinary views, including
+        registered SVG icons. Hidden omits the slot without moving other identities. *)
+    type 'action t =
+      | Default
+      | Hidden
+      | Custom of 'action View.t
+  end
+
+  module Close : sig
+    type 'action t
+
+    (** Localized nonblank UTF-8 label without NUL, at most 1024 bytes. The native
+        button displays a cross and exposes this name. Its queued callback does
+        not change visibility; application state owns dismissal. *)
+    val create
+      :  label:string
+      -> ?style:Style.t
+      -> ?disabled:bool
+      -> on_click:(unit -> 'action)
+      -> unit
+      -> 'action t Or_error.t
+  end
+
+  (** Single-line text title with ellipsis; explicit style refines width, weight
+      and overflow. Rich titles can instead be supplied directly to [create]. *)
+  val title : ?key:Key.t -> ?style:Style.t -> string -> 'action View.t
+
+  (** Full-width alert with independently styled title/body/icon slots. Default
+      size Medium and layout Card. Banner omits title and radius but retains the
+      border, matching the pinned renderer. Root and slot styles refine defaults.
+      Semantic variants use Appearance colors with a 4% background and 30% border
+      alpha tint; Default uses surface/border. This is a GPUIO palette mapping.
+
+      Role Alert, default live Off; opt into Polite/Assertive for announcements.
+      Cosmetic changes do not change semantic metadata. Visible=false removes
+      children and semantics and returns an empty hidden root, regardless of style.
+      Surviving body/close controls retain identity across layout/variant changes.
+      Removing a slot or hiding retires its ordinary native views; no retained
+      hidden tasks, editor state or callbacks are owned by this composition.
+      Legacy [alert]/[banner] keep their existing behavior. *)
+  val create
+    :  Appearance.t
+    -> ?key:Key.t
+    -> ?style:Style.t
+    -> ?title_style:Style.t
+    -> ?body_style:Style.t
+    -> ?icon_style:Style.t
+    -> ?variant:Variant.t
+    -> ?size:Size.t
+    -> ?layout:Layout.t
+    -> ?icon:'action Icon.t
+    -> ?title:'action View.t
+    -> ?close:'action Close.t
+    -> ?live:Accessibility.Live.t
+    -> ?visible:bool
+    -> 'action View.t list
+    -> 'action View.t
+end
+
 (** Display only: these labels do not register shortcuts or commands. The caller
     supplies platform-appropriate, already formatted key names. *)
 val shortcut_label

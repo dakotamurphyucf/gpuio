@@ -1215,6 +1215,246 @@ let banner
     children
 ;;
 
+module Alert = struct
+  module Variant = struct
+    type t =
+      | Default
+      | Info
+      | Success
+      | Warning
+      | Error
+    [@@deriving equal, sexp_of]
+  end
+
+  module Size = struct
+    type t =
+      | XSmall
+      | Small
+      | Medium
+      | Large
+    [@@deriving equal, sexp_of]
+  end
+
+  module Layout = struct
+    type t =
+      | Card
+      | Banner
+    [@@deriving equal, sexp_of]
+  end
+
+  module Icon = struct
+    type 'action t =
+      | Default
+      | Hidden
+      | Custom of 'action View.t
+  end
+
+  module Close = struct
+    type 'action t =
+      { label : string
+      ; style : Style.t
+      ; disabled : bool
+      ; on_click : unit -> 'action
+      }
+
+    let create ~label ?(style = Style.empty) ?(disabled = false) ~on_click () =
+      if
+        String.is_empty (String.strip label)
+        || String.length label > 1024
+        || String.contains label '\000'
+        || not (Stdlib.String.is_valid_utf_8 label)
+      then
+        Or_error.error_string
+          "alert close label must be nonblank UTF-8 without NUL, at most 1024 bytes"
+      else Ok { label; style; disabled; on_click }
+    ;;
+
+    let view t (p : Appearance.t) =
+      let base =
+        style
+          [ Shrink 0.
+          ; Padding (px 2.)
+          ; Radius 6.
+          ; Font_size 20.
+          ; Background
+              (solid (Color.rgba ~red:0 ~green:0 ~blue:0 ~alpha:0 |> Or_error.ok_exn))
+          ]
+        |> fun s -> Style.with_state_exn s Hovered [ Background (solid p.raised) ]
+      in
+      View.button
+        ~key:(internal_key "close")
+        ~accessible_name:t.label
+        ~style:(Style.merge [ base; t.style ])
+        ~disabled:t.disabled
+        ~on_click:t.on_click
+        "×"
+    ;;
+  end
+
+  let title ?key ?style:(custom = Style.empty) text =
+    View.text
+      ?key
+      ~style:
+        (Style.merge
+           [ style
+               [ Width full
+               ; Min_width (px 0.)
+               ; Font_weight 600
+               ; White_space No_wrap
+               ; Text_overflow Ellipsis
+               ; Overflow Hidden
+               ]
+           ; custom
+           ])
+      text
+  ;;
+
+  let colors (p : Appearance.t) = function
+    | Variant.Default -> p.foreground, p.surface, p.border
+    | (Info | Success | Warning | Error) as variant ->
+      let ink =
+        match variant with
+        | Default -> p.foreground
+        | Info -> p.accent
+        | Success -> p.success
+        | Warning -> p.warning
+        | Error -> p.danger
+      in
+      ( ink
+      , Color.with_opacity ink 0.04 |> Or_error.ok_exn
+      , Color.with_opacity ink 0.3 |> Or_error.ok_exn )
+  ;;
+
+  let default_icon = function
+    | Variant.Default | Info -> "ⓘ"
+    | Success -> "✓"
+    | Warning -> "!"
+    | Error -> "×"
+  ;;
+
+  let create
+        (p : Appearance.t)
+        ?key
+        ?style:(custom = Style.empty)
+        ?(title_style = Style.empty)
+        ?(body_style = Style.empty)
+        ?(icon_style = Style.empty)
+        ?(variant = Variant.Default)
+        ?(size = Size.Medium)
+        ?(layout = Layout.Card)
+        ?(icon = Icon.Default)
+        ?title
+        ?close
+        ?(live = Accessibility.Live.Off)
+        ?(visible = true)
+        children
+    =
+    if not visible
+    then View.row ?key ~style:(style [ Display Hidden ]) []
+    else (
+      let padding_x, padding_y, gap, radius =
+        match size with
+        | XSmall -> 12., 6., 6., 8.
+        | Small -> 12., 8., 6., 8.
+        | Medium -> 16., 10., 12., 8.
+        | Large -> 20., 14., 12., 12.
+      in
+      let banner = Layout.equal layout Banner in
+      let foreground, background, border = colors p variant in
+      let icon =
+        match icon with
+        | Hidden -> None
+        | Default ->
+          Some (View.text ~style:(style [ Font_size 18. ]) (default_icon variant))
+        | Custom view -> Some view
+      in
+      let icon =
+        Option.map icon ~f:(fun view ->
+          View.column
+            ~key:(internal_key "icon")
+            ~style:
+              (Style.merge
+                 [ style [ Shrink 0.; Margin_top (px (if banner then 0. else 5.)) ]
+                 ; icon_style
+                 ])
+            [ view ])
+      in
+      let title =
+        if banner
+        then None
+        else
+          Option.map title ~f:(fun view ->
+            View.column
+              ~key:(internal_key "title")
+              ~style:
+                (Style.merge
+                   [ style [ Width full; Min_width (px 0.); Font_weight 600 ]
+                   ; title_style
+                   ])
+              [ view ])
+      in
+      let body =
+        View.column
+          ~key:(internal_key "body")
+          ~style:(Style.merge [ style [ Min_width (px 0.); Gap (px 3.2) ]; body_style ])
+          children
+      in
+      let content =
+        View.column
+          ~key:(internal_key "content")
+          ~style:
+            (style
+               [ Grow 1.
+               ; Basis (px 0.)
+               ; Min_width (px 0.)
+               ; Overflow Hidden
+               ; Gap (px 12.)
+               ])
+          (List.filter_opt [ title; Some body ])
+      in
+      let main =
+        View.row
+          ~key:(internal_key "main")
+          ~style:
+            (style
+               [ Grow 1.
+               ; Basis (px 0.)
+               ; Min_width (px 0.)
+               ; Overflow Hidden
+               ; Gap (px gap)
+               ; Align_items (if banner then Center else Start)
+               ])
+          (List.filter_opt [ icon; Some content ])
+      in
+      View.row
+        ?key
+        ~style:
+          (Style.merge
+             [ style
+                 [ Width full
+                 ; Min_width (px 0.)
+                 ; Gap (px gap)
+                 ; Padding_left (px padding_x)
+                 ; Padding_right (px padding_x)
+                 ; Padding_top (px padding_y)
+                 ; Padding_bottom (px padding_y)
+                 ; Radius (if banner then 0. else radius)
+                 ; Border_width 1.
+                 ; Border_color border
+                 ; Background (solid background)
+                 ; Foreground foreground
+                 ; Font_size 14.
+                 ; Line_height (Length.percent_exn 150.)
+                 ; Align_items (if banner then Center else Start)
+                 ; Justify_content Space_between
+                 ]
+             ; custom
+             ])
+        (main :: Option.to_list (Option.map close ~f:(fun t -> Close.view t p)))
+      |> semantic ~live Alert)
+  ;;
+end
+
 let shortcut_label (p : Appearance.t) ?key ?style:(custom = Style.empty) names =
   View.row
     ?key
