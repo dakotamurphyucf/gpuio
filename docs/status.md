@@ -43,7 +43,7 @@ presentation family remains only partially reviewed.
 The [composed-link review](design/composed-links.md) identifies remaining rich
 content and Tab-policy gaps. A validated `Link.Config` and matching bounded
 OCaml/Rust data codecs now extend through native admission, View/Bonsai rendering
-and a public composed-link preview. Seven expect tests, native rollback/budget/input/AX
+and a public composed-link preview. Eight expect tests, native rollback/budget/input/AX
 checks and eight gallery cases plus rich previews with 42 native actions pass locally. A redraw-related
 Tab ordering regression is fixed. Measured ordinary-scroll focus reveal now passes
 native boundary checks and actual public-gallery viewport containment. Broader
@@ -55,13 +55,17 @@ indices, trap/no-stop/wrap behavior, fixed clipping and mixed range-thumb cases.
 The passive Link fixture now also passes avatar fallback GPU paint, measured
 tween/program geometry, realtime loading, reduced-motion idle, exact bridge event
 delivery, AX name override/reset and in-flight pointer disable/unmount fencing.
-Seven Core expect tests cover public composition and callback retirement.
+Core expect tests cover public composition and callback retirement.
 Image-backed content now passes shared-source lease retirement, GPU replacement,
 native focus identity, inherited state styles/reset and unmount cleanup. The
 public rich-preview work found and fixed loading-child clicks activating a Link
 without moving focus; the strengthened native regression fails before the fix
 and passes afterward. Broader content/group and release acceptance remain open;
 native fixture input uses GPUI dispatch and direct AppKit AX actions.
+Styled Link text now also passes native GPU foreground/search-wash composition
+under an outer highlight scope, cosmetic/source updates, selection suppression,
+focus retention and scope retirement. The catalog's stale configuration-only
+Link status is corrected; full content/group and release acceptance remains open.
 The other eleven presentation modules now have a
 [pinned behavior/gap review](catalog/presentation-gaps.md), including nested settings
 fields. These implementation plans and source snapshots do not mark the families

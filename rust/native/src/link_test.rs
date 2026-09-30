@@ -8,6 +8,9 @@ use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
 mod asset_test;
 #[path = "link_content_test.rs"]
 mod content_test;
+#[cfg(feature = "native-image-tests")]
+#[path = "link_highlight_test.rs"]
+mod highlight_test;
 #[path = "link_nonstop_test.rs"]
 mod nonstop_test;
 #[path = "link_scroll_test.rs"]
@@ -475,6 +478,8 @@ async fn exercise(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, transport
     content_test::exercise(cx, handle, transport).await;
     #[cfg(feature = "native-image-tests")]
     asset_test::exercise(cx, handle, transport).await;
+    #[cfg(feature = "native-image-tests")]
+    highlight_test::exercise(cx, handle, transport).await;
     let mut remove = vec![Op::SetRoot(None)];
     remove.extend((6..=9).map(|slot| Op::Remove(id(slot))));
     remove.extend((0..=5).map(|slot| Op::Remove(id(slot))));
@@ -535,6 +540,8 @@ pub(crate) fn run() {
             motion_watch.borrow_mut().take();
             #[cfg(feature = "native-image-tests")]
             crate::image_host::shutdown(cx).await;
+            #[cfg(feature = "native-image-tests")]
+            crate::highlight_host::shutdown(cx).await;
             let _ = handle.update(cx, |_, window, _| window.remove_window());
             cx.update(stop_application);
         })

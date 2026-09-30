@@ -274,6 +274,28 @@ unit tests. The gallery command was
 All GUI processes were reaped. These commands used the pinned repository toolchain
 on macOS 14.5 arm64; required Linux CI and full release gates remain separate.
 
+### Styled text and an outer highlight scope
+
+`View.styled_text` is passive Link content. A surrounding `View.highlight_scope`
+can cover that text, but a scope inside the Link is rejected by the passive-child
+contract. The eighth Core expect test exercises this public composition and idle
+reconciliation. The native fixture mounts a scope without an observation callback,
+a Link with one action and a localized text child with a purple foreground span.
+
+Actual GPU readback verifies purple glyphs over the search wash. Changing only
+the wash color retains the matcher epoch; replacing the source removes the old
+wash after the new zero-match result arrives. Pointer and Return activate only
+the Link, and root identity/native/AX focus survive the source update. Inherited
+selection from the outer scope creates no text selection owner inside the Link.
+The entire bridge mailbox contains only the expected root actions and transaction
+paint acknowledgements. Unmount releases the scope and settles to idle.
+
+The full `native_link` fixture, targeted Core tests/formatting and strict
+native/protocol all-target Clippy pass locally for this test-only addition. This
+does not add a highlight callback under the Link, advertise a new capability,
+or establish extension-owned internal Tab ordering. That ordering still needs
+verification against the SDK's documented primary/internal focus contract.
+
 ## Full implementation and acceptance contract
 
 1. **Public view and styled helper.** Draft the composed `View.link` and

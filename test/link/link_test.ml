@@ -200,6 +200,40 @@ let%expect_test "passive avatar and motion compose without child callbacks" =
     {| avatar/loading/tween/program admitted; only root action; idle repeat; observed descendants rejected; retired action fenced |}]
 ;;
 
+let%expect_test "styled link text accepts an outer highlight scope only" =
+  let query = Highlight.Query.create "aaa" |> ok in
+  let spec = Highlight.Spec.create ~query () |> ok in
+  let highlight = Highlight.Config.create [ spec ] |> ok in
+  let span =
+    Text_content.Span.create
+      ~start_byte:0
+      ~end_byte:3
+      ~foreground:(Color.rgb_exn 0x800080)
+    |> ok
+  in
+  let text = Text_content.create ~spans:[ span ] "aaa 世界" |> ok in
+  let config = Link.Config.create ~label:"Open result" () |> ok in
+  let link children = View.link config ~on_click:(fun () -> ()) children in
+  let content = View.styled_text text in
+  let view =
+    View.highlight_scope
+      ~config:highlight
+      ~style:(Style.create_exn [ User_select true ])
+      [ link [ content ] |> ok ]
+  in
+  let t = Reconciler.create window in
+  let operations = commit t (Some view) in
+  assert (
+    List.count operations ~f:(function
+      | Wire.Op.Create (_, Link, _, Some _) -> true
+      | _ -> false)
+    = 1);
+  assert (List.is_empty (commit t (Some view)));
+  assert (Or_error.is_error (link [ View.highlight_scope ~config:highlight [ content ] ]));
+  print_endline "styled content inside one link; scope outside; nested scope rejected";
+  [%expect {| styled content inside one link; scope outside; nested scope rejected |}]
+;;
+
 let%expect_test "link fixture agrees with independent Rust bytes" =
   let config =
     Link.Config.create ~label:"Guide 世界" ~tab_stop:false ~tab_index:(-2) () |> ok
