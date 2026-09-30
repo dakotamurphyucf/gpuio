@@ -25,8 +25,9 @@ The Presentation page's **A little light, in motion** card demonstrates selectab
 text-glyph shimmer with explicit application-theme colors. It starts paused. Use
 Start/Pause, reverse, one sweep, width and effect toggles; Refresh changes the
 source and replays a finished sweep. Animation stays in Rust and respects reduced
-motion. The preview is implemented; its normal-launch and installed-consumer
-acceptance are still pending in [the shimmer contract](../../docs/design/text-shimmer.md).
+motion. Its focused normal-launch and installed-consumer checks pass on macOS:
+`python3 scripts/test_gallery.py --section shimmer`. See the exact coverage and
+remaining release gates in [the shimmer contract](../../docs/design/text-shimmer.md).
 
 The Presentation page's **Structure with flexibility** card uses
 `Presentation.group_box` with Card/Plain/Filled/Outline variants. Toggle its

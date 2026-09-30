@@ -18,7 +18,7 @@ impl View {
                 .expect("admitted text shimmer");
             // A retained but hidden branch may never construct another element.
             // Every accepted update disarms until the next eligible paint.
-            owner.suspend();
+            owner.prepare_frame();
             true
         });
     }

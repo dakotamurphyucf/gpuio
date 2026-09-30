@@ -238,3 +238,55 @@ fn admission_reservation_covers_fixed_state_and_callback_payloads() {
         + 4 * std::mem::size_of::<usize>();
     assert!(fixed + 512 <= RESERVED_BYTES);
 }
+
+#[test]
+fn visible_layout_time_counts_toward_the_sweep() {
+    let (owner, clock) = setup(Repeat::Once);
+    paint(&owner);
+    at(&clock, 100);
+    let _element = owner.element(
+        StyledText::new("Working"),
+        Appearance {
+            foreground: gpui::black(),
+            background: gpui::white(),
+            dark: false,
+        },
+    );
+    // Model expensive layout without sleeping or depending on machine speed.
+    at(&clock, 600);
+    assert_eq!(
+        sample(&owner),
+        0.6,
+        "visible layout must not slow native time"
+    );
+    paint(&owner);
+    at(&clock, 1000);
+    assert_eq!(sample(&owner), 1.);
+}
+
+#[test]
+fn omitted_frame_discards_layout_interval_even_after_the_wake_was_delivered() {
+    let (owner, clock) = setup(Repeat::Loop);
+    paint(&owner);
+    assert!(owner.0.borrow_mut().delivered(false));
+    at(&clock, 100);
+    owner.prepare_frame();
+    at(&clock, 200);
+    owner.prepare_frame(); // Repeated construction cannot change the cutoff.
+    at(&clock, 600);
+    owner.finish_frame(); // No paint, and no pending wake to clean it up.
+    at(&clock, 10_000);
+    owner.prepare_frame();
+    assert_eq!(
+        sample(&owner),
+        0.1,
+        "hidden time must not enter the next sweep"
+    );
+    paint(&owner);
+    at(&clock, 10_250);
+    assert_eq!(sample(&owner), 0.35);
+    owner.prepare_frame();
+    owner.suspend(); // Explicit lifecycle suspension also cancels resumption.
+    at(&clock, 20_000);
+    assert_eq!(sample(&owner), 0.35);
+}

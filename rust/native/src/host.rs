@@ -2029,6 +2029,7 @@ impl Render for View {
                                 || !view.container_queries.is_empty()
                                 || !view.carousels.is_empty()
                                 || !view.highlights.is_empty()
+                                || !view.text_shimmers.is_empty()
                                 // A native style can reveal the last hidden scope.
                                 // Commit that sample even with no active matcher.
                                 || view.focus.borrow().has_pending_highlight_styles()
@@ -2041,6 +2042,9 @@ impl Render for View {
                                 view.finish_program_paint();
                                 view.schedule_carousels(window, cx);
                                 view.finish_highlight_paint(cx);
+                                for owner in view.text_shimmers.values() {
+                                    owner.finish_frame();
+                                }
                             });
                         });
                     }

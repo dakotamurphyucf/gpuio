@@ -19,8 +19,13 @@ pause/eviction/remount checks now pass. They exposed and helped repair a hidden
 search-scope redraw loop and last-scope native-visibility recovery; the full
 mounted highlighting regression also passes. A shared per-window overlay budget
 now has native boundary, static-fallback, pause/recovery and independent-window
-evidence. Public normal-launch/installed-consumer acceptance, measured application
-performance and Attachment/Marker integration remain open. No shimmer
+evidence. Public normal-launch and independently installed consumer checks now
+pass eight theme/width/direction combinations, real keyboard Unicode Copy and
+effect toggling, identity, one-shot playback, reduced motion and page remount.
+They exposed a native clock defect that excluded visible layout time; a
+failing-before deterministic regression and passing public checks cover the
+repair. Measured application performance and Attachment/Marker integration remain
+open. No shimmer
 capability is advertised yet.
 
 The [finite style-value audit](evidence/style-finite-values-och41.md) now covers

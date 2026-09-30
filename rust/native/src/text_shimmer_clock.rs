@@ -67,6 +67,7 @@ struct State {
     last: Duration,
     elapsed: Duration,
     running: bool,
+    resume_after_layout: bool,
     pending: bool,
     #[cfg(feature = "native-image-tests")]
     notifications: usize,
@@ -97,17 +98,34 @@ impl State {
     }
 
     fn suspend(&mut self) {
+        self.resume_after_layout = false;
         self.advance(self.clock.now());
         self.running = false;
     }
 
+    fn prepare(&mut self) {
+        if self.resume_after_layout {
+            return;
+        }
+        self.advance(self.clock.now());
+        self.resume_after_layout = self.running;
+        self.running = false;
+    }
+
+    fn phase(&self) -> f32 {
+        (self.elapsed.as_secs_f64() / self.duration().as_secs_f64()) as f32
+    }
+
     fn sample(&mut self, reduced: bool) -> Sample {
+        // Disarming a wake during layout must not remove layout time from a
+        // visible animation. Only an actual paint may resume this interval.
+        self.running |= std::mem::take(&mut self.resume_after_layout);
         self.advance(self.clock.now());
         if reduced || !self.config.animated {
             self.running = false;
         }
         Sample {
-            phase: (self.elapsed.as_secs_f64() / self.duration().as_secs_f64()) as f32,
+            phase: self.phase(),
             reduced_motion: reduced,
         }
     }
@@ -128,6 +146,7 @@ impl State {
 
     fn delivered(&mut self, reduced: bool) -> bool {
         self.pending = false;
+        self.resume_after_layout = false;
         if reduced {
             self.suspend();
             false
@@ -154,6 +173,7 @@ impl Owner {
             stamp: Rc::new(()),
             elapsed: Duration::ZERO,
             running: false,
+            resume_after_layout: false,
             pending: false,
             #[cfg(feature = "native-image-tests")]
             notifications: 0,
@@ -179,13 +199,16 @@ impl Owner {
             || state.config.direction != config.direction
             || state.config.repeat != config.repeat;
         let now = state.clock.now();
+        state.running |= std::mem::take(&mut state.resume_after_layout);
         state.advance(now);
         if restart {
             state.elapsed = Duration::ZERO;
             state.running = false;
+            state.resume_after_layout = false;
         }
         if !config.animated {
             state.running = false;
+            state.resume_after_layout = false;
         }
         state.has_text = source.chars().any(|c| !c.is_whitespace());
         state.source = source;
@@ -204,14 +227,27 @@ impl Owner {
         self.0.borrow_mut().suspend();
     }
 
+    /// Disarm before rendering, retaining the elapsed interval only if this
+    /// frame actually paints. Pair with finish_frame after deferred elements.
+    pub(crate) fn prepare_frame(&self) {
+        self.0.borrow_mut().prepare();
+    }
+
+    pub(crate) fn finish_frame(&self) {
+        self.0.borrow_mut().resume_after_layout = false;
+    }
+
     /// Supplied text must be the source of this owner. The native adapter keeps
     /// the source and its styled layout together; styles do not affect timing.
     pub fn element(&self, text: StyledText, appearance: Appearance) -> paint::Text {
         let mut state = self.0.borrow_mut();
         // Disarm before layout. Fully clipped elements can skip paint entirely.
-        state.suspend();
+        state.prepare();
         let config = state.config;
-        let sample = state.sample(false);
+        let sample = Sample {
+            phase: state.phase(),
+            reduced_motion: false,
+        };
         let driver = Driver {
             state: Rc::downgrade(&self.0),
             stamp: Rc::downgrade(&state.stamp),

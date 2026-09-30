@@ -34,6 +34,7 @@ def exercise(mac, images):
     exercise_status_regions(mac, images)
     exercise_badges(mac, images)
     exercise_labels(mac, images)
+    exercise_shimmer(mac, images)
     exercise_groups(mac, images)
     exercise_separators(mac, images)
     exercise_links(mac, images)
@@ -808,6 +809,197 @@ def exercise_groups(mac, images):
     print(f'GALLERY_GROUP_OK: {cases} theme/variant/style/slot cases; geometry, retained '
           f'checked state and native identity, {clicks} pointer/Return actions, '
           'real Space input, focus and teardown', flush=True)
+
+
+def exercise_shimmer(mac, images):
+    """Normal public OCaml application: native keys/AX and captured glyph pixels."""
+    mac.press(TITLE, 'Motion & rhythm')
+    mac.press(TITLE, 'Use full motion')
+    mac.wait_text(TITLE, 'Motion preference: Full')
+    mac.press(TITLE, 'Presentation')
+    mac.wait_text(TITLE, 'A little light, in motion')
+    raise_gallery(mac)
+    revision = 1
+    source = lambda: f'Connecting ideas · {revision}\nAé世界 · é · 👩‍💻'
+    equal = mac.cf.CFEqual
+    equal.restype, equal.argtypes = C.c_bool, [C.c_void_p, C.c_void_p]
+    original = mac.wait_find(TITLE, source(), 'AXStaticText')
+    clipboard_env = dict(os.environ, LANG='en_US.UTF-8', LC_ALL='en_US.UTF-8')
+    saved = subprocess.run(['/usr/bin/pbpaste'], capture_output=True, check=True, env=clipboard_env).stdout
+    temporary = tempfile.TemporaryDirectory(prefix='gpuio-shimmer-captures-')
+    directory = images or Path(temporary.name)
+    capture_index = 0
+
+    def identity():
+        node = mac.wait_find(TITLE, source(), 'AXStaticText')
+        try:
+            assert equal(original, node), 'Shimmer update replaced the native text identity'
+            return element_rect(mac, node)
+        finally:
+            mac.release(node)
+
+    def copy_source():
+        focus_gallery_control(mac, source(), 'AXStaticText')
+        mac.key(0, flags=1 << 20)
+        mac.key(8, flags=1 << 20)
+        deadline = time.monotonic() + 5
+        while True:
+            actual = subprocess.run(['/usr/bin/pbpaste'], capture_output=True, check=True, env=clipboard_env).stdout.decode('utf-8')
+            if actual == source():
+                break
+            assert time.monotonic() < deadline, 'Shimmer copy differs from its logical source'
+            time.sleep(.025)
+        mac.key(124)
+
+    def toggle(label):
+        activate(mac, mac.wait_find(TITLE, label, 'AXCheckBox'))
+        time.sleep(.08)
+
+    def reveal():
+        # Keep the keyboard-targeted controls and source in the same viewport.
+        reveal_gallery_control(mac, 'One sweep', 'AXCheckBox')
+        reveal_gallery_control(mac, source(), 'AXStaticText')
+
+    def capture():
+        nonlocal capture_index
+        # Avoid a full AX tree walk per animation sample: its latency can alias
+        # the two-second sweep. Identity is checked separately around controls.
+        bounds = element_rect(mac, original)
+        window = mac.window(TITLE)
+        try:
+            wx, wy, ww, wh = element_rect(mac, window)
+        finally:
+            mac.release(window)
+        x, y, w, h = bounds
+        assert wx <= x and wy < y and x+w <= wx+ww and y+h < wy+wh, ('shimmer clipped in capture', bounds)
+        path = directory / f'gallery-shimmer-{capture_index:03d}.png'
+        capture_index += 1
+        screenshot(mac, path, title=TITLE)
+        pixels = read_png(mac, path)
+        # A dense fixed grid within the actual text node excludes buttons/cursors.
+        samples = tuple(pixels.rgb((x-wx+(ix+.5)*w/180)*pixels.width/ww,
+                                   (y-wy+(iy+.5)*h/48)*pixels.height/wh)
+                        for iy in range(48) for ix in range(180))
+        return bounds, samples
+
+    def changed(before, after):
+        assert all(abs(a-b) < .1 for a,b in zip(before[0],after[0])), 'Shimmer moved or resized text'
+        return sum(max(abs(a-b) for a,b in zip(p,q)) > 5 for p,q in zip(before[1],after[1]))
+
+    def static():
+        time.sleep(.12)
+        first = capture()
+        time.sleep(.25)
+        second = capture()
+        assert changed(first,second) == 0, 'Paused/disabled/reduced/finished text is still animating'
+        return second
+
+    def animated(base):
+        deadline = time.monotonic()+4
+        most_changed = 0
+        timings = []
+        started = time.monotonic()
+        while time.monotonic()<deadline:
+            time.sleep(.12)
+            most_changed = max(most_changed,changed(base,capture()))
+            timings.append(round(time.monotonic()-started,3))
+            if most_changed >= 8:
+                print('GALLERY_SHIMMER_PIXELS',most_changed,'sample_seconds=',timings,flush=True)
+                return
+        raise AssertionError(f'No captured glyph animation: {most_changed} changed samples at {timings}')
+
+    theme_node = mac.find(TITLE,'Dark','AXButton')
+    initial, alternate = ('Dark','Light') if theme_node else ('Light','Dark')
+    if theme_node:
+        mac.release(theme_node)
+    cases = 0
+    try:
+        for theme in (initial,alternate):
+            for width in ('wide','compact'):
+                reveal()
+                baseline = static()
+                copy_source()
+                assert all(abs(a-b)<.1 for a,b in zip(baseline[0],identity())), 'Copy changed text geometry'
+                for reverse in (False,True):
+                    mac.press(TITLE,'Start text shimmer')
+                    mac.release(mac.wait_find(TITLE,'Pause text shimmer','AXButton'))
+                    animated(baseline)
+                    identity()
+                    copy_source()
+                    mac.press(TITLE,'Pause text shimmer')
+                    mac.release(mac.wait_find(TITLE,'Start text shimmer','AXButton'))
+                    assert changed(baseline,static()) == 0, 'Stopping did not restore ordinary text'
+                    toggle('Reverse shimmer')
+                    cases += 1
+                mac.press(TITLE,'Shimmer width: '+width)
+                mac.release(mac.wait_find(TITLE,'Shimmer width: '+('compact' if width=='wide' else 'wide'),'AXButton'))
+            mac.press(TITLE,theme)
+            mac.release(mac.wait_find(TITLE,alternate if theme==initial else initial,'AXButton'))
+
+        reveal()
+        baseline = static()
+        mac.press(TITLE,'Start text shimmer')
+        animated(baseline)
+        # Real Space toggles effect clear on the focused public checkbox.
+        focus_gallery_control(mac,'Text shimmer effect','AXCheckBox')
+        mac.key(49)
+        time.sleep(.12)
+        assert changed(baseline,static()) == 0
+        identity()
+        mac.key(49)
+        animated(baseline)
+        mac.press(TITLE,'Pause text shimmer')
+        toggle('One sweep')
+        baseline = static()
+        mac.press(TITLE,'Start text shimmer')
+        animated(baseline)
+        time.sleep(2.2)
+        assert changed(baseline,static()) == 0, 'One-shot did not finish at ordinary text'
+        mac.press(TITLE,'Refresh shimmer status')
+        revision += 1
+        mac.wait_text(TITLE,source())
+        identity()
+        copy_source()
+        time.sleep(2.2)
+        static()
+        mac.press(TITLE,'Pause text shimmer')
+        toggle('One sweep')
+
+        # Playback is retained in Bonsai while page departure retires native text.
+        mac.press(TITLE,'Start text shimmer')
+        retired_source = source()
+        mac.press(TITLE,'Motion & rhythm')
+        absent(mac,retired_source,'AXStaticText')
+        mac.press(TITLE,'Use reduced motion')
+        mac.wait_text(TITLE,'Motion preference: Reduced')
+        mac.press(TITLE,'Presentation')
+        mac.wait_text(TITLE,source())
+        replacement = mac.wait_find(TITLE,source(),'AXStaticText')
+        assert not equal(original,replacement), 'Page departure retained the old native text node'
+        mac.release(original)
+        original = replacement
+        reveal()
+        static()
+        copy_source()
+        mac.press(TITLE,'Motion & rhythm')
+        mac.press(TITLE,'Use full motion')
+        mac.press(TITLE,'Presentation')
+        mac.release(original)
+        original = mac.wait_find(TITLE,source(),'AXStaticText')
+        reveal()
+        mac.press(TITLE,'Pause text shimmer')
+        baseline = static()
+        mac.press(TITLE,'Start text shimmer')
+        animated(baseline)
+        mac.press(TITLE,'Pause text shimmer')
+        static()
+        print(f'GALLERY_SHIMMER_OK: {cases} theme/width/direction cases, native identity/geometry, '
+              'real keyboard Unicode copy and Space clear, glyph captures, pause/one-shot/source refresh, '
+              'reduced motion and page retirement/remount',flush=True)
+    finally:
+        mac.release(original)
+        subprocess.run(['/usr/bin/pbcopy'], input=saved, check=True, env=clipboard_env)
+        temporary.cleanup()
 
 
 def exercise_labels(mac, images):
@@ -3288,7 +3480,7 @@ def main():
     parser.add_argument('--trace-canvas', action='store_true')
     parser.add_argument('--trace-motion', action='store_true')
     parser.add_argument('--trace-windows', action='store_true')
-    parser.add_argument('--section', choices=['all', 'core', 'status-regions', 'badges', 'labels', 'groups', 'links', 'empty', 'separators', 'styles', 'borders', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'document-links', 'document-images', 'highlighting', 'canvas', 'assets', 'charts', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
+    parser.add_argument('--section', choices=['all', 'core', 'status-regions', 'badges', 'labels', 'shimmer', 'groups', 'links', 'empty', 'separators', 'styles', 'borders', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'document-links', 'document-images', 'highlighting', 'canvas', 'assets', 'charts', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
     args = parser.parse_args()
     if args.images:
         args.images.mkdir(parents=True, exist_ok=True)
@@ -3319,6 +3511,8 @@ def main():
                 exercise_empty(mac, args.images)
             if args.section == 'groups':
                 exercise_groups(mac, args.images)
+            if args.section == 'shimmer':
+                exercise_shimmer(mac, args.images)
             if args.section == 'labels':
                 exercise_labels(mac, args.images)
             if args.section == 'badges':

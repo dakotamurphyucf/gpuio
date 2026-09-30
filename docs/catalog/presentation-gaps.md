@@ -43,8 +43,12 @@ validated standalone/live codecs, Core/Bonsai reconciliation and atomic native
 tree admission, a native glyph painter and independent retained-clock GPU/lifecycle
 checks. Mounted Host/selection/highlight rendering now has focused GPU/source
 AX/lifecycle evidence, including retained tabs, native responsive branches and
-managed-row pause/eviction/remount. Public gallery/consumer and aggregate-performance
-acceptance remain pending; this does not complete Attachment or Marker behavior.
+managed-row pause/eviction/remount. Public gallery and fresh installed-consumer
+checks now pass both themes, widths and directions, actual keyboard Copy/effect
+toggling, stable native identity, playback/reduced motion and page remount. A
+visible-layout clock defect has a failing-before regression and passing repair.
+Aggregate-performance acceptance remains pending; this does not complete
+Attachment or Marker behavior.
 The shared per-window shimmer budget has native limit/fallback/recovery evidence;
 that enforces work ceilings without establishing application frame-time budgets.
 Native acceptance must cover action gaps, keyboard/AX activation, layout/state

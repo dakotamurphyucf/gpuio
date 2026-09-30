@@ -131,13 +131,17 @@ globally synchronized loop phase.
 | Invalid configuration or source over 16,384 UTF-8 bytes | Rejects atomically, preserving old source/configuration/time. |
 
 Construction of a rendered element advances prior running time and disarms its
-owner **before layout**. Visible paint re-arms it only when the painter admits the
-effect. This matters because a fully clipped element can skip paint entirely.
+owner **before layout**. It provisionally retains the interval spent rendering:
+actual paint includes that interval in the phase, so expensive layout does not
+slow the configured sweep. A post-paint sweep, after deferred elements, discards
+the interval for owners that never painted. Visible paint re-arms recurring
+wakes only when the painter admits the effect. This matters because a fully
+clipped element can skip paint entirely.
 Empty/whitespace text, emoji-only paint, transparent highlights and painter-capacity
 fallbacks do not request recurring frames. The host must explicitly suspend a
 retained owner omitted by a conditional branch, and drop owners on unmount/close.
 The Host owns a generation-keyed map and a per-window clock. Accepted updates
-retire removed/cleared owners immediately; each render suspends existing owners
+retire removed/cleared owners immediately; each render disarms existing owners
 before constructing visible text. Owners share the Tree source Arc, including
 replacement allocations with equal text (for example, a span-only update). Retained
 branches keep their paused owner; virtual eviction/remount must use a fresh one.
@@ -439,3 +443,62 @@ native_text_shimmer_view --test native_text_shimmer_clock --test
 native_text_shimmer_paint --no-run`. Catalog and diff checks pass. No protocol or
 dependency changes are required; the public description documents the new native
 work ceilings. Linux, public-consumer and hosted release gates remain separate.
+
+## Public gallery clock regression and acceptance
+
+The normal-launch gallery check exposed a timing defect: the native clock removed
+the interval spent building each frame. This was especially apparent when a
+reverse sweep needed to cross the blank part of a wide text box before reaching
+the glyphs. An independent fake-clock regression reproduced the defect without
+desktop input: 100 ms of running time plus 500 ms of visible layout yielded phase
+0.1 instead of 0.6 for a one-second sweep.
+
+The clock now disarms wakes provisionally during layout. Actual paint includes
+that interval; the Host's sweep after deferred painting discards it for omitted
+owners. An additional deterministic test covers omission after the previous wake
+has already been delivered, repeated preparation, later resumption and explicit
+suspension. Neither repair adds polling, callbacks into OCaml or strong references
+from rendered elements. Eleven shimmer unit tests and strict native-image Clippy
+pass. The native clock and mounted Host fixtures also pass, including retained
+tabs, responsive branches, managed rows, work budgets and independent windows.
+
+On macOS 14.5 arm64, the public gallery's focused `shimmer` section passes eight
+light/dark, wide/compact and forward/reverse combinations. It uses actual window
+captures to check moving glyphs and static fallback, macOS AX identity/geometry,
+and OS keyboard events for exact Unicode Copy and Space toggling. It additionally
+checks pause, one-shot completion, source refresh, application reduced motion,
+page retirement and fresh native identity on remount. Both successful markers
+are required: `GALLERY_SHIMMER_OK` and `GPUIO_GALLERY_AX_OK`.
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j 2 examples/gallery/main.exe
+python3 scripts/test_gallery.py --section shimmer
+```
+
+The regression failed before the repair with zero reverse-sweep pixel changes
+over four seconds. The same animation threshold passes after the repair. The
+driver reveals both text and controls before recording geometry so normal focus
+reveal does not invalidate its pixel baseline. It preserves/restores clipboard
+text and closes/reaps its application. This is scoped component acceptance, not
+an application frame-rate, idle-power, IME or screen-reader qualification.
+
+The same focused driver also passes against a fresh independent consumer under
+`/private/tmp/gpuio-m7-shimmer-consumer-20260930`. Public OCaml libraries were staged
+under that workspace's `installed/` prefix; the consumer built outside the
+checkout with its own backend lockfile and the pinned Rust toolchain. No opam
+switch was modified. This uses the repository's native sources and existing
+toolchain, so it is not clean-machine distribution evidence.
+
+```sh
+GPUIO_JOBS=2 python3 scripts/test_extension_consumer.py --example gallery \
+  --workspace /private/tmp/gpuio-m7-shimmer-consumer-20260930
+python3 scripts/test_gallery.py --section shimmer \
+  --executable /private/tmp/gpuio-m7-shimmer-consumer-20260930/consumer/_build/default/main.exe
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j 2 @all @runtest @fmt
+```
+
+All three commands pass locally; each focused GUI run was bounded by a 480-second
+process-group wrapper and exited normally. The full Dune check, Rust formatting,
+Python syntax and structural catalog audit also pass. Attachment/Marker adapters,
+whole-application measurements and hosted release gates remain open. No shimmer
+capability bit is advertised by this checkpoint.
