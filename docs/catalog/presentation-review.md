@@ -271,13 +271,38 @@ one action/focus owner and scope retirement. Nested scopes inside a Link remain
 rejected. The subsequent [nested-focus validation](../design/composed-links.md#nested-extension-focus-correction--macos-validation)
 settles the extension-group contract. Consolidated release acceptance remains separate.
 
+## Attachment: functional equivalent
+
+Source: [component/attachment](sources/component-attachment.rs.txt), including
+Attachment, Status, Media, Content, Title, Description, Actions, Group, size
+refinements and the actual render/layering logic. Public equivalent:
+`Presentation.Attachment`. The original string helper keeps its earlier contract.
+
+| Source surface | GPUIO contract and evidence |
+| --- | --- |
+| Status and builders | Five typed status constructors with ordinary pattern matching/typed equality; `is_in_progress` supports loading presentation. Default Complete. Rust builder spelling and predicate conveniences need no separate native types. |
+| Size and axis | XS/S/M/L/custom logical-pixel sizes; horizontal/vertical layouts; explicit media-size override. Vertical media uses preferred ratio 1. Root/slot styles override defaults. Both palettes, axes, all statuses and sizes have Core and public-native evidence. Theme radii/colors are intentional GPUIO defaults. |
+| Media | Registered image with explicit description and Cover default, arbitrary children and overlay. Only images dim during work/failure; absent-image failure uses danger background. Public decode failure/recovery, GPU compositing and overlay glyphs are checked. I/O and registrations remain application-owned. |
+| Content/title/description | Keyed typed title/description and arbitrary view items. Typed items inherit status unless overridden; title config can override appearance/card shimmer. Titles validate UTF-8 and the shared source limit. Native title motion/static restoration, description color and source/identity checks pass. |
+| Card activation | Stable-key native button with required accessible name, disabled/focus behavior and queued pointer/Return/Space/AX action. It covers media/content below the Actions layer. Interactive controls belong in Actions when whole-card activation is enabled. No relaxation of composed Link restrictions. |
+| Actions | Ordinary independent controls; pointer shielding also covers cluster gaps/disabled controls. Native tests verify no duplicate activation and continued horizontal/vertical wheel routing. Surviving controls/current callbacks retain identity; removed generations cannot dispatch. |
+| Group | Keyed ordinary horizontal scroll container with native one-axis gesture filtering and no vertical-to-horizontal remapping. Three-card clipping/reveal, activation, offset restoration and ancestor scrolling pass. This is not a managed list. |
+| Appearance/motion | Dashed pending and translucent failed border; inherited fonts and independent styles; native title shimmer with shared budgets. Built-in dark appearance deliberately uses white highlight so foreground-colored titles visibly shimmer. Reduced motion is native-owned and tested through the application's preference. |
+| Lifetime/resources | No new upload task, native widget owner or per-frame OCaml callback. Existing view/image/shimmer lifetimes apply. Core tests and public page departure/remount verify retained/retired owners; installed consumer checks zero image/source counters after departure. Shared primitive work ceilings are distinct from application performance budgets. |
+
+The [contract and acceptance](../design/presentation-attachments.md) records exact
+commands, pixel checks, source/default differences and repaired harness failures.
+Both focused sections (`attachments`, `attachment-paint`) use public APIs. This is
+local macOS functional equivalence, not VoiceOver, Linux GUI, complete catalog,
+hosted CI, performance or clean-machine distribution acceptance.
+
 ## Remaining presentation modules
 
 The other presentation modules have a
 [pinned source and behavior review](presentation-gaps.md), including nested
-settings fields. Empty and Separator now have explicit local functional-equivalent
-evidence; the ledger distinguishes them from the remaining rich-slot/layout,
-attachment status, text-shimmer, keyboard-label and settings-composition gaps.
+settings fields. Empty, Separator and Attachment now have explicit local
+functional-equivalent evidence; the ledger distinguishes them from the remaining
+rich-slot/layout, Marker loading, keyboard-label and settings-composition gaps.
 Source review alone does not establish functional equivalence. Prior OCH-33 evidence
 still applies only to the APIs it actually tests. Other catalog families,
 consumer/CI/distribution checks and the complete OCH-17 scope remain open.

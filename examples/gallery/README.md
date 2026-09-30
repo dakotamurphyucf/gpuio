@@ -40,10 +40,13 @@ The **Attachments with a little more to say** card uses
 `Presentation.Attachment`: five statuses, horizontal/vertical layouts, four sizes
 plus a custom size, optional slots, image decode failure/recovery and separate
 whole-card/Save actions. Uploading and processing titles shimmer natively; image
-opacity leaves the overlay and controls unchanged. Decode work and registrations
-belong to the page's resource scope. Run
+opacity leaves the overlay and controls unchanged. Toggle **More attachments** and
+**Constrain attachment group** to try the horizontal strip and independent card
+actions. Decode work and registrations belong to the page's resource scope. Run
 `python3 scripts/test_gallery.py --section attachments` for its focused macOS
-interaction checks. See [the contract](../../docs/design/presentation-attachments.md)
+interaction checks; `--section attachment-paint` starts a fresh app for GPU color,
+native motion-preference and horizontal/parent scrolling checks. See
+[the contract](../../docs/design/presentation-attachments.md)
 for ownership and validation limits.
 
 The Styling details page's **Proportions that follow your layout** card uses

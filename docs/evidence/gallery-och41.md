@@ -64,13 +64,42 @@ One test draft attempted pointer shielding in an interaction state; shared Style
 validation already rejects this. The final test verifies that rule and forced
 base shielding without adding redundant state declarations.
 
-These focused results do not complete Attachment's detailed source review or the
-whole gallery/release gates. Attachment-specific reduced-motion captures, broader
-scroll/constraint/status-paint coverage and measured resource/performance budgets
-remain to be reviewed. No Linux GUI, real screen-reader/IME, hosted CI or
-clean-machine packaged-distribution acceptance is claimed. The independent
+The subsequent paint/scroll checkpoint below completes the scoped Attachment
+source review. Whole-gallery/release gates and measured application performance
+remain open. No Linux GUI, real screen-reader/IME, hosted CI or clean-machine
+packaged-distribution acceptance is claimed. The independent
 consumer uses an isolated installed prefix and its own backend lockfile, while
 still building against this checkout's native sources/toolchain.
+
+### Attachment paint and native scrolling
+
+The new `--section attachment-paint` walkthrough passes against a second fresh
+installed consumer in
+`/private/tmp/gpuio-m7-attachment-paint-consumer-20260930`. Both themes have actual
+GPU-capture evidence for Uploading/Processing glyph animation, static completed/
+failed title restoration, image alpha, undimmed overlay, failed-description and
+no-image tints, and dashed borders. Native reduced-motion and full-motion recovery
+pass. A 280px-wide three-card group passes real horizontal wheel input over an
+action gap, clipped-card reveal and activation, owner retention, offset restoration
+and vertical wheel propagation to the outer page. Native image/source counters
+return to zero on departure; the app closes and is reaped. Final markers:
+`GALLERY_ATTACHMENT_PAINT_OK` and `GPUIO_GALLERY_AX_OK: section=attachment-paint`.
+
+The initial dark capture exposed identical default title/highlight colors. The
+built-in dark appearance now supplies a white highlight; custom configuration
+remains explicit. A separate harness correction replaces an incorrectly declared
+variadic macOS wheel call with `CGEventCreateScrollWheelEvent2`; OS field readback
+checks both deltas before posting. Moving full AX tree queries out of the capture
+loop avoids sampling-period aliasing. Final retained-reference captures observe
+48–318 changed glyph samples with roughly 0.4-second sample intervals; the static
+and geometric assertions remain unchanged. Earlier failed runs are not full-pass
+evidence. These sample counts establish visible motion, not frame-rate performance.
+
+Full Dune build/tests/formatting and the fresh installed-consumer build pass.
+See [the Attachment contract](../design/presentation-attachments.md#paint-motion-and-scroll-acceptance--2026-09-30)
+for commands, exact scope and intentional source/default differences. The scoped
+source row is now a locally validated functional equivalent. The other catalog,
+platform and release acceptance requirements remain in force.
 
 ## Group boxes — focused checkpoint, 2026-09-29
 

@@ -13,8 +13,13 @@ gallery passes 20 theme/layout/status cases, real keyboard and pointer actions,
 shielded action gaps/disabled buttons, decoded-image sizing and page teardown.
 A fresh installed consumer also passes decode-failure recovery, direct card
 pointer/accessibility activation and zero image/source counts after departure.
-The complete Attachment catalog review and wider release gates remain open;
-this does not establish Linux GUI, screen-reader or application performance acceptance.
+Installed-consumer GPU checks additionally pass title motion/static restoration,
+image/overlay/description tinting, pending dashed paint, reduced-motion recovery,
+horizontal scroll and vertical parent routing. They exposed an invisible default
+dark highlight, repaired with an explicit white highlight. The Attachment source
+row is now locally validated as a functional equivalent; other catalog and release
+gates remain open. This does not establish Linux GUI, screen-reader or application
+performance acceptance.
 
 Native [aspect ratio](design/native-aspect-ratio.md) now exposes preferred
 proportional layout through validated styles, paired transport and capability bit
@@ -22,8 +27,8 @@ proportional layout through validated styles, paired transport and capability bi
 dimensions, transferred min/max constraints and state/unset behavior. The public
 gallery and a fresh installed-library consumer pass twelve theme/ratio/width
 cases, thirteen keyboard actions, native identity/focus retention and page
-remount. This supplies the square-media primitive needed by richer attachments;
-the Attachment adapter and broader release gates remain open.
+remount. This supplies the square-media primitive used by richer attachments;
+the broader release gates remain open.
 
 The [text-shimmer adapter](design/text-shimmer.md) now connects Core/Bonsai,
 validated live transport and native retained rendering. The mounted background
@@ -44,7 +49,7 @@ pass eight theme/width/direction combinations, real keyboard Unicode Copy and
 effect toggling, identity, one-shot playback, reduced motion and page remount.
 They exposed a native clock defect that excluded visible layout time; a
 failing-before deterministic regression and passing public checks cover the
-repair. Measured application performance and Attachment/Marker integration remain
+repair. Measured application performance and Marker integration remain
 open. No shimmer
 capability is advertised yet.
 
@@ -67,8 +72,8 @@ records paired bytes, atomic invalid-value rejection, state-local resets and
 Native hover/press transitions and idle teardown pass. The public style-gallery
 card also passes 16 normal-launch AX geometry/identity/state cases in both the
 repository app and a fresh installed-library consumer. Empty integration now also
-passes its scoped native consumer checks. Attachment integration and
-whole-release acceptance remain separate work.
+passes its scoped native consumer checks, as does pending-border paint in the
+Attachment adapter. Whole-release acceptance remains separate work.
 
 The richer [separator composition](design/presentation-separators.md) now exposes
 both axes, labels, solid/dashed patterns and independent slot styling without
@@ -123,10 +128,10 @@ required mask. A fresh installed-library consumer now passes all 42 Link native
 activations, focus/Tab/reveal, disabled recovery and scoped cleanup checks. Both
 Link source rows are locally validated functional equivalents; whole-release
 gates and the other presentation modules remain open.
-The other eleven presentation modules now have a
+The remaining presentation modules have a
 [pinned behavior/gap review](catalog/presentation-gaps.md), including nested settings
 fields. These implementation plans and source snapshots do not mark the families
-accepted; rich slots/layout, dashed lines, text shimmer, typed keyboard labels and
+accepted; remaining rich slots/layout, Marker loading, typed keyboard labels and
 settings composition still need implementation and native coverage.
 The [ordinary text-span API](design/text-content.md) now supplies bounded
 foreground runs through atomic bridge updates and View/Bonsai reconciliation.

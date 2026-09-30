@@ -46,7 +46,8 @@ module Appearance : sig
   val dark : t
 
   (** Default glyph effect for status-bearing compositions. Built-in light/dark
-      appearances provide matching explicit shimmer colors/mode. Custom [create]
+      appearances provide matching explicit shimmer colors/mode; the dark palette
+      uses a white highlight so foreground-colored titles still show a sweep. Custom [create]
       defaults to the native palette; supply a resolved application configuration
       here when the app owns its theme. *)
   val with_text_shimmer : t -> Text_shimmer.Config.t -> t

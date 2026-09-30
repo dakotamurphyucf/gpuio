@@ -8,8 +8,9 @@ owner, wire message, capability bit, dependency update or upload service.
 The behavior reference is gpui-kit revision
 `84f57fdfcb4910623fb0bb7f795b077e249f9271`, captured in the
 [Attachment source snapshot](../catalog/sources/component-attachment.rs.txt).
-This document describes the implemented contract; the catalog/release evidence
-still has separate acceptance gates.
+`component/attachment` is a functional equivalent, locally validated on macOS
+through the public application and an independently installed consumer. This
+scoped row does not accept the whole presentation family or release.
 
 ## Application interface
 
@@ -101,6 +102,10 @@ for large collections. Upload/task lifetimes do not depend on rendering a card.
 ## Animation and appearance
 
 Built-in light/dark appearances carry explicit matching text-shimmer palettes.
+The built-in dark configuration uses a white highlight: the source's default mix
+toward the theme foreground produces no visible contrast when the title already
+uses that foreground. This is an intentional GPUIO palette choice. Explicit custom
+configurations retain their own highlight policy.
 Custom `Appearance.create` retains the native default; callers can set a resolved
 configuration with `Appearance.with_text_shimmer`. A card's `shimmer` overrides
 that default; an individual title can override it again. Configuration and status
@@ -124,6 +129,61 @@ The public Component Studio preview exposes those transitions, scoped decoded
 image resources, independent actions, optional slots and explicit decode failure.
 `scripts/test_gallery.py --section attachments` checks real macOS pointer and
 keyboard actions, action gaps, disabled recovery, image geometry, native identity
-and page teardown. Record actual run results in the gallery evidence before
-promoting the catalog row. These checks do not imply real screen-reader/IME,
-Linux GUI, measured application performance or clean-machine distribution.
+and page teardown. These checks do not imply real screen-reader/IME, Linux GUI,
+measured application performance or clean-machine distribution.
+
+## Paint, motion and scroll acceptance — 2026-09-30
+
+The additional `--section attachment-paint` check passes in a fresh consumer of
+the staged installed public libraries on macOS 14.5 arm64. It uses actual native
+window captures decoded through system ImageIO/CoreGraphics, not a mock painter.
+In both application palettes it verifies moving title glyphs while uploading and
+processing; ordinary static title pixels after failure/completion; the image's
+60% opacity over its media background; undimmed opaque overlay glyphs; the
+failed description's 80% danger alpha; the 10% no-image danger background; and
+visible solid/dashed border differences. Native reduced-motion preference renders
+the same title pixels as ordinary completed text; restoring full motion resumes
+visible animation. These are application-native preference checks, not a change
+to the owner's system accessibility settings.
+
+The three-card preview constrains its group to 280px. Real two-axis macOS wheel
+events verify horizontal scrolling when the pointer is in the action gap,
+clipped-to-visible card movement, activation of the revealed card, retained action
+identities, return to the initial offset and vertical propagation to the outer
+page. The native one-axis container already uses GPUI gesture filtering and
+restricted axes; Attachment adds no separate scrolling implementation. Image and
+registered-source counters return to zero after page departure. The runner closes
+and reaps its application.
+
+The initial dark capture failed with zero changed glyph samples. The explicit
+white highlight repairs that default, with passing captures in the public app
+and installed consumer. A later capture-harness failure was eliminated by moving
+full accessibility-tree identity queries out of the sampling loop: retaining the
+text reference gives samples approximately 0.4 seconds apart instead of risking
+aliasing the two-second sweep. The original source/geometry/static assertions and
+pixel threshold remain in place.
+
+The first scroll harness also incorrectly declared a variadic axis argument as
+fixed on arm64. OS event readback proved that it emitted zero X delta. The final
+driver uses `CGEventCreateScrollWheelEvent2` and asserts both actual point deltas
+before posting. No native scrolling repair was needed. Failed runs are preserved
+as diagnostics and are not counted as full passes.
+
+Reproduce with a fresh destination:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j 2 @all @runtest @fmt
+GPUIO_JOBS=2 python3 scripts/test_extension_consumer.py --example gallery \
+  --workspace /private/tmp/gpuio-attachment-paint-review
+python3 scripts/test_gallery.py --section attachment-paint \
+  --executable /private/tmp/gpuio-attachment-paint-review/consumer/_build/default/main.exe
+```
+
+Success markers are `GALLERY_ATTACHMENT_PAINT_OK` and
+`GPUIO_GALLERY_AX_OK: section=attachment-paint`. The companion `attachments`
+section covers the wider status/layout/size/action matrix and decode-failure
+recovery. Run both focused sections for Attachment acceptance; the paint section
+starts with a fresh application's default preview model. The installed consumer
+still uses this checkout's native sources/toolchain and is not clean-machine
+distribution evidence. Combined gallery, required hosted macOS/Linux checks,
+screen-reader and application performance/release gates remain separate.

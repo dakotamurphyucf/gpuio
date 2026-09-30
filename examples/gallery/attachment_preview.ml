@@ -60,6 +60,8 @@ let component app window palette graph =
   let actions, toggle_actions = B.toggle ~default_model:true graph in
   let disabled, toggle_disabled = B.toggle ~default_model:false graph in
   let refined, toggle_refined = B.toggle ~default_model:false graph in
+  let more, toggle_more = B.toggle ~default_model:false graph in
+  let constrained, toggle_constrained = B.toggle ~default_model:false graph in
   let opened, open_attachment =
     B.state_machine0 ~default_model:0 ~apply_action:(fun _ value () -> value + 1) graph
   in
@@ -91,6 +93,10 @@ let component app window palette graph =
   and toggle_disabled = toggle_disabled
   and refined = refined
   and toggle_refined = toggle_refined
+  and more = more
+  and toggle_more = toggle_more
+  and constrained = constrained
+  and toggle_constrained = toggle_constrained
   and opened = opened
   and open_attachment = open_attachment
   and saved = saved
@@ -210,6 +216,28 @@ let component app window palette graph =
         ()
       |> named "Attachment preview card"
     in
+    let additional name detail =
+      A.create
+        (Palette.appearance p)
+        ~key:(key name)
+        ~axis:Vertical
+        ~style:(style [ Width (px 160.) ])
+        ~media:(A.Media.create [ V.text ~style:(style [ Font_size 24. ]) "≡" ])
+        ~content:
+          (A.Content.create
+             [ A.Content.Item.title (A.Title.create ~key:(key "title") name |> ok)
+             ; A.Content.Item.description
+                 (A.Description.create ~key:(key "detail") detail)
+             ])
+        ~trigger:
+          (A.Trigger.create
+             ~key:(key "open")
+             ~accessible_name:("Open " ^ name ^ " attachment")
+             ~on_click:(fun () -> open_attachment ())
+             ()
+           |> ok)
+        ()
+    in
     V.column
       ~style:(style [ Gap (px 12.) ])
       [ Palette.text p ~muted:true "From queued to ready, with room for the details."
@@ -237,7 +265,23 @@ let component app window palette graph =
           ; checkbox "Disable attachment" disabled toggle_disabled
           ; checkbox "Refine attachment style" refined toggle_refined
           ]
-      ; A.group ~key:(key "attachment-group") [ card ] |> named "Attachment preview group"
+      ; V.row
+          ~style:(style [ Gap (px 12.); Wrap Wrap ])
+          [ checkbox "More attachments" more toggle_more
+          ; checkbox "Constrain attachment group" constrained toggle_constrained
+          ]
+      ; A.group
+          ~key:(key "attachment-group")
+          ?style:(Option.some_if constrained (style [ Width (px 280.) ]))
+          (card
+           ::
+           (if more
+            then
+              [ additional "Research" "PDF · 1.8 MB"
+              ; additional "Notes" "Markdown · 4 KB"
+              ]
+            else []))
+        |> named "Attachment preview group"
       ; Palette.text p (sprintf "Attachment opened: %d · saved: %d" opened saved)
       ; Palette.text
           p

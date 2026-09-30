@@ -3437,6 +3437,286 @@ def exercise_attachments(mac, images):
         mac.release(save_original)
 
 
+def exercise_attachment_paint(mac, images):
+    """Public attachment pixels, native motion preference and real nested scrolling."""
+    mac.press(TITLE, 'Motion & rhythm')
+    mac.press(TITLE, 'Use full motion')
+    mac.wait_text(TITLE, 'Motion preference: Full')
+    mac.press(TITLE, 'Presentation')
+    mac.wait_text(TITLE, 'From queued to ready, with room for the details.')
+    status = 'Complete'
+    statuses = ('Complete', 'Pending', 'Uploading', 'Processing', 'Failed')
+    mouse = GalleryMouse(mac)
+    temporary = tempfile.TemporaryDirectory(prefix='gpuio-attachment-paint-')
+    directory = images or Path(temporary.name)
+    serial = 0
+    title = mac.wait_find(TITLE, 'Aurora · 京都.png', 'AXStaticText')
+    equal = mac.cf.CFEqual
+    equal.restype, equal.argtypes = C.c_bool, [C.c_void_p, C.c_void_p]
+
+    def toggle(label):
+        activate(mac, mac.wait_find(TITLE, label, 'AXCheckBox'))
+        time.sleep(.12)
+
+    def set_status(value):
+        nonlocal status
+        while status != value:
+            mac.press(TITLE, 'Attachment status: '+status)
+            status = statuses[(statuses.index(status)+1) % len(statuses)]
+            mac.release(mac.wait_find(TITLE, 'Attachment status: '+status, 'AXButton'))
+        node = mac.wait_find(TITLE, 'Aurora · 京都.png', 'AXStaticText')
+        try:
+            assert equal(title,node), 'Status replaced title identity'
+        finally:
+            mac.release(node)
+        time.sleep(.08)
+
+    def rect(label, role='AXButton'):
+        node = mac.wait_find(TITLE, label, role)
+        try:
+            return element_rect(mac, node)
+        finally:
+            mac.release(node)
+
+    def reveal():
+        reveal_gallery_control(mac, 'Open Aurora attachment', 'AXButton')
+        # Keep hover/pressed/focus decoration out of the color assertions.
+        wx,wy,ww,wh = rect('Attachment preview group', 'AXGroup')
+        mouse.send(5, (wx+ww+12,wy+5))
+        time.sleep(.1)
+
+    def capture():
+        nonlocal serial
+        window = mac.window(TITLE)
+        try:
+            wx,wy,ww,wh = element_rect(mac, window)
+        finally:
+            mac.release(window)
+        path = directory / f'attachment-paint-{serial:03d}.png'
+        serial += 1
+        screenshot(mac, path, title=TITLE)
+        pixels = read_png(mac, path)
+        def rgb(x,y):
+            assert wx <= x < wx+ww and wy <= y < wy+wh, ('sample outside window',x,y)
+            return pixels.rgb((x-wx)*pixels.width/ww, (y-wy)*pixels.height/wh)
+        return rgb
+
+    def title_sample():
+        # Reuse the retained AX reference. Walking the whole gallery for each
+        # sample can alias the sweep period, especially in installed consumers.
+        x,y,w,h = element_rect(mac,title)
+        rgb = capture()
+        return (x,y,w,h), tuple(rgb(x+(i+.5)*w/180,y+(j+.5)*h/28)
+                               for j in range(28) for i in range(180))
+
+    def difference(a,b):
+        assert all(abs(x-y)<.2 for x,y in zip(a[0],b[0])), ('title geometry changed',a[0],b[0])
+        return sum(max(abs(x-y) for x,y in zip(p,q))>5 for p,q in zip(a[1],b[1]))
+
+    def still():
+        time.sleep(.15)
+        a=title_sample()
+        time.sleep(.3)
+        b=title_sample()
+        assert difference(a,b)==0, 'Static/reduced title changed pixels'
+        return b
+
+    def moving(baseline):
+        most=0
+        started=time.monotonic()
+        deadline=started+5
+        timings=[]
+        while time.monotonic()<deadline:
+            time.sleep(.12)
+            most=max(most,difference(baseline,title_sample()))
+            timings.append(round(time.monotonic()-started,3))
+            if most>=6:
+                print('ATTACHMENT_GLYPH_ANIMATION',most,'samples=',timings,flush=True)
+                return
+        raise AssertionError(f'No attachment glyph motion: {most} at {timings}')
+
+    def near(actual,expected,tolerance=5):
+        assert max(abs(a-b) for a,b in zip(actual,expected))<=tolerance,(actual,expected)
+
+    theme_node=mac.find(TITLE,'Dark','AXButton')
+    initial='Dark' if theme_node else 'Light'
+    if theme_node:
+        mac.release(theme_node)
+    try:
+        mac.press(TITLE,'Attachment layout: horizontal')
+        mac.release(mac.wait_find(TITLE,'Attachment layout: vertical','AXButton'))
+        toggle('Attachment image')
+        mac.wait_text(TITLE,'Attachment image: ready')
+        for theme in (initial,'Light' if initial=='Dark' else 'Dark'):
+            reveal()
+            card=rect('Attachment preview card','AXGroup')
+            media=rect('Attachment landscape','AXImage')
+            overlay=rect('PNG','AXStaticText')
+            tx,ty,tw,th=element_rect(mac,title)
+            x,y,w,h=media
+            ox,oy,ow,oh=overlay
+            rgb=capture()
+            baseline_image=rgb(x+w*.22,y+h*.3)
+            # Pixel inside card padding supplies its actual composited surface.
+            surface=rgb(card[0]+4,card[1]+card[3]*.6)
+            glyph_points=[(ox+(i+.5)*ow/100,oy+(j+.5)*oh/28)
+                          for j in range(28) for i in range(100)]
+            palette=(234,240,247) if theme=='Dark' else (27,41,57)
+            opaque=[(point,rgb(*point)) for point in glyph_points
+                    if max(abs(a-b) for a,b in zip(rgb(*point),palette))<=5]
+            assert len(opaque)>=8, ('no opaque overlay glyph pixels',theme,len(opaque))
+            baseline=still()
+            set_status('Uploading')
+            moving(baseline)
+            rgb=capture()
+            raised=(39,46,59) if theme=='Dark' else (240,242,246)
+            expected=tuple(round(.6*a+.4*b) for a,b in zip(baseline_image,raised))
+            near(rgb(x+w*.22,y+h*.3),expected,8)
+            for point,pixel in opaque:
+                near(rgb(*point),pixel,5)
+            set_status('Processing')
+            moving(baseline)
+            set_status('Failed')
+            assert difference(baseline,still())==0,'Failure did not restore ordinary title'
+            rgb=capture()
+            near(rgb(x+w*.22,y+h*.3),expected,8)
+            danger=(255,160,175) if theme=='Dark' else (183,52,75)
+            description_color=tuple(round(.8*a+.2*b) for a,b in zip(danger,surface))
+            dx,dy,dw,dh=rect('PNG image · 2.4 MB','AXStaticText')
+            matches=sum(max(abs(a-b) for a,b in zip(
+                rgb(dx+(i+.5)*dw/180,dy+(j+.5)*dh/28),description_color))<=8
+                for j in range(28) for i in range(180))
+            assert matches>=8,('failed description did not paint danger alpha',theme,matches,description_color)
+            toggle('Attachment image')
+            rgb=capture()
+            danger=(255,160,175) if theme=='Dark' else (183,52,75)
+            failed_bg=tuple(round(.1*a+.9*b) for a,b in zip(danger,surface))
+            near(rgb(x+w*.22,y+h*.3),failed_bg,5)
+            toggle('Attachment image')
+            mac.wait_text(TITLE,'Attachment image: ready')
+            set_status('Complete')
+            assert difference(baseline,still())==0,'Completion did not restore title'
+            # Compare the painted straight top border, away from corners/actions.
+            def top_line():
+                rgb=capture()
+                cx,cy,cw,ch=rect('Attachment preview card','AXGroup')
+                return [rgb(cx+24+i*(cw-48)/160,cy+.5) for i in range(160)]
+            solid=top_line()
+            set_status('Pending')
+            dashed=top_line()
+            changed=sum(max(abs(a-b) for a,b in zip(p,q))>8 for p,q in zip(solid,dashed))
+            assert 10<changed<150,('pending border has no visible dash/gap alternation',changed)
+            set_status('Complete')
+            mac.press(TITLE,theme)
+            mac.release(mac.wait_find(TITLE,'Light' if theme=='Dark' else 'Dark','AXButton'))
+        set_status('Uploading')
+        mac.press(TITLE,'Motion & rhythm')
+        mac.press(TITLE,'Use reduced motion')
+        mac.wait_text(TITLE,'Motion preference: Reduced')
+        mac.press(TITLE,'Presentation')
+        replacement=mac.wait_find(TITLE,'Aurora · 京都.png','AXStaticText')
+        mac.release(title)
+        title=replacement
+        reveal()
+        reduced=still()
+        set_status('Complete')
+        assert difference(reduced,still())==0,'Reduced title differs from ordinary text'
+        set_status('Processing')
+        assert difference(reduced,still())==0,'Processing ignores reduced motion'
+        mac.press(TITLE,'Motion & rhythm')
+        mac.press(TITLE,'Use full motion')
+        mac.wait_text(TITLE,'Motion preference: Full')
+        mac.press(TITLE,'Presentation')
+        replacement=mac.wait_find(TITLE,'Aurora · 京都.png','AXStaticText')
+        mac.release(title)
+        title=replacement
+        reveal()
+        set_status('Complete')
+        baseline=still()
+        set_status('Uploading')
+        moving(baseline)
+        set_status('Complete')
+        toggle('More attachments')
+        toggle('Constrain attachment group')
+        reveal_gallery_control(mac,'Attachment preview group','AXGroup')
+        group=rect('Attachment preview group','AXGroup')
+        gx,gy,gw,gh=group
+        assert abs(gw-280)<1,group
+        before=rect('Open Notes attachment')
+        assert before[0]>=gx+gw,'Third attachment should start clipped'
+        first=mac.wait_find(TITLE,'Open Aurora attachment','AXButton')
+        last=mac.wait_find(TITLE,'Open Notes attachment','AXButton')
+        # The sixth-argument API avoids the arm64 variadic calling convention.
+        # Declaring wheel2 as fixed on the variadic API silently emits zero X.
+        create=mac.cg.CGEventCreateScrollWheelEvent2
+        create.restype,create.argtypes=C.c_void_p,[C.c_void_p,C.c_uint,C.c_uint,C.c_int,C.c_int,C.c_int]
+        delta=mac.cg.CGEventGetIntegerValueField
+        delta.restype,delta.argtypes=C.c_longlong,[C.c_void_p,C.c_int]
+        locate=mac.cg.CGEventSetLocation
+        locate.restype,locate.argtypes=None,[C.c_void_p,GalleryMouse.Point]
+        def scroll(dx,dy=0,point=None):
+            point=point or (gx+gw*.6,gy+gh*.5)
+            mouse.check_owner(point)
+            mouse.send(5,point)
+            event=create(None,0,2,dy,dx,0)
+            assert event
+            try:
+                assert delta(event,97)==dx and delta(event,96)==dy, 'Wrong native scroll delta'
+                locate(event,GalleryMouse.Point(*point))
+                mouse.post(0,event)
+            finally:
+                mac.release(event)
+            time.sleep(.15)
+        try:
+            sx,sy,sw,sh=rect('Save attachment')
+            dx,dy,dw,dh=rect('Unavailable attachment action')
+            gap=((sx+sw+dx)/2,sy+sh/2)
+            start_x=rect('Open Aurora attachment')[0]
+            scroll(-100,point=gap)
+            assert rect('Open Aurora attachment')[0]<start_x-10, 'Action shield swallowed horizontal wheel'
+            for _ in range(8):
+                scroll(-100)
+                after=rect('Open Notes attachment')
+                if after[0]+after[2]<=gx+gw+1:
+                    break
+            assert gx<=after[0] and after[0]+after[2]<=gx+gw+1,('horizontal reveal',group,after)
+            current=mac.wait_find(TITLE,'Open Notes attachment','AXButton')
+            assert equal(last,current),'Scroll replaced attachment action'
+            mac.release(current)
+            x,y,w,h=after
+            mouse.check_owner((x+w/2,y+h/2))
+            mouse.send(1,(x+w/2,y+h/2))
+            mouse.send(2,(x+w/2,y+h/2))
+            mac.wait_text(TITLE,'Attachment opened: 1 · saved: 0')
+            for _ in range(8):
+                scroll(100)
+            current=mac.wait_find(TITLE,'Open Aurora attachment','AXButton')
+            assert equal(first,current),'Return scroll replaced first attachment'
+            mac.release(current)
+            restored=rect('Open Aurora attachment')
+            assert abs(restored[0]-gx)<=2,('scroll reset',group,restored)
+            sx,sy,sw,sh=rect('Save attachment')
+            dx,dy,dw,dh=rect('Unavailable attachment action')
+            scroll(0,-60,point=((sx+sw+dx)/2,sy+sh/2))
+            after_vertical=rect('Attachment preview group','AXGroup')
+            assert after_vertical[1]<gy-10, ('vertical wheel did not reach parent',group,after_vertical)
+            assert abs(after_vertical[0]-gx)<1, 'Vertical wheel changed horizontal origin'
+            mac.wait_text(TITLE,'Attachment opened: 1 · saved: 0')
+            toggle('Constrain attachment group')
+            toggle('More attachments')
+        finally:
+            mac.release(first)
+            mac.release(last)
+        mac.press(TITLE,'Runtime & windows')
+        mac.press(TITLE,'Refresh resource counts')
+        mac.wait_text(TITLE,'Images: 0 · Charts: 0 · Canvases: 0')
+        mac.wait_text(TITLE,'Registered source bytes: 0')
+        print('GALLERY_ATTACHMENT_PAINT_OK: light/dark native glyph motion and static completion/failure; image alpha and undimmed overlay; no-image failure tint; pending dashed paint; reduced-motion stop/full-motion recovery; real horizontal scroll, revealed action and retained owners; released images/sources',flush=True)
+    finally:
+        mac.release(title)
+        temporary.cleanup()
+
+
 def exercise_aspect_ratio(mac, images):
     mac.press(TITLE, 'Styling details')
     mac.wait_text(TITLE, 'Proportions that follow your layout')
@@ -3724,7 +4004,7 @@ def main():
     parser.add_argument('--trace-canvas', action='store_true')
     parser.add_argument('--trace-motion', action='store_true')
     parser.add_argument('--trace-windows', action='store_true')
-    parser.add_argument('--section', choices=['all', 'core', 'status-regions', 'badges', 'labels', 'shimmer', 'attachments', 'groups', 'links', 'empty', 'separators', 'styles', 'borders', 'aspect-ratio', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'document-links', 'document-images', 'highlighting', 'canvas', 'assets', 'charts', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
+    parser.add_argument('--section', choices=['all', 'core', 'status-regions', 'badges', 'labels', 'shimmer', 'attachments', 'attachment-paint', 'groups', 'links', 'empty', 'separators', 'styles', 'borders', 'aspect-ratio', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'document-links', 'document-images', 'highlighting', 'canvas', 'assets', 'charts', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
     args = parser.parse_args()
     if args.images:
         args.images.mkdir(parents=True, exist_ok=True)
@@ -3757,6 +4037,8 @@ def main():
                 exercise_groups(mac, args.images)
             if args.section == 'aspect-ratio':
                 exercise_aspect_ratio(mac, args.images)
+            if args.section == 'attachment-paint':
+                exercise_attachment_paint(mac, args.images)
             if args.section == 'attachments':
                 exercise_attachments(mac, args.images)
             if args.section == 'shimmer':
@@ -3816,7 +4098,8 @@ def main():
             mac.close(TITLE)
             if child.wait(timeout=15) != 0:
                 raise RuntimeError('Gallery exited unsuccessfully')
-        except Exception:
+        except Exception as error:
+            print('GALLERY_FAILURE', repr(error), flush=True)
             if mac and child.poll() is None:
                 try:
                     windows = mac.children(mac.app, 'AXWindows')

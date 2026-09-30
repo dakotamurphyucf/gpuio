@@ -39,8 +39,9 @@ implements status, rich slots, horizontal/vertical sizing, dashed borders, nativ
 title shimmer and independent action/trigger controls. Eio upload/file work stays
 application-owned. Core and focused public macOS checks now cover status/layout
 transitions, retained identities, action-gap shielding, keyboard and pointer
-activation, image dimensions and page teardown. The broader acceptance items
-below remain open; composed Link's passive-content constraint is unchanged.
+activation, image dimensions and page teardown. Installed-consumer GPU, motion
+and real scroll checks now complete the scoped local Attachment functional-
+equivalence review; composed Link's passive-content constraint is unchanged.
 The shared [text-shimmer foundation](../design/text-shimmer.md) now has paired,
 validated standalone/live codecs, Core/Bonsai reconciliation and atomic native
 tree admission, a native glyph painter and independent retained-clock GPU/lifecycle
@@ -50,12 +51,14 @@ managed-row pause/eviction/remount. Public gallery and fresh installed-consumer
 checks now pass both themes, widths and directions, actual keyboard Copy/effect
 toggling, stable native identity, playback/reduced motion and page remount. A
 visible-layout clock defect has a failing-before regression and passing repair.
-Aggregate-performance acceptance remains pending; this does not complete
-Attachment or Marker behavior.
+Aggregate-performance acceptance and Marker integration remain pending.
 The shared per-window shimmer budget has native limit/fallback/recovery evidence;
 that enforces work ceilings without establishing application frame-time budgets.
-Native acceptance must cover action gaps, keyboard/AX activation, layout/state
-changes, image failure, reduced motion, cancellation/unmount and bounded resources.
+Attachment's [acceptance record](../design/presentation-attachments.md) now covers
+action gaps, keyboard/AX activation, layout/state changes, image failure, native
+reduced motion, page teardown and image/source release. Application task
+cancellation stays caller-owned; aggregate performance/resource acceptance is
+still a release gate.
 
 [Bubble](sources/component-bubble.rs.txt) provides
 Filled/Secondary/Muted/Tinted/Outline/Ghost/Destructive surfaces, optional start/end

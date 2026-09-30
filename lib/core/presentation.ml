@@ -86,7 +86,15 @@ module Appearance = struct
         ()
       |> Or_error.ok_exn
     in
-    with_text_shimmer t (Text_shimmer.Config.create ~appearance () |> Or_error.ok_exn)
+    (* Dark titles inherit [foreground]. Mixing toward that same color leaves no
+       visible sweep, so the built-in dark palette uses a brighter highlight. *)
+    with_text_shimmer
+      t
+      (Text_shimmer.Config.create
+         ~appearance
+         ?highlight:(Option.some_if dark (Color.rgb_exn 0xffffff))
+         ()
+       |> Or_error.ok_exn)
   ;;
 
   let light =
