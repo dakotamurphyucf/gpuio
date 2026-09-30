@@ -442,7 +442,7 @@ pub(in super::super) fn inert_page(
     div()
         .relative()
         .size_full()
-        .child(crate::semantics::Inert(body))
+        .child(crate::semantics::InteractionShield::inert(body))
         .child(
             canvas(
                 move |bounds, window, _| {

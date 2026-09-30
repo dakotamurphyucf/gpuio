@@ -42,7 +42,8 @@ end
     delayed row work with its lifetime. Custom rows own their semantic content;
     labelled fields receive a label/help layout, and the supplied control must
     carry its own native accessible name. Disabled items wrap all contents in
-    native Inert, including custom controls.
+    native Disabled, including custom controls, retaining their accessible names
+    and values while suppressing interaction.
 
     Native breakpoint observations select vertical layout below 480 logical
     content pixels, horizontal otherwise. They update styles on a stable control

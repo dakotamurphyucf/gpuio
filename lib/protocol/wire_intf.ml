@@ -341,6 +341,7 @@ module type S = sig
       | Pointer_occlusion of int64
       | Border_style of int64
       | Aspect_ratio of float
+      | Disabled of bool
     [@@deriving bin_io, equal, sexp_of]
   end
 

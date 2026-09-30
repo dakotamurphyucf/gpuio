@@ -560,7 +560,12 @@ impl View {
             .get(id)
             .is_some_and(|node| crate::style::inert(&node.style));
         if inert {
-            crate::semantics::Inert(element).into_any_element()
+            crate::semantics::InteractionShield::inert(element).into_any_element()
+        } else if tree
+            .get(id)
+            .is_some_and(|node| crate::style::disabled(&node.style))
+        {
+            crate::semantics::InteractionShield::disabled(element).into_any_element()
         } else {
             element
         }
@@ -910,11 +915,12 @@ impl View {
             || node.control.is_some_and(Control::disabled)
             || node.link.as_ref().is_some_and(|config| config.disabled)
             || node.editor.as_ref().is_some_and(|config| config.disabled);
-        let disabled = disabled
+        let own_disabled = disabled
             || node
                 .input_region
                 .as_ref()
                 .is_some_and(|config| config.disabled);
+        let disabled = own_disabled || self.focus.borrow().disabled(id);
         if let Some(config) = &node.input_region {
             element = self.input_region_element(element, node, tree.revision(), config, window, cx);
         }
@@ -1164,7 +1170,11 @@ impl View {
         }
         if disabled {
             element.style().mouse_cursor = None;
-            element = element.opacity(0.5 * factor.unwrap_or(1.));
+            // A subtree policy does not repeatedly dim every nested container.
+            // Individual controls retain their ordinary disabled appearance.
+            if own_disabled {
+                element = element.opacity(0.5 * factor.unwrap_or(1.));
+            }
             if let Some(style) = disabled_style {
                 element.style().refine(&style);
             }

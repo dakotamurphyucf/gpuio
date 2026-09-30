@@ -78,7 +78,7 @@ fn unavailable(route: &Route, initiating_button: PointerButton) -> Option<Pointe
     if node.handler != Some(route.handler) || config.button != initiating_button {
         return Some(PointerCancel::Reconfigured);
     }
-    if config.disabled {
+    if config.disabled || route.gate.borrow().disabled(route.node) {
         return Some(PointerCancel::Disabled);
     }
     if !route.gate.borrow().visible(route.node) {

@@ -1523,6 +1523,7 @@ impl Plan<'_> {
                             field,
                             Field::UserSelect(true)
                                 | Field::Inert(true)
+                                | Field::Disabled(true)
                                 | Field::OverflowX(3)
                                 | Field::OverflowY(3)
                                 | Field::PointerOcclusion(1 | 2)
@@ -2632,6 +2633,7 @@ pub fn validate_style(style: &[Style]) -> Result<(), ErrorCode> {
                                 | Field::SelectionColor(_)
                                 | Field::AccessibleName(_)
                                 | Field::Inert(_)
+                                | Field::Disabled(_)
                         )
                     })
             }

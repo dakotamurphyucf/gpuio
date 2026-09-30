@@ -518,7 +518,8 @@ impl View {
             return div().into_any_element();
         }
         let tab_stop = config.presentation != MenuPresentation::Context;
-        let disabled = config.menus.is_empty() || config.menus.iter().all(|menu| menu.disabled);
+        let own_disabled = config.menus.is_empty() || config.menus.iter().all(|menu| menu.disabled);
+        let disabled = own_disabled || self.focus.borrow().disabled(id);
         if (disabled || !visible) && state.borrow().focus.is_focused(window) {
             window.blur(cx);
         }
@@ -545,7 +546,9 @@ impl View {
             base = base.active(move |_| style);
         }
         if disabled {
-            base = base.opacity(0.5);
+            if own_disabled {
+                base = base.opacity(0.5);
+            }
             if let Some(style) = disabled_style {
                 gpui::Refineable::refine(base.style(), &style);
             }

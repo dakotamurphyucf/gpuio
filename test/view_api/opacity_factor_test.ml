@@ -39,6 +39,6 @@ let%expect_test "opacity factor is negotiated with the paired native host" =
   [%expect
     {|
     0001fc0000000000000800
-    0001fcffffffffffff3f00
+    0001fcffffffffffff7f00
     |}]
 ;;

@@ -190,6 +190,66 @@ pub(super) async fn exercise(
     frame(cx, handle).await;
     key(cx, handle, "space");
     assert_eq!(signals(transport), vec![Signal::Data(Payload(vec![8]))]);
+    let parent_style = handle
+        .update(cx, |view, _, _| {
+            view.session
+                .borrow()
+                .tree(view.id)
+                .unwrap()
+                .get(node(0))
+                .unwrap()
+                .style
+                .clone()
+        })
+        .unwrap();
+    let retained_sink = sink();
+    let mut disabled_parent = parent_style.to_vec();
+    disabled_parent.push(Style::Fields(vec![Field::Disabled(true)]));
+    apply(cx, handle, vec![Op::SetStyle(node(0), disabled_parent)]);
+    assert_eq!(
+        retained_sink.guard::<()>(|| panic!("disabled extension callback ran")),
+        Err(sdk::Error::Hidden)
+    );
+    assert_eq!(retained_sink.emit(vec![8]), Err(sdk::Error::Hidden));
+    frame(cx, handle).await;
+    handle
+        .update(cx, |view, window, _| {
+            assert!(!view.extensions[&node(5)].focus.is_focused(window));
+        })
+        .unwrap();
+    key(cx, handle, "space");
+    #[cfg(target_os = "macos")]
+    {
+        let semantics = accessible_request(
+            cx,
+            handle,
+            "Extension increment",
+            Some("AXButton"),
+            AccessibilityRequest::PressRejected,
+        )
+        .expect("disabled extension remains accessible");
+        assert!(!semantics.enabled);
+        frame(cx, handle).await;
+    }
+    assert!(signals(transport).is_empty());
+    apply(
+        cx,
+        handle,
+        vec![Op::SetStyle(node(0), parent_style.to_vec())],
+    );
+    frame(cx, handle).await;
+    assert_eq!(retained_sink.guard(|| Ok(())), Ok(()));
+    assert_eq!(MOUNTS.load(Ordering::SeqCst), 1);
+    assert_eq!(UNMOUNTS.load(Ordering::SeqCst), 0);
+    handle
+        .update(cx, |view, window, cx| {
+            assert!(!view.extensions[&node(5)].focus.is_focused(window));
+            window.focus(&view.editors[&node(4)].focus_handle(cx), cx);
+        })
+        .unwrap();
+    key(cx, handle, "tab");
+    key(cx, handle, "space");
+    assert_eq!(signals(transport), vec![Signal::Data(Payload(vec![8]))]);
     apply(
         cx,
         handle,

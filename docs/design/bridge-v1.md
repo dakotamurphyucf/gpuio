@@ -47,7 +47,12 @@ bytes without NUL/CR/LF, independent of the normalized committed value. Native
 creation consumes it; retained editors ignore seed changes. None restores the
 default formatted-value seed, while Some empty text is an explicit empty draft.
 The paired Core adapter sends the seed only when creating a numeric node.
-Both language halves require the current shared mask `18014398509481983`;
+Inherited disabled subtrees require bit 54 (`CAP_DISABLED_SUBTREES`) and append
+Boolean style field 69 `Disabled`. It is base-only and preserves accessible
+roles/names/values while denying native input/focus and accessibility actions.
+An ancestor's true declaration cannot be overridden by a descendant's false.
+See [disabled subtrees](disabled-subtrees.md) for ownership and popup semantics.
+Both language halves require the current shared mask `36028797018963967`;
 an older host fails capability negotiation instead of accepting
 unsupported input, commands or style values. Existing style field tags and value
 IDs are unchanged: cursor additions occupy 10–21 and start ellipsis occupies 2.

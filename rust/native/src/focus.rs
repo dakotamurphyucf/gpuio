@@ -41,6 +41,87 @@ mod search_visibility_tests {
     use super::*;
 
     #[test]
+    fn disabled_ancestry_preserves_visibility_and_rejects_state_changes_atomically() {
+        let session = Rc::new(RefCell::new(crate::session::Session::default()));
+        let window = WindowId::from_parts(0, 1).unwrap();
+        session.borrow_mut().hello(VERSION, CAPABILITIES).unwrap();
+        session
+            .borrow_mut()
+            .open(1, window, "disabled", 400., 200.)
+            .unwrap();
+        let id = |slot| NodeId::from_parts(slot, 1).unwrap();
+        let apply = |operations| {
+            let base = session.borrow().tree(window).unwrap().revision();
+            session.borrow_mut().apply(&Transaction {
+                window,
+                base,
+                revision: base + 1,
+                operations,
+            })
+        };
+        apply(vec![
+            Op::Create(id(0), Kind::Container, "".into(), None),
+            Op::Create(id(1), Kind::Container, "".into(), None),
+            Op::Create(id(2), Kind::Text, "saved".into(), None),
+            Op::Create(id(3), Kind::Text, "outside".into(), None),
+            Op::SetStyle(id(2), vec![Style::Fields(vec![Field::Disabled(false)])]),
+            Op::Splice(id(1), 0, 0, vec![id(2)]),
+            Op::Splice(id(0), 0, 0, vec![id(1), id(3)]),
+            Op::SetRoot(Some(id(0))),
+        ])
+        .unwrap();
+        let manager = Manager::new(window, session.clone());
+        for disabled in [true, false, true] {
+            apply(vec![Op::SetStyle(
+                id(1),
+                vec![Style::Fields(vec![Field::Disabled(disabled)])],
+            )])
+            .unwrap();
+            assert!(manager.borrow().visible(id(2)));
+            assert_eq!(manager.borrow().allows(id(2)), !disabled);
+            assert_eq!(manager.borrow().blocks_pointer(id(2)), disabled);
+            assert!(manager.borrow().allows(id(3)));
+        }
+        let revision = session.borrow().tree(window).unwrap().revision();
+        for state in 1..=7 {
+            let result = apply(vec![
+                Op::SetText(id(2), "must not commit".into()),
+                Op::SetStyle(
+                    id(1),
+                    vec![Style::State(state, vec![Field::Disabled(false)])],
+                ),
+            ]);
+            assert!(matches!(result, Err(ErrorCode::Malformed)));
+            assert_eq!(session.borrow().tree(window).unwrap().revision(), revision);
+            assert_eq!(
+                &*session
+                    .borrow()
+                    .tree(window)
+                    .unwrap()
+                    .get(id(2))
+                    .unwrap()
+                    .text,
+                "saved"
+            );
+            assert!(!manager.borrow().allows(id(2)));
+        }
+        apply(vec![Op::SetStyle(id(1), vec![])]).unwrap();
+        assert!(manager.borrow().allows(id(2)));
+        apply(vec![Op::SetStyle(
+            id(1),
+            vec![Style::Fields(vec![
+                Field::Disabled(true),
+                Field::Disabled(false),
+            ])],
+        )])
+        .unwrap();
+        assert!(
+            manager.borrow().allows(id(2)),
+            "last local declaration wins"
+        );
+    }
+
+    #[test]
     fn base_visibility_resolves_overrides_and_keeps_inert_text() {
         let styles = [
             Style::Fields(vec![Field::Display(3), Field::Visibility(1)]),
@@ -522,7 +603,7 @@ impl Manager {
         }
     }
     pub(super) fn allows(&self, node: NodeId) -> bool {
-        self.visible(node) && self.active.is_none_or(|scope| self.within(node, scope))
+        self.interactive(node) && self.active.is_none_or(|scope| self.within(node, scope))
     }
     pub(super) fn visibility_identity(&self) -> Rc<()> {
         self.visibility_identity.clone()
@@ -642,7 +723,7 @@ impl Manager {
         true
     }
     pub(super) fn allows_without(&self, excluded: NodeId, node: NodeId) -> bool {
-        self.visible(node)
+        self.interactive(node)
             && self
                 .scopes
                 .iter()
@@ -651,7 +732,7 @@ impl Manager {
                 .is_none_or(|(scope, _)| self.within(node, *scope))
     }
     pub(super) fn blocks_pointer(&self, node: NodeId) -> bool {
-        !self.visible(node)
+        !self.interactive(node)
             || self
                 .active
                 .is_some_and(|scope| !self.within(node, scope) && !self.within(scope, node))
@@ -724,6 +805,28 @@ impl Manager {
             cursor = item.parent;
         }
         true
+    }
+    /// Disabled content still paints and remains accessible. Only interaction
+    /// is inherited; a local false declaration cannot override an ancestor.
+    pub(super) fn disabled(&self, node: NodeId) -> bool {
+        let session = self.session.borrow();
+        let Some(tree) = session.tree(self.window) else {
+            return true;
+        };
+        let mut cursor = Some(node);
+        while let Some(id) = cursor {
+            let Some(item) = tree.get(id) else {
+                return true;
+            };
+            if crate::style::disabled(&item.style) {
+                return true;
+            }
+            cursor = item.parent;
+        }
+        false
+    }
+    pub(super) fn interactive(&self, node: NodeId) -> bool {
+        self.visible(node) && !self.disabled(node)
     }
     pub(super) fn handle(&self, node: NodeId) -> Option<FocusHandle> {
         self.scopes.get(&node).map(|scope| scope.handle.clone())
@@ -824,6 +927,7 @@ impl Manager {
                     if self.hidden.contains(&id)
                         || self.query_hidden.contains(&id)
                         || style_hidden(node)
+                        || crate::style::disabled(&node.style)
                         || navigation_hidden(tree, node)
                     {
                         continue;

@@ -281,7 +281,7 @@ let%expect_test "Settings page visits and responsive field lifetime" =
 ;;
 
 let%expect_test
-    "Settings IDs use separate namespaces and disabled custom content is inert"
+    "Settings IDs use separate namespaces and disabled custom content is disabled"
   =
   List.iter
     [ String.make 256 'x'; "header"; "content"; "width-observer"; "page"; "field" ]
@@ -310,7 +310,7 @@ let%expect_test
         List.exists fields ~f:(function
           | Fields fields ->
             List.exists fields ~f:(function
-              | Inert true -> true
+              | Disabled true -> true
               | _ -> false)
           | _ -> false));
       let current =
@@ -333,10 +333,10 @@ let%expect_test
       Gpuio.Reconciler.close reconciler;
       Bonsai_driver.Expert.invalidate_observers driver);
   print_endline
-    "256-byte page/group/item IDs reconcile together; custom row is inert; current page \
-     is annotated";
+    "256-byte page/group/item IDs reconcile together; custom row is disabled; current \
+     page is annotated";
   [%expect
-    {| 256-byte page/group/item IDs reconcile together; custom row is inert; current page is annotated |}]
+    {| 256-byte page/group/item IDs reconcile together; custom row is disabled; current page is annotated |}]
 ;;
 
 let%expect_test "Settings rejects malformed static and dynamic localized labels" =

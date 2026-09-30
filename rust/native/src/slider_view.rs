@@ -264,6 +264,8 @@ impl State {
             Some(CancelReason::Unmounted)
         } else if !self.route.gate.borrow().visible(self.route.node) {
             Some(CancelReason::Hidden)
+        } else if self.route.gate.borrow().disabled(self.route.node) {
+            Some(CancelReason::Disabled)
         } else if !self.route.gate.borrow().allows(self.route.node) {
             Some(CancelReason::Modal)
         } else if !self

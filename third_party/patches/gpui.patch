@@ -1,13 +1,16 @@
 --- a/src/elements/div.rs
 +++ b/src/elements/div.rs
-@@ -2357,4 +2357,6 @@
+@@ -2356,6 +2356,8 @@
+             || self.group.is_some()
              || self.scroll_offset.is_some()
              || self.tracked_focus_handle.is_some()
 +            || self.active_style.is_some()
 +            || self.group_active_style.is_some()
              || self.hover_style.is_some()
              || self.group_hover_style.is_some()
-@@ -2478,5 +2480,40 @@
+             || self.hover_listener.is_some()
+@@ -2477,7 +2479,42 @@
+ 
                  self.paint_hover_group_handler(window, cx);
  
 -                if style.visibility == Visibility::Hidden {
@@ -49,6 +52,7 @@
 +                    }
                      return ((), element_state);
                  }
+ 
 --- a/src/window.rs
 +++ b/src/window.rs
 @@ -3943,10 +3943,11 @@
@@ -66,3 +70,215 @@
          self.invalidator.debug_assert_paint_or_prepaint();
          self.element_opacity
      }
+@@ -6611,6 +6612,17 @@
+         self.platform_window.play_system_bell()
+     }
+ 
++    /// Mark accessibility nodes produced by this prepaint scope as disabled,
++    /// preserving their IDs, roles and values. This only affects accessibility
++    /// output: the caller must separately enforce native input/focus policy.
++    pub fn with_a11y_disabled<R>(&mut self, f: impl FnOnce(&mut Self) -> R) -> R {
++        let previous = self.a11y.nodes.disabled_scope;
++        self.a11y.nodes.disabled_scope = true;
++        let result = f(self);
++        self.a11y.nodes.disabled_scope = previous;
++        result
++    }
++
+     /// Returns whether accessibility features are active for this frame,
+     /// i.e. whether assistive technology (such as a screen reader) is
+     /// connected and an accessibility tree is being built.
+--- a/src/window/a11y.rs
++++ b/src/window/a11y.rs
+@@ -365,6 +365,7 @@
+ }
+ 
+ pub(crate) struct A11yNodeBuilder {
++    pub(crate) disabled_scope: bool,
+     ids_stack: SmallVec<[NodeId; 16]>,
+     nodes_stack: SmallVec<[accesskit::Node; 16]>,
+     /// This is the exact type required by accesskit, so we can't just make it a
+@@ -386,6 +387,7 @@
+ impl A11yNodeBuilder {
+     fn new() -> Self {
+         Self {
++            disabled_scope: false,
+             ids_stack: SmallVec::new(),
+             nodes_stack: SmallVec::new(),
+             all_nodes: Vec::new(),
+@@ -422,9 +424,13 @@
+     /// top-of-stack node.
+     ///
+     /// Returns `true` if the node was successfully pushed.
+-    pub(crate) fn push(&mut self, id: NodeId, node: accesskit::Node) -> bool {
++    pub(crate) fn push(&mut self, id: NodeId, mut node: accesskit::Node) -> bool {
+         if !self.can_push(id) {
+             return false;
++        }
++
++        if self.disabled_scope {
++            node.set_disabled();
+         }
+ 
+         if let Some(parent) = self.nodes_stack.last_mut() {
+@@ -440,9 +446,13 @@
+     /// followed by a [`Self::pop`].
+     ///
+     /// Returns `true` if the node was successfully pushed.
+-    pub(crate) fn push_leaf(&mut self, id: NodeId, node: accesskit::Node) -> bool {
++    pub(crate) fn push_leaf(&mut self, id: NodeId, mut node: accesskit::Node) -> bool {
+         if !self.can_push(id) {
+             return false;
++        }
++
++        if self.disabled_scope {
++            node.set_disabled();
+         }
+ 
+         if let Some(parent) = self.nodes_stack.last_mut() {
+@@ -468,6 +478,7 @@
+ 
+     /// Push the root node to start a new frame.
+     fn begin_frame(&mut self, window_title: Option<&SharedString>) {
++        self.disabled_scope = false;
+         self.all_nodes.clear();
+         self.ids_stack.clear();
+         self.nodes_stack.clear();
+@@ -572,14 +583,53 @@
+         };
+ 
+         let nodes = std::mem::take(&mut self.all_nodes);
+-        let update = TreeUpdate {
++        let mut update = TreeUpdate {
+             nodes,
+             tree: Some(accesskit::Tree::new(ROOT_NODE_ID)),
+             tree_id: accesskit::TreeId::ROOT,
+             focus,
+         };
+ 
++        // GPUIO: disabling a semantic container disables its descendants while
++        // preserving their roles, names and values. Normalize only the output:
++        // cached source nodes must regain their own actions when re-enabled.
++        Self::inherit_disabled(&mut update);
++
+         Self::repair_tree_update(update)
++    }
++
++    fn inherit_disabled(update: &mut TreeUpdate) {
++        let mut pending: Vec<_> = update
++            .nodes
++            .iter()
++            .filter(|(_, node)| node.is_disabled())
++            .map(|(id, _)| *id)
++            .collect();
++        if pending.is_empty() {
++            return;
++        }
++        let positions: FxHashMap<_, _> = update
++            .nodes
++            .iter()
++            .enumerate()
++            .map(|(index, (id, _))| (*id, index))
++            .collect();
++        let mut visited = FxHashSet::default();
++        while let Some(id) = pending.pop() {
++            if !visited.insert(id) {
++                continue;
++            }
++            let Some(index) = positions.get(&id).copied() else {
++                continue;
++            };
++            let node = &mut update.nodes[index].1;
++            node.set_disabled();
++            node.clear_actions();
++            pending.extend(node.children().iter().copied());
++            if update.focus == id {
++                update.focus = ROOT_NODE_ID;
++            }
++        }
+     }
+ 
+     /// Accesskit panics on invalid [`TreeUpdate`]s. This function defensively
+@@ -655,6 +705,82 @@
+     }
+ 
+     #[test]
++    fn disabled_container_preserves_values_and_restores_original_child_actions() {
++        let mut builder = new_builder();
++        let container = NodeId(1);
++        let control = NodeId(2);
++        let fixed = NodeId(3);
++        let outside = NodeId(4);
++        let mut input = accesskit::Node::new(Role::TextInput);
++        input.set_label("Draft");
++        input.set_value("京都 👩‍💻");
++        input.add_action(accesskit::Action::Focus);
++        input.add_action(accesskit::Action::SetValue);
++        let mut permanently_disabled = input.clone();
++        permanently_disabled.set_disabled();
++
++        for disabled in [true, false, true, false] {
++            builder.begin_frame(None);
++            let mut parent = test_node();
++            if disabled {
++                parent.set_disabled();
++            }
++            assert!(builder.push(container, parent));
++            assert!(builder.push(control, input.clone()));
++            builder.set_focus(control);
++            builder.pop();
++            // Synthetic and ordinary children share the same output policy.
++            assert!(builder.push_leaf(fixed, permanently_disabled.clone()));
++            builder.pop();
++            assert!(builder.push_leaf(outside, input.clone()));
++            let update = builder.finalize();
++            let node = |id| &update.nodes.iter().find(|(key, _)| *key == id).unwrap().1;
++            assert_eq!(node(control).role(), Role::TextInput);
++            assert_eq!(node(control).label(), Some("Draft"));
++            assert_eq!(node(control).value(), Some("京都 👩‍💻"));
++            assert!(!node(control).is_hidden());
++            assert_eq!(node(control).is_disabled(), disabled);
++            assert_eq!(
++                node(control).supports_action(accesskit::Action::SetValue),
++                !disabled
++            );
++            assert!(node(fixed).is_disabled());
++            assert!(!node(fixed).supports_action(accesskit::Action::SetValue));
++            assert!(!node(outside).is_disabled());
++            assert!(node(outside).supports_action(accesskit::Action::SetValue));
++            assert_eq!(update.focus, if disabled { ROOT_NODE_ID } else { control });
++        }
++        assert!(!input.is_disabled());
++        assert!(input.supports_action(accesskit::Action::SetValue));
++    }
++
++    #[test]
++    fn disabled_prepaint_scope_needs_no_synthetic_identity_and_does_not_leak() {
++        let mut builder = new_builder();
++        let mut input = accesskit::Node::new(Role::TextInput);
++        input.set_value("retained draft");
++        input.add_action(accesskit::Action::SetValue);
++        for disabled in [false, true, false] {
++            builder.begin_frame(None);
++            builder.disabled_scope = disabled;
++            assert!(builder.push(NodeId(1), input.clone()));
++            assert!(builder.push_leaf(NodeId(2), input.clone()));
++            builder.pop();
++            builder.disabled_scope = false;
++            assert!(builder.push_leaf(NodeId(3), input.clone()));
++            let update = builder.finalize();
++            for (id, node) in update.nodes.iter().filter(|(id, _)| *id != ROOT_NODE_ID) {
++                assert_eq!(node.is_disabled(), disabled && *id != NodeId(3));
++                assert_eq!(node.supports_action(accesskit::Action::SetValue), !node.is_disabled());
++                assert_eq!(node.value(), Some("retained draft"));
++            }
++        }
++        builder.disabled_scope = true;
++        builder.begin_frame(None);
++        assert!(!builder.disabled_scope);
++    }
++
++    #[test]
+     fn active_descendant_honored_when_container_focused() {
+         let mut builder = new_builder();
+         let container = NodeId(1);

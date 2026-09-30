@@ -5512,13 +5512,23 @@ def exercise_settings_policy(mac):
     focus_gallery_control(mac, 'Managed preferences', 'AXLink')
     mac.key(36)  # Real keyboard navigation moves focus out of the editor.
     mac.release(mac.wait_find(TITLE, 'Managed preferences', 'AXStaticText'))
-    # Disabled Settings rows currently use Inert: contents paint but are absent
-    # from native focus/accessibility, including their reset controls.
-    wait_absent(mac, 'Settings custom action', 'AXButton')
-    wait_absent(mac, 'Reset custom', 'AXButton')
-    wait_absent(mac, 'Settings organization policy', 'AXCheckBox')
-    activate(mac, mac.wait_find(TITLE, 'Lock custom setting', 'AXCheckBox'))
-    expect_enabled(mac, 'Settings custom action', True)
+    # Disabled rows retain native semantic names and values, but cannot activate.
+    expect_enabled(mac, 'Settings custom action', False)
+    expect_enabled(mac, 'Reset custom', False)
+    expect_enabled(mac, 'Settings organization policy', False, role='AXCheckBox')
+    original = mac.wait_find(TITLE, 'Settings custom action', 'AXButton')
+    equal = mac.cf.CFEqual
+    equal.restype, equal.argtypes = C.c_bool, [C.c_void_p, C.c_void_p]
+    try:
+        activate(mac, mac.wait_find(TITLE, 'Lock custom setting', 'AXCheckBox'))
+        expect_enabled(mac, 'Settings custom action', True)
+        current = mac.wait_find(TITLE, 'Settings custom action', 'AXButton')
+        try:
+            assert equal(original, current), 'Enabling replaced the native semantic control'
+        finally:
+            mac.release(current)
+    finally:
+        mac.release(original)
     deadline = time.monotonic() + 8
     while True:
         control = mac.wait_find(TITLE, 'Settings custom action', 'AXButton')
@@ -5539,10 +5549,21 @@ def exercise_settings_policy(mac):
     mac.key(36)
     mac.wait_text(TITLE, 'custom: 2')
     expect_enabled(mac, 'Reset custom', True)
-    activate(mac, mac.wait_find(TITLE, 'Lock custom setting', 'AXCheckBox'))
-    wait_absent(mac, 'Settings custom action', 'AXButton')
-    wait_absent(mac, 'Reset custom', 'AXButton')
-    mac.key(36)  # The formerly focused custom control must no longer activate.
+    retained = mac.wait_find(TITLE, 'Settings custom action', 'AXButton')
+    try:
+        activate(mac, mac.wait_find(TITLE, 'Lock custom setting', 'AXCheckBox'))
+        expect_enabled(mac, 'Settings custom action', False)
+        expect_enabled(mac, 'Reset custom', False)
+        # A reference obtained while enabled must respect the current policy.
+        try:
+            mac.perform(retained, 'AXPress')
+        except RuntimeError:
+            pass
+        mac.key(36)  # The formerly focused control must no longer activate.
+        time.sleep(.15)
+        mac.wait_text(TITLE, 'custom: 2')
+    finally:
+        mac.release(retained)
     # Dirty, disabled data is intentionally excluded from whole-page reset.
     mac.press(TITLE, 'Reset entire page')
     mac.wait_text(TITLE, 'custom: 2')

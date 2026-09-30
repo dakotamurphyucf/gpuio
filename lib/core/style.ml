@@ -377,6 +377,7 @@ module Property = struct
     | User_select of bool
     | Selection_color of Color.t
     | Accessible_name of string
+    | Disabled of bool
     | Inert of bool
     | Padding of Length.t
     | Margin of Length.t
@@ -458,6 +459,7 @@ module Property = struct
         | Selection_color
         | Accessible_name
         | Inert
+        | Disabled
       [@@deriving compare, equal, sexp]
     end
 
@@ -534,6 +536,7 @@ module Property = struct
     | User_select _ -> Name.User_select
     | Selection_color _ -> Name.Selection_color
     | Inert _ -> Name.Inert
+    | Disabled _ -> Name.Disabled
     | Accessible_name _ -> Name.Accessible_name
     | Padding _ | Margin _ | Gap _ | Border_width _ | Radius _ | Overflow _ ->
       assert false
@@ -634,7 +637,8 @@ module Property = struct
       | Pointer_events _
       | User_select _
       | Selection_color _
-      | Inert _ -> true
+      | Inert _
+      | Disabled _ -> true
       | Accessible_name v -> (not (String.is_empty v)) && String.length v <= 1024
       | Padding _ | Margin _ | Gap _ | Border_width _ | Radius _ | Overflow _ ->
         assert false
@@ -667,7 +671,8 @@ let with_state t state properties =
               | User_select _
               | Selection_color _
               | Accessible_name _
-              | Inert _ ) ) ->
+              | Inert _
+              | Disabled _ ) ) ->
             Or_error.error_string "interaction properties belong to the base style"
           | _, _ -> Ok ()
         in
@@ -700,6 +705,7 @@ module Expert = struct
           | Some
               ( Property.User_select true
               | Inert true
+              | Disabled true
               | Overflow_x Scroll
               | Overflow_y Scroll
               | Pointer_occlusion (Pointer | Pointer_and_scroll) ) -> true
@@ -839,6 +845,7 @@ module Expert = struct
     | Property.Pointer_occlusion v ->
       Ok (Wire.Field.Pointer_occlusion (Pointer_occlusion.to_int64 v))
     | Property.Inert v -> Ok (Wire.Field.Inert v)
+    | Property.Disabled v -> Ok (Wire.Field.Disabled v)
     | Property.Pointer_events v -> Ok (Wire.Field.Pointer_events v)
     | Property.User_select v -> Ok (Wire.Field.User_select v)
     | Property.Selection_color v ->

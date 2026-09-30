@@ -144,7 +144,7 @@ let item_view item layout size control =
       (style
          [ Direction (if S.Layout.equal layout Horizontal then Row else Column)
          ; Gap (px (gap size))
-         ; Inert disabled
+         ; Disabled disabled
          ; Opacity (if disabled then 0.5 else 1.)
          ; Width full
          ])

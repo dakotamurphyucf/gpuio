@@ -267,7 +267,7 @@ impl View {
         };
         let allowed = match route.source {
             CommandSource::Menu(menu) => {
-                if !self.focus.borrow().visible(menu) {
+                if !self.focus.borrow().interactive(menu) {
                     return false;
                 }
                 let platform = self
@@ -283,7 +283,13 @@ impl View {
                     self.focus.borrow().allows(source)
                 }
             }
-            CommandSource::Palette(_) => !self.focus.borrow().blocks_pointer(route.scope),
+            CommandSource::Palette(_) => {
+                // Selection closes the palette before dispatch so editing
+                // commands target its restored owner. Check current disability,
+                // not the now-retired palette's rendering visibility.
+                !self.focus.borrow().disabled(source)
+                    && !self.focus.borrow().blocks_pointer(route.scope)
+            }
             CommandSource::Button(_) => self.focus.borrow().allows(source),
             CommandSource::Shortcut => !self.focus.borrow().blocks_pointer(source),
         };

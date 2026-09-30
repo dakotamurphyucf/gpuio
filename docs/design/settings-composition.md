@@ -147,11 +147,13 @@ at or above 480 it is horizontal. This exact boundary is an explicit GPUIO choic
 (the pinned source treats 480 itself as vertical). An item can force vertical
 layout at any width. Group size controls spacing, and the chosen appearance and
 group variant feed the existing group-box adapter. Disabled normal/custom items
-wrap their entire content in native `Inert`. Native field names/help/error metadata
-are the responsibility of supplied controls and the typed field helpers.
-`Inert` keeps painting but removes its subtree from accessibility and focus; it
-does not expose disabled controls with `AXEnabled=false`. Disabled-field
-discoverability therefore remains an explicit accessibility acceptance gap.
+wrap their entire content in native `Style.Disabled true`. Native field
+names/help/error metadata remain the responsibility of supplied controls and the
+typed field helpers. The inherited policy preserves roles, names, values and
+native identities while exposing `AXEnabled=false` and blocking activation,
+editing and focus. It also protects arbitrary custom controls. Inert remains
+reserved for content that should disappear from accessibility. See the
+[disabled-subtree contract](disabled-subtrees.md) for implementation and evidence.
 
 The page-visit regression exposed an existing Bonsai virtual-list weakness:
 captured viewport, retention and controller effects could act after revisiting
@@ -347,8 +349,10 @@ The expanded repository and installed-consumer runs additionally pass native poi
 sidebar dragging,
 16px Left/Right resizing and name-editor identity/draft retention (drag geometry
 allows 1.5 logical pixels for native/AX rounding). Keyboard custom actions work
-when unlocked; locking removes their native focus/AX subtree and whole-page reset
-preserves the disabled dirty value. Unlocking permits its explicit reset.
+when unlocked; at that checkpoint, locking removed their native focus/AX subtree
+and whole-page reset preserved the disabled dirty value. The disabled-subtree
+follow-up below retains disabled AX controls instead. Unlocking permits an
+explicit reset.
 
 Across 48 Advanced groups, real Space changes the first row. Navigating to the
 last group retains the focused first native owner; moving focus permits eviction.
@@ -371,8 +375,7 @@ No VoiceOver acceptance is claimed.
 The driver waits for actual intermediate page content when testing draft recovery;
 rapid coalesced navigation is not qualified by those steps. IME/composition
 retention, complete field/style/size and partial-native-failure/reset-race coverage,
-disabled-field accessibility discoverability and application performance remain
-open. Settings is not yet a functional-equivalent claim.
+and application performance remain open. Settings is not yet a functional-equivalent claim.
 
 ```sh
 GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 examples/gallery/main.exe @test/gallery/runtest @examples/gallery/files/test/runtest
@@ -389,3 +392,29 @@ consumer path is evidence only; builds never depend on it.
 
 Settings, OCH-41 and milestone 07 remain incomplete. Required Linux non-GUI checks and OCH-17
 release gates remain; full Linux desktop qualification is deferred to OCH-47.
+
+## Disabled-field discoverability follow-up — 2026-09-30
+
+Settings now uses the inherited [native disabled policy](disabled-subtrees.md)
+for normal and custom rows. Controls remain in accessibility with their original
+identities and `AXEnabled=false`; generic custom controls no longer need to
+repeat a disabled flag. Application callbacks still recheck current policy for
+reset/data authority. Locked dirty values remain excluded from page resets.
+
+The public gallery and a fresh installed-library consumer pass the Settings
+walkthrough, including an AX reference retained from before disabling: attempting
+AXPress and Return cannot increment the custom value. Enabling preserves the
+semantic object and allows input; re-locking revokes it. Native tests additionally
+cover editor identity/text, inherited false overrides, painted opacity, active
+popup/capture/timer retirement, extension callback leases and macOS menu actions.
+This closes the scoped discoverability gap, not the remaining Settings or release
+acceptance requirements above.
+
+```sh
+GPUIO_JOBS=2 python3 scripts/test_extension_consumer.py --example gallery --workspace /private/tmp/gpuio-disabled-subtrees-20260930-1
+python3 scripts/test_gallery.py --section settings --executable /private/tmp/gpuio-disabled-subtrees-20260930-1/consumer/_build/default/main.exe
+```
+
+Both repository and consumer GUI checks use a 180-second process-group watchdog.
+The temporary workspace is recorded evidence only, not a build dependency or a
+clean-machine distribution claim. No Linux GUI or VoiceOver acceptance is added.

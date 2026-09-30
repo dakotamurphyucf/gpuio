@@ -219,7 +219,7 @@ let%expect_test "packaging quotes literal arguments and keeps identity declarati
 let%expect_test "desktop capability is required by the current OCaml handshake" =
   let module Bridge = Gpuio_protocol.Wire in
   assert (Int64.equal (Int64.bit_and Bridge.capabilities 2199023255552L) 2199023255552L);
-  assert (Int64.equal Bridge.capabilities 18014398509481983L);
+  assert (Int64.equal Bridge.capabilities 36028797018963967L);
   assert (
     Or_error.is_ok (Bridge.Message.encode (Hello (Bridge.version, Bridge.capabilities))));
   [%expect {||}]

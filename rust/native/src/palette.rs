@@ -255,7 +255,7 @@ impl View {
         let hidden = self
             .palettes
             .iter()
-            .filter(|(id, state)| !state.closed && !self.focus.borrow().visible(**id))
+            .filter(|(id, state)| !state.closed && !self.focus.borrow().interactive(**id))
             .map(|(id, _)| *id)
             .collect::<Vec<_>>();
         hidden
@@ -439,7 +439,7 @@ impl View {
         if state.closed || self.focus.borrow().hidden(id) {
             return div().into_any_element();
         }
-        if !self.focus.borrow().visible(id) {
+        if !self.focus.borrow().interactive(id) {
             return div().into_any_element();
         }
         for style in node.style.iter() {

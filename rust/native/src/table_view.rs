@@ -803,7 +803,7 @@ impl View {
         let element =
             self.finish_element(root.child(frame), node, tree.revision(), config.disabled);
         if config.disabled {
-            crate::semantics::Inert(element).into_any_element()
+            crate::semantics::InteractionShield::inert(element).into_any_element()
         } else {
             element
         }

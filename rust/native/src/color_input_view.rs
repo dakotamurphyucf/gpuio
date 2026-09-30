@@ -645,6 +645,8 @@ impl View {
             let s = instance.state.read(cx);
             let reason = if !self.visited.contains(id) || !s.route.gate.borrow().visible(*id) {
                 Some(c::CancelReason::Hidden)
+            } else if s.route.gate.borrow().disabled(*id) {
+                Some(c::CancelReason::Disabled)
             } else if !s.route.gate.borrow().allows(*id) {
                 Some(c::CancelReason::Modal)
             } else if s.capture.is_some() && s.access(true) == Access::Blocked {

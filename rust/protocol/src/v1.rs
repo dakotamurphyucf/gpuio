@@ -68,7 +68,10 @@ pub const CAP_ASPECT_RATIO: i64 = 1_i64 << 50;
 pub const CAP_OPACITY_FACTOR: i64 = 1_i64 << 51;
 pub const CAP_COMMAND_BINDINGS: i64 = 1_i64 << 52;
 pub const CAP_NUMBER_INPUT_DRAFT: i64 = 1_i64 << 53;
-pub const CAPABILITIES: i64 = CAP_NUMBER_INPUT_DRAFT
+/// Inherited native input/focus gating with discoverable disabled semantics.
+pub const CAP_DISABLED_SUBTREES: i64 = 1_i64 << 54;
+pub const CAPABILITIES: i64 = CAP_DISABLED_SUBTREES
+    | CAP_NUMBER_INPUT_DRAFT
     | CAP_COMMAND_BINDINGS
     | CAP_OPACITY_FACTOR
     | CAP_ASPECT_RATIO
@@ -390,6 +393,7 @@ pub enum Field {
     PointerOcclusion(i64),
     BorderStyle(i64),
     AspectRatio(f64),
+    Disabled(bool),
 }
 
 /// Initial portable refinements; adding tags requires explicit schema review.

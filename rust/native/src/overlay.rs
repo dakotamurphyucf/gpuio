@@ -60,7 +60,7 @@ pub(super) fn element(
 ) -> AnyElement {
     // Retained hidden panels intentionally retire active overlay scopes. Do not
     // create a deferred surface (or require an anchor) until it is visible again.
-    if !route.gate.borrow().visible(route.node) {
+    if !route.gate.borrow().interactive(route.node) {
         return div().into_any_element();
     }
     let priority = route.gate.borrow().layer(route.node);

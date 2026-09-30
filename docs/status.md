@@ -26,7 +26,10 @@ eviction across 48 groups, and independent two-window keyboard edits. A native
 warm-row overlap fix repairs navigation after focusing a tall row. The
 [initial second-window AX focus mismatch](evidence/window-accessibility-och17.md)
 is repaired with a scoped adapter initialization patch and passing two-window
-OS input/focus checks. Disabled-row discoverability, composition retention
+OS input/focus checks. Native [disabled subtrees](design/disabled-subtrees.md)
+now preserve discoverable controls while blocking input, stale AX/menu actions
+and active gestures; the public Settings gallery and a fresh installed consumer
+pass disabled-state and retained-identity checks. Composition retention
 and complete reset/field/style edge coverage remain open;
 Settings is not yet a functional-equivalent claim.
 

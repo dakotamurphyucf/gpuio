@@ -445,7 +445,6 @@ let component ~save window palette graph =
         and reset_field = reset_field
         and visit = visit in
         let guard = Gpuio_bonsai.Managed_rows.Lifetime.guard lifetime in
-        let disabled = Settings.Item.is_disabled item in
         let field_kind = F.of_id (Settings.Item.id item) |> Option.value_exn in
         let semantic label help = field ~help label in
         let view =
@@ -542,7 +541,8 @@ let component ~save window palette graph =
               ~style:(style [ Gap (px 6.) ])
               [ Palette.text p "A custom policy control"
               ; V.button
-                  ~disabled
+                (* The panel enforces disabled input even for this ordinary
+                     custom button; the model also rechecks policy on intents. *)
                   ~accessible_name:"Settings custom action"
                   ~on_click:(guard (action Custom))
                   (sprintf "Custom actions: %d" (Model.custom state))

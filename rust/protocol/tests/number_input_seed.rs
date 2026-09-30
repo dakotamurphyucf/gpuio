@@ -62,6 +62,6 @@ fn negotiated_mount_seed_has_independent_hello_bytes() {
     );
     assert_eq!(
         hex(&bytes(&Message::Hello(VERSION, CAPABILITIES))),
-        "0001fcffffffffffff3f00"
+        "0001fcffffffffffff7f00"
     );
 }

@@ -519,6 +519,6 @@ fn capability_bit_and_current_mask_have_independent_bytes() {
     );
     assert_eq!(
         bytes(&Message::Hello(VERSION, CAPABILITIES)),
-        fixture("0001fcffffffffffff3f00")
+        fixture("0001fcffffffffffff7f00")
     );
 }

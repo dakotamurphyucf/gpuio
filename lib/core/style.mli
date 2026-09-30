@@ -264,6 +264,11 @@ module Property : sig
     | User_select of bool
     | Selection_color of Color.t
     | Accessible_name of string
+    | Disabled of bool
+    (** Base-only inherited interaction policy. Keeps layout, paint and accessible
+        names/values, marks the subtree disabled and blocks user input/focus.
+        [false] clears only this node's policy; it cannot override an ancestor.
+        Does not alter opacity, application state or task lifetimes. *)
     | Inert of bool
     (** [Inert true] retains layout and paint while excluding this subtree from
         native focus, keyboard/pointer/IME input and accessibility. Descendants
@@ -349,6 +354,7 @@ module Property : sig
       | Selection_color
       | Accessible_name
       | Inert
+      | Disabled
     [@@deriving compare, equal, sexp_of]
   end
 end

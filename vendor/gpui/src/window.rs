@@ -6612,6 +6612,17 @@ impl Window {
         self.platform_window.play_system_bell()
     }
 
+    /// Mark accessibility nodes produced by this prepaint scope as disabled,
+    /// preserving their IDs, roles and values. This only affects accessibility
+    /// output: the caller must separately enforce native input/focus policy.
+    pub fn with_a11y_disabled<R>(&mut self, f: impl FnOnce(&mut Self) -> R) -> R {
+        let previous = self.a11y.nodes.disabled_scope;
+        self.a11y.nodes.disabled_scope = true;
+        let result = f(self);
+        self.a11y.nodes.disabled_scope = previous;
+        result
+    }
+
     /// Returns whether accessibility features are active for this frame,
     /// i.e. whether assistive technology (such as a screen reader) is
     /// connected and an accessibility tree is being built.

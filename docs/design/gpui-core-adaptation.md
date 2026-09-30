@@ -55,6 +55,29 @@ compare the vendored tree, review lockfile changes, and preserve the required
 Linux build/unit/private-bus/consumer gates. macOS GUI evidence does not qualify
 the deferred Linux desktop milestone.
 
+## Disabled accessibility scopes
+
+`Window::with_a11y_disabled` marks nodes produced during a prepaint scope as
+disabled without introducing a wrapper identity. GPUIO's retained native tree
+enforces input, focus and popup policy independently; this API only controls
+accessibility output. This matters for type-erased `AnyElement` wrappers, whose
+own accessibility identity is absent: attaching disabled metadata to such a
+wrapper alone does not reach its actual rendered children.
+
+The accessibility builder normalizes disabled inheritance in the completed
+frame, clearing actions on disabled nodes and descendants while preserving their
+roles, names, values and IDs. Disabled focus falls back to the window root.
+Normalization works on output nodes, so re-enabling restores the original
+actions and leaves independently disabled controls disabled. Nested prepaint
+scopes restore their caller's state; a new frame resets the scope.
+
+The pinned GPUI accessibility unit suite covers both scope-produced nodes and
+ordinary/synthetic descendants, re-enabling, original-node preservation and
+unrelated siblings. Native and public gallery acceptance is tracked in the
+[disabled-subtree contract](disabled-subtrees.md). When upgrading this patch,
+rerun those checks as well as the existing focus/active-descendant unit suite.
+This is not a claim of VoiceOver or Linux desktop qualification.
+
 ## Read-only accumulated opacity
 
 Custom text-shimmer paint needs the opacity actually computed by GPUI, including

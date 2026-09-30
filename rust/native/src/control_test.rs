@@ -436,6 +436,52 @@ async fn select_control(
         popup.bottom() <= trigger.top() || popup.top() >= trigger.bottom(),
         "popup avoids covering trigger when one side fits: {trigger:?} {popup:?}"
     );
+    let parent_style = handle
+        .update(cx, |view, _, _| {
+            view.session
+                .borrow()
+                .tree(view.id)
+                .unwrap()
+                .get(node(0))
+                .unwrap()
+                .style
+                .clone()
+        })
+        .unwrap();
+    let retained_select = handle
+        .update(cx, |view, _, _| view.selects[&node(6)].clone())
+        .unwrap();
+    let mut disabled_style = parent_style.to_vec();
+    disabled_style.push(Style::Fields(vec![Field::Disabled(true)]));
+    apply(cx, handle, vec![Op::SetStyle(node(0), disabled_style)]);
+    frame(cx, handle).await;
+    assert!(
+        !select_is_open(cx, handle),
+        "ancestor disable retires an open popup"
+    );
+    assert!(!focused(cx, handle, node(6)));
+    key(cx, handle, "space");
+    assert!(!select_is_open(cx, handle));
+    assert!(choices(transport).is_empty());
+    apply(
+        cx,
+        handle,
+        vec![Op::SetStyle(node(0), parent_style.to_vec())],
+    );
+    frame(cx, handle).await;
+    assert!(
+        !focused(cx, handle, node(6)),
+        "availability does not steal focus"
+    );
+    handle
+        .update(cx, |view, window, cx| {
+            assert!(Rc::ptr_eq(&retained_select, &view.selects[&node(6)]));
+            window.focus(&view.buttons[&node(6)].focus, cx);
+        })
+        .unwrap();
+    key(cx, handle, "space");
+    frame(cx, handle).await;
+    assert!(select_is_open(cx, handle));
     key(cx, handle, "down");
     assert!(choices(transport).is_empty(), "highlight is not selection");
     let appearance = ChoiceAppearance {
@@ -1323,6 +1369,7 @@ pub(super) fn accessible_button(
 enum AccessibilityRequest<'a> {
     Inspect,
     Press,
+    PressRejected,
     Focus,
     SetValue(&'a str),
     SetSelected(bool),
@@ -1395,6 +1442,14 @@ fn accessible_request(
                         let _: () = msg_send![object, setAccessibilityFocused: true];
                         let accepted: Bool = msg_send![object, accessibilityPerformPress];
                         assert!(accepted.as_bool());
+                    }
+                    AccessibilityRequest::PressRejected => {
+                        let _: () = msg_send![object, setAccessibilityFocused: true];
+                        let accepted: Bool = msg_send![object, accessibilityPerformPress];
+                        assert!(
+                            !accepted.as_bool(),
+                            "disabled accessibility press was accepted"
+                        );
                     }
                     AccessibilityRequest::Focus => {
                         let _: () = msg_send![object, setAccessibilityFocused: true];

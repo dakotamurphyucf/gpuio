@@ -365,7 +365,11 @@ async fn menu_availability(
                 .to_vec()
         })
         .unwrap();
-    for field in [Field::Visibility(1), Field::Display(3)] {
+    for field in [
+        Field::Visibility(1),
+        Field::Display(3),
+        Field::Disabled(true),
+    ] {
         focus_menu(cx, handle, 39);
         key(cx, handle, "down");
         frame(cx, handle).await;
@@ -915,6 +919,53 @@ pub(super) async fn exercise(
                 action.boxed_clone()
             })
             .unwrap();
+        native_menu_press("Actions", 0);
+        frame(cx, handle).await;
+        assert_eq!(
+            emitted(transport),
+            [("run".into(), CommandSource::Menu(node(42)))]
+        );
+        // Platform actions can outlive the menu snapshot that produced them.
+        // A local subtree policy must gate them even if their command scope
+        // lives outside that disabled node.
+        let style = handle
+            .update(cx, |view, _, _| {
+                view.session
+                    .borrow()
+                    .tree(view.id)
+                    .unwrap()
+                    .get(node(42))
+                    .unwrap()
+                    .style
+                    .to_vec()
+            })
+            .unwrap();
+        let mut disabled_style = style.clone();
+        disabled_style.push(Style::Fields(vec![Field::Disabled(true)]));
+        apply(cx, handle, vec![Op::SetStyle(node(42), disabled_style)]);
+        frame(cx, handle).await;
+        handle
+            .update(cx, |_, _, cx| {
+                let menus = cx.get_menus().unwrap();
+                let menu = menus
+                    .iter()
+                    .find(|menu| menu.name == "Actions")
+                    .expect("disabled menu stays present");
+                assert!(menu.disabled);
+                let gpui::OwnedMenuItem::Action { disabled, .. } = &menu.items[0] else {
+                    panic!("command item")
+                };
+                assert!(*disabled);
+            })
+            .unwrap();
+        cx.update(|cx| cx.dispatch_action(action.as_ref()));
+        frame(cx, handle).await;
+        assert!(
+            emitted(transport).is_empty(),
+            "retained OS action bypassed disabled menu"
+        );
+        apply(cx, handle, vec![Op::SetStyle(node(42), style)]);
+        frame(cx, handle).await;
         native_menu_press("Actions", 0);
         frame(cx, handle).await;
         assert_eq!(
