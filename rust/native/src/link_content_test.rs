@@ -83,6 +83,16 @@ pub(super) fn events(
 }
 
 async fn animation_geometry(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>) {
+    #[cfg(feature = "native-image-tests")]
+    let original_scale = handle
+        .update(cx, |_, window, _| {
+            let original = window.scale_factor();
+            if std::env::args().any(|arg| arg == "--scale-one") {
+                window.set_scale_factor(1.);
+            }
+            original
+        })
+        .unwrap();
     for (millis, tween_width, program_width) in [
         (0, 80., 90.),
         (200, 100., 112.5),
@@ -104,9 +114,12 @@ async fn animation_geometry(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>)
             .unwrap();
         frame(cx, handle).await;
         handle
-            .update(cx, |view, _, _| {
+            .update(cx, |view, window, _| {
                 for (slot, expected) in [(18, tween_width), (20, program_width)] {
                     let actual = f32::from(view.probes.borrow()[&id(slot)].bounds.size.width);
+                    // Layout is quantized to device pixels: 112.5 logical
+                    // pixels remains fractional at 2x but becomes 112 at 1x.
+                    let expected = f32::from(window.pixel_snap(px(expected)));
                     assert!(
                         (actual - expected).abs() < 0.1,
                         "passive animation {slot} at {millis}ms: expected {expected}, got {actual}"
@@ -124,6 +137,10 @@ async fn animation_geometry(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>)
                 .borrow_mut()
                 .set_test_time(None);
         })
+        .unwrap();
+    #[cfg(feature = "native-image-tests")]
+    handle
+        .update(cx, |_, window, _| window.set_scale_factor(original_scale))
         .unwrap();
 }
 

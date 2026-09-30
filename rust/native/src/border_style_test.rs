@@ -86,7 +86,8 @@ fn pixels(
                 } else {
                     panel.height
                 };
-                let (mut on, mut off, mut total) = (0, 0, 0);
+                let (mut on, mut off, mut gaps, mut total) = (0, 0, 0, 0);
+                let mut samples = Vec::new();
                 for i in (inset * scale) as u32..((length - inset) * scale) as u32 {
                     let along = f64::from(i) / scale;
                     let half = panel.stroke / 2.;
@@ -97,8 +98,18 @@ fn pixels(
                         _ => (20. + half, 20. + along),
                     };
                     let pixel = read(x, y);
+                    samples.push(pixel[0]);
                     on += usize::from(white(pixel));
                     off += usize::from(black(pixel));
+                    // A one-device-pixel gap can straddle adjacent samples.
+                    // The antialiased valley need not contain a pure-black
+                    // pixel; require at most half coverage instead. Solid and
+                    // zero-width/omitted edges retain their strict assertions.
+                    gaps += usize::from(if panel.stroke * scale <= 1. {
+                        pixel[0] <= 128 && pixel[1] <= 128 && pixel[2] <= 128
+                    } else {
+                        black(pixel)
+                    });
                     total += 1;
                 }
                 assert!(total > 20);
@@ -106,8 +117,8 @@ fn pixels(
                     assert_eq!(off, total, "zero-width border: {panel:?}, side {side}");
                 } else if dashed {
                     assert!(
-                        on > 2 && off > 2,
-                        "dash/gap missing: {panel:?}, side {side}, {on}/{off}/{total}"
+                        on > 2 && gaps > 2,
+                        "dash/gap missing: {panel:?}, side {side}, bright={on}/gaps={gaps}/black={off}/total={total}, samples={samples:?}"
                     );
                 } else {
                     assert_eq!(on, total, "solid border: {panel:?}, side {side}");
@@ -128,6 +139,11 @@ fn pixels(
         .unwrap();
 }
 async fn exercise(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>) {
+    if std::env::args().any(|arg| arg == "--scale-one") {
+        handle
+            .update(cx, |_, window, _| window.set_scale_factor(1.))
+            .unwrap();
+    }
     apply(
         cx,
         handle,
