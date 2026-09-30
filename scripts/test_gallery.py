@@ -308,9 +308,11 @@ def exercise_empty(mac, images):
     boolean = mac.cf.CFBooleanGetValue
     boolean.restype, boolean.argtypes = C.c_bool, [C.c_void_p]
     original = mac.wait_find(TITLE, 'Keep empty-state updates', 'AXCheckBox')
-    clicks = cases = 0
+    clicks = cases = border_cases = typography_cases = 0
     toggles = {'Frame empty media': False, 'Align empty slots to start': False,
-               'Narrow empty preview': False}
+               'Narrow empty preview': False, 'Show empty border': False,
+               'Use solid empty border': False, 'Large empty description': False,
+               'Compact empty line spacing': False}
 
     def checked(node):
         value = mac.attr(node, 'AXValue')
@@ -402,6 +404,70 @@ def exercise_empty(mac, images):
                             screenshot(mac, images / f'gallery-empty-{appearance.lower()}.png', title=TITLE)
             mac.press(TITLE, appearance)
             mac.release(mac.wait_find(TITLE, alternate if appearance == current else current, 'AXButton'))
+        toggle('Frame empty media', False)
+        toggle('Align empty slots to start', False)
+        toggle('Narrow empty preview', False)
+        root = mac.wait_find(TITLE, 'Rich empty state', 'AXGroup')
+        try:
+            for appearance in (current, alternate):
+                for bordered, solid in ((False, False), (True, False), (True, True),
+                                         (False, True), (False, False)):
+                    toggle('Show empty border', bordered)
+                    toggle('Use solid empty border', solid)
+                    mac.wait_text(TITLE, f'Empty border: {"visible" if bordered else "hidden"} · '
+                                  f'{"solid override" if solid else "default dashed"}')
+                    retained()
+                    expect_focus(mac, 'Keep empty-state updates', 'AXCheckBox')
+                    updated = mac.wait_find(TITLE, 'Rich empty state', 'AXGroup')
+                    try:
+                        assert equal(root, updated), 'Border restyle replaced the empty root'
+                        _, _, width, _ = element_rect(mac, updated)
+                        assert abs(width - 440) < 1, 'Border changed the requested outer width'
+                    finally:
+                        mac.release(updated)
+                    border_cases += 1
+                    if images and bordered:
+                        reveal_gallery_control(mac, 'Empty rich media', 'AXGroup')
+                        screenshot(mac, images / f'gallery-empty-border-{appearance.lower()}-'
+                                   f'{"solid" if solid else "dashed"}.png', title=TITLE)
+                mac.press(TITLE, appearance)
+                mac.release(mac.wait_find(TITLE, alternate if appearance == current else current, 'AXButton'))
+        finally:
+            mac.release(root)
+        description_text = mac.wait_find(TITLE, 'Empty description text', 'AXGroup')
+        try:
+            for appearance in (current, alternate):
+                for large, font_size in ((False, 14), (True, 20)):
+                    toggle('Large empty description', large)
+                    heights = []
+                    for compact in (False, True, False):
+                        toggle('Compact empty line spacing', compact)
+                        mac.wait_text(TITLE, f'Empty description: {20 if large else 14} px · '
+                                      f'{"24 px spacing" if compact else "relative spacing"}')
+                        reveal_gallery_control(mac, 'Empty description text', 'AXGroup')
+                        updated = mac.wait_find(TITLE, 'Empty description text', 'AXGroup')
+                        try:
+                            assert equal(description_text, updated), 'Typography remounted the description'
+                            heights.append(element_rect(mac, updated)[3])
+                        finally:
+                            mac.release(updated)
+                        retained()
+                        expect_focus(mac, 'Keep empty-state updates', 'AXCheckBox')
+                        typography_cases += 1
+                    relative, compact, restored = heights
+                    lines = round(compact / 24)
+                    assert lines > 1 and abs(compact - lines * 24) < 1, heights
+                    # GPUI snaps each line to device pixels, preserving half
+                    # logical pixels on Retina. Allow at most half a logical
+                    # pixel per line (also valid on a 1x display).
+                    assert abs(relative / lines - font_size * 1.625) <= .5, (large, heights)
+                    assert abs(restored - relative) < 1, 'Omitting line-height override failed to restore ratio'
+                    print('GALLERY_EMPTY_TYPOGRAPHY', appearance, font_size, lines, heights, flush=True)
+                mac.press(TITLE, appearance)
+                mac.release(mac.wait_find(TITLE, alternate if appearance == current else current, 'AXButton'))
+            toggle('Large empty description', False)
+        finally:
+            mac.release(description_text)
         for toggle_label, absent_label, role in [
                 ('Empty media', 'Empty rich media', 'AXGroup'),
                 ('Empty title', 'Empty rich title', 'AXGroup'),
@@ -450,7 +516,8 @@ def exercise_empty(mac, images):
     mac.wait_text(TITLE, 'Images: 0 · Charts: 0 · Canvases: 0')
     mac.press(TITLE, 'Presentation')
     mac.wait_text(TITLE, f'Empty actions: {clicks}')
-    print(f'GALLERY_EMPTY_OK: {cases} theme/media/alignment/width cases; intrinsic media, '
+    print(f'GALLERY_EMPTY_OK: {cases} theme/media/alignment/width cases; {border_cases} border cases; '
+          f'{typography_cases} typography cases; intrinsic media, '
           f'wrapped slots, retained identity/focus, {clicks} Return/AX actions, '
           'native Space, decoded media, optional retirement and asset teardown', flush=True)
 
@@ -3138,6 +3205,13 @@ def main():
         except Exception:
             if mac and child.poll() is None:
                 try:
+                    windows = mac.children(mac.app, 'AXWindows')
+                    try:
+                        print('GALLERY_FAILURE_WINDOWS',
+                              [mac.text(window, 'AXTitle') for window in windows], flush=True)
+                    finally:
+                        for window in windows:
+                            mac.release(window)
                     mac.dump(TITLE)
                     if args.images:
                         screenshot(mac, args.images / 'gallery-failure.png', title=TITLE)

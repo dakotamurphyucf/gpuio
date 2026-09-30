@@ -287,6 +287,9 @@ and `EmptyContent`. Public equivalent for rich composition:
 `Presentation.Empty_state`. The existing `Presentation.empty_state` keeps its
 string convenience API and original layout.
 
+Status: **functional equivalent, locally validated on macOS** for this source
+module. This scoped row does not accept the entire presentation family or release.
+
 The new module offers `media`, `title`, `description`, `header`, `content` and
 `create`, each built from ordinary Views with independently refined styles.
 Media defaults to an intrinsic-width column suitable for avatar rows; `Icon`
@@ -294,6 +297,24 @@ adds a muted 32-logical-pixel frame. Header slots appear in media/title/descript
 order, followed by content and then extras. Header and content default to a
 384-logical-pixel width cap. These concrete metrics are style defaults, not new
 application theme requirements or physical-DPI behavior.
+
+| Pinned source | GPUIO public equivalent |
+| --- | --- |
+| `Empty` / optional header and content / additional children | `Empty_state.create ?header ?content children`; keyed extras wrapper |
+| `EmptyHeader` / media, title, description | `Empty_state.header ?media ?title ?description ()`, in that order |
+| `EmptyMedia` / Default or Icon | `Empty_state.media ~variant:Unframed` or `Icon`; arbitrary children |
+| `EmptyTitle` | `Empty_state.title`; rich children and independently refined typography |
+| `EmptyDescription` | `Empty_state.description`; muted wrapping children, line height 1.625 times effective font size |
+| `EmptyContent` | `Empty_state.content`; arbitrary actions/inputs with caller-owned state |
+| `Styled` on every helper | Independent `?style`; existing View/Style state and refinement rules |
+
+The root has no visible border width or background by default. Supplying a width
+reveals its dashed border and appearance border color. An explicit `Border_style
+Solid` overrides the pattern. Unsetting the property removes the helper declaration
+and exposes the native container's solid default; omitting that unset restores
+the helper's dashed default. Description font-size refinements retain proportional
+line spacing; an explicit `Line_height` overrides it. These are shared styles,
+not a new widget transport or animation loop.
 
 Named slots use stable keyed wrappers. Extra children occupy a separate keyed
 column whose alignment/style can be refined with `children_style`; user keys
@@ -321,10 +342,12 @@ Images borrow existing asset handles; registration and I/O remain scoped
 application work. The compositions add no focus stop or implicit live announcement.
 Ordinary child controls retain keyboard, pointer and accessibility behavior.
 
-Three Core expect tests cover 128 slot/order/absence cases in light/dark,
+Four Core expect tests cover 128 slot/order/absence cases in light/dark,
 64 appearance/media/slot transitions retaining checked content and current actions,
 retired-action fencing, key isolation, idle reconciliation, custom style precedence
-and reset, and unchanged empty/Unicode/long text. The full isolated Dune
+and reset, and unchanged empty/Unicode/long text. The additional border test checks
+hidden defaults, visible dashed borders, solid overrides, unset and reset in both
+appearances without replacing controls or retaining obsolete actions. The full isolated Dune
 `@all @runtest @fmt` passes.
 
 The public gallery's **A useful empty state** card adds a configurable rich
@@ -346,8 +369,33 @@ raster-media screenshots were visually inspected. The scoped image stays enabled
 when departing the page, so cleanup is exercised with mounted image content.
 Screenshots alone do not establish the separately asserted input behavior.
 
-**Remaining:** the pinned root specifies dashed borders even though its default
-border width is zero. Visible custom dashed borders still need the shared native
-border-style contract. Do not claim that style parity from the default borderless
-appearance. Fresh Linux/installed-consumer and full gallery/CI checks remain
-separate; OCH-17 release and deferred OCH-47 Linux desktop gates are unchanged.
+The integrated border preview has passed ten additional macOS theme/pattern/width
+transitions, measuring the unchanged 440-logical-pixel outer width, root and child
+AX identity, checked state and focus. Actual dark/light dashed/solid screenshots
+were inspected alongside the shared border primitive's GPU evidence.
+
+On 2026-09-30, a fresh outside-checkout consumer built against staged installed
+libraries and its independent locked native backend, then passed all 16 layout,
+10 border and 12 typography cases, 18 Return/AX actions, real Space, retained
+focus/identity, decoded media, optional retirement, asset cleanup and clean exit.
+The driver reports `GALLERY_EMPTY_OK` and `GPUIO_GALLERY_AX_OK: section=empty`.
+At 14-pixel text, two lines measured 45 logical pixels; at 20-pixel text, three
+lines measured 97.5. Explicit 24-pixel spacing produced 48/72 respectively, then
+omitting the override restored 45/97.5. Both appearances matched. GPUI's text
+element snaps line height to device pixels, so these Retina measurements retain
+half logical pixels; the assertion allows at most half a logical pixel per line
+around the requested 1.625 ratio. An earlier integer-per-line test expectation
+was corrected after inspecting that renderer path; no production rounding change
+was made. Interrupted window-loss runs do not count as acceptance.
+
+Reproduce the installed consumer check with a fresh workspace:
+
+```sh
+GPUIO_JOBS=2 python3 scripts/test_extension_consumer.py --example gallery \
+  --workspace /private/tmp/gpuio-empty-review --run --gallery-section empty
+```
+
+This evidence is macOS 14.5 arm64 local behavior, not a clean-machine, VoiceOver,
+physical display-transition or Linux desktop qualification. Fresh required Linux
+checks, full-gallery/hosted CI and OCH-17 release gates remain separate; deferred
+OCH-47 Linux desktop scope is unchanged.

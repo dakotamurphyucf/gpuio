@@ -24,7 +24,10 @@ pattern geometry collection or animation timer is allocated.
 Base/focused/hovered/pressed layers follow existing style precedence. Last
 property wins within a layer. `Style.unset ... Border_style` removes only the
 chosen layer's declaration: removing a hover override exposes the base style;
-removing the base exposes the receiving component's default (normally solid).
+removing the base exposes the receiving native component's default (normally solid).
+OCaml composition defaults are declarations too: a custom unset removes
+`Empty_state`'s dashed declaration, exposing its underlying native container's
+solid default; omitting the custom unset restores the composed dashed default.
 Explicit `Solid` can override a component-provided dashed pattern. Border styles
 are not inherited by descendants.
 
@@ -103,7 +106,8 @@ GPUIO_JOBS=2 ./scripts/gpuio exec cargo test -p gpuio-native --features native-i
 python3 scripts/test_gallery.py --section borders
 ```
 
-Empty's default and custom-border preview, the richer Separator API, Attachment
-integration, full consumer walkthrough, whole-family/catalog and release gates
+Empty's default and custom-border preview now have [integration evidence](../catalog/presentation-review.md#empty-state-rich-slots).
+The richer Separator API, Attachment integration, full consumer walkthrough,
+whole-family/catalog and release gates
 remain open. The shared primitive does not establish every specialized native
 control's treatment of application-supplied border styles.

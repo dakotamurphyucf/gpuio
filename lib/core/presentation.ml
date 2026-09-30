@@ -665,7 +665,7 @@ module Empty_state = struct
                [ Width full
                ; Min_width (px 0.)
                ; Font_size 14.
-               ; Line_height (px 22.75)
+               ; Line_height (Length.percent_exn 162.5)
                ; Foreground p.muted
                ; White_space Normal
                ]
@@ -738,6 +738,7 @@ module Empty_state = struct
                ; Gap (px 16.)
                ; Padding (px 24.)
                ; Radius 12.
+               ; Border_style Dashed
                ; Border_color p.border
                ; Text_align Center
                ; Foreground p.foreground

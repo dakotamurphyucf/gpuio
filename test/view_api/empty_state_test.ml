@@ -242,3 +242,79 @@ let%expect_test "media and slot style refinements reset without replacing conten
   [%expect
     {| custom width overrides defaults; unframed reset removes frame/font; slots refine independently; localized and long text preserved |}]
 ;;
+
+let%expect_test "empty borders refine without replacing child controls or callbacks" =
+  let t = Reconciler.create window in
+  let original_button = ref None in
+  let modes =
+    [ Style.empty, Some 1L, None
+    ; Style.create_exn [ Border_width 2. ], Some 1L, Some 2.
+    ; Style.create_exn [ Border_width 2.; Border_style Solid ], Some 0L, Some 2.
+    ; Style.unset (Style.create_exn [ Border_width 2. ]) Border_style, None, Some 2.
+    ; Style.empty, Some 1L, None
+    ]
+  in
+  List.iter [ P.Appearance.light; P.Appearance.dark ] ~f:(fun appearance ->
+    List.iteri modes ~f:(fun revision (custom, expected_pattern, expected_width) ->
+      let view =
+        Empty.create
+          appearance
+          ~style:custom
+          ~content:
+            (Empty.content
+               [ View.button
+                   ~key:(key "create")
+                   ~on_click:(fun () -> revision)
+                   "Create item"
+               ])
+          []
+      in
+      let fields = view_fields view in
+      let pattern =
+        List.find_map fields ~f:(function
+          | W.Field.Border_style value -> Some value
+          | _ -> None)
+      in
+      assert (Option.equal Int64.equal pattern expected_pattern);
+      let widths =
+        List.filter_map fields ~f:(function
+          | W.Field.Border_top_width value
+          | Border_right_width value
+          | Border_bottom_width value
+          | Border_left_width value -> Some value
+          | _ -> None)
+      in
+      (match expected_width with
+       | None -> assert (List.is_empty widths)
+       | Some expected ->
+         assert (List.length widths = 4);
+         assert (List.for_all widths ~f:(Float.equal expected)));
+      let operations = commit t (Some view) in
+      (match !original_button with
+       | None ->
+         original_button
+         := Some
+              (List.find_map_exn operations ~f:(function
+                 | W.Op.Create (node, Button, _, Some handler) -> Some (node, handler)
+                 | _ -> None))
+       | Some _ ->
+         List.iter operations ~f:(function
+           | W.Op.Create _ | Remove _ -> failwith "border styling remounted content"
+           | _ -> ()));
+      let node, handler = Option.value_exn !original_button in
+      assert (
+        Option.equal
+          Int.equal
+          (Reconciler.dispatch t (W.Event.Press (window, node, handler, 1L)))
+          (Some revision));
+      assert (List.is_empty (commit t (Some view)))));
+  ignore (commit t None : W.Op.t list);
+  let node, handler = Option.value_exn !original_button in
+  assert (
+    Option.is_none (Reconciler.dispatch t (W.Event.Press (window, node, handler, 1L))));
+  print_endline
+    "light/dark: hidden default, visible dashed, solid override, unset, reset; retained \
+     control/current callback; idle restyle and unmount fencing";
+  [%expect
+    {| light/dark: hidden default, visible dashed, solid override, unset, reset; retained control/current callback; idle restyle and unmount fencing |}]
+;;

@@ -263,6 +263,8 @@ module Empty_state : sig
 
   val title : ?key:Key.t -> ?style:Style.t -> 'action View.t list -> 'action View.t
 
+  (** Muted wrapping text with line height 1.625 times the effective font size.
+      Custom font sizes preserve that ratio unless [Line_height] is also refined. *)
   val description
     :  Appearance.t
     -> ?key:Key.t
@@ -291,6 +293,10 @@ module Empty_state : sig
       refines that wrapper's centered column. Missing slots add no placeholders.
       Root and helper styles refine defaults independently; omit a previous custom
       style to reset it. The root has no visible background or border by default.
+      Supplying a border width reveals the default dashed pattern and appearance
+      border color; [Border_style Solid] overrides the pattern independently.
+      Unsetting [Border_style] removes the helper's declaration, exposing the native
+      solid default; omitting that custom unset restores the helper's dashed default.
       Asset registration, input models, async work and visibility remain caller-owned. *)
   val create
     :  Appearance.t

@@ -1,6 +1,8 @@
 open Core
 
-(** Logical pixels or percentage points (100 means the full parent dimension).
+(** Logical pixels or percentage points. The reference depends on the property:
+    layout dimensions generally use the parent dimension; line height uses the
+    effective font size (162.5 means 1.625 times that size).
     Values must be finite with absolute value at most 1,000,000; negative lengths
     are useful for offsets and margins.
     Properties such as width validate nonnegative values separately. *)

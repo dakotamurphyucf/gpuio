@@ -41,6 +41,10 @@ let component app window palette graph =
   let framed, toggle_framed = B.toggle ~default_model:false graph in
   let leading, toggle_leading = B.toggle ~default_model:false graph in
   let narrow, toggle_narrow = B.toggle ~default_model:false graph in
+  let bordered, toggle_border = B.toggle ~default_model:false graph in
+  let solid_border, toggle_solid_border = B.toggle ~default_model:false graph in
+  let large_description, toggle_large_description = B.toggle ~default_model:false graph in
+  let compact_spacing, toggle_compact_spacing = B.toggle ~default_model:false graph in
   let checked, toggle_checked = B.toggle ~default_model:false graph in
   let clicks, click =
     B.state_machine0 ~default_model:0 ~apply_action:(fun _ count () -> count + 1) graph
@@ -68,6 +72,14 @@ let component app window palette graph =
   and toggle_leading = toggle_leading
   and narrow = narrow
   and toggle_narrow = toggle_narrow
+  and bordered = bordered
+  and toggle_border = toggle_border
+  and solid_border = solid_border
+  and toggle_solid_border = toggle_solid_border
+  and large_description = large_description
+  and toggle_large_description = toggle_large_description
+  and compact_spacing = compact_spacing
+  and toggle_compact_spacing = toggle_compact_spacing
   and checked = checked
   and toggle_checked = toggle_checked
   and clicks = clicks
@@ -126,15 +138,31 @@ let component app window palette graph =
           ; checkbox "Align empty slots to start" leading toggle_leading
           ; checkbox "Narrow empty preview" narrow toggle_narrow
           ]
+      ; V.row
+          ~style:(style [ Gap (px 12.); Wrap Wrap ])
+          [ checkbox "Show empty border" bordered toggle_border
+          ; checkbox "Use solid empty border" solid_border toggle_solid_border
+          ]
+      ; V.row
+          ~style:(style [ Gap (px 12.); Wrap Wrap ])
+          [ checkbox "Large empty description" large_description toggle_large_description
+          ; checkbox "Compact empty line spacing" compact_spacing toggle_compact_spacing
+          ]
       ; Empty.create
           appearance
           ~key:(Key.of_string_exn "empty-preview")
           ~style:
-            (style
-               [ Width (px (if narrow then 240. else 440.))
-               ; Align_items (if leading then Start else Center)
-               ; Text_align (if leading then Left else Center)
-               ; Background (Background.solid (Palette.background p))
+            (Style.merge
+               [ style
+                   [ Width (px (if narrow then 240. else 440.))
+                   ; Align_items (if leading then Start else Center)
+                   ; Text_align (if leading then Left else Center)
+                   ; Background (Background.solid (Palette.background p))
+                   ]
+               ; (if bordered
+                  then style [ Border_width 2.; Border_color (Palette.accent p) ]
+                  else Style.empty)
+               ; (if solid_border then style [ Border_style Solid ] else Style.empty)
                ])
           ~children_style:alignment
           ?header:
@@ -167,9 +195,19 @@ let component app window palette graph =
                        description
                        (Empty.description
                           appearance
+                          ~style:
+                            (Style.merge
+                               [ (if large_description
+                                  then style [ Font_size 20. ]
+                                  else Style.empty)
+                               ; (if compact_spacing
+                                  then style [ Line_height (px 24.) ]
+                                  else Style.empty)
+                               ])
                           [ V.text
                               "Bring your ideas together in a collection. Add notes, \
                                conversations and discoveries as your work grows."
+                            |> named "Empty description text"
                           ; Palette.button p "Read the empty-state guide" (click ())
                           ]
                         |> named "Empty rich description"))
@@ -187,6 +225,20 @@ let component app window palette graph =
              (Option.some_if extra (Palette.button p "Import instead" (click ()))))
         |> named "Rich empty state"
       ; Palette.text p ~muted:true (sprintf "Empty actions: %d" clicks)
+      ; Palette.text
+          p
+          ~muted:true
+          (sprintf
+             "Empty description: %s · %s"
+             (if large_description then "20 px" else "14 px")
+             (if compact_spacing then "24 px spacing" else "relative spacing"))
+      ; Palette.text
+          p
+          ~muted:true
+          (sprintf
+             "Empty border: %s · %s"
+             (if bordered then "visible" else "hidden")
+             (if solid_border then "solid override" else "default dashed"))
       ; Palette.text
           p
           ~muted:true

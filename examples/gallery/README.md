@@ -233,7 +233,9 @@ leading layouts, narrow wrapping, intrinsic avatar rows, an icon frame and scope
 raster media. A checkbox keeps its Bonsai model as neighboring slots change;
 removing its own content slot retires the native control. Run the focused native
 check with `python3 scripts/test_gallery.py --section empty`. The root is borderless
-by default; the shared dashed-border extension remains pending.
+by default; reveal its dashed border or apply a solid override. Larger-description
+and compact-spacing controls demonstrate proportional line height and an explicit
+pixel override without replacing the rich content.
 
 
 The Styling details page includes solid/dashed borders with independent weight

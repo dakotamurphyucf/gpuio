@@ -23,8 +23,9 @@ records paired bytes, atomic invalid-value rejection, state-local resets and
 72 background GPU cases covering widths, radii, resizing and individual edges.
 Native hover/press transitions and idle teardown pass. The public style-gallery
 card also passes 16 normal-launch AX geometry/identity/state cases in both the
-repository app and a fresh installed-library consumer. Empty/Separator/Attachment
-integration and whole-release acceptance remain separate work.
+repository app and a fresh installed-library consumer. Empty integration now also
+passes its scoped native consumer checks. Separator/Attachment integration and
+whole-release acceptance remain separate work.
 
 Ordinary two-axis containers now preserve diagonal scrolling. The new native
 [scroll regression](evidence/scrolling-och11.md#milestone-07-parity-two-axis-containers)
@@ -53,7 +54,9 @@ Rich empty-state slots now add independently styled media/title/description,
 content and extras while retaining the string helper. Core tests and a native
 16-case gallery matrix pass layout, wrapping, action/focus identity and teardown;
 a scoped decoded-image case also passes. The [Empty review](catalog/presentation-review.md#empty-state-rich-slots)
-records the precise coverage and the remaining custom dashed-border requirement.
+records the precise coverage and a functional-equivalent source mapping. A fresh
+installed-library consumer now passes 16 layout, ten border and twelve proportional
+typography cases with real keyboard actions, retained state/focus and scoped cleanup.
 The [composed-link review](design/composed-links.md) now records validated rich
 content, retained ownership and signed Tab policy through OCaml/Rust codecs,
 native admission and View/Bonsai rendering. Native and public-gallery checks pass
