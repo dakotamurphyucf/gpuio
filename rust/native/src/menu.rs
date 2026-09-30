@@ -200,7 +200,7 @@ impl View {
             && restore
             && state.focus.is_focused(window)
             && let Some(focus) = state.restore.take()
-            && self.focus.borrow().can_focus(&focus)
+            && self.focus.borrow().can_focus(&focus, window)
         {
             window.focus(&focus, cx);
         }

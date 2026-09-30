@@ -8,6 +8,8 @@ use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
 mod asset_test;
 #[path = "link_content_test.rs"]
 mod content_test;
+#[path = "link_extension_test.rs"]
+mod extension_test;
 #[cfg(feature = "native-image-tests")]
 #[path = "link_highlight_test.rs"]
 mod highlight_test;
@@ -190,6 +192,7 @@ fn accessible_named(
     }
 }
 async fn exercise(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, transport: &Transport) {
+    eprintln!("GPUIO_LINK_START: native window task dispatched");
     let mut operations = vec![
         Op::Create(id(0), Kind::Container, String::new(), None),
         // Inherited selection must not create extra text focus owners inside links.
@@ -480,6 +483,7 @@ async fn exercise(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, transport
     asset_test::exercise(cx, handle, transport).await;
     #[cfg(feature = "native-image-tests")]
     highlight_test::exercise(cx, handle, transport).await;
+    extension_test::exercise(cx, handle, transport).await;
     let mut remove = vec![Op::SetRoot(None)];
     remove.extend((6..=9).map(|slot| Op::Remove(id(slot))));
     remove.extend((0..=5).map(|slot| Op::Remove(id(slot))));
@@ -498,6 +502,7 @@ async fn exercise(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, transport
 }
 
 pub(crate) fn run() {
+    extension_test::install();
     let failure = Rc::new(RefCell::new(None));
     let task_failure = failure.clone();
     let mut fds = [0; 2];
@@ -506,6 +511,7 @@ pub(crate) fn run() {
     let writer = unsafe { OwnedFd::from_raw_fd(fds[1]) };
     let transport = Arc::new(Transport::new(writer.as_raw_fd()).unwrap());
     gpui_platform::application().run(move |cx| {
+        eprintln!("GPUIO_LINK_LAUNCH: AppKit initialization callback");
         cx.set_quit_mode(gpui::QuitMode::Explicit);
         gpui_base::init(cx);
         #[cfg(feature = "native-image-tests")]
@@ -534,6 +540,7 @@ pub(crate) fn run() {
             )
             .unwrap();
         cx.activate(true);
+        eprintln!("GPUIO_LINK_WINDOW: window created and activation requested");
         cx.spawn(async move |cx| {
             let result = native_test::protect(exercise(cx, handle, &transport)).await;
             *task_failure.borrow_mut() = result.err();

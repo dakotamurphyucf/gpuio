@@ -796,19 +796,13 @@ impl Manager {
     }
     pub(super) fn sync(&mut self, window: &mut Window, cx: &mut App) {
         self.prune_highlight_styles();
-        self.sync_navigation_focus(window);
+        self.sync_navigation_focus(window, cx);
         // Keep the previous painted ancestry: removed editor nodes are already
         // absent from the new tree. Select the first still-eligible outer trigger
         // only when its content region or previously focused child became ineligible.
-        let previous_focused = self
-            .entries
-            .iter()
-            .find(|entry| entry.handle.is_focused(window))
-            .map(|entry| entry.node);
+        let previous_focused = self.focused_entry(window, cx).map(|entry| entry.node);
         let disclosure_restore = self
-            .entries
-            .iter()
-            .find(|entry| entry.handle.is_focused(window))
+            .focused_entry(window, cx)
             .map(|entry| entry.disclosure_path.clone())
             .unwrap_or_default();
         let had_scopes = !self.scopes.is_empty();
@@ -921,10 +915,7 @@ impl Manager {
             .map(|(id, _)| *id);
         let mut scope_restored = false;
         if let Some(ref handle) = restore
-            && self
-                .entries
-                .iter()
-                .any(|entry| &entry.handle == handle && self.eligible(entry.node))
+            && self.can_focus(handle, window)
         {
             window.focus(handle, cx);
             scope_restored = true;
@@ -958,9 +949,8 @@ impl Manager {
         // introducing a focus scope. Release its focus immediately, then use
         // the normal post-layout fallback. Hidden views retain editing state.
         let hidden_focus = self
-            .entries
-            .iter()
-            .any(|entry| entry.handle.is_focused(window) && !self.eligible(entry.node));
+            .focused_entry(window, cx)
+            .is_some_and(|entry| !self.eligible(entry.node));
         if hidden_focus {
             window.blur(cx);
         }
@@ -970,21 +960,15 @@ impl Manager {
             || !self.navigation_enter.is_empty();
     }
 
-    fn sync_navigation_focus(&mut self, window: &Window) {
+    fn sync_navigation_focus(&mut self, window: &Window, cx: &App) {
         let focused_path = self
-            .entries
-            .iter()
-            .find(|entry| entry.handle.is_focused(window))
+            .focused_entry(window, cx)
             .map(|entry| entry.navigation_path.clone())
             .unwrap_or_default();
-        if let Some(entry) = self
-            .entries
-            .iter()
-            .find(|entry| entry.handle.is_focused(window))
-        {
-            for (owner, page) in &entry.navigation_path {
+        if let Some(handle) = window.focused(cx) {
+            for (owner, page) in &focused_path {
                 if let Some(state) = self.navigation.get_mut(owner) {
-                    state.remembered.insert(*page, entry.handle.downgrade());
+                    state.remembered.insert(*page, handle.downgrade());
                 }
             }
         }
@@ -1077,10 +1061,10 @@ impl Manager {
             return;
         }
         self.last_focus = focused.clone();
-        let Some(entry) = self.entries.iter().find(|entry| {
-            focused.as_ref().is_some_and(|focus| focus == &entry.handle)
-                && self.eligible(entry.node)
-        }) else {
+        let Some(entry) = self
+            .focused_entry(window, cx)
+            .filter(|entry| self.eligible(entry.node))
+        else {
             return;
         };
         // Validate the whole path before moving any owner: a stale or newly
@@ -1109,16 +1093,35 @@ impl Manager {
             window.refresh();
         }
     }
-    pub(super) fn focused_node(&self, window: &Window) -> Option<NodeId> {
+    /// Exact handles win. Otherwise select the nearest recorded ancestor, so a
+    /// compound extension remains one host stop without flattening its own policy.
+    /// Resolve ownership before eligibility: an ineligible child must not inherit
+    /// permission from an eligible outer input region.
+    fn entry_for_handle(&self, handle: &FocusHandle, window: &Window) -> Option<&Entry> {
+        if let Some(entry) = self.entries.iter().find(|entry| &entry.handle == handle) {
+            return Some(entry);
+        }
         self.entries
             .iter()
-            .find(|entry| entry.handle.is_focused(window))
-            .map(|entry| entry.node)
+            .filter(|entry| entry.handle.contains(handle, window))
+            .reduce(|nearest, candidate| {
+                if nearest.handle.contains(&candidate.handle, window) {
+                    candidate
+                } else {
+                    nearest
+                }
+            })
     }
-    pub(super) fn can_focus(&self, handle: &FocusHandle) -> bool {
-        self.entries
-            .iter()
-            .any(|entry| &entry.handle == handle && self.eligible(entry.node))
+    fn focused_entry(&self, window: &Window, cx: &App) -> Option<&Entry> {
+        let handle = window.focused(cx)?;
+        self.entry_for_handle(&handle, window)
+    }
+    pub(super) fn focused_node(&self, window: &Window, cx: &App) -> Option<NodeId> {
+        self.focused_entry(window, cx).map(|entry| entry.node)
+    }
+    pub(super) fn can_focus(&self, handle: &FocusHandle, window: &Window) -> bool {
+        self.entry_for_handle(handle, window)
+            .is_some_and(|entry| self.eligible(entry.node))
     }
     pub(super) fn remember_command_target(&mut self, node: NodeId) {
         if self.eligible(node) {
@@ -1295,11 +1298,8 @@ impl Manager {
             .take()
             .filter(|id| self.scopes.contains_key(id) && self.allows(*id))
         {
-            if self.entries.iter().any(|entry| {
-                entry.tab_stop
-                    && entry.handle.is_focused(window)
-                    && self.eligible(entry.node)
-                    && self.within(entry.node, scope)
+            if self.focused_entry(window, cx).is_some_and(|entry| {
+                entry.tab_stop && self.eligible(entry.node) && self.within(entry.node, scope)
             }) {
                 return;
             }
@@ -1315,9 +1315,8 @@ impl Manager {
         } else if self.finish_navigation(window, cx) {
             // Destination focus was restored after its controls painted.
         } else if !self
-            .entries
-            .iter()
-            .any(|entry| entry.handle.is_focused(window) && self.eligible(entry.node))
+            .focused_entry(window, cx)
+            .is_some_and(|entry| self.eligible(entry.node))
         {
             let target = self
                 .active
@@ -1345,11 +1344,10 @@ impl Manager {
                 continue;
             }
             // Respect a user/native focus choice made while the destination enters.
-            if self.entries.iter().any(|entry| {
-                entry.handle.is_focused(window)
-                    && self.eligible(entry.node)
-                    && self.within(entry.node, page)
-            }) {
+            if self
+                .focused_entry(window, cx)
+                .is_some_and(|entry| self.eligible(entry.node) && self.within(entry.node, page))
+            {
                 focused = true;
                 continue;
             }
@@ -1357,10 +1355,8 @@ impl Manager {
                 .as_ref()
                 .and_then(|handle| handle.upgrade())
                 .filter(|handle| {
-                    self.entries.iter().any(|entry| {
-                        &entry.handle == handle
-                            && self.eligible(entry.node)
-                            && self.within(entry.node, page)
+                    self.entry_for_handle(handle, window).is_some_and(|entry| {
+                        self.eligible(entry.node) && self.within(entry.node, page)
                     })
                 })
                 .or_else(|| {
@@ -1429,9 +1425,9 @@ impl Manager {
         if entries.iter().any(|entry| entry.tab_index != 0) {
             entries.sort_by_key(|entry| entry.tab_index);
         }
-        let current = entries
-            .iter()
-            .position(|entry| entry.handle.is_focused(window));
+        let current = self
+            .focused_entry(window, cx)
+            .and_then(|owner| entries.iter().position(|entry| std::ptr::eq(*entry, owner)));
         let next = if let Some(current) = current {
             // At most one full cycle, including the anchor when it is the only
             // stop. No intermediate focus changes or unbounded all-nonstop loop.

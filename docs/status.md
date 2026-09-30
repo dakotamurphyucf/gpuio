@@ -66,6 +66,13 @@ Styled Link text now also passes native GPU foreground/search-wash composition
 under an outer highlight scope, cosmetic/source updates, selection suppression,
 focus retention and scope retirement. The catalog's stale configuration-only
 Link status is corrected; full content/group and release acceptance remains open.
+
+A native SDK fixture reproduced a Tab-boundary failure from an extension's last
+internal control to a neighboring Link. The [focus-owner correction](design/composed-links.md#nested-extension-focus-correction--validation-pending)
+and expanded regression are implemented; Rust unit tests, strict Clippy and the
+full Dune checks pass. Post-correction native verification remains pending because
+the local macOS desktop locked before reruns could render. This is not Link or
+release acceptance, and no capability was advertised.
 The other eleven presentation modules now have a
 [pinned behavior/gap review](catalog/presentation-gaps.md), including nested settings
 fields. These implementation plans and source snapshots do not mark the families

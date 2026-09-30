@@ -217,7 +217,7 @@ async fn exercise(cx: &mut gpui::AsyncApp, window: gpui::WindowHandle<View>) {
     assert!(first.visible_last > 1 && first.visible_last < 16);
     assert!(first.requested.contains(&1) && first.requested.len() <= 16);
     let weak = window
-        .update(cx, |view, _, cx| {
+        .update(cx, |view, window, cx| {
             assert!(
                 view.lists.is_empty(),
                 "table must not allocate ordinary list state"
@@ -233,7 +233,7 @@ async fn exercise(cx: &mut gpui::AsyncApp, window: gpui::WindowHandle<View>) {
             assert!(
                 view.focus
                     .borrow()
-                    .can_focus(&state.native.focus_handle(cx)),
+                    .can_focus(&state.native.focus_handle(cx), window),
                 "table focus registered after begin_frame"
             );
             state.native.downgrade()

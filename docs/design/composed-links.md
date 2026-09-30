@@ -344,3 +344,37 @@ verification against the SDK's documented primary/internal focus contract.
 This closes neither the link review nor milestone 07 by itself. Other catalog
 families, macOS IME/VoiceOver, predeclared performance/resource workloads,
 clean-machine distribution and release documentation remain required.
+
+## Nested extension focus correction — validation pending
+
+A real SDK fixture reproduced a boundary-navigation failure: with signed Link
+ordering and a trapped scope, Tab from an extension's last internal control did
+not reach the following Link. The host recorded only the primary handle and
+looked for exact focus equality, so it treated the internal control as having no
+position in the host order. This was a dispatched native-input failure, before
+any production correction.
+
+The correction resolves the exact recorded handle first, then its nearest
+recorded native ancestor. Ownership is resolved before eligibility, preventing
+an eligible outer input region from admitting a disabled inner component. The
+same lookup serves traversal, post-update focus preservation, hidden-owner
+recovery, modal/route restoration, command routing and component-bounds reveal.
+Package navigation and native handle ownership remain unchanged; no wire, SDK
+version, dependency or fork change is needed.
+
+`rust/native/src/link_extension_test.rs` adds a package-owned two-button group,
+negative/positive neighboring Links, an outer non-stop input region and a trap.
+The assertions cover internal/boundary Tab and Shift-Tab, wrap, retained-property
+updates, nearest owner, restoration of a child after a nested modal, disabled
+eligibility, exact bridge output and idle disposal. **Those post-correction
+native assertions are not yet accepted.** Subsequent local windows reached the
+test task but waited for the first rendered frame while macOS reported its
+screen locked. Stalled processes were terminated; no pass was inferred from
+launch, compilation, debugger attachment or an empty log.
+
+The local Rust library tests (400 native, 37 protocol; two private-bus tests
+excluded from the normal run), strict Clippy and full isolated Dune
+`@all @runtest @fmt` pass for the correction. Re-run the native Link fixture and
+the affected controls/input-region/navigation/menu suites on an unlocked desktop
+before accepting this change. Link capability advertisement, catalog-family
+acceptance, hosted checks and OCH-17 release gates remain open.

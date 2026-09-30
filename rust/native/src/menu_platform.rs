@@ -89,7 +89,7 @@ impl View {
         let origin = self
             .focus
             .borrow()
-            .focused_node(window)
+            .focused_node(window, cx)
             .or_else(|| {
                 self.editors
                     .iter()

@@ -289,7 +289,7 @@ impl View {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let focused = self.focus.borrow().focused_node(window);
+        let focused = self.focus.borrow().focused_node(window, cx);
         if priority == ShortcutPriority::NativeFirst {
             // Tab is handled by the native traversal adapter. Buttons synthesize
             // Enter/Space clicks on key-up, after raw key-down bubbling.

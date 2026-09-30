@@ -126,10 +126,10 @@ pub(super) async fn exercise_kind(
         !visible(cx, handle),
         "initially closed: {}",
         handle
-            .update(cx, |view, window, _| format!(
+            .update(cx, |view, window, cx| format!(
                 "mouse={:?}, focused={:?}, {}",
                 window.mouse_position(),
-                view.focus.borrow().focused_node(window),
+                view.focus.borrow().focused_node(window, cx),
                 view.tooltips[&node(28)].diagnostics()
             ))
             .unwrap()

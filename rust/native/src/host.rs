@@ -954,7 +954,7 @@ impl View {
                 let gate = self.focus.clone();
                 element =
                     element.on_a11y_action(gpui::AccessibleAction::Focus, move |_, window, cx| {
-                        if gate.borrow().can_focus(&focus) {
+                        if gate.borrow().can_focus(&focus, window) {
                             gate.borrow().request_reveal();
                             window.focus(&focus, cx);
                         }
