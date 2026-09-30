@@ -622,7 +622,10 @@ val slider
   -> 'action t
 
 (** Native numeric editor placement. The stable controller identifies one native
-    owner. [initial] seeds it once; observations never reset draft/selection.
+    owner. [initial] seeds its committed value once. [initial_draft] optionally
+    seeds independent text, including unfinished/invalid numeric expressions;
+    omitted means formatted normalized value. Both are read only on creation.
+    Selection/undo/IME start fresh. Observations never reset draft/selection.
     Explicit commands update live state. Configuration changes preserve the
     draft and normalize the committed value in the new domain. *)
 val number_input
@@ -630,6 +633,7 @@ val number_input
   -> controller:Key.t
   -> config:Number_input.Config.t
   -> initial:Number_input.Value.t
+  -> ?initial_draft:Number_input.Draft.t
   -> on_event:(Number_input.Event.t -> 'action)
   -> unit
   -> 'action t
@@ -923,6 +927,7 @@ module Expert : sig
     { controller : Key.t
     ; config : Number_input.Config.t
     ; initial : Number_input.Value.t
+    ; initial_draft : Number_input.Draft.t option
     ; on_event : Number_input.Event.t -> 'action
     }
 

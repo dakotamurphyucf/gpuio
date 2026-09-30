@@ -3,6 +3,15 @@ use crate::number_input::*;
 use std::io::Cursor;
 
 impl Decoder<'_> {
+    pub(super) fn number_initial_draft(&mut self) -> Result<String, DecodeError> {
+        let draft = self.bounded_text(MAX_DRAFT_BYTES)?;
+        if valid_text(&draft) {
+            Ok(draft)
+        } else {
+            Err(DecodeError::Malformed)
+        }
+    }
+
     pub(super) fn number_value(&mut self) -> Result<Value, DecodeError> {
         let value = match self.tag()? {
             0 => Value::Empty,

@@ -67,7 +67,9 @@ pub const CAP_BORDER_STYLES: i64 = 1_i64 << 49;
 pub const CAP_ASPECT_RATIO: i64 = 1_i64 << 50;
 pub const CAP_OPACITY_FACTOR: i64 = 1_i64 << 51;
 pub const CAP_COMMAND_BINDINGS: i64 = 1_i64 << 52;
-pub const CAPABILITIES: i64 = CAP_COMMAND_BINDINGS
+pub const CAP_NUMBER_INPUT_DRAFT: i64 = 1_i64 << 53;
+pub const CAPABILITIES: i64 = CAP_NUMBER_INPUT_DRAFT
+    | CAP_COMMAND_BINDINGS
     | CAP_OPACITY_FACTOR
     | CAP_ASPECT_RATIO
     | CAP_BORDER_STYLES
@@ -718,6 +720,7 @@ pub enum Op {
     SetLink(NodeId, crate::link::Config),
     SetTextShimmer(NodeId, Option<crate::text_shimmer::Config>),
     SetCommandBinding(NodeId, Option<crate::command_binding::Config>),
+    SetNumberInputDraft(NodeId, Option<String>),
 }
 
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]

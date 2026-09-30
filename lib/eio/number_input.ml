@@ -77,12 +77,13 @@ let create window ~config ~initial ?on_event graph =
   }
 ;;
 
-let view ?style ?initial t =
+let view ?style ?initial ?initial_draft t =
   Gpuio.View.number_input
     ?style
     ~controller:t.controller
     ~config:t.config
     ~initial:(Option.value initial ~default:t.initial)
+    ?initial_draft
     ~on_event:t.on_event
     ()
 ;;

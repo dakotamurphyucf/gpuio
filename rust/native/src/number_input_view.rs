@@ -335,7 +335,10 @@ impl Instance {
         cx: &mut Context<View>,
     ) -> Result<Self, n::Error> {
         let mount = node.number_input.as_ref().expect("validated numeric mount");
-        let text = crate::number_input_state::initial_text(&mount.config, mount.initial)?;
+        let text = match &mount.initial_draft {
+            Some(draft) => draft.to_string(),
+            None => crate::number_input_state::initial_text(&mount.config, mount.initial)?,
+        };
         let state = cx.new(|cx| {
             InputState::new(window, cx)
                 .default_value(text)
@@ -345,7 +348,12 @@ impl Instance {
         if mount.config.auto_focus && !mount.config.disabled && gate.borrow().allows(node.id) {
             window.focus(&state.read(cx).focus_handle(cx), cx);
         }
-        let model = Model::new(
+        let create = if mount.initial_draft.is_some() {
+            Model::with_initial_draft
+        } else {
+            Model::new
+        };
+        let model = create(
             mount.config.clone(),
             mount.initial,
             &editor::snapshot(state.read(cx), window, cx),

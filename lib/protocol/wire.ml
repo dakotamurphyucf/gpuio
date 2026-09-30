@@ -30,7 +30,7 @@ module Desktop = Desktop_wire
 module Notification = Notification_wire
 
 let version = 1L
-let capabilities = 9007199254740991L
+let capabilities = 18014398509481983L
 let max_message_bytes = 1_048_576
 
 module Kind = struct
@@ -642,6 +642,7 @@ module Op = struct
     | Set_link of Node_id.t * Link_wire.t
     | Set_text_shimmer of Node_id.t * Text_shimmer_wire.Config.t option
     | Set_command_binding of Node_id.t * Command_binding_wire.Config.t option
+    | Set_number_input_draft of Node_id.t * string option
   [@@deriving bin_io, equal, sexp_of]
 end
 

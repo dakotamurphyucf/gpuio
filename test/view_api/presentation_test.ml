@@ -401,5 +401,5 @@ let%expect_test "presentation capability includes the accepted native family" =
   let bytes = W.Message.encode (Hello (W.version, W.capabilities)) |> ok in
   String.iter bytes ~f:(fun byte -> printf "%02x" (Char.to_int byte));
   print_endline "";
-  [%expect {| 0001fcffffffffffff1f00 |}]
+  [%expect {| 0001fcffffffffffff3f00 |}]
 ;;

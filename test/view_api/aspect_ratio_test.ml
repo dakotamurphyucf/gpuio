@@ -62,6 +62,6 @@ let%expect_test "aspect ratio capability matches the native host" =
   [%expect
     {|
     0001fc0000000000000400
-    0001fcffffffffffff1f00
+    0001fcffffffffffff3f00
     |}]
 ;;

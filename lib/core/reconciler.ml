@@ -1268,7 +1268,14 @@ let rec mount builder ~depth previous view =
           (Set_number_input
              ( id
              , Number_input.Expert.config_to_wire number_input.config
-             , Number_input.Expert.value_to_wire number_input.initial )));
+             , Number_input.Expert.value_to_wire number_input.initial ));
+      (* Draft seeds never produce a replacement/update for a live editor. *)
+      if Option.is_none old
+      then
+        Option.iter number_input.initial_draft ~f:(fun draft ->
+          emit
+            builder
+            (Set_number_input_draft (id, Some (Number_input.Draft.to_string draft)))));
     Option.iter description.otp_input ~f:(fun input ->
       let policy = Otp_input.Config.policy input.config in
       if not (Otp_input.Value.fits input.initial ~policy)

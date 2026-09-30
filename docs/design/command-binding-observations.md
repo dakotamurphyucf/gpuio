@@ -165,11 +165,12 @@ actual data size. Query metadata and results retain no editor draft.
 
 ## Paired transport
 
-Capability bit 52 is `CAP_COMMAND_BINDINGS`; the current complete mask is
-`9007199254740991`. The independently specified Hello bytes are:
+Capability bit 52 is `CAP_COMMAND_BINDINGS`. Its introduction used complete mask
+`9007199254740991`; numeric draft seeds now extend the current mask to
+`18014398509481983`. The independently specified Hello bytes are:
 
 - Only binding observations: `0001fc0000000000001000`.
-- Current complete mask: `0001fcffffffffffff1f00`.
+- Current complete mask: `0001fcffffffffffff3f00`.
 
 Operation tag 62 is `Set_command_binding (node, config option)`; None clears it.
 Event tag 66 is `Command_binding_observed (window, node, handler, tree_revision,

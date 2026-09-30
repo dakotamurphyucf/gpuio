@@ -15,10 +15,11 @@ fn negotiation_advertises_extended_styles_without_waiving_unknown_bits() {
         CAP_ASPECT_RATIO,
         CAP_OPACITY_FACTOR,
         CAP_COMMAND_BINDINGS,
+        CAP_NUMBER_INPUT_DRAFT,
         CAPABILITIES,
     ] {
         let mut session = Session::default();
-        for invalid in [-1, CAPABILITIES | (1_i64 << 53)] {
+        for invalid in [-1, CAPABILITIES | (1_i64 << 54)] {
             assert_eq!(
                 session.hello(VERSION, invalid),
                 Err(ErrorCode::UnsupportedCapability)

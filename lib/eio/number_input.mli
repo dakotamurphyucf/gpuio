@@ -13,12 +13,14 @@ val create
   -> Bonsai.Cont.graph
   -> t Bonsai.Cont.t
 
-(** [initial] overrides the committed-value seed for the next native mount only.
-    It never replaces a live draft. It does not restore an unfinished numeric
-    draft, selection, IME or undo history after native destruction. *)
+(** Mount-only seeds: [initial] overrides the committed value; [initial_draft]
+    supplies independent text, including an unfinished/invalid expression.
+    Omitting the draft formats the normalized committed value. Neither seed
+    replaces a live draft. Selection, IME and undo history start fresh. *)
 val view
   :  ?style:Gpuio.Style.t
   -> ?initial:Gpuio.Number_input.Value.t
+  -> ?initial_draft:Gpuio.Number_input.Draft.t
   -> t
   -> Gpuio_bonsai.View.t
 

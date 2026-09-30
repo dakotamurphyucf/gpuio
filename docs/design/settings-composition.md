@@ -120,12 +120,14 @@ implicitly persisting page-specific scroll positions.
 
 Keeping a controller alive does not by itself preserve an unmounted native editor
 session. The text/number controllers now expose explicit mount-seed overrides on
-`view`: `initial_text` and `initial`, respectively. Omitting the override keeps
+`view`: `initial_text` for text and `initial`/`initial_draft` for numeric fields. Omitting the override keeps
 the original creation seed. Supplying current application data allows a later
 placement to start with that data, without replacing a live draft during ordinary
-observations. Numeric `initial` seeds the committed value; preserving a distinct
-unfinished numeric draft across unmount remains adapter/native work. Native undo
-history, selection and IME state must not be described as surviving destruction.
+observations. Numeric `initial` seeds the committed value; the optional validated
+`initial_draft` independently restores unfinished text before the first native
+observation. Omitting it formats the committed value. See the
+[numeric mount contract](numeric-inputs.md#milestone-07-independent-draft-mount-seeds).
+Native undo history, selection and IME state do not survive destruction.
 Focus/composition pins and the complete field-remount policy still need Settings
 gallery coverage.
 
@@ -243,7 +245,8 @@ example passes two actual background macOS windows (single/multiline), confirmin
 mount-seed changes leave live text unchanged, remount uses the supplied text,
 fresh guarded resets succeed and stale revisions/leases fail. The public numeric
 example passes its command/history/policy checks plus a changed mount seed leaving
-the live `1e-` draft unchanged and taking effect after remount. These are native
+the live `1e-` draft unchanged. Remount atomically restores that draft with the
+new committed value `4.5`; Cancel then restores `4.5`. These are native
 programmatic command tests, not physical-keyboard or OS IME qualification:
 
 ```sh

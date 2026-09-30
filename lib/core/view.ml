@@ -102,6 +102,7 @@ type 'action number_input =
   { controller : Key.t
   ; config : Number_input.Config.t
   ; initial : Number_input.Value.t
+  ; initial_draft : Number_input.Draft.t option
   ; on_event : Number_input.Event.t -> 'action
   }
 
@@ -1749,10 +1750,18 @@ let slider ?(style = Style.empty) ~controller ~config ~initial ~on_event () =
   }
 ;;
 
-let number_input ?(style = Style.empty) ~controller ~config ~initial ~on_event () =
+let number_input
+      ?(style = Style.empty)
+      ~controller
+      ~config
+      ~initial
+      ?initial_draft
+      ~on_event
+      ()
+  =
   { (text ~key:controller ~style "") with
     kind = Number_input
-  ; number_input = Some { controller; config; initial; on_event }
+  ; number_input = Some { controller; config; initial; initial_draft; on_event }
   }
 ;;
 
@@ -2043,6 +2052,7 @@ module Expert = struct
     { controller : Key.t
     ; config : Number_input.Config.t
     ; initial : Number_input.Value.t
+    ; initial_draft : Number_input.Draft.t option
     ; on_event : Number_input.Event.t -> 'action
     }
 

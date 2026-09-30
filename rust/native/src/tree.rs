@@ -49,6 +49,7 @@ pub struct SliderMount {
 pub struct NumberInputMount {
     pub config: Arc<gpuio_protocol::number_input::Config>,
     pub initial: gpuio_protocol::number_input::Value,
+    pub initial_draft: Option<Arc<str>>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -163,10 +164,9 @@ impl Node {
                 .otp_input
                 .as_ref()
                 .map_or(0, |s| s.config.retained_bytes() + s.initial.len())
-            + self
-                .number_input
-                .as_ref()
-                .map_or(0, |s| s.config.retained_bytes())
+            + self.number_input.as_ref().map_or(0, |s| {
+                s.config.retained_bytes() + s.initial_draft.as_ref().map_or(0, |draft| draft.len())
+            })
             + self
                 .slider
                 .as_ref()
@@ -908,6 +908,9 @@ impl Tree {
                     || node.number_input.as_ref().is_some_and(|number_input| {
                         !number_input.config.is_valid()
                             || !number_input.initial.is_valid()
+                            || number_input.initial_draft.as_ref().is_some_and(|draft| {
+                                !gpuio_protocol::number_input::valid_text(draft)
+                            })
                             || !node.text.is_empty()
                             || !node.children.is_empty()
                             || node.control.is_some()
@@ -1658,6 +1661,7 @@ impl Plan<'_> {
             | Op::SetInputRegion(id, ..)
             | Op::SetHighlightScope(id, ..)
             | Op::SetCommandBinding(id, ..)
+            | Op::SetNumberInputDraft(id, ..)
             | Op::SetComboboxFilter(id, ..)
             | Op::SetChoiceAppearance(id, ..)
             | Op::Bind(id, ..)
@@ -2162,10 +2166,30 @@ impl Plan<'_> {
                 {
                     return Err(ErrorCode::InvalidTree);
                 }
+                let initial_draft = self
+                    .node(*id)?
+                    .number_input
+                    .as_ref()
+                    .and_then(|mount| mount.initial_draft.clone());
                 self.node_mut(*id)?.number_input = Some(NumberInputMount {
                     config: Arc::new(config.clone()),
                     initial: *initial,
+                    initial_draft,
                 });
+            }
+            Op::SetNumberInputDraft(id, draft) => {
+                if draft
+                    .as_ref()
+                    .is_some_and(|draft| !gpuio_protocol::number_input::valid_text(draft))
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                let mount = self
+                    .node_mut(*id)?
+                    .number_input
+                    .as_mut()
+                    .ok_or(ErrorCode::InvalidTree)?;
+                mount.initial_draft = draft.as_deref().map(Arc::from);
             }
             Op::SetRating(id, config) => {
                 if self.node(*id)?.kind != Kind::Rating || !config.is_valid() {

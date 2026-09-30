@@ -13,8 +13,10 @@ responsive control retention and page/row lifetimes. The page-visit test exposed
 and helped repair captured virtual-list effects surviving a generation revisit.
 Typed Boolean/choice/native-field helpers now pass identity/dispatch/semantic
 checks. Public text/numeric examples pass native mount-seed behavior and guarded
-reset commands. Unfinished numeric draft recovery, complete field integration,
-native resizing/virtualization and gallery/consumer acceptance remain required;
+reset commands. Atomic numeric mount seeds now recover unfinished drafts
+independently of committed values, with codec/admission/native command evidence.
+Complete field integration, native resizing/virtualization and gallery/consumer
+acceptance remain required;
 Settings is not yet a functional-equivalent claim.
 
 The [mounted native binding observer](design/command-binding-observations.md)

@@ -713,6 +713,7 @@ module type S = sig
       | Set_link of Node_id.t * Link_wire.t
       | Set_text_shimmer of Node_id.t * Text_shimmer_wire.Config.t option
       | Set_command_binding of Node_id.t * Command_binding_wire.Config.t option
+      | Set_number_input_draft of Node_id.t * string option
     [@@deriving bin_io, equal, sexp_of]
   end
 

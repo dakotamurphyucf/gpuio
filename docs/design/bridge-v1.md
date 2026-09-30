@@ -39,7 +39,15 @@ bit 50 (`CAP_ASPECT_RATIO`) and appends field 68 `Aspect_ratio` with a validated
 float width/height ratio. Multiplicative native animation opacity requires bit 51
 (`CAP_OPACITY_FACTOR`) and appends animation property tag 11 `Opacity_factor`,
 a finite factor in [0,1] mutually exclusive with absolute opacity in one target.
-Both language halves require the current shared mask `4503599627370495`;
+Mounted command binding observations require bit 52 (`CAP_COMMAND_BINDINGS`),
+Op62 `Set_command_binding` and event 66 `Command_binding_observed`. Atomic numeric
+draft mount seeds require bit 53 (`CAP_NUMBER_INPUT_DRAFT`) and Op63
+`Set_number_input_draft (node, string option)`. The seed is bounded to 4096 UTF-8
+bytes without NUL/CR/LF, independent of the normalized committed value. Native
+creation consumes it; retained editors ignore seed changes. None restores the
+default formatted-value seed, while Some empty text is an explicit empty draft.
+The paired Core adapter sends the seed only when creating a numeric node.
+Both language halves require the current shared mask `18014398509481983`;
 an older host fails capability negotiation instead of accepting
 unsupported input, commands or style values. Existing style field tags and value
 IDs are unchanged: cursor additions occupy 10–21 and start ellipsis occupies 2.
