@@ -107,7 +107,9 @@ python3 scripts/test_gallery.py --section borders
 ```
 
 Empty's default and custom-border preview now have [integration evidence](../catalog/presentation-review.md#empty-state-rich-slots).
-The richer Separator API, Attachment integration, full consumer walkthrough,
+The richer [Separator API](presentation-separators.md) now also has scoped
+native/installed-consumer evidence, including long-label paint clipping.
+Attachment integration, full consumer walkthrough,
 whole-family/catalog and release gates
 remain open. The shared primitive does not establish every specialized native
 control's treatment of application-supplied border styles.

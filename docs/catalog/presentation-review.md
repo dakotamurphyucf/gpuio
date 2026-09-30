@@ -270,14 +270,25 @@ settles the extension-group contract. Consolidated release acceptance remains se
 
 ## Remaining presentation modules
 
-The link rows above remain incomplete. The other eleven modules now have a
+The link rows above remain incomplete. The other presentation modules have a
 [pinned source and behavior review](presentation-gaps.md), including nested
-settings fields. It identifies remaining rich-slot/layout, dashed separator,
-attachment status, text-shimmer, keyboard-label and settings-composition gaps,
-with proposed contracts and acceptance work. Those rows remain incomplete;
-source review does not establish functional equivalence. Prior OCH-33 evidence
+settings fields. Empty and Separator now have explicit local functional-equivalent
+evidence; the ledger distinguishes them from the remaining rich-slot/layout,
+attachment status, text-shimmer, keyboard-label and settings-composition gaps.
+Source review alone does not establish functional equivalence. Prior OCH-33 evidence
 still applies only to the APIs it actually tests. Other catalog families,
 consumer/CI/distribution checks and the complete OCH-17 scope remain open.
+
+## Separator
+
+`Presentation.Separator.create` is the locally validated functional equivalent
+for [component/separator](sources/component-separator.rs.txt). The
+[contract and installed-consumer evidence](../design/presentation-separators.md)
+map both axes, optional labels/color, patterns and style refinements, preserve
+the legacy helper, and explicitly distinguish GPUI's border pattern from the
+source path's fixed dash lengths. Core identity/reset tests, 32 native geometry/
+state cases and twelve long-label paint-clipping/restoration cases pass. This
+does not complete the presentation family or wider release acceptance.
 
 ## Empty state: rich slots
 

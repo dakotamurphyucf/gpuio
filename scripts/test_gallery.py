@@ -12,6 +12,7 @@ import time
 
 from test_agent_chat import Mac
 from test_canvas import screenshot
+from window_pixels import read_png
 
 TITLE = 'GPUIO · Component Studio 1'
 SECOND = 'GPUIO · Component Studio 2'
@@ -301,6 +302,36 @@ def exercise_links(mac, images):
           'with viewport reveal, disabled recovery and scoped SVG cleanup', flush=True)
 
 
+def check_separator_clip_pixels(mac, root_bounds, frame_bounds, path):
+    window = mac.window(TITLE)
+    assert window, 'Separator window disappeared before pixel capture'
+    try:
+        wx, wy, ww, wh = element_rect(mac, window)
+    finally:
+        mac.release(window)
+    screenshot(mac, path, title=TITLE)
+    pixels = read_png(mac, path)
+
+    def sample(x, y):
+        return pixels.rgb((x - wx) * pixels.width / ww, (y - wy) * pixels.height / wh)
+
+    x, y, w, h = root_bounds
+    fx, fy, fw, fh = frame_bounds
+    background = sample(fx + 2, fy + 2)
+    outside = inside_paint = 0
+    for ix in range(80):
+        for iy in range(60):
+            sx, sy = fx + 3 + ix * (fw - 6) / 79, fy + 3 + iy * (fh - 6) / 59
+            difference = max(abs(a - b) for a, b in zip(sample(sx, sy), background))
+            if sx < x - 2 or sx > x + w + 2 or sy < y - 2 or sy > y + h + 2:
+                assert difference <= 8, ('Separator paints outside its clip', sx, sy, difference)
+                outside += 1
+            elif x + 2 < sx < x + w - 2 and y + 2 < sy < y + h - 2 and difference > 20:
+                inside_paint += 1
+    assert outside > 100 and inside_paint > 5, (outside, inside_paint)
+    print('GALLERY_SEPARATOR_CLIP_PIXELS', outside, inside_paint, flush=True)
+
+
 def exercise_separators(mac, images):
     mac.wait_text(TITLE, 'Room between ideas.')
     focus_gallery_control(mac, 'Keep separator updates', 'AXCheckBox')
@@ -312,7 +343,8 @@ def exercise_separators(mac, images):
     boolean.restype, boolean.argtypes = C.c_bool, [C.c_void_p]
     toggles = {'Vertical separator': False, 'Dashed separator': False,
                'Label separator': True, 'Narrow separator': False,
-               'Custom separator colors': False}
+               'Custom separator colors': False, 'Long separator label': False,
+               'Bound separator label': False}
 
     def toggle(name, wanted):
         if toggles[name] != wanted:
@@ -323,7 +355,7 @@ def exercise_separators(mac, images):
     current, alternate = ('Dark', 'Light') if theme else ('Light', 'Dark')
     if theme:
         mac.release(theme)
-    cases = 0
+    cases = clipping_cases = 0
     try:
         mac.key(49)
         for appearance in (current, alternate):
@@ -374,6 +406,53 @@ def exercise_separators(mac, images):
                                            f'{"dashed" if dashed else "solid"}.png', title=TITLE)
             mac.press(TITLE, appearance)
             mac.release(mac.wait_find(TITLE, alternate if appearance == current else current, 'AXButton'))
+        toggle('Label separator', True)
+        toggle('Narrow separator', True)
+        toggle('Custom separator colors', True)
+        toggle('Long separator label', True)
+        long_text = 'Continue with another account · 保存した内容は保持されます · Your progress stays here'
+        for appearance in (current, alternate):
+            for vertical in (False, True):
+                toggle('Vertical separator', vertical)
+                mac.wait_text(TITLE, f'Separator: {"vertical" if vertical else "horizontal"} · '
+                              'dashed · labelled · narrow · custom')
+                sizes = []
+                for clipped in (False, True, False):
+                    toggle('Bound separator label', clipped)
+                    mac.wait_text(TITLE, f'Separator label: long · {"bounded" if clipped else "natural"}')
+                    reveal_gallery_control(mac, 'Separator frame', 'AXGroup')
+                    updated = mac.wait_find(TITLE, 'Rich separator preview', 'AXSplitter')
+                    label = mac.wait_find(TITLE, long_text, 'AXStaticText')
+                    try:
+                        assert equal(root, updated), 'Label clipping replaced the separator root'
+                        x, y, w, h = element_rect(mac, updated)
+                        lx, ly, lw, lh = element_rect(mac, label)
+                        cross = w if vertical else h
+                        sizes.append(cross)
+                        if clipped:
+                            assert abs(cross - (96 if vertical else 32)) < 1, (vertical, cross)
+                        # Overflow clips paint, not the child's natural text layout
+                        # or the full source exposed to accessibility.
+                        assert lx < x + w and lx + lw > x and ly < y + h and ly + lh > y
+                        if clipped:
+                            frame = mac.wait_find(TITLE, 'Separator frame', 'AXGroup')
+                            try:
+                                frame_bounds = element_rect(mac, frame)
+                            finally:
+                                mac.release(frame)
+                            name = f'gallery-separator-clipped-{appearance.lower()}-{"vertical" if vertical else "horizontal"}.png'
+                            with tempfile.TemporaryDirectory(prefix='gpuio-separator-pixels-') as directory:
+                                path = (images if images else Path(directory)) / name
+                                check_separator_clip_pixels(mac, (x, y, w, h), frame_bounds, path)
+                    finally:
+                        mac.release(updated)
+                        mac.release(label)
+                    expect_focus(mac, 'Keep separator updates', 'AXCheckBox')
+                    clipping_cases += 1
+                assert sizes[0] > sizes[1] and abs(sizes[0] - sizes[2]) < 1, sizes
+            mac.press(TITLE, appearance)
+            mac.release(mac.wait_find(TITLE, alternate if appearance == current else current, 'AXButton'))
+        toggle('Long separator label', False)
     finally:
         mac.release(original)
         mac.release(root)
@@ -381,7 +460,7 @@ def exercise_separators(mac, images):
     wait_absent(mac, 'Rich separator preview', 'AXSplitter')
     mac.press(TITLE, 'Presentation')
     mac.release(mac.wait_find(TITLE, 'Rich separator preview', 'AXSplitter'))
-    print(f'GALLERY_SEPARATOR_OK: {cases} theme/axis/pattern/label/width cases, centered geometry, '
+    print(f'GALLERY_SEPARATOR_OK: {cases} theme/axis/pattern/label/width cases, {clipping_cases} clipping/reset cases, centered geometry, '
           'native identity, checked state/focus and page retirement', flush=True)
 
 

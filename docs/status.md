@@ -24,14 +24,15 @@ records paired bytes, atomic invalid-value rejection, state-local resets and
 Native hover/press transitions and idle teardown pass. The public style-gallery
 card also passes 16 normal-launch AX geometry/identity/state cases in both the
 repository app and a fresh installed-library consumer. Empty integration now also
-passes its scoped native consumer checks. Separator/Attachment integration and
+passes its scoped native consumer checks. Attachment integration and
 whole-release acceptance remain separate work.
 
 The richer [separator composition](design/presentation-separators.md) now exposes
 both axes, labels, solid/dashed patterns and independent slot styling without
-changing the original helper. Core identity/refinement checks pass. Its public
-gallery preview and native acceptance work are in progress; the catalog row is
-not yet accepted.
+changing the original helper. Core identity/refinement checks and a fresh installed
+consumer pass 32 native geometry/state cases plus twelve long-label clipping/reset
+cases. Captured pixels verify the clip in both themes. The Separator source row
+is locally validated as a functional equivalent; wider release gates remain open.
 
 Ordinary two-axis containers now preserve diagonal scrolling. The new native
 [scroll regression](evidence/scrolling-och11.md#milestone-07-parity-two-axis-containers)

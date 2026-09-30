@@ -15,7 +15,7 @@ interfaces are in [Presentation](../../lib/core/presentation.mli).
 
 | Family/source | Reviewed behavior and current gap | Implementation and acceptance direction |
 | --- | --- | --- |
-| [Separator](sources/component-separator.rs.txt) | `Presentation.Separator.create` now composes both axes, optional label/color, solid/dashed patterns and independent root/line/label styles. The original single-rectangle helper remains compatible. | [The design](../design/presentation-separators.md) explicitly uses pinned GPUI border dash spacing rather than the source path's exact 4px/2px pattern. Core refinement/identity tests pass; native geometry/paint, long-label clipping and installed-consumer acceptance remain in progress. No per-dash OCaml children. |
+| [Separator](sources/component-separator.rs.txt) | Functional equivalent: `Presentation.Separator.create` composes both axes, optional label/color, solid/dashed patterns and independent root/line/label styles. The original single-rectangle helper remains compatible. | [The design and evidence](../design/presentation-separators.md) explicitly use pinned GPUI border dash spacing rather than the source path's exact 4px/2px pattern. Core tests and an installed-library macOS consumer pass 32 layout/identity cases and twelve long-label clipping/reset cases with native paint sampling. No per-dash OCaml children. Required Linux/whole-release checks remain separate. |
 | [Empty](sources/component-empty.rs.txt) | Functional equivalent: optional rich slots, media variants, default/custom border styles and proportional description spacing through `Presentation.Empty_state`; the string convenience helper remains unchanged. | Four Core tests and an installed-library macOS consumer pass 16 layout, ten border and twelve typography cases with keyboard/focus/identity and scoped cleanup. See the [source mapping and evidence](presentation-review.md#empty-state-rich-slots). Whole-family/release and required Linux checks remain separate. |
 | [Alert](sources/component-alert.rs.txt) | Variants/sizes, optional title, rich body, icon, close action and banner mode. Banner suppresses title. Despite an upstream comment, actual root rendering still applies a border. | Keep existing helper's behavior; add optional rich header and slot styling where needed. Visibility and close remain application state plus an ordinary accessible button. Test title/banner policy, action retirement and explicit live-region behavior. Do not announce every cosmetic update. |
 | [Tag](sources/component-tag.rs.txt) | Theme/custom colors, outline, radius, arbitrary children, size and hover. Existing tones/variants/root style/leading/trailing slots cover much of the composition. | Prove custom-style and rich-content use cases; add a content-only constructor only if mandatory label placement blocks them. Test style replacement and interactive child identity. Theme token values and Rust builder spelling are not parity requirements. |
@@ -148,9 +148,10 @@ responsive resizing, focus reveal and application persistence failures.
 
 ## Delivery order
 
-First finish composed Link focus/content acceptance. Then draft shared dashed
-border/text-shimmer contracts and rich slot interfaces, implement description
-layout/identity and typed keyboard labels, and complete marker/settings composition.
+Finish composed Link installed-consumer acceptance. Shared dashed borders and
+Empty/Separator composition now have scoped evidence. Remaining work includes
+text-shimmer contracts, rich attachment/chat slots, description layout/identity,
+typed keyboard labels and marker/settings composition.
 Each family needs public gallery examples and meaningful native acceptance before
 its ledger status changes. Reuse ordinary views where possible; introduce native
 state or protocol operations only for concrete missing behavior.

@@ -1,8 +1,9 @@
 # Presentation separators
 
 OCH-41. `Presentation.Separator.create` implements a labelled line using ordinary
-retained Views. Native geometry/paint acceptance is in progress; this design does
-not yet make `component/separator` an accepted catalog row.
+retained Views. `component/separator` is a **functional equivalent, locally
+validated on macOS**, with the explicit dash-spacing mapping below. This scoped
+row does not accept the whole presentation family or release.
 
 The pinned [source](../catalog/sources/component-separator.rs.txt) exposes
 horizontal/vertical axes, an optional text label and line color, solid/dashed
@@ -45,7 +46,8 @@ silent reinterpretation of existing applications' background styles.
 Two Core expect tests cover 32 theme/axis/pattern/label transitions, retained line
 identity, idle repeat commits, independent root/line/label refinements and reset,
 and the old helper's unchanged structure. The gallery's **Space with intention**
-card exposes both axes, patterns, optional labels, width and custom colors. Its
+card exposes both axes, patterns, optional labels, width, custom colors and long
+multilingual labels with explicit bounds. Its
 focused driver is `python3 scripts/test_gallery.py --section separators`.
 Initial native runs pass the dark-theme matrix (both axes, patterns, optional
 labels and widths) with retained root/control identity, checked state and focus.
@@ -55,6 +57,42 @@ light-theme matrix: one failed OS window capture while AX still exposed its
 window; another lost AX window access, without a logged close request. No product
 cause is established and these interrupted runs are not full passes.
 
-Complete native geometry, pixels, long-label clipping and an installed-library consumer
-still require evidence before functional-equivalent acceptance. Required Linux,
-whole-gallery, hosted CI and OCH-17 release gates remain separate.
+## Installed-consumer acceptance — 2026-09-30
+
+A fresh outside-checkout consumer stages the installed public libraries and
+builds its own locked native backend without changing an opam switch or global
+toolchain. On macOS 14.5 arm64, it passes all 32 theme/axis/pattern/label/width
+cases and twelve long-label clipping/restoration cases. Checks include actual
+centered geometry, the one-pixel unlabelled cross-axis size, retained root/control
+identity, caller-owned checked state/focus, real Space input, readable label text,
+page retirement/remount and clean exit. The close trace records the driver's
+normal final `Window_close` request.
+
+Long labels preserve their full accessibility source and natural text layout;
+overflow clipping limits paint, not that source or those layout bounds. The
+horizontal root is constrained to height 32; the vertical root to width 96.
+Native captures sampled on a grid show visible text inside each clip and only
+the frame background outside it in both themes. Removing each override restores
+the original geometry. ImageIO/CoreGraphics decode those captured PNGs to RGBA8;
+the test needs no optional Python image package. Four clipped captures plus
+solid/dashed, horizontal/vertical theme captures were produced; representative
+light-theme patterns and dark/light clipped text were visually inspected.
+An earlier child-bounds containment assertion was corrected because it tested
+layout shrinking rather than overflow paint. No production clipping change was
+needed.
+
+Reproduce with a fresh workspace:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 @all @runtest @fmt
+GPUIO_JOBS=2 python3 scripts/test_extension_consumer.py --example gallery \
+  --workspace /private/tmp/gpuio-separator-review --run --gallery-section separators
+```
+
+The focused driver captures four clipping images even without `--images` (using
+temporary files); `--images` retains them and the optional pattern captures.
+Success markers are `GALLERY_SEPARATOR_OK` and
+`GPUIO_GALLERY_AX_OK: section=separators`. Earlier interrupted runs remain excluded
+from acceptance. Full VoiceOver, physical display changes and Linux desktop
+qualification are not established by these checks. Required Linux builds/unit/
+consumer checks, whole-gallery/hosted CI and OCH-17 release gates remain separate.
