@@ -136,6 +136,10 @@ jobs:
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
         timeout-minutes: 3
         run: python3 scripts/test_gallery.py --section settings-composition --images .cache/ci/settings-composition 2>&1 | tee .cache/ci/macos-settings-composition.log
+      - name: macOS Settings field retention
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 3
+        run: python3 scripts/test_gallery.py --section settings-fields --images .cache/ci/settings-fields 2>&1 | tee .cache/ci/macos-settings-fields.log
       - name: Independent Signal Studio consumer
         id: signal-consumer
         run: |
@@ -556,13 +560,13 @@ jobs:
           python3 - <<'PY'
           import json, os
           from pathlib import Path
-          result = {"required": False, "deferred_acceptance": "OCH-17",
+          result = {"required": False, "deferred_acceptance": "OCH-47",
                     "x11": os.environ["GPUIO_X11_OUTCOME"],
                     "wayland": os.environ["GPUIO_WAYLAND_OUTCOME"]}
           Path(".cache/ci").mkdir(parents=True, exist_ok=True)
           Path(".cache/ci/linux-gui-status.json").write_text(json.dumps(result, indent=2) + "\n")
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
-              summary.write("Linux GUI checks are informational; full acceptance is tracked in OCH-17.\n\n")
+              summary.write("Linux GUI checks are informational; full acceptance is tracked in OCH-47.\n\n")
               summary.write(f"X11: {result['x11']}; Wayland: {result['wayland']}\n")
           PY
       - name: Record environment

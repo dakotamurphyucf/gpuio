@@ -36,8 +36,12 @@ helped repair a window-level macOS input-context leak into the next editor.
 Rapid page/group navigation also exposed a reveal against estimated list heights;
 the destination now remains requested until its actual row is painted, with
 supersession, user-input cancellation and a scoped native sparse-row regression.
-Broader IME and complete reset/field/style edge coverage remain open;
-Settings is not yet a functional-equivalent claim.
+The installed-consumer field matrix additionally passes all six standard control
+kinds across 24 variant/size/layout/theme cases, numeric bounds and saved-value
+remount/reset. Together with deterministic/native reset guards, the
+[acceptance map](design/settings-composition.md#local-source-row-acceptance-map--2026-09-30)
+now establishes local Settings source-row equivalence. Broader IME, other catalog
+reviews and release acceptance remain open.
 
 The [mounted native binding observer](design/command-binding-observations.md)
 now connects paired transport, Core View callbacks, Eio delivery and a Bonsai

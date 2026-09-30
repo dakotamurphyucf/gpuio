@@ -178,28 +178,17 @@ functionality. Test filtering/empty results, selected-page disappearance/recover
 reset scopes and disabled/custom fields, in-flight edits, IME/input identity,
 responsive resizing, focus reveal and application persistence failures.
 
-The [Core model and full composition contract](../design/settings-composition.md)
-now implement distinct IDs, bounded metadata/search, preferred/effective selection,
-expansion reconciliation and explicit reset scopes with latest-state/disabled
-guards. Five Core expect tests pass. The controlled Bonsai composite now composes
-sidebar/split/managed groups, responsive stable field placements, rich page slots
-and reset requests. Three further expect tests check page/row lifetimes,
-reconciliation identity, namespace/disabled semantics and localized-label errors.
-Typed Boolean/choice/native-field helpers also pass identity/semantics checks;
-public editor examples pass native mount-seed behavior and guarded resets.
-Numeric draft/value seeds now support atomic unfinished-draft recovery on remount.
-A dedicated public gallery now passes scoped native editing, responsive identity,
-search/page draft recovery and export failure/cancellation checks. Complete
-reset/field edge coverage and full native acceptance remain unfinished. Group
-reset controls, unmounted-editor reset lifetimes, export validation and real
-native Save/Eio readback now pass scoped repository and fresh installed-consumer checks. A fresh
-installed consumer also passes the scoped checks, long-choice keyboard selection
-and Unicode paste. An expanded consumer passes physical split/keyboard resizing,
-custom-policy exclusions, 48-group focused retention/eviction/remount and
-two-window keyboard/reset/close isolation. Initial second-window AX focus reporting
-now has a scoped adapter repair and passing regression. Disabled-row
-discoverability, composition and complete field/style/reset-edge coverage remain
-open; this checkpoint does not establish equivalence.
+The [Core model, composition contract and acceptance map](../design/settings-composition.md#local-source-row-acceptance-map--2026-09-30)
+now record a locally validated functional equivalent. Core/Bonsai checks cover
+bounded metadata, search/selection, typed choices, captured effects and reset
+policy. Public macOS and installed-consumer checks cover native edits, all six
+standard field types, 24 field variant/size/layout/theme cases, real US dead-key
+composition, partial reset failure, page/group/filtered resets, disabled custom
+controls, 48-group retention/eviction, independent windows and Eio save/readback.
+Native editor suites and deterministic visit/lease/revision tests cover delayed
+commands and replies. The review explicitly distinguishes those checks from
+multilingual OS IME, VoiceOver and performance/release acceptance. The captured
+initial black frame remains an OCH-17 issue.
 
 ## Delivery order
 
@@ -207,8 +196,8 @@ Composed Link, shared dashed borders and Empty/Separator composition now have
 scoped native and installed-consumer evidence, as do shared text shimmer and the
 rich Attachment/Marker, Alert, Tag, Bubble/Message and Description adapters.
 Typed Kbd display and native binding observations also have scoped native and
-installed-consumer evidence. Settings composition remains in this presentation
-review.
+installed-consumer evidence. Settings composition now has its scoped local
+acceptance map above.
 Each family needs public gallery examples and meaningful native acceptance before
 its ledger status changes. Reuse ordinary views where possible; introduce native
 state or protocol operations only for concrete missing behavior.

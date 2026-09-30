@@ -1,9 +1,9 @@
 # Presentation behavior review (OCH-41)
 
 Review baseline: GPUIO `8d0c2ce`, with the status-bar addition below. Upstream
-Longbridge revision `84f57fdfcb4910623fb0bb7f795b077e249f9271`. This is a partial
-review of the 17 modules assigned to the presentation family, not family or
-release acceptance. The source snapshots linked below are exact pinned files,
+Longbridge revision `84f57fdfcb4910623fb0bb7f795b077e249f9271`. This is a source-row behavior
+review of the modules assigned to the presentation family; whole-release
+acceptance remains separate. The source snapshots linked below are exact pinned files,
 checksummed in [the manifest](sources/manifest.json), covered by the adjacent
 upstream Apache license, and verified by `scripts/audit_component_catalog.py`.
 
@@ -304,7 +304,8 @@ settings fields. Empty, Separator, Attachment, Marker, Alert, Tag, Bubble, Messa
 and Description have explicit local functional-equivalent evidence. Kbd now also
 has [typed-display and binding-observer evidence](../design/keyboard-labels.md),
 including public installed-consumer and expanded native lifetime/context cases.
-Settings remains open.
+Settings now has a [local acceptance map](../design/settings-composition.md#local-source-row-acceptance-map--2026-09-30),
+including typed field retention, composition and reset lifetime evidence.
 Source review alone does not establish functional equivalence. Prior OCH-33 evidence
 still applies only to the APIs it actually tests. Other catalog families,
 consumer/CI/distribution checks and the complete OCH-17 scope remain open.
