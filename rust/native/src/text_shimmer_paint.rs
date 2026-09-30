@@ -9,7 +9,7 @@ use gpui::{
     App, Bounds, ContentMask, Element, ElementId, GlobalElementId, Hsla, InspectorElementId,
     IntoElement, LayoutId, Pixels, StyledText, TextAlign, Window, point, px, rgba, size,
 };
-use gpuio_protocol::text_shimmer::{Config, Direction, Spread};
+use gpuio_protocol::text_shimmer::{Config, Direction, Repeat, Spread};
 
 pub const LAYERS: usize = 12;
 pub const MAX_GLYPHS: usize = 4096;
@@ -51,6 +51,7 @@ pub fn element(text: StyledText, config: Config, sample: Sample, appearance: App
         sample,
         appearance,
         driver: None,
+        budget: None,
         #[cfg(feature = "native-image-tests")]
         probe: None,
     }
@@ -62,6 +63,7 @@ pub struct Text {
     sample: Sample,
     appearance: Appearance,
     driver: Option<crate::text_shimmer_clock::Driver>,
+    budget: Option<crate::text_shimmer_budget::Shared>,
     #[cfg(feature = "native-image-tests")]
     probe: Option<std::rc::Rc<std::cell::Cell<Report>>>,
 }
@@ -105,6 +107,11 @@ fn alignment(align: TextAlign, available: Pixels, width: Pixels) -> Pixels {
 }
 
 impl Text {
+    pub(crate) fn with_budget(mut self, budget: crate::text_shimmer_budget::Shared) -> Self {
+        self.budget = Some(budget);
+        self
+    }
+
     pub(crate) fn with_driver(mut self, driver: crate::text_shimmer_clock::Driver) -> Self {
         self.driver = Some(driver);
         self
@@ -115,6 +122,7 @@ impl Text {
             || !self.config.is_valid()
             || !self.config.animated
             || self.sample.reduced_motion
+            || (self.config.repeat == Repeat::Once && self.sample.phase == 1.)
             || !self.sample.phase.is_finite()
             || !(0. ..=1.).contains(&self.sample.phase)
         {
@@ -154,6 +162,13 @@ impl Text {
         if highlight.is_transparent() {
             return Report::Inactive;
         }
+        if self
+            .budget
+            .as_ref()
+            .is_some_and(|budget| !budget.borrow_mut().candidate())
+        {
+            return Report::Capacity;
+        }
         let lines = layout.line_layouts();
         if lines.len() > MAX_LINES {
             return Report::Capacity;
@@ -171,6 +186,13 @@ impl Text {
         }
         if eligible_glyphs == 0 {
             return Report::Inactive;
+        }
+        if self
+            .budget
+            .as_ref()
+            .is_some_and(|budget| !budget.borrow_mut().reserve(glyph_count))
+        {
+            return Report::Capacity;
         }
         let phase = match self.config.direction {
             Direction::LeftToRight => self.sample.phase,

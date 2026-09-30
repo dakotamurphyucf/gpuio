@@ -9,6 +9,8 @@ use std::{
     time::Duration,
 };
 
+#[path = "text_shimmer_budget_native_test.rs"]
+mod budget;
 #[path = "text_shimmer_lifecycle_test.rs"]
 mod lifecycle;
 
@@ -160,11 +162,28 @@ async fn independent_windows(
         ],
     );
     draw(cx, other);
+    let first_budget = first
+        .update(cx, |v, _, _| v.text_shimmer_budget.clone())
+        .unwrap();
+    other
+        .update(cx, |v, _, _| {
+            assert!(
+                !Rc::ptr_eq(&first_budget, &v.text_shimmer_budget),
+                "window frame budgets are independent"
+            )
+        })
+        .unwrap();
+    let first_usage = first_budget.borrow().usage();
     let first_owner = probe(cx, first, first_node);
     let other_owner = probe(cx, other, id(0));
     clock.set_time(250);
     draw(cx, other);
     assert_eq!(other_owner.snapshot().unwrap().phase, 0.25);
+    assert_eq!(
+        first_budget.borrow().usage(),
+        first_usage,
+        "painting another window never consumes this budget"
+    );
     assert_eq!(first_owner.snapshot().unwrap().phase, 0.);
     first_clock.set_time(now + 500);
     draw(cx, first);
@@ -563,6 +582,7 @@ async fn exercise(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, clock: &R
     assert_eq!(probe(cx, handle, next).snapshot().unwrap().phase, 0.);
     now += 1000;
     lifecycle::exercise(cx, handle, clock, &mut now).await;
+    budget::exercise(cx, handle, clock, &mut now);
     independent_windows(cx, handle, clock, now, next).await;
     eprintln!(
         "GPUIO_NATIVE_TEXT_SHIMMER_VIEW_OK: mounted glyph pixels, stable wrap/selection/source AX, spans/highlight, application themes, coalesced wakes, opacity/hover/press/focus/visibility/display/clip/Reduce/static pause, clear, generation replacement and independent windows/close"

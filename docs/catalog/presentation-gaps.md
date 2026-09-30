@@ -45,6 +45,8 @@ checks. Mounted Host/selection/highlight rendering now has focused GPU/source
 AX/lifecycle evidence, including retained tabs, native responsive branches and
 managed-row pause/eviction/remount. Public gallery/consumer and aggregate-performance
 acceptance remain pending; this does not complete Attachment or Marker behavior.
+The shared per-window shimmer budget has native limit/fallback/recovery evidence;
+that enforces work ceilings without establishing application frame-time budgets.
 Native acceptance must cover action gaps, keyboard/AX activation, layout/state
 changes, image failure, reduced motion, cancellation/unmount and bounded resources.
 

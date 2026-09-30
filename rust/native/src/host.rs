@@ -185,6 +185,7 @@ struct View {
     selections: BTreeMap<NodeId, Rc<RefCell<crate::selection::State>>>,
     text_shimmers: BTreeMap<NodeId, crate::text_shimmer_clock::Owner>,
     text_shimmer_clock: Rc<crate::text_shimmer_clock::Clock>,
+    text_shimmer_budget: crate::text_shimmer_budget::Shared,
     editors: BTreeMap<NodeId, editor::Instance>,
     root_focus: Option<gpui::FocusHandle>,
     focus: focus::Shared,
@@ -428,6 +429,7 @@ impl View {
             selections: BTreeMap::new(),
             text_shimmers: BTreeMap::new(),
             text_shimmer_clock: Default::default(),
+            text_shimmer_budget: Default::default(),
             editors: BTreeMap::new(),
             root_focus: None,
             radios: BTreeMap::new(),
@@ -1784,6 +1786,7 @@ impl Render for View {
         let program_begin = cx.entity().downgrade();
         let canvas_budget = self.canvas_budget.clone();
         let chart_budget = self.chart_budget.clone();
+        let text_shimmer_budget = self.text_shimmer_budget.clone();
         let canvases: Vec<_> = self.canvases.values().map(Rc::downgrade).collect();
         let drag_window = self.id;
         let input_pointer_inside = self.input_pointer_inside.clone();
@@ -1844,6 +1847,7 @@ impl Render for View {
                         });
                         *canvas_budget.borrow_mut() = Default::default();
                         *chart_budget.borrow_mut() = Default::default();
+                        *text_shimmer_budget.borrow_mut() = Default::default();
                         for state in &canvases {
                             if let Some(state) = state.upgrade() {
                                 state.borrow_mut().flush_canvas_frame(window, cx);

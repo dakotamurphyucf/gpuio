@@ -17,8 +17,10 @@ or whole-application idle/performance acceptance. A public gallery preview is
 implemented. Native retained-tab, responsive-branch and managed-row
 pause/eviction/remount checks now pass. They exposed and helped repair a hidden
 search-scope redraw loop and last-scope native-visibility recovery; the full
-mounted highlighting regression also passes. Public normal-launch/installed-consumer
-acceptance, aggregate work and Attachment/Marker integration remain open. No shimmer
+mounted highlighting regression also passes. A shared per-window overlay budget
+now has native boundary, static-fallback, pause/recovery and independent-window
+evidence. Public normal-launch/installed-consumer acceptance, measured application
+performance and Attachment/Marker integration remain open. No shimmer
 capability is advertised yet.
 
 The [finite style-value audit](evidence/style-finite-values-och41.md) now covers

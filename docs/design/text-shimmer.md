@@ -83,6 +83,35 @@ memory. The public View constructor/bridge enforces the source bound; each nativ
 declaration reserves 1,024 bytes in the existing window/session payload budget. The fixed-phase constructor
 schedules no animation; the retained Owner below attaches a weak native driver.
 
+### Shared window-frame work
+
+Every mounted effect uses one shared budget per window paint, reset before root
+content and shared with deferred list/query/popup rendering. At most 64 visible,
+animated, nontransparent candidates undergo glyph preflight in a frame. An empty,
+emoji-only or individually over-capacity candidate can consume that preflight
+slot even if it emits no overlay. Eligible effects then reserve their entire
+shaped glyph count against a 16,384-glyph frame allowance. Rejection preserves
+the complete ordinary text and pauses its owner; it never paints a partial
+highlighted prefix. The text/selection/accessibility behavior remains intact.
+
+The combination bounds preflight to at most 64 scans of the existing per-text
+limits and overlay paint attempts to at most 196,608 (16,384 times twelve layers).
+Inactive, reduced-motion, completed Once, transparent and fully clipped effects
+return before preflight admission. The allowance is charged independently of the
+sweep's position, including when the band is outside the text. This prevents the
+animation phase itself from making later effects alternate between admitted and
+static. Allocation follows paint order; there is no fairness rotation or retry
+timer. A paused effect can resume on a later actual frame when earlier effects
+leave, complete, become ineligible or release capacity. Stable content has stable
+priority; applications should keep simultaneous effects within these limits.
+
+These are deterministic overlay-work ceilings, not measured latency/FPS, GPU
+time, power or whole-application memory budgets. They do not bound ordinary text
+shaping/base painting, which still occurs for static fallback. The shared counters
+retain no source, node owner or native clock; node payload admission remains
+separate. Each window has independent counters. Public gallery/consumer and
+whole-application performance qualification remain required.
+
 ## Native timing and ownership
 
 `text_shimmer_clock::Owner` is one native node/window lifetime. A mounted adapter
@@ -170,9 +199,9 @@ These are implementation requirements, **not completed acceptance**:
   managed-row pause/eviction/remount, native interaction-state opacity,
   visibility/clipping, clear, generation replacement, independent windows and
   owner disposal before application shutdown.
-- Measure aggregate visible work/frame performance and whole-window idle/resource
-  behavior. Per-text glyph limits and owner admission do not establish application
-  FPS, latency, power or a global paint-work budget.
+- Measure frame performance and whole-window idle/resource behavior. The shared
+  window-frame overlay work budget and owner admission do not establish application
+  FPS, latency, power or whole-application bounds.
 - Finish foreground OS keyboard/clipboard, screen-reader and public gallery/
   installed-consumer acceptance. Dispatched GPUI keys are not physical input.
 - Add Attachment/Marker examples and complete their source behavior review before
@@ -368,3 +397,45 @@ git diff --check
 No public API, wire format or dependency pin changes in this lifecycle stage.
 These background/GPUI-dispatched checks do not add physical input, VoiceOver,
 Linux desktop, public-consumer or whole-application performance acceptance.
+
+### Shared frame-budget evidence
+
+The mounted fixture now supplies 65 visible labels. Exactly 64 undergo preflight
+and reserve their complete shaped text at both phase zero and mid-sweep. GPU
+readback shows the rejected label remains byte-identical ordinary text while
+admitted labels animate. Clearing an earlier effect lets that same paused native
+owner start, without replacing its node. Reduced motion and completed Once
+effects consume no overlay budget; a later eligible frame starts with fresh
+counters.
+
+Five individually valid 4,096-glyph strings verify the independent 16,384-glyph
+window allowance: four animate and the fifth pauses. Clearing an earlier effect
+lets the same rejected owner resume. Removing the descriptions releases the
+observed owners. The independent-window check verifies separate counters and
+that painting the second window does not consume the first window's allowance.
+A unit case checks arithmetic overflow, exact limits and atomic failed
+reservation.
+
+On macOS 14.5 arm64, the mounted executable passes with
+`GPUIO_NATIVE_TEXT_SHIMMER_BUDGET_OK`, lifecycle and mounted markers. The retained
+clock and full fixed-phase painter regressions also pass. Each executable ran
+under its own 120-second deadline, exited zero and closed its windows. The budget
+test uses controlled time and actual GPU pixels; it is not a benchmark. The
+shared ceilings are enforced implementation limits, while application frame-time,
+latency, memory and power acceptance remains open.
+
+The final local full Dune build/expect/format check, nine shimmer unit tests,
+strict native Clippy and Rust formatting pass through the isolated toolchain:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j 2 @all @runtest @fmt
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -p gpuio-native -j 2 --lib text_shimmer
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy --locked -p gpuio-native -j 2 --lib --tests --features native-image-tests -- -D warnings
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo fmt --all --check
+```
+
+The native fixtures build with `--features native-image-tests --test
+native_text_shimmer_view --test native_text_shimmer_clock --test
+native_text_shimmer_paint --no-run`. Catalog and diff checks pass. No protocol or
+dependency changes are required; the public description documents the new native
+work ceilings. Linux, public-consumer and hosted release gates remain separate.

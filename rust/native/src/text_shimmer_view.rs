@@ -44,6 +44,7 @@ impl View {
         };
         Some(Decoration {
             owner,
+            budget: self.text_shimmer_budget.clone(),
             appearance: crate::text_shimmer_paint::Appearance {
                 foreground: colors.foreground,
                 background: colors.background,

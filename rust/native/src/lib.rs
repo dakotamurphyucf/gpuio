@@ -86,6 +86,7 @@ mod semantics;
 pub mod session;
 mod style;
 mod styled_text;
+mod text_shimmer_budget;
 pub mod text_shimmer_clock;
 mod text_shimmer_color;
 pub mod text_shimmer_paint;

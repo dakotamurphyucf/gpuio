@@ -24,6 +24,10 @@ val styled_text : ?key:Key.t -> ?style:Style.t -> Text_content.t -> 'action t
     are rejected. [Some config] requires valid UTF-8 of at most 16,384 bytes;
     [None] clears the effect without applying its source-size limit. The native
     painter falls back to static text above 256 lines or 4,096 shaped glyphs.
+    Each window frame additionally admits at most 64 visible animation candidates
+    and 16,384 shaped glyphs across admitted effects, in paint order. Rejected
+    effects keep ordinary text and pause; a later frame can resume them when
+    capacity becomes available. This bounds overlay work, not ordinary layout.
 
     Experimental: mounted native rendering is implemented; public component
     acceptance and host capability advertisement remain in progress. *)

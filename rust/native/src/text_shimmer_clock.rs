@@ -275,6 +275,7 @@ pub(crate) mod native_test;
 /// a weak driver. This keeps plain/selectable/highlighted text on one layout path.
 pub struct Decoration<'a> {
     pub owner: &'a Owner,
+    pub(crate) budget: crate::text_shimmer_budget::Shared,
     pub appearance: Appearance,
 }
 
@@ -284,6 +285,7 @@ pub fn decorate(text: StyledText, decoration: Option<Decoration<'_>>) -> gpui::A
         Some(decoration) => decoration
             .owner
             .element(text, decoration.appearance)
+            .with_budget(decoration.budget)
             .into_any_element(),
         None => text.into_any_element(),
     }
