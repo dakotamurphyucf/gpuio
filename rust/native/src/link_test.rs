@@ -3,6 +3,8 @@
 use super::*;
 use gpuio_protocol::link::Config;
 use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
+#[path = "link_content_test.rs"]
+mod content_test;
 #[path = "link_nonstop_test.rs"]
 mod nonstop_test;
 #[path = "link_scroll_test.rs"]
@@ -109,6 +111,16 @@ fn accessible(
     slot: i64,
     action: AxAction,
 ) -> Option<bool> {
+    accessible_named(cx, handle, &config(slot, 0).label, action)
+}
+
+#[cfg(target_os = "macos")]
+fn accessible_named(
+    cx: &mut gpui::AsyncApp,
+    handle: WindowHandle<View>,
+    label: &str,
+    action: AxAction,
+) -> Option<bool> {
     use objc2::{
         msg_send,
         runtime::{AnyObject, Bool},
@@ -163,7 +175,7 @@ fn accessible(
     unsafe {
         let window: *mut AnyObject = msg_send![view, window];
         let content: *mut AnyObject = msg_send![window, contentView];
-        visit(content, &config(slot, 0).label, action, 0)
+        visit(content, label, action, 0)
     }
 }
 async fn exercise(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, transport: &Transport) {
@@ -452,6 +464,7 @@ async fn exercise(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, transport
     key(cx, handle, "tab");
     focused(cx, handle, 2);
     scroll_test::exercise(cx, handle, transport).await;
+    content_test::exercise(cx, handle, transport).await;
     let mut remove = vec![Op::SetRoot(None)];
     remove.extend((6..=9).map(|slot| Op::Remove(id(slot))));
     remove.extend((0..=5).map(|slot| Op::Remove(id(slot))));
@@ -480,8 +493,10 @@ pub(crate) fn run() {
     gpui_platform::application().run(move |cx| {
         cx.set_quit_mode(gpui::QuitMode::Explicit);
         gpui_base::init(cx);
+        let motion_watch = crate::motion_preference::init(cx);
         let session = Rc::new(RefCell::new(Session::default()));
         session.borrow_mut().hello(VERSION, CAPABILITIES).unwrap();
+        crate::motion_preference::bind_clocks(&session.borrow().motion(), cx);
         let window_id = WindowId::from_parts(0, 1).unwrap();
         session
             .borrow_mut()
@@ -505,6 +520,7 @@ pub(crate) fn run() {
         cx.spawn(async move |cx| {
             let result = native_test::protect(exercise(cx, handle, &transport)).await;
             *task_failure.borrow_mut() = result.err();
+            motion_watch.borrow_mut().take();
             let _ = handle.update(cx, |_, window, _| window.remove_window());
             cx.update(stop_application);
         })

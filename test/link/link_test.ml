@@ -138,6 +138,68 @@ let%expect_test
     {| nested controls, links, selectable/scrolling/shielded descendants rejected; exact depth/node bounds |}]
 ;;
 
+let%expect_test "passive avatar and motion compose without child callbacks" =
+  let config = Link.Config.create ~label:"Open workspace" () |> ok in
+  let target = Animation.Target.create [ Width, 120. ] |> ok in
+  let initial = Animation.Target.create [ Width, 60. ] |> ok in
+  let tween = Animation.Config.create ~initial ~repeat:Alternate ~target () |> ok in
+  let stage =
+    Animation.Stage.create
+      ~timing:(Animation.Timing.tween (Time_ns.Span.of_ms 200.) |> ok)
+      ~target
+      ()
+    |> ok
+  in
+  let program = Animation.Program.create ~initial ~repeat:Loop [ stage ] |> ok in
+  let avatar =
+    Avatar.Config.create
+      ~fallback:(Avatar.Fallback.create "DM" |> ok)
+      ~description:Image.Description.decorative
+      ()
+  in
+  let loading = Loading.Config.create ~kind:Spinner ~label:"Loading preview" () |> ok in
+  let content =
+    [ View.avatar avatar
+    ; View.loading ~config:loading ()
+    ; View.animate tween [ View.text "Tween" ]
+    ; View.animate_program program [ View.text "Program" ]
+    ]
+  in
+  let view = View.link config ~on_click:(fun () -> "root") content |> ok in
+  let t = Reconciler.create window in
+  let operations = commit t (Some view) in
+  let handlers =
+    List.filter_map operations ~f:(function
+      | Wire.Op.Create (node, kind, _, Some handler) -> Some (node, kind, handler)
+      | _ -> None)
+  in
+  let node, handler =
+    match handlers with
+    | [ (node, Wire.Kind.Link, handler) ] -> node, handler
+    | _ -> failwith "passive content introduced a callback owner"
+  in
+  let event = Wire.Event.Press (window, node, handler, 1L) in
+  assert (Option.equal String.equal (Reconciler.dispatch t event) (Some "root"));
+  assert (List.is_empty (commit t (Some view)));
+  let forbidden =
+    [ View.animate ~on_event:(fun _ -> ()) tween [ View.text "Observed tween" ]
+    ; View.animate_program
+        ~on_event:(fun _ -> ())
+        program
+        [ View.text "Observed program" ]
+    ]
+  in
+  List.iter forbidden ~f:(fun child ->
+    assert (Or_error.is_error (View.link config ~on_click:(fun () -> ()) [ child ])));
+  ignore (commit t None : Wire.Op.t list);
+  assert (Option.is_none (Reconciler.dispatch t event));
+  print_endline
+    "avatar/loading/tween/program admitted; only root action; idle repeat; observed \
+     descendants rejected; retired action fenced";
+  [%expect
+    {| avatar/loading/tween/program admitted; only root action; idle repeat; observed descendants rejected; retired action fenced |}]
+;;
+
 let%expect_test "link fixture agrees with independent Rust bytes" =
   let config =
     Link.Config.create ~label:"Guide 世界" ~tab_stop:false ~tab_index:(-2) () |> ok

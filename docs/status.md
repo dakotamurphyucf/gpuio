@@ -52,6 +52,12 @@ is advertised and the link rows are not yet accepted. See the design for the pre
 Fallback Tab navigation now keeps clicked/AX-focused non-stops as ordering
 anchors. The native regression failed before the fix and passes signed/zero/tied
 indices, trap/no-stop/wrap behavior, fixed clipping and mixed range-thumb cases.
+The passive Link fixture now also passes avatar fallback GPU paint, measured
+tween/program geometry, realtime loading, reduced-motion idle, exact bridge event
+delivery, AX name override/reset and in-flight pointer disable/unmount fencing.
+Seven Core expect tests cover public composition and callback retirement.
+Image-backed content and broader style/group acceptance remain open; the new
+native input evidence uses GPUI dispatch and direct AppKit AX actions.
 The other eleven presentation modules now have a
 [pinned behavior/gap review](catalog/presentation-gaps.md), including nested settings
 fields. These implementation plans and source snapshots do not mark the families

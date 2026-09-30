@@ -180,9 +180,46 @@ does not create native Tab groups; its deferred overlay adapter does not use the
 base Popover group. Full docking is post-v1. This corrects the source-review
 assumption without claiming untested extension-owned group/path ordering.
 
-Broader mixed native compound/group ordering, full passive animation/avatar/content
-coverage, style/AX metadata refinements, pending-action races and fresh consumer/
-release checks remain. No Link capability bit is advertised yet.
+### Passive content and lifecycle checkpoint — 2026-09-29
+
+The native Link fixture now mounts an avatar fallback, loading spinner, tween,
+animation program and localized text under one root action. The seventh Core
+expect test checks their public composition, one callback owner, idle
+reconciliation and stale action retirement; observed child animations are rejected.
+
+The macOS `native_link` run with `native-image-tests` passes:
+
+* GPU readback of the avatar fallback glyphs, pointer activation through all four
+  passive content types, and a single root Tab target.
+* Measured tween/program widths at 0/200/400/600/800 ms, including the loop boundary,
+  using existing test clocks and restoring realtime afterward. The loading phase
+  advances in realtime without a tree revision change. Reduced motion settles to
+  no further renders during the observation interval.
+* Exact raw mailbox comparisons: one current root Press per activation and one
+  Rendered acknowledgement per painted transaction. Autonomous content emits no
+  bridge events; unexpected variants and queue flooding fail the test.
+* Native AX name override/reset and AXPress, disable/unmount between mouse-down
+  and mouse-up, retired motion owners, and remount with a fresh node/handler/focus
+  identity. Updating replacement text retains that identity.
+
+This uses GPUI-dispatched pointer/keyboard input in a foreground macOS window,
+direct AppKit accessibility actions and actual GPU readback. It is not VoiceOver,
+physical keyboard/IME, Linux GUI or release performance acceptance. Image-backed
+avatars/images, broader style refinements and mixed native group ordering remain
+separate from this fallback/motion fixture. No production code or dependency was
+changed for these checks, and no Link capability bit is advertised yet.
+
+Reproduction in the isolated checkout:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test -p gpuio-native --test native_link --features native-image-tests --locked -j2
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 @test/link/runtest @fmt
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy -p gpuio-native -p gpuio-protocol --all-targets --features native-image-tests --locked -j2 -- -D warnings
+```
+
+Fresh consumer/release checks and remaining content/style/group acceptance remain
+open. Native in-flight pointer fencing and Core queued stale-event rejection now
+have separate evidence; neither alone implies every pending native action path.
 
 ## Full implementation and acceptance contract
 
