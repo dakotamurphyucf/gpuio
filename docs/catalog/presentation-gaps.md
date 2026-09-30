@@ -42,8 +42,9 @@ The shared [text-shimmer foundation](../design/text-shimmer.md) now has paired,
 validated standalone/live codecs, Core/Bonsai reconciliation and atomic native
 tree admission, a native glyph painter and independent retained-clock GPU/lifecycle
 checks. Mounted Host/selection/highlight rendering now has focused GPU/source
-AX/lifecycle evidence. Public gallery/consumer, conditional/managed-row and
-aggregate-performance acceptance remain pending; this does not complete Attachment or Marker behavior.
+AX/lifecycle evidence, including retained tabs, native responsive branches and
+managed-row pause/eviction/remount. Public gallery/consumer and aggregate-performance
+acceptance remain pending; this does not complete Attachment or Marker behavior.
 Native acceptance must cover action gaps, keyboard/AX activation, layout/state
 changes, image failure, reduced motion, cancellation/unmount and bounded resources.
 

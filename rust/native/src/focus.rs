@@ -576,6 +576,12 @@ impl Manager {
         );
     }
 
+    pub(super) fn has_pending_highlight_styles(&self) -> bool {
+        self.highlight_styles
+            .values()
+            .any(|entry| entry.pending.is_some())
+    }
+
     /// Layout can use yesterday's hover state while paint has today's hitbox.
     /// Commit only the last sample after the complete paint cycle, so intermediate
     /// samples cannot repeatedly invalidate the same stable native frame.

@@ -570,6 +570,11 @@ impl View {
         let highlight_scope = node
             .highlight_scope
             .as_ref()
+            // An unpainted scope is retired at frame end. Preparing one known
+            // to be hidden would request work, refresh, retire and repeat forever.
+            // Native state visibility is committed after paint and requests one
+            // new render when an interaction makes the scope visible again.
+            .filter(|_| self.focus.borrow().highlight_visible(tree, id))
             .map(|_| self.prepare_highlight(tree, node, window, cx));
         if node.kind == Kind::ChartView {
             return self.chart_element(node, interaction);
@@ -2020,6 +2025,9 @@ impl Render for View {
                                 || !view.container_queries.is_empty()
                                 || !view.carousels.is_empty()
                                 || !view.highlights.is_empty()
+                                // A native style can reveal the last hidden scope.
+                                // Commit that sample even with no active matcher.
+                                || view.focus.borrow().has_pending_highlight_styles()
                         })
                         .unwrap_or(false)
                     {

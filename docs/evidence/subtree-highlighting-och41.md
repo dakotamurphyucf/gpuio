@@ -1,5 +1,15 @@
 # Subtree highlighting — OCH-41 foundation
 
+Latest lifecycle repair: a hidden outer search scope could repeatedly create
+work, request a refresh and retire itself without settling. The Host now checks
+logical/committed native visibility before preparing a matcher. Pending native
+visibility samples still commit after the last scope retires, so pointer leave
+can restore it without bridge traffic. The failing-before cases, final native
+regressions and commands are recorded in
+[retained branches and managed rows](../design/text-shimmer.md#retained-branches-and-managed-rows).
+The full mounted highlighting fixture and 409 native library tests pass locally
+on macOS 14.5 arm64; the two private-D-Bus cases require their separate runner.
+
 The current checkpoint implements validated configuration, a windowless native
 query kernel, range/run projections, an owned worker pool, retained scope
 declarations and observation routing, bounded retained-tree collection and a GPUI

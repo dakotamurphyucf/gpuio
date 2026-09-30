@@ -112,7 +112,11 @@ retire removed/cleared owners immediately; each render suspends existing owners
 before constructing visible text. Owners share the Tree source Arc, including
 replacement allocations with equal text (for example, a span-only update). Retained
 branches keep their paused owner; virtual eviction/remount must use a fresh one.
-The conditional/virtualized integration matrix remains to be verified.
+Native checks cover retained tab visibility, hidden source replacement, responsive
+branch selection during window resize, and managed-list eviction/remount. An
+offscreen row whose description still exists pauses its current owner; removing
+that description drops the owner. Reusing the node slot with a new generation
+starts a fresh timeline. These are lifetime checks, not list performance claims.
 
 There is at most one outstanding GPUI frame callback per owner. The callback
 carries no source, configuration or phase; delivery checks the current owner and
@@ -161,10 +165,11 @@ source-sized duplicate is introduced by this admission change.
 
 These are implementation requirements, **not completed acceptance**:
 
-- Complete the conditional/managed-row and application-level lifetime matrix.
-  The mounted fixture covers ordinary text owners, native interaction-state
-  opacity, visibility/clipping, clear, generation replacement, independent
-  windows and owner disposal before application shutdown.
+- Complete application-level lifetime acceptance through the public components.
+  Native fixtures cover ordinary text owners, retained tabs, responsive branches,
+  managed-row pause/eviction/remount, native interaction-state opacity,
+  visibility/clipping, clear, generation replacement, independent windows and
+  owner disposal before application shutdown.
 - Measure aggregate visible work/frame performance and whole-window idle/resource
   behavior. Per-text glyph limits and owner admission do not establish application
   FPS, latency, power or a global paint-work budget.
@@ -315,3 +320,51 @@ controls. It compiles with the full gallery; normal-launch interaction and fresh
 installed-consumer acceptance remain pending. No capability or catalog-family
 completion is claimed from this checkpoint. Required Linux and hosted release
 checks remain open.
+
+### Retained branches and managed rows
+
+The expanded mounted fixture also passes retained tab hide/show with preserved
+phase, hidden-source replacement with a restarted phase, and responsive branch
+changes from actual window resize without changing the bridge revision. Visible
+phases produce real glyph pixels; hidden owners drain pending callbacks without
+requesting more frames. A 100,000-logical-row managed list supplies twelve
+materialized descriptions. Scrolling to an unloaded distant page leaves no stale
+glyph paint and pauses those still-described owners. Evicting their descriptions
+releases every observed owner immediately; reusing the slots with new generations
+on the distant page starts at phase zero. This does not measure a 100,000-row
+loaded application or establish frame-time/resource release budgets.
+
+This exercise found a separate search-scope redraw loop: creating matching work
+for a hidden scope requested a refresh; frame-end cleanup retired the unpainted
+scope, so the next render recreated it. The bounded native run timed out and a
+process sample showed repeated effect flushing/drawing. The Host now checks
+logical/committed native visibility before preparing that work. A follow-up
+regression failed when the last hidden scope did not recover on pointer leave.
+Frame-end cleanup now commits pending native visibility samples even when no
+matcher remains, enabling recovery without bridge traffic. The final fixture
+asserts scope retirement/restoration and bounded synchronous redraws on hiding.
+
+On macOS 14.5 arm64, the expanded `native_text_shimmer_view` executable passes with
+both `GPUIO_NATIVE_TEXT_SHIMMER_LIFECYCLE_OK` and the original mounted success marker.
+The complete `native_highlight_view` fixture also passes its GPU, queued-observation,
+virtual-row/window, scroll, retained tab/disclosure, responsive, native hover/
+pressed/focus, navigation and deferred-surface regressions. Both ran under separate
+120-second process-group deadlines, exited zero and closed their windows. The
+first new lifecycle fixture rejected an unreachable old subtree before testing
+behavior; it was corrected to preserve the native connected-tree invariant.
+
+The native library suite passes 409 tests, with its two existing private-D-Bus
+cases excluded by this macOS command. Strict native Clippy, Rust formatting,
+catalog audit and diff checks also pass:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -p gpuio-native -j 2 --lib
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy --locked -p gpuio-native -j 2 --lib --tests --features native-image-tests -- -D warnings
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo fmt --all --check
+python3 scripts/audit_component_catalog.py
+git diff --check
+```
+
+No public API, wire format or dependency pin changes in this lifecycle stage.
+These background/GPUI-dispatched checks do not add physical input, VoiceOver,
+Linux desktop, public-consumer or whole-application performance acceptance.

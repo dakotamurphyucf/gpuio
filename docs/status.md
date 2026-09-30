@@ -14,8 +14,11 @@ shutdown. An equal-text update regression also verifies that owners share the
 current Tree source allocation without restarting the effect. These complement the independent
 painter/clock matrices; they do not establish foreground keyboard/IME, screen-reader
 or whole-application idle/performance acceptance. A public gallery preview is
-implemented; its normal-launch/installed-consumer acceptance, conditional/managed
-rows, aggregate work and Attachment/Marker integration remain open. No shimmer
+implemented. Native retained-tab, responsive-branch and managed-row
+pause/eviction/remount checks now pass. They exposed and helped repair a hidden
+search-scope redraw loop and last-scope native-visibility recovery; the full
+mounted highlighting regression also passes. Public normal-launch/installed-consumer
+acceptance, aggregate work and Attachment/Marker integration remain open. No shimmer
 capability is advertised yet.
 
 The [finite style-value audit](evidence/style-finite-values-och41.md) now covers

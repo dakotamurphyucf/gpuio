@@ -9,6 +9,9 @@ use std::{
     time::Duration,
 };
 
+#[path = "text_shimmer_lifecycle_test.rs"]
+mod lifecycle;
+
 fn id(slot: i64) -> NodeId {
     NodeId::from_parts(slot, 1).unwrap()
 }
@@ -558,7 +561,9 @@ async fn exercise(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, clock: &R
     assert!(once.snapshot().is_none());
     draw(cx, handle);
     assert_eq!(probe(cx, handle, next).snapshot().unwrap().phase, 0.);
-    independent_windows(cx, handle, clock, now + 1000, next).await;
+    now += 1000;
+    lifecycle::exercise(cx, handle, clock, &mut now).await;
+    independent_windows(cx, handle, clock, now, next).await;
     eprintln!(
         "GPUIO_NATIVE_TEXT_SHIMMER_VIEW_OK: mounted glyph pixels, stable wrap/selection/source AX, spans/highlight, application themes, coalesced wakes, opacity/hover/press/focus/visibility/display/clip/Reduce/static pause, clear, generation replacement and independent windows/close"
     );
