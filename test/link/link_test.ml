@@ -15,6 +15,22 @@ let commit t view =
   | Some _ -> assert false
 ;;
 
+let%expect_test "composed links require a distinct paired host capability" =
+  let capability = Int64.shift_left 1L 48 in
+  assert (Int64.equal (Int64.bit_and Wire.capabilities capability) capability);
+  List.iter [ capability; Wire.capabilities ] ~f:(fun required ->
+    let hello = Wire.Message.Hello (Wire.version, required) in
+    Wire.Message.encode hello
+    |> ok
+    |> String.iter ~f:(fun byte -> printf "%02x" (Char.to_int byte));
+    print_endline "");
+  [%expect
+    {|
+    0001fc0000000000000100
+    0001fcffffffffffff0100
+    |}]
+;;
+
 let%expect_test "link operation and kind match independent Rust bytes" =
   let config =
     Link.Config.create ~label:"Guide 世界" ~tab_stop:false ~tab_index:(-2) () |> ok

@@ -1,8 +1,11 @@
 # Composed links and native focus policy
 
 OCH-41/OCH-17; pinned-source review at GPUIO `1785139`.
-Status: **native mounting and focused macOS gallery checks implemented; broader
-focus/content validation remains open**. This document does not claim link-family parity.
+Status: **native content/focus contract validated locally on macOS; bit 48
+(`CAP_LINKS`) now negotiates composed links**. Fresh installed-consumer verification
+and release integration are recorded separately below. The dated development
+checkpoints retain historical counts and limitations; the current scope is summarized
+here and in the final native-focus checkpoint.
 Existing `Presentation.link` continues to provide a text-only Link-semantic button.
 
 ## Why a native contract is needed
@@ -59,9 +62,12 @@ Independent fixture: label `Guide 世界`, disabled false, tab-stop false, index
 
 The original configuration-only checkpoint added no opcode, node kind or
 capability. The subsequent development implementation appends Link kind 51 and
-Set_link operation 60, while leaving the advertised capability mask unchanged
-until the remaining native contract is validated. This development checkpoint is
-not a promise of mixed-version bridge compatibility.
+Set_link operation 60. That development checkpoint left capabilities unchanged.
+With native content and nested-focus validation complete, `CAP_LINKS` is now bit 48,
+and the paired current mask is `562949953421311`. Required-mask Hello fixtures in
+OCaml and Rust cover both Link alone and the full current feature set. An older
+host rejects the new required bit; older operation tags remain unchanged. This
+pre-release bridge still carries no general mixed-version compatibility promise.
 
 ## Configuration validation checkpoint — 2026-09-29
 
@@ -293,8 +299,9 @@ paint acknowledgements. Unmount releases the scope and settles to idle.
 The full `native_link` fixture, targeted Core tests/formatting and strict
 native/protocol all-target Clippy pass locally for this test-only addition. This
 does not add a highlight callback under the Link, advertise a new capability,
-or establish extension-owned internal Tab ordering. That ordering still needs
-verification against the SDK's documented primary/internal focus contract.
+or establish extension-owned internal Tab ordering by itself. That ordering was
+subsequently verified against the SDK's primary/internal focus contract in the
+[nested-extension checkpoint](#nested-extension-focus-correction--macos-validation).
 
 ## Full implementation and acceptance contract
 
@@ -384,5 +391,48 @@ excluded from the normal run), strict Clippy and full isolated Dune
 `native_controls`, `native_input_region`, `native_navigation` and `native_menus`
 with `cargo test -p gpuio-native --features native-image-tests --locked -j2 --no-run`
 (select those five `--test` targets), then run each built executable on an unlocked
-desktop with a bounded process timeout. Link capability advertisement,
-catalog-family acceptance, hosted checks and OCH-17 release gates remain open.
+desktop with a bounded process timeout. Link capability advertisement now follows
+this validation. Fresh installed-consumer/catalog acceptance, hosted checks and
+OCH-17 release gates are recorded separately and remain distinct from these native
+regression results.
+
+
+## Capability and independent-consumer checkpoint
+
+Composed links now advertise bit 48 (`CAP_LINKS`). The current shared mask is
+`562949953421311`. Independent OCaml/Rust Hello fixtures cover Link alone
+(`0001fc0000000000000100`) and all required features
+(`0001fcffffffffffff0100`). Session tests reject negative and unknown masks without
+entering the ready state, then accept supported negotiation and reject repetition.
+Existing operation tags remain unchanged. Subtree highlighting has no advertised
+bit in this checkpoint; Link composition evidence does not settle that separate
+feature's acceptance.
+
+Local macOS arm64 checks:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test -p gpuio-protocol --locked -j2
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test -p gpuio-native --lib --test session --locked -j2
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 @all @runtest @fmt
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy -p gpuio-native -p gpuio-protocol --all-targets --features native-image-tests --locked -j2 -- -D warnings
+```
+
+All pass: 233 protocol tests; 400 native unit and six session tests. Two private-bus
+tests are ignored by the normal macOS run and remain required on Linux. The nine
+Link expect tests are included in the full Dune check.
+
+A fresh independent gallery stages installed public libraries under its own prefix
+and compiles from outside the repository with an independent locked backend. Its
+first build exposed a missing toolchain pin: Dune's child Cargo selected the
+machine's global Rust 1.88 instead of GPUIO's 1.97.1. The consumer runner now copies
+`rust-toolchain.toml` into that workspace; the fresh retry builds successfully
+without changing any global default or opam switch. See the
+[consumer instructions](../../examples/extension_consumer/README.md).
+
+The focused GUI acceptance is still pending for that installed build. One run
+stopped on a pointer-occlusion guard; two subsequent runs lost their gallery
+window before completing (after 33 and four successful activations). No product
+cause is established. They are **not passes**, and prior repository-gallery/native
+checks are not substitutes for this installed-consumer check. The runner now
+reports actual/expected owning PIDs and AX statuses on pointer-occlusion failures.
+Both source Link rows, combined consumer/CI and OCH-17 release gates remain open.

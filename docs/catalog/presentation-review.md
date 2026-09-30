@@ -257,15 +257,16 @@ now pass after the renderer correction.
 The initial offscreen traversal defect now has measured native reveal and public
 viewport-containment checks, without manually scrolling successor links into view.
 Native coverage includes nested axes, fixed clips and range thumbs in a modal trap;
-see the [focus evidence](../evidence/focus-reveal-och41.md). Broader mixed native
-group ordering, highlighting/style edge cases and release integration remain open.
-No Link capability is advertised; both rows remain incomplete.
+see the [focus evidence](../evidence/focus-reveal-och41.md). Nested native extension groups now also pass nearest-owner traversal, internal
+Tab boundaries, retained updates, modal leaf restoration and disabled fencing.
+Composed links negotiate bit 48 (`CAP_LINKS`). Fresh installed-consumer validation
+and consolidated catalog/release integration remain pending at this checkpoint.
 
 Styled text under an outer highlight scope now has focused Core/native evidence:
 foreground glyphs and wash paint, cosmetic/source updates, selection suppression,
 one action/focus owner and scope retirement. Nested scopes inside a Link remain
-rejected. This closes that specific composition check; it does not settle native
-extension-group traversal or consolidated release acceptance.
+rejected. The subsequent [nested-focus validation](../design/composed-links.md#nested-extension-focus-correction--macos-validation)
+settles the extension-group contract. Consolidated release acceptance remains separate.
 
 ## Remaining presentation modules
 

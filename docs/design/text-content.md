@@ -47,7 +47,7 @@ source is unchanged. Removal releases the runs; stale node generations cannot
 receive new ones. Existing operation tags retain their values.
 
 Capability bit 47 (`CAP_STYLED_TEXT`) is required by the paired OCaml client and
-advertised by this Rust host. The shared mask is `281474976710655`. Older hosts
+advertised by this Rust host. The current shared mask is `562949953421311` (including composed links at bit 48). Older hosts
 reject the client's handshake rather than receiving an unknown operation.
 This capability covers ordinary foreground runs. The higher-level label
 composition adds no separate native opcode or resource.

@@ -57,7 +57,7 @@ fn op59_matches_independent_ocaml_transaction_and_validates_content() {
 #[test]
 fn styled_text_has_a_distinct_negotiated_capability() {
     assert_eq!(CAP_STYLED_TEXT, 1_i64 << 47);
-    assert_eq!(CAPABILITIES, (1_i64 << 48) - 1);
+    assert_eq!(CAPABILITIES, (1_i64 << 49) - 1);
     assert_ne!(CAPABILITIES & CAP_STYLED_TEXT, 0);
     let mut bytes = vec![];
     Message::Hello(VERSION, CAPABILITIES)
@@ -68,6 +68,6 @@ fn styled_text_has_a_distinct_negotiated_capability() {
             .iter()
             .map(|byte| format!("{byte:02x}"))
             .collect::<String>(),
-        "0001fcffffffffffff0000"
+        "0001fcffffffffffff0100"
     );
 }

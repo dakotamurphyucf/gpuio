@@ -45,41 +45,20 @@ content and extras while retaining the string helper. Core tests and a native
 16-case gallery matrix pass layout, wrapping, action/focus identity and teardown;
 a scoped decoded-image case also passes. The [Empty review](catalog/presentation-review.md#empty-state-rich-slots)
 records the precise coverage and the remaining custom dashed-border requirement.
-The [composed-link review](design/composed-links.md) identifies remaining rich
-content and Tab-policy gaps. A validated `Link.Config` and matching bounded
-OCaml/Rust data codecs now extend through native admission, View/Bonsai rendering
-and a public composed-link preview. Eight expect tests, native rollback/budget/input/AX
-checks and eight gallery cases plus rich previews with 42 native actions pass locally. A redraw-related
-Tab ordering regression is fixed. Measured ordinary-scroll focus reveal now passes
-native boundary checks and actual public-gallery viewport containment. Broader
-mixed compound/group ordering and content coverage remain open; no Link capability
-is advertised and the link rows are not yet accepted. See the design for the precise passing scope and remaining validation.
-Fallback Tab navigation now keeps clicked/AX-focused non-stops as ordering
-anchors. The native regression failed before the fix and passes signed/zero/tied
-indices, trap/no-stop/wrap behavior, fixed clipping and mixed range-thumb cases.
-The passive Link fixture now also passes avatar fallback GPU paint, measured
-tween/program geometry, realtime loading, reduced-motion idle, exact bridge event
-delivery, AX name override/reset and in-flight pointer disable/unmount fencing.
-Core expect tests cover public composition and callback retirement.
-Image-backed content now passes shared-source lease retirement, GPU replacement,
-native focus identity, inherited state styles/reset and unmount cleanup. The
-public rich-preview work found and fixed loading-child clicks activating a Link
-without moving focus; the strengthened native regression fails before the fix
-and passes afterward. Broader content/group and release acceptance remain open;
-native fixture input uses GPUI dispatch and direct AppKit AX actions.
-Styled Link text now also passes native GPU foreground/search-wash composition
-under an outer highlight scope, cosmetic/source updates, selection suppression,
-focus retention and scope retirement. The catalog's stale configuration-only
-Link status is corrected; full content/group and release acceptance remains open.
-
-A native SDK fixture reproduced and now passes a Tab-boundary regression from an
-extension's last internal control to a neighboring Link. The [focus-owner correction](design/composed-links.md#nested-extension-focus-correction--macos-validation)
-passes native nearest-owner selection, retained updates, modal leaf restoration,
-disabled fencing, exact bridge output and idle disposal. The complete native
-Link, controls, input-region, navigation and menu suites pass on unlocked macOS,
-as do Rust unit tests, strict Clippy and full Dune checks. Earlier locked-desktop
-waits are excluded from acceptance. No capability or whole-family/release
-acceptance is implied.
+The [composed-link review](design/composed-links.md) now records validated rich
+content, retained ownership and signed Tab policy through OCaml/Rust codecs,
+native admission and View/Bonsai rendering. Native and public-gallery checks pass
+image/avatar/loading/animation content, inherited styles, outer highlight scopes,
+one action/focus owner and scoped cleanup. A loading-child focus-entry defect and
+a nested SDK Tab-boundary defect have failing-before regressions and passing fixes.
+The gallery covers eight base cases plus rich previews with 42 native actions.
+Measured scroll reveal, fixed clipping, range thumbs, modal restoration and nearest
+extension focus ownership also pass locally on unlocked macOS. Earlier locked-
+desktop waits are excluded from acceptance.
+Composed links now negotiate bit 48 (`CAP_LINKS`); highlighting remains separately
+unadvertised. Paired Hello fixtures and session rejection tests cover the new
+required mask. Fresh installed-consumer/catalog finalization and whole-release
+gates are still pending for this checkpoint; the presentation family remains partial.
 The other eleven presentation modules now have a
 [pinned behavior/gap review](catalog/presentation-gaps.md), including nested settings
 fields. These implementation plans and source snapshots do not mark the families

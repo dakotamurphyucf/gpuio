@@ -2219,8 +2219,13 @@ class GalleryMouse:
         get_pid.restype, get_pid.argtypes = C.c_int, [C.c_void_p, C.POINTER(C.c_int)]
         root, hit, owner = system(), C.c_void_p(), C.c_int()
         try:
-            assert (not hit_test(root, *point, C.byref(hit)) and hit.value
-                    and not get_pid(hit, C.byref(owner)) and owner.value == mac.pid), ('Pointer target is occluded', point)
+            hit_status = hit_test(root, *point, C.byref(hit))
+            pid_status = get_pid(hit, C.byref(owner)) if not hit_status and hit.value else None
+            assert (not hit_status and hit.value and pid_status == 0
+                    and owner.value == mac.pid), (
+                        'Pointer target is occluded', point,
+                        {'expected_pid': mac.pid, 'actual_pid': owner.value,
+                         'hit_status': hit_status, 'pid_status': pid_status})
         finally:
             if hit.value:
                 mac.release(hit)

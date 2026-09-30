@@ -30,7 +30,7 @@ module Desktop = Desktop_wire
 module Notification = Notification_wire
 
 let version = 1L
-let capabilities = 281474976710655L
+let capabilities = 562949953421311L
 let max_message_bytes = 1_048_576
 
 module Kind = struct

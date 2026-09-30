@@ -6,6 +6,28 @@ use gpuio_protocol::{HandlerId, NodeId, WindowId, v1::*};
 fn window(g: i64) -> WindowId {
     WindowId::from_parts(0, g).unwrap()
 }
+
+#[test]
+fn link_negotiation_advertises_support_without_waiving_unknown_bits() {
+    for required in [CAP_LINKS, CAPABILITIES] {
+        let mut session = Session::default();
+        for invalid in [-1, CAPABILITIES | (1_i64 << 49)] {
+            assert_eq!(
+                session.hello(VERSION, invalid),
+                Err(ErrorCode::UnsupportedCapability)
+            );
+            assert_eq!(
+                session.validate_open(window(1), "not negotiated", 100., 100.),
+                Err(ErrorCode::NotReady)
+            );
+        }
+        assert_eq!(
+            session.hello(VERSION, required),
+            Ok(Event::Welcome(VERSION, CAPABILITIES))
+        );
+        assert_eq!(session.hello(VERSION, required), Err(ErrorCode::Busy));
+    }
+}
 fn transaction() -> Transaction {
     Transaction {
         window: window(1),

@@ -60,7 +60,10 @@ pub const CAP_INPUT_REGIONS: i64 = 1_i64 << 45;
 pub const CAP_POINTER_OCCLUSION: i64 = 1_i64 << 46;
 /// Atomic foreground runs on ordinary text, including selectable text.
 pub const CAP_STYLED_TEXT: i64 = 1_i64 << 47;
-pub const CAPABILITIES: i64 = CAP_STYLED_TEXT
+/// Composed passive-content links with one native action/focus owner.
+pub const CAP_LINKS: i64 = 1_i64 << 48;
+pub const CAPABILITIES: i64 = CAP_LINKS
+    | CAP_STYLED_TEXT
     | CAP_POINTER_OCCLUSION
     | CAP_INPUT_REGIONS
     | CAP_STYLE_VALUES

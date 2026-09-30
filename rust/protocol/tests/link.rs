@@ -2,6 +2,28 @@ use binprot::BinProtWrite;
 use gpuio_protocol::{NodeId, WindowId, link::Config, v1::*};
 
 #[test]
+fn links_have_a_distinct_negotiated_capability() {
+    assert_eq!(CAP_LINKS, 1_i64 << 48);
+    assert_eq!(CAPABILITIES, (1_i64 << 49) - 1);
+    for (required, expected) in [
+        (CAP_LINKS, "0001fc0000000000000100"),
+        (CAPABILITIES, "0001fcffffffffffff0100"),
+    ] {
+        let hello = Message::Hello(VERSION, required);
+        let mut bytes = vec![];
+        hello.binprot_write(&mut bytes).unwrap();
+        assert_eq!(
+            bytes
+                .iter()
+                .map(|byte| format!("{byte:02x}"))
+                .collect::<String>(),
+            expected
+        );
+        assert_eq!(gpuio_protocol::decode(&bytes), Ok(hello));
+    }
+}
+
+#[test]
 fn op60_and_kind51_match_independent_ocaml_bytes() {
     let node = NodeId::from_parts(0, 1).unwrap();
     let config = Config {
