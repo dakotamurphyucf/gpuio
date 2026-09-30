@@ -2531,6 +2531,10 @@ pub(crate) mod styled_text_test;
 pub(crate) mod link_test;
 
 #[cfg(feature = "native-image-tests")]
+#[path = "aspect_ratio_test.rs"]
+pub(crate) mod aspect_ratio_test;
+
+#[cfg(feature = "native-image-tests")]
 #[path = "border_style_test.rs"]
 pub(crate) mod border_style_test;
 

@@ -210,6 +210,12 @@ module Property : sig
     | Grid_row_minimum of Grid_minimum.t
     | Width of Length.t
     | Height of Length.t
+    | Aspect_ratio of float
+    (** Preferred width / height for native layout, in [0.000001, 1000000].
+        One automatic dimension can be derived from the other. Explicit width
+        and height, min/max constraints and flex/grid layout retain their normal
+        GPUI precedence; this is not a forced crop. Not inherited. Unset removes
+        the declaration in that style layer, exposing the base/component default. *)
     | Min_width of Length.t
     | Min_height of Length.t
     | Max_width of Length.t
@@ -293,6 +299,7 @@ module Property : sig
       | Grid_row_minimum
       | Width
       | Height
+      | Aspect_ratio
       | Min_width
       | Min_height
       | Max_width
@@ -355,7 +362,8 @@ val empty : t
 
 (** Validate before constructing a style. Numeric values are finite and bounded:
     grow, shrink, border widths and radii are in 0..1,000,000; font size is
-    strictly positive and at most 1,000,000; opacity is in 0..1. Grid counts and
+    strictly positive and at most 1,000,000; aspect ratio is in 0.000001..1,000,000;
+    opacity is in 0..1. Grid counts and
     line clamp are integers in 1..1024; font weight is in 1..1000. Font family
     uses 1..256 UTF-8 bytes, accessible name 1..1024 bytes, and shadows at most
     eight entries. Invalid values are rejected rather than clamped.

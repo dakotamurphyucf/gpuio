@@ -328,6 +328,7 @@ module Property = struct
     | Grid_row_minimum of Grid_minimum.t
     | Width of Length.t
     | Height of Length.t
+    | Aspect_ratio of float
     | Min_width of Length.t
     | Min_height of Length.t
     | Max_width of Length.t
@@ -407,6 +408,7 @@ module Property = struct
         | Grid_row_minimum
         | Width
         | Height
+        | Aspect_ratio
         | Min_width
         | Min_height
         | Max_width
@@ -483,6 +485,7 @@ module Property = struct
     | Grid_row_minimum _ -> Name.Grid_row_minimum
     | Width _ -> Name.Width
     | Height _ -> Name.Height
+    | Aspect_ratio _ -> Name.Aspect_ratio
     | Min_width _ -> Name.Min_width
     | Min_height _ -> Name.Min_height
     | Max_width _ -> Name.Max_width
@@ -584,6 +587,7 @@ module Property = struct
       | Grid_row_minimum _ -> true
       | Width v -> length v ~auto:true ~negative:false
       | Height v -> length v ~auto:true ~negative:false
+      | Aspect_ratio v -> Float.is_finite v && Float.(v >= 0.000001 && v <= 1_000_000.)
       | Min_width v -> length v ~auto:true ~negative:false
       | Min_height v -> length v ~auto:true ~negative:false
       | Max_width v -> length v ~auto:true ~negative:false
@@ -778,6 +782,7 @@ module Expert = struct
       Ok (Wire.Field.Grid_row_minimum (Grid_minimum.to_int64 v))
     | Property.Width v -> Ok (Wire.Field.Width (Length.Expert.to_wire v))
     | Property.Height v -> Ok (Wire.Field.Height (Length.Expert.to_wire v))
+    | Property.Aspect_ratio v -> Ok (Wire.Field.Aspect_ratio v)
     | Property.Min_width v -> Ok (Wire.Field.Min_width (Length.Expert.to_wire v))
     | Property.Min_height v -> Ok (Wire.Field.Min_height (Length.Expert.to_wire v))
     | Property.Max_width v -> Ok (Wire.Field.Max_width (Length.Expert.to_wire v))

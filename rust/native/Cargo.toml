@@ -333,3 +333,8 @@ required-features = ["native-image-tests"]
 name = "native_text_shimmer_view"
 harness = false
 required-features = ["native-image-tests"]
+
+[[test]]
+name = "native_aspect_ratio"
+harness = false
+required-features = ["native-image-tests"]

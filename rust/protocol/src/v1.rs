@@ -64,7 +64,9 @@ pub const CAP_STYLED_TEXT: i64 = 1_i64 << 47;
 pub const CAP_LINKS: i64 = 1_i64 << 48;
 /// Native solid/dashed border refinements, including state layers.
 pub const CAP_BORDER_STYLES: i64 = 1_i64 << 49;
-pub const CAPABILITIES: i64 = CAP_BORDER_STYLES
+pub const CAP_ASPECT_RATIO: i64 = 1_i64 << 50;
+pub const CAPABILITIES: i64 = CAP_ASPECT_RATIO
+    | CAP_BORDER_STYLES
     | CAP_LINKS
     | CAP_STYLED_TEXT
     | CAP_POINTER_OCCLUSION
@@ -381,6 +383,7 @@ pub enum Field {
     Inert(bool),
     PointerOcclusion(i64),
     BorderStyle(i64),
+    AspectRatio(f64),
 }
 
 /// Initial portable refinements; adding tags requires explicit schema review.

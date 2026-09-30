@@ -358,3 +358,8 @@ pub fn run_native_link_test() {
 pub fn run_native_border_style_test() {
     host::border_style_test::run();
 }
+
+#[cfg(feature = "native-image-tests")]
+pub fn run_native_aspect_ratio_test() {
+    host::aspect_ratio_test::run();
+}

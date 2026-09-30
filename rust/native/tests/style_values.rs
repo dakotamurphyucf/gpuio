@@ -137,6 +137,13 @@ fn extended_style_values_validate_before_atomic_publication() {
         Field::BorderStyle(-1),
         Field::BorderStyle(2),
         Field::BorderStyle(i64::MAX),
+        Field::AspectRatio(f64::NAN),
+        Field::AspectRatio(f64::INFINITY),
+        Field::AspectRatio(f64::NEG_INFINITY),
+        Field::AspectRatio(-1.),
+        Field::AspectRatio(0.),
+        Field::AspectRatio(0.0000001),
+        Field::AspectRatio(1_000_001.),
     ] {
         assert_eq!(
             session

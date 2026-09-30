@@ -191,5 +191,5 @@ let%expect_test "canvas capability handshake crosses the signed 32-bit boundary"
   |> List.map ~f:(fun char -> sprintf "%02x" (Char.to_int char))
   |> String.concat
   |> print_endline;
-  [%expect {| 0001fcffffffffffff0300 |}]
+  [%expect {| 0001fcffffffffffff0700 |}]
 ;;

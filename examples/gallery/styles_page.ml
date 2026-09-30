@@ -35,6 +35,7 @@ let cursors : (string * Style.Cursor.t) array =
 ;;
 
 let component palette graph =
+  let aspect_preview = Aspect_preview.component palette graph in
   let index, next =
     B.state_machine0
       ~default_model:0
@@ -48,6 +49,7 @@ let component palette graph =
   let rounded, toggle_corners = B.toggle ~default_model:true graph in
   let open B.Let_syntax in
   let%arr p = palette
+  and aspect_preview = aspect_preview
   and index = index
   and next = next
   and narrow = narrow
@@ -203,5 +205,6 @@ let component palette graph =
              (Accessibility.create ~role:Group ~label:"Gradient preview surface" () |> ok)
            |> ok)
         ]
+    ; aspect_preview
     ]
 ;;

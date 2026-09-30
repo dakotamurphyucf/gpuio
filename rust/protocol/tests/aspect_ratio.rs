@@ -2,12 +2,17 @@ use binprot::BinProtWrite;
 use gpuio_protocol::{NodeId, WindowId, v1::*};
 
 #[test]
-fn border_pattern_field_fixtures_and_bounded_request_decode() {
-    for (pattern, expected) in [(0, [0x43, 0]), (1, [0x43, 1])] {
-        let field = Field::BorderStyle(pattern);
+fn aspect_ratio_matches_independent_ocaml_fixtures_and_bounded_decoding() {
+    for (ratio, expected) in [
+        (0.5, "44000000000000e03f"),
+        (1., "44000000000000f03f"),
+        (2., "440000000000000040"),
+    ] {
+        let field = Field::AspectRatio(ratio);
         let mut bytes = vec![];
         field.binprot_write(&mut bytes).unwrap();
-        assert_eq!(bytes, expected); // Independent OCaml fixture.
+        let hex = bytes.iter().map(|b| format!("{b:02x}")).collect::<String>();
+        assert_eq!(hex, expected);
         let message = Message::Apply(Transaction {
             window: WindowId::from_parts(0, 1).unwrap(),
             base: 0,
@@ -17,7 +22,7 @@ fn border_pattern_field_fixtures_and_bounded_request_decode() {
                 vec![Style::Fields(vec![field])],
             )],
         });
-        let mut bytes = vec![];
+        bytes.clear();
         message.binprot_write(&mut bytes).unwrap();
         assert_eq!(gpuio_protocol::decode(&bytes), Ok(message));
         for len in 0..bytes.len() {
@@ -29,21 +34,18 @@ fn border_pattern_field_fixtures_and_bounded_request_decode() {
 }
 
 #[test]
-fn border_patterns_have_a_distinct_required_capability() {
-    assert_eq!(CAP_BORDER_STYLES, 1_i64 << 49);
+fn aspect_ratio_requires_a_matching_host() {
+    assert_eq!(CAP_ASPECT_RATIO, 1_i64 << 50);
     assert_eq!(CAPABILITIES, (1_i64 << 51) - 1);
     for (required, expected) in [
-        (CAP_BORDER_STYLES, "0001fc0000000000000200"),
+        (CAP_ASPECT_RATIO, "0001fc0000000000000400"),
         (CAPABILITIES, "0001fcffffffffffff0700"),
     ] {
         let hello = Message::Hello(VERSION, required);
         let mut bytes = vec![];
         hello.binprot_write(&mut bytes).unwrap();
         assert_eq!(
-            bytes
-                .iter()
-                .map(|byte| format!("{byte:02x}"))
-                .collect::<String>(),
+            bytes.iter().map(|b| format!("{b:02x}")).collect::<String>(),
             expected
         );
         assert_eq!(gpuio_protocol::decode(&bytes), Ok(hello));

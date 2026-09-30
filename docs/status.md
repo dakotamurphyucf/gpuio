@@ -5,6 +5,15 @@ Current checkpoint: milestones 1–6 are merged. Milestone 5's
 [required macOS/Linux CI](https://github.com/dakotamurphyucf/gpuio/actions/runs/36312697654)
 passed on `473407c`; all twelve tickets are Done.
 
+Native [aspect ratio](design/native-aspect-ratio.md) now exposes preferred
+proportional layout through validated styles, paired transport and capability bit
+50. Background GPU checks cover resizing, padded percentage widths, explicit
+dimensions, transferred min/max constraints and state/unset behavior. The public
+gallery and a fresh installed-library consumer pass twelve theme/ratio/width
+cases, thirteen keyboard actions, native identity/focus retention and page
+remount. This supplies the square-media primitive needed by richer attachments;
+the Attachment adapter and broader release gates remain open.
+
 The [text-shimmer adapter](design/text-shimmer.md) now connects Core/Bonsai,
 validated live transport and native retained rendering. The mounted background
 fixture passes actual glyph paint, wrapped selection/copy, foreground spans,

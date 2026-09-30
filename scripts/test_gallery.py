@@ -3281,6 +3281,93 @@ def exercise_motion(mac, images, second_title=SECOND):
           'sequence, cancellation/reverse, reduced endpoints, shared phase and departure', flush=True)
 
 
+def exercise_aspect_ratio(mac, images):
+    mac.press(TITLE, 'Styling details')
+    mac.wait_text(TITLE, 'Proportions that follow your layout')
+    reveal_gallery_control(mac, 'Kept 0', 'AXButton')
+    original = mac.wait_find(TITLE, 'Aspect preview surface', 'AXGroup')
+    button = mac.wait_find(TITLE, 'Kept 0', 'AXButton')
+    equal = mac.cf.CFEqual
+    equal.restype, equal.argtypes = C.c_bool, [C.c_void_p, C.c_void_p]
+    count = 0
+    cases = 0
+
+    def geometry(ratio, fixed=False):
+        frame = mac.wait_find(TITLE, 'Aspect preview frame', 'AXGroup')
+        node = mac.wait_find(TITLE, 'Aspect preview surface', 'AXGroup')
+        control = mac.wait_find(TITLE, f'Kept {count}', 'AXButton')
+        try:
+            assert equal(original, node), 'Restyle replaced aspect surface'
+            assert equal(button, control), 'Restyle replaced child control'
+            x, y, w, h = element_rect(mac, node)
+            fx, fy, fw, fh = element_rect(mac, frame)
+            expected_width = fw - 26  # 12px padding and 1px border on each side.
+            expected_height = 80 if fixed else expected_width / ratio
+            assert abs(w-expected_width) < 1 and abs(h-expected_height) < 1, ((w,h),(expected_width,expected_height))
+            assert abs(x-fx-13) < 1 and abs(y-fy-13) < 1, ('padding', (x,y),(fx,fy))
+        finally:
+            mac.release(frame)
+            mac.release(node)
+            mac.release(control)
+
+    def activate_child():
+        nonlocal count
+        expect_focus(mac, f'Kept {count}', 'AXButton')
+        mac.key(36)
+        count += 1
+        mac.wait_text(TITLE, f'Kept {count}')
+
+    theme_node = mac.find(TITLE, 'Dark', 'AXButton')
+    themes = ('Dark','Light') if theme_node else ('Light','Dark')
+    if theme_node:
+        mac.release(theme_node)
+    try:
+        focus_gallery_control(mac, 'Kept 0', 'AXButton')
+        for theme in themes:
+            for width in ('compact','wide'):
+                for label, ratio, next_label in (('Square',1.,'Landscape'),('Landscape',2.,'Portrait'),('Portrait',.5,'Square')):
+                    geometry(ratio)
+                    activate_child()
+                    geometry(ratio)
+                    cases += 1
+                    mac.press(TITLE, 'Ratio: '+label)
+                    mac.release(mac.wait_find(TITLE, 'Ratio: '+next_label, 'AXButton'))
+                mac.press(TITLE, 'Frame: '+width)
+                mac.release(mac.wait_find(TITLE, 'Frame: '+('wide' if width=='compact' else 'compact'), 'AXButton'))
+            mac.press(TITLE, theme)
+            mac.release(mac.wait_find(TITLE, 'Light' if theme=='Dark' else 'Dark', 'AXButton'))
+        mac.press(TITLE, 'Ratio: Square')
+        mac.release(mac.wait_find(TITLE, 'Ratio: Landscape', 'AXButton'))
+        mac.press(TITLE, 'Ratio: Landscape')
+        mac.release(mac.wait_find(TITLE, 'Ratio: Portrait', 'AXButton'))
+        mac.press(TITLE, 'Height: automatic')
+        mac.release(mac.wait_find(TITLE, 'Height: fixed', 'AXButton'))
+        geometry(.5, fixed=True)
+        activate_child()
+        mac.press(TITLE, 'Height: fixed')
+        mac.release(mac.wait_find(TITLE, 'Height: automatic', 'AXButton'))
+        geometry(.5)
+        mac.press(TITLE, 'Ratio: Portrait')
+        mac.release(mac.wait_find(TITLE, 'Ratio: Square', 'AXButton'))
+        geometry(1.)
+        if images:
+            reveal_gallery_control(mac, f'Kept {count}', 'AXButton')
+            screenshot(mac, images / 'gallery-aspect-ratio.png', title=TITLE)
+        mac.press(TITLE, 'Presentation')
+        mac.wait_text(TITLE, 'A little context goes a long way')
+        absent(mac, 'Aspect preview surface', 'AXGroup')
+        mac.press(TITLE, 'Styling details')
+        restored = mac.wait_find(TITLE, f'Kept {count}', 'AXButton')
+        try:
+            assert not equal(button, restored), 'Page departure retained the old control'
+        finally:
+            mac.release(restored)
+        print(f'GALLERY_ASPECT_RATIO_OK: {cases} theme/ratio/width cases, explicit height/reset, stable native surface/child identity and keyboard focus, {count} Return actions, page teardown with retained model', flush=True)
+    finally:
+        mac.release(original)
+        mac.release(button)
+
+
 def exercise_borders(mac, images):
     """AX-driven public style updates; no foreground keyboard/focus claim."""
     mac.press(TITLE, 'Styling details')
@@ -3394,6 +3481,7 @@ def exercise_styles(mac, images):
         mac.wait_text(TITLE, 'Text preview width: 140')
         mac.wait_text(TITLE, 'Interpolation: Oklab')
     exercise_borders(mac, images)
+    exercise_aspect_ratio(mac, images)
     print('GALLERY_STYLES_OK: all22 cursor configurations, keyboard/theme/size/visit retention, '
           'sRGB/Oklab gradient restyle, three bounded text samples with complete accessible source; physical cursor artwork is not asserted', flush=True)
 
@@ -3480,7 +3568,7 @@ def main():
     parser.add_argument('--trace-canvas', action='store_true')
     parser.add_argument('--trace-motion', action='store_true')
     parser.add_argument('--trace-windows', action='store_true')
-    parser.add_argument('--section', choices=['all', 'core', 'status-regions', 'badges', 'labels', 'shimmer', 'groups', 'links', 'empty', 'separators', 'styles', 'borders', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'document-links', 'document-images', 'highlighting', 'canvas', 'assets', 'charts', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
+    parser.add_argument('--section', choices=['all', 'core', 'status-regions', 'badges', 'labels', 'shimmer', 'groups', 'links', 'empty', 'separators', 'styles', 'borders', 'aspect-ratio', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'document-links', 'document-images', 'highlighting', 'canvas', 'assets', 'charts', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
     args = parser.parse_args()
     if args.images:
         args.images.mkdir(parents=True, exist_ok=True)
@@ -3511,6 +3599,8 @@ def main():
                 exercise_empty(mac, args.images)
             if args.section == 'groups':
                 exercise_groups(mac, args.images)
+            if args.section == 'aspect-ratio':
+                exercise_aspect_ratio(mac, args.images)
             if args.section == 'shimmer':
                 exercise_shimmer(mac, args.images)
             if args.section == 'labels':

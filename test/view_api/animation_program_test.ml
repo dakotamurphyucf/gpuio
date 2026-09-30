@@ -335,5 +335,5 @@ let%expect_test "advanced programs negotiate a capability above 32 bits" =
   |> List.map ~f:(fun char -> sprintf "%02x" (Char.to_int char))
   |> String.concat
   |> print_endline;
-  [%expect {| 0001fcffffffffffff0300 |}]
+  [%expect {| 0001fcffffffffffff0700 |}]
 ;;

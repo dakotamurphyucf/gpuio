@@ -96,7 +96,7 @@
         "docs/design/text-shimmer.md"
       ],
       "gallery_page": "presentation",
-      "contract": "Native skeleton/spinner/placeholder animation and reduced-motion/static policy; no invented completion value. Glyph shimmer has Core/Bonsai/live transport and mounted Host/selection/highlight integration, explicit application appearances and focused background GPU/lifecycle checks including retained tabs, native responsive branches and managed-row pause/eviction/remount. Shared per-window candidate/glyph budgets have native fallback/recovery evidence. Public gallery/consumer and measured application-performance acceptance remain pending.",
+      "contract": "Native skeleton/spinner/placeholder animation and reduced-motion/static policy; no invented completion value. Glyph shimmer has Core/Bonsai/live transport and mounted Host/selection/highlight integration, explicit application appearances and focused background GPU/lifecycle checks including retained tabs, native responsive branches and managed-row pause/eviction/remount. Shared per-window candidate/glyph budgets have native fallback/recovery evidence. Public gallery and fresh installed-consumer checks now pass theme/width/direction, keyboard Copy and effect toggling, identity, playback/reduced motion and page remount. A visible-layout clock defect has a failing-before regression and passing repair. Measured application-performance acceptance remains pending.",
       "upstream_modules": [
         "component/shimmer",
         "component/skeleton",
@@ -655,10 +655,11 @@
       "public_interface": "lib/core/style.mli",
       "example": "examples/view_api",
       "evidence": [
-        "docs/evidence/theme-scale-och11.md"
+        "docs/evidence/theme-scale-och11.md",
+        "docs/design/native-aspect-ratio.md"
       ],
       "gallery_page": "presentation",
-      "contract": "Typed styles/tokens/native states. Compare values and scope restrictions using gpuix-styles.json, not only field names.",
+      "contract": "Typed styles/tokens/native states. Compare values and scope restrictions using gpuix-styles.json, not only field names. Native aspect ratio now has paired transport, validation and retained GPU geometry/state/unset evidence; public gallery and a fresh installed consumer pass proportional geometry, explicit-height reset, keyboard focus/state/identity retention and page remount. Specialized-widget and release acceptance remain separate.",
       "upstream_modules": [
         "base/state_style",
         "base/styled",

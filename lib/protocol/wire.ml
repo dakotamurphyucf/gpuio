@@ -30,7 +30,7 @@ module Desktop = Desktop_wire
 module Notification = Notification_wire
 
 let version = 1L
-let capabilities = 1125899906842623L
+let capabilities = 2251799813685247L
 let max_message_bytes = 1_048_576
 
 module Kind = struct
@@ -401,6 +401,7 @@ module Field = struct
     | Inert of bool
     | Pointer_occlusion of int64
     | Border_style of int64
+    | Aspect_ratio of float
   [@@deriving bin_io, equal, sexp_of]
 end
 

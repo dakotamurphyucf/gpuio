@@ -642,6 +642,7 @@ impl Decoder<'_> {
             65 => Field::Inert(self.boolean()?),
             66 => Field::PointerOcclusion(self.int()?),
             67 => Field::BorderStyle(self.int()?),
+            68 => Field::AspectRatio(self.float()?),
             _ => return Err(DecodeError::Malformed),
         })
     }

@@ -34,8 +34,10 @@ Atomic ordinary text foreground spans require bit 47 (`CAP_STYLED_TEXT`) and
 append Op59 `Set_styled_text`. Composed passive-content links require bit 48
 (`CAP_LINKS`), Kind51 `Link` and Op60 `Set_link`; their root owns one action/focus
 target. Solid/dashed border patterns require bit 49 (`CAP_BORDER_STYLES`) and
-append field 67 `Border_style` with values 0/1. Both language halves require the
-current shared mask `1125899906842623`;
+append field 67 `Border_style` with values 0/1. Native proportional layout requires
+bit 50 (`CAP_ASPECT_RATIO`) and appends field 68 `Aspect_ratio` with a validated
+float width/height ratio. Both language halves require the
+current shared mask `2251799813685247`;
 an older host fails capability negotiation instead of accepting
 unsupported input, commands or style values. Existing style field tags and value
 IDs are unchanged: cursor additions occupy 10–21 and start ellipsis occupies 2.

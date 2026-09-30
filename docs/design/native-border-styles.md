@@ -48,15 +48,16 @@ change in the same rejected batch does not escape; revision and retained-byte
 accounting remain unchanged.
 
 Capability bit 49 (`CAP_BORDER_STYLES`) requires a matching host before any new
-field can be sent by the current OCaml client. The current full mask is
-`1125899906842623`. Independent OCaml/Rust fixtures specify:
+field can be sent by the current OCaml client. The full mask at this border
+checkpoint was `1125899906842623`; [aspect ratio](native-aspect-ratio.md) records
+the current mask. Historical independent OCaml/Rust fixtures at this checkpoint:
 
 | Payload | Hex |
 | --- | --- |
 | Solid field | `4300` |
 | Dashed field | `4301` |
 | Hello requiring border styles | `0001fc0000000000000200` |
-| Hello requiring all current capabilities | `0001fcffffffffffff0300` |
+| Hello requiring all capabilities at the border checkpoint | `0001fcffffffffffff0300` |
 
 The native mapper writes `gpui::StyleRefinement.border_style`; ordinary retained
 views continue to own their identity and layout. There is no per-dash OCaml child

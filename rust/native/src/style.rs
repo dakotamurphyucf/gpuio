@@ -115,6 +115,7 @@ pub fn validate_fields(fields: &[Field]) -> Result<(), ErrorCode> {
                 (1..=1024).contains(v)
             }
             Field::FontWeight(v) => (1..=1000).contains(v),
+            Field::AspectRatio(v) => v.is_finite() && (0.000001..=1_000_000.).contains(v),
             Field::Width(v)
             | Field::Height(v)
             | Field::MinWidth(v)
@@ -369,6 +370,7 @@ pub fn refine(style: &mut gpui::StyleRefinement, fields: &[Field]) {
                     }
                 })
             }
+            Field::AspectRatio(v) => style.aspect_ratio = Some(*v as f32),
             Field::Foreground(v) => style.text.color = Some(gpui_color(v)),
             Field::Opacity(v) => style.opacity = Some(*v as f32),
             Field::BorderTopWidth(v) => style.border_widths.top = Some(px(*v as f32).into()),
@@ -674,6 +676,20 @@ mod tests {
             ))]),
             Err(ErrorCode::Malformed)
         );
+    }
+
+    #[test]
+    fn aspect_ratio_reaches_native_layout_and_survives_other_refinements() {
+        let mut style = gpui::StyleRefinement::default();
+        assert_eq!(style.aspect_ratio, None);
+        for value in [0.000001, 0.5, 1., 2., 1_000_000.] {
+            let fields = [Field::AspectRatio(value)];
+            validate_fields(&fields).unwrap();
+            refine(&mut style, &fields);
+            refine(&mut style, &[Field::Width(Length::Px(120.))]);
+            assert_eq!(style.aspect_ratio, Some(value as f32));
+        }
+        assert_eq!(gpui::Style::default().aspect_ratio, None);
     }
 
     #[test]

@@ -199,9 +199,9 @@ fn notifications_and_charts_require_the_paired_milestone_six_backend() {
     };
     assert_eq!(CAPABILITIES & CAP_OS_NOTIFICATIONS, 1_i64 << 42);
     assert_eq!(CAPABILITIES & CAP_CHARTS, 1_i64 << 43);
-    assert_eq!(CAPABILITIES, 1_125_899_906_842_623);
+    assert_eq!(CAPABILITIES, 2_251_799_813_685_247);
     let hello = Message::Hello(VERSION, CAPABILITIES);
-    let bytes = vec![0, 1, 252, 255, 255, 255, 255, 255, 255, 3, 0];
+    let bytes = vec![0, 1, 252, 255, 255, 255, 255, 255, 255, 7, 0];
     assert_eq!(encode(&hello), bytes);
     assert_eq!(decode(&bytes), Ok(hello));
 }

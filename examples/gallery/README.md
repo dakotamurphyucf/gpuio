@@ -36,6 +36,14 @@ The group owns no model or native controller; this example's Bonsai model persis
 across page navigation while the native controls unmount. Run its focused native
 check with `python3 scripts/test_gallery.py --section groups`.
 
+The Styling details page's **Proportions that follow your layout** card uses
+`Aspect_ratio` to resize a preview while retaining a child button's count and
+focus. Switch square/landscape/portrait proportions, compact/wide frames and
+automatic/fixed height. The focused macOS check is
+`python3 scripts/test_gallery.py --section aspect-ratio`; both the repository app
+and an independently installed consumer pass the
+[layout and state checks](../../docs/design/native-aspect-ratio.md).
+
 The Presentation page includes a **Text with context** card using `Label.create`
 and `Presentation.styled_label`. It demonstrates one selectable text flow with
 muted secondary text, prefix/all-occurrence Unicode match coloring and display
