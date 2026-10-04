@@ -24,9 +24,9 @@ editor identity. Application-originated commands retain each widget's documented
 contract; focus/submit cannot enter disabled content.
 
 The wire addition is Boolean style field 69, negotiated by bit 54
-(`CAP_DISABLED_SUBTREES`). The paired required mask is `72057594037927935`.
+(`CAP_DISABLED_SUBTREES`). The paired required mask is `9223372036854775807`.
 Independent Hello bytes are `0001fc0000000000004000` for this bit alone and
-`0001fcffffffffffffff00` for the complete current mask. Older hosts reject the
+`0001fcffffffffffffff7f` for the complete current mask. Older hosts reject the
 required capability rather than silently ignoring this policy.
 Hover/focus/pressed declarations
 reject it atomically, as they do Inert. Rendering visibility stays separate from
@@ -104,3 +104,17 @@ Unicode editing, search/page recovery, native Save/Eio readback, 48-group
 focus/eviction and independent-window checks. The consumer is
 `/private/tmp/gpuio-disabled-subtrees-20260930-1`; it is evidence only, never a
 build dependency. See [Settings evidence](settings-composition.md#disabled-field-discoverability-follow-up--2026-09-30).
+
+## Type-erased shield identity follow-through — 2026-10-01
+
+Inert shield wrappers now carry a stable slot/generation identity, including
+retained navigation/carousel pages. This ensures GPUI can emit their hidden
+ancestor even when the body is an `AnyElement`. Ordinary typed control roots
+already project visibility through `finish_element`; this correction also covers
+the outer shield instead of relying on every specialized descendant to do so.
+The disabled-table path now uses the disabled prepaint scope, preserving roles
+and values while disabling descendants; it does not use an inert wrapper.
+
+Direct wrapper regressions and the native TestPlatform suite pass after this
+change. They do not replace the earlier scoped platform evidence or establish
+new physical AX/VoiceOver acceptance for the changed paths.

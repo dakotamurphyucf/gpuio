@@ -3,10 +3,25 @@ use super::*;
 #[cfg(target_os = "macos")]
 #[path = "table_host_test/accessibility.rs"]
 mod accessibility;
+#[cfg(all(test, feature = "native-image-tests"))]
+#[path = "table_host_test/appearance.rs"]
+mod appearance;
+#[cfg(all(test, feature = "native-image-tests"))]
+#[path = "table_host_test/behavior.rs"]
+mod behavior;
+#[cfg(all(test, feature = "native-image-tests"))]
+#[path = "table_host_test/column_viewport.rs"]
+mod column_viewport;
+#[cfg(all(test, feature = "native-image-tests"))]
+#[path = "table_host_test/headers.rs"]
+mod headers;
 #[path = "table_host_test/history.rs"]
 mod history;
 #[path = "table_host_test/input.rs"]
 mod input;
+#[cfg(all(test, feature = "native-image-tests"))]
+#[path = "table_host_test/scrollbar.rs"]
+mod scrollbar;
 #[cfg(feature = "native-image-tests")]
 #[path = "table_host_test/style.rs"]
 mod style;
@@ -512,3 +527,7 @@ fn run_case(history: bool) {
         std::panic::resume_unwind(error);
     }
 }
+
+#[cfg(all(test, feature = "native-image-tests"))]
+#[path = "table_host_test/presentation.rs"]
+mod presentation;

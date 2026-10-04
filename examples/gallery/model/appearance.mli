@@ -8,6 +8,20 @@ type t =
 val toggle : t -> t
 val label : t -> string
 
+module Preference : sig
+  type appearance = t [@@deriving equal, sexp_of]
+
+  type t =
+    | System
+    | Explicit of appearance
+  [@@deriving equal, sexp_of]
+
+  (** Resolve the application palette independently of native decorations. System
+      uses Dark until the initial native observation arrives. Explicit choices
+      ignore later native appearance changes. *)
+  val resolve : t -> native:Gpuio.Window.Appearance.t option -> appearance
+end
+
 module Scale : sig
   type t =
     | Compact

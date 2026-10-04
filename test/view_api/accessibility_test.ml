@@ -21,6 +21,30 @@ let check_fixture name bytes =
     assert (String.equal hex expected))
 ;;
 
+let%expect_test "log region is a container semantic with explicit announcement policy" =
+  let metadata = A.create ~role:Log ~label:"Transcript" () |> ok in
+  let config = A.Expert.to_wire metadata in
+  Bin_prot.Utils.bin_dump W.Config.bin_writer_t config
+  |> Bigstring.to_string
+  |> check_fixture "accessibility-log.hex";
+  let quiet = A.create ~role:Log ~label:"Transcript" ~live:Off () |> ok in
+  let ordinary = View.column [ View.text "A response" ] in
+  ignore (View.with_accessibility ordinary metadata |> ok : unit View.t);
+  let list =
+    View.virtual_list
+      ~config:(Virtual_list.Config.create ~height:(Estimated 40.) () |> ok)
+      [ Key.of_int 1, ordinary ]
+    |> ok
+  in
+  let annotated = View.with_accessibility list quiet |> ok |> View.Expert.describe in
+  assert (Option.is_some annotated.accessibility);
+  List.iter
+    [ View.text "Not a log container"; View.button ~on_click:(fun () -> ()) "Send" ]
+    ~f:(fun view -> assert (Result.is_error (View.with_accessibility view metadata)));
+  print_s [%sexp (config.live : W.Live.t), ((A.Expert.to_wire quiet).live : W.Live.t)];
+  [%expect {| (Polite Off) |}]
+;;
+
 let%expect_test "appended operation and role fixtures agree with Rust" =
   let node = Gpuio_protocol.Node_id.create ~slot:0L ~generation:1L |> ok in
   let window = Gpuio_protocol.Window_id.create ~slot:0L ~generation:1L |> ok in
@@ -280,4 +304,35 @@ let%expect_test
     "current-page fixture matches; descriptive fallback and semantic placement enforced";
   [%expect
     {| current-page fixture matches; descriptive fallback and semantic placement enforced |}]
+;;
+
+let%expect_test "toolbar orientation is paired metadata restricted to containers" =
+  let configs =
+    [ A.create ~role:(Toolbar Horizontal) ~label:"Row" () |> ok
+    ; A.create ~role:(Toolbar Vertical) ~label:"Column" () |> ok
+    ]
+  in
+  Bin_prot.Utils.bin_dump
+    [%bin_writer: W.Config.t list]
+    (List.map configs ~f:A.Expert.to_wire)
+  |> Bigstring.to_string
+  |> check_fixture "accessibility-toolbar.hex";
+  List.iter configs ~f:(fun config ->
+    let button = View.button ~on_click:(fun () -> ()) "Bold" in
+    let view = View.with_accessibility (View.row [ button ]) config |> ok in
+    let described = View.Expert.describe view in
+    assert (List.length described.children = 1);
+    assert (W.Live.equal (A.Expert.to_wire config).live Off);
+    assert (Result.is_error (View.with_accessibility button config));
+    assert (Result.is_error (View.with_accessibility (View.text "Wrong") config));
+    assert (
+      Result.is_error
+        (View.with_accessibility
+           (View.checkbox ~state:Checked ~on_toggle:(fun () -> ()) "Wrong")
+           config)));
+  print_endline
+    "horizontal/vertical fixture; container-only; child actions preserved; no live \
+     announcement";
+  [%expect
+    {| horizontal/vertical fixture; container-only; child actions preserved; no live announcement |}]
 ;;

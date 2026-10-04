@@ -14,7 +14,7 @@ use crate::{
     v_flex,
 };
 use gpui::{
-    App, AppContext, Axis, Bounds, ClickEvent, Context, Div, DragMoveEvent, ElementId,
+    AnyElement, App, AppContext, Axis, Bounds, ClickEvent, Context, Div, DragMoveEvent, ElementId,
     EventEmitter, FocusHandle, Focusable, InteractiveElement, IntoElement, ListSizingBehavior,
     MouseButton, MouseDownEvent, ParentElement, Pixels, Point, Render, ScrollStrategy,
     SharedString, Stateful, StatefulInteractiveElement as _, Styled, Task, UniformListScrollHandle,
@@ -191,6 +191,8 @@ pub struct TableState<D: TableDelegate> {
     bounds: Bounds<Pixels>,
     /// The bounds of the fixed head cols.
     fixed_head_cols_bounds: Bounds<Pixels>,
+    scrolling_head_cols_bounds: Bounds<Pixels>,
+    column_viewport: Option<ColumnViewport>,
 
     col_groups: Vec<ColGroup>,
     header_layout: Vec<Vec<HeaderCell>>,
@@ -285,6 +287,8 @@ where
             col_drag_gap: None,
             bounds: Bounds::default(),
             fixed_head_cols_bounds: Bounds::default(),
+            scrolling_head_cols_bounds: Bounds::default(),
+            column_viewport: None,
             visible_range: TableVisibleRange::default(),
             loop_selection: true,
             col_selectable: true,
@@ -412,6 +416,7 @@ where
     fn invalidate_layout(&mut self) {
         self.layout_epoch = LayoutEpoch::new();
         self.visible_range = TableVisibleRange::default();
+        self.column_viewport = None;
     }
 
     fn invalidate_columns(&mut self) {
@@ -640,7 +645,10 @@ where
 
     /// Sets the selected col to the given index.
     pub fn set_selected_col(&mut self, col_ix: usize, cx: &mut Context<Self>) {
-        let Some(column) = self.col_groups.get(col_ix) else {
+        if !self.col_selectable {
+            return;
+        }
+        let Some(column) = self.col_groups.get(col_ix).filter(|c| c.column.selectable) else {
             return;
         };
         let column_key = column.column.key.clone();
@@ -731,6 +739,14 @@ where
     /// See [`TableVisibleRange`].
     pub fn visible_range(&self) -> &TableVisibleRange {
         &self.visible_range
+    }
+
+    /// Horizontal column bands from the latest matching completed prepaint,
+    /// including pinned columns and empty-data headers. This is not the buffered
+    /// body/header render range. Invalidating layout returns None until prepaint.
+    /// The snapshot describes layout visibility, not pixel/OS occlusion.
+    pub fn column_viewport(&self) -> Option<&ColumnViewport> {
+        self.column_viewport.as_ref()
     }
 
     /// Dump the header row of the table.
@@ -1221,8 +1237,10 @@ where
             return;
         }
 
-        // Column selection mode
-        self.set_selected_col(0, cx);
+        // Header eligibility is independent of cell navigation.
+        if let Some(index) = self.col_groups.iter().position(|c| c.column.selectable) {
+            self.set_selected_col(index, cx);
+        }
     }
 
     pub(super) fn action_select_last_column(
@@ -1248,8 +1266,9 @@ where
             return;
         }
 
-        // Column selection mode
-        self.set_selected_col(columns_count.saturating_sub(1), cx);
+        if let Some(index) = self.col_groups.iter().rposition(|c| c.column.selectable) {
+            self.set_selected_col(index, cx);
+        }
     }
 
     pub(super) fn action_select_page_up(
@@ -1325,6 +1344,37 @@ where
         self.set_selected_row(target, cx);
     }
 
+    // At most one pass over retained column metadata. No row scan or allocation;
+    // stopping at a boundary never selects an ineligible intermediate header.
+    fn adjacent_selectable_column(&self, forward: bool) -> Option<usize> {
+        if !self.col_selectable || self.col_groups.is_empty() {
+            return None;
+        }
+        let count = self.col_groups.len();
+        let mut index = self.selected_col.unwrap_or(0);
+        for _ in 0..count {
+            index = if forward {
+                if index + 1 < count {
+                    index + 1
+                } else if self.loop_selection {
+                    0
+                } else {
+                    return None;
+                }
+            } else if index > 0 {
+                index - 1
+            } else if self.loop_selection {
+                count - 1
+            } else {
+                return None;
+            };
+            if self.col_groups[index].column.selectable {
+                return Some(index);
+            }
+        }
+        None
+    }
+
     pub(super) fn action_select_prev_col(
         &mut self,
         _: &SelectPrevColumn,
@@ -1355,16 +1405,9 @@ where
             return;
         }
 
-        // Column selection mode
-        let mut selected_col = self.selected_col.unwrap_or(0);
-        if selected_col > 0 {
-            selected_col = selected_col.saturating_sub(1);
-        } else {
-            if self.loop_selection {
-                selected_col = columns_count.saturating_sub(1);
-            }
+        if let Some(index) = self.adjacent_selectable_column(false) {
+            self.set_selected_col(index, cx);
         }
-        self.set_selected_col(selected_col, cx);
     }
 
     pub(super) fn action_select_next_col(
@@ -1397,17 +1440,9 @@ where
             return;
         }
 
-        // Column selection mode
-        let mut selected_col = self.selected_col.unwrap_or(0);
-        if selected_col < columns_count.saturating_sub(1) {
-            selected_col += 1;
-        } else {
-            if self.loop_selection {
-                selected_col = 0;
-            }
+        if let Some(index) = self.adjacent_selectable_column(true) {
+            self.set_selected_col(index, cx);
         }
-
-        self.set_selected_col(selected_col, cx);
     }
 
     /// Scroll table when mouse position is near the edge of the table bounds.
@@ -1852,7 +1887,7 @@ where
             .h_full()
             .border_r_1()
             .border_color(theme.table_row_border)
-            .bg(theme.tokens.table_head)
+            .when(!is_head, |this| this.bg(theme.tokens.table_head))
             .flex_shrink_0()
             .table_cell_size(self.options.size)
             .when(!is_head, |this| {
@@ -2160,44 +2195,43 @@ where
                     h_flex()
                         .relative()
                         .h_full()
-                        .bg(theme.tokens.table_head)
-                        .child(
-                            v_flex()
-                                .min_w_full()
-                                .flex_shrink_0()
-                                .children(layout.iter().map(|row_cells| {
-                                    h_flex()
-                                        .min_w_full()
-                                        .h(self.options.size.table_row_height())
-                                        .border_b_1()
-                                        .border_color(theme.border)
-                                        .children(row_cells.iter().filter_map(|cell| {
-                                            if cell.start_leaf_col_ix < left_columns_count {
-                                                if cell.is_leaf {
-                                                    if let Some(ix) = cell.leaf_col_ix {
-                                                        return Some(
-                                                            self.render_th(ix, window, cx)
-                                                                .into_any_element(),
-                                                        );
-                                                    }
-                                                } else {
+                        .child(v_flex().min_w_full().flex_shrink_0().children(
+                            layout.iter().enumerate().map(|(row_ix, row_cells)| {
+                                h_flex()
+                                    .min_w_full()
+                                    .h(self.options.size.table_row_height())
+                                    .border_b_1()
+                                    .border_color(theme.border)
+                                    .children(row_cells.iter().filter_map(|cell| {
+                                        if cell.start_leaf_col_ix < left_columns_count {
+                                            if cell.is_leaf {
+                                                if let Some(ix) = cell.leaf_col_ix {
                                                     return Some(
-                                                        self.delegate_mut()
-                                                            .render_group_th(
-                                                                &cell.label,
-                                                                cell.col_span,
-                                                                cell.width,
-                                                                window,
-                                                                cx,
-                                                            )
+                                                        self.render_th(ix, window, cx)
                                                             .into_any_element(),
                                                     );
                                                 }
+                                            } else {
+                                                return Some(
+                                                    self.delegate_mut()
+                                                        .render_group_header(
+                                                            row_ix,
+                                                            cell.start_leaf_col_ix
+                                                                ..cell.start_leaf_col_ix
+                                                                    + cell.col_span,
+                                                            &cell.label,
+                                                            cell.width,
+                                                            window,
+                                                            cx,
+                                                        )
+                                                        .into_any_element(),
+                                                );
                                             }
-                                            None
-                                        }))
-                                })),
-                        )
+                                        }
+                                        None
+                                    }))
+                            }),
+                        ))
                         .child(
                             // Fixed columns border
                             div()
@@ -2223,7 +2257,17 @@ where
                     .overflow_scroll()
                     .relative()
                     .track_scroll(&horizontal_scroll_handle)
-                    .bg(theme.tokens.table_head)
+                    .on_prepaint({
+                        let view = view.clone();
+                        let epoch = self.layout_epoch.clone();
+                        move |bounds, _, cx| {
+                            view.update(cx, |state, _| {
+                                if epoch.matches(&state.layout_epoch) {
+                                    state.scrolling_head_cols_bounds = bounds;
+                                }
+                            });
+                        }
+                    })
                     .child(v_flex().min_w_full().flex_shrink_0().children(
                         layout.iter().enumerate().map(|(row_ix, row_cells)| {
                             let is_leaf_row = row_ix + 1 == layout_len;
@@ -2279,9 +2323,12 @@ where
                                                 } else {
                                                     return Some(
                                                         self.delegate_mut()
-                                                            .render_group_th(
+                                                            .render_group_header(
+                                                                row_ix,
+                                                                cell.start_leaf_col_ix
+                                                                    ..cell.start_leaf_col_ix
+                                                                        + cell.col_span,
                                                                 &cell.label,
-                                                                cell.col_span,
                                                                 cell.width,
                                                                 window,
                                                                 cx,
@@ -2335,13 +2382,6 @@ where
                 })
                 .when(is_stripe_row, |this| this.bg(theme.tokens.table_even))
                 .refine_style(&style)
-                .hover(|this| {
-                    if is_selected || self.right_clicked_row == Some(row_ix) {
-                        this
-                    } else {
-                        this.bg(theme.tokens.table_hover)
-                    }
-                })
                 .when(self.cell_selectable && self.row_header, |this| {
                     this.child(self.render_row_header_cell(row_ix, false, cx))
                 })
@@ -2619,6 +2659,25 @@ where
                 .on_click(self.layout_listener(cx, move |this, e, window, cx| {
                     this.on_row_left_click(e, row_ix, window, cx);
                 }))
+                .map(|row| {
+                    let focused = self.focus_handle.is_focused(window)
+                        && (self.selected_row == Some(row_ix)
+                            || self.selected_cell.is_some_and(|(index, _)| index == row_ix));
+                    self.delegate.finish_row(
+                        row_ix,
+                        super::RowPresentation {
+                            selected: is_selected && self.selection_mode.is_row(),
+                            focused,
+                            hover: (self.delegate.pointer_enabled(cx)
+                                && !is_selected
+                                && self.right_clicked_row != Some(row_ix))
+                            .then(|| gpui::StyleRefinement::default().bg(theme.tokens.table_hover)),
+                        },
+                        row,
+                        window,
+                        cx,
+                    )
+                })
                 .map(|row| self.accessible_row(row, row_ix, window, cx))
                 .into_any_element()
         } else {
@@ -2715,19 +2774,26 @@ where
         &mut self,
         _: &mut Window,
         _: &mut Context<Self>,
-    ) -> Option<impl IntoElement> {
+    ) -> Option<AnyElement> {
+        let (width, scrollbar) = match &self.options.scrollbar_presentation {
+            Some(p) => (p.width, (p.render)(Axis::Vertical)?),
+            None => (
+                Scrollbar::width(),
+                Scrollbar::vertical(&self.vertical_scroll_handle)
+                    .viewport_from_layout()
+                    .max_fps(60)
+                    .into_any_element(),
+            ),
+        };
         Some(
             div()
                 .absolute()
                 .top(self.options.size.table_row_height() * self.header_layout.len().max(1) as f32)
                 .right_0()
                 .bottom_0()
-                .w(Scrollbar::width())
-                .child(
-                    Scrollbar::vertical(&self.vertical_scroll_handle)
-                        .viewport_from_layout()
-                        .max_fps(60),
-                ),
+                .w(width)
+                .child(scrollbar)
+                .into_any_element(),
         )
     }
 
@@ -2735,14 +2801,26 @@ where
         &mut self,
         _: &mut Window,
         _: &mut Context<Self>,
-    ) -> impl IntoElement {
-        div()
-            .absolute()
-            .left(self.fixed_head_cols_bounds.size.width)
-            .right_0()
-            .bottom_0()
-            .h(Scrollbar::width())
-            .child(Scrollbar::horizontal(&self.horizontal_scroll_handle).viewport_from_layout())
+    ) -> Option<AnyElement> {
+        let (width, scrollbar) = match &self.options.scrollbar_presentation {
+            Some(p) => (p.width, (p.render)(Axis::Horizontal)?),
+            None => (
+                Scrollbar::width(),
+                Scrollbar::horizontal(&self.horizontal_scroll_handle)
+                    .viewport_from_layout()
+                    .into_any_element(),
+            ),
+        };
+        Some(
+            div()
+                .absolute()
+                .left(self.fixed_head_cols_bounds.size.width)
+                .right_0()
+                .bottom_0()
+                .h(width)
+                .child(scrollbar)
+                .into_any_element(),
+        )
     }
 }
 
@@ -2762,6 +2840,8 @@ where
 {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         self.measure(window, cx);
+        self.column_viewport = None;
+        self.scrolling_head_cols_bounds = Bounds::default();
 
         let columns_count = self.delegate.columns_count(cx);
         let left_columns_count = self
@@ -2906,6 +2986,7 @@ where
 
         div()
             .size_full()
+            .relative()
             .children(loading_view)
             .when(!loading, |this| {
                 this.child(inner_table)
@@ -2930,10 +3011,39 @@ where
                         }))
                     })
             })
-            .on_prepaint({
-                let state = cx.entity();
-                move |bounds, _, cx| state.update(cx, |state, _| state.bounds = bounds)
-            })
+            .child(
+                gpui::canvas(
+                    {
+                        let state = cx.entity();
+                        let epoch = self.layout_epoch.clone();
+                        move |bounds, window, cx| {
+                            state.update(cx, |state, _| {
+                                if !epoch.matches(&state.layout_epoch) {
+                                    return;
+                                }
+                                state.bounds = bounds;
+                                if !loading {
+                                    state.column_viewport = Some(super::column_viewport::measure(
+                                        state.col_groups.iter().map(|c| (&c.column.key, c.width)),
+                                        left_columns_count,
+                                        state.fixed_head_cols_bounds,
+                                        state.scrolling_head_cols_bounds,
+                                        state.horizontal_scroll_handle.offset().x,
+                                        bounds
+                                            .intersect(&window.content_mask().bounds)
+                                            .intersect(&window.fully_visible_bounds()),
+                                    ));
+                                }
+                            })
+                        }
+                    },
+                    |_, _, _, _| {},
+                )
+                .absolute()
+                .top_0()
+                .left_0()
+                .size_full(),
+            )
             .when(!window.is_inspector_picking(cx), |this| {
                 this.child(
                     div()
@@ -2941,7 +3051,7 @@ where
                         .top_0()
                         .size_full()
                         .when(self.options.scrollbar_visible.bottom, |this| {
-                            this.child(self.render_horizontal_scrollbar(window, cx))
+                            this.children(self.render_horizontal_scrollbar(window, cx))
                         })
                         .when(
                             self.options.scrollbar_visible.right && rows_count > 0,

@@ -15,10 +15,15 @@ records required hosted results, the checked revision and merge status. See
 framework with no stable API release yet.
 
 The baseline is stock OCaml 5.3.0, Bonsai/Jane Street v0.17, Core, Eio 1.3,
-Dune 3.24.2 and Rust 1.97.1. macOS and Linux (Wayland and X11) are v1 targets.
+Dune 3.24.2 and Rust 1.97.1. The initial v1 release targets macOS first. Linux
+remains experimental/build-tested; full X11/Wayland desktop qualification follows
+in milestone 07b. See the [platform policy](docs/platform-release-policy.md).
 
 ## Start here
 
+- [Build your first application](docs/getting-started.md)
+- [API compatibility and limits](docs/api-compatibility.md)
+- [Component Studio gallery](examples/gallery/README.md)
 - [Current implementation status](docs/status.md)
 - [Run the agent workspace](examples/agent_chat/README.md)
 - [Write or consume a native component package](docs/design/extensions.md)

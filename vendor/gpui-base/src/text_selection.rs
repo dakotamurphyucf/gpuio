@@ -560,6 +560,38 @@ fn resolve_copy_items(mut items: Vec<CopyItem>, cx: &mut App) -> String {
         .join("\n")
 }
 
+/// Selected text would exceed the caller's UTF-8 byte budget.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct TextSelectionCopyLimitExceeded;
+
+fn resolve_copy_items_limited(
+    mut items: Vec<CopyItem>,
+    max_bytes: usize,
+    cx: &mut App,
+) -> Result<String, TextSelectionCopyLimitExceeded> {
+    items.sort_by_key(|item| item.document_order);
+    let mut result = String::new();
+    for item in items {
+        let text = match item.callback {
+            Some(callback) => callback(cx),
+            None => item.fallback,
+        };
+        if text.is_empty() {
+            continue;
+        }
+        let separator = usize::from(!result.is_empty());
+        let remaining = max_bytes.saturating_sub(result.len());
+        if separator > remaining || text.len() > remaining - separator {
+            return Err(TextSelectionCopyLimitExceeded);
+        }
+        if separator != 0 {
+            result.push('\n');
+        }
+        result.push_str(&text);
+    }
+    Ok(result)
+}
+
 fn dispatch_clear_handlers(handlers: Vec<ClearHandler>, cx: &mut App) {
     for handler in handlers {
         handler(cx);
@@ -1162,6 +1194,57 @@ impl WindowSelectionState {
                     .copy_item(registration.registration.document_order)
             })
             .collect()
+    }
+
+    fn copy_items_limited(
+        &self,
+        cx: &App,
+        max_bytes: usize,
+    ) -> Result<Vec<CopyItem>, TextSelectionCopyLimitExceeded> {
+        let mut items = Vec::new();
+        let mut fallback_bytes = 0usize;
+        let mut fallback_count = 0usize;
+        for registration in self
+            .participants
+            .values()
+            .filter(|r| r.registration.scope == self.active_scope)
+        {
+            let Some(participant) = registration.participant.upgrade() else {
+                continue;
+            };
+            let participant = participant.read(cx);
+            if participant.snapshot.is_none() && !participant.local_selection {
+                continue;
+            }
+            let callback = participant.copy.clone();
+            let fallback = if callback.is_some() {
+                String::new()
+            } else {
+                let text = participant
+                    .projected_copy_text
+                    .as_ref()
+                    .unwrap_or(&participant.fallback_copy_text);
+                if !text.is_empty() {
+                    let separator = usize::from(fallback_count > 0);
+                    let needed = text
+                        .len()
+                        .checked_add(separator)
+                        .ok_or(TextSelectionCopyLimitExceeded)?;
+                    fallback_bytes = fallback_bytes
+                        .checked_add(needed)
+                        .filter(|n| *n <= max_bytes)
+                        .ok_or(TextSelectionCopyLimitExceeded)?;
+                    fallback_count += 1;
+                }
+                text.clone()
+            };
+            items.push(CopyItem {
+                document_order: registration.registration.document_order,
+                callback,
+                fallback,
+            });
+        }
+        Ok(items)
     }
 
     #[cfg(test)]
@@ -1770,6 +1853,23 @@ impl TextSelection {
         };
         let items = state.read(cx).copy_items(cx);
         resolve_copy_items(items, cx)
+    }
+
+    /// Bounded counterpart to `selected_text`. Separators count toward the limit;
+    /// oversize returns an error, never partial text. Snapshot callbacks/order and
+    /// bounded fallback strings before invoking callbacks without entity borrows.
+    /// Legacy callbacks may allocate their complete individual fragment. Collector
+    /// fallback/output allocation is O(max_bytes), plus O(participants) metadata.
+    pub fn selected_text_limited(
+        window: &mut Window,
+        max_bytes: usize,
+        cx: &mut App,
+    ) -> Result<String, TextSelectionCopyLimitExceeded> {
+        let Some(state) = live_text_selection_state(window, cx) else {
+            return Ok(String::new());
+        };
+        let items = state.read(cx).copy_items_limited(cx, max_bytes)?;
+        resolve_copy_items_limited(items, max_bytes, cx)
     }
 
     /// Returns whether the window has a geometry selection or any participant
@@ -2986,6 +3086,124 @@ mod tests {
     }
 
     #[gpui::test]
+    fn bounded_copy_orders_unicode_and_whitespace_and_stops_callbacks(cx: &mut TestAppContext) {
+        cx.update(|cx| {
+            let items = || {
+                vec![
+                    CopyItem {
+                        document_order: 2,
+                        callback: None,
+                        fallback: " ".into(),
+                    },
+                    CopyItem {
+                        document_order: 1,
+                        callback: None,
+                        fallback: "".into(),
+                    },
+                    CopyItem {
+                        document_order: 0,
+                        callback: None,
+                        fallback: "é".into(),
+                    },
+                ]
+            };
+            assert_eq!(
+                resolve_copy_items_limited(items(), 4, cx),
+                Ok("é\n ".into())
+            );
+            assert_eq!(
+                resolve_copy_items_limited(items(), 3, cx),
+                Err(TextSelectionCopyLimitExceeded)
+            );
+            assert_eq!(resolve_copy_items_limited(vec![], 0, cx), Ok(String::new()));
+            let called = Rc::new(Cell::new(false));
+            let mark = called.clone();
+            let items = vec![
+                CopyItem {
+                    document_order: 0,
+                    callback: Some(Rc::new(|_| "😀".into())),
+                    fallback: String::new(),
+                },
+                CopyItem {
+                    document_order: 1,
+                    callback: Some(Rc::new(move |_| {
+                        mark.set(true);
+                        "late".into()
+                    })),
+                    fallback: String::new(),
+                },
+            ];
+            assert_eq!(
+                resolve_copy_items_limited(items, 3, cx),
+                Err(TextSelectionCopyLimitExceeded)
+            );
+            assert!(!called.get());
+        });
+    }
+
+    #[gpui::test]
+    fn bounded_copy_snapshots_only_active_scope_and_limits_fallback_before_callbacks(
+        cx: &mut TestAppContext,
+    ) {
+        cx.update(|cx| {
+            let mut state = WindowSelectionState::default();
+            let first = FakeParticipant::new("first", cx);
+            let second = FakeParticipant::new("😀", cx);
+            let hidden = FakeParticipant::new(&"hidden".repeat(100), cx);
+            first.register(&mut state, 0., TextSelectionScopeId::default(), 0, cx);
+            second.register(&mut state, 20., TextSelectionScopeId::default(), 1, cx);
+            hidden.register(&mut state, 40., TextSelectionScopeId(1), 2, cx);
+            for participant in [&first, &second, &hidden] {
+                participant.selection.set_local_selection(true, cx);
+            }
+            assert!(state.copy_items_limited(cx, 9).is_err());
+            let items = state.copy_items_limited(cx, 10).unwrap();
+            assert_eq!(
+                resolve_copy_items_limited(items, 10, cx),
+                Ok("first\n😀".into())
+            );
+            // A callback overrides its fallback: do not clone an unused huge value.
+            first
+                .selection
+                .set_fallback_copy_text("huge".repeat(100), cx);
+            first.selection.copy_with(|_| "x".into(), cx);
+            let items = state.copy_items_limited(cx, 6).unwrap();
+            assert_eq!(resolve_copy_items_limited(items, 6, cx), Ok("x\n😀".into()));
+        });
+    }
+
+    #[gpui::test]
+    fn bounded_copy_callback_can_clear_later_participants_without_changing_snapshot(
+        cx: &mut TestAppContext,
+    ) {
+        cx.update(|cx| {
+            let state = cx.new(|_| WindowSelectionState::default());
+            let first = FakeParticipant::new("first", cx);
+            let second = FakeParticipant::new("second", cx);
+            state.update(cx, |state, cx| {
+                first.register(state, 0., TextSelectionScopeId::default(), 0, cx);
+                second.register(state, 20., TextSelectionScopeId::default(), 1, cx);
+            });
+            first.selection.set_local_selection(true, cx);
+            second.selection.set_local_selection(true, cx);
+            let clear = state.clone();
+            first.selection.copy_with(
+                move |cx| {
+                    clear.update(cx, |state, cx| state.clear(cx));
+                    "first".into()
+                },
+                cx,
+            );
+            let items = state.read(cx).copy_items_limited(cx, 12).unwrap();
+            assert_eq!(
+                resolve_copy_items_limited(items, 12, cx),
+                Ok("first\nsecond".into())
+            );
+            assert!(!state.read(cx).has_selection(cx));
+        });
+    }
+
+    #[gpui::test]
     fn text_selection_namespace_reports_copies_ends_and_clears_selection(cx: &mut TestAppContext) {
         let (view, cx) = cx.add_window_view(|_, cx| WindowSelectionView {
             selection: TextSelectionHandle::new("copied", cx),
@@ -3007,6 +3225,15 @@ mod tests {
 
             assert!(TextSelection::has_selection(window, cx));
             assert_eq!(TextSelection::selected_text(window, cx), "copied");
+            assert_eq!(
+                TextSelection::selected_text_limited(window, 5, cx),
+                Err(TextSelectionCopyLimitExceeded)
+            );
+            assert_eq!(
+                TextSelection::selected_text_limited(window, 6, cx),
+                Ok("copied".into())
+            );
+            assert!(TextSelection::has_selection(window, cx));
             TextSelection::end(window, cx);
             assert!(TextSelection::has_selection(window, cx));
             TextSelection::clear(window, cx);

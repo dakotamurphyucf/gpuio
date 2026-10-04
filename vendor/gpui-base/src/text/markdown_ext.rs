@@ -4,7 +4,7 @@ use std::{
     fmt,
     ops::Range,
     sync::{
-        Arc,
+        Arc, Mutex,
         atomic::{AtomicU64, Ordering},
     },
 };
@@ -124,6 +124,9 @@ impl<'a> MarkdownParseContext<'a> {
 #[derive(Clone)]
 pub struct MarkdownNode {
     pub(crate) projection_key: Arc<()>,
+    // Parsed-occurrence state; unlike the immutable displayed-text projection,
+    // this belongs to the reader's selection lifetime.
+    pub(super) block_text: Arc<Mutex<super::inline::InlineState>>,
     name: SharedString,
     text: SharedString,
     explicit_text: bool,
@@ -141,6 +144,7 @@ impl MarkdownNode {
     {
         Self {
             projection_key: Arc::new(()),
+            block_text: Arc::new(Mutex::new(Default::default())),
             name: name.into(),
             text: SharedString::default(),
             explicit_text: false,
@@ -234,6 +238,7 @@ impl MarkdownNode {
         // A plugin may reuse a cloned template. Each parsed occurrence needs
         // its own identity; subsequent renderer clones preserve this key.
         self.projection_key = Arc::new(());
+        self.block_text = Arc::new(Mutex::new(Default::default()));
         self.span = span;
     }
 
@@ -274,6 +279,7 @@ pub struct MarkdownExtensions {
     presentations: HashMap<SharedString, Arc<MarkdownPresentationFn>>,
     enable_mdx: bool,
     enable_frontmatter: bool,
+    frontmatter_descriptions: bool,
     block_parsers: Vec<Arc<MarkdownBlockParserFn>>,
     block_renderers: HashMap<SharedString, Arc<MarkdownBlockRenderFn>>,
     inline_parsers: Vec<Arc<MarkdownInlineParserFn>>,
@@ -301,6 +307,18 @@ impl MarkdownExtensions {
         self.enable_frontmatter = true;
         self.bump_revision();
         self
+    }
+
+    /// Render supported top-level YAML mappings as native description rows.
+    /// Unsupported forms and mappings over 128 entries remain YAML code.
+    pub fn frontmatter_description_list(mut self) -> Self {
+        self.enable_frontmatter = true;
+        self.frontmatter_descriptions = true;
+        self.bump_revision();
+        self
+    }
+    pub(crate) fn has_frontmatter_descriptions(&self) -> bool {
+        self.frontmatter_descriptions
     }
 
     /// Enable MDX JSX/expression constructs.
@@ -391,6 +409,7 @@ impl MarkdownExtensions {
         self.parser_revision == other.parser_revision
             && self.enable_mdx == other.enable_mdx
             && self.enable_frontmatter == other.enable_frontmatter
+            && self.frontmatter_descriptions == other.frontmatter_descriptions
             && self.block_parsers.len() == other.block_parsers.len()
             && self.block_renderers.len() == other.block_renderers.len()
             && self.inline_parsers.len() == other.inline_parsers.len()

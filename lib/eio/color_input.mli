@@ -13,7 +13,15 @@ val create
   -> Bonsai.Cont.graph
   -> t Bonsai.Cont.t
 
-val view : ?style:Gpuio.Style.t -> t -> Gpuio_bonsai.View.t
+(** Editable, allowed palette swatches preview their color and hex spelling on
+    hover. This native visual preview does not change snapshots, emit edit
+    events, move focus, or replace typed/composing drafts. Selecting a swatch
+    still follows the ordinary edit policy. *)
+val view
+  :  ?style:Gpuio.Style.t
+  -> ?appearance:Gpuio.Color_input.Appearance.t
+  -> t
+  -> Gpuio_bonsai.View.t
 
 (** Last accepted observation; absent before mounting. Unplaced controllers may
     retain an old snapshot; commands then fail [Stale_color_input]. Late replies
@@ -59,7 +67,8 @@ val clear
   -> (Gpuio.Color_input.Snapshot.t, Gpuio.Color_input.Command_error.t) Result.t
        Bonsai.Effect.t
 
-(** Cancel restores the committed color and hue. No active edit is a no-op. *)
+(** Cancel restores the committed color and hue and clears any hover preview.
+    With no active edit, the color and revision remain unchanged. *)
 val cancel
   :  t
   -> (Gpuio.Color_input.Snapshot.t, Gpuio.Color_input.Command_error.t) Result.t
@@ -67,7 +76,10 @@ val cancel
 
 (** Focus a text field; hidden, disabled, modal-blocked and opaque-only alpha
     fields return [Focus_blocked]. Read-only fields may receive focus. Changing
-    fields finishes a valid old draft or cancels an invalid/composing old draft. *)
+    fields finishes a valid old draft or cancels an invalid/composing old draft.
+    In tabbed presentation, an allowed channel focus reveals the channel panel;
+    rejected focus leaves the selected panel unchanged. Focus interrupts an
+    active channel drag. *)
 val focus
   :  t
   -> Gpuio.Color_input.Field.t

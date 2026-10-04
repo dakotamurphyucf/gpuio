@@ -305,7 +305,7 @@ use super::MASK_CHAR;
 /// The masked string consists of `MASK_CHAR` repeated once per character in the original text.
 /// Since `MASK_CHAR` may be multi-byte in UTF-8, the byte offset in the masked string is
 /// `char_index * MASK_CHAR.len_utf8()`.
-fn masked_display_offset(text: &Rope, original_offset: usize) -> usize {
+pub(super) fn masked_display_offset(text: &Rope, original_offset: usize) -> usize {
     text.offset_to_char_index(original_offset) * MASK_CHAR.len_utf8()
 }
 
@@ -338,7 +338,7 @@ pub(super) fn viewport_visible_lines(viewport_height: Pixels, line_height: Pixel
 /// top/bottom edges before auto-scroll engages. Backs
 /// [`InputBaseState::cursor_surrounding_lines`].
 ///
-/// Auto-grow uses one line. Otherwise `None` falls back to the historical
+/// Auto-grow defaults to one line. Otherwise `None` falls back to the historical
 /// heuristic ([`BOTTOM_MARGIN_ROWS`] lines, or one line on small
 /// viewports); `Some(n)` uses `n` lines. The result is saturated against
 /// half the viewport so an oversized override can't invert the
@@ -350,7 +350,7 @@ pub(super) fn cursor_surrounding_padding(
     visible_lines: usize,
     line_height: Pixels,
 ) -> Pixels {
-    if is_auto_grow {
+    if is_auto_grow && override_lines.is_none() {
         return line_height;
     }
     let raw = match override_lines {
@@ -513,6 +513,9 @@ impl<M: InputModeKind> TextElement<M> {
                     cursor = ime_marked_range.end;
                 }
             }
+            // Compare the same logical caret key that paint persists. Masking
+            // changes display offsets only; an IME mark paints at its endpoint.
+            let caret_selection = selected_range;
             let is_selected_all = selected_range.len() == state.text.len();
 
             // Buffer rows from the raw (pre-mask) offsets, used to locate the cursor line.
@@ -542,7 +545,7 @@ impl<M: InputModeKind> TextElement<M> {
             if is_active {
                 current_row = Some(cursor_row);
 
-                let selection_changed = state.last_selected_range != Some(selected_range);
+                let selection_changed = state.last_selected_range != Some(caret_selection);
                 let auto_scrolling = state.auto_scroll.is_active();
                 if selection_changed && !is_selected_all {
                     // For Right alignment use 0 margin: cursor is clamped to bounds separately,
@@ -812,8 +815,13 @@ impl<M: InputModeKind> TextElement<M> {
         let ranges = state.search_session.matcher.matched_ranges();
         let current_match_ix = state.search_session.matcher.current_match_index();
 
-        let mut paths = Vec::with_capacity(ranges.as_ref().len());
-        for (index, range) in ranges.as_ref().iter().enumerate() {
+        let indices = state
+            .search_session
+            .matcher
+            .contained_match_indices(last_layout.visible_range_offset.clone());
+        let mut paths = Vec::with_capacity(indices.len());
+        for (relative_index, range) in ranges[indices.clone()].iter().enumerate() {
+            let index = indices.start + relative_index;
             if let Some(path) = Self::layout_match_range(range.clone(), last_layout, bounds) {
                 paths.push((path, current_match_ix == index));
             }
@@ -1894,6 +1902,9 @@ impl<M: InputModeKind> Element for TextElement<M> {
         };
 
         let mut last_layout = LastLayout {
+            source_revision: state.bridge_revision(),
+            masked: state.masked,
+            range_origin: Point::default(),
             visible_range,
             visible_buffer_lines,
             visible_line_byte_offsets,
@@ -2297,7 +2308,10 @@ impl<M: InputModeKind> Element for TextElement<M> {
                 state.focus_handle.clone(),
                 state.show_cursor(window, cx),
                 state.disabled,
-                *state.active_selection(),
+                state
+                    .ime_marked_range
+                    .map(|range| (range.end..range.end).into())
+                    .unwrap_or(*state.active_selection()),
                 state.editor_style.clone(),
                 state.editor_paddings,
             )
@@ -2619,7 +2633,10 @@ impl<M: InputModeKind> Element for TextElement<M> {
                     layout.cursor_bounds != prepaint.last_layout.cursor_bounds
                         || layout.line_height != prepaint.last_layout.line_height
                 });
-            state.last_layout = Some(prepaint.last_layout.clone());
+            let mut layout = prepaint.last_layout.clone();
+            layout.range_origin = origin + point(scroll_offset, px(0.));
+            state.last_layout = Some(layout);
+            state.last_layout_scroll_offset = prepaint.cursor_scroll_offset;
             state.last_bounds = Some(bounds);
             state.last_cursor = Some(state.cursor());
             state.set_input_bounds(input_bounds, cx);
@@ -3403,14 +3420,18 @@ mod tests {
 
     #[test]
     fn test_cursor_surrounding_padding_auto_grow() {
-        // Auto-grow inputs always pad by one line, regardless of any
-        // override or visible-lines count.
+        // Preserve the automatic default, but honor explicit margins in
+        // auto-growing textareas with the same viewport clamp as editors.
         let line_height = px(20.);
-        for override_lines in [None, Some(0), Some(3), Some(99)] {
-            for visible_lines in [0_usize, 1, 8, 64] {
+        for visible_lines in [0_usize, 1, 8, 64] {
+            assert_eq!(
+                cursor_surrounding_padding(true, None, visible_lines, line_height),
+                line_height,
+            );
+            for lines in [0_usize, 3, 99] {
                 assert_eq!(
-                    cursor_surrounding_padding(true, override_lines, visible_lines, line_height,),
-                    line_height,
+                    cursor_surrounding_padding(true, Some(lines), visible_lines, line_height),
+                    (lines as f32 * line_height).min((visible_lines as f32 * line_height).half()),
                 );
             }
         }

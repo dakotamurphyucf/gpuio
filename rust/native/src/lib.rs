@@ -1,5 +1,10 @@
+pub mod document_profiles;
 pub mod extensions;
+#[cfg(target_os = "macos")]
+pub mod input_content_macos;
+pub mod registrations;
 pub use gpuio_extension_sdk as extension_sdk;
+
 mod appearance;
 pub mod asset_cache;
 pub mod asset_decode;
@@ -22,6 +27,8 @@ pub mod chart_paint;
 mod chart_presentation;
 pub mod chart_render_host;
 mod chart_table;
+#[cfg(all(test, feature = "native-image-tests"))]
+mod image_mask_test;
 #[cfg(feature = "native-canvas-tests")]
 pub fn run_native_chart_paint_test() {
     chart_paint::native_test::run();
@@ -37,6 +44,10 @@ pub fn run_native_chart_view_test() {
 pub mod chart_reduce;
 pub mod chart_selection;
 pub mod chart_store;
+pub mod choice_picker_admission;
+pub mod choice_picker_list;
+pub mod choice_picker_rows;
+pub mod choice_picker_state;
 mod desktop_host;
 #[cfg(any(target_os = "linux", test))]
 mod desktop_instance;
@@ -49,10 +60,15 @@ pub mod desktop_state;
 mod document_highlight;
 pub mod document_host;
 pub mod document_jobs;
+pub mod document_profile_jobs;
 pub mod document_store;
+mod document_style;
 mod ffi;
 pub mod file_dialog;
+mod font_defaults;
 mod host;
+mod input_format;
+mod input_validation;
 mod notification_host;
 #[cfg(any(test, target_os = "linux"))]
 mod notification_linux;
@@ -70,6 +86,13 @@ pub fn run_native_animation_program_test() {
 }
 pub mod carousel_clock;
 pub mod carousel_gesture;
+pub mod carousel_track_geometry;
+mod carousel_track_gesture;
+#[cfg(all(test, feature = "native-image-tests"))]
+mod carousel_track_layout_test;
+mod carousel_track_motion;
+pub mod carousel_track_state;
+mod carousel_track_wheel;
 pub mod image_host;
 pub mod list_index;
 pub mod list_state;
@@ -81,15 +104,40 @@ mod motion_preference;
 pub mod motion_program;
 pub mod motion_timeline;
 pub mod navigation_motion;
+pub mod progress_clock;
+mod progress_geometry;
+pub mod progress_paint;
+pub mod reveal_layout;
+#[cfg(all(test, feature = "native-image-tests"))]
+mod reveal_layout_test;
+pub mod reveal_motion;
+pub mod scrollbar_clock;
+pub mod scrollbar_geometry;
+pub mod scrollbar_input;
+pub mod scrollbar_lifecycle;
+pub mod scrollbar_presentation;
+pub mod scrollbar_widget;
 mod selection;
 mod semantics;
 pub mod session;
+pub mod spinner_clock;
+pub mod spinner_paint;
+pub mod split_group_appearance;
+pub mod split_group_geometry;
+pub mod split_group_state;
+pub mod split_group_widget;
 mod style;
 mod styled_text;
 mod text_shimmer_budget;
 pub mod text_shimmer_clock;
 mod text_shimmer_color;
 pub mod text_shimmer_paint;
+pub mod toast_geometry;
+pub mod toast_lifecycle;
+pub mod toast_reflow;
+pub mod toast_stack_widget;
+#[cfg(all(test, feature = "native-image-tests"))]
+mod toast_stack_widget_test;
 #[cfg(feature = "native-image-tests")]
 pub fn run_native_text_shimmer_paint_test() {
     text_shimmer_paint::native_test::run();
@@ -102,6 +150,7 @@ pub fn run_native_text_shimmer_clock_test() {
 pub fn run_native_text_shimmer_view_test() {
     host::text_shimmer_view_test::run();
 }
+mod split_button;
 mod text_projection;
 mod transport;
 pub mod tree;
@@ -278,8 +327,10 @@ pub fn run_native_slider_test() {
 }
 
 pub mod calendar_state;
+mod calendar_viewport;
 pub mod color_input_state;
 pub mod number_input_state;
+mod number_presentation;
 pub mod otp_edit;
 pub mod otp_input_state;
 pub mod slider_state;
@@ -378,3 +429,17 @@ pub fn run_native_opacity_factor_test() {
 pub fn run_native_command_binding_test() {
     host::command_binding_test::run();
 }
+
+pub mod control_appearance;
+pub mod control_geometry;
+mod control_paint;
+
+pub mod tab_appearance;
+
+#[cfg(all(test, feature = "native-image-tests"))]
+mod horizontal_list_test;
+
+#[cfg(all(test, feature = "native-image-tests"))]
+mod document_profile_fixture;
+
+mod window_frame;

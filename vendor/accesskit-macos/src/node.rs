@@ -1082,10 +1082,12 @@ declare_class!(
         #[method(setAccessibilitySelected:)]
         fn set_selected(&self, selected: bool) {
             self.resolve_with_context(|node, tree, context| {
-                if supports_tree_selection(node) || supports_table_selection(node) {
+                if supports_tree_selection(node) || supports_table_selection(node) || supports_list_selection(node) {
                     let (select, deselect) = if supports_tree_selection(node) {
                         (TREE_SELECT, TREE_DESELECT)
-                    } else { (TABLE_SELECT, TABLE_DESELECT) };
+                    } else if supports_table_selection(node) {
+                        (TABLE_SELECT, TABLE_DESELECT)
+                    } else { (LIST_SELECT, LIST_DESELECT) };
                     if let Some((target_node, target_tree)) = tree.state().locate_node(node.id()) {
                         // Always queue desired state, including equal snapshots: a
                         // preceding opposite setter may still await application reduction.
@@ -1119,18 +1121,47 @@ declare_class!(
             });
         }
 
-        #[method_id(accessibilityAttributeValue:)]
-        fn accessibility_attribute_value(&self, attr: &NSString) -> Option<Id<NSString>> {
+        // Busy has no public modern NSAccessibility getter. Extend the legacy
+        // attributes without replacing AppKit's modern-property discovery.
+        #[method_id(accessibilityAttributeNames)]
+        fn accessibility_attribute_names(&self) -> Id<NSArray<NSString>> {
+            let inherited: Id<NSArray<NSString>> = unsafe {
+                msg_send_id![super(self), accessibilityAttributeNames]
+            };
+            let mut names: Vec<_> = inherited.to_vec_retained();
             self.resolve(|node| {
-                if attr == ns_string!("AXBrailleLabel") && node.has_braille_label() {
-                    return Some(NSString::from_str(node.braille_label().unwrap()))
-                } else if attr == ns_string!("AXBrailleRoleDescription") && node.has_braille_role_description() {
-                    return Some(NSString::from_str(node.braille_role_description().unwrap()))
+                for (name, include) in [
+                    (ns_string!("AXElementBusy"), true),
+                    (ns_string!("AXBrailleLabel"), node.has_braille_label()),
+                    (ns_string!("AXBrailleRoleDescription"), node.has_braille_role_description()),
+                ] {
+                    if include && !names.iter().any(|existing| &**existing == name) {
+                        names.push(name.copy());
+                    }
                 }
+            });
+            NSArray::from_vec(names)
+        }
 
-                None
-            })
-            .flatten()
+        #[method_id(accessibilityAttributeValue:)]
+        fn accessibility_attribute_value(&self, attr: &NSString) -> Option<Id<NSObject>> {
+            if attr == ns_string!("AXElementBusy") {
+                self.resolve(|node| {
+                    Id::into_super(Id::into_super(NSNumber::new_bool(node.is_busy())))
+                })
+            } else if attr == ns_string!("AXBrailleLabel") || attr == ns_string!("AXBrailleRoleDescription") {
+                self.resolve(|node| {
+                    if attr == ns_string!("AXBrailleLabel") && node.has_braille_label() {
+                        Some(Id::into_super(NSString::from_str(node.braille_label().unwrap())))
+                    } else if attr == ns_string!("AXBrailleRoleDescription") && node.has_braille_role_description() {
+                        Some(Id::into_super(NSString::from_str(node.braille_role_description().unwrap())))
+                    } else {
+                        None
+                    }
+                }).flatten()
+            } else {
+                unsafe { msg_send_id![super(self), accessibilityAttributeValue: attr] }
+            }
         }
 
         #[method(accessibilityRowCount)]
@@ -1344,7 +1375,10 @@ declare_class!(
         // even when isAccessibilitySelectorAllowed rejects that selector.
         #[method(accessibilityIsAttributeSettable:)]
         fn is_attribute_settable(&self, attribute: &NSString) -> bool {
-            if unsafe { attribute.isEqualToString(ns_string!("AXValue")) } {
+            if attribute == ns_string!("AXElementBusy") {
+                // The application owns loading; accessibility observes it.
+                false
+            } else if unsafe { attribute.isEqualToString(ns_string!("AXValue")) } {
                 self.resolve(|node| {
                     (node.supports_text_ranges() && !node.is_read_only())
                         || node.supports_action(Action::SetValue, &filter)
@@ -1432,7 +1466,7 @@ declare_class!(
                     let wrapper = NodeWrapper(node);
                     return wrapper.is_container_with_selectable_children() || table_container(node)
                 }
-                if selector == sel!(setAccessibilitySelected:) && (supports_tree_selection(node) || supports_table_selection(node)) {
+                if selector == sel!(setAccessibilitySelected:) && (supports_tree_selection(node) || supports_table_selection(node) || supports_list_selection(node)) {
                     return true;
                 }
                 if selector == sel!(setAccessibilitySelected:) || selector == sel!(accessibilityPerformPick)
@@ -1448,8 +1482,9 @@ declare_class!(
                 if selector == sel!(isAccessibilityModal) {
                     return node.is_dialog();
                 }
-                if selector == sel!(accessibilityAttributeValue:) {
-                    return node.has_braille_label() || node.has_braille_role_description()
+                if selector == sel!(accessibilityAttributeValue:)
+                    || selector == sel!(accessibilityAttributeNames) {
+                    return true;
                 }
                 if selector == sel!(accessibilityURL) {
                     return node.supports_url();
@@ -1527,6 +1562,20 @@ fn supports_tree_selection(node: &Node) -> bool {
         && node.is_selectable()
         && node.supports_action(Action::CustomAction, &filter)
         && [TREE_SELECT, TREE_DESELECT].iter().all(|id| {
+            node.data().custom_actions().iter().any(|action| action.id == *id)
+        })
+}
+
+// Desired-state setters are opt-in; ordinary options retain upstream Click behavior.
+const LIST_SELECT: i32 = 0x4753_0001;
+const LIST_DESELECT: i32 = 0x4753_0002;
+
+fn supports_list_selection(node: &Node) -> bool {
+    node.role() == Role::ListBoxOption
+        && !node.is_disabled()
+        && node.is_selectable()
+        && node.supports_action(Action::CustomAction, &filter)
+        && [LIST_SELECT, LIST_DESELECT].iter().all(|id| {
             node.data().custom_actions().iter().any(|action| action.id == *id)
         })
 }

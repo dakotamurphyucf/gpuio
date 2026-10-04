@@ -1,4 +1,4 @@
-//! Observe resolved native visibility without treating clipping as hidden text.
+//! Measure simple controls and observe visibility without treating clipping as hidden text.
 use super::focus;
 use gpui::{
     A11ySubtreeBuilder, App, Bounds, Element, ElementId, GlobalElementId, Hitbox,
@@ -21,6 +21,7 @@ struct Binding {
     focus: focus::Shared,
     visibility: bool,
     clip: bool,
+    control_bounds: bool,
 }
 impl<E> Frame<E> {
     pub(super) fn new(element: E, node: &crate::tree::Node, focus: &focus::Shared) -> Self {
@@ -35,15 +36,43 @@ impl<E> Frame<E> {
                 .any(|field| matches!(field, Field::OverflowX(_) | Field::OverflowY(_))),
             _ => false,
         });
+        let control_bounds = matches!(
+            node.kind,
+            gpuio_protocol::v1::Kind::Button
+                | gpuio_protocol::v1::Kind::CommandButton
+                | gpuio_protocol::v1::Kind::Link
+                | gpuio_protocol::v1::Kind::Checkbox
+                | gpuio_protocol::v1::Kind::Switch
+                | gpuio_protocol::v1::Kind::Radio
+                | gpuio_protocol::v1::Kind::RadioGroup
+                | gpuio_protocol::v1::Kind::TabBar
+                | gpuio_protocol::v1::Kind::Select
+                | gpuio_protocol::v1::Kind::ChoicePicker
+        );
         Self {
             element,
-            binding: (dynamic || clip).then(|| Binding {
+            binding: (dynamic || clip || control_bounds).then(|| Binding {
                 node: node.id,
                 part: None,
                 styles: node.style.clone(),
                 focus: focus.clone(),
                 visibility: dynamic,
                 clip,
+                control_bounds,
+            }),
+        }
+    }
+    pub(super) fn clip(element: E, node: NodeId, focus: &focus::Shared) -> Self {
+        Self {
+            element,
+            binding: Some(Binding {
+                node,
+                part: None,
+                styles: Arc::from([]),
+                focus: focus.clone(),
+                visibility: false,
+                clip: true,
+                control_bounds: false,
             }),
         }
     }
@@ -72,6 +101,9 @@ impl<E: Element<PrepaintState = Option<Hitbox>> + InteractiveElement> Frame<E> {
         let Some(binding) = &self.binding else {
             return None;
         };
+        if !binding.visibility && !binding.clip {
+            return None;
+        }
         let style = self
             .element
             .interactivity()
@@ -156,8 +188,25 @@ impl<E: Element<PrepaintState = Option<Hitbox>> + InteractiveElement> Element fo
         cx: &mut App,
     ) {
         let boundary = self.observe(id, prepaint.as_ref(), Some(bounds), window, cx);
+        let measured = self
+            .binding
+            .as_ref()
+            .filter(|binding| binding.control_bounds);
+        let previous = measured.map(|binding| {
+            binding
+                .focus
+                .borrow_mut()
+                .replace_control_bounds(Some((binding.node, bounds)))
+        });
         self.element
             .paint(id, inspector, bounds, layout, prepaint, window, cx);
+        if let Some(previous) = previous {
+            measured
+                .unwrap()
+                .focus
+                .borrow_mut()
+                .replace_control_bounds(previous);
+        }
         if let Some(depth) = boundary {
             self.binding
                 .as_ref()

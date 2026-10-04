@@ -100,10 +100,10 @@ fn every_edge_rejects_zero_overflow_and_unknown_tags() {
 #[test]
 fn grid_location_capability_matches_ocaml() {
     assert_eq!(CAP_GRID_LOCATION, 1_i64 << 55);
-    assert_eq!(CAPABILITIES, (1_i64 << 56) - 1);
+    assert_eq!(CAPABILITIES, i64::MAX);
     for (mask, expected) in [
-        (CAP_GRID_LOCATION, "0001fc0000000000008000"),
-        (CAPABILITIES, "0001fcffffffffffffff00"),
+        (CAP_GRID_LOCATION, "0003fc0000000000008000"),
+        (CAPABILITIES, "0003fcffffffffffffff7f"),
     ] {
         assert_eq!(hex(&encode(&Message::Hello(VERSION, mask))), expected);
     }

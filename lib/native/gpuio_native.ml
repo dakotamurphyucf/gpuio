@@ -124,6 +124,16 @@ let drain t =
   decoded
 ;;
 
+external document_profile_catalog_bytes
+  :  unit
+  -> string
+  = "gpuio_v1_document_profile_catalog"
+
+let document_profile_catalog () =
+  Lazy.force initialization;
+  Gpuio_protocol.Extension_wire.Catalog.decode (document_profile_catalog_bytes ())
+;;
+
 external extension_catalog_bytes : unit -> string = "gpuio_v1_extension_catalog"
 
 let extension_catalog () =
@@ -139,4 +149,13 @@ let prepare_desktop t request =
   | Ok bytes ->
     prepare_desktop_bytes t.raw bytes
     |> Gpuio_protocol.Desktop_wire.Launch_response.decode
+;;
+
+external prepare_input_regex_bytes : string -> string = "gpuio_v1_input_regex_prepare"
+
+let prepare_input_regex source =
+  let open Or_error.Let_syntax in
+  let%bind bytes = Gpuio_protocol.Input_validation_wire.Source.encode source in
+  prepare_input_regex_bytes bytes
+  |> Gpuio_protocol.Input_validation_wire.Preparation.decode
 ;;

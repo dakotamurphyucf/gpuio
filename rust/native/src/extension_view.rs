@@ -340,6 +340,8 @@ impl View {
             }
         });
         crate::semantics::State {
+            identity: None,
+            busy: false,
             hidden: false,
             metadata: None,
             element,

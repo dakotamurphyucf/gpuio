@@ -615,6 +615,13 @@ impl Element for InlineFlow {
         for (_, element) in &mut prepaint.semantics {
             element.paint(window, cx);
         }
+        for run in &prepaint.runs {
+            if let Some(link) = &run.link {
+                for fragment in &run.fragments {
+                    inline_semantics::record_preview_link(link, *fragment, window, cx);
+                }
+            }
+        }
         inline_semantics::paint_focus(&prepaint.runs, window, cx);
     }
 }

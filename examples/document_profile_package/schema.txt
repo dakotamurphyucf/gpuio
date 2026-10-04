@@ -1,0 +1,3 @@
+example.document.v1
+properties: accent:u8 (0=indigo,1=amber)
+event: action:u8 (1=inspect_code,2=summarize_table,3=open_badge,4=open_card)

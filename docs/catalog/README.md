@@ -37,6 +37,19 @@ that every source entry is implemented or validated.
   shorthand composition, including deliberate differences from permissive
   upstream parsing/clamping. Independent OCaml/native boundary and atomicity
   checks supplement the existing codecs; specialized-root behavior stays open.
+- [Native appearance observation](../evidence/window-appearance-och41.md):
+  snapshots preserve all four native variants through existing window events.
+  The gallery offers per-window Follow system and explicit Light/Dark palettes.
+  Local codec, observer/editor/lifecycle and OCaml/gallery checks pass; physical
+  OS switching and remaining theme functionality remain open.
+- [Style/theme source review](style-theme-review.md): all nested theme helpers,
+  semantic and legacy configuration, styling/sizing differences, embedded palette
+  data, runtime registry behavior and font fallback boundaries. Default monospace
+  selection now has [local evidence](../evidence/default-fonts-och41.md). The [file-backed gallery example](../evidence/gallery-theme-files-och41.md) now has
+  local parser/Eio/reconciliation evidence. The [native scrollbar snapshot](../evidence/scrollbar-preference-och41.md)
+  supplies an explicit gallery action with Linux Unsupported handling. Physical
+  gallery qualification remains open; no
+  upstream JSON-schema or pixel-preset compatibility is implied.
 - `gpuix-events.json`: all 22 event properties, with current public contracts,
   exact pinned implementation links, remaining differences, owner and platform
   limits. General input observations now have local native and public gallery
@@ -51,7 +64,14 @@ that every source entry is implemented or validated.
   to their owning runtime/style/interaction contract rather than separate widgets.
   Nullable gallery pages and explicit review-pending status show remaining work;
   no module is silently dropped. Nested public families/configuration still need
-  detailed audit, including code-editor and document plugin subfamilies.
+  detailed audit. The display-document audit below now enumerates concrete plugin,
+  configuration and styling gaps; code-editor/LSP remains explicitly post-v1.
+
+- [Display-document review](documents-review.md): nine exact Base/component
+  sources map reader formats, selection format, clamping, internal styles,
+  frontmatter/MDX and block/inline plugins. Existing Markdown/code/diff behavior
+  has local evidence; missing public document customization remains required
+  catalog work and does not inherit the code-editor/LSP deferral.
 
 - [Presentation behavior review](presentation-review.md): exact status-bar,
   badge and label source snapshots. Three-region status composition now has
@@ -60,12 +80,72 @@ that every source entry is implemented or validated.
   Label configuration gaps remain explicit. This begins detailed review without
   converting the entire family into an acceptance claim.
 
+- [Progress behavior review](progress-review.md): linear/circular and rich-center
+  behavior, native value transitions and inert artwork. Local implementation and
+  scoped geometry/lifecycle checks exist; physical acceptance remains open.
+- [Loading behavior review](loading-review.md): spinner/skeleton/glyph-shimmer
+  source mapping, custom spinner icon/easing implementation and a repaired inert
+  artwork regression. Scoped clock/paint policy checks are separate from native
+  GPU, accessibility and release acceptance.
+- [Slider behavior review](slider-review.md): pinned base/styled API mapping,
+  expanded single/range/axis/logarithmic gallery, reversed fill and per-part
+  appearance. Native hover/pressed springs have lifecycle checks; physical acceptance remains open.
+- [Rating behavior review](rating-review.md): pinned integer-rating behavior,
+  controlled request mapping and explicit click/hover/size differences. Independent
+  active/outline appearance is implemented locally; new native/gallery acceptance
+  remains open. The family is not yet fully accepted.
+
+- [Selection behavior review](selection-review.md): nine pinned checkbox,
+  switch, radio and toggle snapshots; command-based single/multiple toggle
+  composition, typed toolbar orientation and a mixed-checkbox gallery preview.
+  Rich labels, per-part styling, independent child loading/disabled state and
+  partial bulk selection are now implemented locally. Model/codec/native checks
+  pass; desktop composition validation remains open.
+
 - `expanded-v1.json`: canvas, native extensions, container rules, desktop
   integration and OS notifications from the accepted v1 expansion. These additions
   sit outside the Longbridge root-module map; they must not disappear merely
   because that source exports no corresponding module. Motion is already in the
   family map. Gallery links and pending behavioral review remain explicit. Reference-app
   consumer/distribution gates stay in the milestone release evidence.
+
+- [Calendar and color-picker review](calendar-color-review.md): exact pinned
+  sources, guarded date presets and deliberate explicit-confirm semantics.
+  Multi-month calendars and internal appearance now have local integration evidence.
+  Rich picker triggers now have driver evidence; native palette hover has local
+  hit-test/draft/lifecycle evidence. Shared popover expanded/dialog-popup state
+  has native metadata/focus/gating/nesting/cleanup checks. Per-date/header composition now has checked passive slots, atomic admission,
+  native focus/lifetime and pending-confirmation driver checks plus gallery event
+  badges. Independent [calendar viewport observations](../design/calendar-viewport.md)
+  now drive bounded date loading without changing selection revisions or polling.
+  Physical validation remains open. Grouped/featured palettes, internal
+  color appearance and native Palette/HSLA tabs now have local codec/admission/
+  ownership/layout evidence and public gallery examples; physical acceptance
+  remains open.
+
+- [Journey/workspace review](journey-workspace-review.md): seventeen exact
+  snapshots map sidebar activation/collapse, native navigation history, carousel
+  tracks, styled tabs and resizable groups. Optional sidebar selection activation
+  is implemented with local reducer/reconciliation evidence. Per-label styling has
+  [local composition/native evidence](../evidence/sidebar-styling-och41.md). Measured partial
+  carousel tracks, rich/overflow tabs and split group/handle customization now
+  have public APIs, gallery examples and local native evidence. Physical and
+  release qualification remain explicit v1 work, independent of the separate
+  comprehensive-docking deferral. See the review for current feature evidence.
+
+- [Notification review](notification-review.md): exact Base/component snapshots
+  map existing keyed toasts and OS delivery. Eight-anchor placement and window
+  margins and measured layered expansion now have public APIs, gallery controls
+  and local native evidence. Coordinated native enter/exit/reflow now has public Motion metadata, lifecycle
+  tests and a gallery toggle; physical/release qualification remains open.
+
+- [Collections review](collections-review.md): exact list/scroll/tree/table
+  snapshots map existing managed behavior. General horizontal virtualization and
+  shared scrollbar presentation now have public APIs and local integration evidence;
+  standalone searchable lists, structural tables, retained rich headers and checked
+  header/row styling now have public gallery examples and local behavior evidence.
+  Tree context actions already use
+  scoped commands and retained row content. Physical/release acceptance stays open.
 
 Verify structural inventory without an upstream checkout or network access:
 
@@ -92,3 +172,78 @@ Longbridge GPUI Kit is pinned at
 `18e695ed0ee8121a7793413ca795e08eda2a13df`. These documentation snapshots are not
 compiled dependencies. Actual native dependency provenance stays in
 `third_party/sources.json` and the adapter reconstruction records.
+
+- [Avatar source review](avatar-review.md): existing leaf evidence and explicit
+  AvatarGroup, custom fallback content and identity palettes. These now have local
+  implementation and scoped tests; actual GPU/AX/public-consumer acceptance remains open.
+
+- [Choice behavior review](choice-review.md): eleven exact Select/Combobox and
+  shared searchable-list snapshots expose the distinction between the current
+  single-ID editable control and the source's popup multi-picker. The additive
+  `Choice_picker` now implements multi-selection, popup search, grouping and
+  custom slots with local test and gallery-build evidence. Its
+  [contract](../design/choice-picker.md) preserves native ownership and
+  asynchronous current-model decisions; desktop acceptance remains open.
+
+- [Plain input/text-area review](editor-review.md): fourteen exact snapshots
+  distinguish baseline editing from the required expanded plain-input surface.
+  Password privacy and bound native edit menus now have public APIs/gallery
+  examples and local behavioral checks. Format masks/validation, adornments/content hints, multiline layout/viewport
+  commands and search/replacement now have public APIs and local evidence. General
+  text-range geometry and physical qualification remain open. Code-editor/LSP subfamilies remain
+  separately deferred; the plan does not claim family acceptance.
+
+- [Numeric/OTP and workflow-stepper review](numeric-review.md): exact pinned
+  behavior, explicit policy/presentation gaps and the corrected workflow-stepper
+  ownership. Numeric increment/decrement is not workflow-stage navigation.
+- [OTP cell presentation](../design/otp-presentation.md): retained grouped cells,
+  bounded geometry and theme colors. [Local evidence](../evidence/otp-presentation-och41.md)
+  covers codec/admission and TestPlatform state/paint checks.
+  [Native caret timing](../evidence/otp-caret-och41.md) now covers bounded timer
+  ownership and fake-clock lifecycle; physical macOS qualification remains open.
+
+- [Numeric frame presentation](../design/number-presentation.md): retained editor,
+  integrated adornments, custom step content and per-part paint/geometry.
+  [Local evidence](../evidence/number-presentation-och41.md) covers composition,
+  history, repeat cancellation and policy-gated auxiliary actions. Application-selected
+  steps are implemented separately through [guarded step requests](../design/number-step-requests.md);
+  physical desktop qualification remains open.
+
+
+- [Overlay/help-surface review](overlay-review.md): 22 exact pinned snapshots map
+  dialogs, alert dialogs, sheets, popovers, focus/positioning helpers, tooltips and
+  hover cards. It distinguishes functioning renderer behavior from an unused
+  sheet resize flag and a private animated dropdown helper. Modal backdrop color
+  and exported modal semantics have local codec/admission/native/Core tests.
+  [Opt-in modal entry](../design/overlay-motion.md) now adds dialog/sheet motion,
+  with actual deferred paint/hit/AX/focus/lifecycle regressions and an installed
+  gallery consumer build. [Tooltip entry/switching](../design/tooltip-motion.md)
+  now has native paint/input/identity/controlled-state/cleanup and codec evidence.
+  Placement/inset differences remain explicit; physical release acceptance is
+  still open.
+
+- [Tab motion](../design/tab-motion.md) adds optional indicator springs and Pill
+  foreground fading; the [local evidence](../evidence/tab-motion-och41.md) includes
+  interruption, scroll/reorder, actual native paint, reduced motion and teardown.
+  The Navigation gallery exposes an animation toggle. Physical acceptance remains
+  separate from TestPlatform checks.
+
+- [Window source review](window-review.md): exact title-bar, window-border and
+  window-extension sources map standard native windows, custom chrome/gestures,
+  presentation-aware controls, automatic client frames and metadata-only focused
+  input discovery. Window-wide selection helpers now implement bounded text reads,
+  presence checks, clear and end-drag operations. Physical acceptance remains open.
+
+- [Geometry and element helpers](geometry-review.md): three pinned sources map
+  placement/edges, native layout resolution, selection scopes and child construction.
+  The public measurement boundaries are explicit; there is no generic synchronous
+  OCaml prepaint callback.
+- [Runtime helpers](runtime-helpers-review.md): eight sources map Base globals,
+  Eio delivery/cancellation, component traits, index construction and Root providers
+  to their existing application/window owners.
+- [Native event helpers](native-events-review.md): native axis filtering and typed
+  double-click observations use existing scroll/input routes, with raw events kept
+  distinct from captured gestures and committed text.
+- [Diagnostics helpers](diagnostics-review.md): counters and native observation
+  are mapped with their evidence limits. Window-level macOS AX hit-test forwarding
+  needs separate physical qualification; focused-node checks do not prove it.

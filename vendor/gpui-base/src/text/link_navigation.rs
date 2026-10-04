@@ -159,7 +159,8 @@ fn collect(
                 }
             }
         }
-        BlockNode::CodeBlock(_)
+        BlockNode::DescriptionList(_)
+        | BlockNode::CodeBlock(_)
         | BlockNode::Custom(_)
         | BlockNode::Break { .. }
         | BlockNode::HorizontalRule { .. }

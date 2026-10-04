@@ -163,3 +163,18 @@ through Eio and uses two-second inter-chunk gaps for reproducible observation;
 ordinary demo operation starts no metrics task. The monitor itself is one scoped
 task, included in task counts. The combined acceptance evidence records actual
 results rather than inferring performance from these interfaces alone.
+
+## Completion failures during teardown
+
+Closing rejects new editor commands while already admitted commands may still
+reply before native closure. The close acknowledgment completes any remaining
+requests for that exact window generation with `Closed`. A reused window slot
+cannot inherit those requests, and late replies cannot complete them twice.
+
+Teardown attempts all independent request completions and resource cleanup steps
+even if a user completion raises. It then propagates the first exception with its
+original backtrace. The application worker uses the same policy across windows,
+so one failing callback cannot prevent another window's cleanup or inbox closure.
+This does not relax the documented requirement that scope cleanup functions must
+not raise, block or perform I/O. See the [command lifecycle evidence](../evidence/command-lifecycle-och17.md)
+for tested boundaries and the remaining native-dispatch acceptance work.

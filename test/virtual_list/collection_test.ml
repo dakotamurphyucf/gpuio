@@ -205,3 +205,40 @@ let%expect_test "live append preserves older history request and validates atomi
     true
     |}]
 ;;
+
+let%expect_test "membership references survive edits but fence deleted and foreign keys" =
+  let source = collection [ 1, "one"; 2, "two" ] in
+  let reference = C.item_ref source 1 |> Option.value_exn in
+  let identity = C.identity source in
+  let updated = C.set source ~key:1 ~data:"streamed" |> Or_error.ok_exn in
+  assert (phys_equal identity (C.identity updated));
+  let reordered = C.reorder updated [ 2; 1 ] |> Or_error.ok_exn in
+  let replaced =
+    C.splice reordered ~at:1 ~remove:1 [ 1, "replacement" ] |> Or_error.ok_exn
+  in
+  List.iter [ source; updated; reordered; replaced ] ~f:(fun source ->
+    assert (C.contains_ref source reference);
+    assert (C.Item_ref.equal Int.equal reference (C.item_ref source 1 |> Option.value_exn)));
+  assert (C.Identity.same_source identity (C.identity replaced));
+  assert (Option.equal Int.equal (C.Identity.index (C.identity replaced) 1) (Some 1));
+  assert (Option.equal Int.equal (C.Identity.nth identity 1) (Some 2));
+  assert (Option.is_none (C.Identity.nth identity (-1)));
+  let removed = C.splice replaced ~at:1 ~remove:1 [] |> Or_error.ok_exn in
+  let reused =
+    C.splice removed ~at:1 ~remove:0 [ 1, "new membership" ] |> Or_error.ok_exn
+  in
+  assert (not (C.contains_ref removed reference));
+  assert (not (C.contains_ref reused reference));
+  let fresh = C.item_ref reused 1 |> Option.value_exn in
+  assert (not (Gpuio.Key.equal (C.Expert.item_key reference) (C.Expert.item_key fresh)));
+  assert (
+    Gpuio.Key.equal
+      (C.Expert.item_key reference)
+      (C.Expert.item_key (C.item_ref replaced 1 |> Option.value_exn)));
+  assert (not (C.contains_ref (collection [ 1, "foreign" ]) reference));
+  assert (
+    not (C.Identity.same_source (C.identity (collection [])) (C.identity (collection []))));
+  assert (C.contains_ref source reference);
+  assert (List.equal Int.equal (C.Identity.keys identity) [ 1; 2 ]);
+  [%expect {| |}]
+;;

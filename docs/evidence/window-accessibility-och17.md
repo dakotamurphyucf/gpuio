@@ -84,3 +84,18 @@ Disabled Settings row discoverability is a separate open issue; the panel's
 current Inert subtree policy still hides disabled fields from AX. These checks
 also do not establish Linux GUI acceptance, full multi-window accessibility
 semantics or clean-machine distribution.
+
+## Separate hit-test qualification — source review, 2026-10-04
+
+The [diagnostics helper review](../catalog/diagnostics-review.md) identified a
+separate routing question. Pinned Component Root installs Base's
+`NSWindow.accessibilityHitTest:` forwarding helper in non-test builds; GPUIO's
+custom host does not call it. AccessKit implements view-level hit-testing, but
+source presence alone does not establish equivalent window-level routing. This
+is not a reproduced defect and no Objective-C hook was added from this audit.
+
+When desktop qualification is available, query actual accessibility elements at
+known window-content points across multiple windows and overlays; verify that
+the result is the expected visible native control. Record that independently of
+focused-node getters and keyboard input. The successful focus regression above
+must not be relabelled as point-based hit-test or VoiceOver evidence.

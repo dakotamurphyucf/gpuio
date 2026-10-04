@@ -15,7 +15,10 @@ module Task : sig
   val is_finished : t -> bool
 end
 
+(** Names contain 1..256 bytes. At most 1024 active scopes, including the root,
+    share one application tree. A closed parent or exhausted quota returns Error. *)
 val child : t -> name:string -> t Or_error.t
+
 val cancel : t -> unit
 val is_active : t -> bool
 
@@ -42,7 +45,10 @@ val on_cancel : t -> (unit -> unit) -> (unit -> unit) Or_error.t
 
 (** [f] runs as an Eio fiber. Pass I/O capabilities in its closure. CPU work may
     use Eio's domain manager, but it must not access Bonsai from another domain.
-    [on_result] and its returned effect execute on the UI loop. *)
+    Ordinary producer exceptions become Error; external Eio cancellation is
+    re-raised. [on_result] and its returned effect execute on the UI loop; their
+    exceptions propagate to the runner rather than becoming producer errors.
+    Scope/task cancellation suppresses results still waiting for delivery. *)
 val start
   :  t
   -> f:(unit -> 'a)

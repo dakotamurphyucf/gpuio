@@ -38,7 +38,11 @@ let () =
     let handle = B.Expert.Var.create None in
     let exact = B.Expert.Var.create false in
     let observation = ref None in
-    let on_event event = E.of_thunk (fun () -> observation := Some event) in
+    let on_event (event : Chart.Event.t) =
+      match event.observation with
+      | Selection_changed _ -> E.Ignore
+      | Ready _ | Failed _ -> E.of_thunk (fun () -> observation := Some event)
+    in
     let component _window _graph =
       let open B.Let_syntax in
       let%arr handle = B.Expert.Var.value handle
@@ -78,6 +82,20 @@ let () =
         let clock = Eio.Stdenv.clock env in
         let mono () = Eio.Time.Mono.now (Eio.Stdenv.mono_clock env) in
         let elapsed start = Mtime.Span.to_float_ns (Mtime.span start (mono ())) /. 1e6 in
+        Eio.traceln "CHART_STREAM_START version=2";
+        let workload_start = mono () in
+        let active () =
+          Option.value_map (App.Window.snapshot window) ~default:0 ~f:(fun snapshot ->
+            if snapshot.active then 2 else 1)
+        in
+        let phase sequence stage =
+          Eio.traceln
+            "CHART_STREAM_PHASE sequence=%d stage=%s elapsed_ms=%.3f active=%d"
+            sequence
+            stage
+            (elapsed workload_start)
+            (active ())
+        in
         Eio.Time.with_timeout_exn clock 180. (fun () ->
           let on_ui ui_effect =
             let promise, resolver = Eio.Promise.create () in
@@ -106,6 +124,7 @@ let () =
               Eio.Time.sleep clock 0.002;
               until f)
           in
+          ui (fun () -> phase 0 "initial_publication");
           let registration =
             on_ui (Registered.create app ~scope (dataset 10_000 0.)) |> checked
           in
@@ -121,6 +140,7 @@ let () =
                 Int64.equal data_revision revision && Registered.is_published registration
               | Some { observation = Selection_changed _; _ } | None -> false)
           in
+          ui (fun () -> phase 0 "initial_ready");
           wait_ready 1L;
           let frame () =
             let promise, resolver = Eio.Promise.create () in
@@ -130,7 +150,9 @@ let () =
               |> ok);
             Eio.Promise.await promise
           in
+          ui (fun () -> phase 0 "initial_frame");
           frame ();
+          let sequence = ref 0 in
           let revision = ref 1L in
           List.iter
             [ 10_000, false, 30, 1
@@ -141,22 +163,41 @@ let () =
             ~f:(fun (count, use_exact, iterations, burst) ->
               ui (fun () -> B.Expert.Var.set exact use_exact);
               for iteration = 1 to iterations do
+                Int.incr sequence;
+                ui (fun () -> phase !sequence "build");
                 let build_start = mono () in
                 let updates =
                   List.init burst ~f:(fun j ->
                     dataset count (Float.of_int ((iteration * burst) + j) /. 7.))
                 in
                 let build_ms = elapsed build_start in
-                let before = ui (fun () -> sample ()) in
+                let before =
+                  ui (fun () ->
+                    phase !sequence "publication";
+                    sample ())
+                in
                 let start = mono () in
                 ui (fun () ->
                   List.iter updates ~f:(fun data ->
                     Registered.set registration data |> checked);
                   ignore (sample () : App.Diagnostics.t));
                 revision := Int64.succ !revision;
+                until (fun () ->
+                  Option.iter (Registered.error registration) ~f:(fun error ->
+                    raise_s [%sexp (error : Registered.Error.t)]);
+                  Registered.is_published registration);
+                let published_ms = elapsed start in
+                ui (fun () -> phase !sequence "ready");
                 wait_ready !revision;
+                let ready_ms = elapsed start in
+                ui (fun () -> phase !sequence "frame");
                 frame ();
                 let latency_ms = elapsed start in
+                let active_after =
+                  ui (fun () ->
+                    phase !sequence "complete";
+                    active ())
+                in
                 let metrics, after =
                   ui (fun () ->
                     assert (
@@ -171,15 +212,20 @@ let () =
                 if use_exact then assert (metrics.retained_values = count);
                 Eio.traceln
                   "CHART_STREAM_SAMPLE points=%d exact=%d burst=%d iteration=%d \
-                   build_ms=%.3f update_frame_ms=%.3f representatives=%d vertices=%d \
-                   quads=%d plan_bytes=%d source_charge=%d submitted_bytes=%d \
-                   submitted_messages=%d"
+                   build_ms=%.3f published_ms=%.3f published_ready_ms=%.3f \
+                   ready_frame_ms=%.3f update_frame_ms=%.3f active_after=%d \
+                   representatives=%d vertices=%d quads=%d plan_bytes=%d \
+                   source_charge=%d submitted_bytes=%d submitted_messages=%d"
                   count
                   (Bool.to_int use_exact)
                   burst
                   iteration
                   build_ms
+                  published_ms
+                  (ready_ms -. published_ms)
+                  (latency_ms -. ready_ms)
                   latency_ms
+                  active_after
                   metrics.retained_values
                   metrics.mesh_vertices
                   metrics.quads
@@ -188,6 +234,7 @@ let () =
                   (after.traffic.submitted_bytes - before.traffic.submitted_bytes)
                   (after.traffic.submitted_messages - before.traffic.submitted_messages)
               done);
+          ui (fun () -> phase !sequence "cleanup");
           ui (fun () ->
             Registered.release registration;
             B.Expert.Var.set handle None);

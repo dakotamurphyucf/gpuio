@@ -101,6 +101,22 @@ impl Decoder<'_> {
             _ => Err(DecodeError::Malformed),
         }
     }
+    fn number_source(&mut self) -> Result<Source, DecodeError> {
+        match self.tag()? {
+            0 => Ok(Source::Keyboard),
+            1 => Ok(Source::Stepper),
+            2 => Ok(Source::Accessibility),
+            3 => Ok(Source::Programmatic),
+            _ => Err(DecodeError::Malformed),
+        }
+    }
+    fn number_direction(&mut self) -> Result<crate::numeric::Direction, DecodeError> {
+        match self.tag()? {
+            0 => Ok(crate::numeric::Direction::Increase),
+            1 => Ok(crate::numeric::Direction::Decrease),
+            _ => Err(DecodeError::Malformed),
+        }
+    }
     pub(super) fn number_event(&mut self) -> Result<Event, DecodeError> {
         let event = match self.tag()? {
             0 => Event::Observed(self.number_snapshot()?),
@@ -124,6 +140,12 @@ impl Decoder<'_> {
                 };
                 Event::Cancelled(reason, self.number_snapshot()?)
             }
+            5 => Event::StepRequested(StepRequest {
+                id: self.int()?,
+                direction: self.number_direction()?,
+                source: self.number_source()?,
+                snapshot: self.number_snapshot()?,
+            }),
             _ => return Err(DecodeError::Malformed),
         };
         if event.is_valid() {
@@ -158,6 +180,11 @@ impl Decoder<'_> {
                 _ => return Err(DecodeError::Malformed),
             }),
             9 => Command::ReadSnapshot,
+            10 => Command::ResolveStep {
+                request_id: self.int()?,
+                revision: self.int()?,
+                value: self.option(Self::number_value)?,
+            },
             _ => return Err(DecodeError::Malformed),
         };
         if command.is_valid() {

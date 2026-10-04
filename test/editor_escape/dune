@@ -1,0 +1,9 @@
+(library
+ (name gpuio_editor_escape_tests)
+ (libraries core gpuio gpuio.protocol eio_main)
+ (inline_tests
+  (deps editor-escape-operation.hex))
+ (preprocess
+  (pps ppx_jane)))
+
+(copy_files ../fixtures/editor-escape-operation.hex)

@@ -8,6 +8,23 @@ use gpui::{
 use gpuio_protocol::v1::*;
 use std::{cell::Cell, rc::Rc, sync::Arc};
 
+// Apply semantics before type erasure: SurfaceBounds/AnyElement do not expose
+// the panel's identity, so wrapping those silently loses the modal flag.
+fn modal_semantics<E: Element>(element: E, modal: bool) -> AnyElement {
+    crate::semantics::State {
+        identity: None,
+        busy: false,
+        hidden: false,
+        metadata: None,
+        live: None,
+        element,
+        disabled: false,
+        read_only: false,
+        modal,
+    }
+    .into_any_element()
+}
+
 fn dismiss(route: &Route, reason: Dismissal) {
     if !route.gate.borrow().top_overlay(route.node) {
         return;
@@ -65,20 +82,12 @@ pub(super) fn element(
     }
     let priority = route.gate.borrow().layer(route.node);
     let modal = config.kind.is_modal();
-    let viewport = window.viewport_size();
+    let viewport = crate::window_frame::content_bounds(window).size;
     // Edge-attached sheets own geometry; arbitrary panel dimensions cannot move
     // their trap offscreen or leave a gap along the attached edge.
-    let sheet_size = match config.kind {
-        OverlayKind::SheetLeft | OverlayKind::SheetRight => Some(gpui::size(
-            px(config.width as f32).min(viewport.width),
-            viewport.height,
-        )),
-        OverlayKind::SheetTop | OverlayKind::SheetBottom => Some(gpui::size(
-            viewport.width,
-            px(config.width as f32).min(viewport.height),
-        )),
-        OverlayKind::Dialog | OverlayKind::Popover | OverlayKind::AlertDialog => None,
-    };
+    let sheet_frame =
+        super::sheet_geometry::resolve(config.kind, viewport, config.width, node.sheet_insets);
+    let sheet_size = sheet_frame.as_ref().map(|frame| frame.panel_size);
     if let Some(size) = sheet_size {
         panel = panel
             .w(size.width)
@@ -138,30 +147,26 @@ pub(super) fn element(
         .on_any_mouse_down(|_, _, cx| cx.stop_propagation())
         .on_scroll_wheel(|_, _, cx| cx.stop_propagation());
     let panel = match scrolling {
-        Some(state) => super::highlight_style::Frame::new(
-            super::scroll::Frame::new(panel, state, route.gate.clone(), node.id),
-            node,
-            &route.gate,
-        )
-        .into_any_element(),
-        None => super::highlight_style::Frame::new(panel, node, &route.gate).into_any_element(),
+        Some(state) => modal_semantics(
+            super::highlight_style::Frame::new(
+                super::scroll::Frame::new(panel, state, route.gate.clone(), node.id),
+                node,
+                &route.gate,
+            ),
+            modal,
+        ),
+        None => modal_semantics(
+            super::highlight_style::Frame::new(panel, node, &route.gate),
+            modal,
+        ),
     };
     let bounds = Rc::new(Cell::new(Bounds::default()));
     route.gate.borrow_mut().surface(route.node, bounds.clone());
     let panel = SurfaceBounds {
         content: panel,
         bounds,
+        offset: gpui::point(px(0.), px(0.)),
     };
-    let panel = crate::semantics::State {
-        hidden: false,
-        metadata: None,
-        live: None,
-        element: panel,
-        disabled: false,
-        read_only: false,
-        modal,
-    }
-    .into_any_element();
     if modal {
         let backdrop = div()
             .w(viewport.width)
@@ -177,16 +182,69 @@ pub(super) fn element(
                 }
                 OverlayKind::Popover => unreachable!("nonmodal surface"),
             })
-            .bg(rgba(0x00000080))
+            .map(|backdrop| match &sheet_frame {
+                Some(frame) => backdrop
+                    .pt(frame.insets.top)
+                    .pr(frame.insets.right)
+                    .pb(frame.insets.bottom)
+                    .pl(frame.insets.left),
+                None => backdrop,
+            })
+            .bg(rgba(node.overlay_backdrop.unwrap_or(0x00000080) as u32))
             .occlude()
             .on_any_mouse_down(|_, window, cx| {
                 window.prevent_default();
                 cx.stop_propagation();
             })
-            .on_scroll_wheel(|_, _, cx| cx.stop_propagation())
-            .child(panel);
+            .on_scroll_wheel(|_, _, cx| cx.stop_propagation());
+        let kind = config.kind;
+        let distance = px(100.).min(sheet_size.map_or(px(0.), |size| {
+            if matches!(kind, OverlayKind::SheetLeft | OverlayKind::SheetRight) {
+                size.width
+            } else {
+                size.height
+            }
+        }));
+        let identity = ((node.id.generation() as u64) << 32) | node.id.slot() as u64;
+        let entry = super::overlay_entry::Entry {
+            id: ("gpuio-modal-entry", identity).into(),
+            enabled: node.overlay_motion,
+            node: node.id,
+            focus: route.gate.clone(),
+            duration: std::time::Duration::from_millis(
+                if matches!(kind, OverlayKind::Dialog | OverlayKind::AlertDialog) {
+                    250
+                } else {
+                    150
+                },
+            ),
+            content: Some(Box::new(move |progress| {
+                let mut panel = panel;
+                let remaining = 1. - progress;
+                panel.offset = match kind {
+                    OverlayKind::SheetLeft => gpui::point(-distance * remaining, px(0.)),
+                    OverlayKind::SheetRight => gpui::point(distance * remaining, px(0.)),
+                    OverlayKind::SheetTop => gpui::point(px(0.), -distance * remaining),
+                    OverlayKind::SheetBottom => gpui::point(px(0.), distance * remaining),
+                    OverlayKind::Dialog | OverlayKind::AlertDialog => {
+                        gpui::point(px(0.), px(-16.) * remaining)
+                    }
+                    OverlayKind::Popover => unreachable!("modal entry"),
+                };
+                backdrop
+                    .opacity(
+                        if matches!(kind, OverlayKind::Dialog | OverlayKind::AlertDialog) {
+                            progress
+                        } else {
+                            1.
+                        },
+                    )
+                    .child(panel)
+                    .into_any_element()
+            })),
+        };
         deferred(ViewportSurface {
-            content: backdrop.into_any_element(),
+            content: entry.into_any_element(),
         })
         .with_priority(priority)
         .into_any_element()
@@ -197,9 +255,10 @@ pub(super) fn element(
             .anchor(route.node)
             .expect("mounted overlay scope");
         deferred(super::popup::Surface {
+            geometry: node.placement_geometry,
             trigger,
             placement,
-            content: panel,
+            content: panel.into_any_element(),
         })
         .with_priority(priority)
         .into_any_element()
@@ -211,6 +270,7 @@ pub(super) fn element(
 struct SurfaceBounds {
     content: AnyElement,
     bounds: Rc<Cell<Bounds<Pixels>>>,
+    offset: gpui::Point<Pixels>,
 }
 impl IntoElement for SurfaceBounds {
     type Element = Self;
@@ -245,9 +305,10 @@ impl Element for SurfaceBounds {
         window: &mut Window,
         cx: &mut App,
     ) {
+        let moved = Bounds::new(bounds.origin + self.offset, bounds.size);
         self.bounds
-            .set(bounds.intersect(&window.content_mask().bounds));
-        self.content.prepaint(window, cx);
+            .set(moved.intersect(&window.content_mask().bounds));
+        window.with_element_offset(self.offset, |window| self.content.prepaint(window, cx));
     }
     fn paint(
         &mut self,
@@ -263,7 +324,7 @@ impl Element for SurfaceBounds {
     }
 }
 
-/// A zero-layout deferred surface positioned in viewport coordinates using this
+/// A zero-layout deferred surface positioned in window content coordinates using this
 /// frame's layout. It does not inherit the mounting ancestor's scroll offset.
 pub(super) struct ViewportSurface {
     pub(super) content: AnyElement,
@@ -310,7 +371,8 @@ impl Element for ViewportSurface {
         window: &mut Window,
         cx: &mut App,
     ) {
-        let offset = gpui::point(px(0.), px(0.)) - window.layout_bounds(*layout).origin;
+        let offset = crate::window_frame::content_bounds(window).origin
+            - window.layout_bounds(*layout).origin;
         window.with_element_offset(offset, |window| self.content.prepaint(window, cx));
     }
     fn paint(

@@ -323,7 +323,7 @@ pub(super) async fn exercise(
             key(cx, handle, "enter");
             pause(cx).await;
             let events = transport.mailbox.lock().unwrap().drain(128);
-            assert!(events.iter().any(|event| matches!(event, Event::DocumentNavigation(_, _, _, _, _, _, Navigation::Link(url)) if url == "https://example.com/selection")), "disabled selection preserves link activation: {events:?}");
+            assert!(events.iter().any(|event| matches!(event, Event::DocumentNavigation(_, _, _, _, _, _, Navigation::LinkActivated(url, activation)) if url == "https://example.com/selection" && matches!(activation.source, gpuio_protocol::document::ActivationSource::Keyboard))), "disabled selection preserves link activation: {events:?}");
         }
         // Explicit toolbar Copy is independent of selection.
         handle

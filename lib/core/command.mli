@@ -23,6 +23,11 @@ end
 
 type 'action t
 
+(** Supplying [checked], including [false], presents a toggle command; omitting
+    it presents an ordinary command. Native activation invokes [on_invoke] as an
+    intent: apply it to the current application model rather than a Boolean
+    captured during rendering. [View.command_button] exposes the checked value
+    to accessibility and [Style.State.Checked]; [Pressed] remains transient. *)
 val create
   :  id:Id.t
   -> label:string

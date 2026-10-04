@@ -11,6 +11,7 @@ struct Hold {
     hitbox: HitboxId,
     bounds: Bounds<Pixels>,
     token: Rc<()>,
+    next_delay: Duration,
 }
 #[derive(Default)]
 pub(super) struct Repeat {
@@ -49,14 +50,17 @@ impl Owner {
         window.refresh();
         true
     }
-    fn repeat_allowed(&self, window: &Window) -> bool {
+    fn request_allowed(&self, window: &Window) -> bool {
         let config = self.model.config();
         self.current()
             && !config.disabled
             && !config.read_only
-            && config.step_controls != n::StepControls::Hidden
             && window.is_window_active()
             && self.route.gate.borrow().allows(self.route.node)
+    }
+    fn repeat_allowed(&self, window: &Window) -> bool {
+        self.request_allowed(window)
+            && self.model.config().step_controls != n::StepControls::Hidden
             && self
                 .route
                 .session
@@ -65,6 +69,9 @@ impl Owner {
                 .is_some_and(|tree| super::super::pointer_enabled(tree, self.route.node))
     }
     fn has_next_step(&self, direction: Direction) -> bool {
+        if self.step_mode == n::StepMode::Application {
+            return true;
+        }
         let n::Value::Number(value) = self.model.snapshot().committed else {
             return false;
         };
@@ -74,6 +81,9 @@ impl Owner {
         }
     }
     pub(super) fn check_repeat(&mut self, window: &mut Window) {
+        if !self.request_allowed(window) {
+            self.model.cancel_step_request();
+        }
         if self.repeat.hold.is_some() && !self.repeat_allowed(window) {
             self.stop_repeat(window);
         }
@@ -94,6 +104,7 @@ fn begin(
     if window.default_prevented()
         || window.captured_hitbox().is_some()
         || !owner.borrow().repeat_allowed(window)
+        || owner.borrow().model.has_step_request()
     {
         return;
     }
@@ -115,7 +126,10 @@ fn begin(
     );
     window.prevent_default();
     cx.stop_propagation();
-    if !matches!(response, n::Response::Applied(_)) || !owner.borrow().has_next_step(direction) {
+    if !matches!(response, n::Response::Applied(_))
+        || !owner.borrow().has_next_step(direction)
+        || !owner.borrow().repeat_allowed(window)
+    {
         return;
     }
     let token = Rc::new(());
@@ -125,61 +139,95 @@ fn begin(
         hitbox: hitbox.id,
         bounds: hitbox.bounds,
         token: token.clone(),
+        next_delay: DELAY,
     });
-    let lease = Rc::downgrade(&token);
+    schedule(weak, entity, window, cx);
+    window.refresh();
+}
+
+/// One timer for the next repeat. Application requests hold the gesture without
+/// owning a timer; successful resolution schedules the next eligible repeat.
+pub(super) fn schedule(
+    weak: &Weak<RefCell<Owner>>,
+    entity: &WeakEntity<InputState>,
+    window: &mut Window,
+    cx: &mut App,
+) {
+    let Some(owner) = weak.upgrade() else {
+        return;
+    };
+    let (lease, delay) = {
+        let mut owner = owner.borrow_mut();
+        let Some(hold) = owner.repeat.hold.as_ref() else {
+            return;
+        };
+        if !owner.repeat_allowed(window)
+            || !editor_allows(entity, window, cx)
+            || window.captured_hitbox() != Some(hold.hitbox)
+            || !owner.has_next_step(hold.direction)
+        {
+            owner.stop_repeat(window);
+            return;
+        }
+        if owner.model.has_step_request() || owner.repeat.task.is_some() {
+            return;
+        }
+        (Rc::downgrade(&hold.token), hold.next_delay)
+    };
     let weak = weak.clone();
     let entity = entity.clone();
     owner.borrow_mut().repeat.task = Some(window.spawn(cx, async move |cx| {
-        let mut delay = DELAY;
-        loop {
-            cx.background_executor().timer(delay).await;
-            let keep = cx
-                .update(|window, cx| {
-                    let (Some(owner), Some(token)) = (weak.upgrade(), lease.upgrade()) else {
-                        return false;
-                    };
-                    // Motion handlers cancel on leaving the captured button.
-                    // GPUI's separately polled cursor position may not belong to
-                    // the event stream that initiated this captured gesture.
-                    let allowed = {
-                        let owner = owner.borrow();
-                        owner.repeat.hold.as_ref().is_some_and(|hold| {
-                            Rc::ptr_eq(&hold.token, &token)
-                                && window.captured_hitbox() == Some(hold.hitbox)
-                        }) && owner.repeat_allowed(window)
-                            && editor_allows(&entity, window, cx)
-                    };
-                    if !allowed {
-                        owner.borrow_mut().stop_repeat(window);
-                        return false;
-                    }
-                    #[cfg(feature = "native-tests")]
-                    {
-                        owner.borrow_mut().repeat.ticks += 1;
-                    }
-                    let response = perform(
-                        &weak,
-                        &entity,
-                        &n::Command::Step(direction),
-                        n::Source::Stepper,
-                        window,
-                        cx,
-                    );
-                    let keep = matches!(response, n::Response::Applied(_))
-                        && owner.borrow().has_next_step(direction);
-                    if !keep {
-                        owner.borrow_mut().stop_repeat(window);
-                    }
-                    keep
-                })
-                .unwrap_or(false);
-            if !keep {
-                break;
+        cx.background_executor().timer(delay).await;
+        let _ = cx.update(|window, cx| {
+            let (Some(owner), Some(token)) = (weak.upgrade(), lease.upgrade()) else {
+                return;
+            };
+            let direction = {
+                let mut owner = owner.borrow_mut();
+                let current = owner
+                    .repeat
+                    .hold
+                    .as_ref()
+                    .is_some_and(|hold| Rc::ptr_eq(&hold.token, &token));
+                if !current {
+                    return;
+                }
+                owner.repeat.task = None;
+                let allowed = owner
+                    .repeat
+                    .hold
+                    .as_ref()
+                    .is_some_and(|hold| window.captured_hitbox() == Some(hold.hitbox))
+                    && owner.repeat_allowed(window)
+                    && editor_allows(&entity, window, cx);
+                if !allowed {
+                    owner.stop_repeat(window);
+                    return;
+                }
+                let hold = owner.repeat.hold.as_mut().unwrap();
+                hold.next_delay = INTERVAL;
+                let direction = hold.direction;
+                #[cfg(feature = "native-tests")]
+                {
+                    owner.repeat.ticks += 1;
+                }
+                direction
+            };
+            let response = perform(
+                &weak,
+                &entity,
+                &n::Command::Step(direction),
+                n::Source::Stepper,
+                window,
+                cx,
+            );
+            if matches!(response, n::Response::Applied(_)) {
+                schedule(&weak, &entity, window, cx);
+            } else {
+                owner.borrow_mut().stop_repeat(window);
             }
-            delay = INTERVAL;
-        }
+        });
     }));
-    window.refresh();
 }
 
 pub(super) struct Button<E> {

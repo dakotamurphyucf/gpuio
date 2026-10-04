@@ -399,10 +399,17 @@ val with_state : t -> State.t -> Property.t list -> t Or_error.t
 val with_state_exn : t -> State.t -> Property.t list -> t
 
 module Expert : sig
+  val background_to_wire
+    :  Background.t
+    -> theme:Theme.t
+    -> Gpuio_protocol.Wire.Fill.t Or_error.t
+
   (** Reject selection, scrolling and pointer shields in a single-target link's
       passive content. Examines declarations in every interaction state. *)
   val validate_link_content : t -> unit Or_error.t
 
+  val validate_avatar_fallback : t -> unit Or_error.t
+  val validate_control_label : t -> unit Or_error.t
   val declaration_count : t -> int
 
   val validate_scope

@@ -413,9 +413,9 @@ fn run_mode(interactive: bool) {
                 },
                 |window, cx| {
                     cx.new(|cx| {
-                        let view = View::new(window_id, session.clone(), transport.clone());
+                        let mut view = View::new(window_id, session.clone(), transport.clone());
                         if interactive {
-                            crate::host::window_host::watch(&view, window, cx);
+                            crate::host::window_host::watch(&mut view, window, cx);
                         }
                         view
                     })

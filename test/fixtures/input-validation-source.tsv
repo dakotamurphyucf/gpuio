@@ -1,0 +1,6 @@
+# name	source_hex	preparation
+empty-whole	000001	checked
+whole-alternative	04617c61620001	checked
+substring-insensitive	034142430100	checked
+unicode-literal	04e7958c2a0001	checked
+invalid-syntax	015b0001	invalid-regex

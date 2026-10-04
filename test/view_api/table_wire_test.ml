@@ -337,5 +337,158 @@ let%expect_test "managed tables require a distinct negotiated capability" =
   let bytes = Wire.Message.encode (Hello (Wire.version, capability)) |> Or_error.ok_exn in
   String.iter bytes ~f:(fun byte -> printf "%02x" (Char.to_int byte));
   print_endline "";
-  [%expect {| 0001fc0000000000010000 |}]
+  [%expect {| 0003fc0000000000010000 |}]
+;;
+
+let%expect_test "paired table behavior extension preserves original schema encoding" =
+  let module Wire = Gpuio_protocol.Wire in
+  let node = Gpuio_protocol.Node_id.create ~slot:0L ~generation:1L |> Or_error.ok_exn in
+  let behavior : W.Behavior.t =
+    { row_header = false; boundary = Stop; selectable_headers = Some [ "a"; "β" ] }
+  in
+  assert (W.Behavior.valid behavior);
+  Eio_main.run (fun env ->
+    List.iter
+      [ "table-behavior-operation.hex", Wire.Op.Set_table_behavior (node, Some behavior)
+      ; "table-behavior-clear.hex", Wire.Op.Set_table_behavior (node, None)
+      ]
+      ~f:(fun (file, operation) ->
+        let expected =
+          Eio.Path.load Eio.Path.(Eio.Stdenv.cwd env / file) |> String.strip
+        in
+        assert (String.equal expected (hex Wire.Op.bin_writer_t operation))));
+  let module T = Gpuio.Table in
+  let columns = C.Expert.of_wire (config ()).schema |> Or_error.ok_exn in
+  let create ?selectable_headers () =
+    T.Config.create
+      ~columns
+      ~label:"Results"
+      ~column_selection:true
+      ?selectable_headers
+      ()
+  in
+  let base = create () |> Or_error.ok_exn in
+  assert (T.Config.row_header base);
+  assert (T.Boundary.equal (T.Config.boundary base) Wrap);
+  assert (Option.is_none (T.Expert.behavior_to_wire base));
+  let a = C.Id.of_string "a" |> Or_error.ok_exn in
+  let absent = C.Id.of_string "absent" |> Or_error.ok_exn in
+  assert (Or_error.is_error (create ~selectable_headers:[ a; a ] ()));
+  assert (Or_error.is_error (create ~selectable_headers:[ absent ] ()));
+  let limited = create ~selectable_headers:[ a ] () |> Or_error.ok_exn in
+  assert (T.Config.header_selectable limited a);
+  assert (not (T.Config.header_selectable limited (C.Id.of_string "β" |> Or_error.ok_exn)));
+  assert (
+    Or_error.is_error
+      (T.Config.with_columns limited (C.Collection.create [] |> Or_error.ok_exn)));
+  let cleared = T.Config.with_selectable_headers limited None |> Or_error.ok_exn in
+  assert (T.Config.equal base cleared);
+  print_endline
+    "paired extension; preserved defaults; unique existing headers; explicit reset";
+  [%expect
+    {| paired extension; preserved defaults; unique existing headers; explicit reset |}]
+;;
+
+let%expect_test "table appearance validates padding, colors, schema and paired bytes" =
+  let module A = Gpuio.Table.Appearance in
+  let module Wire = Gpuio_protocol.Wire in
+  let ok = Or_error.ok_exn in
+  let pad = A.Padding.create ~top:1. ~right:2. ~bottom:3. ~left:4. |> ok in
+  let id = C.Id.of_string "name" |> ok in
+  let appearance =
+    A.create
+      ~striped:true
+      ~colors:
+        [ ( Header_background
+          , Gpuio.Color.rgba ~red:0x33 ~green:0x66 ~blue:0x99 ~alpha:0x80 |> ok )
+        ; Header_foreground, Gpuio.Color.rgb_exn 0xffffff
+        ]
+      ~padding:pad
+      ~column_padding:[ id, A.Padding.zero ]
+      ()
+    |> ok
+  in
+  let wire = A.Expert.to_wire appearance ~theme:Gpuio.Theme.default |> ok in
+  assert (W.Appearance.valid wire);
+  let node = Gpuio_protocol.Node_id.create ~slot:0L ~generation:1L |> ok in
+  Eio_main.run (fun env ->
+    List.iter
+      [ "table-appearance-operation.hex", Wire.Op.Set_table_appearance (node, Some wire)
+      ; "table-appearance-clear.hex", Wire.Op.Set_table_appearance (node, None)
+      ]
+      ~f:(fun (file, op) ->
+        assert (
+          String.equal
+            (Eio.Path.load Eio.Path.(Eio.Stdenv.cwd env / file) |> String.strip)
+            (hex Wire.Op.bin_writer_t op))));
+  List.iter [ Float.nan; Float.infinity; -1.; 4097. ] ~f:(fun n ->
+    assert (Or_error.is_error (A.Padding.all n)));
+  assert (
+    Or_error.is_error
+      (A.create
+         ~colors:[ Row_border, Gpuio.Color.rgb_exn 0; Row_border, Gpuio.Color.rgb_exn 0 ]
+         ()));
+  assert (Or_error.is_error (A.create ~column_padding:[ id, pad; id, pad ] ()));
+  let missing =
+    A.create ~colors:[ Stripe_background, Gpuio.Color.token_exn "missing" ] () |> ok
+  in
+  assert (Or_error.is_error (A.Expert.to_wire missing ~theme:Gpuio.Theme.default));
+  let columns = C.Expert.of_wire (config ()).schema |> ok in
+  assert (
+    Or_error.is_error (Gpuio.Table.Config.create ~columns ~label:"Table" ~appearance ()));
+  print_endline
+    "paired appearance and reset; bounded padding; unique parts/columns; eager theme \
+     resolution";
+  [%expect
+    {| paired appearance and reset; bounded padding; unique parts/columns; eager theme resolution |}]
+;;
+
+let%expect_test "column viewport event fixture and strict envelope validation" =
+  let module P = Gpuio_protocol in
+  let viewport : W.Column_viewport.t =
+    { schema_revision = 7L
+    ; query_generation = 3L
+    ; columns = [ "a", Left, true; "β", Unpinned, false ]
+    }
+  in
+  let event value =
+    P.Wire.Event.Table_columns_observed
+      ( P.Window_id.create ~slot:0L ~generation:1L |> Or_error.ok_exn
+      , P.Node_id.create ~slot:0L ~generation:1L |> Or_error.ok_exn
+      , P.Handler_id.create ~slot:0L ~generation:1L |> Or_error.ok_exn
+      , 1L
+      , value )
+  in
+  let encode value =
+    "\001"
+    ^ (Bin_prot.Utils.bin_dump P.Wire.Event.bin_writer_t (event value)
+       |> Bigstring.to_string)
+  in
+  Eio_main.run (fun env ->
+    let expected =
+      Eio.Path.load Eio.Path.(Eio.Stdenv.cwd env / "table-columns-event.hex")
+      |> String.strip
+    in
+    assert (String.equal expected (hex P.Wire.Event.bin_writer_t (event viewport))));
+  let bytes = encode viewport in
+  assert (Result.is_ok (P.Wire.Event.decode bytes));
+  for len = 0 to String.length bytes - 1 do
+    assert (Result.is_error (P.Wire.Event.decode (String.sub bytes ~pos:0 ~len)))
+  done;
+  assert (Result.is_error (P.Wire.Event.decode (bytes ^ "\000")));
+  List.iter
+    [ { viewport with schema_revision = 0L }
+    ; { viewport with query_generation = -1L }
+    ; { viewport with columns = [ "", Left, true ] }
+    ; { viewport with columns = [ "a", Left, true; "a", Left, false ] }
+    ; { viewport with columns = List.rev viewport.columns }
+    ; { viewport with
+        columns = List.init 65 ~f:(fun i -> Int.to_string i, W.Pin.Unpinned, true)
+      }
+    ]
+    ~f:(fun value -> assert (Result.is_error (P.Wire.Event.decode (encode value))));
+  print_endline
+    "paired Event75; truncation, trailing bytes, identity, pin order and bounds rejected";
+  [%expect
+    {| paired Event75; truncation, trailing bytes, identity, pin order and bounds rejected |}]
 ;;

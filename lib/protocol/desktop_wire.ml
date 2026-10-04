@@ -75,6 +75,13 @@ module Capabilities = struct
   [@@deriving bin_io, equal, sexp_of]
 end
 
+module Scrollbar_preference = struct
+  type t =
+    | Auto_hide
+    | Always_visible
+  [@@deriving bin_io, equal, sexp_of]
+end
+
 module Error = struct
   type t =
     | Invalid_request
@@ -98,6 +105,7 @@ module Request = struct
     | Reveal_file of string
     | Open_file of string
     | Register_scheme of string
+    | Scrollbar_preference
   [@@deriving bin_io, equal, sexp_of]
 
   let valid_path path =
@@ -111,7 +119,7 @@ module Request = struct
     | Configure identity -> Identity.valid identity
     | Reveal_file path | Open_file path -> valid_path path
     | Register_scheme scheme -> valid_scheme scheme
-    | Capabilities | Take_links | Activate _ -> true
+    | Capabilities | Take_links | Activate _ | Scrollbar_preference -> true
   ;;
 end
 
@@ -138,11 +146,17 @@ module Response = struct
     | Requested
     | Registered
     | Failed of Error.t
+    | Scrollbar_preference of Scrollbar_preference.t
   [@@deriving bin_io, equal, sexp_of]
 
   let valid = function
     | Links batch -> Link_batch.valid batch
-    | Configured | Capabilities _ | Requested | Registered | Failed _ -> true
+    | Configured
+    | Capabilities _
+    | Requested
+    | Registered
+    | Failed _
+    | Scrollbar_preference _ -> true
   ;;
 end
 

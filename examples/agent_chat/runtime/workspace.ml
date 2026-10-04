@@ -294,7 +294,7 @@ let document_view t dark message =
         ~label:message.detail
         ~initially_collapsed:
           (match mode with
-           | Markdown -> false
+           | Markdown | Html -> false
            | Code _ | Diff -> true)
         ~layout:Flow
         ()
@@ -307,7 +307,7 @@ let document_view t dark message =
           notify
             t
             (match navigation with
-             | Link url -> "Link: " ^ url
+             | Link { url; activation = _ } -> "Link: " ^ url
              | Line { path; line; _ } ->
                sprintf "%s:%d" (Option.value path ~default:"Document") line)))
       config
@@ -320,7 +320,7 @@ let message_view t dark icons message =
     else (
       match message.body with
       | Rich (_, (Code _ | Diff)) -> Artifact
-      | Rich (_, Markdown) | Plain _ -> Assistant)
+      | Rich (_, (Markdown | Html)) | Plain _ -> Assistant)
   in
   Chat_message.view ~kind ~dark ~icons ~content:(document_view t dark message)
 ;;
@@ -598,7 +598,10 @@ let install_close_handler t window =
             | Busy
             | Native_failure
             | Invalid_text
-            | Focus_blocked ) -> true)
+            | Focus_blocked
+            | Search_unavailable
+            | Stale_search
+            | Not_editable ) -> true)
     in
     if not drafts
     then E.return Gpuio.Window.Close_decision.Allow

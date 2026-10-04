@@ -41,6 +41,7 @@ module Config : sig
 
   val value : t -> int
   val maximum : t -> int
+  val star_size : t -> float
   val is_disabled : t -> bool
   val is_read_only : t -> bool
 
@@ -53,8 +54,25 @@ module Config : sig
   val apply_request : t -> Request.t -> t
 end
 
+module Appearance : sig
+  type t [@@deriving equal, sexp_of]
+
+  (** Independent filled-star and outline colors. Omitted colors use computed
+      foreground (inactive: 0.7 opacity). Explicit colors preserve their alpha
+      and override foreground state refinements. Theme tokens resolve at View
+      submission; ancestor opacity/clipping still apply. *)
+  val create : ?active:Color.t -> ?inactive:Color.t -> unit -> t
+
+  val default : t
+end
+
 module Expert : sig
   val to_wire : Config.t -> Gpuio_protocol.Rating_wire.Config.t
   val request_of_wire : Gpuio_protocol.Rating_wire.Request.t -> Request.t option
   val can_apply : Config.t -> Request.t -> bool
+
+  val appearance_to_wire
+    :  Appearance.t
+    -> theme:Theme.t
+    -> Gpuio_protocol.Rating_wire.Appearance.t option Or_error.t
 end

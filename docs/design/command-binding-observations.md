@@ -166,11 +166,11 @@ actual data size. Query metadata and results retain no editor draft.
 ## Paired transport
 
 Capability bit 52 is `CAP_COMMAND_BINDINGS`. Its introduction used complete mask
-`9007199254740991`; numeric draft seeds now extend the current mask to
-`72057594037927935`. The independently specified Hello bytes are:
+`9007199254740991`; subsequent capabilities through rich avatar fallback extend the current mask to
+`9223372036854775807`. The independently specified Hello bytes are:
 
 - Only binding observations: `0001fc0000000000001000`.
-- Current complete mask: `0001fcffffffffffffff00`.
+- Current complete mask: `0001fcffffffffffffff7f`.
 
 Operation tag 62 is `Set_command_binding (node, config option)`; None clears it.
 Event tag 66 is `Command_binding_observed (window, node, handler, tree_revision,
@@ -313,3 +313,28 @@ python3 scripts/test_gallery.py --section binding-observations --executable /pri
 
 The focused section is included in `core` and `all`. A fresh combined gallery run,
 hosted CI and the release gates remain separate acceptance work.
+
+
+### Command-button tooltip composition — 2026-10-01
+
+The Controls card **Hints that follow the action** demonstrates a second consumer
+of the public observer. A stable `View.command_scope` encloses a
+`Command_binding.component` in Here context. The observer owns a stable managed
+Tooltip whose anchor is a keyed command button. The observer remains mounted
+outside the tooltip's conditionally rendered content, allowing closed-tooltip
+shortcut changes to be sampled before the next focus/hover opening.
+
+Keycaps are built from observed registry candidates, not from the local shortcut
+registration value. The hint distinguishes pending, missing command, no assigned
+shortcut, disabled command and unavailable observations. Here describes registry
+declarations, so the example does not promise OS delivery or focused-context
+conflict resolution. Its platform toggle changes labels, not shortcut registration.
+The card exposes chord replacement/removal and command availability; requests only
+increment local state. Tooltip hover/focus/Escape behavior stays native-managed.
+
+Full OCaml tests/formatting and the gallery build pass. The new
+`scripts/gallery_command_tooltip.py`, included in `--section buttons` and `all`,
+checks owner identity, observed chord changes/removal, platform labels, command
+invocation/disabling, Escape and page retirement. Python compilation passes; this
+new physical walkthrough is **unrun**. Earlier binding-card acceptance above does
+not establish this new tooltip composition's native/physical behavior.

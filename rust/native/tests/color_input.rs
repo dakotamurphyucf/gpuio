@@ -7,6 +7,114 @@ use gpuio_native::{
 use gpuio_protocol::{HandlerId, NodeId, WindowId, color_input as c, color_value as v, v1::*};
 use std::sync::Arc;
 
+#[test]
+fn presentation_counts_validate_final_transaction_and_retained_metadata_is_accounted() {
+    use gpuio_protocol::color_presentation::{Panel, Panels, Presentation, Section};
+    let mut s = session();
+    mount(&mut s);
+    let baseline = s.retained_bytes();
+    let p = Presentation {
+        sections: vec![Section {
+            featured: true,
+            label: "Favorites".into(),
+            count: 2,
+        }],
+        panels: Panels::Tabs {
+            palette_label: "Swatches".into(),
+            channels_label: "HSLA".into(),
+            initial: Panel::Channels,
+        },
+        ..Presentation::default()
+    };
+    assert_eq!(
+        p.retained_bytes(),
+        Presentation {
+            panels: Panels::All,
+            ..p.clone()
+        }
+        .retained_bytes()
+            + 12
+    );
+    s.apply(&tx(
+        1,
+        vec![Op::SetColorPresentation(node(), Some(p.clone()))],
+    ))
+    .unwrap();
+    assert_eq!(s.retained_bytes(), baseline + p.retained_bytes());
+    let mut short = config();
+    short.palette.pop();
+    assert!(
+        s.apply(&tx(2, vec![set(short.clone(), v::Value::Empty)]))
+            .is_err()
+    );
+    for bad in [
+        Presentation {
+            panels: Panels::Tabs {
+                palette_label: String::new(),
+                channels_label: "HSLA".into(),
+                initial: Panel::Palette,
+            },
+            ..p.clone()
+        },
+        Presentation {
+            swatch_size: f64::NAN,
+            ..p.clone()
+        },
+        Presentation {
+            sections: vec![Section {
+                count: 3,
+                ..p.sections[0].clone()
+            }],
+            ..p.clone()
+        },
+    ] {
+        assert!(
+            s.apply(&tx(2, vec![Op::SetColorPresentation(node(), Some(bad))]))
+                .is_err()
+        );
+    }
+    assert_eq!(s.tree(window()).unwrap().revision(), 2);
+    assert_eq!(s.retained_bytes(), baseline + p.retained_bytes());
+    let other = NodeId::from_parts(1, 1).unwrap();
+    assert!(
+        s.apply(&tx(
+            2,
+            vec![
+                Op::Create(other, Kind::Text, "wrong".into(), None),
+                Op::SetColorPresentation(other, Some(p.clone()))
+            ]
+        ))
+        .is_err()
+    );
+    assert!(s.tree(window()).unwrap().get(other).is_none());
+    let one = Presentation {
+        sections: vec![Section {
+            count: 1,
+            ..p.sections[0].clone()
+        }],
+        ..p.clone()
+    };
+    s.apply(&tx(
+        2,
+        vec![
+            Op::SetColorPresentation(node(), Some(one)),
+            set(short, v::Value::Empty),
+        ],
+    ))
+    .unwrap();
+    s.apply(&tx(
+        3,
+        vec![
+            set(config(), v::Value::Empty),
+            Op::SetColorPresentation(node(), Some(p)),
+        ],
+    ))
+    .unwrap();
+    s.apply(&tx(4, vec![Op::SetColorPresentation(node(), None)]))
+        .unwrap();
+    assert_eq!(s.retained_bytes(), baseline);
+}
+
 fn window() -> WindowId {
     WindowId::from_parts(0, 1).unwrap()
 }

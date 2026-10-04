@@ -104,12 +104,33 @@ let exercise
       ~completed
   =
   let current () = E.of_thunk (fun () -> Option.value_exn !latest) in
+  let rec ready stage remaining =
+    let open E.Let_syntax in
+    let%bind t = current () in
+    if P.is_open t && Option.is_some (P.draft t)
+    then E.return t
+    else if remaining = 0 || Option.is_some (P.error t)
+    then
+      E.of_thunk (fun () ->
+        raise_s
+          [%message
+            "Picker did not publish a native draft"
+              (stage : string)
+              ~is_open:(P.is_open t : bool)
+              ~error:(P.error t : Policy.Error.t option)])
+    else (
+      let%bind () = frame window in
+      ready stage (remaining - 1))
+  in
   let reopen () =
     let open E.Let_syntax in
     let%bind t = current () in
     let%bind () = P.open_popup t in
     let%bind () = settle window in
-    current ()
+    (* Window paint acknowledgments do not acknowledge the newly mounted
+       calendar's asynchronous initial snapshot. Wait for that public state,
+       with bounded frame requests and the existing outer test watchdog. *)
+    ready "open" 120
   in
   let replace t selection =
     E.bind (P.command t (Replace { selection; if_revision = None })) ~f:native
@@ -158,7 +179,7 @@ let exercise
   let%bind () = settle window in
   let%bind () = set_placed true in
   let%bind () = settle window in
-  let%bind remounted = current () in
+  let%bind remounted = ready "placement remount" 120 in
   let%bind () =
     selection (C.Snapshot.selection (draft "placement remount" remounted)) replacement
   in

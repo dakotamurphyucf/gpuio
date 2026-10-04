@@ -2847,43 +2847,113 @@ def expect_focus(mac, trigger, role="AXButton", *, title=TITLE, focused=True):
     raise RuntimeError(f'{title}: expected {trigger} AXFocused={focused}')
 
 
+def expect_popup_expanded(mac, label, expected):
+    get = mac.cf.CFBooleanGetValue
+    get.restype, get.argtypes = C.c_bool, [C.c_void_p]
+    deadline = time.monotonic() + 10
+    while time.monotonic() < deadline:
+        node = mac.wait_find(TITLE, label, 'AXButton')
+        value = mac.attr(node, 'AXExpanded')
+        try:
+            if value and bool(get(value)) == expected:
+                return
+        finally:
+            if value:
+                mac.release(value)
+            mac.release(node)
+        time.sleep(.03)
+    raise RuntimeError(f'{label}: expected AXExpanded={expected}')
+
+
 def exercise_pickers(mac, images):
     mac.press(TITLE, 'Dates & colors')
+    from gallery_calendar_content import exercise as exercise_calendar_content
+    exercise_calendar_content(mac)
+    reveal_gallery_control(mac, 'Choose appointment', 'AXButton')
     mac.wait_text(TITLE, 'Appointment: 2026-09-14')
     open_picker(mac, 'Choose appointment', 'Cancel appointment')
+    expect_popup_expanded(mac, 'Choose appointment', True)
     activate(mac, within(mac, 'Preview appointment', 'September 17, 2026', 'AXCheckBox'))
     mac.wait_text(TITLE, 'Appointment: 2026-09-14')
     mac.press(TITLE, 'Cancel appointment')
     expect_focus(mac, 'Choose appointment')
+    expect_popup_expanded(mac, 'Choose appointment', False)
     mac.wait_text(TITLE, 'Appointment: 2026-09-14')
     open_picker(mac, 'Choose appointment', 'Cancel appointment')
+    expect_popup_expanded(mac, 'Choose appointment', True)
     activate(mac, within(mac, 'Preview appointment', 'September 18, 2026', 'AXCheckBox'))
     mac.press(TITLE, 'Apply appointment')
     mac.wait_text(TITLE, 'Appointment: 2026-09-18')
     expect_focus(mac, 'Choose appointment')
+    expect_popup_expanded(mac, 'Choose appointment', False)
     open_picker(mac, 'Choose accent', 'Cancel accent')
+    expect_popup_expanded(mac, 'Choose accent', True)
+    hex_field = within(mac, 'Preview accent', 'Hex color', 'AXTextField')
+    try:
+        original_hex = mac.text(hex_field, 'AXValue')
+        activate(mac, within(mac, 'Preview accent', 'HSLA', 'AXRadioButton'))
+        mac.release(within(mac, 'Preview accent', 'Hue', 'AXSlider'))
+        assert mac.text(hex_field, 'AXValue') == original_hex
+        activate(mac, within(mac, 'Preview accent', 'Palette', 'AXRadioButton'))
+        assert mac.text(hex_field, 'AXValue') == original_hex
+    finally:
+        mac.release(hex_field)
+    mac.wait_text(TITLE, 'Accent: #89DDC9')
     activate(mac, within(mac, 'Preview accent', 'Iris', 'AXRadioButton'))
     mac.wait_text(TITLE, 'Accent: #89DDC9')
     mac.press(TITLE, 'Cancel accent')
     expect_focus(mac, 'Choose accent')
+    expect_popup_expanded(mac, 'Choose accent', False)
     open_picker(mac, 'Choose accent', 'Cancel accent')
+    expect_popup_expanded(mac, 'Choose accent', True)
     activate(mac, within(mac, 'Preview accent', 'Coral', 'AXRadioButton'))
     mac.press(TITLE, 'Apply accent')
     mac.wait_text(TITLE, 'Accent: #F6A89D')
     expect_focus(mac, 'Choose accent')
+    expect_popup_expanded(mac, 'Choose accent', False)
     if images:
         screenshot(mac, images / 'gallery-pickers.png', title=TITLE)
     open_picker(mac, 'Choose accent', 'Cancel accent')
+    expect_popup_expanded(mac, 'Choose accent', True)
     mac.key(53)
     expect_focus(mac, 'Choose accent')
+    expect_popup_expanded(mac, 'Choose accent', False)
     mac.wait_text(TITLE, 'Accent: #F6A89D')
+    mac.press(TITLE, 'Clear appointment')
+    mac.wait_text(TITLE, 'Appointment: No date selected')
+    mac.press(TITLE, 'Clear accent')
+    mac.wait_text(TITLE, 'Accent: No color')
 
 
 def exercise_overlays(mac, images):
     mac.press(TITLE, 'Overlays & help')
     open_picker(mac, 'Open dialog', 'Close dialog')
+    original = mac.wait_find(TITLE, 'Preview dialog', 'AXWindow')
+    equal = mac.cf.CFEqual
+    equal.restype, equal.argtypes = C.c_bool, [C.c_void_p, C.c_void_p]
+    boolean = mac.cf.CFBooleanGetValue
+    boolean.restype, boolean.argtypes = C.c_bool, [C.c_void_p]
+    try:
+        for _ in range(2):
+            mac.press(TITLE, 'Change backdrop')
+            current = mac.wait_find(TITLE, 'Preview dialog', 'AXWindow')
+            modal = mac.attr(current, 'AXModal')
+            try:
+                assert equal(original, current), 'Backdrop update replaced dialog'
+                assert modal and boolean(modal), 'Dialog must expose AXModal'
+            finally:
+                if modal:
+                    mac.release(modal)
+                mac.release(current)
+    finally:
+        mac.release(original)
     mac.key(53)
     expect_focus(mac, 'Open dialog')
+    mac.press(TITLE, 'Animate opening')
+    open_picker(mac, 'Open dialog', 'Close dialog')
+    mac.press(TITLE, 'Close dialog')
+    expect_focus(mac, 'Open dialog')
+    mac.press(TITLE, 'Animate opening')
     open_picker(mac, 'Open drawer', 'Close drawer')
     mac.press(TITLE, 'Close drawer')
     expect_focus(mac, 'Open drawer')
@@ -2899,6 +2969,23 @@ def exercise_overlays(mac, images):
         screenshot(mac, images / 'gallery-overlays.png', title=TITLE)
     mac.press(TITLE, 'Done with details')
     expect_focus(mac, 'Show details')
+
+    # Animated managed help replaces only accepted managed content. Physical
+    # animation smoothness still needs visual review; AX presence is not paint.
+    tips = [
+        ('Focus for a tip', 'Tooltips also appear when their trigger receives keyboard focus.'),
+        ('Streaming help', 'Responses can stream while the native interface stays responsive.'),
+        ('Keyboard help', 'Move between these triggers to preview a native tooltip switch.'),
+    ]
+    previous_text = None
+    for trigger, text in tips:
+        focus_gallery_control(mac, trigger, 'AXButton')
+        mac.wait_text(TITLE, text)
+        if previous_text:
+            wait_absent(mac, previous_text, None)
+        previous_text = text
+    mac.key(53)
+    wait_absent(mac, previous_text, None)
 
 
 def exercise_navigation(mac, images):
@@ -2920,6 +3007,20 @@ def exercise_navigation(mac, images):
     finally:
         mac.release(field)
     expect_field(mac, TITLE, 'Retained notes', 'a', role='AXTextArea')
+    # Both presentations keep the configured tab names and editor owners.
+    # This exercises the public constructor's rich/plain transition, not merely
+    # whether the badge text appears in accessibility (it is decorative).
+    for _ in range(2):
+        activate(mac, mac.wait_find(TITLE, 'Decorated workspace tabs', 'AXCheckBox'))
+        expect_field(mac, TITLE, 'Retained notes', 'a', role='AXTextArea')
+        tab = mac.wait_find(TITLE, 'Draft')
+        mac.release(tab)
+    for name in ('Underline', 'Tab', 'Outline', 'Pill', 'Segmented'):
+        mac.press(TITLE, f'Tab style: {name}')
+        expect_field(mac, TITLE, 'Retained notes', 'a', role='AXTextArea')
+    for _ in range(2):
+        activate(mac, mac.wait_find(TITLE, 'Customize tab targets', 'AXCheckBox'))
+        expect_field(mac, TITLE, 'Retained notes', 'a', role='AXTextArea')
     activate(mac, mac.wait_find(TITLE, 'Draft'))
     expect_field(mac, TITLE, 'Retained draft', 'A separate draft with its own native editing history.', role='AXTextArea')
     hidden = mac.find(TITLE, 'Retained notes', 'AXTextArea')
@@ -2928,16 +3029,98 @@ def exercise_navigation(mac, images):
         raise RuntimeError('Inactive retained tab editor remains accessible')
     activate(mac, mac.wait_find(TITLE, 'Notes'))
     expect_field(mac, TITLE, 'Retained notes', 'a', role='AXTextArea')
+    reveal_gallery_control(mac, 'Close draft', 'AXButton')
+    mac.press(TITLE, 'Close draft')
+    mac.wait_text(TITLE, 'Closed draft')
+    closed = mac.find(TITLE, 'Close draft', 'AXButton')
+    if closed:
+        mac.release(closed)
+        raise RuntimeError('Closed structured tab retained its Close button')
+    mac.press(TITLE, 'Reverse tabs')
+    mac.press(TITLE, 'Restore tabs')
+    close = mac.wait_find(TITLE, 'Close draft', 'AXButton')
+    mac.release(close)
+    for _ in range(2):
+        activate(mac, mac.wait_find(TITLE, 'Truncate long tab names', 'AXCheckBox'))
+    def tab_rect(label):
+        node = mac.wait_find(TITLE, label)
+        try:
+            return element_rect(mac, node)
+        finally:
+            mac.release(node)
+    first_x = tab_rect('A thoughtful plan for a new workspace')[0]
+    fixed_restore = tab_rect('Restore workspace tabs')
+    mac.press(TITLE, 'Select last tab')
+    mac.wait_text(TITLE, 'Selected archive')
+    assert abs(tab_rect('A thoughtful plan for a new workspace')[0] - first_x) < 1, \
+        'Controlled tab selection must not implicitly scroll'
+    mac.press(TITLE, 'Reveal last tab')
+    mac.wait_text(TITLE, 'Reveal requested for archive')
+    for _ in range(40):
+        vx, _, vw, _ = tab_rect('Closable workspace tabs')
+        tx, _, tw, _ = tab_rect('Archived conversations')
+        if vx - 1 <= tx and tx + tw <= vx + vw + 1:
+            break
+        time.sleep(.05)
+    else:
+        raise RuntimeError('Explicit tab reveal did not bring the last target into view')
+    restore_after_scroll = tab_rect('Restore workspace tabs')
+    assert abs(restore_after_scroll[0] - fixed_restore[0]) < 1, \
+        'Tab-frame suffix moved with the scrolling tabs'
+    archive_before_menu = tab_rect('Archived conversations')
+    mac.press(TITLE, 'All tabs')
+    activate(mac, mac.wait_find(TITLE, 'A thoughtful plan for a new workspace', 'AXMenuItem'))
+    mac.wait_text(TITLE, 'Selected plan')
+    assert abs(tab_rect('Archived conversations')[0] - archive_before_menu[0]) < 1, \
+        'All-tabs menu selection must not implicitly reveal a tab'
+    mac.press(TITLE, 'Close archive')
+    mac.wait_text(TITLE, 'Closed archive')
+    mac.press(TITLE, 'Restore tabs')
+    expect_field(mac, TITLE, 'Retained notes', 'a', role='AXTextArea')
     mac.press(TITLE, 'Identity')
     mac.wait_text(TITLE, 'Stable keys preserve the identity')
     mac.press(TITLE, 'Behavior')
     mac.wait_text(TITLE, 'Native controls handle immediate input')
+    exercise_pagination(mac)
     mac.press(TITLE, 'Next')
-    mac.wait_text(TITLE, 'Preview page 2 of 12')
+    mac.wait_text(TITLE, 'Preview page 43 of 120')
     mac.press(TITLE, 'Last')
-    mac.wait_text(TITLE, 'Preview page 12 of 12')
+    mac.wait_text(TITLE, 'Preview page 120 of 120')
     if images:
         screenshot(mac, images / 'gallery-navigation.png', title=TITLE)
+
+
+def exercise_pagination(mac):
+    first, second = 'Pages 2 to 58', 'Pages 62 to 119'
+    reveal_gallery_control(mac, first, 'AXButton')
+    mac.wait_text(TITLE, 'Preview page 60 of 120')
+    expect_popup_expanded(mac, first, False)
+    expect_popup_expanded(mac, second, False)
+    # Semantic activation deliberately does not focus the trigger first.
+    mac.press(TITLE, second)
+    mac.wait_text(TITLE, 'Choose a page from 62 to 119')
+    expect_focus(mac, 'Page number', 'AXTextField')
+    expect_popup_expanded(mac, first, False)
+    expect_popup_expanded(mac, second, True)
+    mac.press(TITLE, 'Cancel')
+    expect_focus(mac, second)
+    expect_popup_expanded(mac, second, False)
+    open_picker(mac, first, 'Cancel')
+    expect_focus(mac, 'Page number', 'AXTextField')
+    expect_popup_expanded(mac, first, True)
+    expect_popup_expanded(mac, second, False)
+    # The native numeric field receives opening focus. Enter commits the draft,
+    # while the explicit Go action requests navigation through the Eio controller.
+    mac.key(0, flags=1 << 20)  # Command-A.
+    mac.key(21)  # 4.
+    mac.key(19)  # 2.
+    mac.key(36)
+    mac.wait_text(TITLE, 'Preview page 60 of 120')
+    expect_enabled(mac, 'Go to page', True)
+    mac.press(TITLE, 'Go to page')
+    mac.wait_text(TITLE, 'Preview page 42 of 120')
+    expect_popup_expanded(mac, 'Pages 2 to 40', False)
+    expect_popup_expanded(mac, 'Pages 44 to 119', False)
 
 
 def exercise_feedback(mac, images):
@@ -3104,14 +3287,42 @@ def tree_counts(mac, root):
 
 def exercise_collections(mac, images):
     mac.press(TITLE, 'Lists, trees & tables')
-    mac.wait_text(TITLE, 'Entry 0000')
-    mac.press(TITLE, 'Last entry')
     mac.wait_text(TITLE, 'Entry 0999')
-    mac.press(TITLE, 'Grow first entry')
-    mac.wait_text(TITLE, 'Extra lines: 1 / 8')
-    mac.wait_text(TITLE, 'Entry 0999')
-    mac.press(TITLE, 'First entry')
+    mac.wait_text(TITLE, 'Following new messages.')
+    mac.press(TITLE, 'Grow latest response')
+    mac.wait_text(TITLE, '1000 messages · Latest response: 1 / 8 extra lines')
     mac.wait_text(TITLE, 'Another useful detail.')
+    mac.press(TITLE, 'New message')
+    mac.wait_text(TITLE, 'Entry 1000')
+    mac.wait_text(TITLE, '1001 messages · Latest response: 0 / 8 extra lines')
+    mac.press(TITLE, 'First entry')
+    mac.wait_text(TITLE, 'Entry 0000')
+    mac.wait_text(TITLE, 'Reading history.')
+    mac.release(mac.wait_find(TITLE, 'Follow latest', 'AXButton'))
+    if images:
+        screenshot(mac, images / 'gallery-message-follow.png', title=TITLE)
+    mac.press(TITLE, 'Follow latest')
+    mac.wait_text(TITLE, 'Following new messages.')
+    absent(mac, 'Follow latest', 'AXButton')
+    mac.press(TITLE, 'First entry')
+    mac.wait_text(TITLE, 'Entry 0000')
+    mac.wait_text(TITLE, 'Reading history.')
+    mac.press(TITLE, 'Earlier history')
+    mac.wait_text(TITLE, '1002 messages · Latest response: 0 / 8 extra lines')
+    mac.wait_text(TITLE, 'Entry 0000')
+    mac.wait_text(TITLE, 'Reading history.')
+    mac.press(TITLE, 'New message')
+    mac.wait_text(TITLE, '1003 messages · Latest response: 0 / 8 extra lines')
+    mac.wait_text(TITLE, 'Entry 0000')
+    mac.wait_text(TITLE, 'Reading history.')
+    mac.press(TITLE, 'Jump to latest')
+    mac.wait_text(TITLE, 'Entry 1001')
+    mac.wait_text(TITLE, 'Following new messages.')
+    mac.press(TITLE, 'Grow latest response')
+    mac.wait_text(TITLE, '1003 messages · Latest response: 1 / 8 extra lines')
+    mac.wait_text(TITLE, 'Another useful detail.')
+    mac.press(TITLE, 'Reset latest response')
+    mac.wait_text(TITLE, '1003 messages · Latest response: 0 / 8 extra lines')
     mac.press(TITLE, 'Outline tree')
     mac.release(mac.wait_find(TITLE, 'Field notes', 'AXRow', search_files=True))
     mac.press(TITLE, 'Reveal observatory')
@@ -3135,7 +3346,8 @@ def exercise_collections(mac, images):
     mac.press(TITLE, 'Outline tree')
     mac.wait_text(TITLE, 'Selected outline: observatory')
     mac.press(TITLE, 'Message list')
-    mac.wait_text(TITLE, 'Another useful detail.')
+    mac.wait_text(TITLE, 'Entry 1001')
+    mac.wait_text(TITLE, '1003 messages · Latest response: 0 / 8 extra lines')
     mac.press(TITLE, 'Presentation')
     mac.wait_text(TITLE, 'A little context goes a long way')
     absent(mac, 'Preview results', 'AXTable')
@@ -6115,8 +6327,9 @@ def main():
     parser.add_argument('--trace-canvas', action='store_true')
     parser.add_argument('--trace-motion', action='store_true')
     parser.add_argument('--trace-windows', action='store_true')
-    parser.add_argument('--section', choices=['all', 'core', 'settings', 'settings-windows', 'settings-composition', 'settings-fields', 'status-regions', 'badges', 'labels', 'shimmer', 'markers', 'alerts', 'tags', 'keyboard-labels', 'binding-observations', 'descriptions', 'chat-composition', 'chat-list', 'attachments', 'attachment-paint', 'groups', 'links', 'empty', 'separators', 'styles', 'borders', 'aspect-ratio', 'pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'documents', 'document-links', 'document-images', 'highlighting', 'canvas', 'assets', 'charts', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
+    parser.add_argument('--section', choices=['all', 'core', 'settings', 'settings-windows', 'settings-composition', 'settings-fields', 'forms', 'editor-groups', 'avatar-groups', 'rating', 'spinners', 'progress', 'selection', 'buttons', 'control-appearance', 'status-regions', 'badges', 'labels', 'shimmer', 'markers', 'alerts', 'tags', 'keyboard-labels', 'binding-observations', 'descriptions', 'chat-composition', 'chat-list', 'attachments', 'attachment-paint', 'groups', 'links', 'empty', 'separators', 'styles', 'borders', 'aspect-ratio', 'pickers', 'choice-pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'selectable-lists', 'structural-tables', 'documents', 'document-links', 'document-images', 'highlighting', 'canvas', 'assets', 'charts', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
     args = parser.parse_args()
+    Mac.require_accessibility()
     if args.images:
         args.images.mkdir(parents=True, exist_ok=True)
     repo = Path(__file__).resolve().parent.parent
@@ -6180,6 +6393,38 @@ def main():
                 exercise_borders(mac, args.images)
             if args.section in ('all', 'settings'):
                 exercise_settings(mac, args.images)
+            if args.section in ('all', 'avatar-groups'):
+                from gallery_avatar_group import exercise as exercise_avatar_group
+                exercise_avatar_group(mac, args.images)
+            if args.section in ('all', 'rating'):
+                from gallery_rating import exercise as exercise_rating
+                exercise_rating(mac, args.images)
+            if args.section in ('all', 'selection'):
+                from gallery_selection import exercise as exercise_selection
+                exercise_selection(mac, args.images)
+            if args.section in ('all', 'buttons'):
+                from gallery_buttons import exercise as exercise_buttons
+                from gallery_button_appearance import exercise as exercise_button_appearance
+                from gallery_menu_observation import exercise as exercise_menu_observation
+                from gallery_split import exercise as exercise_split
+                from gallery_command_tooltip import exercise as exercise_command_tooltip
+                exercise_buttons(mac, args.images)
+                exercise_button_appearance(mac, args.images)
+                exercise_menu_observation(mac, args.images)
+                exercise_split(mac, args.images)
+                exercise_command_tooltip(mac, args.images)
+            if args.section in ('all', 'control-appearance'):
+                from gallery_control_appearance import exercise as exercise_control_appearance
+                exercise_control_appearance(mac, args.images)
+            if args.section in ('all', 'spinners'):
+                from gallery_spinner import exercise as exercise_spinners
+                exercise_spinners(mac, args.images)
+            if args.section in ('all', 'editor-groups'):
+                from gallery_editor_groups import exercise as exercise_editor_groups
+                exercise_editor_groups(mac, args.images)
+            if args.section in ('all', 'forms'):
+                from gallery_forms import exercise as exercise_forms
+                exercise_forms(mac, args.images)
             if args.section == 'settings-fields':
                 from gallery_settings_fields import exercise as exercise_settings_fields
                 exercise_settings_fields(mac)
@@ -6189,16 +6434,28 @@ def main():
                 exercise_styles(mac, args.images)
             if args.section in ('all', 'pickers'):
                 exercise_pickers(mac, args.images)
+            if args.section in ('all', 'choice-pickers'):
+                from gallery_choice_picker import exercise as exercise_choice_picker
+                exercise_choice_picker(mac, args.images)
             if args.section in ('all', 'overlays'):
                 exercise_overlays(mac, args.images)
             if args.section in ('all', 'navigation'):
                 exercise_navigation(mac, args.images)
+            if args.section in ('all', 'progress'):
+                from gallery_progress import exercise as exercise_progress
+                exercise_progress(mac, args.images)
             if args.section in ('all', 'feedback'):
                 exercise_feedback(mac, args.images)
             if args.section in ('all', 'journeys'):
                 exercise_journeys(mac, args.images)
             if args.section in ('all', 'collections'):
                 exercise_collections(mac, args.images)
+            if args.section in ('all', 'collections', 'structural-tables'):
+                from gallery_structural_table import exercise as exercise_structural_table
+                exercise_structural_table(mac, args.images)
+            if args.section in ('all', 'collections', 'selectable-lists'):
+                from gallery_selectable_list import exercise as exercise_selectable_list
+                exercise_selectable_list(mac, args.images)
             if args.section == 'document-links':
                 exercise_document_links(mac, args.images)
             if args.section == 'document-images':

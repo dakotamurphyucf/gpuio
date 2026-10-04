@@ -145,7 +145,19 @@ let%expect_test "tree accessibility reaches the native list and one envelope per
        | Image
        | Heading _
        | Navigation
-       | Tree _ ) -> assert false);
+       | Tree _
+       | List_box _
+       | Option_item _
+       | Table _
+       | Row_group
+       | Table_row _
+       | Table_cell _
+       | Column_header _
+       | Row_header _
+       | Caption
+       | Toolbar _
+       | Radio_group _
+       | Log ) -> assert false);
   assert (Option.is_none (View.Expert.describe (List.hd_exn item.children)).accessibility);
   let boundary = List.nth_exn list.children 1 |> View.Expert.describe in
   assert (Option.is_none boundary.accessibility);

@@ -1167,6 +1167,8 @@ pub struct Window {
     pub(crate) element_offset_stack: Vec<Point<Pixels>>,
     pub(crate) element_opacity: f32,
     pub(crate) content_mask_stack: Vec<ContentMask<Pixels>>,
+    pub(crate) clip_keyboard_input: bool,
+    pub(crate) clipped_input_focus: bool,
     pub(crate) requested_autoscroll: Option<Bounds<Pixels>>,
     /// The [`TextInputConfiguration`] most recently forwarded to the platform
     /// window, so that only actual changes are forwarded (reconfiguring a live
@@ -2013,6 +2015,8 @@ impl Window {
             rendered_entity_stack: Vec::new(),
             element_offset_stack: Vec::new(),
             content_mask_stack: Vec::new(),
+            clip_keyboard_input: false,
+            clipped_input_focus: false,
             element_opacity: 1.0,
             requested_autoscroll: None,
             last_text_input_configuration: None,
@@ -2269,6 +2273,50 @@ impl Window {
         if let Some(handle) = self.rendered_frame.tab_stops.next(self.focus.as_ref()) {
             self.focus(&handle, cx)
         }
+    }
+
+    /// Snapshot eligible descendant tab stops from the last rendered frame.
+    /// Excludes the scope itself. This does not move focus, clear pending key
+    /// chords, realize virtual rows or admit controls omitted by input clipping.
+    pub fn tab_stops_within(&self, scope: &FocusHandle) -> Vec<FocusHandle> {
+        self.rendered_frame
+            .tab_stops
+            .handles()
+            .into_iter()
+            .filter(|handle| handle != scope && scope.contains(handle, self))
+            .collect()
+    }
+
+    /// Native tab-order candidates in a rendered subtree, including controls
+    /// excluded by input clipping. Bounds are in window coordinates. These are
+    /// reveal hints, NOT focus eligibility: after scrolling/rendering, callers
+    /// must find the handle in `tab_stops_within` before moving focus.
+    pub fn tab_candidates_within(&self, scope: &FocusHandle) -> Vec<(FocusHandle, Bounds<Pixels>)> {
+        self.rendered_frame
+            .tab_stops
+            .candidates()
+            .into_iter()
+            .filter(|(handle, _)| handle != scope && scope.contains(handle, self))
+            .collect()
+    }
+
+    /// Find the next/previous painted tab stop outside a subtree, without
+    /// changing focus. Wraps once, like ordinary native Tab traversal.
+    pub fn tab_stop_outside(&self, scope: &FocusHandle, backward: bool) -> Option<FocusHandle> {
+        let map = &self.rendered_frame.tab_stops;
+        let mut anchor = Some(scope.id);
+        for _ in 0..map.tab_stop_count() + 1 {
+            let next = if backward {
+                map.prev(anchor.as_ref())
+            } else {
+                map.next(anchor.as_ref())
+            }?;
+            if !scope.contains(&next, self) {
+                return Some(next);
+            }
+            anchor = Some(next.id);
+        }
+        None
     }
 
     /// Move focus to previous tab stop.
@@ -2650,6 +2698,13 @@ impl Window {
     #[cfg(any(test, feature = "test-support"))]
     pub fn painted_quads(&self) -> Vec<Quad> {
         self.rendered_frame.scene.quads.clone()
+    }
+
+    /// Returns retained monochrome sprites for scene-level tests. This observes
+    /// the submitted scene, not GPU pixels or physical presentation.
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn painted_monochrome_sprites(&self) -> Vec<MonochromeSprite> {
+        self.rendered_frame.scene.monochrome_sprites.clone()
     }
 
     /// Set the content size of the window.
@@ -3862,6 +3917,41 @@ impl Window {
         }
     }
 
+    /// Refine hit-testing after a subtree measures its final clip during
+    /// prepaint. Only newly inserted hitboxes are affected; their identities
+    /// remain valid. Paint must use the same (or a narrower) content mask.
+    pub fn with_prepaint_clip<R>(
+        &mut self,
+        f: impl FnOnce(&mut Self) -> (R, Option<ContentMask<Pixels>>),
+    ) -> R {
+        self.invalidator.debug_assert_prepaint();
+        let first = self.next_frame.hitboxes.len();
+        let (result, clip) = f(self);
+        if let Some(clip) = clip {
+            for hitbox in &mut self.next_frame.hitboxes[first..] {
+                hitbox.content_mask = hitbox.content_mask.intersect(&clip);
+            }
+        }
+        result
+    }
+
+    /// Within a preview, fully clipped interactive Divs must not register
+    /// keyboard handlers or tab stops. Descendants still paint so their pending
+    /// click state is canceled individually. Ordinary scrolling is unchanged.
+    /// Returns whether a focused control was clipped, allowing the caller to
+    /// restore focus to its visible composite owner after painting descendants.
+    pub fn with_clipped_input<R>(&mut self, f: impl FnOnce(&mut Self) -> R) -> (R, bool) {
+        let previous = self.clip_keyboard_input;
+        let previous_focus = self.clipped_input_focus;
+        self.clip_keyboard_input = true;
+        self.clipped_input_focus = false;
+        let result = f(self);
+        let clipped_focus = self.clipped_input_focus;
+        self.clip_keyboard_input = previous;
+        self.clipped_input_focus = previous_focus || (previous && clipped_focus);
+        (result, clipped_focus)
+    }
+
     /// Updates the global element offset relative to the current offset. This is used to implement
     /// scrolling. This method should only be called during the prepaint phase of element drawing.
     pub fn with_element_offset<R>(
@@ -3920,7 +4010,9 @@ impl Window {
     pub fn transact<T, U>(&mut self, f: impl FnOnce(&mut Self) -> Result<T, U>) -> Result<T, U> {
         self.invalidator.debug_assert_prepaint();
         let index = self.prepaint_index();
+        let a11y = self.a11y.prepaint_checkpoint();
         let result = f(self);
+        self.a11y.finish_prepaint(a11y, result.is_err());
         if result.is_err() {
             self.next_frame.hitboxes.truncate(index.hitboxes_index);
             self.next_frame
@@ -4757,6 +4849,100 @@ impl Window {
         Ok(())
     }
 
+    /// Paint the alpha channel of a decoded image with a native color and affine
+    /// transform. Bounds are logical pixels; the transform uses scaled pixels,
+    /// as with `paint_svg`. This does not parse SVG, read files or rotate pixels.
+    /// The alpha upload is cached separately from the image's color upload;
+    /// changing color, opacity or transformation reuses the same atlas entry.
+    /// `drop_image` retires both representations. Call only during paint.
+    pub fn paint_image_mask(
+        &mut self,
+        bounds: Bounds<Pixels>,
+        data: Arc<RenderImage>,
+        frame_index: usize,
+        transformation: TransformationMatrix,
+        color: Hsla,
+    ) -> Result<()> {
+        self.invalidator.debug_assert_paint();
+        if data.as_bytes(frame_index).is_none() {
+            return Err(anyhow!("image mask frame is out of range"));
+        }
+        if ![
+            bounds.left().0,
+            bounds.top().0,
+            bounds.size.width.0,
+            bounds.size.height.0,
+            color.h,
+            color.s,
+            color.l,
+            color.a,
+        ]
+        .into_iter()
+        .all(f32::is_finite)
+            || !transformation
+                .rotation_scale
+                .into_iter()
+                .flatten()
+                .chain(transformation.translation)
+                .all(f32::is_finite)
+        {
+            return Err(anyhow!("image mask geometry and color must be finite"));
+        }
+        let opacity = self.element_opacity();
+        if bounds.size.width <= Pixels::ZERO
+            || bounds.size.height <= Pixels::ZERO
+            || data.size(frame_index).width.0 <= 0
+            || data.size(frame_index).height.0 <= 0
+            || color.a <= 0.
+            || opacity <= 0.
+        {
+            return Ok(());
+        }
+        let bounds = self.snap_bounds(bounds);
+        let coverage = transformation.transform_bounds(bounds);
+        if ![
+            coverage.left().0,
+            coverage.top().0,
+            coverage.size.width.0,
+            coverage.size.height.0,
+        ]
+        .into_iter()
+        .all(f32::is_finite)
+        {
+            return Err(anyhow!("image mask transformed bounds overflow"));
+        }
+        let content_mask = self.snapped_content_mask();
+        if coverage.intersect(&content_mask.bounds).is_empty() {
+            return Ok(());
+        }
+        let key = crate::AtlasKey::ImageMask(RenderImageParams {
+            image_id: data.id,
+            frame_index,
+        });
+        let tile = self
+            .sprite_atlas
+            .get_or_insert_with(&key, &mut || {
+                Ok(Some((
+                    data.size(frame_index),
+                    Cow::Owned(
+                        data.alpha_mask(frame_index)
+                            .expect("image frame validated before atlas admission"),
+                    ),
+                )))
+            })?
+            .ok_or_else(|| anyhow!("image mask atlas allocation returned no tile"))?;
+        self.next_frame.scene.insert_primitive(MonochromeSprite {
+            order: 0,
+            pad: 0,
+            bounds,
+            content_mask,
+            color: color.opacity(opacity),
+            tile,
+            transformation,
+        });
+        Ok(())
+    }
+
     /// Paint an image into the scene for the next frame at the current z-index.
     /// This method will panic if the frame_index is not valid
     ///
@@ -4891,6 +5077,8 @@ impl Window {
             };
 
             self.sprite_atlas.remove(&params.clone().into());
+            self.sprite_atlas
+                .remove(&crate::AtlasKey::ImageMask(params));
         }
 
         Ok(())
@@ -4909,6 +5097,16 @@ impl Window {
                     .into(),
                 )
             })
+    }
+
+    /// Returns whether a decoded image frame has an alpha-mask atlas entry.
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn has_image_mask_atlas_entry(&self, data: &RenderImage, frame_index: usize) -> bool {
+        self.sprite_atlas
+            .contains(&crate::AtlasKey::ImageMask(RenderImageParams {
+                image_id: data.id,
+                frame_index,
+            }))
     }
 
     /// Add a node to the layout tree for the current frame. Takes the `Style` of the element for which

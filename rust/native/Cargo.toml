@@ -17,7 +17,10 @@ wayland = ["gpui/wayland", "gpui_platform/wayland", "dep:gpuio-wayland"]
 x11 = ["gpui/x11", "gpui_platform/x11"]
 
 [dependencies]
+regex-automata = { version = "=0.4.18", default-features = false, features = ["std", "meta", "unicode", "perf", "hybrid", "dfa-onepass", "nfa-backtrack"] }
+regex-syntax = "=0.8.11"
 gpuio-extension-sdk = { path = "../extension-sdk" }
+gpuio-document-sdk = { path = "../document-sdk" }
 gpui-base = { path = "../../vendor/gpui-base" }
 gpuio-protocol = { path = "../protocol" }
 gpuio-table-adapter = { path = "../table" }
@@ -52,12 +55,19 @@ objc2-user-notifications = "=0.3.2"
 gpuio-portal = { path = "../portal" }
 gpuio-wayland = { path = "../wayland", optional = true }
 
+[target.'cfg(target_os = "macos")'.dev-dependencies]
+accesskit_macos = "=0.26.3"
+
 [dev-dependencies]
 zbus = { version = "=5.19.0", default-features = false, features = ["async-io"] }
 async-io = "2"
 taffy = { version = "=0.13.0", default-features = false, features = ["std", "taffy_tree"] }
 gpuio-portal = { path = "../portal" }
 gpuio-wayland = { path = "../wayland" }
+
+[[test]]
+name = "accessibility_busy"
+harness = false
 
 [[test]]
 name = "native_chart_input"
@@ -353,3 +363,15 @@ required-features = ["native-image-tests"]
 name = "native_command_binding"
 harness = false
 required-features = ["native-tests"]
+
+[[test]]
+name = "input_content_macos"
+harness = false
+
+[[test]]
+name = "accessibility_list_selection"
+harness = false
+
+[[test]]
+name = "accessibility_structural_table"
+harness = false

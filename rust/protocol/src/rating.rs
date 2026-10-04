@@ -1,6 +1,20 @@
 use binprot::macros::BinProtWrite;
 pub const MAX_STARS: i64 = 32;
 
+/// Resolved RGBA colors. Missing components inherit the native foreground policy.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
+pub struct Appearance {
+    pub active: Option<i64>,
+    pub inactive: Option<i64>,
+}
+impl Appearance {
+    pub fn is_valid(self) -> bool {
+        [self.active, self.inactive]
+            .into_iter()
+            .all(|color| color.is_none_or(|color| (0..=0xffff_ffff).contains(&color)))
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
 pub enum Request {
     Set(i64),

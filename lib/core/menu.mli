@@ -28,6 +28,7 @@ module Expert : sig
     | Context
     | Bar
     | Platform_bar
+    | Editor_context
   [@@deriving equal, sexp_of]
 
   val command_ids : t -> Command.Id.t list

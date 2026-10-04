@@ -3,6 +3,116 @@ use gpuio_native::{
     session::Session,
 };
 use gpuio_protocol::{HandlerId, NodeId, WindowId, number_input as n, numeric::Domain, v1::*};
+
+#[test]
+fn number_frame_admission_is_atomic_and_revalidates_decorative_descendants() {
+    use gpuio_protocol::number_presentation::Config as Appearance;
+    let id = |slot| NodeId::from_parts(slot, 1).unwrap();
+    let mut s = session();
+    mount(&mut s);
+    let baseline = s.retained_bytes();
+    let mut ops = vec![Op::SetNumberPresentation(
+        node(),
+        Some(Appearance::default()),
+    )];
+    for slot in 1..=4 {
+        ops.push(Op::Create(id(slot), Kind::Container, "".into(), None));
+    }
+    ops.extend([
+        Op::Create(
+            id(5),
+            Kind::Button,
+            "Currency".into(),
+            Some(HandlerId::from_parts(1, 1).unwrap()),
+        ),
+        Op::Create(id(6), Kind::Text, "minus".into(), None),
+        Op::Splice(id(1), 0, 0, vec![id(5)]),
+        Op::Splice(id(3), 0, 0, vec![id(6)]),
+        Op::Splice(node(), 0, 0, (1..=4).map(id).collect()),
+    ]);
+    s.apply(&tx(1, ops)).unwrap();
+    let retained = s.retained_bytes();
+    assert!(retained >= baseline + std::mem::size_of::<Appearance>() + "Currencyminus".len());
+    let original = s
+        .tree(window())
+        .unwrap()
+        .get(node())
+        .unwrap()
+        .number_input
+        .as_ref()
+        .unwrap()
+        .config
+        .clone();
+    let bad = [
+        vec![Op::SetNumberPresentation(
+            node(),
+            Some(Appearance {
+                button_width: 0.,
+                ..Default::default()
+            }),
+        )],
+        vec![Op::SetNumberPresentation(
+            node(),
+            Some(Appearance {
+                frame_style: vec![Style::Fields(vec![Field::Width(Length::Px(10.))])],
+                ..Default::default()
+            }),
+        )],
+        vec![Op::SetNumberPresentation(
+            node(),
+            Some(Appearance {
+                increment_style: vec![Style::State(1, vec![Field::Opacity(0.5)])],
+                ..Default::default()
+            }),
+        )],
+        vec![Op::SetNumberPresentation(
+            id(5),
+            Some(Appearance::default()),
+        )],
+        vec![Op::Bind(id(6), Some(HandlerId::from_parts(2, 1).unwrap()))],
+        vec![Op::SetStyle(
+            id(6),
+            vec![Style::Fields(vec![Field::UserSelect(true)])],
+        )],
+        vec![
+            Op::Splice(id(1), 0, 1, vec![]),
+            Op::Splice(id(3), 0, 1, vec![id(5)]),
+            Op::Remove(id(6)),
+        ],
+        vec![Op::SetNumberPresentation(node(), None)],
+    ];
+    for operations in bad {
+        assert!(s.apply(&tx(2, operations)).is_err());
+        assert_eq!(s.tree(window()).unwrap().revision(), 2);
+        assert_eq!(s.retained_bytes(), retained);
+        assert!(std::sync::Arc::ptr_eq(
+            &original,
+            &s.tree(window())
+                .unwrap()
+                .get(node())
+                .unwrap()
+                .number_input
+                .as_ref()
+                .unwrap()
+                .config
+        ));
+    }
+    s.apply(&tx(
+        2,
+        vec![
+            Op::SetNumberPresentation(node(), None),
+            Op::Splice(node(), 0, 4, vec![]),
+            Op::Remove(id(5)),
+            Op::Remove(id(6)),
+            Op::Remove(id(1)),
+            Op::Remove(id(2)),
+            Op::Remove(id(3)),
+            Op::Remove(id(4)),
+        ],
+    ))
+    .unwrap();
+    assert_eq!(s.retained_bytes(), baseline);
+}
 fn window() -> WindowId {
     WindowId::from_parts(0, 1).unwrap()
 }
@@ -264,6 +374,12 @@ fn changes_coalesce_only_with_adjacent_matching_owner_domain_and_committed_value
             n::Rejection::Incomplete,
             snapshot(2, "1e-"),
         )),
+        event(n::Event::StepRequested(n::StepRequest {
+            id: 1,
+            direction: gpuio_protocol::numeric::Direction::Increase,
+            source: n::Source::Stepper,
+            snapshot: snapshot(2, "1"),
+        })),
         Event::Rendered(window(), 1),
     ] {
         mailbox.input(changed(1, "1")).unwrap();
@@ -442,4 +558,58 @@ fn draft_mount_metadata_is_bounded_accounted_and_atomic() {
         session.tree(window()).unwrap().retained_bytes(),
         bytes_before
     );
+}
+
+#[test]
+fn step_mode_is_numeric_only_and_updates_without_replacing_editing_configuration() {
+    let mut session = session();
+    mount(&mut session);
+    let before = session.retained_bytes();
+    let editing = session
+        .tree(window())
+        .unwrap()
+        .get(node())
+        .unwrap()
+        .number_input
+        .as_ref()
+        .unwrap()
+        .config
+        .clone();
+    session
+        .apply(&tx(
+            1,
+            vec![Op::SetNumberStepMode(node(), n::StepMode::Application)],
+        ))
+        .unwrap();
+    let mounted = session.tree(window()).unwrap().get(node()).unwrap();
+    assert_eq!(mounted.number_step_mode, n::StepMode::Application);
+    assert!(std::sync::Arc::ptr_eq(
+        &mounted.number_input.as_ref().unwrap().config,
+        &editing
+    ));
+    assert_eq!(session.retained_bytes(), before);
+    let other = NodeId::from_parts(1, 1).unwrap();
+    assert!(
+        session
+            .apply(&tx(
+                2,
+                vec![
+                    Op::SetNumberStepMode(node(), n::StepMode::Native),
+                    Op::Create(other, Kind::Container, String::new(), None),
+                    Op::SetNumberStepMode(other, n::StepMode::Application),
+                ]
+            ))
+            .is_err()
+    );
+    assert_eq!(session.tree(window()).unwrap().revision(), 2);
+    assert_eq!(
+        session
+            .tree(window())
+            .unwrap()
+            .get(node())
+            .unwrap()
+            .number_step_mode,
+        n::StepMode::Application
+    );
+    assert_eq!(session.retained_bytes(), before);
 }

@@ -1,5 +1,9 @@
 # Milestone 07 hosted validation follow-up
 
+Latest result: run **36791905054** is terminal, with Linux success and macOS
+cancelled after two failed steps. See the final-result section below. All local
+grid/Form/avatar changes after `e54d279` remain outside that run's coverage.
+
 [Run 36781947346](https://github.com/dakotamurphyucf/gpuio/actions/runs/36781947346)
 tested `afb4bba48892b25527db158d533f92eb1fdcaad6`. Linux completed successfully;
 macOS failed seven steps. This run predates the Settings composition/reveal
@@ -169,3 +173,171 @@ Current-head required CI, complete hosted table traversal, other catalog familie
 and broader OCH-17 requirements remain open. No milestone or release acceptance
 is claimed. Full Linux desktop qualification remains OCH-47; a passing Linux job
 does not establish graphical acceptance.
+
+
+## Follow-up run — still incomplete
+
+[Run 36791905054](https://github.com/dakotamurphyucf/gpuio/actions/runs/36791905054)
+tests `e54d2795df761e05067b5359a9b074c8590cb770`. Its Linux job completed
+successfully, including build/unit/private-bus/lint and independent consumer
+checks; the informational X11/Wayland smoke steps also report success. This is
+not full Linux desktop qualification.
+
+At the 2026-09-30 local follow-up, macOS had passed native-test compilation and
+advanced into native table full-history execution, but **macOS public canvas
+checks and Public date picker failed**. The job was still running. Its job-log endpoint returned `BlobNotFound` (404),
+so no failure cause is established yet; inspect the completed job logs/artifact
+before diagnosing or changing the canvas test. Do not rerun/cancel the active
+job just because its archived log is not yet available.
+
+This hosted revision excludes the local grid-location commit and the uncommitted
+rich Form/avatar-group work. Their local checks and remaining native acceptance
+must not be inferred from this run.
+
+## Follow-up run — terminal result, 2026-10-01 UTC
+
+The same run is now complete: Linux **success**, macOS **cancelled**. Archived
+[job logs](https://github.com/dakotamurphyucf/gpuio/actions/runs/36791905054/job/110146488948)
+and the [macOS artifact](https://github.com/dakotamurphyucf/gpuio/actions/runs/36791905054/artifacts/11134164397)
+are available. This supersedes the in-progress checkpoint above; no rerun was
+started and no cancellation was requested by this agent.
+
+The hosted full-history regression passed all **200,000 visits / 100,000 logical
+rows**, retaining at most 128 rows and 512 cells, with zero retired cached row
+payloads. Accounted bytes rose from 19,200,689 to 19,659,441 (458,752 bytes). Peak
+process RSS rose from 73,891,840 to 153,731,072 bytes. The measured traversal took
+1,034.9 seconds. Normal window release and the deliberately failing cleanup
+subprocess both passed. These are hosted debug ownership/workload measurements,
+not physical interactive latency or complete release-performance acceptance.
+
+Two steps failed before cancellation:
+
+- **Public canvas:** `scripts/test_canvas.py:102` timed out waiting for
+  `Activated: Swift` after AXPress. The dump still showed `Moved: Swift` and
+  native scene revision 1/generation 1. Keyboard movement had already passed.
+  Source review shows that native AX routes fence captured scene snapshots and
+  input is unavailable while a replacement publication is being prepared. A
+  publication/AX timing race is a hypothesis, not an established cause. No canvas
+  production fix, repeated activation, relaxed assertion or larger timeout has
+  been substituted for a reproduction.
+- **Public date picker:** the named diagnostic reports `initial open`,
+  `is_open=true`, no error, and no draft. The preserved worker backtrace points to
+  the initial selection assertion in `examples/calendar/picker.ml`. Two window
+  frame acknowledgments do not promise delivery of the native calendar snapshot.
+  The local self-test now waits for the current reactive picker to expose an open
+  draft, with at most 120 frame requests and immediate failure on a picker error.
+  Placement remount uses the same readiness condition. All selection, stale-action,
+  cancellation and disposal assertions remain. Public interface docs now state
+  this asynchronous readiness contract. The changed native self-test has **not**
+  run successfully yet under the current desktop execution restrictions; if the
+  observation never arrives, it must still fail rather than assume readiness.
+
+The job was cancelled at 01:06:30 UTC during the combined agent-chat workload,
+after runner setup began at 23:36:04 UTC. This is consistent with its configured
+90-minute job ceiling; the API reports `cancelled`, not a separate causal timeout
+annotation. Local workflow configuration gives macOS 120 minutes, with Linux
+remaining at 90. This accommodates the measured full-history work without changing
+individual test watchdogs, workloads or assertions. It still needs a complete
+hosted run. Native image cleanup, editor, native smoke and production bridge smoke
+were skipped after cancellation and are **not passes**.
+
+The local corrections and the new avatar phase regression are uncommitted and
+absent from the tested `e54d279` revision. Required current-head CI, the remaining
+canvas investigation and wider catalog/release acceptance are still outstanding.
+
+
+### Canvas investigation follow-up
+
+The [canvas activation investigation](canvas-activation-och17.md) adds opt-in
+native semantic-tree/callback/mailbox traces and independent example event
+logging to the next public test run. A TestPlatform test now exercises scene
+replacement, callback retirement and input admission; the full native library
+suite with image/canvas test support passed locally (425 tests, two ignored).
+These diagnostics preserve the existing production fences and do not establish
+the hosted failure's cause or resolution. No new native AX run has passed.
+
+
+### Rich avatar local implementation follow-up
+
+The [rich avatar fallback](../design/avatar-fallback.md) adds checked Core/Bonsai
+and group-item constructors, native slot selection and a separately owned hidden
+set. Raster/SVG TestPlatform checks cover retained source leases, source failure,
+first-frame SVG size failure/recovery, hidden tween deadlines, inert versus hidden
+ancestors and teardown. An inert-ancestor regression failed before the corrected
+paint-visibility decision and now passes. Passive-child mutation rollback and
+node-count limits have native transaction coverage; the new contract requires
+paired capability bit 56, without changing operation tags.
+
+The Rust workspace suite, feature-enabled native library suite (426 passed,
+two ignored), strict native/protocol all-target Clippy and fresh installed-gallery
+consumer build pass locally on macOS arm64. Three Core expect tests and the OCaml
+examples compile; the gallery uses an original registered person SVG for its
+custom fallback. Its native driver has been extended but **not run**. No physical
+GPU clipping, macOS AX ownership or Linux qualification is inferred from these
+checks. Changes remain local/uncommitted and absent from the earlier hosted run.
+
+The final `dune build -j2 @all @runtest @fmt` also passed after the inert-ancestor
+correction, through the repository's isolated `scripts/gpuio exec` environment.
+No native windows or new hosted workflow runs were started for this addition.
+
+### Rich avatar acceptance-fixture follow-up
+
+The retained-slot TestPlatform scenario now includes a nested avatar and delayed
+animation program as well as a tween. It passes hidden deadline cancellation,
+no wakes after a 20-second test-clock advance, owner identity on restoration,
+inert/hidden ancestry and weak-owner retirement. The feature-enabled native
+library suite again passes locally: 426 tests, two ignored private-bus tests.
+
+`avatar_rich_test.rs` is wired into the existing `native_images` background
+window. It includes GPU clipping/corner/hover, native macOS AX, retained image
+leases, raster/SVG/GIF selection, event order and idle/disposal assertions.
+**Execution is pending**: compiling this fixture does not make those assertions
+passing native evidence. The harness now logs window-open, tree-application,
+first-pixel and semantic-check phases to help distinguish startup failures on
+the next actual run. These diagnostics do not repair or establish the cause of
+the earlier black window/desktop-service timeout.
+
+Final local checks passed on macOS arm64, using the isolated repository toolchain:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j2 -p gpuio-native \
+  --features native-image-tests,native-canvas-tests --lib
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j2 -p gpuio-native \
+  --features native-image-tests,native-canvas-tests --test native_images --no-run
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy --locked -j2 -p gpuio-native \
+  --features native-image-tests,native-canvas-tests --all-targets -- -D warnings
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo fmt --all --check
+```
+
+These test-only changes remain uncommitted on top of `83eb87e` and the prior local
+implementation. No new Linux, native desktop or hosted CI result is claimed.
+
+The subsequent TestPlatform window-close case passes with live nested avatar
+tween/program deadlines. It closes the Session and GPUI window without first
+unmounting the tree or stopping the global image service, then checks weak-owner
+release, motion declarations, fallback source leases and post-close output.
+The updated feature-enabled library suite passes **427 tests, two ignored**;
+strict all-target native Clippy also passes. This is additional deterministic
+lifecycle evidence, not real macOS window-close acceptance.
+
+### Rating appearance follow-up
+
+The [pinned Rating review](../catalog/rating-review.md) identified an independent
+active/outline color gap. The new [appearance API](../design/rating-appearance.md)
+now connects Core/Bonsai theme resolution, appearance-only retained updates,
+bounded native RGBA admission and the star painter. Op64/capability57 extend the
+paired protocol; existing config, request and event encodings remain unchanged.
+
+The full OCaml build/expect/format suite, Rust workspace suite, feature-enabled
+native library suite (427 passed, two ignored), strict native/protocol all-target
+Clippy, Rust formatting and fresh installed-gallery consumer build pass locally.
+Independent bytes, invalid-update rollback, theme failure/reset/no-op/identity
+and current reducer policy have deterministic coverage. The first Rust workspace
+run found eight stale aggregate capability-mask expectations; those were corrected
+before the final passing run. No production behavior was weakened for those tests.
+
+The native presentation executable links with the new GPU assertions and the
+gallery has a dedicated `--section rating` driver. Neither was run on the desktop;
+the consumer result is build-only (`run=False`). Actual colors, input, accessibility
+and gallery retirement remain unaccepted. Changes remain local/uncommitted on
+`83eb87e` plus earlier milestone work and are absent from the last hosted run.

@@ -3,6 +3,36 @@ module B = Bonsai.Cont
 module Config = Gpuio.Virtual_list.Config
 module Viewport = Gpuio.Virtual_list.Viewport
 
+module Input : sig
+  (** Persistent-list interaction attached to the existing native viewport. Cursor
+      and callbacks use collection keys; the adapter maps native row identities.
+      An accessibility List_box role is required; tree input is incompatible. *)
+  type 'key t
+
+  (** [query] names one direct Input view in [before]/[after]. These are siblings
+      of the actual native list, inside its existing public layout wrapper. They
+      may also contain loading, empty-state or footer content. Updating slots or
+      query input preserves the keyed list owner and its rows/scroll handles.
+      Give fixed-height query/status controls nonshrinking styles as appropriate.
+
+      [epoch] follows List_input.Config's source/query policy contract. Callback
+      effects are guarded by the list's mounted generation; reducers must also
+      reject an obsolete application/query epoch while a commit is in flight.
+      Busy/cursor updates do not retire ordered relative navigation. *)
+  val create
+    :  epoch:Gpuio.Key.t
+    -> ?cursor:'key
+    -> ?query:Gpuio.Key.t
+    -> ?before:unit Bonsai.Effect.t Gpuio.View.t list
+    -> ?after:unit Bonsai.Effect.t Gpuio.View.t list
+    -> ?selection_on_navigation:bool
+    -> ?disabled:bool
+    -> ?busy:bool
+    -> on_input:('key Gpuio.List_input.t -> unit Bonsai.Effect.t)
+    -> unit
+    -> 'key t Or_error.t
+end
+
 module Controller : sig
   (** Effects belong to this mounted list generation. An absent target or an
       inactive generation ignores a delayed command. Leaving and revisiting the
@@ -56,7 +86,8 @@ end
     A TreeItem-annotated row container transfers its metadata to the native row
     wrapper, preserving one semantic row and its existing focus handle.
 
-    The viewport must have a bounded height, supplied by [style] or its parent.
+    The viewport must have a bounded main-axis extent (height for vertical lists,
+    width for horizontal lists), supplied by [style] or its parent.
     The list fills its assigned area. Initial layout uses native placeholders,
     then asynchronously mounts the requested rows. No OCaml code runs in native
     layout callbacks. [on_viewport] is optional application observation, not a
@@ -69,7 +100,7 @@ end
 
     Collection/order metadata and one accepted immutable collection snapshot are
     O(logical rows). Only the requested/pinned/prefetched subset creates row computations.
-    Height invalidations compare against the accepted snapshot, including when
+    Measurement invalidations compare against the accepted snapshot, including when
     streaming updates coalesce while native acceptance is pending. *)
 val component
   :  ('key, 'cmp) B.comparator
@@ -80,6 +111,34 @@ val component
   -> ?style:Gpuio.Style.t B.t
   -> ?accessibility:Gpuio.Accessibility.t B.t
   -> ?on_tree_input:('key Gpuio.Tree_input.t -> unit Bonsai.Effect.t) B.t
+  -> ?input:'key Input.t B.t
+  -> ?tree_moves:bool B.t
+  -> ?generation:int64 B.t
+  -> ?pinned:'key list B.t
+  -> ?on_viewport:(Viewport.t -> unit Bonsai.Effect.t) B.t
+  -> render_row:
+       (key:'key B.t
+        -> data:'data B.t
+        -> lifetime:Managed_rows.Lifetime.t B.t
+        -> B.graph
+        -> unit Bonsai.Effect.t Gpuio.View.t B.t)
+  -> B.graph
+  -> 'key Output.t Or_error.t B.t
+
+(** Reactive-configuration version of [component]. Changing axis or sizing keeps
+    the collection generation, controller lifetime and surviving row models.
+    Native measurement/capture state is replaced while retaining a surviving
+    logical anchor; viewport observations then reflect the new geometry. *)
+val component_with_config
+  :  ('key, 'cmp) B.comparator
+  -> ('key, 'data, 'cmp) Gpuio.List_collection.t B.t
+  -> row_key:('key -> Gpuio.Key.t)
+  -> config:Config.t B.t
+  -> ?key:Gpuio.Key.t
+  -> ?style:Gpuio.Style.t B.t
+  -> ?accessibility:Gpuio.Accessibility.t B.t
+  -> ?on_tree_input:('key Gpuio.Tree_input.t -> unit Bonsai.Effect.t) B.t
+  -> ?input:'key Input.t B.t
   -> ?tree_moves:bool B.t
   -> ?generation:int64 B.t
   -> ?pinned:'key list B.t
@@ -127,6 +186,32 @@ val paged
   -> ?style:Gpuio.Style.t B.t
   -> ?accessibility:Gpuio.Accessibility.t B.t
   -> ?on_tree_input:('key Gpuio.Tree_input.t -> unit Bonsai.Effect.t) B.t
+  -> ?input:'key Input.t B.t
+  -> ?tree_moves:bool B.t
+  -> ?pinned:'key list B.t
+  -> ?auto_load:bool B.t
+  -> ?on_viewport:(Viewport.t -> unit Bonsai.Effect.t) B.t
+  -> render_row:
+       (key:'key B.t
+        -> data:'data B.t
+        -> lifetime:Managed_rows.Lifetime.t B.t
+        -> B.graph
+        -> unit Bonsai.Effect.t Gpuio.View.t B.t)
+  -> B.graph
+  -> 'key Output.t Or_error.t B.t
+
+(** Reactive-configuration version of [paged], with the same paging lifetime. *)
+val paged_with_config
+  :  ('key, 'cmp) B.comparator
+  -> ('key, 'data, 'cmp) Gpuio.List_paging.Snapshot.t B.t
+  -> paging:Paging.t B.t
+  -> row_key:('key -> Gpuio.Key.t)
+  -> config:Config.t B.t
+  -> ?key:Gpuio.Key.t
+  -> ?style:Gpuio.Style.t B.t
+  -> ?accessibility:Gpuio.Accessibility.t B.t
+  -> ?on_tree_input:('key Gpuio.Tree_input.t -> unit Bonsai.Effect.t) B.t
+  -> ?input:'key Input.t B.t
   -> ?tree_moves:bool B.t
   -> ?pinned:'key list B.t
   -> ?auto_load:bool B.t

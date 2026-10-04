@@ -64,6 +64,7 @@ let create window ~config ~initial ?on_event graph =
       | Rejected (_, snapshot)
       | Committed (_, snapshot)
       | Cancelled (_, snapshot) -> snapshot
+      | Step_requested request -> N.Step_request.snapshot request
     in
     Bonsai.Effect.Many [ observe (Native snapshot); callback event ]
   in
@@ -104,7 +105,12 @@ let send t expected command =
 let command t command =
   match t.snapshot with
   | None -> Bonsai.Effect.return (Error N.Command_error.Not_mounted)
-  | Some expected -> send t expected command
+  | Some current ->
+    (match N.Expert.command_snapshot command with
+     | Some expected when not (same_lease current expected) ->
+       Bonsai.Effect.return (Error N.Command_error.Stale_input)
+     | Some expected -> send t expected command
+     | None -> send t current command)
 ;;
 
 let read_snapshot t = command t Read_snapshot
@@ -135,4 +141,26 @@ let replace_value_if_unchanged t expected ~selection ~undo value =
       expected
       (Replace_value
          { value; selection; undo; if_revision = Some (N.Snapshot.revision expected) })
+;;
+
+let resolve_step t request decision = command t (Resolve_step (request, decision))
+
+module Step_task = struct
+  include Number_step_task
+end
+
+let run_step t ~scope request ~f ~on_result =
+  Bonsai.Effect.of_thunk (fun () ->
+    let decline () = App.Window.Expert.decline_number_step t.window request in
+    if not (Scope.Expert.same_tree scope (App.Window.scope t.window))
+    then (
+      decline ();
+      Or_error.error_string "numeric step scope belongs to another application")
+    else
+      Step_task.start
+        ~scope
+        ~resolve:(fun decision -> resolve_step t request decision)
+        ~decline
+        ~f
+        ~on_result)
 ;;

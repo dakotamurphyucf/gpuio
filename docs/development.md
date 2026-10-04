@@ -77,11 +77,15 @@ in versioned docs and Linear.
 
 ## Dependency refresh
 
-Read `third_party/sources.json` and the accepted contracts first. To change Bonsai,
-move the existing vendor snapshot aside, update the chosen commits/patches, and
-run `python3 scripts/vendor_bonsai.py --record-archives`. Review the downloaded
-source, hashes and diffs before committing. Normal reconstruction omits that flag
-and verifies all hashes. Preserve upstream licenses and native-only Dune selection.
+Read `third_party/sources.json` and the accepted contracts first. Verify the Bonsai
+family with `python3 scripts/vendor_bonsai.py --output FRESH_DIRECTORY`; add
+`--archive-dir ARCHIVES` for offline inputs named `<package>.tar.gz`. Normal
+reconstruction verifies all hashes and leaves the live vendor tree alone. To
+intentionally change Bonsai pins, update the chosen commits/patches, reconstruct
+into a fresh output with `--record-archives`, and review the new sources, hashes
+and diffs together before replacing the affected vendor snapshot. Preserve upstream
+licenses and native-only Dune selection. A `--package` subset is a scoped maintenance
+check, not evidence that the complete family reconstructs.
 
 GPUI core is vendored at the existing Zed revision with hidden-press cleanup
 and a read-only opacity accessor; see [its adaptation contract](design/gpui-core-adaptation.md).
@@ -115,8 +119,8 @@ Build `./scripts/gpuio exec dune build examples/bridge/main.exe`, then run
 and closes them automatically. Its intentional dispose-while-running probe logs
 a Rust panic that must be caught; success ends with `PRODUCTION_BRIDGE_PASS`.
 `gpuio.native` currently supports native OCaml executables with a statically
-linked Rust archive, not bytecode/toplevel loading. The public view/runtime layer
-is being built in OCH-8/OCH-9. See [bridge contract](design/bridge-v1.md).
+linked Rust archive, not bytecode/toplevel loading. The public view/runtime layer is implemented; start with the
+[application guide](getting-started.md) and its compiled starter. See [bridge contract](design/bridge-v1.md).
 
 ## Typed UI development
 

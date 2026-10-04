@@ -19,35 +19,41 @@ let choices values =
 
 let tabs = choices [ "notes", "Notes"; "draft", "Draft" ]
 
-let sections =
-  choices [ "identity", "Identity"; "behavior", "Behavior"; "lifetime", "Lifetime" ]
+let variant_name = function
+  | Tab_bar.Variant.Tab -> "Tab"
+  | Outline -> "Outline"
+  | Pill -> "Pill"
+  | Segmented -> "Segmented"
+  | Underline -> "Underline"
 ;;
 
 let breadcrumb_path =
   choices [ "studio", "Studio"; "workspace", "Workspace"; "preview", "Preview" ]
 ;;
 
-let component window palette graph =
+let component app window palette graph =
+  let tab_content_preview = Tab_content_preview.component app window palette graph in
+  let workflow = Stepper_preview.component window palette graph in
+  let split_group = Split_group_preview.component window palette graph in
+  let pagination_preview = Pagination_preview.component window palette graph in
+  let disclosure_preview = Disclosure_preview.component window palette graph in
   let current_tab, set_tab = B.state (id "notes") graph in
-  let disclosure, inject_disclosure =
+  let decorated_tabs, toggle_decorated_tabs = B.toggle ~default_model:true graph in
+  let styled_tabs, toggle_styled_tabs = B.toggle ~default_model:false graph in
+  let tab_variant, next_variant =
     B.state_machine0
-      ~default_model:
-        (Disclosure.create
-           ~items:sections
-           ~mode:(Single { allow_empty = true })
-           ~expanded:[]
-           ()
-         |> ok)
-      ~apply_action:(fun _ state request -> Disclosure.apply_request state request)
+      ~default_model:Tab_bar.Variant.Underline
+      ~apply_action:(fun _ variant () ->
+        match variant with
+        | Tab -> Outline
+        | Outline -> Pill
+        | Pill -> Segmented
+        | Segmented -> Underline
+        | Underline -> Tab)
       graph
   in
-  let pagination, inject_page =
-    B.state_machine0
-      ~default_model:(Pagination.create ~total_pages:12 () |> ok)
-      ~apply_action:(fun _ state request -> Pagination.apply_request state request)
-      graph
-  in
-  let notice, set_notice = B.state "Current location: Preview" graph in
+  let route, set_route = B.state (id "preview") graph in
+  let passive, toggle_passive = B.toggle ~default_model:false graph in
   let note =
     Editor.create
       window
@@ -68,21 +74,71 @@ let component window palette graph =
   in
   let open B.Let_syntax in
   let%arr p = palette
+  and tab_content_preview = tab_content_preview
+  and split_group = split_group
+  and workflow = workflow
   and current_tab = current_tab
   and set_tab = set_tab
+  and decorated_tabs = decorated_tabs
+  and toggle_decorated_tabs = toggle_decorated_tabs
+  and styled_tabs = styled_tabs
+  and toggle_styled_tabs = toggle_styled_tabs
+  and tab_variant = tab_variant
+  and next_variant = next_variant
   and note = note
   and draft = draft
-  and disclosure = disclosure
-  and inject_disclosure = inject_disclosure
-  and pagination = pagination
-  and inject_page = inject_page
-  and notice = notice
-  and set_notice = set_notice in
+  and disclosure_preview = disclosure_preview
+  and pagination_preview = pagination_preview
+  and route = route
+  and set_route = set_route
+  and passive = passive
+  and toggle_passive = toggle_passive in
+  let path =
+    let members = Choice.Collection.to_list breadcrumb_path in
+    let index =
+      List.findi_exn members ~f:(fun _ item -> Choice.Id.equal (Choice.id item) route)
+      |> fst
+    in
+    Choice.Collection.create (List.take members (index + 1)) |> ok
+  in
   let input_style = style [ Height (px (Palette.size p 100.)); Padding (px 10.) ] in
   let first =
     V.column
       ~style:(style [ Gap (px 14.); Padding (px 12.) ])
-      [ V.tab_bar
+      [ V.row
+          ~style:(style [ Gap (px 12.); Align_items Center; Wrap Wrap ])
+          [ Palette.button p ("Tab style: " ^ variant_name tab_variant) (next_variant ())
+          ; V.switch
+              ~checked:styled_tabs
+              ~on_toggle:toggle_styled_tabs
+              "Customize tab targets"
+          ]
+      ; V.switch
+          ~checked:decorated_tabs
+          ~on_toggle:toggle_decorated_tabs
+          "Decorated workspace tabs"
+      ; V.tab_bar_with_labels
+          ~appearance:
+            (Tab_bar.Appearance.create
+               ~variant:tab_variant
+               ~height:(if styled_tabs then 40. else 32.)
+               ~tab_style:
+                 (if styled_tabs
+                  then
+                    Style.with_state_exn
+                      Style.empty
+                      Hovered
+                      [ Background (Background.solid (Palette.border p)) ]
+                  else Style.empty)
+               ~item_styles:
+                 (if styled_tabs
+                  then
+                    [ id "notes", style [ Width (px 160.) ]
+                    ; id "draft", style [ Width (px 140.) ]
+                    ]
+                  else [])
+               ()
+             |> ok)
           ~style:
             (style [ Foreground (Palette.foreground p); Border_color (Palette.accent p) ])
           ~config:
@@ -93,7 +149,31 @@ let component window palette graph =
                ()
              |> ok)
           ~on_select:set_tab
+          ~labels:
+            (if decorated_tabs
+             then
+               List.map
+                 [ "notes", "Notes", "3"; "draft", "Draft", "Unsent" ]
+                 ~f:(fun (name, label, badge) ->
+                   ( id name
+                   , V.row
+                       ~style:(style [ Gap (px 8.); Align_items Center ])
+                       [ Palette.text p label
+                       ; V.text
+                           ~style:
+                             (style
+                                [ Padding (px 4.)
+                                ; Radius 6.
+                                ; Font_size (Palette.size p 11.)
+                                ; Foreground (Palette.accent p)
+                                ; Background (Background.solid (Palette.border p))
+                                ])
+                           badge
+                       ] ))
+             else [])
           ()
+        |> ok
+      ; tab_content_preview
       ; V.tab_panel
           ~key:(key "notes-panel")
           ~label:"Notes panel"
@@ -112,14 +192,24 @@ let component window palette graph =
         p
         ~title:"A workspace that keeps your place"
         [ Navigation.breadcrumbs
-            breadcrumb_path
+            path
             ~label:"Preview breadcrumb"
             ~current_description:"Current preview"
-            ~on_navigate:(fun target ->
-              set_notice ("Requested location: " ^ Choice.Id.to_string target))
+            ~is_navigable:(fun item ->
+              not (passive && Choice.Id.equal (Choice.id item) (id "workspace")))
+            ~item_style:(fun item ->
+              if Choice.Id.equal (Choice.id item) (id "studio")
+              then style [ Foreground (Palette.accent p); Font_weight 700 ]
+              else Style.empty)
+            ~on_navigate:set_route
             ()
           |> ok
-        ; Palette.text p ~muted:true notice
+        ; V.row
+            ~style:(style [ Gap (px 8.); Wrap Wrap ])
+            [ Palette.button p "Open Preview" (set_route (id "preview"))
+            ; Palette.button p ~selected:passive "Passive workspace label" toggle_passive
+            ]
+        ; Palette.text p ~muted:true ("Current location: " ^ Choice.Id.to_string route)
         ; V.split_pane
             ~style:(style [ Height (px (Palette.size p 220.)) ])
             ~config:
@@ -142,49 +232,9 @@ let component window palette graph =
                  ])
             ()
         ]
-    ; Palette.card
-        p
-        ~title:"Reveal the right amount"
-        [ V.accordion
-            ~model:disclosure
-            ~hidden:Unmount
-            ~on_request:inject_disclosure
-            ~trigger_style:
-              (style
-                 [ Padding (px 12.)
-                 ; Font_size (Palette.size p 15.)
-                 ; Background (Background.solid (Palette.border p))
-                 ; Foreground (Palette.foreground p)
-                 ; Radius 8.
-                 ])
-            ~panel_style:(style [ Padding (px 12.) ])
-            ~content:(fun target ->
-              [ Palette.text
-                  p
-                  (List.Assoc.find_exn
-                     [ ( id "identity"
-                       , "Stable keys preserve the identity of each native control." )
-                     ; ( id "behavior"
-                       , "Native controls handle immediate input; OCaml receives \
-                          semantic requests." )
-                     ; ( id "lifetime"
-                       , "This accordion unmounts collapsed views; the workspace tabs \
-                          retain their editors." )
-                     ]
-                     ~equal:Choice.Id.equal
-                     target)
-              ])
-            ()
-        ]
-    ; Palette.card
-        p
-        ~title:"Navigation at any scale"
-        [ Navigation.pagination pagination ~on_request:inject_page () |> ok
-        ; Palette.text
-            p
-            (sprintf
-               "Preview page %d of 12"
-               (Option.value (Pagination.current pagination) ~default:1))
-        ]
+    ; split_group
+    ; workflow
+    ; disclosure_preview
+    ; pagination_preview
     ]
 ;;

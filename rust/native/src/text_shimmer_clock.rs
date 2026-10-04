@@ -146,12 +146,13 @@ impl State {
 
     fn delivered(&mut self, reduced: bool) -> bool {
         self.pending = false;
-        self.resume_after_layout = false;
+        // Acceptance can prepare an owner before its pending wake arrives.
+        // Preserve the interval until paint consumes it or finish discards it.
         if reduced {
             self.suspend();
             false
         } else {
-            self.running
+            self.running || self.resume_after_layout
         }
     }
 }

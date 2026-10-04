@@ -64,9 +64,11 @@ let status_regions palette graph =
 
 let presentation app window palette graph =
   let attachment_preview = Attachment_preview.component app window palette graph in
+  let avatar_preview = Avatar_preview.component app window palette graph in
   let badge_preview = Badge_preview.component app window palette graph in
   let label_preview = Label_preview.component palette graph in
   let shimmer_preview = Shimmer_preview.component palette graph in
+  let spinner_preview = Spinner_preview.component app window palette graph in
   let marker_preview = Marker_preview.component palette graph in
   let alert_preview = Alert_preview.component palette graph in
   let tag_preview = Tag_preview.component palette graph in
@@ -90,9 +92,11 @@ let presentation app window palette graph =
   and animate_loading = animate_loading
   and toggle_loading = toggle_loading
   and status_regions = status_regions
+  and avatar_preview = avatar_preview
   and attachment_preview = attachment_preview
   and badge_preview = badge_preview
   and shimmer_preview = shimmer_preview
+  and spinner_preview = spinner_preview
   and marker_preview = marker_preview
   and alert_preview = alert_preview
   and tag_preview = tag_preview
@@ -134,6 +138,7 @@ let presentation app window palette graph =
         ; status_regions
         ; badge_preview
         ]
+    ; Palette.card p ~title:"The people behind the work" [ avatar_preview ]
     ; Palette.card p ~title:"Attachments with a little more to say" [ attachment_preview ]
     ; Palette.card p ~title:"Text with context" [ label_preview ]
     ; Palette.card p ~title:"A little light, in motion" [ shimmer_preview ]
@@ -215,6 +220,7 @@ let presentation app window palette graph =
             ()
         ; empty_preview
         ]
+    ; spinner_preview
     ; Palette.card
         p
         ~title:"Waiting can feel considered"
@@ -254,6 +260,14 @@ let choices =
 ;;
 
 let controls window palette graph =
+  let buttons = Button_preview.component palette graph in
+  let button_appearance = Button_appearance_preview.component palette graph in
+  let command_tooltip = Command_tooltip_preview.component palette graph in
+  let menus = Menu_preview.component palette graph in
+  let split = Split_preview.component palette graph in
+  let selection = Selection_preview.component palette graph in
+  let appearance = Control_appearance_preview.component palette graph in
+  let checkable_navigation = Checkable_navigation_preview.component palette graph in
   let enabled, toggle_enabled = B.toggle ~default_model:true graph in
   let checked, toggle_checked = B.toggle ~default_model:true graph in
   let count, update_count =
@@ -287,7 +301,15 @@ let controls window palette graph =
   and update_count = update_count
   and selected = selected
   and set_selected = set_selected
-  and combo = combo in
+  and combo = combo
+  and selection = selection
+  and appearance = appearance
+  and checkable_navigation = checkable_navigation
+  and buttons = buttons
+  and button_appearance = button_appearance
+  and command_tooltip = command_tooltip
+  and menus = menus
+  and split = split in
   let config label =
     Choice.Config.create ~label ~options:choices ~selected ~disabled:(not enabled) ()
     |> ok
@@ -328,17 +350,34 @@ let controls window palette graph =
             ("Selected: "
              ^ Option.value_map selected ~default:"None" ~f:Choice.Id.to_string)
         ]
+    ; selection
+    ; appearance
+    ; checkable_navigation
+    ; buttons
+    ; button_appearance
+    ; command_tooltip
+    ; menus
+    ; split
     ]
 ;;
 
-let editors window palette graph =
+let basic_editors window palette graph =
+  let forms = Form_preview.component window palette graph in
+  let clear_on_escape, toggle_clear_on_escape = B.toggle ~default_model:false graph in
   let read_only, toggle_read_only = B.toggle ~default_model:false graph in
   let invalid, toggle_invalid = B.toggle ~default_model:false graph in
   let submitted, set_submitted = B.state "Nothing submitted yet" graph in
   let open B.Let_syntax in
   let config mode label =
-    let%arr read_only = read_only in
-    Text_input.Config.create ~mode ~label ~read_only ~placeholder:"Write something…" ()
+    let%arr read_only = read_only
+    and clear_on_escape = clear_on_escape in
+    Text_input.Config.create
+      ~mode
+      ~label
+      ~read_only
+      ~clear_on_escape
+      ~placeholder:"Write something…"
+      ()
     |> ok
   in
   let on_submit =
@@ -364,17 +403,25 @@ let editors window palette graph =
   in
   let%arr p = palette
   and read_only = read_only
+  and clear_on_escape = clear_on_escape
+  and toggle_clear_on_escape = toggle_clear_on_escape
   and invalid = invalid
   and toggle_invalid = toggle_invalid
   and toggle_read_only = toggle_read_only
   and title = title
   and body = body
-  and submitted = submitted in
+  and submitted = submitted
+  and forms = forms in
   group
-    [ Palette.card
+    [ Palette.card p ~title:"A workspace form that adapts" [ forms ]
+    ; Palette.card
         p
         ~title:"An editor that belongs on your desktop"
         [ V.switch ~checked:read_only ~on_toggle:toggle_read_only "Read-only preview"
+        ; V.switch
+            ~checked:clear_on_escape
+            ~on_toggle:toggle_clear_on_escape
+            "Escape clears editable drafts"
         ; V.switch ~checked:invalid ~on_toggle:toggle_invalid "Show validation error"
         ; Form.field
             (Form.Field.create
@@ -404,21 +451,87 @@ let editors window palette graph =
     ]
 ;;
 
-let component ~save_settings ~app ~desktop ~motion window ~page ~palette graph =
+module Editor_section = struct
+  type t =
+    | Forms
+    | Options
+    | Multiline
+  [@@deriving equal]
+end
+
+let editors edit_filters window palette graph =
+  let section, set_section = B.state Editor_section.Forms graph in
+  let open B.Let_syntax in
+  let content =
+    match%sub section with
+    | Forms -> basic_editors window palette graph
+    | Options ->
+      let password = Password_preview.component window palette graph in
+      let content_hint = Content_hint_preview.component window palette graph in
+      let format = Format_preview.component window palette graph in
+      let edit_filter = Edit_filter_preview.component edit_filters window palette graph in
+      let%arr password = password
+      and content_hint = content_hint
+      and format = format
+      and edit_filter = edit_filter in
+      group [ password; content_hint; format; edit_filter ]
+    | Multiline -> Textarea_preview.component window palette graph
+  in
+  let%arr p = palette
+  and section = section
+  and set_section = set_section
+  and content = content in
+  let button target label =
+    V.button
+      ~disabled:(Editor_section.equal section target)
+      ~on_click:(set_section target)
+      label
+  in
+  group
+    [ V.row
+        ~style:(style [ Gap (px 8.); Wrap Wrap ])
+        [ button Forms "Forms & basic editing"
+        ; button Options "Native input options"
+        ; button Multiline "Multiline & search"
+        ]
+    ; Palette.text
+        p
+        ~muted:true
+        "Explore one editor group at a time. Switching groups starts fresh editing \
+         sessions."
+    ; content
+    ]
+;;
+
+let component
+      ~save_settings
+      ~load_theme
+      ~theme_selection
+      ~searchable
+      ~edit_filters
+      ~app
+      ~desktop
+      ~motion
+      window
+      ~page
+      ~palette
+      graph
+  =
   let open B.Let_syntax in
   match%sub page with
   | Page.Presentation -> presentation app window palette graph
   | Settings -> Settings_preview.component ~save:save_settings window palette graph
-  | Styles -> Styles_page.component palette graph
+  | Styles ->
+    Styles_page.component ~load_theme ~selection:theme_selection window palette graph
   | Controls -> controls window palette graph
-  | Text_inputs -> editors window palette graph
+  | Text_inputs -> editors edit_filters window palette graph
   | Numeric_inputs -> Numeric_page.component window palette graph
   | Pickers -> Pickers_page.component window palette graph
   | Overlays -> Overlays_page.component palette graph
-  | Navigation -> Navigation_page.component window palette graph
+  | Navigation -> Navigation_page.component app window palette graph
   | Feedback -> Feedback_page.component window palette graph
   | Journeys -> Journeys_page.component window palette graph
-  | Collections -> Collections_page.component palette graph
+  | Collections -> Collections_page.component app searchable window palette graph
   | Documents -> Documents_page.component app window palette graph
   | Highlighting -> Highlight_page.component app window palette graph
   | Canvas -> Canvas_page.component app window palette graph

@@ -6,6 +6,7 @@ module type S = sig
   module Animation = Animation_wire
   module Accessibility = Accessibility_wire
   module Loading = Loading_wire
+  module Spinner = Spinner_wire
   module Avatar = Avatar_wire
   module Rating = Rating_wire
   module Slider = Slider_wire
@@ -15,7 +16,9 @@ module type S = sig
   module Color_input = Color_input_wire
   module Table = Table_wire
   module Tree_input = Tree_input_wire
+  module List_input = List_input_wire
   module Carousel = Carousel_wire
+  module Carousel_track = Carousel_track_wire
   module Navigation_stack = Navigation_stack_wire
   module Container_query = Container_query_wire
   module Animation_program = Animation_program_wire
@@ -37,6 +40,13 @@ module type S = sig
 
   val version : int64
   val capabilities : int64
+
+  (** Check the native response before enabling window/tree submission. *)
+  val validate_welcome
+    :  protocol_version:int64
+    -> available_capabilities:int64
+    -> unit Or_error.t
+
   val max_message_bytes : int
 
   module Kind : sig
@@ -93,6 +103,11 @@ module type S = sig
       | Input_region
       | Highlight_scope
       | Link
+      | Radio
+      | Choice_picker
+      | Carousel_track
+      | Carousel_track_group
+      | Split_group
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -212,6 +227,7 @@ module type S = sig
       | Button of bool
       | Checkbox of Check_state.t * bool
       | Switch of bool * bool
+      | Radio of bool * Checkable_wire.Position.t option * bool
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -257,6 +273,91 @@ module type S = sig
       | Linear_gradient of float * Color.t * float * Color.t * float
       | Linear_gradient_in of int64 * float * Color.t * float * Color.t * float
     [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Scrollbar : sig
+    module Axis : sig
+      type t =
+        | Horizontal
+        | Vertical
+        | Both
+      [@@deriving bin_io, equal, sexp_of]
+    end
+
+    module Mode : sig
+      type t =
+        | Scrolling
+        | Hover
+        | Always
+      [@@deriving bin_io, equal, sexp_of]
+    end
+
+    module Entrance : sig
+      type t =
+        | Fade
+        | Slide_and_fade
+      [@@deriving bin_io, equal, sexp_of]
+    end
+
+    module Track : sig
+      type t =
+        { background : int64 option
+        ; border : int64 option
+        ; width : float option
+        }
+      [@@deriving bin_io, equal, sexp_of]
+    end
+
+    module Thumb : sig
+      type t =
+        { background : Fill.t option
+        ; width : float option
+        ; inset : float option
+        ; radius : float option
+        ; min_length : float option
+        }
+      [@@deriving bin_io, equal, sexp_of]
+    end
+
+    module Appearance : sig
+      type t =
+        { track : Track.t
+        ; track_hover : Track.t
+        ; track_pressed : Track.t
+        ; thumb : Thumb.t
+        ; thumb_hover : Thumb.t
+        ; thumb_pressed : Thumb.t
+        }
+      [@@deriving bin_io, equal, sexp_of]
+    end
+
+    module Motion : sig
+      type t =
+        { idle_ms : int64
+        ; enter_ms : int64
+        ; exit_ms : int64
+        ; expand_ms : int64
+        ; entrance : Entrance.t
+        ; thumb_hover_entrance : Entrance.t
+        }
+      [@@deriving bin_io, equal, sexp_of]
+    end
+
+    type t =
+      { label : string
+      ; axis : Axis.t
+      ; mode : Mode.t
+      ; appearance : Appearance.t
+      ; motion : Motion.t
+      }
+    [@@deriving bin_io, equal, sexp_of]
+
+    val max_config_bytes : int
+    val dimension : float -> bool
+    val valid_track : Track.t -> bool
+    val valid_thumb : Thumb.t -> bool
+    val valid_motion : Motion.t -> bool
+    val valid : t -> bool
   end
 
   module Shadow : sig
@@ -373,6 +474,211 @@ module type S = sig
     [@@deriving bin_io, equal, sexp_of]
   end
 
+  module Number_presentation : sig
+    type t =
+      { gap : float
+      ; button_width : float
+      ; button_min_height : float
+      ; stacked_button_min_height : float
+      ; editor_padding : float
+      ; border_width : float option
+      ; frame_style : Style.t list
+      ; editor_style : Style.t list
+      ; decrement_style : Style.t list
+      ; increment_style : Style.t list
+      }
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Split_button : sig
+    module Parts : sig
+      type t =
+        | Primary
+        | Menu
+        | Split
+      [@@deriving bin_io, equal, sexp_of]
+    end
+
+    type t =
+      { parts : Parts.t
+      ; surface : Style.t list
+      ; menu_open : Style.t list
+      }
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Choice_picker_presentation : sig
+    type t =
+      { config : Choice_picker_wire.Config.t
+      ; popup_width : float
+      ; max_height : float
+      ; estimated_row_height : float
+      ; overscan : float
+      ; empty_label : string
+      ; popup_style : Style.t list
+      ; option_style : Style.t list
+      ; header_style : Style.t list
+      ; empty_style : Style.t list
+      ; slots : Choice_picker_wire.Slot.t list
+      }
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Document_style : sig
+    module Part : sig
+      type t =
+        | Foreground
+        | Muted_foreground
+        | Link
+        | Selection
+        | Code_background
+        | Border
+      [@@deriving bin_io, compare, equal, sexp_of]
+    end
+
+    module Heading_sizes : sig
+      type t =
+        { h1 : float
+        ; h2 : float
+        ; h3 : float
+        ; h4 : float
+        ; h5 : float
+        ; h6 : float
+        }
+      [@@deriving bin_io, equal, sexp_of]
+    end
+
+    module Underline : sig
+      type t =
+        { color : Color.t option
+        ; thickness : float
+        ; wavy : bool
+        }
+      [@@deriving bin_io, equal, sexp_of]
+    end
+
+    module Strikethrough : sig
+      type t =
+        { color : Color.t option
+        ; thickness : float
+        }
+      [@@deriving bin_io, equal, sexp_of]
+    end
+
+    module Inline_code : sig
+      type t =
+        { foreground : Color.t option
+        ; background : Color.t option
+        ; font_weight : int64 option
+        ; italic : bool option
+        ; underline : Underline.t option
+        ; strikethrough : Strikethrough.t option
+        ; fade_out : float option
+        }
+      [@@deriving bin_io, equal, sexp_of]
+    end
+
+    type t =
+      { colors : (Part.t * Color.t) list
+      ; paragraph_gap_rem : float option
+      ; heading_base_font_size : float option
+      ; heading_sizes : Heading_sizes.t option
+      ; inline_code : Inline_code.t
+      ; code_block : Style.t list
+      ; table : Style.t list
+      ; table_head : Style.t list
+      ; table_cell : Style.t list
+      }
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Control_appearance : sig
+    module Label_position : sig
+      type t =
+        | Before
+        | After
+      [@@deriving bin_io, equal, sexp_of]
+    end
+
+    type t =
+      { size : float
+      ; switch_width : float
+      ; gap : float
+      ; label_position : Label_position.t
+      ; indicator_style : Style.t list
+      ; mark_style : Style.t list
+      }
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Tab_motion : sig
+    type t =
+      { spring : Animation.Spring.t
+      ; color_duration_ms : int64
+      }
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Tab_viewport : sig
+    module Reveal : sig
+      type t =
+        { serial : int64
+        ; target : string
+        }
+      [@@deriving bin_io, equal, sexp_of]
+    end
+
+    type t = { reveal : Reveal.t option } [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Tab_content : sig
+    module Label : sig
+      type t =
+        | Default
+        | Custom
+        | Hidden
+      [@@deriving bin_io, equal, sexp_of]
+    end
+
+    type t =
+      { max_width : float option
+      ; labels : Label.t list
+      }
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Split_group_appearance : sig
+    type t =
+      { thickness : float
+      ; hit_extent : float
+      ; handle_style : Style.t list
+      ; item_styles : (string * Style.t list) list
+      }
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Tab_appearance : sig
+    module Variant : sig
+      type t =
+        | Tab
+        | Outline
+        | Pill
+        | Segmented
+        | Underline
+      [@@deriving bin_io, equal, sexp_of]
+    end
+
+    type t =
+      { variant : Variant.t
+      ; height : float
+      ; gap : float
+      ; padding : float
+      ; tab_style : Style.t list
+      ; item_styles : (string * Style.t list) list
+      }
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
   module Choice_appearance : sig
     type t =
       { popup_width : float
@@ -386,98 +692,7 @@ module type S = sig
     [@@deriving bin_io, equal, sexp_of]
   end
 
-  module Editor : sig
-    module Selection : sig
-      type t =
-        { anchor : int64
-        ; head : int64
-        }
-      [@@deriving bin_io, equal, sexp_of]
-    end
-
-    module Config : sig
-      type t =
-        { label : string
-        ; placeholder : string
-        ; read_only : bool
-        ; disabled : bool
-        ; submit_on_enter : bool
-        ; auto_focus : bool
-        ; min_rows : int64
-        ; max_rows : int64
-        }
-      [@@deriving bin_io, equal, sexp_of]
-    end
-
-    module Snapshot : sig
-      type t =
-        { revision : int64
-        ; text : string
-        ; selection : Selection.t
-        ; composition : Selection.t option
-        ; focused : bool
-        }
-      [@@deriving bin_io, equal, sexp_of]
-    end
-
-    module Selection_policy : sig
-      type t =
-        | Start
-        | End
-        | Preserve
-        | Select of Selection.t
-      [@@deriving bin_io, equal, sexp_of]
-    end
-
-    module Undo_policy : sig
-      type t =
-        | Record
-        | Reset
-      [@@deriving bin_io, equal, sexp_of]
-    end
-
-    module Command : sig
-      type t =
-        | Replace of string * Selection_policy.t * Undo_policy.t * int64 option
-        | Select of Selection.t
-        | Focus
-        | Undo
-        | Redo
-        | Submit
-        | Read_snapshot
-      [@@deriving bin_io, equal, sexp_of]
-    end
-
-    module Error : sig
-      type t =
-        | Not_mounted
-        | Closed
-        | Stale_editor
-        | Stale_revision
-        | Composing
-        | Invalid_selection
-        | Limit_exceeded
-        | Busy
-        | Native_failure
-        | Invalid_text
-        | Focus_blocked
-      [@@deriving bin_io, equal, sexp_of]
-    end
-
-    module Result : sig
-      type t =
-        | Applied of Snapshot.t
-        | Failed of Error.t
-      [@@deriving bin_io, equal, sexp_of]
-    end
-
-    module Event_kind : sig
-      type t =
-        | Changed
-        | Submitted
-      [@@deriving bin_io, equal, sexp_of]
-    end
-  end
+  module Editor = Editor_wire
 
   module Menu_definition : sig
     type t =
@@ -499,6 +714,7 @@ module type S = sig
       | Context
       | Bar
       | Platform_bar
+      | Editor_context
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -528,13 +744,7 @@ module type S = sig
     [@@deriving bin_io, equal, sexp_of]
   end
 
-  module Progress : sig
-    type t =
-      { label : string
-      ; fraction : float option
-      }
-    [@@deriving bin_io, equal, sexp_of]
-  end
+  module Progress = Progress_wire
 
   module Toast_politeness : sig
     type t =
@@ -717,6 +927,66 @@ module type S = sig
       | Set_text_shimmer of Node_id.t * Text_shimmer_wire.Config.t option
       | Set_command_binding of Node_id.t * Command_binding_wire.Config.t option
       | Set_number_input_draft of Node_id.t * string option
+      | Set_rating_appearance of Node_id.t * Rating.Appearance.t option
+      | Set_spinner of Node_id.t * Spinner.Config.t
+      | Set_progress_presentation of Node_id.t * Progress.Presentation.t
+      | Set_control_appearance of Node_id.t * Control_appearance.t option
+      | Set_tab_order of Node_id.t * Checkable_wire.Tab_order.t option
+      | Set_button_presentation of Node_id.t * Button_wire.Config.t option
+      | Set_split_button of Node_id.t * Split_button.t option
+      | Set_hover_observer of Node_id.t * Handler_id.t option
+      | Set_choice_picker of Node_id.t * Choice_picker_presentation.t
+      | Set_editor_privacy of Node_id.t * Editor.Privacy.t
+      | Set_editor_frame of Node_id.t * Editor_frame_wire.t option
+      | Set_editor_content_hint of Node_id.t * Input_content_hint_wire.t option
+      | Set_editor_format of Node_id.t * Input_format_wire.t option
+      | Set_editor_validation of Node_id.t * Input_validation_wire.Rule.t option
+      | Set_text_area_layout of Node_id.t * Text_area_layout_wire.t option
+      | Set_editor_clear_on_escape of Node_id.t * bool
+      | Set_editor_searchable of Node_id.t * bool
+      | Set_otp_appearance of Node_id.t * Otp_presentation_wire.t option
+      | Set_number_presentation of Node_id.t * Number_presentation.t option
+      | Set_number_step_mode of Node_id.t * Number_input.Step_mode.t
+      | Set_slider_appearance of Node_id.t * Slider_presentation_wire.t option
+      | Set_reveal of Node_id.t * Reveal_wire.t option
+      | Set_calendar_appearance of Node_id.t * Calendar_presentation_wire.t option
+      | Set_color_presentation of Node_id.t * Color_presentation_wire.t option
+      | Set_popover of Node_id.t * bool
+      | Set_calendar_content of Node_id.t * Calendar_content_wire.t option
+      | Set_overlay_backdrop of Node_id.t * int64 option
+      | Set_overlay_motion of Node_id.t * bool
+      | Set_tooltip_motion of Node_id.t * bool
+      | Set_placement_geometry of Node_id.t * Placement_geometry_wire.t option
+      | Set_sheet_insets of Node_id.t * Sheet_insets_wire.t option
+      | Set_calendar_viewport_observer of Node_id.t * Handler_id.t option
+      | Set_carousel_track of Node_id.t * Carousel_track.Config.t
+      | Set_carousel_track_motion of Node_id.t * Carousel_track.Motion.t option
+      | Set_tab_appearance of Node_id.t * Tab_appearance.t option
+      | Set_tab_content of Node_id.t * Tab_content.t option
+      | Set_tab_viewport of Node_id.t * Tab_viewport.t option
+      | Set_tab_trailing of Node_id.t * bool
+      | Set_choice_menu of Node_id.t * bool
+      | Set_tab_motion of Node_id.t * Tab_motion.t option
+      | Set_split_group of
+          Node_id.t * Split_group_wire.Config.t * Split_group_appearance.t
+      | Set_toast_placement of Node_id.t * Toast_placement_wire.t option
+      | Set_toast_layering of Node_id.t * Toast_layering_wire.t option
+      | Set_toast_motion of Node_id.t * Toast_motion_wire.t option
+      | Set_scrollbar of Node_id.t * Scrollbar.t option
+      | Set_list_axis of Node_id.t * List_wire.Axis.t
+      | Set_list_input of Node_id.t * List_input.Config.t option
+      | Set_table_behavior of Node_id.t * Table_wire.Behavior.t option
+      | Set_table_appearance of Node_id.t * Table_wire.Appearance.t option
+      | Set_table_header of Node_id.t * Table_header_wire.t option
+      | Set_table_header_style of Node_id.t * Style.t list
+      | Set_table_row_style of Node_id.t * Style.t list
+      | Set_document_selection_format of Node_id.t * bool
+      | Set_document_preview of Node_id.t * Document_preview_wire.Config.t
+      | Set_document_text_style of Node_id.t * Document_style.t option
+      | Set_document_markdown_options of Node_id.t * Document.Markdown_options.t
+      | Set_document_actions of Node_id.t * Document_actions_wire.Config.t
+      | Set_document_profile of Node_id.t * Document_profile_wire.Config.t
+      | Set_window_region of Node_id.t * Window_region_wire.t option
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -992,6 +1262,48 @@ module type S = sig
           * Handler_id.t
           * int64
           * Command_binding_wire.Observation.t
+      | Menu_open_changed of Window_id.t * Node_id.t * Handler_id.t * int64 * bool
+      | Hover_changed of Window_id.t * Node_id.t * Handler_id.t * int64 * bool
+      | Choice_picker_event of
+          Window_id.t * Node_id.t * Handler_id.t * int64 * Choice_picker_wire.Event.t
+      | Editor_search_observed of
+          Window_id.t * Node_id.t * Handler_id.t * int64 * Editor_search_wire.Snapshot.t
+      | Calendar_viewport_changed of
+          Window_id.t * Node_id.t * Handler_id.t * int64 * Calendar_viewport_wire.t
+      | Carousel_track_requested of
+          Window_id.t * Node_id.t * Handler_id.t * int64 * Carousel_track.Request.t
+      | Split_group_resized of
+          Window_id.t
+          * Node_id.t
+          * Handler_id.t
+          * int64
+          * int64
+          * Split_group_wire.Snapshot.t
+      | List_input of
+          Window_id.t * Node_id.t * Handler_id.t * int64 * int64 * List_input.Request.t
+      | Table_columns_observed of
+          Window_id.t * Node_id.t * Handler_id.t * int64 * Table_wire.Column_viewport.t
+      | Document_preview_observed of
+          Window_id.t
+          * Node_id.t
+          * Handler_id.t
+          * int64
+          * Resource_id.t
+          * Document_preview_wire.Event.t
+      | Document_action of
+          Window_id.t
+          * Node_id.t
+          * Handler_id.t
+          * int64
+          * Resource_id.t
+          * Document_actions_wire.Event.t
+      | Document_profile_event of
+          Window_id.t
+          * Node_id.t
+          * Handler_id.t
+          * int64
+          * Resource_id.t
+          * Document_profile_wire.Event.t
     [@@deriving bin_io, equal, sexp_of]
 
     (** Decode one bounded event envelope, requiring full byte consumption and

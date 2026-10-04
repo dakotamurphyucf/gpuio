@@ -25,6 +25,7 @@ fn config(slot: i64, tab_index: i64) -> Config {
     Config {
         label: format!("Guide {slot} 世界"),
         disabled: false,
+        loading: false,
         tab_stop: true,
         tab_index,
     }

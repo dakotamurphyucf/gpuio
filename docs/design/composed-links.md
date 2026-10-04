@@ -6,6 +6,8 @@ on macOS including a fresh installed-library consumer; bit 48 (`CAP_LINKS`)
 negotiates composed links**. Whole-release integration remains separate. The dated development
 checkpoints retain historical counts and limitations; the current scope is summarized
 here and in the final native-focus checkpoint.
+The later loading extension in unpublished epoch3 has local build/TestPlatform
+evidence; its physical and installed-consumer runtime acceptance remains open.
 Existing `Presentation.link` continues to provide a text-only Link-semantic button.
 
 ## Why a native contract is needed
@@ -35,12 +37,12 @@ URL, so no URL attribute parity is implied by its `href` builder.
 
 ## Configuration foundation
 
-`Link.Config.create ~label ?disabled ?tab_stop ?tab_index ()` returns a validated,
+`Link.Config.create ~label ?disabled ?loading ?tab_stop ?tab_index ()` returns a validated,
 abstract OCaml value. The label is nonblank according to Core's ASCII whitespace
 set, valid UTF-8, without NUL, and at most 4096 bytes. It is an accessible name,
 not rendered content. No trimming or normalization changes the caller's text.
 
-Defaults: enabled, Tab participation true, index zero. `tab_index` is a signed
+Defaults: enabled, not loading, Tab participation true, index zero. `tab_index` is a signed
 integer in -1,000,000..1,000,000. A negative index is an ordering value, not an
 implicit opt-out; `tab_stop=false` explicitly excludes Tab/Shift-Tab while allowing
 pointer and explicit accessibility/programmatic focus when enabled. Disabled
@@ -48,16 +50,16 @@ suppresses every activation/focus route, regardless of stored tab intent. Keepin
 tab intent while disabled allows predictable re-enablement.
 
 `Gpuio_protocol.Link_wire` and Rust `link::Config` have the same field order:
-UTF-8 label, disabled Boolean, tab-stop Boolean, signed integer index. Rust's
+UTF-8 label, disabled Boolean, loading Boolean, tab-stop Boolean, signed integer index. Rust's
 standalone decoder bounds the declared string length before allocation, validates
 Boolean tags and indices, rejects invalid UTF-8, truncation and trailing bytes,
-and caps the whole frame at 4116 bytes. OCaml validates constructors and
+and caps the whole frame at 4117 bytes. OCaml validates constructors and
 `Link.Expert.of_wire`; generated `bin_read` alone is not an admission boundary.
 
 Independent fixture: label `Guide 世界`, disabled false, tab-stop false, index -2:
 
 ```text
-0c477569646520e4b896e7958c0000fffe
+0c477569646520e4b896e7958c000000fffe
 ```
 
 The original configuration-only checkpoint added no opcode, node kind or
@@ -488,3 +490,30 @@ owned routing/opening, signed ordering distinct from Tab opt-out, and stronger
 disabled/keyboard behavior than the legacy styled source. Whole-gallery/hosted CI,
 required Linux checks and OCH-17 release qualification remain outstanding. No
 full VoiceOver or Linux desktop acceptance follows from this focused walkthrough.
+
+
+## Loading policy — paired unpublished epoch 3
+
+`Link.Config.loading` is independent of disabled: a busy link retains its native
+focus handle, current focus and explicit Tab policy. It rejects pointer, keyboard
+and semantic activation and suppresses hover/pressed paint. Disabled still wins
+for focus eligibility and disabled appearance. Loading contributes busy metadata
+to the single semantic owner. The macOS adapter now has passing headless AppKit
+AXElementBusy getters; external AX/notification and VoiceOver acceptance remain
+open. Visible content remains application-owned,
+including existing passive spinners, text and progress children.
+
+Core retires the callback only when the busy View is accepted; an unaccepted
+prepared update does not change dispatch. Recovery binds a fresh generation.
+Native admission permits an unbound busy Link and requires a handler when it
+becomes available. Availability changes fence the existing native activation
+revision even for a raw client that keeps its handler through a busy/disabled
+cycle. An old press cannot become valid again merely because loading has ended.
+Busy actions consume activation instead of invoking an ancestor.
+
+The paired Op60 payload now includes the loading Boolean after disabled in the
+current **unpublished** epoch3. This extends no published wire version; both
+runtimes must be rebuilt together. Ready and busy independent fixtures differ
+only at that Boolean. Earlier macOS/consumer checkpoints above apply to the
+previous Link contract. Fresh physical and consumer runtime acceptance for this
+extension remains required; local TestPlatform evidence is recorded separately.

@@ -56,6 +56,8 @@ pub(crate) struct TestWindowState {
     appearance: WindowAppearance,
     external_drag_files: Vec<(PathBuf, bool)>,
     start_external_drag_result: bool,
+    a11y_callbacks: Option<crate::A11yCallbacks>,
+    a11y_update: Option<accesskit::TreeUpdate>,
 }
 
 #[derive(Clone)]
@@ -128,6 +130,8 @@ impl TestWindow {
             appearance: WindowAppearance::Light,
             external_drag_files: Vec::new(),
             start_external_drag_result: false,
+            a11y_callbacks: None,
+            a11y_update: None,
         })))
     }
     pub fn simulate_scheduled_frame(&self) -> bool {
@@ -273,9 +277,53 @@ impl TestWindow {
     pub fn set_start_external_drag_result(&self, result: bool) {
         self.0.lock().start_external_drag_result = result;
     }
+
+    /// Connect/disconnect the test accessibility adapter through the same
+    /// callbacks used by platform adapters. This creates no OS accessibility UI.
+    pub fn simulate_a11y_active(&self, active: bool) {
+        let mut state = self.0.lock();
+        let Some(callbacks) = state.a11y_callbacks.take() else {
+            return;
+        };
+        drop(state);
+        let update = if active {
+            (callbacks.activation)()
+        } else {
+            (callbacks.deactivation)();
+            None
+        };
+        let mut state = self.0.lock();
+        state.a11y_update = update;
+        state.a11y_callbacks = Some(callbacks);
+    }
+
+    /// Deliver an action through the platform accessibility callback. This
+    /// exercises asynchronous native routing without an OS screen reader.
+    pub fn simulate_a11y_action(&self, request: accesskit::ActionRequest) {
+        let mut state = self.0.lock();
+        let Some(callbacks) = state.a11y_callbacks.take() else {
+            return;
+        };
+        drop(state);
+        (callbacks.action)(request);
+        self.0.lock().a11y_callbacks = Some(callbacks);
+    }
+
+    /// Last tree delivered to the test accessibility adapter.
+    pub fn a11y_tree(&self) -> Option<accesskit::TreeUpdate> {
+        self.0.lock().a11y_update.clone()
+    }
 }
 
 impl PlatformWindow for TestWindow {
+    fn a11y_init(&self, callbacks: crate::A11yCallbacks) {
+        self.0.lock().a11y_callbacks = Some(callbacks);
+    }
+
+    fn a11y_tree_update(&self, update: accesskit::TreeUpdate) {
+        self.0.lock().a11y_update = Some(update);
+    }
+
     fn visual_viewport_bounds(&self) -> Bounds<Pixels> {
         let state = self.0.lock();
         state
@@ -609,7 +657,7 @@ impl PlatformAtlas for TestAtlas {
             crate::AtlasTile {
                 texture_id: AtlasTextureId {
                     index: texture_id,
-                    kind: crate::AtlasTextureKind::Monochrome,
+                    kind: key.texture_kind(),
                 },
                 tile_id: TileId(tile_id),
                 padding: 0,

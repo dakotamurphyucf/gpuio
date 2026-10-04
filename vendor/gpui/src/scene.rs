@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     AtlasTextureId, AtlasTile, Background, Bounds, ContentMask, Corners, Edges, Hsla, Pixels,
-    Point, Radians, ScaledPixels, Size, bounds_tree::BoundsTree, point,
+    Point, Radians, ScaledPixels, Size, bounds_tree::BoundsTree, point, size,
 };
 use std::{
     fmt::Debug,
@@ -86,9 +86,18 @@ impl Scene {
 
     pub fn insert_primitive(&mut self, primitive: impl Into<Primitive>) {
         let mut primitive = primitive.into();
-        let clipped_bounds = primitive
-            .bounds()
-            .intersect(&primitive.content_mask().bounds);
+        // A transformed glyph/icon can enter or leave the clip independently
+        // of its original quad. Use its actual coverage for culling and order.
+        let coverage = match &primitive {
+            Primitive::MonochromeSprite(sprite) => {
+                sprite.transformation.transform_bounds(sprite.bounds)
+            }
+            Primitive::SubpixelSprite(sprite) => {
+                sprite.transformation.transform_bounds(sprite.bounds)
+            }
+            _ => *primitive.bounds(),
+        };
+        let clipped_bounds = coverage.intersect(&primitive.content_mask().bounds);
 
         if clipped_bounds.is_empty() {
             return;
@@ -616,6 +625,33 @@ pub struct TransformationMatrix {
 impl Eq for TransformationMatrix {}
 
 impl TransformationMatrix {
+    /// Axis-aligned coverage after applying this affine transform. The original
+    /// quad remains unchanged for texture coordinates and shader transformation.
+    pub(crate) fn transform_bounds(self, bounds: Bounds<ScaledPixels>) -> Bounds<ScaledPixels> {
+        if self == Self::unit() {
+            return bounds;
+        }
+        let [a, b] = self.rotation_scale;
+        let mut min = [f32::INFINITY; 2];
+        let mut max = [f32::NEG_INFINITY; 2];
+        for x in [bounds.left().0, bounds.right().0] {
+            for y in [bounds.top().0, bounds.bottom().0] {
+                let p = [
+                    a[0] * x + a[1] * y + self.translation[0],
+                    b[0] * x + b[1] * y + self.translation[1],
+                ];
+                for axis in 0..2 {
+                    min[axis] = min[axis].min(p[axis]);
+                    max[axis] = max[axis].max(p[axis]);
+                }
+            }
+        }
+        Bounds::new(
+            point(ScaledPixels(min[0]), ScaledPixels(min[1])),
+            size(ScaledPixels(max[0] - min[0]), ScaledPixels(max[1] - min[1])),
+        )
+    }
+
     /// The unit matrix, has no effect.
     pub fn unit() -> Self {
         Self {

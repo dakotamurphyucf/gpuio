@@ -164,7 +164,6 @@ pub(super) fn text_size_ranges(
 enum InlineInteraction {
     Text,
     AtomicObject,
-    BlockObject,
 }
 
 pub(super) struct Inline {
@@ -307,11 +306,6 @@ impl Inline {
         self
     }
 
-    pub(super) fn passive_block(mut self) -> Self {
-        self.interaction = InlineInteraction::BlockObject;
-        self
-    }
-
     /// Preserve the shared inline-flow baseline through GPUI's element-bound snapping.
     pub(super) fn paint_origin(mut self, origin: Point<Pixels>) -> Self {
         self.paint_origin = Some(origin);
@@ -406,6 +400,9 @@ impl Inline {
                         state.link_active_owner.as_ref() == Some(owner)
                     })
                 });
+                let activation_target = view
+                    .as_ref()
+                    .map(|view| (view.downgrade(), link.source_start));
                 let focus_target = view
                     .as_ref()
                     .filter(|_| link.source_start.is_some())
@@ -430,6 +427,9 @@ impl Inline {
                         builder.parent_node().set_url(metadata_url.to_string())
                     })
                     .on_a11y_action(gpui::AccessibleAction::Click, move |_, window, cx| {
+                        if !super::inline_semantics::activation_allowed(&activation_target, cx) {
+                            return;
+                        }
                         handle_link_click(
                             &handler,
                             url.clone(),
@@ -940,22 +940,34 @@ impl Element for Inline {
         self.styled_text
             .paint(global_id, None, bounds, &mut (), &mut (), window, cx);
 
-        if self.interaction != InlineInteraction::Text {
-            // Custom blocks already participate in whole-document copy. Keep
-            // select-all visible without inventing partial selection behavior.
-            if self.interaction == InlineInteraction::BlockObject
-                && let Some(view) = GlobalState::global(cx).text_view_state()
-                && view.read(cx).is_selectable()
-                && view.read(cx).is_all_selected()
-            {
-                Self::paint_selection(
-                    &Selection::new(0, self.text.len()),
-                    &text_layout,
-                    &bounds,
-                    window,
-                    view.read(cx).text_view_style.selection(),
-                );
+        if self.semantic_sink.is_none()
+            && GlobalState::global(cx)
+                .text_view_state()
+                .is_some_and(|view| view.read(cx).max_lines.is_some())
+        {
+            for (range, link) in accessible_runs(&self.text, &self.links) {
+                let Some(link) = link else { continue };
+                if let (Some(start), Some(end)) = (
+                    text_layout.position_for_index(range.start),
+                    text_layout.position_for_index(range.end),
+                ) {
+                    let area = if start.y == end.y {
+                        Bounds::from_corners(
+                            point(start.x.min(end.x), start.y),
+                            point(start.x.max(end.x), end.y + text_layout.line_height()),
+                        )
+                    } else {
+                        Bounds::from_corners(
+                            point(bounds.left(), start.y),
+                            point(bounds.right(), end.y + text_layout.line_height()),
+                        )
+                    };
+                    super::inline_semantics::record_preview_link(&link, area, window, cx);
+                }
             }
+        }
+
+        if self.interaction != InlineInteraction::Text {
             return;
         }
 

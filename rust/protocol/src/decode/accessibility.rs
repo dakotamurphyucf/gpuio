@@ -3,6 +3,13 @@ use crate::accessibility::*;
 use std::io::Cursor;
 
 impl Decoder<'_> {
+    fn table_cell_semantics(&mut self) -> Result<TableCell, DecodeError> {
+        Ok(TableCell {
+            row: self.int()?,
+            column: self.int()?,
+            column_span: self.int()?,
+        })
+    }
     pub(super) fn accessibility_config(&mut self) -> Result<Config, DecodeError> {
         let config = Config {
             role: self.option(|d| {
@@ -29,6 +36,34 @@ impl Decoder<'_> {
                         disabled: d.boolean()?,
                         busy: d.boolean()?,
                     }),
+                    14 => Role::Toolbar(match d.tag()? {
+                        0 => Orientation::Horizontal,
+                        1 => Orientation::Vertical,
+                        _ => return Err(DecodeError::Malformed),
+                    }),
+                    15 => Role::RadioGroup(match d.tag()? {
+                        0 => Orientation::Horizontal,
+                        1 => Orientation::Vertical,
+                        _ => return Err(DecodeError::Malformed),
+                    }),
+                    16 => Role::Log,
+                    17 => Role::ListBox(d.boolean()?),
+                    18 => Role::OptionItem(OptionItem {
+                        index: d.int()?,
+                        count: d.option(|d| d.int())?,
+                        selected: d.boolean()?,
+                        disabled: d.boolean()?,
+                    }),
+                    19 => Role::Table(TableInfo {
+                        rows: d.option(|d| d.int())?,
+                        columns: d.option(|d| d.int())?,
+                    }),
+                    20 => Role::RowGroup,
+                    21 => Role::TableRow(d.int()?),
+                    22 => Role::TableCell(d.table_cell_semantics()?),
+                    23 => Role::ColumnHeader(d.table_cell_semantics()?),
+                    24 => Role::RowHeader(d.table_cell_semantics()?),
+                    25 => Role::Caption,
                     _ => return Err(DecodeError::Malformed),
                 })
             })?,

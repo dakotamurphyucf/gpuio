@@ -26,8 +26,8 @@ let%expect_test "composed links require a distinct paired host capability" =
     print_endline "");
   [%expect
     {|
-    0001fc0000000000000100
-    0001fcffffffffffffff00
+    0003fc0000000000000100
+    0003fcffffffffffffff7f
     |}]
 ;;
 
@@ -47,7 +47,7 @@ let%expect_test "link operation and kind match independent Rust bytes" =
   print [ Create (node, Link, "", None) ];
   [%expect
     {|
-    0300010001013c00010c477569646520e4b896e7958c0000fffe
+    0300010001013c00010c477569646520e4b896e7958c000000fffe
     030001000101000001330000
     |}]
 ;;
@@ -263,7 +263,7 @@ let%expect_test "link fixture agrees with independent Rust bytes" =
   Bigstring.to_string bytes
   |> String.iter ~f:(fun byte -> printf "%02x" (Char.to_int byte));
   print_endline "";
-  [%expect {| 0c477569646520e4b896e7958c0000fffe |}]
+  [%expect {| 0c477569646520e4b896e7958c000000fffe |}]
 ;;
 
 let%expect_test "link configuration preserves explicit focus intent and defaults" =
@@ -304,4 +304,68 @@ let%expect_test "labels and wire values are validated at domain entry" =
     "invalid UTF-8/NUL/blank/oversize labels and out-of-range decoded indices rejected";
   [%expect
     {| invalid UTF-8/NUL/blank/oversize labels and out-of-range decoded indices rejected |}]
+;;
+
+let%expect_test "loading retires queued actions without replacing the link" =
+  let t = Reconciler.create window in
+  let view ~loading ~disabled action =
+    let config = Link.Config.create ~label:"Open guide" ~loading ~disabled () |> ok in
+    assert (Bool.equal (Link.Config.is_loading config) loading);
+    View.link
+      ~key:(Key.of_string_exn "guide")
+      config
+      ~on_click:(fun () -> action)
+      [ View.text "Guide" ]
+    |> ok
+  in
+  let initial = commit t (Some (view ~loading:false ~disabled:false "ready")) in
+  let node, handler =
+    List.find_map_exn initial ~f:(function
+      | Wire.Op.Create (node, Link, _, Some handler) -> Some (node, handler)
+      | _ -> None)
+  in
+  let old = Wire.Event.Press (window, node, handler, 1L) in
+  let busy = view ~loading:true ~disabled:false "must not run" in
+  let prepared = Reconciler.prepare t ~theme:Theme.default (Some busy) |> ok in
+  assert (Option.equal String.equal (Reconciler.dispatch t old) (Some "ready"));
+  Reconciler.accept t prepared |> ok;
+  assert (Option.is_none (Reconciler.dispatch t old));
+  assert (List.is_empty (commit t (Some busy)));
+  ignore (commit t (Some (view ~loading:true ~disabled:true "disabled")) : Wire.Op.t list);
+  let restored = commit t (Some (view ~loading:false ~disabled:false "restored")) in
+  assert (
+    not
+      (List.exists restored ~f:(function
+         | Wire.Op.Create _ | Remove _ -> true
+         | _ -> false)));
+  let next =
+    List.find_map_exn restored ~f:(function
+      | Wire.Op.Bind (id, Some handler) ->
+        assert (Gpuio_protocol.Node_id.equal id node);
+        Some handler
+      | _ -> None)
+  in
+  assert (Option.is_none (Reconciler.dispatch t old));
+  assert (
+    Option.equal
+      String.equal
+      (Reconciler.dispatch t (Wire.Event.Press (window, node, next, 4L)))
+      (Some "restored"));
+  print_endline
+    "accepted loading retires callbacks; restored root retains identity with fresh \
+     handler";
+  [%expect
+    {| accepted loading retires callbacks; restored root retains identity with fresh handler |}]
+;;
+
+let%expect_test "busy link fixture has an independent loading Boolean" =
+  let config =
+    Link.Config.create ~label:"Guide 世界" ~loading:true ~tab_stop:false ~tab_index:(-2) ()
+    |> ok
+  in
+  let bytes = Bin_prot.Utils.bin_dump W.bin_writer_t (Link.Expert.to_wire config) in
+  Bigstring.to_string bytes
+  |> String.iter ~f:(fun byte -> printf "%02x" (Char.to_int byte));
+  print_endline "";
+  [%expect {| 0c477569646520e4b896e7958c000100fffe |}]
 ;;

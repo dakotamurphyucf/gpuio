@@ -49,6 +49,13 @@ module Order = struct
   ;;
 end
 
+module Axis = struct
+  type t =
+    | Vertical
+    | Horizontal
+  [@@deriving bin_io, equal, sexp_of]
+end
+
 module Scroll_policy = struct
   type t =
     | Keep_position

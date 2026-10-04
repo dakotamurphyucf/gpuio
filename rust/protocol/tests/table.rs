@@ -436,7 +436,240 @@ fn managed_tables_require_a_distinct_negotiated_capability() {
             .iter()
             .map(|byte| format!("{byte:02x}"))
             .collect::<String>(),
-        "0001fc0000000000010000"
+        "0003fc0000000000010000"
     );
     assert_eq!(gpuio_protocol::decode(&bytes), Ok(hello));
+}
+
+#[test]
+fn behavior_extension_has_independent_bytes_and_bounded_decoding() {
+    use gpuio_protocol::{NodeId, WindowId, v1::*};
+    let node = NodeId::from_parts(0, 1).unwrap();
+    let behavior = Behavior {
+        row_header: false,
+        boundary: Boundary::Stop,
+        selectable_headers: Some(vec!["a".into(), "β".into()]),
+    };
+    let op = Op::SetTableBehavior(node, Some(behavior.clone()));
+    fixture(
+        &op,
+        include_str!("../../../test/fixtures/table-behavior-operation.hex"),
+    );
+    fixture(
+        &Op::SetTableBehavior(node, None),
+        include_str!("../../../test/fixtures/table-behavior-clear.hex"),
+    );
+    let message = |op| {
+        Message::Apply(Transaction {
+            window: WindowId::from_parts(0, 1).unwrap(),
+            base: 0,
+            revision: 1,
+            operations: vec![op],
+        })
+    };
+    let valid = message(op);
+    let encoded = bytes(&valid);
+    assert_eq!(gpuio_protocol::decode(&encoded), Ok(valid));
+    for end in 0..encoded.len() {
+        assert!(gpuio_protocol::decode(&encoded[..end]).is_err());
+    }
+    let mut trailing = encoded.clone();
+    trailing.push(0);
+    assert!(gpuio_protocol::decode(&trailing).is_err());
+    for ids in [
+        vec!["a".into(), "a".into()],
+        vec!["".into()],
+        vec!["x".repeat(257)],
+        (0..65).map(|i| i.to_string()).collect(),
+    ] {
+        let invalid = Behavior {
+            selectable_headers: Some(ids),
+            ..behavior.clone()
+        };
+        assert!(!invalid.is_valid());
+        assert!(
+            gpuio_protocol::decode(&bytes(&message(Op::SetTableBehavior(node, Some(invalid)))))
+                .is_err()
+        );
+    }
+    // Invalid boundary discriminant, independently of the typed writer.
+    let mut invalid = encoded;
+    let boundary = invalid.len() - bytes(&behavior).len() + 1;
+    invalid[boundary] = 2;
+    assert!(gpuio_protocol::decode(&invalid).is_err());
+}
+
+#[test]
+fn appearance_extension_has_paired_bytes_and_strict_bounds() {
+    use gpuio_protocol::{NodeId, WindowId, v1::*};
+    let node = NodeId::from_parts(0, 1).unwrap();
+    let padding = Padding {
+        top: 1.,
+        right: 2.,
+        bottom: 3.,
+        left: 4.,
+    };
+    let appearance = Appearance {
+        striped: true,
+        colors: vec![
+            (Part::HeaderBackground, 0x33669980),
+            (Part::HeaderForeground, 0xffffffff),
+        ],
+        padding: Some(padding),
+        column_padding: vec![(
+            "name".into(),
+            Padding {
+                top: 0.,
+                right: 0.,
+                bottom: 0.,
+                left: 0.,
+            },
+        )],
+    };
+    fixture(
+        &Op::SetTableAppearance(node, Some(appearance.clone())),
+        include_str!("../../../test/fixtures/table-appearance-operation.hex"),
+    );
+    fixture(
+        &Op::SetTableAppearance(node, None),
+        include_str!("../../../test/fixtures/table-appearance-clear.hex"),
+    );
+    let message = |a| {
+        Message::Apply(Transaction {
+            window: WindowId::from_parts(0, 1).unwrap(),
+            base: 0,
+            revision: 1,
+            operations: vec![Op::SetTableAppearance(node, Some(a))],
+        })
+    };
+    let valid = message(appearance.clone());
+    let encoded = bytes(&valid);
+    assert_eq!(gpuio_protocol::decode(&encoded), Ok(valid));
+    for end in 0..encoded.len() {
+        assert!(gpuio_protocol::decode(&encoded[..end]).is_err());
+    }
+    let mut trailing = encoded;
+    trailing.push(0);
+    assert!(gpuio_protocol::decode(&trailing).is_err());
+    for invalid in [
+        Appearance {
+            colors: vec![(Part::RowBorder, -1)],
+            ..appearance.clone()
+        },
+        Appearance {
+            colors: vec![(Part::RowBorder, 0x1_0000_0000)],
+            ..appearance.clone()
+        },
+        Appearance {
+            colors: vec![(Part::RowBorder, 0); 2],
+            ..appearance.clone()
+        },
+        Appearance {
+            column_padding: vec![("name".into(), padding); 2],
+            ..appearance.clone()
+        },
+        Appearance {
+            column_padding: (0..65).map(|i| (i.to_string(), padding)).collect(),
+            ..appearance.clone()
+        },
+        Appearance {
+            padding: Some(Padding {
+                top: f64::NAN,
+                ..padding
+            }),
+            ..appearance.clone()
+        },
+        Appearance {
+            padding: Some(Padding {
+                left: 4097.,
+                ..padding
+            }),
+            ..appearance.clone()
+        },
+    ] {
+        assert!(!invalid.is_valid());
+        assert!(gpuio_protocol::decode(&bytes(&message(invalid))).is_err());
+    }
+    let mut invalid = bytes(&message(Appearance {
+        colors: vec![(Part::RowBorder, 0)],
+        ..Appearance::default()
+    }));
+    // The first color part follows the outer envelope, op/node/option, stripe and count.
+    let part = invalid.len() - 4;
+    assert_eq!(invalid[part], 6);
+    invalid[part] = 13;
+    assert!(gpuio_protocol::decode(&invalid).is_err());
+}
+
+#[test]
+fn column_viewport_has_independent_event_bytes_and_bounded_schema_identity() {
+    use gpuio_protocol::{HandlerId, NodeId, WindowId, v1::Event};
+    let viewport = ColumnViewport {
+        schema_revision: 7,
+        query_generation: 3,
+        columns: vec![
+            ("a".into(), Pin::Left, true),
+            ("β".into(), Pin::Unpinned, false),
+        ],
+    };
+    fixture(
+        &Event::TableColumnsObserved(
+            WindowId::from_parts(0, 1).unwrap(),
+            NodeId::from_parts(0, 1).unwrap(),
+            HandlerId::from_parts(0, 1).unwrap(),
+            1,
+            viewport.clone(),
+        ),
+        include_str!("../../../test/fixtures/table-columns-event.hex"),
+    );
+    assert!(viewport.matches_schema(&config()));
+    for invalid in [
+        ColumnViewport {
+            schema_revision: 0,
+            ..viewport.clone()
+        },
+        ColumnViewport {
+            query_generation: -1,
+            ..viewport.clone()
+        },
+        ColumnViewport {
+            columns: vec![("".into(), Pin::Left, true)],
+            ..viewport.clone()
+        },
+        ColumnViewport {
+            columns: vec![("a".into(), Pin::Left, true); 2],
+            ..viewport.clone()
+        },
+        ColumnViewport {
+            columns: viewport.columns.iter().cloned().rev().collect(),
+            ..viewport.clone()
+        },
+        ColumnViewport {
+            columns: (0..65)
+                .map(|i| (i.to_string(), Pin::Unpinned, true))
+                .collect(),
+            ..viewport.clone()
+        },
+    ] {
+        assert!(!invalid.is_valid());
+    }
+    for columns in [
+        vec![("missing".into(), Pin::Left, true)],
+        vec![("a".into(), Pin::Unpinned, true)],
+    ] {
+        assert!(
+            !ColumnViewport {
+                columns,
+                ..viewport.clone()
+            }
+            .matches_schema(&config())
+        );
+    }
+    assert!(
+        ColumnViewport {
+            columns: vec![],
+            ..viewport
+        }
+        .matches_schema(&config())
+    );
 }

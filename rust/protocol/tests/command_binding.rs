@@ -515,10 +515,10 @@ fn capability_bit_and_current_mask_have_independent_bytes() {
     assert_eq!(CAP_COMMAND_BINDINGS, 1_i64 << 52);
     assert_eq!(
         bytes(&Message::Hello(VERSION, CAP_COMMAND_BINDINGS)),
-        fixture("0001fc0000000000001000")
+        fixture("0003fc0000000000001000")
     );
     assert_eq!(
         bytes(&Message::Hello(VERSION, CAPABILITIES)),
-        fixture("0001fcffffffffffffff00")
+        fixture("0003fcffffffffffffff7f")
     );
 }

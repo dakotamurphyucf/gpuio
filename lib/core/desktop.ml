@@ -29,6 +29,7 @@ end
 
 module Capabilities = Wire.Capabilities
 module Error = Wire.Error
+module Scrollbar_preference = Wire.Scrollbar_preference
 
 module Event = struct
   type t =
@@ -46,4 +47,5 @@ module Expert = struct
   let identity_to_wire (t : Identity.t) = t.wire
   let capabilities_of_wire t = t
   let error_of_wire t = t
+  let scrollbar_preference_of_wire t = t
 end

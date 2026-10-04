@@ -2,6 +2,7 @@ open Core
 module Identity = Gpuio.Desktop.Identity
 module Capabilities = Gpuio.Desktop.Capabilities
 module Error = Gpuio.Desktop.Error
+module Scrollbar_preference = Gpuio.Desktop.Scrollbar_preference
 module Event = Gpuio.Desktop.Event
 module Document = Gpuio.Window.Document
 module Delivery = Gpuio_runtime_core.Desktop_delivery
@@ -68,21 +69,33 @@ let capabilities app =
     | Wire.Response.Capabilities caps ->
       Ok (Gpuio.Desktop.Expert.capabilities_of_wire caps)
     | Failed error -> Error (Gpuio.Desktop.Expert.error_of_wire error)
-    | Configured | Links _ | Requested | Registered -> Error Error.Native_failure)
+    | Configured | Links _ | Requested | Registered | Scrollbar_preference _ ->
+      Error Error.Native_failure)
+;;
+
+let scrollbar_preference app =
+  E.map (App.Expert.desktop app Scrollbar_preference) ~f:(function
+    | Wire.Response.Scrollbar_preference preference ->
+      Ok (Gpuio.Desktop.Expert.scrollbar_preference_of_wire preference)
+    | Failed error -> Error (Gpuio.Desktop.Expert.error_of_wire error)
+    | Configured | Links _ | Capabilities _ | Requested | Registered ->
+      Error Error.Native_failure)
 ;;
 
 let activate app ?(ignoring_other_apps = false) () =
   E.map (App.Expert.desktop app (Activate ignoring_other_apps)) ~f:(function
     | Wire.Response.Requested -> Ok ()
     | Failed error -> Error (Gpuio.Desktop.Expert.error_of_wire error)
-    | Configured | Links _ | Capabilities _ | Registered -> Error Error.Native_failure)
+    | Configured | Links _ | Capabilities _ | Registered | Scrollbar_preference _ ->
+      Error Error.Native_failure)
 ;;
 
 let requested app request =
   E.map (App.Expert.desktop app request) ~f:(function
     | Wire.Response.Requested -> Ok ()
     | Failed error -> Error (Gpuio.Desktop.Expert.error_of_wire error)
-    | Configured | Links _ | Capabilities _ | Registered -> Error Error.Native_failure)
+    | Configured | Links _ | Capabilities _ | Registered | Scrollbar_preference _ ->
+      Error Error.Native_failure)
 ;;
 
 let reveal_file app path = requested app (Reveal_file (Gpuio.File_path.to_string path))
@@ -94,5 +107,6 @@ let register_scheme app scheme =
     ~f:(function
       | Wire.Response.Registered -> Ok ()
       | Failed error -> Error (Gpuio.Desktop.Expert.error_of_wire error)
-      | Configured | Links _ | Capabilities _ | Requested -> Error Error.Native_failure)
+      | Configured | Links _ | Capabilities _ | Requested | Scrollbar_preference _ ->
+        Error Error.Native_failure)
 ;;

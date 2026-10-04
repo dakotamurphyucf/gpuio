@@ -13,12 +13,18 @@ pub fn validate(appearance: &ChoiceAppearance) -> Result<(), ErrorCode> {
     {
         return Err(ErrorCode::Malformed);
     }
+    validate_parts([
+        (appearance.popup_style.as_slice(), &[0, 2][..]),
+        (appearance.option_style.as_slice(), &[0, 1, 2, 3, 6, 7][..]),
+        (appearance.empty_style.as_slice(), &[0][..]),
+    ])
+}
+
+pub(crate) fn validate_parts<'a>(
+    parts: impl IntoIterator<Item = (&'a [Style], &'a [i64])>,
+) -> Result<(), ErrorCode> {
     let mut count = 0;
-    for (styles, states) in [
-        (&appearance.popup_style, &[0, 2][..]),
-        (&appearance.option_style, &[0, 1, 2, 3, 6, 7][..]),
-        (&appearance.empty_style, &[0][..]),
-    ] {
+    for (styles, states) in parts {
         crate::tree::validate_style(styles)?;
         for style in styles {
             let (state, fields) = match style {

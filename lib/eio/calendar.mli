@@ -16,7 +16,15 @@ val create
   -> Bonsai.Cont.graph
   -> t Bonsai.Cont.t
 
-val view : ?style:Gpuio.Style.t -> t -> Gpuio_bonsai.View.t
+(** [on_viewport_change] observes the exact logical panes asynchronously,
+    independently of [snapshot]. It does not start I/O or a polling timer. *)
+val view
+  :  ?style:Gpuio.Style.t
+  -> ?appearance:Gpuio.Calendar.Appearance.t
+  -> ?content:unit Bonsai.Effect.t Gpuio.View.Calendar_content.t
+  -> ?on_viewport_change:(Gpuio.Calendar.Viewport.t -> unit Bonsai.Effect.t)
+  -> t
+  -> Gpuio_bonsai.View.t
 
 (** Last accepted observation, absent before mounting. An unplaced retained
     controller may retain an old snapshot; commands then return [Stale_input].
@@ -48,7 +56,8 @@ val focus_date
   -> (Gpuio.Calendar.Snapshot.t, Gpuio.Calendar.Command_error.t) Result.t Bonsai.Effect.t
 
 (** Navigation preserves selection and clamps the existing cursor day to the
-    target month. It does not acquire focus or select a date. *)
+    target month. It aligns the first pane to that month when the civil boundary
+    permits. It does not acquire focus or select a date. *)
 val show_month
   :  t
   -> Gpuio.Calendar.Month.t

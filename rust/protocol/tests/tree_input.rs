@@ -207,6 +207,6 @@ fn managed_trees_have_a_distinct_capability_from_retained_view_trees() {
     assert_eq!(CAPABILITIES & CAP_MANAGED_TREES, 1_i64 << 39);
     assert_ne!(CAP_MANAGED_TREES, CAP_TREE);
     let hello = Message::Hello(VERSION, CAP_MANAGED_TREES);
-    assert_eq!(hex(&hello), "0001fc0000000080000000");
+    assert_eq!(hex(&hello), "0003fc0000000080000000");
     assert_eq!(gpuio_protocol::decode(&bytes(&hello)), Ok(hello));
 }

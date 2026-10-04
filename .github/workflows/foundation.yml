@@ -30,7 +30,10 @@ jobs:
       matrix:
         os: [macos-15, ubuntu-24.04]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 90
+    # The macOS required suite includes a measured ~18-minute full-history test
+    # after dependency/consumer builds. Run 36791905054 was cancelled near the
+    # 90-minute ceiling during the final workload; per-test watchdogs remain.
+    timeout-minutes: ${{ matrix.os == 'macos-15' && 120 || 90 }}
     env:
       GPUIO_JOBS: 3
       CARGO_TERM_COLOR: never
@@ -83,6 +86,8 @@ jobs:
           ./scripts/gpuio doctor
       - name: Formatting
         run: ./scripts/gpuio check-fmt
+      - name: Offline Bonsai reconstruction admission
+        run: python3 scripts/test_vendor_bonsai.py 2>&1 | tee .cache/ci/bonsai-vendor-inputs.log
       - name: Build
         run: ./scripts/gpuio build 2>&1 | tee .cache/ci/build.log
       - name: Preserve successful dependency build
@@ -97,6 +102,22 @@ jobs:
           key: foundation-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('gpuio.opam.locked', 'third_party/sources.json', 'rust-toolchain.toml', 'Cargo.lock') }}
       - name: OCaml and Rust tests
         run: ./scripts/gpuio test 2>&1 | tee .cache/ci/tests.log
+      - name: Inherited output and Eio cancellation (no display)
+        run: |
+          ./scripts/gpuio build test/output/probe.exe
+          python3 scripts/test_output_sink.py 2>&1 | tee .cache/ci/output-sink.log
+      - name: Chart measurement diagnostics (no display)
+        run: python3 scripts/test_measure_chart_stream.py 2>&1 | tee .cache/ci/chart-measurement-diagnostics.log
+      - name: Accessibility traversal diagnostics (no display)
+        run: python3 scripts/test_mac_ax_helpers.py 2>&1 | tee .cache/ci/ax-traversal.log
+      - name: Reference packaging input validation (no display)
+        run: python3 scripts/test_package_macos_reference.py 2>&1 | tee .cache/ci/reference-package-inputs.log
+      - name: Static backend composition tests (no display)
+        run: python3 scripts/test_compose_backend.py 2>&1 | tee .cache/ci/backend-composition.log
+      - name: Dependency notice collection tests (no display)
+        run: python3 scripts/test_collect_rust_notices.py 2>&1 | tee .cache/ci/dependency-notices.log
+      - name: OCaml dependency notice collection (no display)
+        run: python3 scripts/test_collect_ocaml_notices.py 2>&1 | tee .cache/ci/ocaml-dependency-notices.log
       - name: Linux desktop instance arbitration (private bus, no display)
         if: runner.os == 'Linux'
         run: scripts/test_desktop_instance_bus.sh 2>&1 | tee .cache/ci/desktop-instance.log
@@ -126,6 +147,9 @@ jobs:
           ./scripts/gpuio exec cargo clippy --locked -p gpuio-native --features native-image-tests --all-targets -- -D warnings
           ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-canvas-tests --test native_canvas --test native_canvas_view --test native_canvas_input --test native_chart_paint --test native_chart_view --test native_chart_input --no-run
           ./scripts/gpuio exec cargo clippy --locked -p gpuio-native --features native-canvas-tests --all-targets -- -D warnings
+      - name: Independent default-backend starter consumer
+        id: starter-consumer
+        run: python3 scripts/test_extension_consumer.py --example getting_started 2>&1 | tee .cache/ci/starter-consumer.log
       - name: Independent native extension consumer
         id: extension-consumer
         run: python3 scripts/test_extension_consumer.py 2>&1 | tee .cache/ci/extension-consumer.log
@@ -140,6 +164,12 @@ jobs:
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
         timeout-minutes: 3
         run: python3 scripts/test_gallery.py --section settings-fields --images .cache/ci/settings-fields 2>&1 | tee .cache/ci/macos-settings-fields.log
+      - name: macOS gallery forms and editor admission
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 3
+        run: |
+          python3 scripts/test_gallery.py --section forms --images .cache/ci/forms 2>&1 | tee .cache/ci/macos-forms.log
+          python3 scripts/test_gallery.py --section editor-groups 2>&1 | tee .cache/ci/macos-editor-groups.log
       - name: Independent Signal Studio consumer
         id: signal-consumer
         run: |

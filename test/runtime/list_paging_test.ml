@@ -188,19 +188,20 @@ let%expect_test
     in
     let controls = P.controls pager in
     let config =
-      V.Config.create ~max_active:8 ~height:(Estimated 80.) () |> Or_error.ok_exn
+      B.Expert.Var.create
+        (V.Config.horizontal ~max_active:8 ~width:(Estimated 80.) () |> Or_error.ok_exn)
     in
     let driver =
       Bonsai_driver.create
         ~action_history:Release_after_flush
         ~clock:(Bonsai.Time_source.create ~start:Time_ns.epoch)
         (fun graph ->
-           V.paged
+           V.paged_with_config
              (module Int)
              (P.value pager)
              ~paging:(B.return controls)
              ~row_key:Gpuio.Key.of_int
-             ~config
+             ~config:(B.Expert.Var.value config)
              ~render_row:(fun ~key:_ ~data ~lifetime:_ _ -> B.map data ~f:Gpuio.View.text)
              graph)
     in
@@ -256,6 +257,15 @@ let%expect_test
     (* A nonempty page waits for native layout; an old at-end flag must not
        greedily load the entire history before a new frame is painted. *)
     report ~at_end:false;
+    display ();
+    assert (List.length !calls = 2);
+    B.Expert.Var.set
+      config
+      (V.Config.create ~max_active:8 ~height:(Estimated 80.) () |> Or_error.ok_exn);
+    display ();
+    assert (Option.is_none (V.Output.viewport (result ())));
+    Eio.Fiber.yield ();
+    drain inbox;
     display ();
     assert (List.length !calls = 2);
     fail := true;

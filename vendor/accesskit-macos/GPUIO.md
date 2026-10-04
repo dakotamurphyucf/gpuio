@@ -1,7 +1,7 @@
 # GPUIO macOS accessibility adaptation
 
 This is the published `accesskit_macos` **0.26.3**, at AccessKit revision
-`c88605b96d04431f9c3c792464a0f2f253480e94`, with seven scoped patches.
+`c88605b96d04431f9c3c792464a0f2f253480e94`, with nine scoped patches.
 The upstream MIT/Apache-2.0 notices and both license texts are preserved. Source,
 archive checksum and original per-file checksums are recorded in `UPSTREAM.json`.
 Cargo uses the registry-normalized manifest, retaining its exact dependency ranges.
@@ -54,7 +54,7 @@ extract `Cargo.toml`, `Cargo.toml.orig`, README/CHANGELOG and `src/`, then apply
 `patch -p1 < expanded-state.patch` and then `patch -p1 < tree-state.patch` inside
 that directory, followed by `patch -p1 < tree-actions.patch`, `patch -p1 < table-state.patch`
 and `patch -p1 < document-semantics.patch`, then `patch -p1 < table-headers.patch`
-and `patch -p1 < initial-window-focus.patch`.
+and `patch -p1 < initial-window-focus.patch`, then `patch -p1 < busy-state.patch` and `patch -p1 < list-selection.patch`.
 Fetch LICENSE-APACHE and
 LICENSE-MIT from the pinned upstream Git revision and verify their recorded hashes.
 `UPSTREAM.json`, this note and the patches are GPUIO provenance additions. The
@@ -147,3 +147,49 @@ The public gallery's Settings two-window regression checks initial `AXFocused`,
 inactive peer state, switching back, actual OS edits, independent resets and the
 surviving window after close. These external getter/input checks do not establish
 VoiceOver speech or focus-notification delivery. No dependency version changes.
+
+
+`busy-state.patch` exposes AccessKit `is_busy` through the legacy
+`AXElementBusy` Boolean attribute. AppKit has no public modern busy getter in the
+pinned SDK. Attribute enumeration extends the superclass list and preserves the
+existing optional Braille attributes; other legacy getters delegate to AppKit.
+The attribute is read-only because application state owns loading. Live ready
+nodes return false, busy nodes return true, and retired nodes return no value.
+The existing change queue receives `AXElementBusyChanged` only for included-node
+busy transitions, independently of ordinary value changes. It adds no polling,
+callback into OCaml or second state owner.
+
+Sources: Apple's [busy attribute](https://developer.apple.com/documentation/applicationservices/kaxelementbusyattribute)
+and [busy notification](https://developer.apple.com/documentation/applicationservices/kaxelementbusychangednotification),
+plus the installed SDK's `AXAttributeConstants.h` and `AXNotificationConstants.h`.
+A headless main-thread AppKit fixture (`rust/native/tests/accessibility_busy.rs`)
+checks actual adapter objects through Objective-C attribute selectors without an
+NSApplication or window. These getters are distinct from external AX notification
+receipt and VoiceOver behavior, which remain physical desktop acceptance gates.
+The public gallery drivers now require external AXElementBusy checks but are
+unrun at this checkpoint.
+
+Reproduce the source reconstruction without changing the repository or accessing
+the network (download the exact `source` URL in UPSTREAM.json separately):
+
+```sh
+python3 scripts/verify_accesskit_macos.py --archive /path/to/accesskit_macos-0.26.3.crate
+```
+
+The verifier checks the archive and every original source hash, applies all nine
+patches without offset/fuzz, compares every reconstructed source byte and verifies
+the two license hashes. Its temporary workspace is removed on completion.
+
+`list-selection.patch` extends ordered desired-selection setters to opted-in
+ListBoxOption nodes. Both custom IDs `0x47530001` (select) and `0x47530002`
+(deselect), a CustomAction handler and an enabled selectable option are required.
+Each setter queues its desired value, including values equal to the displayed
+snapshot, because preceding setters may still await OCaml reduction. Focus,
+confirmation and context requests stay distinct; no native selection state is added.
+Other roles and options retain their existing behavior.
+
+`rust/native/tests/accessibility_list_selection.rs` reproduces the lost ordered
+setters before this patch using actual AppKit adapter objects on an NSView with
+no OS window. It checks ordered actions, unchanged selection snapshots, exact
+role/action opt-in and disabled/removal/adapter retirement. This is not external
+AX notification or VoiceOver acceptance.

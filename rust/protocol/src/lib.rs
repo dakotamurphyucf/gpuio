@@ -8,11 +8,14 @@ pub mod asset;
 pub mod avatar;
 pub mod calendar;
 pub mod calendar_input;
+pub mod calendar_viewport;
 pub mod canvas;
 pub mod canvas_resource;
 pub mod canvas_scene;
 pub mod canvas_view;
 pub mod carousel;
+pub mod carousel_track;
+pub use decode::{decode_carousel_track_config, decode_carousel_track_request};
 pub mod chart_data;
 pub mod chart_options;
 pub mod chart_resource;
@@ -28,8 +31,17 @@ pub mod container_query;
 mod decode;
 pub mod desktop;
 pub mod document;
+pub mod document_actions;
 pub mod document_diff;
+pub mod document_preview;
+pub mod document_profile;
+pub mod document_style;
+pub use decode::decode_document_style;
 pub mod drag_drop;
+pub mod editor_frame;
+pub mod editor_geometry;
+pub mod editor_search;
+pub mod editor_viewport;
 pub mod extension;
 pub mod file_dialog;
 pub mod file_path;
@@ -38,16 +50,33 @@ pub mod highlight;
 mod id;
 pub mod image;
 pub mod input;
+pub mod input_content_hint;
+pub mod input_format;
+pub mod input_validation;
 pub mod list;
 pub mod loading;
+pub mod spinner;
+pub use decode::decode_input_format;
+pub use decode::decode_input_validation_source;
+pub use decode::decode_spinner_config;
+pub mod calendar_content;
+pub mod calendar_presentation;
+pub use decode::decode_calendar_content;
+pub mod color_presentation;
 mod menu;
 pub mod navigation_stack;
 pub mod notification;
 pub mod number_input;
+pub mod number_presentation;
 pub mod otp;
 pub mod otp_input;
+pub mod otp_presentation;
 mod palette;
 pub mod rating;
+pub mod reveal;
+pub mod scrollbar;
+pub use decode::decode_scrollbar_config;
+pub mod slider_presentation;
 pub mod v1;
 
 pub use decode::decode_chart_selection;
@@ -72,22 +101,37 @@ pub use decode::{
 pub use id::{HandlerId, NodeId, ResourceId, WindowId};
 
 pub mod progress;
+pub mod progress_presentation;
+pub use decode::decode_progress_presentation;
 
+pub mod choice_picker;
 pub mod link;
+pub use decode::{
+    decode_choice_picker_config, decode_choice_picker_event, decode_choice_picker_presentation,
+};
 pub mod table;
+pub mod table_header;
+pub use decode::decode_table_header_target;
 pub mod text_content;
 pub mod text_shimmer;
 pub use decode::decode_link_config;
 pub use decode::decode_text_shimmer_config;
 pub mod toast;
 pub use decode::decode_text_content;
+pub mod list_input;
 pub mod tree_input;
 
 pub mod pointer;
 
 pub mod window;
+pub mod window_region;
 
 pub mod split;
+pub mod split_group;
+pub mod split_group_appearance;
+pub use decode::{
+    decode_split_group_appearance, decode_split_group_config, decode_split_group_snapshot,
+};
 
 pub mod numeric;
 
@@ -98,3 +142,30 @@ pub use decode::{decode_highlight_config, decode_highlight_observation};
 pub use decode::{decode_input_config, decode_input_event};
 
 pub use decode::{decode_command_binding_config, decode_command_binding_observation};
+
+pub mod control_appearance;
+pub use decode::decode_control_appearance;
+pub mod checkable;
+pub use decode::{decode_radio_position, decode_tab_order};
+
+pub mod button;
+pub mod split_button;
+pub use decode::decode_button_config;
+pub use decode::decode_split_button_config;
+
+pub mod text_area_layout;
+
+pub mod placement_geometry;
+
+pub mod sheet_insets;
+
+pub mod tab_appearance;
+pub mod tab_content;
+pub mod tab_motion;
+pub mod tab_viewport;
+
+pub mod toast_layering;
+pub mod toast_motion;
+pub mod toast_placement;
+
+pub mod table_presentation;

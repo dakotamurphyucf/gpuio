@@ -1,4 +1,4 @@
-//! Layout-owned variable-height lists. Row construction is exclusively native;
+//! Layout-owned variable-extent lists. Row construction is exclusively native;
 //! layout observations request the next bounded OCaml active set asynchronously.
 use super::{Interaction, SharedSession, View, apply_styles, color};
 use crate::{
@@ -8,8 +8,8 @@ use crate::{
     tree::{ListAction, Node},
 };
 use gpui::{
-    App, Bounds, Context, Element, ElementId, GlobalElementId, InspectorElementId, IntoElement,
-    LayoutId, Pixels, Window, div, prelude::*, px,
+    Along, App, Axis, Bounds, Context, Element, ElementId, GlobalElementId, InspectorElementId,
+    IntoElement, LayoutId, Pixels, Window, div, prelude::*, px,
 };
 use gpui_base::StyledExt;
 use gpuio_protocol::{
@@ -31,10 +31,19 @@ struct PendingFocus {
     _subscriptions: [gpui::Subscription; 2],
 }
 
-fn row_is_revealed(row: Bounds<Pixels>, viewport: Bounds<Pixels>) -> bool {
-    // A row taller than its viewport is revealed from its leading edge.
-    row.top() >= viewport.top() - px(0.5)
-        && row.top() + row.size.height.min(viewport.size.height) <= viewport.bottom() + px(0.5)
+fn native_axis(axis: gpuio_protocol::list::Axis) -> Axis {
+    match axis {
+        gpuio_protocol::list::Axis::Vertical => Axis::Vertical,
+        gpuio_protocol::list::Axis::Horizontal => Axis::Horizontal,
+    }
+}
+
+fn row_is_revealed(row: Bounds<Pixels>, viewport: Bounds<Pixels>, axis: Axis) -> bool {
+    // An item larger than its viewport is revealed from its leading edge.
+    let start = row.origin.along(axis);
+    start >= viewport.origin.along(axis) - px(0.5)
+        && start + row.size.along(axis).min(viewport.size.along(axis))
+            <= viewport.origin.along(axis) + viewport.size.along(axis) + px(0.5)
 }
 
 pub(super) struct State {
@@ -44,6 +53,8 @@ pub(super) struct State {
     mapping: Arc<BTreeMap<i64, NodeId>>,
     handles: BTreeMap<i64, gpui::FocusHandle>,
     pub(super) tree_focus: Option<gpui::FocusHandle>,
+    pub(super) list_focus: Option<gpui::FocusHandle>,
+    list_cursor: Option<(i64, i64)>,
     pub(super) tree_typeahead: super::tree_typeahead::Clock,
     pub(super) tree_typeahead_activation: Option<gpui::Subscription>,
     pending_focus: Option<PendingFocus>,
@@ -64,9 +75,10 @@ impl State {
     fn new(node: &Node) -> Self {
         let config = node.list_config.clone().expect("validated list config");
         Self {
-            native: list_state::State::from_index(
+            native: list_state::State::from_index_for_axis(
                 (*config).clone(),
                 node.list_index.clone().expect("validated index"),
+                native_axis(node.list_axis),
             )
             .expect("validated list"),
             config,
@@ -74,6 +86,8 @@ impl State {
             mapping: Arc::default(),
             handles: BTreeMap::new(),
             tree_focus: None,
+            list_focus: None,
+            list_cursor: None,
             tree_typeahead: Default::default(),
             tree_typeahead_activation: None,
             pending_focus: None,
@@ -108,6 +122,11 @@ impl State {
         self.bound = row;
     }
     fn update(&mut self, node: &Node, dirty: &BTreeSet<NodeId>, cx: &mut App) {
+        if node.list_input.is_some_and(|config| !config.disabled) {
+            self.list_focus.get_or_insert_with(|| cx.focus_handle());
+        } else {
+            self.list_focus = None;
+        }
         if node.tree_input {
             self.tree_focus.get_or_insert_with(|| cx.focus_handle());
         } else {
@@ -145,13 +164,28 @@ impl State {
         let config = node.list_config.as_ref().expect("validated config");
         if self
             .native
-            .configure((**config).clone())
+            .configure_for_axis((**config).clone(), native_axis(node.list_axis))
             .expect("validated config")
         {
             self.bound = None;
             self.width = None;
+            self.height = None;
+            self.layout_bounds = None;
             self.observed = None;
             self.config = config.clone();
+        }
+        let cursor = node
+            .list_input
+            .filter(|config| !config.disabled)
+            .and_then(|config| config.cursor.map(|row| (config.generation, row)));
+        if self.list_cursor != cursor {
+            self.pending_reveal = cursor.map(|(_, row)| row);
+            if let Some((_, row)) = cursor
+                && let Some(position) = index.position(row)
+            {
+                self.native.handle().scroll_to_reveal_item(position);
+            }
+            self.list_cursor = cursor;
         }
         if !Arc::ptr_eq(&self.rows, &node.list_rows) {
             self.rows = node.list_rows.clone();
@@ -294,16 +328,32 @@ impl View {
         }
     }
 
-    pub(super) fn sync_lists(&mut self, dirty: &[NodeId], cx: &mut Context<Self>) {
+    pub(super) fn sync_lists(
+        &mut self,
+        dirty: &[NodeId],
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         let shared = self.session.clone();
         let session = shared.borrow();
         let Some(tree) = session.tree(self.id) else {
             self.lists.clear();
             return;
         };
-        self.lists.retain(|id, _| {
-            tree.get(*id)
-                .is_some_and(|node| node.kind == Kind::VirtualList && node.table.is_none())
+        self.lists.retain(|id, state| {
+            let retained = tree
+                .get(*id)
+                .is_some_and(|node| node.kind == Kind::VirtualList && node.table.is_none());
+            if !retained
+                && state
+                    .borrow()
+                    .list_focus
+                    .as_ref()
+                    .is_some_and(|focus| focus.is_focused(window))
+            {
+                window.blur(cx);
+            }
+            retained
         });
         let dirty: BTreeSet<_> = dirty.iter().copied().collect();
         for id in &dirty {
@@ -316,6 +366,29 @@ impl View {
                     .entry(*id)
                     .or_insert_with(|| Rc::new(RefCell::new(State::new(node))));
                 let mut state = state.borrow_mut();
+                // Configuring a list replaces its measurement/scroll handle.
+                // Retire the old presentation first so capture and drag hooks
+                // finish on that handle, and the next render binds the new one.
+                if (state.native.handle().axis() != native_axis(node.list_axis)
+                    || node
+                        .list_config
+                        .as_ref()
+                        .is_some_and(|config| config.as_ref() != state.config.as_ref()))
+                    && let Some(scrollbar) = self
+                        .scrollbars
+                        .remove(&(*id, super::scrollbar_host::Owner::Viewport))
+                {
+                    scrollbar.borrow_mut().close(window, cx);
+                }
+                if (node.list_input.is_none_or(|config| config.disabled)
+                    || !self.focus.borrow().allows(*id))
+                    && state
+                        .list_focus
+                        .as_ref()
+                        .is_some_and(|focus| focus.is_focused(window))
+                {
+                    window.blur(cx);
+                }
                 state.update(node, &dirty, cx);
                 // Retirement is transaction-driven even if an inert/occluded
                 // tree will not paint again before it is restored.
@@ -489,7 +562,9 @@ impl View {
                 && !state
                     .layout_bounds
                     .zip(state.native.handle().bounds_for_item(position))
-                    .is_some_and(|(viewport, row)| row_is_revealed(row, viewport))
+                    .is_some_and(|(viewport, row)| {
+                        row_is_revealed(row, viewport, state.native.handle().axis())
+                    })
             {
                 state.native.handle().scroll_to(gpui::ListOffset {
                     item_ix: position,
@@ -526,12 +601,21 @@ impl View {
         let generation = index.revision();
         let cap = config.max_active as usize;
         let estimated = config.estimated_height;
+        let axis = handle.axis();
         let tree_input = node.tree_input;
+        let list_route = super::list_input::Route::new(node);
+        let list_cursor = node.list_input.and_then(|config| config.cursor);
+        let list_focus = node
+            .list_input
+            .and_then(|config| self.list_accessibility_owner(node.id, config, window, cx));
         let owner_node = node.id;
         let tree_root = node.accessibility.as_ref().is_some_and(|metadata| {
             matches!(
                 metadata.role,
-                Some(gpuio_protocol::accessibility::Role::Tree(_))
+                Some(
+                    gpuio_protocol::accessibility::Role::Tree(_)
+                        | gpuio_protocol::accessibility::Role::ListBox(_)
+                )
             )
         });
         let render_index = index.clone();
@@ -550,11 +634,12 @@ impl View {
                 overflow_render.set(true);
             }
             let placeholder = || {
-                div()
-                    .w_full()
-                    .h(px(estimated as f32))
-                    .flex_shrink_0()
-                    .into_any_element()
+                let item = div().flex_shrink_0();
+                match axis {
+                    Axis::Vertical => item.w_full().h(px(estimated as f32)),
+                    Axis::Horizontal => item.h_full().w(px(estimated as f32)),
+                }
+                .into_any_element()
             };
             let Some(id) = render_index.id(ix) else {
                 return placeholder();
@@ -584,20 +669,32 @@ impl View {
                         .filter(|metadata| {
                             matches!(
                                 metadata.role,
-                                Some(gpuio_protocol::accessibility::Role::TreeItem(_))
+                                Some(
+                                    gpuio_protocol::accessibility::Role::TreeItem(_)
+                                        | gpuio_protocol::accessibility::Role::OptionItem(_)
+                                )
                             )
                         })
                         .cloned()
                 });
                 let child = view.element(tree, node, interaction, window, cx);
                 let mut row = div()
-                    .id(("list-row", id as u64))
+                    .id(list_route.map_or_else(
+                        || gpui::ElementId::from(("list-row", id as u64)),
+                        |route| route.row_element_id(id),
+                    ))
                     .when(!tree_root && metadata.is_none(), |row| {
                         row.role(gpui::Role::ListItem)
                     })
-                    .w_full()
-                    .min_h(px(1.))
+                    .map(|row| match axis {
+                        Axis::Vertical => row.w_full().min_h(px(1.)),
+                        Axis::Horizontal => row.h_full().min_w(px(1.)),
+                    })
                     .track_focus(&handles[&id])
+                    .when(
+                        list_route.is_some(),
+                        super::list_input::preserve_owner_focus,
+                    )
                     .child(child);
                 if tree_input
                     && let Some(item) = metadata.as_ref().and_then(|metadata| match metadata.role {
@@ -614,7 +711,38 @@ impl View {
                         cx,
                     );
                 }
+                if let Some(route) = list_route
+                    && let Some(gpuio_protocol::accessibility::Role::OptionItem(item)) =
+                        metadata.as_ref().and_then(|metadata| metadata.role)
+                {
+                    row = view.list_row_input(row, route, Row { id, node }, item, cx);
+                    if !item.disabled
+                        && list_cursor == Some(id)
+                        && let Some(focus) = &list_focus
+                    {
+                        row = row.aria_active_descendant_for(focus).child(
+                            gpui::canvas(
+                                |_, _, _| (),
+                                |bounds, _, window, _| {
+                                    if window.is_window_active() {
+                                        window.paint_quad(gpui::outline(
+                                            bounds.inset(px(1.)),
+                                            window.text_style().color,
+                                            gpui::BorderStyle::default(),
+                                        ));
+                                    }
+                                },
+                            )
+                            .absolute()
+                            .top_0()
+                            .left_0()
+                            .size_full(),
+                        );
+                    }
+                }
                 crate::semantics::State {
+                    identity: None,
+                    busy: false,
                     element: row,
                     metadata,
                     hidden: !view.focus.borrow().visible(node),
@@ -649,6 +777,10 @@ impl View {
             div()
                 .id(("virtual-list", identity))
                 .role(gpui::Role::List)
+                .aria_orientation(match axis {
+                    Axis::Vertical => gpui::accesskit::Orientation::Vertical,
+                    Axis::Horizontal => gpui::accesskit::Orientation::Horizontal,
+                })
                 .aria_label(accessible_name)
                 .size_full()
                 .min_w_0()
@@ -665,12 +797,37 @@ impl View {
         if node.tree_input {
             root = self.tree_root_input(root, node.id, window, cx);
         }
+        if let Some(route) = list_route {
+            root = self.list_root_input(root, route, cx);
+        }
         root = root.child(frame);
         if config.scrollbar {
-            root = root
-                .child(gpui_base::Scrollbar::vertical(&handle).id(("list-scrollbar", identity)));
+            root = if let Some(scrollbar) = self.scrollbar_owner(
+                tree,
+                node,
+                super::scrollbar_host::Mount {
+                    kind: super::scrollbar_host::Owner::Viewport,
+                    handle: Rc::new(handle.clone()),
+                },
+                interaction,
+                window,
+                cx,
+            ) {
+                root.child(crate::scrollbar_widget::inherited_element(&scrollbar))
+            } else {
+                let scrollbar = match axis {
+                    Axis::Vertical => gpui_base::Scrollbar::vertical(&handle),
+                    Axis::Horizontal => gpui_base::Scrollbar::horizontal(&handle),
+                };
+                root.child(scrollbar.id(("list-scrollbar", identity)))
+            };
         }
-        self.finish_element(root, node, tree.revision(), false)
+        self.finish_element(
+            root,
+            node,
+            tree.revision(),
+            node.list_input.is_some_and(|config| config.disabled),
+        )
     }
 }
 struct Route {
@@ -743,14 +900,18 @@ impl Element for Frame {
             state.tree_typeahead.clear();
         }
         let handle = state.native.handle().clone();
-        if state.width != Some(bounds.size.width) {
+        let axis = handle.axis();
+        let cross_changed = match axis {
+            Axis::Vertical => state.width != Some(bounds.size.width),
+            Axis::Horizontal => state.height != Some(bounds.size.height),
+        };
+        if cross_changed {
             handle
                 .clone()
-                .with_uniform_item_height(px(state.config.estimated_height as f32));
-            state.width = Some(bounds.size.width);
-            state.observed = None;
+                .with_uniform_item_extent(px(state.config.estimated_height as f32));
         }
-        if state.height != Some(bounds.size.height) {
+        if state.width != Some(bounds.size.width) || state.height != Some(bounds.size.height) {
+            state.width = Some(bounds.size.width);
             state.height = Some(bounds.size.height);
             state.observed = None;
         }
@@ -762,7 +923,7 @@ impl Element for Frame {
             let Some(row) = handle.bounds_for_item(visible_last) else {
                 break;
             };
-            if row.top() >= bounds.bottom() {
+            if row.origin.along(axis) >= bounds.origin.along(axis) + bounds.size.along(axis) {
                 break;
             }
             visible_last += 1;
@@ -851,7 +1012,7 @@ impl Element for Frame {
         let at_end = index.is_empty()
             || handle
                 .is_scrolled_to_end()
-                .unwrap_or_else(|| handle.max_offset_for_scrollbar().y == px(0.));
+                .unwrap_or_else(|| handle.max_offset_for_scrollbar().along(axis) == px(0.));
         let viewport = Viewport {
             order_revision: index.revision(),
             visible_first: visible_first as i64,
@@ -900,7 +1061,7 @@ impl Element for Frame {
         // GPUI's list updates its offset but leaves the wheel event bubbling.
         // Register outside its listener: capture snapshots the position, then
         // our bubble callback runs after the list and any nested scroll child.
-        // Consume actual list movement only; boundaries and horizontal-only
+        // Consume actual list movement only; boundaries and perpendicular
         // input remain available to ordinary ancestor scrollers. Reading each
         // event's starting position also handles several events in one frame.
         let owner = Rc::downgrade(&self.state);
@@ -929,7 +1090,12 @@ impl Element for Frame {
             match phase {
                 gpui::DispatchPhase::Capture => {
                     before = Some(current);
-                    if event.delta.pixel_delta(px(16.)).y != px(0.) {
+                    if event
+                        .delta
+                        .pixel_delta(px(16.))
+                        .along(owner.borrow().native.handle().axis())
+                        != px(0.)
+                    {
                         let mut owner = owner.borrow_mut();
                         owner.pending_reveal = None;
                         owner.pending_focus = None;
@@ -964,7 +1130,9 @@ impl Element for Frame {
                         .native
                         .handle()
                         .bounds_for_item(position)
-                        .is_some_and(|row| row_is_revealed(row, bounds))
+                        .is_some_and(|row| {
+                            row_is_revealed(row, bounds, state.native.handle().axis())
+                        })
                 {
                     state.pending_reveal = None;
                 } else {

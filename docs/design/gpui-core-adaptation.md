@@ -127,3 +127,140 @@ The updated patch and archive hashes reconstruct exactly to `vendor/gpui` with
 `scripts/vendor_gpui.py --archive <verified archive> --output <new directory>`.
 Mounted shimmer tests cover zero-opacity ancestors and restoration; this accessor
 does not establish whole-application idle or Linux graphical acceptance.
+
+## Decoded image alpha masks
+
+The [custom spinner contract](custom-spinner.md) needs rotation of SVG artwork
+already decoded by GPUIO's bounded worker pipeline. `Window::paint_image_mask`
+extracts coverage from a decoded BGRA frame only on an atlas miss and uses GPUI's
+existing transformed monochrome sprite. `AtlasKey::ImageMask` is distinct from
+the ordinary color-image key. Color, inherited opacity and transformations reuse
+the mask upload; `drop_image` retires color and mask entries for all frames.
+No shader, SVG parser, asset loader or platform dependency is added.
+
+Invalid frame indices, nonfinite geometry/color/transforms and overflowed coverage
+return errors before atlas admission. Empty bounds, zero paint alpha/opacity and
+fully clipped transformed bounds return without allocating a mask tile. GPUIO
+must separately admit and account for mask representations before exposing this
+through its public spinner; this low-level GPUI method supplies no GPUIO quota.
+
+Scene culling and draw-order bounds now use transformed coverage for monochrome
+and subpixel sprites. The previous code considered their untransformed quad,
+which could omit an icon translated into a clip. Original quad/texture coordinates
+and shader transforms are unchanged, with an identity fast path. TestAtlas now
+records the key's real texture kind rather than labelling every upload monochrome.
+
+Two asset unit tests pass in the isolated GPUI test crate. GPUIO's
+`image_mask_test` checks scene/cache behavior without an OS window, and the full
+native feature-enabled library suite passes 430 tests with two existing ignores.
+These checks do **not** establish GPU pixels, physical presentation, performance
+budgets or Linux graphical behavior. Real rotated-asymmetric-mask GPU tests and
+complete public spinner/resource acceptance remain open.
+
+The cumulative patch SHA-256 is
+`ef2f001a5447fb86f78673bd9ce8bbda9ad9d20549ef60823b748d946a4bf866`.
+Reconstruction with `scripts/vendor_gpui.py` from the hash-verified pinned archive
+matches `vendor/gpui` exactly. Source pins and dependency versions are unchanged.
+The full Rust workspace and a fresh installed-gallery consumer build also pass;
+the latter stages public libraries into an isolated prefix and composes its own
+native backend against the patched GPUI. It was not launched, and it is not
+clean-machine distribution evidence. Commands are in the linked spinner contract.
+
+
+## Explicit composite active-descendant ownership
+
+The native picker renders its query input and list as siblings. GPUI's existing
+ancestor-only active-descendant API ignores an option when that sibling input owns
+focus. The additive `aria_active_descendant_for(&FocusHandle)` stores a weak owner
+and checks both current keyboard focus and the accessibility tree's real focused
+node before claiming accessibility focus for the option. It does not move keyboard
+focus, retain a removed input or reparent the input/list. The input must already
+have been exposed in that frame's prepaint; GPUIO orders query before list.
+
+Missing, unfocused and self targets are ignored. Ordinary ancestor-based behavior
+and the existing duplicate-claim safeguard remain. GPUIO declines explicit query
+ownership during marked composition, preserving input accessibility focus then.
+
+Seventeen isolated `window::a11y::tests` pass. Three new tests cover explicit
+ownership with independent input value/ancestry, wrong/missing/self owners and
+frame retirement, duplicate-claim protection, and the actual element prepaint
+path on TestPlatform. The rendered fixture compares ordinary ancestor behavior,
+explicit query ownership and focus on another control while checking unchanged
+real keyboard focus. These create no OS window and do not establish external AX
+notification delivery, VoiceOver or physical IME acceptance.
+
+The cumulative patch SHA-256 is now
+`b59b2178351ff990964ecf1746b5b739f496ca39aced0c31f8bf747490d79c6d`.
+`third_party/sources.json` records it. Reconstruction from the existing verified
+pinned archive with `scripts/vendor_gpui.py` matches `vendor/gpui` exactly; source
+pins, dependency versions and licenses are unchanged. The integrated native and
+consumer checks are recorded in the OCH-41 evidence ledger.
+
+## Grouping mounted accessibility children
+
+`A11ySubtreeBuilder::parent_id` exposes the real node identity to element wrappers.
+`group_children` inserts a stable synthetic container around an ordered contiguous
+range of existing direct children. It preserves their IDs, actions and subtrees,
+replacing the range at its original position. Empty/repeated/noncontiguous/foreign
+members, occupied synthetic IDs and containers with preexisting children are
+rejected before mutation. No private element-ID hashing is reproduced in GPUIO.
+
+The picker captures mounted row IDs and projection indices during prepaint, then
+uses this helper to create named Group parents. It does not mount offscreen rows
+or copy group text per option. The group identity is independent of visual header
+visibility. This helper does not add rollback to GPUI's `Window::transact`; actual
+autoscroll prepaint-retry accessibility behavior remains a separate validation gap.
+
+TestWindow now retains accessibility initialization callbacks and the latest tree
+update. VisualTestContext exposes activation/deactivation and tree inspection,
+using normal platform callback paths without an OS window. This enabled actual
+picker tree checks and exposed duplicate query rendering in GPUIO's generic child
+loop, now repaired by mounting structural slots only through the picker renderer.
+TestPlatform observations do not establish physical accessibility delivery.
+
+The cumulative patch SHA-256 is
+`53b0aac8cfa1823be60b7aab8e9c10b0792e0ea095bb8734f7054124ce037089`.
+Reconstruction from the verified pinned archive matches `vendor/gpui` exactly.
+Pins and licenses remain unchanged. Validation commands and limits are recorded
+in the OCH-41 gallery evidence ledger.
+
+## Axis-aware measured lists
+
+`ListState::new_for_axis` and `with_uniform_item_extent` generalize the existing
+measured-list engine without duplicating its sum tree, anchors, retained focus,
+remeasurement or tail-following state. The original constructor remains vertical.
+Private coordinate mapping treats cached width/x as cross-axis and height/y as
+main-axis, converting at physical layout, child prepaint, content-mask,
+autoscroll, wheel and public bounds/scrollbar boundaries. Text, child widgets,
+hitboxes and accessibility nodes keep ordinary physical coordinates.
+
+Initial extent hints now survive first layout. Cross-axis resize invalidates
+measured items while retaining their previous extents as estimates; clearing
+those hints collapses distant unknown items and breaks reliable distant reveals.
+Visible measurement replaces estimates. Reported item bounds include leading
+padding, and scrollbar range includes both main-axis pads. Perpendicular-only
+wheel deltas do not rewrite the logical scroll anchor or emit list scroll work.
+
+The horizontal public Core/bridge/Host API remains unfinished. The typed plan is
+`docs/design/horizontal-managed-lists.md`; a native constructor alone is not a
+shipped horizontal managed-list capability. Preserve that boundary in the catalog.
+
+## Accessibility rollback during prepaint retries
+
+A child autoscroll request can discard a list's first prepaint and retry at a new
+offset. The pinned `Window::transact` rolled back layout/hitboxes/dispatch but left
+accessibility nodes from the rejected pass, causing duplicate node IDs on retry.
+It now checkpoints accessibility when active and commits or rolls back with the
+same transaction result. Completed sibling subtrees are not copied: the checkpoint
+retains the completed-node count, open ancestor nodes and focus/active-descendant
+state; a mutation journal records focus-ID/bounds-map changes only during active
+transactions. Rollback removes newly completed IDs/debug provenance, restores
+ancestors and reverses those mutations. Nested successful transactions keep their
+journal entries until the outer transaction finishes. Paint-time action listeners
+are created only for the accepted prepaint.
+
+Regression coverage belongs in `rust/native/src/horizontal_list_test.rs`: actual
+native list prepaint retries with accessibility active, physical bounds, focused
+children and prepend behavior run for both axes. This does not establish physical
+VoiceOver speech or macOS GPU acceptance. Reconstruct the entire recorded patch
+from the pinned archive when changing either adaptation.

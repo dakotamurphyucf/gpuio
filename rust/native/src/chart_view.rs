@@ -577,6 +577,8 @@ impl View {
             .children(overlay)
             .children(data_view);
         crate::semantics::State {
+            identity: None,
+            busy: false,
             hidden: false,
             metadata: None,
             element,

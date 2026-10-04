@@ -95,3 +95,66 @@ must not wait for paint; Signal Studio now uses model/resource/native-window
 readiness and tests initially unfocused link delivery. The input harness raises
 only its owned window before capturing evidence. No renderer performance fix or
 stronger latency claim is inferred from a successful workload result.
+
+## OCH-17 diagnostic stages (2026-10-03; physical rerun pending)
+
+The historical 63,050.99 ms sample remains unexplained. A source audit found that
+`Chart.Event.Ready` is itself emitted by the chart's native preparation during
+rendering (`rust/native/src/chart_view.rs`, `State::prepare`), after worker results
+become available. It is not a render-independent worker-completion timestamp.
+The workload now retains readiness/failure independently of selection events, so
+interacting with the chart cannot replace the readiness observation it awaits.
+That was a harness weakness, not a demonstrated cause of the old timing sample.
+`Gpuio_eio.Chart.is_published` instead observes acceptance of the latest dataset.
+
+The public workload now uses version 2 telemetry with these separate wall-clock
+intervals, retaining the original total:
+
+| Metric | Observed boundary | Interpretation limit |
+| -- | -- | -- |
+| `build_ms` | Build desired datasets | Includes the whole coalesced burst. |
+| `published_ms` | Submit desired data → observe latest native publication | Includes UI scheduling, encoding/upload/decoding and observation; not isolated FFI or worker CPU. |
+| `published_ready_ms` | Observe publication → observe matching `Ready` | Includes preparation, rendering/visibility scheduling and event delivery; not isolated tessellation time. |
+| `ready_frame_ms` | Observe `Ready` → requested render callback | Can wait on display scheduling/occlusion; not GPU completion or physical presentation. |
+| `update_frame_ms` | Sum of the three post-build stages | Comparable in meaning, but instrumentation adds observable overhead. |
+
+Each stage logs a sequence ID, elapsed monotonic time and the last public window
+active-state snapshot (0 unknown, 1 inactive, 2 active). Activity means focus,
+**not visibility**: an active snapshot cannot exclude occlusion or prove physical
+presentation. Phase markers before waits retain the last observed stage when a
+process fails or times out. No new synchronous native-to-OCaml callback is used.
+
+The runner now writes `report.json` with `complete=false`, error, partial samples,
+phase history, last phase and collected child CPU/RSS on failure or interruption.
+It checks exact group counts/iteration order, finite metrics, additive stage times,
+phase order and zero cleanup charge before reporting measurement completion.
+Completion still means a valid diagnostic workload, not a performance-budget pass.
+It starts an owned process group and terminates/kills/reaps it on all exit paths.
+Output directories must be new, so failed runs cannot overwrite earlier evidence:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio build examples/chart_stream/main.exe
+python3 scripts/measure_chart_stream.py --output scratch/chart-stream-stage-run-001
+```
+
+Local validation on macOS arm64 at the dirty worktree based on `83eb87e`:
+
+- `python3 scripts/test_measure_chart_stream.py`: **9 tests pass**, covering strict
+  synthetic telemetry, missing/duplicated groups, invalid numbers, lost cleanup,
+  phase ordering, partial reports, real non-GUI child exit/timeout and supervisor
+  SIGTERM. A child ignoring TERM is killed/reaped within the bounded cleanup.
+- `GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j 2 examples/chart_stream/main.exe`:
+  passes. No chart window was launched; no new performance numbers were measured.
+- The same no-display Python checks are added to both CI platforms. Hosted execution
+  has not yet been established for this change.
+
+Next actual desktop qualification must record display/visibility and concurrent
+activity, use the staged report to locate any delay, then investigate that stage.
+Do not assign the old outlier to occlusion, declare the renderer repaired, or adopt
+latency thresholds from the synthetic tests. Named reference budgets, true physical
+input/presentation measurements and the rest of OCH-17 remain open.
+
+Final diagnostic checks: Python compilation and CLI help, repository formatting
+and `git diff --check` pass. The updated chart executable also builds after the
+selection-observation correction. No new frame timing or physical acceptance is
+inferred from these compilation/offline checks.

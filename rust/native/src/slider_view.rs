@@ -3,16 +3,22 @@
 use super::{View, choice::Route, pointer_enabled};
 use crate::slider_state::{Adjustment, State as Model};
 use gpui::{prelude::*, *};
+use gpuio_protocol::slider_presentation::{Appearance, Fill};
 use gpuio_protocol::{
     NodeId,
     numeric::Direction,
     slider::{Axis, CancelReason, Command, Error, Event, Response, Snapshot, Source, Thumb, Value},
 };
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, rc::Rc, sync::Arc};
+
+#[path = "slider_ring.rs"]
+mod ring;
 
 pub(super) type Shared = Rc<RefCell<State>>;
 pub(super) struct State {
     pub model: Model,
+    pub(super) appearance: Arc<Appearance>,
+    rings: ring::Rings,
     pub focus: Vec<(Thumb, FocusHandle)>,
     route: Route,
     bounds: Bounds<Pixels>,
@@ -145,6 +151,7 @@ impl State {
         }
     }
     fn close(&mut self, window: &mut Window) {
+        self.rings.reset();
         self.cancel(CancelReason::Unmounted, window);
         self.closed = true;
         for (_, focus) in &self.focus {
@@ -353,6 +360,11 @@ impl View {
                     state.cancel(CancelReason::Interrupted, window);
                 }
                 state.route = route;
+                let appearance = node.slider_appearance.clone().unwrap_or_default();
+                if state.appearance.target_size != appearance.target_size {
+                    state.cancel(CancelReason::Interrupted, window);
+                }
+                state.appearance = appearance;
                 match state.model.reconfigure(mount.config.clone()) {
                     Ok(events) => {
                         if state.model.snapshot().dragging.is_none() {
@@ -383,6 +395,8 @@ impl View {
                 };
                 let state = State {
                     model,
+                    appearance: node.slider_appearance.clone().unwrap_or_default(),
+                    rings: ring::Rings::default(),
                     focus: thumbs
                         .into_iter()
                         .map(|thumb| (thumb, cx.focus_handle().tab_stop(true)))
@@ -402,7 +416,11 @@ impl View {
         for shared in self.sliders.values() {
             let mut state = shared.borrow_mut();
             if let Some(reason) = state.unavailable() {
+                state.rings.reset();
                 state.cancel(reason, window);
+            }
+            if state.model.config().disabled || state.model.config().read_only {
+                state.rings.reset();
             }
         }
     }
@@ -415,6 +433,9 @@ impl View {
     }
     pub(super) fn hide_unvisited_sliders(&self, window: &mut Window, cx: &mut App) {
         for (id, shared) in &self.sliders {
+            if !self.visited.contains(id) {
+                shared.borrow_mut().rings.reset();
+            }
             if !self.visited.contains(id) && shared.borrow().model.snapshot().dragging.is_some() {
                 let weak = Rc::downgrade(shared);
                 window.defer(cx, move |window, _| {
@@ -433,21 +454,38 @@ pub(super) fn element(
     pointer: bool,
     window: &Window,
 ) -> Stateful<Div> {
+    shared.borrow_mut().rings.prepare();
     let state = shared.borrow();
     let config = state.model.config();
     let axis = config.axis;
+    let appearance = &state.appearance;
+    let target_size = px(appearance.target_size as f32);
+    let thumb_size = px(appearance.thumb_size as f32);
+    let ring_width = px(appearance.ring_width as f32);
+    let thickness = px(appearance.track_thickness as f32);
+    let radius = px(appearance.track_radius as f32);
+    let track_color = appearance.track_color;
+    let fill_color = appearance.fill_color;
+    let thumb_color = appearance.thumb_color;
+    let ring_color = appearance.ring_color;
     let disabled = config.disabled;
     let read_only = config.read_only;
     let focusable = state.allowed(false);
     base = base.role(Role::Group).aria_label(config.label.clone());
     let mut track = div()
         .absolute()
-        .left(px(10.))
-        .right(px(10.))
-        .top(px(10.))
-        .bottom(px(10.));
+        .left(target_size / 2.)
+        .right(target_size / 2.)
+        .top(target_size / 2.)
+        .bottom(target_size / 2.);
     let (low, high) = match state.model.snapshot().value {
-        Value::Single(v) => (0., config.fraction(v).unwrap()),
+        Value::Single(v) => {
+            let fraction = config.fraction(v).unwrap();
+            match appearance.fill {
+                Fill::Selected => (0., fraction),
+                Fill::Remaining => (fraction, 1.),
+            }
+        }
         Value::Range { lower, upper } => (
             config.fraction(lower).unwrap(),
             config.fraction(upper).unwrap(),
@@ -467,12 +505,12 @@ pub(super) fn element(
                 let color = window.text_style().color;
                 let bar = match axis {
                     Axis::Horizontal => Bounds::new(
-                        point(bounds.left(), bounds.center().y - px(2.)),
-                        size(bounds.size.width, px(4.)),
+                        point(bounds.left(), bounds.center().y - thickness / 2.),
+                        size(bounds.size.width, thickness),
                     ),
                     Axis::Vertical => Bounds::new(
-                        point(bounds.center().x - px(2.), bounds.top()),
-                        size(px(4.), bounds.size.height),
+                        point(bounds.center().x - thickness / 2., bounds.top()),
+                        size(thickness, bounds.size.height),
                     ),
                 };
                 let selected = match axis {
@@ -485,10 +523,13 @@ pub(super) fn element(
                         size(bar.size.width, bar.size.height * (high - low) as f32),
                     ),
                 };
-                for (bounds, color) in [(bar, color.opacity(0.25)), (selected, color)] {
+                let track_color =
+                    track_color.map_or(color.opacity(0.25), |c| rgba(c as u32).into());
+                let fill_color = fill_color.map_or(color, |c| rgba(c as u32).into());
+                for (bounds, color) in [(bar, track_color), (selected, fill_color)] {
                     if bounds.size.width > px(0.) && bounds.size.height > px(0.) {
                         let mut quad = fill(bounds, color);
-                        quad.corner_radii = px(2.).into();
+                        quad.corner_radii = radius.into();
                         window.paint_quad(quad);
                     }
                 }
@@ -515,7 +556,7 @@ pub(super) fn element(
         let mut child = div()
             .id(part)
             .absolute()
-            .size(px(20.))
+            .size(target_size)
             .role(Role::Slider)
             .aria_label(label.clone())
             .aria_numeric_value(value)
@@ -530,30 +571,48 @@ pub(super) fn element(
             Axis::Horizontal => child
                 .left(relative(fraction))
                 .top(relative(0.5))
-                .ml(px(-10.))
-                .mt(px(-10.)),
+                .ml(-target_size / 2.)
+                .mt(-target_size / 2.),
             Axis::Vertical => child
                 .bottom(relative(fraction))
                 .left(relative(0.5))
-                .mb(px(-10.))
-                .ml(px(-10.)),
+                .mb(-target_size / 2.)
+                .ml(-target_size / 2.),
         };
         if focusable {
             child = child.track_focus(focus).tab_index(0);
         }
         let focused = focusable && focus.is_focused(window);
+        let ring_state = shared.clone();
+        child = child.on_hover(|_, window, _| window.refresh()).child(
+            canvas(
+                |bounds, window, _| window.insert_hitbox(bounds, HitboxBehavior::Normal),
+                move |bounds, hitbox, window, cx| {
+                    ring::paint(&ring_state, part, &hitbox, bounds, window, cx)
+                },
+            )
+            .absolute()
+            .size_full(),
+        );
         child = child.child(
             canvas(
                 |_, _, _| (),
                 move |bounds, _, window, _| {
                     let color = window.text_style().color;
-                    let mut thumb = fill(bounds.dilate(px(-4.)), color);
-                    thumb.corner_radii = px(6.).into();
+                    let mut thumb = fill(
+                        bounds.dilate(-(target_size - thumb_size) / 2.),
+                        thumb_color.map_or(color, |c| rgba(c as u32).into()),
+                    );
+                    thumb.corner_radii = (thumb_size / 2.).into();
                     window.paint_quad(thumb);
-                    if focused {
-                        let mut ring = outline(bounds, color, BorderStyle::Solid);
-                        ring.corner_radii = px(10.).into();
-                        ring.border_widths = px(2.).into();
+                    if focused && ring_width > px(0.) {
+                        let mut ring = outline(
+                            bounds,
+                            ring_color.map_or(color, |c| rgba(c as u32).into()),
+                            BorderStyle::Solid,
+                        );
+                        ring.corner_radii = (target_size / 2.).into();
+                        ring.border_widths = ring_width.into();
                         window.paint_quad(ring);
                     }
                 },
@@ -665,6 +724,8 @@ pub(super) fn element(
             .size_full(),
         );
         track = track.child(crate::semantics::State {
+            identity: None,
+            busy: false,
             element: child,
             metadata: None,
             live: None,
@@ -816,3 +877,7 @@ impl<E: Element> Element for Region<E> {
             .a11y_synthetic_children(&mut prepaint.1, builder);
     }
 }
+
+#[cfg(all(test, feature = "native-image-tests"))]
+#[path = "slider_presentation_test.rs"]
+mod presentation_test;

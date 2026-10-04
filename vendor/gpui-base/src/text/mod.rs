@@ -1,7 +1,9 @@
 mod backgrounds;
+mod control_navigation;
 mod displayed_text;
 mod document;
 mod format;
+mod frontmatter;
 mod inline;
 mod inline_element;
 mod inline_flow;
@@ -25,7 +27,7 @@ pub use displayed_text::{DisplayedFragment, DisplayedText};
 use gpui::{App, ElementId, IntoElement, RenderOnce, SharedString, Window};
 pub use inline_element::*;
 pub use markdown_ext::*;
-pub use node::{CodeBlock, TableData};
+pub use node::{CodeBlock, ImageNode as HtmlImage, TableData};
 pub use range_geometry::ReorderedTextGeometry;
 pub use state::*;
 pub use style::*;

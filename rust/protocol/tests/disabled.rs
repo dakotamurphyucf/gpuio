@@ -4,10 +4,10 @@ use gpuio_protocol::{NodeId, WindowId, v1::*};
 #[test]
 fn disabled_subtree_negotiation_has_independently_specified_bytes() {
     assert_eq!(CAP_DISABLED_SUBTREES, 1_i64 << 54);
-    assert_eq!(CAPABILITIES, (1_i64 << 56) - 1);
+    assert_eq!(CAPABILITIES, i64::MAX);
     for (required, expected) in [
-        (CAP_DISABLED_SUBTREES, "0001fc0000000000004000"),
-        (CAPABILITIES, "0001fcffffffffffffff00"),
+        (CAP_DISABLED_SUBTREES, "0003fc0000000000004000"),
+        (CAPABILITIES, "0003fcffffffffffffff7f"),
     ] {
         let mut bytes = vec![];
         let message = Message::Hello(VERSION, required);

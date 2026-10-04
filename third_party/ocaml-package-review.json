@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "scope": "Manual classification of ten zero-text rows in the recorded macOS OCaml 5.3.0 switch. This supplements discovery; it does not remove rows, attest a binary link graph or approve redistribution of metadata/build tools. Revalidate manifest/payload hashes for each switch.",
+  "license_review_complete": false,
+  "compiler_version": "5.3.0",
+  "compiler_archive_sha256": "22c1dd9de21bf43b62d1909041fb5fad648905227bf69550a6a6bef31e654f38",
+  "compiler_license_sha256": "65f47d3bf5a921011ac7fa30f23d54f9dffbe7683921eeb116d5ce8dc26ff0c1",
+  "seq_metadata_sha256": "e95062b4d0519ef8335c02f7d0f1952d11b814c7ab7e6d566a206116162fa2be",
+  "config_template_sha256": "a9ad8d84a08961159653a978db92d10f694510182b206cacb96d5c9f63b5121e",
+  "config_installed_sha256": "b27b913de2bed85be56ce8d8981296a837555a5754e682bcc8aa519357f3971b",
+  "packages": [
+    {
+      "name": "base-bigarray",
+      "version": "base",
+      "manifest_sha256": "6f0e15f4c28cb951f057ad1bf45656bedc11888862d246d4c431834c946c6488",
+      "classification": "compiler-capability-marker",
+      "evidence": "Exact installed manifest has no source, build or install instructions, and no package install receipt exists. This is dependency/compiler metadata, not an independently shipped application library. Compiler-provided functionality remains subject to the separately collected ocaml-compiler 5.3.0 notices.",
+      "install_receipt_sha256": null
+    },
+    {
+      "name": "base-domains",
+      "version": "base",
+      "manifest_sha256": "e4f7a54bb8d32e964d230739629f556b2e0cc456336e9e4fc958c97dfd488944",
+      "classification": "compiler-capability-marker",
+      "evidence": "Exact installed manifest has no source, build or install instructions, and no package install receipt exists. This is dependency/compiler metadata, not an independently shipped application library. Compiler-provided functionality remains subject to the separately collected ocaml-compiler 5.3.0 notices.",
+      "install_receipt_sha256": null
+    },
+    {
+      "name": "base-effects",
+      "version": "base",
+      "manifest_sha256": "17e5d0c97aea74f458172e9de4566a01826744238a3e61faa708ac351eb3dc8d",
+      "classification": "compiler-capability-marker",
+      "evidence": "Exact installed manifest has no source, build or install instructions, and no package install receipt exists. This is dependency/compiler metadata, not an independently shipped application library. Compiler-provided functionality remains subject to the separately collected ocaml-compiler 5.3.0 notices.",
+      "install_receipt_sha256": null
+    },
+    {
+      "name": "base-nnp",
+      "version": "base",
+      "manifest_sha256": "887e565901ceb76b76d2a94fa7914b125e45877fdb8022247cd1c0273bfcbca1",
+      "classification": "compiler-capability-marker",
+      "evidence": "Exact installed manifest has no source, build or install instructions, and no package install receipt exists. This is dependency/compiler metadata, not an independently shipped application library. Compiler-provided functionality remains subject to the separately collected ocaml-compiler 5.3.0 notices.",
+      "install_receipt_sha256": null
+    },
+    {
+      "name": "base-threads",
+      "version": "base",
+      "manifest_sha256": "9392d84d6dcbb1210a6c57eff8bcce296965abcd3a3af0a27ef290a755cbd7a1",
+      "classification": "compiler-capability-marker",
+      "evidence": "Exact installed manifest has no source, build or install instructions, and no package install receipt exists. This is dependency/compiler metadata, not an independently shipped application library. Compiler-provided functionality remains subject to the separately collected ocaml-compiler 5.3.0 notices.",
+      "install_receipt_sha256": null
+    },
+    {
+      "name": "base-unix",
+      "version": "base",
+      "manifest_sha256": "424fbd2606bfb8df3d38fdcb48593efaa95df38417af2c2ad2816ab9e2faf26c",
+      "classification": "compiler-capability-marker",
+      "evidence": "Exact installed manifest has no source, build or install instructions, and no package install receipt exists. This is dependency/compiler metadata, not an independently shipped application library. Compiler-provided functionality remains subject to the separately collected ocaml-compiler 5.3.0 notices.",
+      "install_receipt_sha256": null
+    },
+    {
+      "name": "ocaml-base-compiler",
+      "version": "5.3.0",
+      "manifest_sha256": "5c5d2d9aeb79c9e6cd5aff7495e45deeebe623b47f9a8aec3cf7c699489dd86f",
+      "classification": "compiler-selector",
+      "evidence": "Exact installed manifest has no source, build or install instructions, and no package install receipt exists. This is dependency/compiler metadata, not an independently shipped application library. Compiler-provided functionality remains subject to the separately collected ocaml-compiler 5.3.0 notices.",
+      "install_receipt_sha256": null
+    },
+    {
+      "name": "ocaml-config",
+      "version": "3",
+      "manifest_sha256": "adf9c0f51afc068b891ce9277ee5c46c9cd79e578265d6e2432ebd635f33583b",
+      "classification": "build-configuration-helper",
+      "evidence": "Installed receipt contains only share/ocaml-config/gen_ocaml_config.ml. Installed helper exactly matches checksum-verified extra-source after substitutions for this vanilla 5.3.0 switch. The ocaml virtual package invokes it during configuration; it is not an application link library. Its ISC metadata declaration is retained; no separate full notice text has been established.",
+      "install_receipt_sha256": "0edcfede7bf34432fbec7113dd5651e1cd59b75f7ead2044b1fa565f7900fb66"
+    },
+    {
+      "name": "ocaml-options-vanilla",
+      "version": "1",
+      "manifest_sha256": "920b0ebe1106ea0b6c25e2266666ad2f1562e92d3b0a18b3624bae90d8a3edb5",
+      "classification": "compiler-selector",
+      "evidence": "Exact installed manifest has no source, build or install instructions, and no package install receipt exists. This is dependency/compiler metadata, not an independently shipped application library. Compiler-provided functionality remains subject to the separately collected ocaml-compiler 5.3.0 notices.",
+      "install_receipt_sha256": null
+    },
+    {
+      "name": "seq",
+      "version": "base",
+      "manifest_sha256": "101ac7e81efc755753f620200a0df672c3d58ef36793078744e1442a31f4530f",
+      "classification": "compatibility-metadata",
+      "evidence": "Installed receipt contains only lib/seq/META. Its exact bytes match the pinned META.seq extra-source hash; it declares no requires or archive. Seq implementation is distributed with ocaml-compiler 5.3.0, whose license is collected.",
+      "install_receipt_sha256": "2f5bd3420bcc4849ec66c8856a4353cef539294643135f3e181f64c2575b6751"
+    }
+  ]
+}

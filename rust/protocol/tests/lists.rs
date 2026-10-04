@@ -204,3 +204,28 @@ fn fragmented_100k_order_fits_and_decodes_in_one_bounded_message() {
     assert!(bytes.len() < 1_000_000);
     assert_eq!(decode(&bytes).unwrap(), request);
 }
+
+#[test]
+fn list_axis_is_appended_without_changing_legacy_list_records() {
+    let request = message(vec![
+        Op::SetListAxis(node(0), Axis::Horizontal),
+        Op::SetListAxis(node(0), Axis::Vertical),
+    ]);
+    let bytes = encode(&request);
+    assert_eq!(
+        bytes.iter().map(|b| format!("{b:02x}")).collect::<String>(),
+        "0300010001026d0001016d000100"
+    );
+    assert_eq!(decode(&bytes), Ok(request));
+    for end in 0..bytes.len() {
+        assert!(decode(&bytes[..end]).is_err());
+    }
+    for tag in [2, 127, 255] {
+        let mut bad = bytes.clone();
+        bad[9] = tag;
+        assert!(decode(&bad).is_err());
+    }
+    let mut trailing = bytes;
+    trailing.push(0);
+    assert!(decode(&trailing).is_err());
+}

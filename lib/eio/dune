@@ -1,7 +1,29 @@
 (library
  (name gpuio_eio)
- (private_modules editor_controller)
+ (private_modules
+  output_test
+  color_picker_component
+  color_picker_component_test
+  date_picker_component
+  date_picker_component_test
+  pagination_component
+  pagination_component_test
+  editor_controller
+  number_step_task
+  number_step_task_test
+  search_bar_component
+  search_bar_component_test
+  choice_picker_component
+  choice_picker_component_test)
  (public_name gpuio.eio)
+ (inline_tests
+  (deps
+   pagination-view-0.hex
+   pagination-view-1.hex
+   pagination-view-2.hex
+   pagination-view-3.hex
+   pagination-view-4.hex
+   pagination-view-5.hex))
  (modes native)
  (no_dynlink)
  (libraries
@@ -14,6 +36,9 @@
   bonsai.driver
   eio_main
   eio.unix
+  unix
   cstruct)
  (preprocess
   (pps ppx_jane bonsai.ppx_bonsai)))
+
+(copy_files ../../test/fixtures/pagination-view-*.hex)

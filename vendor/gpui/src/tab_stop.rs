@@ -4,7 +4,7 @@ use ::sum_tree::SumTree;
 use collections::FxHashMap;
 use sum_tree::Bias;
 
-use crate::{FocusHandle, FocusId};
+use crate::{Bounds, FocusHandle, FocusId, Pixels};
 
 /// Represents a collection of focus handles using the tab-index APIs.
 #[derive(Debug)]
@@ -17,7 +17,7 @@ pub(crate) struct TabStopMap {
 
 #[derive(Debug, Clone)]
 pub enum TabStopOperation {
-    Insert(FocusHandle),
+    Insert(FocusHandle, Option<Bounds<Pixels>>, bool),
     Group(TabIndex),
     GroupEnd,
 }
@@ -25,7 +25,7 @@ pub enum TabStopOperation {
 impl TabStopOperation {
     fn focus_handle(&self) -> Option<&FocusHandle> {
         match self {
-            TabStopOperation::Insert(focus_handle) => Some(focus_handle),
+            TabStopOperation::Insert(focus_handle, ..) => Some(focus_handle),
             _ => None,
         }
     }
@@ -75,14 +75,27 @@ impl Default for TabStopMap {
 }
 
 impl TabStopMap {
+    #[cfg(test)]
     pub fn insert(&mut self, focus_handle: &FocusHandle) {
-        self.insertion_history
-            .push(TabStopOperation::Insert(focus_handle.clone()));
+        self.insert_with_bounds(focus_handle, None, true);
+    }
+
+    pub(crate) fn insert_with_bounds(
+        &mut self,
+        focus_handle: &FocusHandle,
+        bounds: Option<Bounds<Pixels>>,
+        eligible: bool,
+    ) {
+        self.insertion_history.push(TabStopOperation::Insert(
+            focus_handle.clone(),
+            bounds,
+            eligible,
+        ));
         let mut path = self.current_path.clone();
         path.0.push(focus_handle.tab_index);
         let order = TabStopNode {
             node_insertion_index: self.insertion_history.len() - 1,
-            tab_stop: focus_handle.tab_stop,
+            tab_stop: focus_handle.tab_stop && eligible,
             path,
         };
         self.by_id.insert(focus_handle.id, order.clone());
@@ -106,6 +119,38 @@ impl TabStopMap {
         self.insertion_history.clear();
         self.by_id.clear();
         self.order = SumTree::new(());
+    }
+
+    /// Snapshot in native tab order, without changing focus or wrapping.
+    pub(crate) fn handles(&self) -> Vec<FocusHandle> {
+        let mut cursor = self.order.cursor::<TabStopNode>(());
+        cursor.next();
+        let mut handles = Vec::new();
+        while let Some(node) = cursor.item() {
+            if node.tab_stop
+                && let Some(handle) = self.focus_handle_for_order(node)
+            {
+                handles.push(handle);
+            }
+            cursor.next();
+        }
+        handles
+    }
+
+    pub(crate) fn candidates(&self) -> Vec<(FocusHandle, Bounds<Pixels>)> {
+        let mut cursor = self.order.cursor::<TabStopNode>(());
+        cursor.next();
+        let mut handles = Vec::new();
+        while let Some(node) = cursor.item() {
+            if let TabStopOperation::Insert(handle, Some(bounds), _) =
+                &self.insertion_history[node.node_insertion_index]
+                && handle.tab_stop
+            {
+                handles.push((handle.clone(), *bounds));
+            }
+            cursor.next();
+        }
+        handles
     }
 
     pub fn next(&self, focused_id: Option<&FocusId>) -> Option<FocusHandle> {
@@ -185,7 +230,9 @@ impl TabStopMap {
     pub fn replay(&mut self, nodes: &[TabStopOperation]) {
         for node in nodes {
             match node {
-                TabStopOperation::Insert(focus_handle) => self.insert(focus_handle),
+                TabStopOperation::Insert(focus_handle, bounds, eligible) => {
+                    self.insert_with_bounds(focus_handle, *bounds, *eligible)
+                }
                 TabStopOperation::Group(tab_index) => self.begin_group(*tab_index),
                 TabStopOperation::GroupEnd => self.end_group(),
             }
@@ -345,6 +392,7 @@ mod tests {
             focus_handles[6].clone(),
         ];
 
+        assert_eq!(tab_index_map.handles(), expected);
         let mut prev = None;
         let mut found = vec![];
         for _ in 0..expected.len() {

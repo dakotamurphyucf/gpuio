@@ -55,6 +55,7 @@ module Output = struct
     ; source : 'data D.t
     ; selection : Row.t Selection.t
     ; viewport : V.Viewport.t option
+    ; column_viewport : T.Column_viewport.t option
     ; active_rows : int
     ; active_cells : int
     ; budget_exhausted : bool
@@ -72,6 +73,7 @@ module Output = struct
   ;;
 
   let viewport t = t.viewport
+  let column_viewport t = t.column_viewport
   let active_rows t = t.active_rows
   let active_cells t = t.active_cells
   let budget_exhausted t = t.budget_exhausted
@@ -120,12 +122,22 @@ module Pending = struct
   [@@deriving sexp_of]
 end
 
+module Column_observation = struct
+  type t =
+    { query : int64
+    ; config : Config.t
+    ; viewport : T.Column_viewport.t
+    }
+  [@@deriving sexp_of]
+end
+
 module Model = struct
   type t =
     { query : int64 option
     ; requested : Row.t list
     ; pins : Row.t list
     ; observation : Observation.t option
+    ; column_observation : Column_observation.t option
     ; selection : Row.t Selection.t
     ; serial : int64
     ; displayed_serial : int64
@@ -139,6 +151,7 @@ module Model = struct
     ; requested = []
     ; pins = []
     ; observation = None
+    ; column_observation = None
     ; selection = Empty
     ; serial = 0L
     ; displayed_serial = 0L
@@ -151,6 +164,7 @@ end
 module Action = struct
   type t =
     | Observe of Observation.t * Row.t list * Row.t list
+    | Observe_columns of Column_observation.t
     | Retain of int64 * Row.t list
     | Input of int64 * Config.t * Row.t Request.t
     | Commands of int64 * Row.t Target.t list
@@ -203,6 +217,9 @@ let apply_action context input (model : Model.t) action =
                 then selection
                 else model.selection)
          }
+     | Observe_columns observation
+       when current observation.query && Config.equal observation.config input.config ->
+       { model with column_observation = Some observation }
      | Observe (observation, requested, pins)
        when current observation.query
             && same_order observation.order input.metadata.order
@@ -254,7 +271,7 @@ let apply_action context input (model : Model.t) action =
         | Ok (serial, reversed) ->
           let commands = List.rev reversed in
           { model with serial; pending = Some { query; commands } })
-     | Observe _ | Retain _ | Input _ | Commands _ -> model)
+     | Observe _ | Observe_columns _ | Retain _ | Input _ | Commands _ -> model)
 ;;
 
 let fill =
@@ -358,6 +375,9 @@ let inner
       ~config
       ~key
       ~style
+      ~headers
+      ~header_presentation
+      ~render_row_presentation
       ~query_generation
       ~on_request
       ~lifetime
@@ -425,13 +445,17 @@ let inner
         Managed_rows.assoc
           (module Row)
           members
-          ~f:(fun row data _ graph ->
-            Managed_rows.assoc
-              (module C.Id)
-              columns
-              ~f:(fun _ column lifetime graph ->
-                render_cell ~row ~data ~column ~lifetime graph)
-              graph)
+          ~f:(fun row data lifetime graph ->
+            let presentation = render_row_presentation ~row ~data ~lifetime graph in
+            let cells =
+              Managed_rows.assoc
+                (module C.Id)
+                columns
+                ~f:(fun _ column lifetime graph ->
+                  render_cell ~row ~data ~column ~lifetime graph)
+                graph
+            in
+            B.map2 presentation cells ~f:(fun presentation cells -> presentation, cells))
           graph)
       graph
     |> B.map ~f:(fun queries -> Map.data queries |> List.hd_exn)
@@ -443,13 +467,15 @@ let inner
     and inject = inject
     and active = active
     and rendered = rendered
+    and headers = headers
+    and header_presentation = header_presentation
     and style = style in
     let open Or_error.Let_syntax in
     let%bind rows, exhausted = active in
     let schema = C.Collection.to_list (Config.columns input.config) in
     let%bind cells =
       List.map rows ~f:(fun row ->
-        let cells = Map.find_exn rendered row in
+        let _, cells = Map.find_exn rendered row in
         let%map cells =
           List.map schema ~f:(fun column ->
             let%bind cell = Map.find_exn cells (C.id column) in
@@ -459,6 +485,13 @@ let inner
           |> Or_error.all
         in
         D.Expert.row_key row, cells)
+      |> Or_error.all
+    in
+    let%bind row_presentations =
+      List.map rows ~f:(fun row ->
+        let presentation, _ = Map.find_exn rendered row in
+        Or_error.map presentation ~f:(fun presentation ->
+          D.Expert.row_key row, presentation))
       |> Or_error.all
     in
     let query = input.query in
@@ -476,10 +509,15 @@ let inner
            |> Sexp.to_string
            |> Key.of_string_exn)
         ~style
+        ~headers
+        ~header_presentation
+        ~row_presentations
         ~config:input.config
         ~query_generation:query
         ~order:metadata.order
         ~commands:(pending_commands input model)
+        ~on_column_viewport:(fun viewport ->
+          guarded (Observe_columns { query; config; viewport }))
         ~on_viewport:(fun viewport ->
           guarded
             (Observe
@@ -508,6 +546,13 @@ let inner
         { Controller.submit = (fun targets -> guarded (Commands (query, targets))) }
     ; selection = pending_selection input model
     ; viewport
+    ; column_viewport =
+        Option.bind model.column_observation ~f:(fun observation ->
+          if
+            Int64.equal observation.query query
+            && Config.equal observation.config input.config
+          then Some observation.viewport
+          else None)
     ; active_rows = List.length rows
     ; active_cells = List.length rows * List.length schema
     ; budget_exhausted =
@@ -534,6 +579,11 @@ let component
       ~config
       ?key
       ?(style = B.return fill)
+      ?(headers = B.return [])
+      ?(header_presentation = B.return Gpuio.Table_presentation.Header.empty)
+      ?(render_row_presentation =
+        fun ~row:_ ~data:_ ~lifetime:_ _ ->
+          B.return (Ok Gpuio.Table_presentation.Row.empty))
       ?(query_generation = B.return 0L)
       ?(on_request = B.return (fun _ -> E.Ignore))
       ~render_cell
@@ -557,6 +607,9 @@ let component
           ~config
           ~key
           ~style
+          ~headers
+          ~header_presentation
+          ~render_row_presentation
           ~query_generation
           ~on_request
           ~lifetime
@@ -592,6 +645,9 @@ let paged
       ~config
       ?key
       ?style
+      ?headers
+      ?header_presentation
+      ?render_row_presentation
       ?(auto_load = B.return true)
       ?on_request
       ~render_cell
@@ -603,7 +659,18 @@ let paged
     B.map snapshot ~f:(fun s -> s.Gpuio.Table_paging.Snapshot.generation)
   in
   let output =
-    component source ~config ?key ?style ~query_generation ?on_request ~render_cell graph
+    component
+      source
+      ~config
+      ?key
+      ?style
+      ?headers
+      ?header_presentation
+      ?render_row_presentation
+      ~query_generation
+      ?on_request
+      ~render_cell
+      graph
   in
   let demand =
     let%arr snapshot = snapshot

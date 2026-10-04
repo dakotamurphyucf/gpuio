@@ -5,8 +5,10 @@ The `gpuio` library supplies pure, immutable descriptions through `Gpuio.View`,
 Core and the protocol, not Bonsai, Eio or a native runtime. `gpuio.bonsai` supplies
 `Gpuio_bonsai.View`, whose button actions are `unit Bonsai.Effect.t`. The application
 runner, scheduling and lifecycle integration are provided by `Gpuio_eio.App`
-(see [runtime](runtime.md)); the working
-`examples/view_api` executable currently supplies an explicit bridge/Eio runner.
+(see [runtime](runtime.md)). Start with
+[the compiled application example](../../examples/getting_started/main.ml).
+The older `examples/view_api` executable deliberately demonstrates the lower-level
+bridge/Eio runner; ordinary applications use `Gpuio_eio.App`.
 
 ## Components and types
 
@@ -74,8 +76,9 @@ support; full platform accessibility validation remains in its owning ticket.
 `Pointer_events false` is inherited, with explicit descendant overrides. It
 suppresses our click/focus-on-click, hover/pressed styling, cursor and text-selection
 mouse handlers; it does not disable keyboard activation or native scroll handling.
-It is not a general browser-style hit-test pass-through system. Use the future
-input/overlay facilities for broader routing policy.
+It is not a general browser-style hit-test pass-through system. Use the explicit
+`Pointer_occlusion` style and `View.input_region` native policies for broader
+routing; see [input observations](input-observations.md).
 
 ### Native container scrolling
 

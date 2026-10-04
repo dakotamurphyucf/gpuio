@@ -36,10 +36,10 @@ fn aspect_ratio_matches_independent_ocaml_fixtures_and_bounded_decoding() {
 #[test]
 fn aspect_ratio_requires_a_matching_host() {
     assert_eq!(CAP_ASPECT_RATIO, 1_i64 << 50);
-    assert_eq!(CAPABILITIES, (1_i64 << 56) - 1);
+    assert_eq!(CAPABILITIES, i64::MAX);
     for (required, expected) in [
-        (CAP_ASPECT_RATIO, "0001fc0000000000000400"),
-        (CAPABILITIES, "0001fcffffffffffffff00"),
+        (CAP_ASPECT_RATIO, "0003fc0000000000000400"),
+        (CAPABILITIES, "0003fcffffffffffffff7f"),
     ] {
         let hello = Message::Hello(VERSION, required);
         let mut bytes = vec![];

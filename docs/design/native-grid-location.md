@@ -53,7 +53,7 @@ retained accounting unpublished. The native mapping writes the existing
 `gpui::StyleRefinement.grid_location`; no dependency patch is introduced.
 
 Capability 55 (`CAP_GRID_LOCATION`) requires a paired host. The current complete
-mask is `72057594037927935`; prior tags keep their encodings. An older host must
+mask is `9223372036854775807`; prior tags keep their encodings. An older host must
 reject the required capability rather than silently ignoring placement.
 
 | Value | Independent field/Hello bytes |
@@ -62,7 +62,7 @@ reject the required capability rather than silently ignoring placement.
 | Full columns, Auto rows | `46010101ffff0000` |
 | Two-column span, row lines 2..4 | `460202020201020104` |
 | Hello requiring grid location | `0001fc0000000000008000` |
-| Hello requiring the complete current mask | `0001fcffffffffffffff00` |
+| Hello requiring the complete current mask | `0001fcffffffffffffff7f` |
 
 ## Local native evidence and remaining work
 

@@ -38,6 +38,7 @@ fn requests_match_independent_ocaml_bytes() {
             b"\x00\x0bcom.example\x04Demo\x01\x05gpuio".to_vec(),
         ),
         (Request::Capabilities, vec![1]),
+        (Request::ScrollbarPreference, vec![7]),
         (Request::TakeLinks, vec![2]),
         (Request::Activate(true), vec![3, 1]),
         (
@@ -74,7 +75,7 @@ fn invalid_requests_are_rejected_before_native_work() {
         b"\x06\x03APP".to_vec(),   // non-normalized scheme
         b"\x06\x01\xff".to_vec(),  // invalid UTF-8
         vec![6, 0xfe, 0xff, 0x7f], // oversized allocation claim
-        vec![7],                   // unknown command
+        vec![8],                   // unknown command
     ] {
         assert!(decode_desktop_request(&bytes).is_err());
     }
@@ -202,7 +203,30 @@ fn desktop_capability_uses_a_new_bit_and_round_trips_the_current_handshake() {
         v1::{CAP_DESKTOP, CAPABILITIES, Message, VERSION},
     };
     assert_eq!(CAPABILITIES & CAP_DESKTOP, 1_i64 << 41);
-    assert_eq!(CAPABILITIES, 72_057_594_037_927_935);
+    assert_eq!(CAPABILITIES, i64::MAX);
     let hello = Message::Hello(VERSION, CAPABILITIES);
     assert_eq!(decode(&encode(&hello)).unwrap(), hello);
+}
+
+#[test]
+fn scrollbar_snapshot_envelopes_match_independent_ocaml_bytes() {
+    use gpuio_protocol::{
+        decode,
+        v1::{Event, Message},
+    };
+    let request = Message::Desktop(7, Request::ScrollbarPreference);
+    assert_eq!(encode(&request), [19, 7, 7]);
+    assert_eq!(decode(&[19, 7, 7]).unwrap(), request);
+    for (preference, tag) in [
+        (ScrollbarPreference::AutoHide, 0),
+        (ScrollbarPreference::AlwaysVisible, 1),
+    ] {
+        assert_eq!(
+            encode(&vec![Event::DesktopResponse(
+                7,
+                Response::ScrollbarPreference(preference)
+            )]),
+            [1, 57, 7, 6, tag]
+        );
+    }
 }

@@ -437,12 +437,13 @@ impl View {
 pub(in super::super) fn inert_page(
     body: gpui::AnyElement,
     state: &Rc<RefCell<State>>,
+    identity: gpui::ElementId,
 ) -> gpui::AnyElement {
     let state = Rc::downgrade(state);
     div()
         .relative()
         .size_full()
-        .child(crate::semantics::InteractionShield::inert(body))
+        .child(crate::semantics::InteractionShield::inert(body, identity))
         .child(
             canvas(
                 move |bounds, window, _| {

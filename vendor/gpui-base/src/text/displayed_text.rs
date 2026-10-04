@@ -64,6 +64,18 @@ impl PartialEq for DisplayedText {
 impl Eq for DisplayedText {}
 
 impl DisplayedText {
+    pub(super) fn object_block_text(&self, node: &MarkdownNode) -> Option<Arc<Mutex<InlineState>>> {
+        let (text, fragment) = self
+            .objects
+            .get(&(Arc::as_ptr(&node.projection_key) as usize))?
+            .text
+            .as_ref()?;
+        let mut state = node.block_text.lock().ok()?;
+        state.set_text(text.clone());
+        state.displayed_fragment = fragment.clone();
+        Some(node.block_text.clone())
+    }
+
     pub(super) fn object_is_non_text(&self, node: &MarkdownNode) -> bool {
         self.objects
             .get(&(Arc::as_ptr(&node.projection_key) as usize))
@@ -214,6 +226,12 @@ impl DisplayedText {
                 self.paragraph(paragraph, extensions)?;
             }
             BlockNode::CodeBlock(code) => self.push(&code.state, &code.code())?,
+            BlockNode::DescriptionList(list) => {
+                for entry in &list.entries {
+                    self.paragraph(&entry.label, extensions)?;
+                    self.paragraph(&entry.value, extensions)?;
+                }
+            }
             BlockNode::Table(table) => {
                 for row in &table.children {
                     for cell in &row.children {

@@ -779,6 +779,35 @@ pub struct VisualTestContext {
 }
 
 impl VisualTestContext {
+    /// Deliver a simulated native appearance notification without an OS window.
+    /// The ordinary deferred platform callback updates observers; run until parked
+    /// before inspecting the resulting snapshot.
+    pub fn simulate_appearance_change(&self, appearance: crate::WindowAppearance) {
+        self.cx
+            .test_window(self.window)
+            .simulate_appearance_change(appearance);
+    }
+
+    /// Activate/deactivate the test accessibility adapter without OS integration.
+    pub fn simulate_a11y_active(&self, active: bool) {
+        self.cx
+            .test_window(self.window)
+            .simulate_a11y_active(active);
+    }
+
+    /// Deliver an accessibility action through the test platform adapter.
+    /// Call `run_until_parked` to process the asynchronous request.
+    pub fn simulate_a11y_action(&self, request: accesskit::ActionRequest) {
+        self.cx
+            .test_window(self.window)
+            .simulate_a11y_action(request);
+    }
+
+    /// Last tree delivered to this window's test accessibility adapter.
+    pub fn a11y_tree(&self) -> Option<accesskit::TreeUpdate> {
+        self.cx.test_window(self.window).a11y_tree()
+    }
+
     /// Provides a `Window` and `App` for the duration of the closure.
     pub fn update<R>(&mut self, f: impl FnOnce(&mut Window, &mut App) -> R) -> R {
         self.cx

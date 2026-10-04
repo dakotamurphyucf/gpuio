@@ -93,31 +93,51 @@ module Rail = struct
     type t =
       | Request of Sidebar.Request.t
       | Toggle_mode
+      | Toggle_activation
   end
 
   let id s = Sidebar.Id.of_string s |> ok
 
-  let item name ?children () =
+  let item name ?activation ?children () =
     Sidebar.Item.create
       ~id:(id name)
       ~label:name
       ~compact_label:(String.prefix name 1)
+      ?activation
       ?children
       ()
     |> ok
   ;;
 
+  let groups activation =
+    [ Sidebar.Group.create
+        ~id:(id "workspace")
+        ~label:"Workspace"
+        [ item
+            "Projects"
+            ~activation
+            ~children:[ item "Orchard" (); item "Observatory" () ]
+            ()
+        ; item "Archive" ()
+        ]
+      |> ok
+    ]
+  ;;
+
+  let activation t =
+    Sidebar.find t (id "Projects") |> Option.value_exn |> Sidebar.Item.activation
+  ;;
+
+  let activation_label t =
+    match activation t with
+    | Select_only -> "Branch selection: navigate"
+    | Expand -> "Branch selection: expand"
+    | Toggle -> "Branch selection: toggle"
+  ;;
+
   let initial =
     Sidebar.create
-      ~groups:
-        [ Sidebar.Group.create
-            ~id:(id "workspace")
-            ~label:"Workspace"
-            [ item "Projects" ~children:[ item "Orchard" (); item "Observatory" () ] ()
-            ; item "Archive" ()
-            ]
-          |> ok
-        ]
+      ~groups:(groups Sidebar.Item.Activation.Select_only)
       ~selected:(Some (id "Orchard"))
       ~expanded:[ id "Projects" ]
       ~collapse:Icon
@@ -127,6 +147,14 @@ module Rail = struct
 
   let apply t = function
     | Action.Request request -> Sidebar.apply_request t request
+    | Toggle_activation ->
+      let activation =
+        match activation t with
+        | Select_only -> Sidebar.Item.Activation.Expand
+        | Expand -> Sidebar.Item.Activation.Toggle
+        | Toggle -> Sidebar.Item.Activation.Select_only
+      in
+      Sidebar.with_groups t (groups activation) |> ok
     | Toggle_mode ->
       Sidebar.with_collapse
         t
@@ -137,6 +165,7 @@ module Rail = struct
 end
 
 let component window palette graph =
+  let measured_cards = Carousel_track_preview.component window palette graph in
   let slides, slide =
     B.state_machine0
       ~default_model:Slides.initial
@@ -166,6 +195,7 @@ let component window palette graph =
       ~apply_action:(fun _ model action -> Rail.apply model action)
       graph
   in
+  let styled_labels, set_styled_labels = B.state true graph in
   let editor label initial_text =
     Editor.create
       window
@@ -183,7 +213,10 @@ let component window palette graph =
   and navigate = navigate
   and rail = rail
   and request = request
+  and styled_labels = styled_labels
+  and set_styled_labels = set_styled_labels
   and draft = draft
+  and measured_cards = measured_cards
   and note = note in
   let panel_style = style [ Padding (px 18.); Gap (px 14.); Width full; Height full ] in
   let button_style =
@@ -248,6 +281,7 @@ let component window palette graph =
                 |> Option.value_exn
                 |> Carousel.Item.label))
         ]
+    ; measured_cards
     ; Palette.card
         p
         ~title:"Move through a workspace"
@@ -264,6 +298,11 @@ let component window palette graph =
                  | Icon -> "Use offcanvas sidebar"
                  | Offcanvas | Never -> "Use icon sidebar")
                 (request Toggle_mode)
+            ; Palette.button p (Rail.activation_label rail) (request Toggle_activation)
+            ; V.switch
+                ~checked:styled_labels
+                ~on_toggle:(set_styled_labels (not styled_labels))
+                "Style sidebar labels"
             ; V.button
                 ~style:button_style
                 ~disabled:(not (Navigation_stack.can_pop history))
@@ -298,6 +337,21 @@ let component window palette graph =
                      ()
                    |> ok)
                 ~on_request:(fun r -> request (Request r))
+                ~decorate:(fun item ->
+                  let featured =
+                    Sidebar.Id.equal (Sidebar.Item.id item) (Rail.id "Projects")
+                  in
+                  Sidebar.Decoration.create
+                    ~style:(if styled_labels then style [ Radius 8. ] else Style.empty)
+                    ~label_style:
+                      (if styled_labels && featured
+                       then style [ Font_weight 700; Foreground (Palette.accent p) ]
+                       else Style.empty)
+                    ?suffix:
+                      (if featured
+                       then Some (Palette.text p ~muted:true ~size:11. "02")
+                       else None)
+                    ())
                 ()
               |> ok
             ; V.navigation_stack

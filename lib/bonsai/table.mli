@@ -57,6 +57,13 @@ module Output : sig
       already been delivered to Bonsai. *)
   val viewport : _ t -> Gpuio.Virtual_list.Viewport.t option
 
+  (** Latest horizontal column bands for the current source/query/configuration.
+      Includes pinned and partially visible columns, even with no data rows.
+      [None] means not yet observed, distinct from a measured empty viewport.
+      Like [viewport], this is an asynchronous layout snapshot, not OS occlusion
+      or a guarantee of visibility after a window/subtree stops drawing. *)
+  val column_viewport : _ t -> Gpuio.Table.Column_viewport.t option
+
   val active_rows : _ t -> int
   val active_cells : _ t -> int
   val budget_exhausted : _ t -> bool
@@ -84,12 +91,33 @@ end
     Give the table bounded geometry through [style] or its parent. The caller's
     key and style belong to the native table root: padding, border and surface
     decoration are applied once. Style updates preserve selection and anchors;
-    source-lineage resets remain independent of the caller's sibling key. *)
+    source-lineage resets remain independent of the caller's sibling key.
+
+    [headers] submits keyed rich leaf/group Views through [Gpuio.Table_header].
+    Their computations belong to the caller and are independent of body-row
+    eviction and cell lifetimes. Native controls retain their keyed owners until
+    removed or the table mount is replaced. Header content consumes normal View
+    resources but does not consume the active body-cell budget.
+
+    [header_presentation] styles native header bands through a checked paint and
+    typography scope. [render_row_presentation] runs once per active row in that
+    row's managed lifetime, independently of columns. Eviction tears it down;
+    durable application work belongs outside it. Presentation updates retain
+    native geometry, scroll owners and cell computations. Native interaction
+    states are resolved locally without callbacks into OCaml. *)
 val component
   :  'data Gpuio.Table_data.t B.t
   -> config:Config.t B.t
   -> ?key:Gpuio.Key.t
   -> ?style:Gpuio.Style.t B.t
+  -> ?headers:unit Bonsai.Effect.t Gpuio.View.t Gpuio.Table_header.t list B.t
+  -> ?header_presentation:Gpuio.Table_presentation.Header.t B.t
+  -> ?render_row_presentation:
+       (row:Row.t B.t
+        -> data:'data B.t
+        -> lifetime:Managed_rows.Lifetime.t B.t
+        -> B.graph
+        -> Gpuio.Table_presentation.Row.t Or_error.t B.t)
   -> ?query_generation:int64 B.t
   -> ?on_request:(Row.t Request.t -> unit Bonsai.Effect.t) B.t
   -> render_cell:
@@ -114,6 +142,14 @@ val paged
   -> config:Config.t B.t
   -> ?key:Gpuio.Key.t
   -> ?style:Gpuio.Style.t B.t
+  -> ?headers:unit Bonsai.Effect.t Gpuio.View.t Gpuio.Table_header.t list B.t
+  -> ?header_presentation:Gpuio.Table_presentation.Header.t B.t
+  -> ?render_row_presentation:
+       (row:Row.t B.t
+        -> data:'data B.t
+        -> lifetime:Managed_rows.Lifetime.t B.t
+        -> B.graph
+        -> Gpuio.Table_presentation.Row.t Or_error.t B.t)
   -> ?auto_load:bool B.t
   -> ?on_request:(Row.t Request.t -> unit Bonsai.Effect.t) B.t
   -> render_cell:

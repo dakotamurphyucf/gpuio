@@ -1,6 +1,140 @@
+--- a/src/app/test_context.rs
++++ b/src/app/test_context.rs
+@@ -779,6 +779,24 @@
+ }
+ 
+ impl VisualTestContext {
++    /// Activate/deactivate the test accessibility adapter without OS integration.
++    pub fn simulate_a11y_active(&self, active: bool) {
++        self.cx
++            .test_window(self.window)
++            .simulate_a11y_active(active);
++    }
++
++    /// Deliver an accessibility action through the test platform adapter.
++    /// Call `run_until_parked` to process the asynchronous request.
++    pub fn simulate_a11y_action(&self, request: accesskit::ActionRequest) {
++        self.cx.test_window(self.window).simulate_a11y_action(request);
++    }
++
++    /// Last tree delivered to this window's test accessibility adapter.
++    pub fn a11y_tree(&self) -> Option<accesskit::TreeUpdate> {
++        self.cx.test_window(self.window).a11y_tree()
++    }
++
+     /// Provides a `Window` and `App` for the duration of the closure.
+     pub fn update<R>(&mut self, f: impl FnOnce(&mut Window, &mut App) -> R) -> R {
+         self.cx
+--- a/src/assets.rs
++++ b/src/assets.rs
+@@ -75,6 +75,13 @@
+             .map(|frame| frame.buffer().as_raw().as_slice())
+     }
+ 
++    /// Extract coverage from an already decoded BGRA frame. Call only on an
++    /// alpha-atlas cache miss; color and animation transforms do not change it.
++    pub(crate) fn alpha_mask(&self, frame_index: usize) -> Option<Vec<u8>> {
++        self.as_bytes(frame_index)
++            .map(|bytes| bytes.chunks_exact(4).map(|pixel| pixel[3]).collect())
++    }
++
+     /// Get the size of this image, in pixels.
+     pub fn size(&self, frame_index: usize) -> Size<DevicePixels> {
+         self.data
+@@ -121,6 +128,25 @@
+     use smallvec::SmallVec;
+ 
+     #[test]
++    fn decoded_image_mask_uses_alpha_independently_of_rgb_and_frame() {
++        let image = RenderImage::new(vec![
++            Frame::new(
++                image::RgbaImage::from_raw(
++                    2,
++                    2,
++                    vec![255, 1, 7, 0, 2, 250, 9, 64, 3, 8, 240, 128, 0, 0, 0, 255],
++                )
++                .unwrap(),
++            ),
++            Frame::new(image::RgbaImage::from_raw(1, 1, vec![255, 255, 255, 17]).unwrap()),
++        ]);
++        assert_eq!(image.alpha_mask(0), Some(vec![0, 64, 128, 255]));
++        assert_eq!(image.alpha_mask(1), Some(vec![17]));
++        assert_eq!(image.alpha_mask(2), None);
++        assert_eq!(RenderImage::new(SmallVec::new()).alpha_mask(0), None);
++    }
++
++    #[test]
+     fn empty_render_image_does_not_panic() {
+         let image = RenderImage::new(SmallVec::new());
+         assert_eq!(image.frame_count(), 0);
+--- a/src/element.rs
++++ b/src/element.rs
+@@ -376,7 +376,7 @@
+                                 y1: ((bounds.origin.y.0 + bounds.size.height.0) * scale) as f64,
+                             });
+                             self.element.write_a11y_info(&mut node);
+-                            window.a11y.node_bounds.insert(node_id, bounds);
++                            window.a11y.set_bounds(node_id, bounds);
+                             pushed_a11y_node = window.a11y.nodes.push(node_id, node);
+                             #[cfg(debug_assertions)]
+                             if pushed_a11y_node {
 --- a/src/elements/div.rs
 +++ b/src/elements/div.rs
-@@ -2356,6 +2356,8 @@
+@@ -1328,6 +1328,22 @@
+     /// focused, the claim is ignored.
+     fn aria_active_descendant(mut self) -> Self {
+         self.interactivity().report_active_descendant_focus = true;
++        self.interactivity().active_descendant_owner = None;
++        self
++    }
++
++    /// Report this option as accessibility-focused while an explicitly related
++    /// input holds real keyboard focus, even if that input is not an ancestor.
++    ///
++    /// The input must be exposed as the real focused accessibility node in this
++    /// frame; either sibling may paint first. Claims are resolved at frame end
++    /// and rolled back with rejected prepaint attempts. The weak owner does not
++    /// retain a removed input. Missing,
++    /// retired, unfocused or self targets are ignored. This never moves keyboard
++    /// focus, and only one option may claim accessibility focus in a frame.
++    fn aria_active_descendant_for(mut self, owner: &FocusHandle) -> Self {
++        self.interactivity().report_active_descendant_focus = true;
++        self.interactivity().active_descendant_owner = Some(owner.downgrade());
+         self
+     }
+ 
+@@ -2144,6 +2160,7 @@
+         Vec<(accesskit::Action, crate::window::a11y::A11yActionListener)>,
+     pub(crate) a11y_synthetic_children: Option<Box<dyn FnOnce(&mut crate::A11ySubtreeBuilder)>>,
+     pub(crate) report_active_descendant_focus: bool,
++    pub(crate) active_descendant_owner: Option<crate::WeakFocusHandle>,
+     pub(crate) override_role: Option<accesskit::Role>,
+     pub(crate) aria: AriaProperties,
+ 
+@@ -2296,9 +2313,19 @@
+ 
+         if self.report_active_descendant_focus && window.a11y.is_active() {
+             if let Some(global_id) = global_id {
+-                window
+-                    .a11y
+-                    .set_active_descendant(global_id.accesskit_node_id());
++                if let Some(owner) = &self.active_descendant_owner {
++                    if let Some(owner) = owner.upgrade()
++                        && owner.is_focused(window)
++                    {
++                        window
++                            .a11y
++                            .set_active_descendant_for(global_id.accesskit_node_id(), owner.id);
++                    }
++                } else {
++                    window
++                        .a11y
++                        .set_active_descendant(global_id.accesskit_node_id());
++                }
+             }
+         }
+         window.with_optional_element_state::<InteractiveElementState, _>(
+@@ -2356,6 +2383,8 @@
              || self.group.is_some()
              || self.scroll_offset.is_some()
              || self.tracked_focus_handle.is_some()
@@ -9,7 +143,7 @@
              || self.hover_style.is_some()
              || self.group_hover_style.is_some()
              || self.hover_listener.is_some()
-@@ -2477,7 +2479,42 @@
+@@ -2477,7 +2506,42 @@
  
                  self.paint_hover_group_handler(window, cx);
  
@@ -53,6 +187,455 @@
                      return ((), element_state);
                  }
  
+--- /dev/null
++++ b/src/elements/list/axis.rs
+@@ -0,0 +1,54 @@
++//! The measured-list algorithm uses x/width for the cross axis and y/height for
++//! the main axis. Only boundaries map these coordinates; child elements keep
++//! their physical layout, paint, text, input and accessibility orientation.
++use crate::{AnyElement, App, AvailableSpace, Axis, Bounds, Edges, Pixels, Point, Size, Window};
++use std::fmt::Debug;
++
++#[derive(Clone, Copy)]
++pub(super) struct Mapping(pub Axis);
++impl Mapping {
++    pub fn size<T: Clone + Debug + Default + PartialEq>(self, value: Size<T>) -> Size<T> {
++        match self.0 {
++            Axis::Vertical => value,
++            Axis::Horizontal => Size {
++                width: value.height,
++                height: value.width,
++            },
++        }
++    }
++    pub fn point(self, value: Point<Pixels>) -> Point<Pixels> {
++        match self.0 {
++            Axis::Vertical => value,
++            Axis::Horizontal => Point {
++                x: value.y,
++                y: value.x,
++            },
++        }
++    }
++    pub fn bounds(self, value: Bounds<Pixels>) -> Bounds<Pixels> {
++        Bounds {
++            origin: self.point(value.origin),
++            size: self.size(value.size),
++        }
++    }
++    pub fn edges(self, value: Edges<Pixels>) -> Edges<Pixels> {
++        match self.0 {
++            Axis::Vertical => value,
++            Axis::Horizontal => Edges {
++                top: value.left,
++                right: value.bottom,
++                bottom: value.right,
++                left: value.top,
++            },
++        }
++    }
++    pub fn layout(
++        self,
++        element: &mut AnyElement,
++        logical_space: Size<AvailableSpace>,
++        window: &mut Window,
++        cx: &mut App,
++    ) -> Size<Pixels> {
++        self.size(element.layout_as_root(self.size(logical_space), window, cx))
++    }
++}
+--- a/src/elements/list.rs
++++ b/src/elements/list.rs
+@@ -7,11 +7,13 @@
+ //!
+ //! If all of your elements are the same height, see [`crate::UniformList`] for a simpler API
+ 
++mod axis;
++
+ use crate::{
+-    AnyElement, App, AvailableSpace, Bounds, ContentMask, DispatchPhase, Edges, Element, EntityId,
+-    FocusHandle, GlobalElementId, Hitbox, HitboxBehavior, InspectorElementId, IntoElement,
+-    Overflow, Pixels, Point, ScrollDelta, ScrollWheelEvent, Size, Style, StyleRefinement, Styled,
+-    Window, point, px, size,
++    AnyElement, App, AvailableSpace, Axis, Bounds, ContentMask, DispatchPhase, Edges, Element,
++    EntityId, FocusHandle, GlobalElementId, Hitbox, HitboxBehavior, InspectorElementId,
++    IntoElement, Overflow, Pixels, Point, ScrollDelta, ScrollWheelEvent, Size, Style,
++    StyleRefinement, Styled, Window, point, px, size,
+ };
+ use collections::VecDeque;
+ use refineable::Refineable as _;
+@@ -60,6 +62,8 @@
+ }
+ 
+ struct StateInner {
++    // Cached geometry is normalized: x/width cross-axis, y/height main-axis.
++    axis: axis::Mapping,
+     last_layout_bounds: Option<Bounds<Pixels>>,
+     last_padding: Option<Edges<Pixels>>,
+     items: SumTree<ListItem>,
+@@ -312,7 +316,20 @@
+     /// be measured even though they are not visible. This can help ensure
+     /// that the list doesn't flicker or pop in when scrolling.
+     pub fn new(item_count: usize, alignment: ListAlignment, overdraw: Pixels) -> Self {
++        Self::new_for_axis(Axis::Vertical, item_count, alignment, overdraw)
++    }
++
++    /// Construct a measured list along an immutable axis. Horizontal items
++    /// advance left to right; Top/Bottom alignment mean leading/trailing edge.
++    /// All public pixel bounds and scrollbar offsets use physical coordinates.
++    pub fn new_for_axis(
++        axis: Axis,
++        item_count: usize,
++        alignment: ListAlignment,
++        overdraw: Pixels,
++    ) -> Self {
+         let this = Self(Rc::new(RefCell::new(StateInner {
++            axis: axis::Mapping(axis),
+             last_layout_bounds: None,
+             last_padding: None,
+             items: SumTree::default(),
+@@ -328,6 +345,18 @@
+         })));
+         this.splice(0..0, item_count);
+         this
++    }
++
++    /// The native layout and scrolling axis of this list owner.
++    pub fn axis(&self) -> Axis {
++        self.0.borrow().axis.0
++    }
++
++    /// Seed unmeasured items with a main-axis extent (width for horizontal
++    /// lists, height for vertical lists). Native measurements replace hints.
++    pub fn with_uniform_item_extent(self, extent: Pixels) -> Self {
++        self.apply_uniform_item_height(extent);
++        self
+     }
+ 
+     /// Set the list to measure all items in the list in the first layout phase.
+@@ -726,11 +755,12 @@
+         if let Some(&ListItem::Measured { size, .. }) = cursor.item() {
+             let &Dimensions(Count(count), Height(top), _) = cursor.start();
+             if count == ix {
+-                let top = bounds.top() + top - scroll_top;
+-                return Some(Bounds::from_corners(
++                let top =
++                    bounds.top() + state.last_padding.unwrap_or_default().top + top - scroll_top;
++                return Some(state.axis.bounds(Bounds::from_corners(
+                     point(bounds.left(), top),
+                     point(bounds.right(), top + size.height),
+-                ));
++                )));
+             }
+         }
+         None
+@@ -764,25 +794,31 @@
+ 
+     /// Set the offset from the scrollbar
+     pub fn set_offset_from_scrollbar(&self, point: Point<Pixels>) {
+-        self.0.borrow_mut().set_offset_from_scrollbar(point);
++        let mut state = self.0.borrow_mut();
++        let logical = state.axis.point(point);
++        state.set_offset_from_scrollbar(logical);
+     }
+ 
+     /// Returns the maximum scroll offset according to the items we have measured.
+     /// This value remains constant while dragging to prevent the scrollbar from moving away unexpectedly.
+     pub fn max_offset_for_scrollbar(&self) -> Point<Pixels> {
+         let state = self.0.borrow();
+-        point(Pixels::ZERO, state.max_scroll_offset())
++        state
++            .axis
++            .point(point(Pixels::ZERO, state.max_scroll_offset()))
+     }
+ 
+     /// Returns the current scroll offset adjusted for the scrollbar.
+     ///
+-    /// The returned offset has a negative `y` component representing
+-    /// how far the content has scrolled.
++    /// The returned offset has a negative component on the configured axis
++    /// representing how far the content has scrolled.
+     pub fn scroll_px_offset_for_scrollbar(&self) -> Point<Pixels> {
+         let state = &self.0.borrow();
+ 
+         if state.logical_scroll_top.is_none() && state.alignment == ListAlignment::Bottom {
+-            return Point::new(px(0.), -state.max_scroll_offset());
++            return state
++                .axis
++                .point(Point::new(px(0.), -state.max_scroll_offset()));
+         }
+ 
+         let logical_scroll_top = state.logical_scroll_top();
+@@ -792,15 +828,18 @@
+             cursor.summary(&Count(logical_scroll_top.item_ix), Bias::Right);
+         let offset = summary.height + logical_scroll_top.offset_in_item;
+ 
+-        Point::new(px(0.), -offset)
++        state.axis.point(Point::new(px(0.), -offset))
+     }
+ 
+     /// Return the bounds of the viewport in pixels.
+     pub fn viewport_bounds(&self) -> Bounds<Pixels> {
+-        self.0.borrow().last_layout_bounds.unwrap_or_default()
+-    }
+-
+-    /// Returns whether the item is entirely above the viewport, or `None` if
++        let state = self.0.borrow();
++        state
++            .axis
++            .bounds(state.last_layout_bounds.unwrap_or_default())
++    }
++
++    /// Returns whether the item is entirely before the viewport (above or left), or `None` if
+     /// the list has not measured enough layout to know.
+     ///
+     /// A zero-height viewport still yields a definitive answer: callers may
+@@ -817,11 +856,11 @@
+             return Some(true);
+         }
+ 
+-        let item_bounds = self.bounds_for_item(ix)?;
++        let item_bounds = self.0.borrow().axis.bounds(self.bounds_for_item(ix)?);
+         Some(item_bounds.bottom() <= viewport_bounds.top())
+     }
+ 
+-    /// Returns whether the item is entirely below the viewport, or `None` if
++    /// Returns whether the item is entirely after the viewport (below or right), or `None` if
+     /// the list has not measured enough layout to know.
+     ///
+     /// See [`Self::item_is_above_viewport`] for why a zero-height viewport
+@@ -836,7 +875,7 @@
+             return Some(false);
+         }
+ 
+-        let item_bounds = self.bounds_for_item(ix)?;
++        let item_bounds = self.0.borrow().axis.bounds(self.bounds_for_item(ix)?);
+         Some(item_bounds.top() >= viewport_bounds.bottom())
+     }
+ }
+@@ -880,7 +919,8 @@
+         let height = self
+             .scrollbar_drag_start_height
+             .unwrap_or_else(|| self.items.summary().height);
+-        (height - bounds.size.height).max(px(0.))
++        let padding = self.last_padding.unwrap_or_default();
++        (height + padding.top + padding.bottom - bounds.size.height).max(px(0.))
+     }
+ 
+     fn visible_range(
+@@ -906,7 +946,7 @@
+     ) {
+         // Drop scroll events after a reset, since we can't calculate
+         // the new logical scroll top without the item heights
+-        if self.reset {
++        if self.reset || delta.y == Pixels::ZERO {
+             return;
+         }
+ 
+@@ -1012,7 +1052,8 @@
+         for (ix, item) in cursor.enumerate() {
+             let size = item.size().unwrap_or_else(|| {
+                 let mut element = render_item(ix, window, cx);
+-                element.layout_as_root(available_item_space, window, cx)
++                self.axis
++                    .layout(&mut element, available_item_space, window, cx)
+             });
+ 
+             measured_items.push(ListItem::Measured {
+@@ -1074,7 +1115,9 @@
+             if visible_height < available_height || size.is_none() {
+                 let item_index = scroll_top.item_ix + ix;
+                 let mut element = render_item(item_index, window, cx);
+-                let element_size = element.layout_as_root(available_item_space, window, cx);
++                let element_size = self
++                    .axis
++                    .layout(&mut element, available_item_space, window, cx);
+                 size = Some(element_size);
+ 
+                 // If there's a pending scroll adjustment for the scroll-top
+@@ -1135,7 +1178,9 @@
+                 if let Some(item) = cursor.item() {
+                     let item_index = cursor.start().0;
+                     let mut element = render_item(item_index, window, cx);
+-                    let element_size = element.layout_as_root(available_item_space, window, cx);
++                    let element_size =
++                        self.axis
++                            .layout(&mut element, available_item_space, window, cx);
+                     let focus_handle = item.focus_handle();
+                     rendered_height += element_size.height;
+                     measured_items.push_front(ListItem::Measured {
+@@ -1184,7 +1229,8 @@
+                     *size
+                 } else {
+                     let mut element = render_item(cursor.start().0, window, cx);
+-                    element.layout_as_root(available_item_space, window, cx)
++                    self.axis
++                        .layout(&mut element, available_item_space, window, cx)
+                 };
+ 
+                 leading_overdraw += size.height;
+@@ -1229,7 +1275,9 @@
+                 if item.contains_focused(window, cx) {
+                     let item_index = cursor.start().0;
+                     let mut element = render_item(cursor.start().0, window, cx);
+-                    let size = element.layout_as_root(available_item_space, window, cx);
++                    let size = self
++                        .axis
++                        .layout(&mut element, available_item_space, window, cx);
+                     item_layouts.push_back(ItemLayout {
+                         index: item_index,
+                         element,
+@@ -1282,11 +1330,19 @@
+                 let mut item_origin = bounds.origin + Point::new(px(0.), padding.top);
+                 item_origin.y -= layout_response.scroll_top.offset_in_item;
+                 for item in &mut layout_response.item_layouts {
+-                    window.with_content_mask(Some(ContentMask { bounds }), |window| {
+-                        item.element.prepaint_at(item_origin, window, cx);
+-                    });
+-
+-                    if let Some(autoscroll_bounds) = window.take_autoscroll()
++                    window.with_content_mask(
++                        Some(ContentMask {
++                            bounds: self.axis.bounds(bounds),
++                        }),
++                        |window| {
++                            item.element
++                                .prepaint_at(self.axis.point(item_origin), window, cx);
++                        },
++                    );
++
++                    if let Some(autoscroll_bounds) = window
++                        .take_autoscroll()
++                        .map(|bounds| self.axis.bounds(bounds))
+                         && autoscroll
+                     {
+                         if autoscroll_bounds.top() < bounds.top() {
+@@ -1312,7 +1368,12 @@
+                                             bounds.size.width.into(),
+                                             AvailableSpace::MinContent,
+                                         );
+-                                        element.layout_as_root(item_available_size, window, cx)
++                                        self.axis.layout(
++                                            &mut element,
++                                            item_available_size,
++                                            window,
++                                            cx,
++                                        )
+                                     });
+                                     item_ix = cursor.start().0;
+                                     offset_in_item += size.height;
+@@ -1340,7 +1401,7 @@
+                                     let mut item = render_item(cursor.start().0, window, cx);
+                                     let item_available_size =
+                                         size(bounds.size.width.into(), AvailableSpace::MinContent);
+-                                    item.layout_as_root(item_available_size, window, cx)
++                                    self.axis.layout(&mut item, item_available_size, window, cx)
+                                 });
+                                 height -= size.height;
+                             }
+@@ -1459,7 +1520,11 @@
+         let layout_id = match self.sizing_behavior {
+             ListSizingBehavior::Infer => {
+                 let mut style = Style::default();
+-                style.overflow.y = Overflow::Scroll;
++                let axis = self.state.0.borrow().axis;
++                match axis.0 {
++                    Axis::Vertical => style.overflow.y = Overflow::Scroll,
++                    Axis::Horizontal => style.overflow.x = Overflow::Scroll,
++                }
+                 style.refine(&self.style);
+                 window.with_text_style(style.text_style().cloned(), |window| {
+                     let state = &mut *self.state.0.borrow_mut();
+@@ -1471,9 +1536,12 @@
+                         // we might just use the overdraw value as the available height to layout enough items.
+                         state.overdraw
+                     };
+-                    let padding = style.padding.to_pixels(
+-                        state.last_layout_bounds.unwrap_or_default().size.into(),
+-                        window.rem_size(),
++                    let padding = axis.edges(
++                        style.padding.to_pixels(
++                            axis.size(state.last_layout_bounds.unwrap_or_default().size)
++                                .into(),
++                            window.rem_size(),
++                        ),
+                     );
+ 
+                     let layout_response = state.layout_items(
+@@ -1492,6 +1560,8 @@
+                     window.request_measured_layout(
+                         style,
+                         move |known_dimensions, available_space, _window, _cx| {
++                            let known_dimensions = axis.size(known_dimensions);
++                            let available_space = axis.size(available_space);
+                             let width =
+                                 known_dimensions
+                                     .width
+@@ -1507,7 +1577,7 @@
+                                     total_height
+                                 }
+                             };
+-                            size(width, height)
++                            axis.size(size(width, height))
+                         },
+                     )
+                 })
+@@ -1540,14 +1610,24 @@
+ 
+         let hitbox = window.insert_hitbox(bounds, HitboxBehavior::Normal);
+ 
+-        // If the width of the list has changed, invalidate all cached item heights
++        let padding = state.axis.edges(
++            style
++                .padding
++                .to_pixels(bounds.size.into(), window.rem_size()),
++        );
++        let bounds = state.axis.bounds(bounds);
++
++        // A changed cross-axis constraint invalidates cached main-axis extents.
++        // Retain old extents as estimates while remeasuring visible items.
++        // Clearing every hint would collapse distant items to zero and lose
++        // scrollbar/reveal positions in a large partially measured collection.
+         if state
+             .last_layout_bounds
+-            .is_none_or(|last_bounds| last_bounds.size.width != bounds.size.width)
++            .is_some_and(|last_bounds| last_bounds.size.width != bounds.size.width)
+         {
+             let new_items = SumTree::from_iter(
+                 state.items.iter().map(|item| ListItem::Unmeasured {
+-                    size_hint: None,
++                    size_hint: item.size_hint(),
+                     focus_handle: item.focus_handle(),
+                 }),
+                 (),
+@@ -1557,9 +1637,6 @@
+             state.measuring_behavior.reset();
+         }
+ 
+-        let padding = style
+-            .padding
+-            .to_pixels(bounds.size.into(), window.rem_size());
+         let layout =
+             match state.prepaint_items(bounds, padding, true, &mut self.render_item, window, cx) {
+                 Ok(layout) => layout,
+@@ -1594,14 +1671,15 @@
+         // to prevent the list from scrolling. This matches the ordering of
+         // div-based scroll containers.
+         let list_state = self.state.clone();
+-        let height = bounds.size.height;
++        let axis = list_state.0.borrow().axis;
++        let height = axis.size(bounds.size).height;
+         let scroll_top = prepaint.layout.scroll_top;
+         let hitbox_id = prepaint.hitbox.id;
+         let mut accumulated_scroll_delta = ScrollDelta::default();
+         window.on_mouse_event(move |event: &ScrollWheelEvent, phase, window, cx| {
+             if phase == DispatchPhase::Bubble && hitbox_id.should_handle_scroll(window) {
+                 accumulated_scroll_delta = accumulated_scroll_delta.coalesce(event.delta);
+-                let pixel_delta = accumulated_scroll_delta.pixel_delta(px(20.));
++                let pixel_delta = axis.point(accumulated_scroll_delta.pixel_delta(px(20.)));
+                 list_state.0.borrow_mut().scroll(
+                     &scroll_top,
+                     height,
 --- a/src/input.rs
 +++ b/src/input.rs
 @@ -304,6 +304,9 @@
@@ -254,9 +837,109 @@
          }
  
          fn bounds_for_range(
+--- a/src/platform/test/window.rs
++++ b/src/platform/test/window.rs
+@@ -56,6 +56,8 @@
+     appearance: WindowAppearance,
+     external_drag_files: Vec<(PathBuf, bool)>,
+     start_external_drag_result: bool,
++    a11y_callbacks: Option<crate::A11yCallbacks>,
++    a11y_update: Option<accesskit::TreeUpdate>,
+ }
+ 
+ #[derive(Clone)]
+@@ -128,6 +130,8 @@
+             appearance: WindowAppearance::Light,
+             external_drag_files: Vec::new(),
+             start_external_drag_result: false,
++            a11y_callbacks: None,
++            a11y_update: None,
+         })))
+     }
+     pub fn simulate_scheduled_frame(&self) -> bool {
+@@ -273,9 +277,53 @@
+     pub fn set_start_external_drag_result(&self, result: bool) {
+         self.0.lock().start_external_drag_result = result;
+     }
++
++    /// Connect/disconnect the test accessibility adapter through the same
++    /// callbacks used by platform adapters. This creates no OS accessibility UI.
++    pub fn simulate_a11y_active(&self, active: bool) {
++        let mut state = self.0.lock();
++        let Some(callbacks) = state.a11y_callbacks.take() else {
++            return;
++        };
++        drop(state);
++        let update = if active {
++            (callbacks.activation)()
++        } else {
++            (callbacks.deactivation)();
++            None
++        };
++        let mut state = self.0.lock();
++        state.a11y_update = update;
++        state.a11y_callbacks = Some(callbacks);
++    }
++
++    /// Deliver an action through the platform accessibility callback. This
++    /// exercises asynchronous native routing without an OS screen reader.
++    pub fn simulate_a11y_action(&self, request: accesskit::ActionRequest) {
++        let mut state = self.0.lock();
++        let Some(callbacks) = state.a11y_callbacks.take() else {
++            return;
++        };
++        drop(state);
++        (callbacks.action)(request);
++        self.0.lock().a11y_callbacks = Some(callbacks);
++    }
++
++    /// Last tree delivered to the test accessibility adapter.
++    pub fn a11y_tree(&self) -> Option<accesskit::TreeUpdate> {
++        self.0.lock().a11y_update.clone()
++    }
+ }
+ 
+ impl PlatformWindow for TestWindow {
++    fn a11y_init(&self, callbacks: crate::A11yCallbacks) {
++        self.0.lock().a11y_callbacks = Some(callbacks);
++    }
++
++    fn a11y_tree_update(&self, update: accesskit::TreeUpdate) {
++        self.0.lock().a11y_update = Some(update);
++    }
++
+     fn visual_viewport_bounds(&self) -> Bounds<Pixels> {
+         let state = self.0.lock();
+         state
+@@ -609,7 +657,7 @@
+             crate::AtlasTile {
+                 texture_id: AtlasTextureId {
+                     index: texture_id,
+-                    kind: crate::AtlasTextureKind::Monochrome,
++                    kind: key.texture_kind(),
+                 },
+                 tile_id: TileId(tile_id),
+                 padding: 0,
 --- a/src/platform.rs
 +++ b/src/platform.rs
-@@ -1489,6 +1489,7 @@
+@@ -1330,6 +1330,7 @@
+     Glyph(RenderGlyphParams),
+     Svg(RenderSvgParams),
+     Image(RenderImageParams),
++    ImageMask(RenderImageParams),
+ }
+ 
+ impl AtlasKey {
+@@ -1352,7 +1353,7 @@
+                     AtlasTextureKind::Monochrome
+                 }
+             }
+-            AtlasKey::Svg(_) => AtlasTextureKind::Monochrome,
++            AtlasKey::Svg(_) | AtlasKey::ImageMask(_) => AtlasTextureKind::Monochrome,
+             AtlasKey::Image(_) => AtlasTextureKind::Polychrome,
+         }
+     }
+@@ -1489,6 +1490,7 @@
  pub struct PlatformInputHandler {
      cx: AsyncWindowContext,
      handler: Box<dyn InputHandler>,
@@ -264,7 +947,7 @@
  }
  
  #[expect(missing_docs)]
-@@ -1501,7 +1502,21 @@
+@@ -1501,7 +1503,21 @@
  )]
  impl PlatformInputHandler {
      pub fn new(cx: AsyncWindowContext, handler: Box<dyn InputHandler>) -> Self {
@@ -287,7 +970,7 @@
      }
  
      pub fn selected_text_range(&mut self, ignore_disabled_input: bool) -> Option<UTF16Selection> {
-@@ -1557,6 +1572,9 @@
+@@ -1557,6 +1573,9 @@
      ) {
          self.cx
              .update(|window, cx| {
@@ -297,147 +980,325 @@
                  self.handler.replace_and_mark_text_in_range(
                      range_utf16,
                      new_text,
---- a/src/window.rs
-+++ b/src/window.rs
-@@ -1173,6 +1173,9 @@
-     /// input session can restart the IME connection).
-     last_text_input_configuration: Option<TextInputConfiguration>,
-     focused_text_input_active: bool,
-+    text_input_owner: Option<FocusId>,
-+    text_input_composing: bool,
-+    text_input_reset: Option<Box<dyn FnMut(&mut Window)>>,
-     pub(crate) image_cache_stack: Vec<AnyImageCache>,
-     pub(crate) rendered_frame: Frame,
-     pub(crate) next_frame: Frame,
-@@ -2014,6 +2017,9 @@
-             requested_autoscroll: None,
-             last_text_input_configuration: None,
-             focused_text_input_active: false,
-+            text_input_owner: None,
-+            text_input_composing: false,
-+            text_input_reset: None,
-             rendered_frame: Frame::new(DispatchTree::new(cx.keymap.clone(), cx.actions.clone())),
-             next_frame: Frame::new(DispatchTree::new(cx.keymap.clone(), cx.actions.clone())),
-             next_frame_callbacks,
-@@ -3145,13 +3151,48 @@
-         // paint_range indices remain valid for reuse_paint on the next frame.
-         // Search backwards to find the last Some entry, since reuse_paint may
-         // have copied None slots from the previous frame. (Fixes #50456)
--        let focused_text_input_active = if let Some(mut input_handler) = self
-+        let mut next_input_handler = self
-             .next_frame
-             .input_handlers
-             .iter_mut()
-             .rev()
--            .find_map(|h| h.take())
-+            .find_map(|h| h.take());
-+        let next_owner = next_input_handler.as_ref().and_then(|h| h.focus_id);
-+        let owner_retired = self.text_input_owner.is_some() && self.text_input_owner != next_owner;
-+        let composing = self.text_input_reset.is_some()
-+            && next_input_handler
-+                .as_mut()
-+                .is_some_and(|handler| handler.is_composing(self, cx));
-+        // GPUIO: the platform's text context can outlive its editor. Run the
-+        // adapter with no installed handler, after unmarking the retiring
-+        // client, so synchronous platform callbacks cannot enter a new owner.
-+        if self.text_input_reset.is_some()
-+            && (owner_retired || (self.text_input_composing && !composing))
-         {
-+            if owner_retired {
-+                let retiring = self
-+                    .rendered_frame
-+                    .input_handlers
-+                    .iter_mut()
-+                    .chain(self.next_frame.input_handlers.iter_mut())
-+                    .find(|entry| {
-+                        entry
-+                            .as_ref()
-+                            .is_some_and(|h| h.focus_id == self.text_input_owner)
-+                    })
-+                    .and_then(Option::take);
-+                if let Some(mut handler) = retiring {
-+                    handler.unmark_in_window(self, cx);
+--- a/src/scene.rs
++++ b/src/scene.rs
+@@ -6,7 +6,7 @@
+ 
+ use crate::{
+     AtlasTextureId, AtlasTile, Background, Bounds, ContentMask, Corners, Edges, Hsla, Pixels,
+-    Point, Radians, ScaledPixels, Size, bounds_tree::BoundsTree, point,
++    Point, Radians, ScaledPixels, Size, bounds_tree::BoundsTree, point, size,
+ };
+ use std::{
+     fmt::Debug,
+@@ -86,9 +86,18 @@
+ 
+     pub fn insert_primitive(&mut self, primitive: impl Into<Primitive>) {
+         let mut primitive = primitive.into();
+-        let clipped_bounds = primitive
+-            .bounds()
+-            .intersect(&primitive.content_mask().bounds);
++        // A transformed glyph/icon can enter or leave the clip independently
++        // of its original quad. Use its actual coverage for culling and order.
++        let coverage = match &primitive {
++            Primitive::MonochromeSprite(sprite) => {
++                sprite.transformation.transform_bounds(sprite.bounds)
++            }
++            Primitive::SubpixelSprite(sprite) => {
++                sprite.transformation.transform_bounds(sprite.bounds)
++            }
++            _ => *primitive.bounds(),
++        };
++        let clipped_bounds = coverage.intersect(&primitive.content_mask().bounds);
+ 
+         if clipped_bounds.is_empty() {
+             return;
+@@ -616,6 +625,33 @@
+ impl Eq for TransformationMatrix {}
+ 
+ impl TransformationMatrix {
++    /// Axis-aligned coverage after applying this affine transform. The original
++    /// quad remains unchanged for texture coordinates and shader transformation.
++    pub(crate) fn transform_bounds(self, bounds: Bounds<ScaledPixels>) -> Bounds<ScaledPixels> {
++        if self == Self::unit() {
++            return bounds;
++        }
++        let [a, b] = self.rotation_scale;
++        let mut min = [f32::INFINITY; 2];
++        let mut max = [f32::NEG_INFINITY; 2];
++        for x in [bounds.left().0, bounds.right().0] {
++            for y in [bounds.top().0, bounds.bottom().0] {
++                let p = [
++                    a[0] * x + a[1] * y + self.translation[0],
++                    b[0] * x + b[1] * y + self.translation[1],
++                ];
++                for axis in 0..2 {
++                    min[axis] = min[axis].min(p[axis]);
++                    max[axis] = max[axis].max(p[axis]);
 +                }
 +            }
-+            if let Some(mut reset) = self.text_input_reset.take() {
-+                reset(self);
-+                self.text_input_reset = Some(reset);
-+            }
 +        }
-+        self.text_input_owner = next_owner;
-+        self.text_input_composing = composing;
-+        let focused_text_input_active = if let Some(mut input_handler) = next_input_handler {
-             let accepts_text_input = input_handler.accepts_text_input(self, cx);
-             self.platform_window.set_input_handler(input_handler);
-             accepts_text_input
-@@ -3943,10 +3984,11 @@
-             .unwrap_or_default()
-     }
- 
--    /// Obtain the current element opacity. This method should only be called during the
--    /// prepaint phase of element drawing.
-+    /// Obtain the accumulated element opacity, including ancestor and state styles.
-+    /// Call only during paint or prepaint. Read-only access lets custom animated
-+    /// elements suspend frame requests when their effective opacity is zero.
-     #[inline]
--    pub(crate) fn element_opacity(&self) -> f32 {
-+    pub fn element_opacity(&self) -> f32 {
-         self.invalidator.debug_assert_paint_or_prepaint();
-         self.element_opacity
-     }
-@@ -5067,10 +5109,27 @@
- 
-         if focus_handle.is_focused(self) {
-             let cx = self.to_async(cx);
--            self.next_frame
--                .input_handlers
--                .push(Some(PlatformInputHandler::new(cx, Box::new(input_handler))));
--        }
-+            let mut handler = PlatformInputHandler::new(cx, Box::new(input_handler));
-+            handler.focus_id = Some(focus_handle.id);
-+            self.next_frame.input_handlers.push(Some(handler));
-+        }
++        Bounds::new(
++            point(ScaledPixels(min[0]), ScaledPixels(min[1])),
++            size(ScaledPixels(max[0] - min[0]), ScaledPixels(max[1] - min[1])),
++        )
 +    }
 +
-+    /// Install the window's platform text-context reset adapter. It is called
-+    /// when the painted input owner changes or its marked composition ends,
-+    /// with no platform input handler installed. Ordinary redraws of the same
-+    /// composing owner do not reset the context. The old client is unmarked
-+    /// before an owner change; its implementation decides what to do with its
-+    /// provisional text. Replaces any previously installed adapter.
-+    ///
-+    /// The adapter must only reset platform state, without updating GPUI or
-+    /// entering application code synchronously.
-+    pub fn on_text_input_reset(&mut self, reset: impl FnMut(&mut Window) + 'static) {
-+        self.text_input_reset = Some(Box::new(reset));
-+    }
-+
-+    pub(crate) fn note_text_input_composition(&mut self) {
-+        self.text_input_composing = true;
-     }
- 
-     /// Forwards the focused input handler's [`TextInputConfiguration`] to the
-@@ -6611,6 +6670,17 @@
-         self.platform_window.play_system_bell()
-     }
- 
-+    /// Mark accessibility nodes produced by this prepaint scope as disabled,
-+    /// preserving their IDs, roles and values. This only affects accessibility
-+    /// output: the caller must separately enforce native input/focus policy.
-+    pub fn with_a11y_disabled<R>(&mut self, f: impl FnOnce(&mut Self) -> R) -> R {
-+        let previous = self.a11y.nodes.disabled_scope;
-+        self.a11y.nodes.disabled_scope = true;
-+        let result = f(self);
-+        self.a11y.nodes.disabled_scope = previous;
-+        result
-+    }
-+
-     /// Returns whether accessibility features are active for this frame,
-     /// i.e. whether assistive technology (such as a screen reader) is
-     /// connected and an accessibility tree is being built.
+     /// The unit matrix, has no effect.
+     pub fn unit() -> Self {
+         Self {
 --- a/src/window/a11y.rs
 +++ b/src/window/a11y.rs
-@@ -365,6 +365,7 @@
+@@ -118,6 +118,24 @@
+ /// A listener for an accessibility action on a specific node.
+ pub(crate) type A11yActionListener =
+     Box<dyn FnMut(Option<&accesskit::ActionData>, &mut Window, &mut App) + 'static>;
++
++// Only mutations made during a prepaint transaction are journaled. Completed
++// sibling subtrees are never cloned; retry restores the open ancestor stack.
++enum PrepaintMutation {
++    Focus(NodeId, Option<FocusId>),
++    Bounds(NodeId, Option<Bounds<Pixels>>),
++}
++pub(crate) struct PrepaintCheckpoint {
++    nodes_len: usize,
++    ids_stack: SmallVec<[NodeId; 16]>,
++    nodes_stack: SmallVec<[accesskit::Node; 16]>,
++    focus: Option<NodeId>,
++    active_descendant: Option<NodeId>,
++    explicit_active_descendant: Option<(NodeId, FocusId)>,
++    disabled_scope: bool,
++    last_focus_without_node: Option<FocusId>,
++    mutations_len: usize,
++}
+ 
+ /// Per-window accessibility state.
+ ///
+@@ -146,6 +164,11 @@
+     /// determine whether we should actually send the finished [`TreeUpdate`].
+     active_this_frame: bool,
+     pub(crate) nodes: A11yNodeBuilder,
++    // One physical keyboard owner may lend focus to one option. Resolve again
++    // after all siblings paint; the input can follow its list in layout order.
++    explicit_active_descendant: Option<(NodeId, FocusId)>,
++    prepaint_depth: usize,
++    prepaint_mutations: Vec<PrepaintMutation>,
+     pub(crate) focus_ids: FxHashMap<NodeId, FocusId>,
+     pub(crate) node_bounds: FxHashMap<NodeId, Bounds<Pixels>>,
+     pub(crate) action_listeners: FxHashMap<NodeId, Vec<(Action, A11yActionListener)>>,
+@@ -174,6 +197,9 @@
+             active_flag,
+             active_this_frame: false,
+             nodes: A11yNodeBuilder::new(),
++            explicit_active_descendant: None,
++            prepaint_depth: 0,
++            prepaint_mutations: Vec::new(),
+             focus_ids: FxHashMap::default(),
+             node_bounds: FxHashMap::default(),
+             action_listeners: FxHashMap::default(),
+@@ -218,7 +244,91 @@
+     }
+ 
+     pub(crate) fn set_focusable(&mut self, node_id: NodeId, focus_id: FocusId) {
+-        self.focus_ids.insert(node_id, focus_id);
++        let previous = self.focus_ids.insert(node_id, focus_id);
++        if self.prepaint_depth > 0 {
++            self.prepaint_mutations
++                .push(PrepaintMutation::Focus(node_id, previous));
++        }
++    }
++
++    pub(crate) fn set_bounds(&mut self, node_id: NodeId, bounds: Bounds<Pixels>) {
++        let previous = self.node_bounds.insert(node_id, bounds);
++        if self.prepaint_depth > 0 {
++            self.prepaint_mutations
++                .push(PrepaintMutation::Bounds(node_id, previous));
++        }
++    }
++
++    pub(crate) fn prepaint_checkpoint(&mut self) -> Option<PrepaintCheckpoint> {
++        if !self.is_active() {
++            return None;
++        }
++        self.prepaint_depth += 1;
++        Some(PrepaintCheckpoint {
++            nodes_len: self.nodes.all_nodes.len(),
++            ids_stack: self.nodes.ids_stack.clone(),
++            nodes_stack: self.nodes.nodes_stack.clone(),
++            focus: self.nodes.focus,
++            active_descendant: self.nodes.active_descendant,
++            explicit_active_descendant: self.explicit_active_descendant,
++            disabled_scope: self.nodes.disabled_scope,
++            last_focus_without_node: self.last_focus_without_node,
++            mutations_len: self.prepaint_mutations.len(),
++        })
++    }
++
++    pub(crate) fn finish_prepaint(
++        &mut self,
++        checkpoint: Option<PrepaintCheckpoint>,
++        rollback: bool,
++    ) {
++        let Some(checkpoint) = checkpoint else { return };
++        debug_assert_eq!(
++            self.nodes.ids_stack, checkpoint.ids_stack,
++            "unbalanced a11y prepaint scope"
++        );
++        if rollback {
++            for (id, _) in self.nodes.all_nodes.drain(checkpoint.nodes_len..) {
++                self.nodes.seen_ids.remove(&id);
++                #[cfg(debug_assertions)]
++                self.nodes.node_info.remove(&id);
++            }
++            self.nodes.ids_stack = checkpoint.ids_stack;
++            self.nodes.nodes_stack = checkpoint.nodes_stack;
++            self.nodes.focus = checkpoint.focus;
++            self.nodes.active_descendant = checkpoint.active_descendant;
++            self.explicit_active_descendant = checkpoint.explicit_active_descendant;
++            self.nodes.disabled_scope = checkpoint.disabled_scope;
++            self.last_focus_without_node = checkpoint.last_focus_without_node;
++            for mutation in self
++                .prepaint_mutations
++                .drain(checkpoint.mutations_len..)
++                .rev()
++            {
++                match mutation {
++                    PrepaintMutation::Focus(id, old) => match old {
++                        Some(value) => {
++                            self.focus_ids.insert(id, value);
++                        }
++                        None => {
++                            self.focus_ids.remove(&id);
++                        }
++                    },
++                    PrepaintMutation::Bounds(id, old) => match old {
++                        Some(value) => {
++                            self.node_bounds.insert(id, value);
++                        }
++                        None => {
++                            self.node_bounds.remove(&id);
++                        }
++                    },
++                }
++            }
++        }
++        self.prepaint_depth -= 1;
++        if self.prepaint_depth == 0 {
++            self.prepaint_mutations.clear();
++        }
+     }
+ 
+     /// Report `node_id` as the currently-focused node, if it is present in the
+@@ -267,9 +377,45 @@
+         }
+     }
+ 
++    /// Explicit composite ownership permits sibling input/list layouts without
++    /// moving real keyboard focus or pretending that the input is an ancestor.
++    pub(crate) fn set_active_descendant_for(&mut self, node_id: NodeId, owner: FocusId) -> bool {
++        if !self.nodes.has_node(node_id)
++            || self.nodes.focus.is_some_and(|focused| {
++                focused == node_id || self.focus_ids.get(&focused) != Some(&owner)
++            })
++        {
++            return false;
++        }
++        if self
++            .explicit_active_descendant
++            .is_some_and(|(existing, previous_owner)| {
++                previous_owner == owner && existing != node_id
++            })
++        {
++            if cfg!(debug_assertions) {
++                panic!("active descendant claimed by multiple nodes in one frame");
++            } else {
++                log::warn!(
++                    "a11y: multiple explicit active descendants; using last-wins ({node_id:?})"
++                );
++            }
++        }
++        self.explicit_active_descendant = Some((node_id, owner));
++        // The Div caller has already checked real keyboard focus. If its owner
++        // has not prepainted yet, retain only this fixed-size claim for end_frame.
++        if self.nodes.focus.is_some() {
++            self.nodes.set_active_descendant(node_id);
++            true
++        } else {
++            false
++        }
++    }
++
+     /// Clear per-frame state and push the root node to start a new frame.
+     pub(crate) fn begin_frame(&mut self) {
+         self.focus_ids.clear();
++        self.explicit_active_descendant = None;
+         self.node_bounds.clear();
+         self.action_listeners.clear();
+         self.nodes.begin_frame(self.window_title.as_ref());
+@@ -277,6 +423,14 @@
+ 
+     /// Finalize the tree and produce a [`TreeUpdate`] for the platform adapter.
+     pub(crate) fn end_frame(&mut self, frame: debug::FrameDebugInfo) -> TreeUpdate {
++        if let Some((node_id, owner)) = self.explicit_active_descendant
++            && let Some(focused) = self.nodes.focus
++            && focused != node_id
++            && self.nodes.has_node(node_id)
++            && self.focus_ids.get(&focused) == Some(&owner)
++        {
++            self.nodes.set_active_descendant(node_id);
++        }
+         let update = self.nodes.finalize();
+         self.debug.capture(
+             &update,
+@@ -333,6 +487,47 @@
+         self.parent_id.0.hash(&mut hasher);
+         key.hash(&mut hasher);
+         NodeId(hasher.finish())
++    }
++
++    /// The accessibility node of the element owning this builder.
++    pub fn parent_id(&self) -> NodeId {
++        self.parent_id
++    }
++
++    /// Insert a synthetic container around an ordered, contiguous range of this
++    /// element's existing direct children. Their identities, subtrees and actions
++    /// stay intact. The container replaces that range in the parent's child order.
++    ///
++    /// Returns `None` without changing the tree for empty, repeated, foreign or
++    /// out-of-order members, an occupied synthetic ID, or a container that already
++    /// has children. Call after the real children have finished prepaint.
++    pub fn group_children(
++        &mut self,
++        key: impl Hash,
++        mut group: accesskit::Node,
++        members: &[NodeId],
++    ) -> Option<NodeId> {
++        let first = *members.first()?;
++        let id = self.synthetic_node_id(key);
++        if self.nodes.has_node(id) || !group.children().is_empty() {
++            return None;
++        }
++        let children = self.parent_node().children();
++        let start = children.iter().position(|child| *child == first)?;
++        let end = start.checked_add(members.len())?;
++        if children.get(start..end) != Some(members)
++            || members.iter().collect::<FxHashSet<_>>().len() != members.len()
++        {
++            return None;
++        }
++        let mut replacement = children.to_vec();
++        replacement.splice(start..end, [id]);
++        group.set_children(members.to_vec());
++        if !self.push_child(id, group) {
++            return None;
++        }
++        self.parent_node().set_children(replacement);
++        Some(id)
+     }
+ 
+     /// Append a synthetic leaf node as a child of this element's node.
+@@ -365,6 +560,7 @@
  }
  
  pub(crate) struct A11yNodeBuilder {
@@ -445,7 +1306,7 @@
      ids_stack: SmallVec<[NodeId; 16]>,
      nodes_stack: SmallVec<[accesskit::Node; 16]>,
      /// This is the exact type required by accesskit, so we can't just make it a
-@@ -386,6 +387,7 @@
+@@ -386,6 +582,7 @@
  impl A11yNodeBuilder {
      fn new() -> Self {
          Self {
@@ -453,7 +1314,7 @@
              ids_stack: SmallVec::new(),
              nodes_stack: SmallVec::new(),
              all_nodes: Vec::new(),
-@@ -422,9 +424,13 @@
+@@ -422,9 +619,13 @@
      /// top-of-stack node.
      ///
      /// Returns `true` if the node was successfully pushed.
@@ -468,7 +1329,7 @@
          }
  
          if let Some(parent) = self.nodes_stack.last_mut() {
-@@ -440,9 +446,13 @@
+@@ -440,9 +641,13 @@
      /// followed by a [`Self::pop`].
      ///
      /// Returns `true` if the node was successfully pushed.
@@ -483,7 +1344,7 @@
          }
  
          if let Some(parent) = self.nodes_stack.last_mut() {
-@@ -468,6 +478,7 @@
+@@ -468,6 +673,7 @@
  
      /// Push the root node to start a new frame.
      fn begin_frame(&mut self, window_title: Option<&SharedString>) {
@@ -491,7 +1352,7 @@
          self.all_nodes.clear();
          self.ids_stack.clear();
          self.nodes_stack.clear();
-@@ -572,14 +583,53 @@
+@@ -572,14 +778,53 @@
          };
  
          let nodes = std::mem::take(&mut self.all_nodes);
@@ -546,10 +1407,124 @@
      }
  
      /// Accesskit panics on invalid [`TreeUpdate`]s. This function defensively
-@@ -655,6 +705,85 @@
+@@ -655,6 +900,199 @@
      }
  
      #[test]
++    fn synthetic_groups_preserve_option_subtrees_order_actions_and_focus() {
++        use super::A11ySubtreeBuilder;
++        let mut builder = new_builder();
++        let list = NodeId(1);
++        let before = NodeId(2);
++        let option = NodeId(3);
++        let text = NodeId(4);
++        let disabled = NodeId(5);
++        let after = NodeId(6);
++        let mut stable_group = None;
++        for with_header in [true, false, true] {
++            builder.begin_frame(None);
++            assert!(builder.push(list, accesskit::Node::new(Role::ListBox)));
++            if with_header {
++                assert!(builder.push_leaf(before, test_node()));
++            }
++            let mut item = accesskit::Node::new(Role::ListBoxOption);
++            item.set_selected(true);
++            item.add_action(accesskit::Action::Click);
++            assert!(builder.push(option, item));
++            assert!(builder.push_leaf(text, accesskit::Node::new(Role::Label)));
++            builder.set_focus(option);
++            builder.pop();
++            let mut item = accesskit::Node::new(Role::ListBoxOption);
++            item.set_disabled();
++            assert!(builder.push_leaf(disabled, item));
++            assert!(builder.push_leaf(after, test_node()));
++            let mut group = accesskit::Node::new(Role::Group);
++            group.set_label("Tools");
++            let mut subtree = A11ySubtreeBuilder::new(list, &mut builder);
++            assert_eq!(subtree.parent_id(), list);
++            let group = subtree
++                .group_children("tools", group, &[option, disabled])
++                .unwrap();
++            assert_eq!(*stable_group.get_or_insert(group), group);
++            builder.pop();
++            let update = builder.finalize();
++            let node = |id| &update.nodes.iter().find(|(key, _)| *key == id).unwrap().1;
++            assert_eq!(
++                node(list).children(),
++                if with_header {
++                    vec![before, group, after]
++                } else {
++                    vec![group, after]
++                }
++            );
++            assert_eq!(node(group).label(), Some("Tools"));
++            assert_eq!(node(group).children(), &[option, disabled]);
++            assert_eq!(node(option).children(), &[text]);
++            assert!(node(option).supports_action(accesskit::Action::Click));
++            assert_eq!(node(option).is_selected(), Some(true));
++            assert!(node(disabled).is_disabled());
++            assert_eq!(update.focus, option);
++            let mut parents = std::collections::HashMap::new();
++            for (id, node) in &update.nodes {
++                for child in node.children() {
++                    assert!(parents.insert(child, id).is_none(), "multiple parents");
++                    assert!(update.nodes.iter().any(|(id, _)| id == child));
++                }
++            }
++            assert_eq!(parents.len() + 1, update.nodes.len());
++        }
++        builder.begin_frame(None);
++        let update = builder.finalize();
++        assert_eq!(update.nodes.len(), 1, "groups retire with their children");
++    }
++
++    #[test]
++    fn synthetic_group_rejects_invalid_members_without_partial_mutation() {
++        use super::A11ySubtreeBuilder;
++        let mut builder = new_builder();
++        for id in [NodeId(1), NodeId(2), NodeId(3)] {
++            assert!(builder.push_leaf(id, test_node()));
++        }
++        for members in [
++            vec![],
++            vec![NodeId(99)],
++            vec![NodeId(1), NodeId(1)],
++            vec![NodeId(1), NodeId(3)],
++            vec![NodeId(2), NodeId(1)],
++            vec![ROOT_NODE_ID],
++        ] {
++            let mut subtree = A11ySubtreeBuilder::new(ROOT_NODE_ID, &mut builder);
++            assert_eq!(
++                subtree.group_children("invalid", test_node(), &members),
++                None
++            );
++            assert_eq!(
++                subtree.parent_node().children(),
++                &[NodeId(1), NodeId(2), NodeId(3)]
++            );
++            assert_eq!(builder.all_nodes.len(), 3);
++        }
++        let mut subtree = A11ySubtreeBuilder::new(ROOT_NODE_ID, &mut builder);
++        let mut populated = test_node();
++        populated.set_children(vec![ROOT_NODE_ID]);
++        assert_eq!(
++            subtree.group_children("invalid", populated, &[NodeId(1)]),
++            None
++        );
++        let occupied = subtree.synthetic_node_id("occupied");
++        assert!(subtree.push_child(occupied, test_node()));
++        assert_eq!(
++            subtree.group_children("occupied", test_node(), &[NodeId(1)]),
++            None
++        );
++        assert_eq!(
++            subtree.parent_node().children(),
++            &[NodeId(1), NodeId(2), NodeId(3), occupied]
++        );
++        assert_eq!(builder.all_nodes.len(), 4);
++    }
++
++    #[test]
 +    fn disabled_container_preserves_values_and_restores_original_child_actions() {
 +        let mut builder = new_builder();
 +        let container = NodeId(1);
@@ -632,3 +1607,1046 @@
      fn active_descendant_honored_when_container_focused() {
          let mut builder = new_builder();
          let container = NodeId(1);
+@@ -885,4 +1323,211 @@
+         let update = a11y.end_frame(Default::default());
+         assert_eq!(update.focus, a);
+     }
++    #[test]
++    fn explicit_active_descendant_can_precede_its_owner_and_does_not_survive_retry() {
++        for rollback in [false, true] {
++            for matched in [false, true] {
++                let mut ids = slotmap::SlotMap::<FocusId, ()>::with_key();
++                let owner = ids.insert(());
++                let unrelated = ids.insert(());
++                let mut a11y = new_a11y();
++                a11y.sync_active_flag();
++                let checkpoint = a11y.prepaint_checkpoint();
++                assert!(
++                    checkpoint.is_some(),
++                    "exercise an active prepaint transaction"
++                );
++                let option = NodeId(1);
++                let input = NodeId(2);
++                assert!(
++                    a11y.nodes
++                        .push(option, accesskit::Node::new(Role::ListBoxOption))
++                );
++                assert!(
++                    !a11y.set_active_descendant_for(option, owner),
++                    "not resolved until owner paints"
++                );
++                a11y.nodes.pop();
++                a11y.finish_prepaint(checkpoint, rollback);
++                if rollback {
++                    assert!(
++                        a11y.nodes
++                            .push(option, accesskit::Node::new(Role::ListBoxOption))
++                    );
++                    a11y.nodes.pop();
++                }
++                assert!(
++                    a11y.nodes
++                        .push(input, accesskit::Node::new(Role::TextInput))
++                );
++                a11y.set_focusable(input, if matched { owner } else { unrelated });
++                a11y.set_focus(input);
++                a11y.nodes.pop();
++                let update = a11y.end_frame(Default::default());
++                assert_eq!(
++                    update.focus,
++                    if matched && !rollback { option } else { input }
++                );
++                assert_eq!(a11y.nodes.focus, Some(input), "never move real focus");
++                a11y.begin_frame();
++                assert!(a11y.explicit_active_descendant.is_none());
++            }
++        }
++    }
++
++    #[test]
++    fn explicit_active_descendant_keeps_real_sibling_input_focus_and_value() {
++        for accept in [false, true] {
++            let mut ids = slotmap::SlotMap::<FocusId, ()>::with_key();
++            let owner = ids.insert(());
++            let unrelated = ids.insert(());
++            let mut a11y = new_a11y();
++            let query = NodeId(1);
++            let list = NodeId(2);
++            let option = NodeId(3);
++            let mut input = accesskit::Node::new(Role::TextInput);
++            input.set_value("京都 draft");
++            assert!(a11y.nodes.push(query, input));
++            a11y.set_focusable(query, owner);
++            a11y.set_focus(query);
++            assert!(!a11y.set_active_descendant_for(query, owner));
++            assert!(!a11y.set_active_descendant_for(NodeId(999), owner));
++            a11y.nodes.pop();
++            assert!(a11y.nodes.push(list, accesskit::Node::new(Role::ListBox)));
++            assert!(
++                a11y.nodes
++                    .push(option, accesskit::Node::new(Role::ListBoxOption))
++            );
++            assert!(!a11y.set_active_descendant_for(option, unrelated));
++            if accept {
++                assert!(a11y.set_active_descendant_for(option, owner));
++            }
++            assert_eq!(
++                a11y.nodes.focus,
++                Some(query),
++                "real input focus is unchanged"
++            );
++            a11y.nodes.pop();
++            a11y.nodes.pop();
++            let update = a11y.end_frame(Default::default());
++            assert_eq!(update.focus, if accept { option } else { query });
++            let input = &update.nodes.iter().find(|(id, _)| *id == query).unwrap().1;
++            assert_eq!(input.role(), Role::TextInput);
++            assert_eq!(input.value(), Some("京都 draft"));
++            assert!(
++                !input.children().contains(&option),
++                "no fabricated input ancestry"
++            );
++            // The following frame has neither this input nor its focus mapping.
++            a11y.begin_frame();
++            assert!(a11y.nodes.push(option, test_node()));
++            assert!(!a11y.set_active_descendant_for(option, owner));
++            a11y.nodes.pop();
++            assert_eq!(a11y.end_frame(Default::default()).focus, ROOT_NODE_ID);
++        }
++    }
++
++    #[test]
++    #[cfg_attr(
++        debug_assertions,
++        should_panic(expected = "active descendant claimed by multiple nodes")
++    )]
++    fn explicit_active_descendant_keeps_duplicate_claim_guard() {
++        let mut a11y = new_a11y();
++        let owner = FocusId::default();
++        let query = NodeId(1);
++        assert!(a11y.nodes.push(query, test_node()));
++        a11y.set_focusable(query, owner);
++        a11y.set_focus(query);
++        a11y.nodes.pop();
++        for option in [NodeId(2), NodeId(3)] {
++            assert!(a11y.nodes.push(option, test_node()));
++            assert!(a11y.set_active_descendant_for(option, owner));
++            a11y.nodes.pop();
++        }
++    }
++    #[test]
++    fn explicit_active_descendant_runs_through_real_element_prepaint_without_moving_focus() {
++        use crate::{
++            Context, FocusHandle, InteractiveElement, IntoElement, ParentElement, Render,
++            StatefulInteractiveElement, Styled, TestAppContext, Window, div,
++        };
++        struct Composite {
++            input: FocusHandle,
++            other: FocusHandle,
++            explicit: bool,
++        }
++        impl Render for Composite {
++            fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
++                let option = div()
++                    .id("option")
++                    .role(Role::ListBoxOption)
++                    .aria_label("Result");
++                let option = if self.explicit {
++                    option.aria_active_descendant_for(&self.input)
++                } else {
++                    option.aria_active_descendant()
++                };
++                div()
++                    .size_full()
++                    .child(
++                        div()
++                            .id("input")
++                            .role(Role::TextInput)
++                            .track_focus(&self.input)
++                            .aria_value("draft")
++                            .w_32()
++                            .h_8(),
++                    )
++                    .child(div().id("list").role(Role::ListBox).child(option))
++                    .child(
++                        div()
++                            .id("other")
++                            .role(Role::Button)
++                            .track_focus(&self.other)
++                            .w_32()
++                            .h_8(),
++                    )
++            }
++        }
++        let mut app = TestAppContext::single();
++        let (view, cx) = app.add_window_view(|_, cx| Composite {
++            input: cx.focus_handle(),
++            other: cx.focus_handle(),
++            explicit: false,
++        });
++        for (explicit, input_focused) in [(false, true), (true, true), (true, false)] {
++            cx.update(|window, cx| {
++                window.a11y.force_disabled = false;
++                window
++                    .a11y
++                    .active_flag
++                    .store(true, std::sync::atomic::Ordering::SeqCst);
++                view.update(cx, |view, cx| {
++                    view.explicit = explicit;
++                    window.focus(
++                        if input_focused {
++                            &view.input
++                        } else {
++                            &view.other
++                        },
++                        cx,
++                    );
++                    cx.notify();
++                });
++                window.draw(cx).clear(cx);
++                view.read_with(cx, |view, _| {
++                    assert!(if input_focused {
++                        view.input.is_focused(window)
++                    } else {
++                        view.other.is_focused(window)
++                    });
++                });
++                assert_eq!(
++                    window.a11y.nodes.active_descendant.is_some(),
++                    explicit && input_focused
++                );
++            });
++        }
++    }
+ }
+--- a/src/window.rs
++++ b/src/window.rs
+@@ -1173,6 +1173,9 @@
+     /// input session can restart the IME connection).
+     last_text_input_configuration: Option<TextInputConfiguration>,
+     focused_text_input_active: bool,
++    text_input_owner: Option<FocusId>,
++    text_input_composing: bool,
++    text_input_reset: Option<Box<dyn FnMut(&mut Window)>>,
+     pub(crate) image_cache_stack: Vec<AnyImageCache>,
+     pub(crate) rendered_frame: Frame,
+     pub(crate) next_frame: Frame,
+@@ -2014,6 +2017,9 @@
+             requested_autoscroll: None,
+             last_text_input_configuration: None,
+             focused_text_input_active: false,
++            text_input_owner: None,
++            text_input_composing: false,
++            text_input_reset: None,
+             rendered_frame: Frame::new(DispatchTree::new(cx.keymap.clone(), cx.actions.clone())),
+             next_frame: Frame::new(DispatchTree::new(cx.keymap.clone(), cx.actions.clone())),
+             next_frame_callbacks,
+@@ -2646,6 +2652,13 @@
+         self.rendered_frame.scene.quads.clone()
+     }
+ 
++    /// Returns retained monochrome sprites for scene-level tests. This observes
++    /// the submitted scene, not GPU pixels or physical presentation.
++    #[cfg(any(test, feature = "test-support"))]
++    pub fn painted_monochrome_sprites(&self) -> Vec<MonochromeSprite> {
++        self.rendered_frame.scene.monochrome_sprites.clone()
++    }
++
+     /// Set the content size of the window.
+     pub fn resize(&mut self, size: Size<Pixels>) {
+         self.platform_window.resize(size);
+@@ -3145,13 +3158,48 @@
+         // paint_range indices remain valid for reuse_paint on the next frame.
+         // Search backwards to find the last Some entry, since reuse_paint may
+         // have copied None slots from the previous frame. (Fixes #50456)
+-        let focused_text_input_active = if let Some(mut input_handler) = self
++        let mut next_input_handler = self
+             .next_frame
+             .input_handlers
+             .iter_mut()
+             .rev()
+-            .find_map(|h| h.take())
++            .find_map(|h| h.take());
++        let next_owner = next_input_handler.as_ref().and_then(|h| h.focus_id);
++        let owner_retired = self.text_input_owner.is_some() && self.text_input_owner != next_owner;
++        let composing = self.text_input_reset.is_some()
++            && next_input_handler
++                .as_mut()
++                .is_some_and(|handler| handler.is_composing(self, cx));
++        // GPUIO: the platform's text context can outlive its editor. Run the
++        // adapter with no installed handler, after unmarking the retiring
++        // client, so synchronous platform callbacks cannot enter a new owner.
++        if self.text_input_reset.is_some()
++            && (owner_retired || (self.text_input_composing && !composing))
+         {
++            if owner_retired {
++                let retiring = self
++                    .rendered_frame
++                    .input_handlers
++                    .iter_mut()
++                    .chain(self.next_frame.input_handlers.iter_mut())
++                    .find(|entry| {
++                        entry
++                            .as_ref()
++                            .is_some_and(|h| h.focus_id == self.text_input_owner)
++                    })
++                    .and_then(Option::take);
++                if let Some(mut handler) = retiring {
++                    handler.unmark_in_window(self, cx);
++                }
++            }
++            if let Some(mut reset) = self.text_input_reset.take() {
++                reset(self);
++                self.text_input_reset = Some(reset);
++            }
++        }
++        self.text_input_owner = next_owner;
++        self.text_input_composing = composing;
++        let focused_text_input_active = if let Some(mut input_handler) = next_input_handler {
+             let accepts_text_input = input_handler.accepts_text_input(self, cx);
+             self.platform_window.set_input_handler(input_handler);
+             accepts_text_input
+@@ -3879,7 +3927,9 @@
+     pub fn transact<T, U>(&mut self, f: impl FnOnce(&mut Self) -> Result<T, U>) -> Result<T, U> {
+         self.invalidator.debug_assert_prepaint();
+         let index = self.prepaint_index();
++        let a11y = self.a11y.prepaint_checkpoint();
+         let result = f(self);
++        self.a11y.finish_prepaint(a11y, result.is_err());
+         if result.is_err() {
+             self.next_frame.hitboxes.truncate(index.hitboxes_index);
+             self.next_frame
+@@ -3943,10 +3993,11 @@
+             .unwrap_or_default()
+     }
+ 
+-    /// Obtain the current element opacity. This method should only be called during the
+-    /// prepaint phase of element drawing.
++    /// Obtain the accumulated element opacity, including ancestor and state styles.
++    /// Call only during paint or prepaint. Read-only access lets custom animated
++    /// elements suspend frame requests when their effective opacity is zero.
+     #[inline]
+-    pub(crate) fn element_opacity(&self) -> f32 {
++    pub fn element_opacity(&self) -> f32 {
+         self.invalidator.debug_assert_paint_or_prepaint();
+         self.element_opacity
+     }
+@@ -4715,6 +4766,100 @@
+         Ok(())
+     }
+ 
++    /// Paint the alpha channel of a decoded image with a native color and affine
++    /// transform. Bounds are logical pixels; the transform uses scaled pixels,
++    /// as with `paint_svg`. This does not parse SVG, read files or rotate pixels.
++    /// The alpha upload is cached separately from the image's color upload;
++    /// changing color, opacity or transformation reuses the same atlas entry.
++    /// `drop_image` retires both representations. Call only during paint.
++    pub fn paint_image_mask(
++        &mut self,
++        bounds: Bounds<Pixels>,
++        data: Arc<RenderImage>,
++        frame_index: usize,
++        transformation: TransformationMatrix,
++        color: Hsla,
++    ) -> Result<()> {
++        self.invalidator.debug_assert_paint();
++        if data.as_bytes(frame_index).is_none() {
++            return Err(anyhow!("image mask frame is out of range"));
++        }
++        if ![
++            bounds.left().0,
++            bounds.top().0,
++            bounds.size.width.0,
++            bounds.size.height.0,
++            color.h,
++            color.s,
++            color.l,
++            color.a,
++        ]
++        .into_iter()
++        .all(f32::is_finite)
++            || !transformation
++                .rotation_scale
++                .into_iter()
++                .flatten()
++                .chain(transformation.translation)
++                .all(f32::is_finite)
++        {
++            return Err(anyhow!("image mask geometry and color must be finite"));
++        }
++        let opacity = self.element_opacity();
++        if bounds.size.width <= Pixels::ZERO
++            || bounds.size.height <= Pixels::ZERO
++            || data.size(frame_index).width.0 <= 0
++            || data.size(frame_index).height.0 <= 0
++            || color.a <= 0.
++            || opacity <= 0.
++        {
++            return Ok(());
++        }
++        let bounds = self.snap_bounds(bounds);
++        let coverage = transformation.transform_bounds(bounds);
++        if ![
++            coverage.left().0,
++            coverage.top().0,
++            coverage.size.width.0,
++            coverage.size.height.0,
++        ]
++        .into_iter()
++        .all(f32::is_finite)
++        {
++            return Err(anyhow!("image mask transformed bounds overflow"));
++        }
++        let content_mask = self.snapped_content_mask();
++        if coverage.intersect(&content_mask.bounds).is_empty() {
++            return Ok(());
++        }
++        let key = crate::AtlasKey::ImageMask(RenderImageParams {
++            image_id: data.id,
++            frame_index,
++        });
++        let tile = self
++            .sprite_atlas
++            .get_or_insert_with(&key, &mut || {
++                Ok(Some((
++                    data.size(frame_index),
++                    Cow::Owned(
++                        data.alpha_mask(frame_index)
++                            .expect("image frame validated before atlas admission"),
++                    ),
++                )))
++            })?
++            .ok_or_else(|| anyhow!("image mask atlas allocation returned no tile"))?;
++        self.next_frame.scene.insert_primitive(MonochromeSprite {
++            order: 0,
++            pad: 0,
++            bounds,
++            content_mask,
++            color: color.opacity(opacity),
++            tile,
++            transformation,
++        });
++        Ok(())
++    }
++
+     /// Paint an image into the scene for the next frame at the current z-index.
+     /// This method will panic if the frame_index is not valid
+     ///
+@@ -4849,6 +4994,8 @@
+             };
+ 
+             self.sprite_atlas.remove(&params.clone().into());
++            self.sprite_atlas
++                .remove(&crate::AtlasKey::ImageMask(params));
+         }
+ 
+         Ok(())
+@@ -4867,6 +5014,16 @@
+                     .into(),
+                 )
+             })
++    }
++
++    /// Returns whether a decoded image frame has an alpha-mask atlas entry.
++    #[cfg(any(test, feature = "test-support"))]
++    pub fn has_image_mask_atlas_entry(&self, data: &RenderImage, frame_index: usize) -> bool {
++        self.sprite_atlas
++            .contains(&crate::AtlasKey::ImageMask(RenderImageParams {
++                image_id: data.id,
++                frame_index,
++            }))
+     }
+ 
+     /// Add a node to the layout tree for the current frame. Takes the `Style` of the element for which
+@@ -5067,10 +5224,27 @@
+ 
+         if focus_handle.is_focused(self) {
+             let cx = self.to_async(cx);
+-            self.next_frame
+-                .input_handlers
+-                .push(Some(PlatformInputHandler::new(cx, Box::new(input_handler))));
+-        }
++            let mut handler = PlatformInputHandler::new(cx, Box::new(input_handler));
++            handler.focus_id = Some(focus_handle.id);
++            self.next_frame.input_handlers.push(Some(handler));
++        }
++    }
++
++    /// Install the window's platform text-context reset adapter. It is called
++    /// when the painted input owner changes or its marked composition ends,
++    /// with no platform input handler installed. Ordinary redraws of the same
++    /// composing owner do not reset the context. The old client is unmarked
++    /// before an owner change; its implementation decides what to do with its
++    /// provisional text. Replaces any previously installed adapter.
++    ///
++    /// The adapter must only reset platform state, without updating GPUI or
++    /// entering application code synchronously.
++    pub fn on_text_input_reset(&mut self, reset: impl FnMut(&mut Window) + 'static) {
++        self.text_input_reset = Some(Box::new(reset));
++    }
++
++    pub(crate) fn note_text_input_composition(&mut self) {
++        self.text_input_composing = true;
+     }
+ 
+     /// Forwards the focused input handler's [`TextInputConfiguration`] to the
+@@ -6611,6 +6785,17 @@
+         self.platform_window.play_system_bell()
+     }
+ 
++    /// Mark accessibility nodes produced by this prepaint scope as disabled,
++    /// preserving their IDs, roles and values. This only affects accessibility
++    /// output: the caller must separately enforce native input/focus policy.
++    pub fn with_a11y_disabled<R>(&mut self, f: impl FnOnce(&mut Self) -> R) -> R {
++        let previous = self.a11y.nodes.disabled_scope;
++        self.a11y.nodes.disabled_scope = true;
++        let result = f(self);
++        self.a11y.nodes.disabled_scope = previous;
++        result
++    }
++
+     /// Returns whether accessibility features are active for this frame,
+     /// i.e. whether assistive technology (such as a screen reader) is
+     /// connected and an accessibility tree is being built.
+--- a/src/window/a11y.rs
++++ b/src/window/a11y.rs
+@@ -551,6 +551,37 @@
+         pushed
+     }
+ 
++    /// Clip this subtree's finalized descendant bounds in accessibility (scaled
++    /// window) coordinates. Fully clipped nodes become hidden; IDs and children
++    /// remain intact. Call after descendants finish prepaint. This does not
++    /// revoke input/action handlers; the element must enforce its input policy.
++    pub fn clip_descendants(&mut self, clip: accesskit::Rect) {
++        // The builder belongs to one subtree. Do not alter siblings or ancestors,
++        // including nodes without bounds (e.g. synthetic text runs).
++        let mut descendants = FxHashSet::default();
++        descendants.extend(self.parent_node().children().iter().copied());
++        for (id, node) in self.nodes.all_nodes.iter().rev() {
++            if descendants.contains(id) {
++                descendants.extend(node.children().iter().copied());
++            }
++        }
++        for (id, node) in &mut self.nodes.all_nodes {
++            if descendants.contains(id)
++                && let Some(bounds) = node.bounds()
++            {
++                let visible = bounds.intersect(clip);
++                if visible.width() <= 0. || visible.height() <= 0. {
++                    node.set_hidden();
++                    if self.nodes.active_descendant == Some(*id) {
++                        self.nodes.active_descendant = None;
++                    }
++                } else {
++                    node.set_bounds(visible);
++                }
++            }
++        }
++    }
++
+     /// A mutable reference to the parent node.
+     pub fn parent_node(&mut self) -> &mut accesskit::Node {
+         self.nodes
+--- a/src/window/a11y.rs
++++ b/src/window/a11y.rs
+@@ -431,7 +431,8 @@
+         {
+             self.nodes.set_active_descendant(node_id);
+         }
+-        let update = self.nodes.finalize();
++        let mut update = self.nodes.finalize();
++        self.remove_hidden_actions(&mut update);
+         self.debug.capture(
+             &update,
+             self.nodes.focus,
+@@ -442,6 +443,33 @@
+         #[cfg(debug_assertions)]
+         self.debug.capture_node_info(&self.nodes.node_info);
+         update
++    }
++
++    fn remove_hidden_actions(&mut self, update: &mut TreeUpdate) {
++        let mut pending: Vec<_> = update.nodes.iter()
++            .filter(|(_, node)| node.is_hidden()).map(|(id, _)| *id).collect();
++        if pending.is_empty() {
++            return;
++        }
++        let nodes: FxHashMap<_, _> = update.nodes.iter().map(|(id, node)| (*id, node)).collect();
++        let mut hidden = FxHashSet::default();
++        while let Some(id) = pending.pop() {
++            if hidden.insert(id)
++                && let Some(node) = nodes.get(&id)
++            {
++                pending.extend(node.children().iter().copied());
++            }
++        }
++        // Remove both explicit handlers and fallback click/focus targets. These
++        // mappings are rebuilt every frame, so revealing the subtree restores
++        // behavior without changing its identities or losing its descendants.
++        self.action_listeners.retain(|id, _| !hidden.contains(id));
++        self.node_bounds.retain(|id, _| !hidden.contains(id));
++        self.focus_ids.retain(|id, _| !hidden.contains(id));
++        if hidden.contains(&update.focus) {
++            update.focus = self.nodes.focus.filter(|id| !hidden.contains(id)).unwrap_or(ROOT_NODE_ID);
++            self.nodes.active_descendant = None;
++        }
+     }
+ 
+     pub(crate) fn debug_tree_json(&self) -> Option<String> {
+@@ -553,19 +581,28 @@
+ 
+     /// Clip this subtree's finalized descendant bounds in accessibility (scaled
+     /// window) coordinates. Fully clipped nodes become hidden; IDs and children
+-    /// remain intact. Call after descendants finish prepaint. This does not
+-    /// revoke input/action handlers; the element must enforce its input policy.
++    /// remain intact. Call after descendants finish prepaint. Hidden descendants
++    /// lose accessibility actions at frame finalization. The element must still
++    /// enforce its separate pointer and keyboard input policy.
+     pub fn clip_descendants(&mut self, clip: accesskit::Rect) {
+         // The builder belongs to one subtree. Do not alter siblings or ancestors,
+         // including nodes without bounds (e.g. synthetic text runs).
+         let mut descendants = FxHashSet::default();
+-        descendants.extend(self.parent_node().children().iter().copied());
+-        for (id, node) in self.nodes.all_nodes.iter().rev() {
+-            if descendants.contains(id) {
+-                descendants.extend(node.children().iter().copied());
+-            }
+-        }
+-        for (id, node) in &mut self.nodes.all_nodes {
++        let mut pending: FxHashSet<_> = self.parent_node().children().iter().copied().collect();
++        let mut start = self.nodes.all_nodes.len();
++        // Completed nodes are in postorder. Stop once this subtree has been
++        // visited rather than scanning every earlier sibling for each preview.
++        for (index, (id, node)) in self.nodes.all_nodes.iter().enumerate().rev() {
++            if pending.is_empty() {
++                break;
++            }
++            start = index;
++            if pending.remove(id) {
++                descendants.insert(*id);
++                pending.extend(node.children().iter().copied());
++            }
++        }
++        for (id, node) in &mut self.nodes.all_nodes[start..] {
+             if descendants.contains(id)
+                 && let Some(bounds) = node.bounds()
+             {
+--- a/src/window.rs
++++ b/src/window.rs
+@@ -1167,6 +1167,7 @@
+     pub(crate) element_offset_stack: Vec<Point<Pixels>>,
+     pub(crate) element_opacity: f32,
+     pub(crate) content_mask_stack: Vec<ContentMask<Pixels>>,
++    pub(crate) clip_keyboard_input: bool,
+     pub(crate) requested_autoscroll: Option<Bounds<Pixels>>,
+     /// The [`TextInputConfiguration`] most recently forwarded to the platform
+     /// window, so that only actual changes are forwarded (reconfiguring a live
+@@ -2013,6 +2014,7 @@
+             rendered_entity_stack: Vec::new(),
+             element_offset_stack: Vec::new(),
+             content_mask_stack: Vec::new(),
++            clip_keyboard_input: false,
+             element_opacity: 1.0,
+             requested_autoscroll: None,
+             last_text_input_configuration: None,
+@@ -3869,6 +3871,35 @@
+         }
+     }
+ 
++    /// Refine hit-testing after a subtree measures its final clip during
++    /// prepaint. Only newly inserted hitboxes are affected; their identities
++    /// remain valid. Paint must use the same (or a narrower) content mask.
++    pub fn with_prepaint_clip<R>(
++        &mut self,
++        f: impl FnOnce(&mut Self) -> (R, Option<ContentMask<Pixels>>),
++    ) -> R {
++        self.invalidator.debug_assert_prepaint();
++        let first = self.next_frame.hitboxes.len();
++        let (result, clip) = f(self);
++        if let Some(clip) = clip {
++            for hitbox in &mut self.next_frame.hitboxes[first..] {
++                hitbox.content_mask = hitbox.content_mask.intersect(&clip);
++            }
++        }
++        result
++    }
++
++    /// Within a preview, fully clipped interactive Divs must not register
++    /// keyboard handlers or tab stops. Descendants still paint so their pending
++    /// click state is canceled individually. Ordinary scrolling is unchanged.
++    pub fn with_clipped_input<R>(&mut self, f: impl FnOnce(&mut Self) -> R) -> R {
++        let previous = self.clip_keyboard_input;
++        self.clip_keyboard_input = true;
++        let result = f(self);
++        self.clip_keyboard_input = previous;
++        result
++    }
++
+     /// Updates the global element offset relative to the current offset. This is used to implement
+     /// scrolling. This method should only be called during the prepaint phase of element drawing.
+     pub fn with_element_offset<R>(
+--- a/src/elements/div.rs
++++ b/src/elements/div.rs
+@@ -2565,7 +2565,25 @@
+                                         // sibling groups every container would then sort ahead of
+                                         // every item, and `focus_next` from a container would jump
+                                         // to the first item in the whole window instead of its own.
+-                                        if let Some(focus_handle) = &self.tracked_focus_handle {
++                                        let visible = bounds.intersect(&window.content_mask().bounds);
++                                        let input_visible = !window.clip_keyboard_input
++                                            || (visible.size.width > Pixels::ZERO
++                                                && visible.size.height > Pixels::ZERO);
++                                        if !input_visible
++                                            && let Some(state) = element_state.as_mut()
++                                        {
++                                            if let Some(pending) = &state.pending_keyboard_down {
++                                                pending.borrow_mut().take();
++                                            }
++                                            if let Some(pending) = &state.pending_mouse_down {
++                                                pending.borrow_mut().take();
++                                            }
++                                            if let Some(clicked) = &state.clicked_state {
++                                                *clicked.borrow_mut() = ElementClickedState::default();
++                                            }
++                                        }
++                                        if input_visible
++                                            && let Some(focus_handle) = &self.tracked_focus_handle {
+                                             window.next_frame.tab_stops.insert(focus_handle);
+                                         }
+                                         if let Some(hitbox) = hitbox {
+@@ -2595,16 +2613,20 @@
+                                                 );
+                                             }
+ 
+-                                            self.paint_mouse_listeners(
+-                                                hitbox,
+-                                                element_state.as_mut(),
+-                                                window,
+-                                                cx,
+-                                            );
+-                                            self.paint_scroll_listener(hitbox, &style, window, cx);
++                                            if input_visible {
++                                                self.paint_mouse_listeners(
++                                                    hitbox,
++                                                    element_state.as_mut(),
++                                                    window,
++                                                    cx,
++                                                );
++                                                self.paint_scroll_listener(hitbox, &style, window, cx);
++                                            }
+                                         }
+ 
+-                                        self.paint_keyboard_listeners(window, cx);
++                                        if input_visible {
++                                            self.paint_keyboard_listeners(window, cx);
++                                        }
+ 
+                                         if window.a11y.is_active() {
+                                             if let Some(global_id) = global_id {
+--- a/src/window.rs
++++ b/src/window.rs
+@@ -1168,6 +1168,7 @@
+     pub(crate) element_opacity: f32,
+     pub(crate) content_mask_stack: Vec<ContentMask<Pixels>>,
+     pub(crate) clip_keyboard_input: bool,
++    pub(crate) clipped_input_focus: bool,
+     pub(crate) requested_autoscroll: Option<Bounds<Pixels>>,
+     /// The [`TextInputConfiguration`] most recently forwarded to the platform
+     /// window, so that only actual changes are forwarded (reconfiguring a live
+@@ -2015,6 +2016,7 @@
+             element_offset_stack: Vec::new(),
+             content_mask_stack: Vec::new(),
+             clip_keyboard_input: false,
++            clipped_input_focus: false,
+             element_opacity: 1.0,
+             requested_autoscroll: None,
+             last_text_input_configuration: None,
+@@ -3892,12 +3894,18 @@
+     /// Within a preview, fully clipped interactive Divs must not register
+     /// keyboard handlers or tab stops. Descendants still paint so their pending
+     /// click state is canceled individually. Ordinary scrolling is unchanged.
+-    pub fn with_clipped_input<R>(&mut self, f: impl FnOnce(&mut Self) -> R) -> R {
++    /// Returns whether a focused control was clipped, allowing the caller to
++    /// restore focus to its visible composite owner after painting descendants.
++    pub fn with_clipped_input<R>(&mut self, f: impl FnOnce(&mut Self) -> R) -> (R, bool) {
+         let previous = self.clip_keyboard_input;
++        let previous_focus = self.clipped_input_focus;
+         self.clip_keyboard_input = true;
++        self.clipped_input_focus = false;
+         let result = f(self);
++        let clipped_focus = self.clipped_input_focus;
+         self.clip_keyboard_input = previous;
+-        result
++        self.clipped_input_focus = previous_focus || (previous && clipped_focus);
++        (result, clipped_focus)
+     }
+ 
+     /// Updates the global element offset relative to the current offset. This is used to implement
+--- a/src/elements/div.rs
++++ b/src/elements/div.rs
+@@ -2570,6 +2570,11 @@
+                                             || (visible.size.width > Pixels::ZERO
+                                                 && visible.size.height > Pixels::ZERO);
+                                         if !input_visible
++                                            && self.tracked_focus_handle.as_ref().is_some_and(|handle| handle.is_focused(window))
++                                        {
++                                            window.clipped_input_focus = true;
++                                        }
++                                        if !input_visible
+                                             && let Some(state) = element_state.as_mut()
+                                         {
+                                             if let Some(pending) = &state.pending_keyboard_down {
+--- a/src/elements/div.rs
++++ b/src/elements/div.rs
+@@ -2565,12 +2565,16 @@
+                                         // sibling groups every container would then sort ahead of
+                                         // every item, and `focus_next` from a container would jump
+                                         // to the first item in the whole window instead of its own.
+-                                        let visible = bounds.intersect(&window.content_mask().bounds);
++                                        let visible =
++                                            bounds.intersect(&window.content_mask().bounds);
+                                         let input_visible = !window.clip_keyboard_input
+                                             || (visible.size.width > Pixels::ZERO
+                                                 && visible.size.height > Pixels::ZERO);
+                                         if !input_visible
+-                                            && self.tracked_focus_handle.as_ref().is_some_and(|handle| handle.is_focused(window))
++                                            && self
++                                                .tracked_focus_handle
++                                                .as_ref()
++                                                .is_some_and(|handle| handle.is_focused(window))
+                                         {
+                                             window.clipped_input_focus = true;
+                                         }
+@@ -2584,12 +2588,16 @@
+                                                 pending.borrow_mut().take();
+                                             }
+                                             if let Some(clicked) = &state.clicked_state {
+-                                                *clicked.borrow_mut() = ElementClickedState::default();
++                                                *clicked.borrow_mut() =
++                                                    ElementClickedState::default();
+                                             }
+                                         }
+-                                        if input_visible
+-                                            && let Some(focus_handle) = &self.tracked_focus_handle {
+-                                            window.next_frame.tab_stops.insert(focus_handle);
++                                        if let Some(focus_handle) = &self.tracked_focus_handle {
++                                            window.next_frame.tab_stops.insert_with_bounds(
++                                                focus_handle,
++                                                Some(bounds),
++                                                input_visible,
++                                            );
+                                         }
+                                         if let Some(hitbox) = hitbox {
+                                             #[cfg(debug_assertions)]
+@@ -2625,7 +2633,9 @@
+                                                     window,
+                                                     cx,
+                                                 );
+-                                                self.paint_scroll_listener(hitbox, &style, window, cx);
++                                                self.paint_scroll_listener(
++                                                    hitbox, &style, window, cx,
++                                                );
+                                             }
+                                         }
+ 
+--- a/src/tab_stop.rs
++++ b/src/tab_stop.rs
+@@ -4,7 +4,7 @@
+ use collections::FxHashMap;
+ use sum_tree::Bias;
+ 
+-use crate::{FocusHandle, FocusId};
++use crate::{Bounds, FocusHandle, FocusId, Pixels};
+ 
+ /// Represents a collection of focus handles using the tab-index APIs.
+ #[derive(Debug)]
+@@ -17,7 +17,7 @@
+ 
+ #[derive(Debug, Clone)]
+ pub enum TabStopOperation {
+-    Insert(FocusHandle),
++    Insert(FocusHandle, Option<Bounds<Pixels>>, bool),
+     Group(TabIndex),
+     GroupEnd,
+ }
+@@ -25,7 +25,7 @@
+ impl TabStopOperation {
+     fn focus_handle(&self) -> Option<&FocusHandle> {
+         match self {
+-            TabStopOperation::Insert(focus_handle) => Some(focus_handle),
++            TabStopOperation::Insert(focus_handle, ..) => Some(focus_handle),
+             _ => None,
+         }
+     }
+@@ -75,14 +75,27 @@
+ }
+ 
+ impl TabStopMap {
++    #[cfg(test)]
+     pub fn insert(&mut self, focus_handle: &FocusHandle) {
+-        self.insertion_history
+-            .push(TabStopOperation::Insert(focus_handle.clone()));
++        self.insert_with_bounds(focus_handle, None, true);
++    }
++
++    pub(crate) fn insert_with_bounds(
++        &mut self,
++        focus_handle: &FocusHandle,
++        bounds: Option<Bounds<Pixels>>,
++        eligible: bool,
++    ) {
++        self.insertion_history.push(TabStopOperation::Insert(
++            focus_handle.clone(),
++            bounds,
++            eligible,
++        ));
+         let mut path = self.current_path.clone();
+         path.0.push(focus_handle.tab_index);
+         let order = TabStopNode {
+             node_insertion_index: self.insertion_history.len() - 1,
+-            tab_stop: focus_handle.tab_stop,
++            tab_stop: focus_handle.tab_stop && eligible,
+             path,
+         };
+         self.by_id.insert(focus_handle.id, order.clone());
+@@ -106,6 +119,38 @@
+         self.insertion_history.clear();
+         self.by_id.clear();
+         self.order = SumTree::new(());
++    }
++
++    /// Snapshot in native tab order, without changing focus or wrapping.
++    pub(crate) fn handles(&self) -> Vec<FocusHandle> {
++        let mut cursor = self.order.cursor::<TabStopNode>(());
++        cursor.next();
++        let mut handles = Vec::new();
++        while let Some(node) = cursor.item() {
++            if node.tab_stop
++                && let Some(handle) = self.focus_handle_for_order(node)
++            {
++                handles.push(handle);
++            }
++            cursor.next();
++        }
++        handles
++    }
++
++    pub(crate) fn candidates(&self) -> Vec<(FocusHandle, Bounds<Pixels>)> {
++        let mut cursor = self.order.cursor::<TabStopNode>(());
++        cursor.next();
++        let mut handles = Vec::new();
++        while let Some(node) = cursor.item() {
++            if let TabStopOperation::Insert(handle, Some(bounds), _) =
++                &self.insertion_history[node.node_insertion_index]
++                && handle.tab_stop
++            {
++                handles.push((handle.clone(), *bounds));
++            }
++            cursor.next();
++        }
++        handles
+     }
+ 
+     pub fn next(&self, focused_id: Option<&FocusId>) -> Option<FocusHandle> {
+@@ -185,7 +230,9 @@
+     pub fn replay(&mut self, nodes: &[TabStopOperation]) {
+         for node in nodes {
+             match node {
+-                TabStopOperation::Insert(focus_handle) => self.insert(focus_handle),
++                TabStopOperation::Insert(focus_handle, bounds, eligible) => {
++                    self.insert_with_bounds(focus_handle, *bounds, *eligible)
++                }
+                 TabStopOperation::Group(tab_index) => self.begin_group(*tab_index),
+                 TabStopOperation::GroupEnd => self.end_group(),
+             }
+@@ -345,6 +392,7 @@
+             focus_handles[6].clone(),
+         ];
+ 
++        assert_eq!(tab_index_map.handles(), expected);
+         let mut prev = None;
+         let mut found = vec![];
+         for _ in 0..expected.len() {
+--- a/src/window.rs
++++ b/src/window.rs
+@@ -2275,6 +2275,50 @@
+         }
+     }
+ 
++    /// Snapshot eligible descendant tab stops from the last rendered frame.
++    /// Excludes the scope itself. This does not move focus, clear pending key
++    /// chords, realize virtual rows or admit controls omitted by input clipping.
++    pub fn tab_stops_within(&self, scope: &FocusHandle) -> Vec<FocusHandle> {
++        self.rendered_frame
++            .tab_stops
++            .handles()
++            .into_iter()
++            .filter(|handle| handle != scope && scope.contains(handle, self))
++            .collect()
++    }
++
++    /// Native tab-order candidates in a rendered subtree, including controls
++    /// excluded by input clipping. Bounds are in window coordinates. These are
++    /// reveal hints, NOT focus eligibility: after scrolling/rendering, callers
++    /// must find the handle in `tab_stops_within` before moving focus.
++    pub fn tab_candidates_within(&self, scope: &FocusHandle) -> Vec<(FocusHandle, Bounds<Pixels>)> {
++        self.rendered_frame
++            .tab_stops
++            .candidates()
++            .into_iter()
++            .filter(|(handle, _)| handle != scope && scope.contains(handle, self))
++            .collect()
++    }
++
++    /// Find the next/previous painted tab stop outside a subtree, without
++    /// changing focus. Wraps once, like ordinary native Tab traversal.
++    pub fn tab_stop_outside(&self, scope: &FocusHandle, backward: bool) -> Option<FocusHandle> {
++        let map = &self.rendered_frame.tab_stops;
++        let mut anchor = Some(scope.id);
++        for _ in 0..map.tab_stop_count() + 1 {
++            let next = if backward {
++                map.prev(anchor.as_ref())
++            } else {
++                map.next(anchor.as_ref())
++            }?;
++            if !scope.contains(&next, self) {
++                return Some(next);
++            }
++            anchor = Some(next.id);
++        }
++        None
++    }
++
+     /// Move focus to previous tab stop.
+     pub fn focus_prev(&mut self, cx: &mut App) {
+         if !self.focus_enabled {
+--- a/src/app/test_context.rs
++++ b/src/app/test_context.rs
+@@ -779,6 +779,15 @@
+ }
+ 
+ impl VisualTestContext {
++    /// Deliver a simulated native appearance notification without an OS window.
++    /// The ordinary deferred platform callback updates observers; run until parked
++    /// before inspecting the resulting snapshot.
++    pub fn simulate_appearance_change(&self, appearance: crate::WindowAppearance) {
++        self.cx
++            .test_window(self.window)
++            .simulate_appearance_change(appearance);
++    }
++
+     /// Activate/deactivate the test accessibility adapter without OS integration.
+     pub fn simulate_a11y_active(&self, active: bool) {
+         self.cx
+@@ -789,7 +798,9 @@
+     /// Deliver an accessibility action through the test platform adapter.
+     /// Call `run_until_parked` to process the asynchronous request.
+     pub fn simulate_a11y_action(&self, request: accesskit::ActionRequest) {
+-        self.cx.test_window(self.window).simulate_a11y_action(request);
++        self.cx
++            .test_window(self.window)
++            .simulate_a11y_action(request);
+     }
+ 
+     /// Last tree delivered to this window's test accessibility adapter.

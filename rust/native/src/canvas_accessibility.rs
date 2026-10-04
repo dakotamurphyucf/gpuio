@@ -12,17 +12,52 @@ struct Route {
     snapshot: std::sync::Weak<Snapshot>,
     item: i64,
 }
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Rejection {
+    ReplacedCallback,
+    Input(input::InputRejection),
+    StaleSnapshot,
+}
 impl Route {
+    fn rejection(&self, state: &State, window: &Window) -> Option<Rejection> {
+        if !Rc::ptr_eq(&self.token, &state.input.token) {
+            Some(Rejection::ReplacedCallback)
+        } else if let Some(reason) = state.input_rejection(window, false) {
+            Some(Rejection::Input(reason))
+        } else if !self.snapshot.upgrade().is_some_and(|snapshot| {
+            state
+                .native
+                .as_ref()
+                .is_some_and(|native| Arc::ptr_eq(native.snapshot(), &snapshot))
+        }) {
+            Some(Rejection::StaleSnapshot)
+        } else {
+            None
+        }
+    }
+
     fn invoke(&self, activate: bool, window: &mut Window, cx: &mut App) {
         let mut state = self.state.borrow_mut();
-        if !state.valid_callback(&self.token, window, false)
-            || !self.snapshot.upgrade().is_some_and(|snapshot| {
-                state
-                    .native
-                    .as_ref()
-                    .is_some_and(|native| Arc::ptr_eq(native.snapshot(), &snapshot))
-            })
-        {
+        let rejection = self.rejection(&state, window);
+        if trace_enabled() {
+            let captured = self
+                .snapshot
+                .upgrade()
+                .map(|snapshot| (snapshot.revision, snapshot.generation));
+            let native = state
+                .native
+                .as_ref()
+                .map(|native| (native.snapshot().revision, native.snapshot().generation));
+            let published = state.lease.as_ref().map(|lease| {
+                let snapshot = lease.snapshot();
+                (snapshot.revision, snapshot.generation)
+            });
+            eprintln!(
+                "GPUIO_CANVAS_AX_ROUTE: node={:?} item={} activate={} captured={captured:?} native={native:?} published={published:?} rejection={rejection:?}",
+                state.node, self.item, activate
+            );
+        }
+        if rejection.is_some() {
             return;
         }
         state.flush_viewport(cx);
@@ -136,7 +171,14 @@ pub(super) fn objects(
     let Some(source) = state_ref.config.source else {
         return element;
     };
-    let disabled = !state_ref.input_allowed(window, false);
+    let rejection = state_ref.input_rejection(window, false);
+    let disabled = rejection.is_some();
+    if trace_enabled() {
+        eprintln!(
+            "GPUIO_CANVAS_AX_TREE: node={:?} revision={} generation={} rejection={rejection:?}",
+            state_ref.node, snapshot.revision, snapshot.generation
+        );
+    }
     // Keep semantic envelopes out of the outer element's scroll extents.
     // This layer has exactly the same size as the native painting layer.
     let mut objects = div()
@@ -209,6 +251,8 @@ pub(super) fn objects(
                     });
             }
             object = object.child(crate::semantics::State {
+                identity: None,
+                busy: false,
                 hidden: false,
                 metadata: None,
                 element: activate,
@@ -219,6 +263,8 @@ pub(super) fn objects(
             });
         }
         objects = objects.child(crate::semantics::State {
+            identity: None,
+            busy: false,
             hidden: false,
             metadata: None,
             element: object,
@@ -290,3 +336,7 @@ mod tests {
         assert_eq!((clipped.width, clipped.height), (0., 0.));
     }
 }
+
+#[cfg(all(test, feature = "native-canvas-tests"))]
+#[path = "canvas_route_test.rs"]
+mod route_test;

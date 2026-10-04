@@ -58,10 +58,10 @@ fn negotiated_mount_seed_has_independent_hello_bytes() {
     assert_eq!(CAP_NUMBER_INPUT_DRAFT, 1_i64 << 53);
     assert_eq!(
         hex(&bytes(&Message::Hello(VERSION, CAP_NUMBER_INPUT_DRAFT))),
-        "0001fc0000000000002000"
+        "0003fc0000000000002000"
     );
     assert_eq!(
         hex(&bytes(&Message::Hello(VERSION, CAPABILITIES))),
-        "0001fcffffffffffffff00"
+        "0003fcffffffffffffff7f"
     );
 }

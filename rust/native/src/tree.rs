@@ -10,19 +10,35 @@ fn allows_children(kind: Kind) -> bool {
     matches!(
         kind,
         Kind::Container
+            | Kind::Input
+            | Kind::Textarea
+            | Kind::NumberInput
+            | Kind::Calendar
             | Kind::TabPanel
             | Kind::Panel
             | Kind::Disclosure
             | Kind::Accordion
             | Kind::NavigationStack
             | Kind::Carousel
+            | Kind::CarouselTrack
+            | Kind::CarouselTrackGroup
             | Kind::SplitPane
+            | Kind::SplitGroup
             | Kind::VirtualList
             | Kind::Animated
             | Kind::AnimationProgram
             | Kind::ContainerQuery
             | Kind::Button
+            | Kind::Checkbox
+            | Kind::Switch
+            | Kind::Radio
+            | Kind::RadioGroup
+            | Kind::TabBar
+            | Kind::Select
+            | Kind::ChoicePicker
             | Kind::Link
+            | Kind::Avatar
+            | Kind::Progress
             | Kind::CommandButton
             | Kind::FocusScope
             | Kind::Tooltip
@@ -72,6 +88,12 @@ pub struct CalendarMount {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+pub struct SplitGroupMount {
+    pub config: Arc<gpuio_protocol::split_group::Config>,
+    pub appearance: Arc<gpuio_protocol::split_group_appearance::Config>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub struct Node {
     pub id: NodeId,
     pub kind: Kind,
@@ -79,10 +101,26 @@ pub struct Node {
     pub text_spans: Arc<[gpuio_protocol::text_content::Span]>,
     pub text_shimmer: Option<Arc<gpuio_protocol::text_shimmer::Config>>,
     pub editor: Option<Arc<EditorConfig>>,
+    pub editor_privacy: EditorPrivacy,
+    pub editor_content_hint: Option<gpuio_protocol::input_content_hint::Hint>,
+    pub editor_format: Option<Arc<gpuio_protocol::input_format::Config>>,
+    pub editor_clear_on_escape: bool,
+    pub editor_searchable: bool,
+    pub textarea_layout: Option<gpuio_protocol::text_area_layout::Config>,
+    pub(crate) editor_validation: Option<Arc<crate::input_validation::Policy>>,
+    pub editor_frame: Option<Arc<gpuio_protocol::editor_frame::Config>>,
+    pub editor_frame_activation_revision: i64,
     pub control: Option<Control>,
     pub link: Option<Arc<gpuio_protocol::link::Config>>,
     pub choice: Option<Arc<ChoiceConfig>>,
+    pub choice_picker: Option<Arc<gpuio_protocol::choice_picker::Presentation>>,
     pub focus_scope: Option<FocusScopeConfig>,
+    pub overlay_backdrop: Option<i64>,
+    pub overlay_motion: bool,
+    pub tooltip_motion: bool,
+    pub window_region: Option<Arc<gpuio_protocol::window_region::Region>>,
+    pub placement_geometry: Option<gpuio_protocol::placement_geometry::Config>,
+    pub sheet_insets: Option<gpuio_protocol::sheet_insets::Insets>,
     pub overlay: Option<Arc<OverlayConfig>>,
     pub tooltip: Option<Arc<TooltipConfig>>,
     pub commands: Option<Arc<[Arc<CommandConfig>]>>,
@@ -90,40 +128,84 @@ pub struct Node {
     pub menu: Option<Arc<MenuConfig>>,
     pub palette: Option<Arc<PaletteConfig>>,
     pub progress: Option<Arc<ProgressConfig>>,
+    pub progress_presentation: Option<Arc<gpuio_protocol::progress_presentation::Config>>,
     pub loading: Option<Arc<gpuio_protocol::loading::Config>>,
+    pub spinner: Option<Arc<gpuio_protocol::spinner::Config>>,
     pub image: Option<Arc<ImageConfig>>,
     pub avatar: Option<Arc<gpuio_protocol::avatar::Config>>,
     pub rating: Option<Arc<gpuio_protocol::rating::Config>>,
+    pub tab_order: Option<gpuio_protocol::checkable::TabOrder>,
+    pub split_button: Option<Arc<gpuio_protocol::split_button::Config>>,
+    pub button_presentation: Option<gpuio_protocol::button::Config>,
+    pub button_activation_revision: i64,
+    pub tab_appearance: Option<Arc<gpuio_protocol::tab_appearance::Config>>,
+    pub tab_content: Option<Arc<gpuio_protocol::tab_content::Config>>,
+    pub tab_viewport: Option<Arc<gpuio_protocol::tab_viewport::Config>>,
+    pub tab_motion: Option<Arc<gpuio_protocol::tab_motion::Config>>,
+    pub tab_trailing: bool,
+    pub choice_menu: bool,
+    pub control_appearance: Option<Arc<gpuio_protocol::control_appearance::Config>>,
+    pub rating_appearance: Option<Arc<gpuio_protocol::rating::Appearance>>,
     pub slider: Option<SliderMount>,
     pub number_input: Option<NumberInputMount>,
+    pub number_step_mode: gpuio_protocol::number_input::StepMode,
+    pub number_presentation: Option<Arc<gpuio_protocol::number_presentation::Config>>,
     pub otp_input: Option<OtpInputMount>,
+    pub popover: bool,
+    pub reveal: Option<gpuio_protocol::reveal::Config>,
+    pub calendar_appearance: Option<Arc<gpuio_protocol::calendar_presentation::Appearance>>,
+    pub calendar_content: Option<Arc<gpuio_protocol::calendar_content::Config>>,
+    pub color_presentation: Option<Arc<gpuio_protocol::color_presentation::Presentation>>,
+    pub slider_appearance: Option<Arc<gpuio_protocol::slider_presentation::Appearance>>,
+    pub otp_appearance: Option<Arc<gpuio_protocol::otp_presentation::Appearance>>,
     pub calendar: Option<CalendarMount>,
     pub color_input: Option<ColorInputMount>,
     pub extension: Option<Arc<gpuio_protocol::extension::Config>>,
     pub extension_command: Option<Arc<gpuio_protocol::extension::Command>>,
     pub split: Option<Arc<gpuio_protocol::split::Config>>,
+    pub split_group: Option<SplitGroupMount>,
     pub document: Option<Arc<gpuio_protocol::document::Config>>,
     pub document_diff: Option<Arc<gpuio_protocol::document_diff::Config>>,
     pub document_diff_epoch: i64,
+    pub document_selection_markdown: bool,
+    pub document_markdown_options: gpuio_protocol::document::MarkdownOptions,
+    pub document_text_style: Option<Arc<gpuio_protocol::document_style::Config>>,
+    pub document_profile: Option<Arc<gpuio_protocol::document_profile::Config>>,
+    pub document_actions: Option<Arc<gpuio_protocol::document_actions::Config>>,
+    pub document_preview: Option<Arc<gpuio_protocol::document_preview::Config>>,
     pub canvas: Option<Arc<gpuio_protocol::canvas_view::Config>>,
     pub chart: Option<Arc<gpuio_protocol::chart_view::Config>>,
     pub animation: Option<Arc<gpuio_protocol::animation::Config>>,
     pub animation_program: Option<Arc<gpuio_protocol::animation_program::Config>>,
     pub navigation_stack: Option<gpuio_protocol::navigation_stack::Config>,
     pub carousel: Option<Arc<gpuio_protocol::carousel::Config>>,
+    pub carousel_track: Option<Arc<gpuio_protocol::carousel_track::Config>>,
+    pub carousel_track_motion: Option<gpuio_protocol::carousel_track::Motion>,
     pub table: Option<Arc<gpuio_protocol::table::Config>>,
     pub table_cell: Option<Arc<gpuio_protocol::table::Cell>>,
+    pub table_header: Option<Arc<gpuio_protocol::table_header::Target>>,
+    pub table_header_style: Arc<[Style]>,
+    pub table_row_style: Arc<[Style]>,
+    pub table_behavior: Option<Arc<gpuio_protocol::table::Behavior>>,
+    pub table_appearance: Option<Arc<gpuio_protocol::table::Appearance>>,
     pub table_serial: i64,
     pub tree_input: bool,
+    pub list_input: Option<gpuio_protocol::list_input::Config>,
+    pub list_input_generation: i64,
     pub tree_moves: bool,
     pub container_query: Option<Arc<gpuio_protocol::container_query::Config>>,
     pub accessibility: Option<Arc<gpuio_protocol::accessibility::Config>>,
+    pub list_axis: gpuio_protocol::list::Axis,
     pub list_config: Option<Arc<gpuio_protocol::list::Config>>,
     pub list_order: Option<Arc<gpuio_protocol::list::Order>>,
     pub list_index: Option<Arc<crate::list_index::Index>>,
     pub list_rows: Arc<[gpuio_protocol::list::Row]>,
     pub toast: Option<Arc<ToastConfig>>,
     pub toast_stack: Option<Arc<ToastStackConfig>>,
+    pub toast_placement: Option<gpuio_protocol::toast_placement::Placement>,
+    pub toast_layering: Option<gpuio_protocol::toast_layering::Layering>,
+    pub toast_motion: Option<gpuio_protocol::toast_motion::Config>,
+    pub scrollbar: Option<Arc<gpuio_protocol::scrollbar::Config>>,
     pub drag_source: Option<Arc<gpuio_protocol::drag_drop::Source>>,
     pub drop_target: Option<Arc<gpuio_protocol::drag_drop::Target>>,
     pub pointer: Option<Arc<PointerConfig>>,
@@ -135,6 +217,8 @@ pub struct Node {
     pub choice_appearance: Option<Arc<ChoiceAppearance>>,
     pub style: Arc<[Style]>,
     pub handler: Option<HandlerId>,
+    pub hover_handler: Option<HandlerId>,
+    pub calendar_viewport_handler: Option<HandlerId>,
     pub children: Arc<[NodeId]>,
     pub parent: Option<NodeId>,
 }
@@ -149,6 +233,10 @@ impl Node {
                 .as_ref()
                 .map_or(0, |cell| cell.retained_bytes())
             + self
+                .carousel_track
+                .as_ref()
+                .map_or(0, |config| config.retained_bytes())
+            + self
                 .carousel
                 .as_ref()
                 .map_or(0, |config| config.retained_bytes())
@@ -159,23 +247,89 @@ impl Node {
             + self
                 .calendar
                 .as_ref()
-                .map_or(0, |calendar| 32 + calendar.config.retained_bytes())
+                .map_or(0, |calendar| 160 + calendar.config.retained_bytes())
             + self
                 .otp_input
                 .as_ref()
                 .map_or(0, |s| s.config.retained_bytes() + s.initial.len())
+            + self.number_presentation.as_ref().map_or(0, |config| {
+                crate::number_presentation::retained_bytes(config)
+            })
             + self.number_input.as_ref().map_or(0, |s| {
                 s.config.retained_bytes() + s.initial_draft.as_ref().map_or(0, |draft| draft.len())
             })
-            + self
-                .slider
-                .as_ref()
-                .map_or(0, |s| s.config.retained_bytes())
+            + self.slider.as_ref().map_or(0, |s| {
+                s.config.retained_bytes() + crate::slider_state::INTERACTION_RESERVED_BYTES
+            })
+            + self.choice_picker.as_ref().map_or(0, |p| {
+                crate::choice_picker_admission::retained_bytes(p)
+                    + crate::choice_picker_admission::owner_reserved_bytes(p)
+            })
             + self.rating.as_ref().map_or(0, |c| c.retained_bytes())
+            + self
+                .tab_appearance
+                .as_ref()
+                .map_or(0, |config| crate::tab_appearance::retained_bytes(config))
+            + self.tab_motion.as_ref().map_or(0, |_| {
+                std::mem::size_of::<gpuio_protocol::tab_motion::Config>()
+                    + gpuio_protocol::tab_motion::Config::OWNER_RESERVED_BYTES
+            })
+            + self.tab_content.as_ref().map_or(0, |c| c.retained_bytes())
+            + self.tab_viewport.as_ref().map_or(0, |c| {
+                c.retained_bytes()
+                    + gpuio_protocol::tab_viewport::Config::owner_reserved_bytes(
+                        self.choice.as_ref().map_or(0, |c| c.items.len()),
+                    )
+            })
+            + self.control_appearance.as_ref().map_or(0, |appearance| {
+                crate::control_appearance::retained_bytes(appearance)
+            })
+            + self.reveal.map_or(0, |_| {
+                crate::reveal_motion::RESERVED_BYTES
+                    + std::mem::size_of::<gpuio_protocol::reveal::Config>()
+            })
+            + self.slider_appearance.as_ref().map_or(0, |_| {
+                std::mem::size_of::<gpuio_protocol::slider_presentation::Appearance>()
+            })
+            + self.calendar_appearance.as_ref().map_or(0, |_| {
+                std::mem::size_of::<gpuio_protocol::calendar_presentation::Appearance>()
+            })
+            + self
+                .calendar_content
+                .as_ref()
+                .map_or(0, |config| config.retained_bytes())
+            + self
+                .color_presentation
+                .as_ref()
+                .map_or(0, |p| p.retained_bytes())
+            + self.otp_appearance.as_ref().map_or(0, |_| {
+                std::mem::size_of::<gpuio_protocol::otp_presentation::Appearance>()
+            })
+            + self.rating_appearance.as_ref().map_or(0, |_| {
+                std::mem::size_of::<gpuio_protocol::rating::Appearance>()
+            })
             + self.avatar.as_ref().map_or(0, |c| c.retained_bytes())
             + self.loading.as_ref().map_or(0, |c| c.retained_bytes())
+            + self.spinner.as_ref().map_or(0, |c| {
+                c.retained_bytes() + crate::spinner_clock::RESERVED_BYTES
+            })
             + self.navigation_stack.map_or(0, |_| {
                 std::mem::size_of::<gpuio_protocol::navigation_stack::Config>()
+            })
+            + self
+                .editor_frame
+                .as_ref()
+                .map_or(0, |frame| frame.retained_bytes())
+            + self
+                .editor_format
+                .as_ref()
+                .map_or(0, |config| crate::input_format::retained_bytes(config))
+            + self
+                .editor_validation
+                .as_ref()
+                .map_or(0, |policy| policy.retained_bytes())
+            + self.textarea_layout.map_or(0, |_| {
+                std::mem::size_of::<gpuio_protocol::text_area_layout::Config>()
             })
             + self.text.len()
             + self
@@ -216,6 +370,20 @@ impl Node {
                 .split
                 .as_ref()
                 .map_or(0, |config| config.label.len() + 128)
+            + self.split_group.as_ref().map_or(0, |mount| {
+                // Conservative native owner/focus/frame reservation per panel,
+                // plus retained descriptions and variable-size handle paint.
+                8192 + mount.config.panels.len() * 4096
+                    + mount.config.label.len()
+                    + mount
+                        .config
+                        .panels
+                        .iter()
+                        .map(|p| p.id.len() + p.label.len())
+                        .sum::<usize>()
+                    + mount.config.resize.as_ref().map_or(0, |r| r.id.len())
+                    + crate::split_group_appearance::retained_bytes(&mount.appearance)
+            })
             + self.list_order.as_ref().map_or(0, |order| {
                 // Admission units include expanded indexing and GPUI measurement
                 // metadata, not merely the compact serialized runs. This is a
@@ -245,6 +413,10 @@ impl Node {
                 .document_diff
                 .as_ref()
                 .map_or(0, |config| config.retained_bytes())
+            + self.document_text_style.as_ref().map_or(0, |style| crate::document_style::retained_bytes(style))
+            + self.document_profile.as_ref().map_or(0, |c| c.retained_bytes())
+            + self.document_actions.as_ref().map_or(0, |c| c.retained_bytes())
+            + self.document_preview.as_ref().map_or(0, |_| std::mem::size_of::<gpuio_protocol::document_preview::Config>() + 256)
             + self.command_binding.as_ref().map_or(0, |config| {
                 config.retained_bytes()
                     + 2 * (gpuio_protocol::command_binding::MAX_OBSERVATION_BYTES + 256)
@@ -265,6 +437,26 @@ impl Node {
                 std::mem::size_of::<ToastStackConfig>() + config.label.len()
             })
             + self
+                .toast_layering
+                .map_or(0, |c| c.retained_bytes(self.children.len()))
+            + self
+                .toast_motion
+                .map_or(0, |c| c.retained_bytes(self.children.len()))
+            // Conservative BTreeMap query-to-owner registration accounting.
+            + self.list_input.and_then(|config| config.query).map_or(0, |_| 128)
+            + [&self.table_header_style, &self.table_row_style].iter().map(|styles| {
+                if styles.is_empty() { 0 } else { 128 + std::mem::size_of_val(&***styles)
+                    + styles.iter().map(crate::style::retained_bytes).sum::<usize>() }
+            }).sum::<usize>()
+            + self.table_header.as_ref().map_or(0, |target| target.retained_bytes() + 128)
+            + self.table_behavior.as_ref().map_or(0, |config| config.retained_bytes())
+            + self.table_appearance.as_ref().map_or(0, |config| config.retained_bytes())
+            + self.scrollbar.as_ref().map_or(0, |c| c.retained_bytes())
+            + self.window_region.as_ref().map_or(0, |_| crate::host::window_regions::RESERVED_BYTES)
+            + self.toast_placement.map_or(0, |_| {
+                std::mem::size_of::<gpuio_protocol::toast_placement::Placement>()
+            })
+            + self
                 .document
                 .as_ref()
                 .map_or(0, |config| config.retained_bytes())
@@ -278,6 +470,9 @@ impl Node {
                         .initial
                         .as_ref()
                         .map_or(0, |targets| std::mem::size_of_val(targets.as_slice()))
+            })
+            + self.progress_presentation.as_ref().map_or(0, |config| {
+                config.retained_bytes() + crate::progress_clock::RESERVED_BYTES
             })
             + self.progress.as_ref().map_or(0, |config| {
                 std::mem::size_of::<ProgressConfig>() + config.label.len()
@@ -299,14 +494,22 @@ impl Node {
                 .as_ref()
                 .map_or(0, |palette| palette.retained_bytes())
             + self.tooltip.as_ref().map_or(0, |config| {
-                std::mem::size_of::<TooltipConfig>() + config.label.len()
+                std::mem::size_of::<TooltipConfig>()
+                    + config.label.len()
+                    + if self.kind == Kind::Tooltip { 512 } else { 0 }
             })
             + self
                 .placement
                 .map_or(0, |_| std::mem::size_of::<Placement>())
             + self.overlay.as_ref().map_or(0, |config| {
-                std::mem::size_of::<OverlayConfig>() + config.label.len()
+                std::mem::size_of::<OverlayConfig>()
+                    + config.label.len()
+                    + if config.kind.is_modal() { 256 } else { 0 }
             })
+            + self
+                .split_button
+                .as_ref()
+                .map_or(0, |config| crate::split_button::retained_bytes(config))
             + self.choice_appearance.as_ref().map_or(0, |appearance| {
                 crate::appearance::retained_bytes(appearance)
             })
@@ -350,6 +553,7 @@ struct Slot {
 #[derive(Debug)]
 pub struct Tree {
     binding_owners: BTreeSet<NodeId>,
+    list_query_owners: BTreeMap<NodeId, NodeId>,
     window: WindowId,
     revision: i64,
     root: Option<NodeId>,
@@ -382,6 +586,7 @@ impl Tree {
         Self {
             window,
             binding_owners: BTreeSet::new(),
+            list_query_owners: BTreeMap::new(),
             revision: 0,
             root: None,
             slots: Vec::new(),
@@ -395,6 +600,12 @@ impl Tree {
 
     pub fn binding_owners(&self) -> impl Iterator<Item = NodeId> + '_ {
         self.binding_owners.iter().copied()
+    }
+
+    /// Exact query incarnation to input owner. Keyboard routing need not scan
+    /// unrelated lists or traverse application rows on every keystroke.
+    pub fn list_query_owner(&self, query: NodeId) -> Option<NodeId> {
+        self.list_query_owners.get(&query).copied()
     }
 
     pub fn revision(&self) -> i64 {
@@ -429,6 +640,17 @@ impl Tree {
         (trigger.kind == Kind::Button).then_some(trigger.id)
     }
 
+    /// Only a direct button anchor owns a popover's trigger semantics. Do not
+    /// search arbitrary custom anchor subtrees for a supposed activation owner.
+    pub fn popover_for_trigger(&self, id: NodeId) -> Option<&Node> {
+        let trigger = self.get(id)?;
+        if !matches!(trigger.kind, Kind::Button | Kind::CommandButton) {
+            return None;
+        }
+        let parent = self.get(trigger.parent?)?;
+        (parent.popover && parent.children.first() == Some(&id)).then_some(parent)
+    }
+
     pub fn disclosure_for_trigger(&self, id: NodeId) -> Option<&Node> {
         let parent = self.get(self.get(id)?.parent?)?;
         let disclosure = if parent.kind == Kind::Container {
@@ -439,6 +661,26 @@ impl Tree {
         (self.disclosure_trigger(disclosure.id) == Some(id)).then_some(disclosure)
     }
 
+    /// Explicitly admitted outer group, never inferred from a user key/label.
+    pub(crate) fn carousel_track_control(&self, control: NodeId) -> Option<NodeId> {
+        let node = self.get(control)?;
+        if node.kind != Kind::Button {
+            return None;
+        }
+        let controls = self.get(node.parent?)?;
+        let group = self.get(controls.parent?)?;
+        (group.kind == Kind::CarouselTrackGroup && group.children.get(1) == Some(&controls.id))
+            .then(|| group.children[0])
+    }
+    pub(crate) fn carousel_track_item(&self, item: NodeId) -> Option<(usize, usize)> {
+        let track = self.get(self.get(item)?.parent?)?;
+        let viewport = self.get(track.parent?)?;
+        let config = viewport.carousel_track.as_ref()?;
+        Some((
+            track.children.iter().position(|id| *id == item)?,
+            config.carousel.ids.len(),
+        ))
+    }
     pub fn get(&self, id: NodeId) -> Option<&Node> {
         self.slots
             .get(id.slot())
@@ -643,7 +885,13 @@ impl Tree {
             .values()
             .filter_map(|slot| {
                 let parent = slot.node.as_ref()?.parent?;
-                plan.node(parent).ok()?.carousel.as_ref()?;
+                let owner = plan.node(parent).ok()?;
+                if owner.carousel.is_none()
+                    && owner.carousel_track.is_none()
+                    && owner.kind != Kind::CarouselTrackGroup
+                {
+                    return None;
+                }
                 Some(parent)
             })
             .collect::<BTreeSet<_>>();
@@ -653,6 +901,20 @@ impl Tree {
         for slot in plan.changes.values() {
             if let Some(node) = &slot.node {
                 plan.validate_list(node)?;
+                plan.validate_track_group(node)?;
+                if node.reveal.is_some_and(|config| {
+                    (!config.expanded && !crate::style::display_none(&node.style))
+                        || (!config.expanded && !config.retain && !node.children.is_empty())
+                }) {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
+                if node
+                    .editor_content_hint
+                    .is_some_and(|hint| hint.is_password())
+                    && node.editor_privacy == EditorPrivacy::Plain
+                {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
                 if let Some(config) = &node.text_shimmer {
                     if node.kind != Kind::Text || !config.is_valid() {
                         return Err(ErrorCode::InvalidTree.into());
@@ -708,6 +970,63 @@ impl Tree {
                 {
                     return Err(ErrorCode::InvalidTree.into());
                 }
+                if node.document_markdown_options != Default::default()
+                    && node.document.as_ref().is_none_or(|config| {
+                        !matches!(config.mode, gpuio_protocol::document::Mode::Markdown)
+                    })
+                {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
+                if node.document_text_style.is_some()
+                    && node.document.as_ref().is_none_or(|config| {
+                        !matches!(
+                            config.mode,
+                            gpuio_protocol::document::Mode::Markdown
+                                | gpuio_protocol::document::Mode::Html
+                        )
+                    })
+                {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
+                if node
+                    .document_profile
+                    .as_ref()
+                    .is_some_and(|config| config.instance.is_some())
+                    && (node.handler.is_none()
+                        || node.document.as_ref().is_none_or(|config| {
+                            !matches!(
+                                config.mode,
+                                gpuio_protocol::document::Mode::Markdown
+                                    | gpuio_protocol::document::Mode::Html
+                            )
+                        }))
+                {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
+                if node.document_actions.as_ref().is_some_and(|actions| {
+                    actions.enabled()
+                        && (node.document.as_ref().is_none_or(|config| {
+                            !matches!(
+                                config.mode,
+                                gpuio_protocol::document::Mode::Markdown
+                                    | gpuio_protocol::document::Mode::Html
+                            )
+                        }) || (actions.observe && node.handler.is_none()))
+                }) {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
+                if node.document_preview.as_ref().is_some_and(|preview| {
+                    preview.enabled()
+                        && (node.document.as_ref().is_none_or(|config| {
+                            !matches!(
+                                config.mode,
+                                gpuio_protocol::document::Mode::Markdown
+                                    | gpuio_protocol::document::Mode::Html
+                            ) || config.layout != gpuio_protocol::document::Layout::Flow
+                        }) || (preview.observe && node.handler.is_none()))
+                }) {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
                 if node.document_diff.is_some()
                     && (node.document_diff_epoch <= 0
                         || node.document.as_ref().is_none_or(|config| {
@@ -720,7 +1039,7 @@ impl Tree {
                     || node.link.as_ref().is_some_and(|config| {
                         !config.is_valid()
                             || !node.text.is_empty()
-                            || (!config.disabled && node.handler.is_none())
+                            || (!config.disabled && !config.loading && node.handler.is_none())
                     })
                 {
                     return Err(ErrorCode::InvalidTree.into());
@@ -797,7 +1116,11 @@ impl Tree {
                 {
                     return Err(ErrorCode::InvalidTree.into());
                 }
-                if (node.kind == Kind::ToastStack) != node.toast_stack.is_some()
+                if (node.toast_placement.is_some()
+                    || node.toast_layering.is_some()
+                    || node.toast_motion.is_some())
+                    && node.kind != Kind::ToastStack
+                    || (node.kind == Kind::ToastStack) != node.toast_stack.is_some()
                     || node.toast_stack.as_ref().is_some_and(|config| {
                         !config.is_valid()
                             || node.handler.is_some()
@@ -841,12 +1164,13 @@ impl Tree {
                     return Err(ErrorCode::InvalidTree.into());
                 }
                 if (matches!(node.kind, Kind::Image | Kind::Icon)
-                    || node.avatar.as_ref().is_some_and(|c| c.source.is_some()))
+                    || node.avatar.as_ref().is_some_and(|c| c.source.is_some())
+                    || node.spinner.as_ref().is_some_and(|c| c.source.is_some()))
                     != node.image.is_some()
                     || node.image.as_ref().is_some_and(|config| {
                         !config.is_valid()
                             || !node.text.is_empty()
-                            || !node.children.is_empty()
+                            || (node.kind != Kind::Avatar && !node.children.is_empty())
                             || node.control.is_some()
                             || node.choice.is_some()
                     })
@@ -869,6 +1193,10 @@ impl Tree {
                 if (node.kind == Kind::ColorInput) != node.color_input.is_some()
                     || node.color_input.as_ref().is_some_and(|color| {
                         !color.config.is_valid()
+                            || node
+                                .color_presentation
+                                .as_ref()
+                                .is_some_and(|p| !p.fits(color.config.palette.len()))
                             || !node.text.is_empty()
                             || !node.children.is_empty()
                             || node.control.is_some()
@@ -883,7 +1211,7 @@ impl Tree {
                         !calendar.config.is_valid()
                             || !calendar.initial.fits(calendar.config.mode)
                             || !node.text.is_empty()
-                            || !node.children.is_empty()
+                            || (node.calendar_content.is_none() && !node.children.is_empty())
                             || node.control.is_some()
                             || node.choice.is_some()
                             || node.handler.is_none()
@@ -912,7 +1240,7 @@ impl Tree {
                                 !gpuio_protocol::number_input::valid_text(draft)
                             })
                             || !node.text.is_empty()
-                            || !node.children.is_empty()
+                            || (node.number_presentation.is_none() && !node.children.is_empty())
                             || node.control.is_some()
                             || node.choice.is_some()
                             || node.handler.is_none()
@@ -937,7 +1265,7 @@ impl Tree {
                         !config.is_valid()
                             || !config.matches_image(node.image.as_deref())
                             || !node.text.is_empty()
-                            || !node.children.is_empty()
+                            || node.children.len() > 1
                             || node.control.is_some()
                             || node.choice.is_some()
                             || (config.source.is_none() && node.handler.is_some())
@@ -951,6 +1279,15 @@ impl Tree {
                             || !node.text.is_empty()
                             || !node.children.is_empty()
                             || node.handler.is_none()
+                    })
+                {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
+                if (node.kind == Kind::SplitGroup) != node.split_group.is_some()
+                    || node.split_group.as_ref().is_some_and(|m| {
+                        !m.config.is_valid()
+                            || !node.text.is_empty()
+                            || node.children.len() != m.config.panels.len()
                     })
                 {
                     return Err(ErrorCode::InvalidTree.into());
@@ -984,14 +1321,34 @@ impl Tree {
                 {
                     return Err(ErrorCode::InvalidTree.into());
                 }
+                if node.spinner.as_ref().is_some_and(|config| {
+                    node.kind != Kind::Loading
+                        || !config.is_valid()
+                        || node.loading.as_ref().is_none_or(|loading| {
+                            loading.kind != gpuio_protocol::loading::Kind::Spinner
+                                || loading.label != config.label
+                                || loading.animated != config.animated
+                                || loading.period_ms != config.period_ms
+                        })
+                        || node.image.as_deref() != config.image().as_ref()
+                }) {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
                 if (node.kind == Kind::Loading) != node.loading.is_some()
                     || node.loading.as_ref().is_some_and(|config| {
                         !config.is_valid()
-                            || node.handler.is_some()
+                            || (node.handler.is_some() && node.image.is_none())
                             || !node.text.is_empty()
                             || !node.children.is_empty()
                             || node.control.is_some()
                             || node.choice.is_some()
+                    })
+                {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
+                if (node.kind == Kind::Progress) != node.progress_presentation.is_some()
+                    || node.progress_presentation.as_ref().is_some_and(|config| {
+                        !config.is_valid() || node.progress.as_deref() != Some(&config.progress)
                     })
                 {
                     return Err(ErrorCode::InvalidTree.into());
@@ -1001,7 +1358,11 @@ impl Tree {
                         !config.is_valid()
                             || node.handler.is_some()
                             || !node.text.is_empty()
-                            || !node.children.is_empty()
+                            || (!node.children.is_empty()
+                                && node.progress_presentation.as_ref().is_none_or(|config| {
+                                    config.shape
+                                        != gpuio_protocol::progress_presentation::Shape::Circle
+                                }))
                             || node.control.is_some()
                             || node.choice.is_some()
                     })
@@ -1023,14 +1384,28 @@ impl Tree {
                 if (node.kind == Kind::Menu) != node.menu.is_some()
                     || node.menu.as_ref().is_some_and(|menu| {
                         !menu.is_valid()
-                            || node.handler.is_some()
+                            || (node.handler.is_some()
+                                && menu.presentation != MenuPresentation::Button)
                             || node.control.is_some()
                             || node.choice.is_some()
-                            || node.children.len()
-                                != usize::from(menu.presentation == MenuPresentation::Context)
+                            || node.children.len() != usize::from(menu.presentation.is_context())
                     })
                 {
                     return Err(ErrorCode::InvalidTree.into());
+                }
+                if node
+                    .menu
+                    .as_ref()
+                    .is_some_and(|menu| menu.presentation == MenuPresentation::EditorContext)
+                {
+                    let child = node
+                        .children
+                        .first()
+                        .and_then(|id| plan.node(*id).ok())
+                        .ok_or(ErrorCode::InvalidTree)?;
+                    if !matches!(child.kind, Kind::Input | Kind::Textarea) {
+                        return Err(ErrorCode::InvalidTree.into());
+                    }
                 }
                 if (node.kind == Kind::CommandScope) != node.commands.is_some()
                     || (node.kind == Kind::CommandButton) != node.command_ref.is_some()
@@ -1061,7 +1436,48 @@ impl Tree {
                 {
                     return Err(ErrorCode::InvalidTree.into());
                 }
-                if node.placement.is_some() && node.overlay.is_none() && node.tooltip.is_none() {
+                if node.placement.is_some()
+                    && node.overlay.is_none()
+                    && node.tooltip.is_none()
+                    && !node
+                        .menu
+                        .as_ref()
+                        .is_some_and(|menu| menu.presentation == MenuPresentation::Button)
+                {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
+                if node.sheet_insets.is_some()
+                    && !node.overlay.as_ref().is_some_and(|config| {
+                        matches!(
+                            config.kind,
+                            OverlayKind::SheetLeft
+                                | OverlayKind::SheetRight
+                                | OverlayKind::SheetTop
+                                | OverlayKind::SheetBottom
+                        )
+                    })
+                {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
+                if node.placement_geometry.is_some()
+                    && !node
+                        .overlay
+                        .as_ref()
+                        .is_some_and(|config| config.kind == OverlayKind::Popover)
+                    && node.tooltip.is_none()
+                    && !node
+                        .menu
+                        .as_ref()
+                        .is_some_and(|menu| menu.presentation == MenuPresentation::Button)
+                {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
+                if (node.overlay_backdrop.is_some() || node.overlay_motion)
+                    && node
+                        .overlay
+                        .as_ref()
+                        .is_none_or(|config| !config.kind.is_modal())
+                {
                     return Err(ErrorCode::InvalidTree.into());
                 }
                 if let Some(config) = &node.overlay
@@ -1086,6 +1502,30 @@ impl Tree {
                                 Some(gpuio_protocol::accessibility::Role::Tree(_))
                             )
                         }))
+                {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
+                if (node.kind == Kind::CarouselTrack) != node.carousel_track.is_some()
+                    || node.carousel_track.as_ref().is_some_and(|config| {
+                        !config.is_valid()
+                            || node.handler.is_none()
+                            || node.text.is_empty()
+                            || node.text.len() > 4096
+                            || node.text.contains('\0')
+                            || node.children.len() != 1
+                            || node.children.first().is_none_or(|child| {
+                                plan.node(*child).map_or(true, |track| {
+                                    track.kind != Kind::Container
+                                        || !track.text.is_empty()
+                                        || track.handler.is_some()
+                                        || track.children.len() != config.carousel.ids.len()
+                                        || track.children.iter().any(|item| {
+                                            plan.node(*item)
+                                                .map_or(true, |item| item.kind != Kind::Panel)
+                                        })
+                                })
+                            })
+                    })
                 {
                     return Err(ErrorCode::InvalidTree.into());
                 }
@@ -1179,7 +1619,10 @@ impl Tree {
                     | Kind::Accordion
                     | Kind::NavigationStack
                     | Kind::Carousel
+                    | Kind::CarouselTrack
+                    | Kind::CarouselTrackGroup
                     | Kind::SplitPane
+                    | Kind::SplitGroup
                     | Kind::Extension
                     | Kind::CanvasView
                     | Kind::ChartView
@@ -1196,18 +1639,31 @@ impl Tree {
                             return Err(ErrorCode::InvalidTree.into());
                         }
                     }
-                    Kind::Checkbox | Kind::Switch => {
+                    Kind::Checkbox | Kind::Switch | Kind::Radio => {
                         let control = node.control.ok_or(ErrorCode::InvalidTree)?;
                         if node.editor.is_some()
-                            || (!control.disabled() && node.handler.is_none())
+                            || (!control.disabled()
+                                && !matches!(control, Control::Radio(true, _, _))
+                                && node.handler.is_none())
                             || node.text.contains('\0')
                         {
                             return Err(ErrorCode::InvalidTree.into());
                         }
                     }
+                    Kind::ChoicePicker => {
+                        let p = node.choice_picker.as_ref().ok_or(ErrorCode::InvalidTree)?;
+                        if node.editor.is_some() || node.handler.is_none() || !node.text.is_empty()
+                        {
+                            return Err(ErrorCode::InvalidTree.into());
+                        }
+                        crate::choice_picker_admission::validate(p)?;
+                    }
                     Kind::RadioGroup | Kind::TabBar | Kind::Select => {
                         let config = node.choice.as_ref().ok_or(ErrorCode::InvalidTree)?;
-                        if !config.is_valid()
+                        if (node.kind == Kind::Select
+                            && !node.choice_menu
+                            && !node.children.is_empty())
+                            || !config.is_valid()
                             || node.editor.is_some()
                             || (!config.disabled && node.handler.is_none())
                         {
@@ -1222,6 +1678,41 @@ impl Tree {
         } else {
             0
         };
+        // Structure validation establishes final parent links. Revalidate a
+        // changed row's parent or a registered query owner, without walking
+        // unrelated siblings or expanding the logical list order.
+        let mut list_owners = BTreeSet::new();
+        let mut list_query_owners = self.list_query_owners.clone();
+        for (index, slot) in &plan.changes {
+            let before = self.slots.get(*index).and_then(|slot| slot.node.as_ref());
+            for node in slot.node.iter().chain(before) {
+                list_owners.insert(node.id);
+                list_owners.extend(node.parent);
+                list_owners.extend(self.list_query_owners.get(&node.id).copied());
+            }
+            if let Some(query) = before
+                .and_then(|node| node.list_input)
+                .and_then(|config| config.query)
+            {
+                list_query_owners.remove(&query);
+            }
+        }
+        // Remove every previous registration before adding new ones: an atomic
+        // ownership transfer must not depend on node/operation order.
+        for slot in plan.changes.values() {
+            if let Some(node) = &slot.node
+                && let Some(query) = node.list_input.and_then(|config| config.query)
+                && list_query_owners.insert(query, node.id).is_some()
+            {
+                return Err(ErrorCode::InvalidTree.into());
+            }
+        }
+        for owner in list_owners {
+            if plan.node(owner).is_ok_and(|node| node.list_input.is_some()) {
+                plan.node_mut(owner)?;
+                plan.validate_list_input(plan.node(owner)?)?;
+            }
+        }
         let mut dirty = BTreeSet::new();
         for slot in plan.changes.values() {
             let mut id = slot.node.as_ref().map(|n| n.id);
@@ -1233,8 +1724,34 @@ impl Tree {
             }
         }
         for id in &dirty {
+            let node = plan.node(*id)?;
+            if let Some(presentation) = &node.choice_picker {
+                crate::choice_picker_admission::children(presentation, &node.children, |id| {
+                    plan.node(id).ok()
+                })?;
+            }
+            if plan.node(*id)?.split_button.is_some() {
+                crate::split_button::owners(plan.node(*id)?, |id| plan.node(id).ok())?;
+            }
+            if node.popover {
+                if node.kind != Kind::Container || !(1..=2).contains(&node.children.len()) {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
+                if let Some(panel) = node.children.get(1)
+                    && !plan
+                        .node(*panel)?
+                        .overlay
+                        .as_ref()
+                        .is_some_and(|c| c.kind == OverlayKind::Popover)
+                {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
+            }
+            plan.validate_editor_frame(node)?;
+            plan.validate_number_presentation(node)?;
+            plan.validate_calendar_content(node)?;
             plan.validate_button_icons(*id)?;
-            plan.validate_link_content(*id)?;
+            plan.validate_passive_content(*id)?;
             plan.validate_table(plan.node(*id)?)?;
         }
         if let Some(root) = plan.root {
@@ -1334,6 +1851,7 @@ impl Tree {
             self.slots[index] = slot;
         }
         self.binding_owners = binding_owners;
+        self.list_query_owners = list_query_owners;
         self.root = root;
         self.node_count = node_count;
         self.extension_count = extension_count;
@@ -1414,12 +1932,14 @@ impl Plan<'_> {
         let config = node.list_config.as_ref().ok_or(ErrorCode::InvalidTree)?;
         let order = node.list_order.as_ref().ok_or(ErrorCode::InvalidTree)?;
         let index = node.list_index.as_ref().ok_or(ErrorCode::InvalidTree)?;
-        if !config.is_valid()
+        if (node.list_axis == gpuio_protocol::list::Axis::Horizontal
+            && (node.tree_input || node.table.is_some()))
+            || !config.is_valid()
             || !order.is_valid()
             || !node.text.is_empty()
             || (config.managed && node.list_rows.len() > config.max_active as usize)
             || (!config.managed && node.list_rows.len() != index.len())
-            || node.list_rows.len() != node.children.len()
+            || (node.table.is_none() && node.list_rows.len() != node.children.len())
             || !Self::list_contains(index, node.list_rows.iter().map(|row| row.id))
         {
             return Err(ErrorCode::InvalidTree);
@@ -1431,8 +1951,62 @@ impl Plan<'_> {
                 return Err(ErrorCode::InvalidTree);
             }
         }
+        if node.table.is_some() {
+            let mut headers = 0;
+            for child in node.children.iter() {
+                if self.node(*child)?.table_header.is_some() {
+                    headers += 1;
+                    if !children.insert(*child)
+                        || headers > gpuio_protocol::table_header::MAX_HEADERS
+                    {
+                        return Err(ErrorCode::InvalidTree);
+                    }
+                }
+            }
+        }
         if children != node.children.iter().copied().collect() {
             return Err(ErrorCode::InvalidTree);
+        }
+        Ok(())
+    }
+
+    fn validate_list_input(&self, node: &Node) -> Result<(), ErrorCode> {
+        let Some(config) = node.list_input else {
+            return Ok(());
+        };
+        use gpuio_protocol::accessibility::Role;
+        if node.kind != Kind::VirtualList
+            || node.handler.is_none()
+            || node.tree_input
+            || node.table.is_some()
+            || !config.is_valid()
+            || !node
+                .accessibility
+                .as_ref()
+                .is_some_and(|metadata| matches!(metadata.role, Some(Role::ListBox(_))))
+        {
+            return Err(ErrorCode::InvalidTree);
+        }
+        if let Some(cursor) = config.cursor {
+            if node
+                .list_index
+                .as_ref()
+                .is_none_or(|index| index.position(cursor).is_none())
+            {
+                return Err(ErrorCode::InvalidTree);
+            }
+            if let Some(row) = node.list_rows.iter().find(|row| row.id == cursor) {
+                let item = self.node(row.node)?;
+                if !item.accessibility.as_ref().is_some_and(|metadata|
+                    matches!(metadata.role, Some(Role::OptionItem(item)) if !item.disabled))
+                { return Err(ErrorCode::InvalidTree); }
+            }
+        }
+        if let Some(query) = config.query {
+            let query = self.node(query)?;
+            if query.kind != Kind::Input || node.parent.is_none() || query.parent != node.parent {
+                return Err(ErrorCode::InvalidTree);
+            }
         }
         Ok(())
     }
@@ -1489,12 +2063,212 @@ impl Plan<'_> {
     // The link root is the only activation/focus owner in composed content.
     // Run for dirty ancestors too: Bind/SetStyle can invalidate a descendant
     // without changing the structural edges.
-    fn validate_link_content(&self, id: NodeId) -> Result<(), ErrorCode> {
+    fn validate_passive_content(&self, id: NodeId) -> Result<(), ErrorCode> {
         let root = self.node(id)?;
-        if root.kind != Kind::Link {
+        let rich_button = matches!(root.kind, Kind::Button | Kind::CommandButton)
+            && root
+                .button_presentation
+                .is_some_and(|config| config.content == gpuio_protocol::button::Content::Rich);
+        if !rich_button
+            && !root.choice_menu
+            && root.calendar_content.is_none()
+            && root.number_presentation.is_none()
+            && !matches!(
+                root.kind,
+                Kind::Link
+                    | Kind::Avatar
+                    | Kind::Checkbox
+                    | Kind::Switch
+                    | Kind::Radio
+                    | Kind::RadioGroup
+                    | Kind::TabBar
+                    | Kind::SplitGroup
+            )
+        {
             return Ok(());
         }
-        let mut pending: Vec<_> = root.children.iter().map(|id| (*id, 1)).collect();
+        if matches!(root.kind, Kind::Checkbox | Kind::Switch | Kind::Radio)
+            && !root.children.is_empty()
+            && (root.children.len() != 1
+                // Match Core.String.strip / Char.is_whitespace exactly. Rust's
+                // Unicode trim rejects names admitted by the OCaml constructor.
+                || root.text.bytes().all(|byte| matches!(byte, b'\t'..=b'\r' | b' '))
+                || root.text.len() > 1024
+                || root.text.contains('\0'))
+        {
+            return Err(ErrorCode::InvalidTree);
+        }
+        if rich_button
+            && (root.children.len() != 1
+                || (root.kind == Kind::Button
+                    && (root.text.is_empty()
+                        || root
+                            .text
+                            .bytes()
+                            .all(|byte| matches!(byte, b'\t'..=b'\r' | b' '))
+                        || root.text.len() > 1024
+                        || root.text.contains('\0'))))
+        {
+            return Err(ErrorCode::InvalidTree);
+        }
+        let structural = |node: &Node| {
+            node.kind == Kind::Container
+                && node.text.is_empty()
+                && node.style.is_empty()
+                && node.handler.is_none()
+                && node.hover_handler.is_none()
+                && node.accessibility.is_none()
+                && node.focus_scope.is_none()
+                && node.highlight_scope.is_none()
+                && node.command_binding.is_none()
+                && node.drag_source.is_none()
+                && node.drop_target.is_none()
+                && node.pointer.is_none()
+                && node.input_region.is_none()
+                && node.window_region.is_none()
+                && node.placement.is_none()
+                && node.placement_geometry.is_none()
+                && node.split_button.is_none()
+                && node.split.is_none()
+                && node.split_group.is_none()
+                && !node.popover
+                && node.table_cell.is_none()
+                && node.reveal.is_none()
+                && node.choice_appearance.is_none()
+        };
+        if root.choice_menu && !root.children.is_empty() {
+            let config = root.choice.as_ref().ok_or(ErrorCode::InvalidTree)?;
+            if root.children.len() != config.items.len() {
+                return Err(ErrorCode::InvalidTree);
+            }
+            for slot in root.children.iter() {
+                let slot = self.node(*slot)?;
+                if !structural(slot) || slot.children.len() > 1 {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                if let Some(icon) = slot.children.first() {
+                    let icon = self.node(*icon)?;
+                    if icon.kind != Kind::Icon
+                        || !icon.children.is_empty()
+                        || !icon.text.is_empty()
+                        || !icon
+                            .image
+                            .as_ref()
+                            .is_some_and(|image| image.label.is_none())
+                    {
+                        return Err(ErrorCode::InvalidTree);
+                    }
+                }
+            }
+        }
+        let logical_children = if root.tab_trailing {
+            let config = root.choice.as_ref().ok_or(ErrorCode::InvalidTree)?;
+            if root.children.len() != config.items.len() + 1 {
+                return Err(ErrorCode::InvalidTree);
+            }
+            let trailing = self.node(*root.children.last().ok_or(ErrorCode::InvalidTree)?)?;
+            if !structural(trailing) || trailing.children.len() > 1 {
+                return Err(ErrorCode::InvalidTree);
+            }
+            &root.children[..config.items.len()]
+        } else {
+            &root.children[..]
+        };
+        if root.tab_trailing || root.tab_content.is_some() {
+            // Bound all parts, including interactive subtrees and wrappers.
+            let mut all: Vec<_> = root.children.iter().map(|id| (*id, 1)).collect();
+            let mut count = 0;
+            while let Some((id, depth)) = all.pop() {
+                count += 1;
+                if count > 4096 || depth > 128 {
+                    return Err(ErrorCode::LimitExceeded);
+                }
+                all.extend(self.node(id)?.children.iter().map(|id| (*id, depth + 1)));
+            }
+        }
+        if root.tab_content.is_none()
+            && matches!(root.kind, Kind::RadioGroup | Kind::TabBar)
+            && !logical_children.is_empty()
+        {
+            let config = root.choice.as_ref().ok_or(ErrorCode::InvalidTree)?;
+            if logical_children.len() != config.items.len() {
+                return Err(ErrorCode::InvalidTree);
+            }
+            for slot in logical_children.iter() {
+                let slot = self.node(*slot)?;
+                if slot.kind != Kind::Container || !slot.text.is_empty() || slot.children.len() > 1
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+            }
+        }
+        let skip = if root.number_presentation.is_some() {
+            2
+        } else {
+            0
+        };
+        let mut pending: Vec<_> = if let Some(mount) = &root.split_group {
+            if root.children.len() != mount.config.panels.len() {
+                return Err(ErrorCode::InvalidTree);
+            }
+            let mut grips = Vec::new();
+            for panel in root.children.iter() {
+                let panel = self.node(*panel)?;
+                if !structural(panel) || panel.children.len() != 2 {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                let content = self.node(panel.children[0])?;
+                let grip = self.node(panel.children[1])?;
+                if !structural(content)
+                    || content.children.len() != 1
+                    || !structural(grip)
+                    || grip.children.len() > 1
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                grips.extend(grip.children.iter().map(|id| (*id, 3)));
+            }
+            grips
+        } else if let Some(content) = &root.tab_content {
+            let config = root.choice.as_ref().ok_or(ErrorCode::InvalidTree)?;
+            if logical_children.len() != config.items.len()
+                || content.labels.len() != config.items.len()
+                || config.items.iter().any(|item| {
+                    item.label
+                        .bytes()
+                        .all(|b| matches!(b, b'\t'..=b'\r' | b' '))
+                })
+            {
+                return Err(ErrorCode::InvalidTree);
+            }
+            let mut labels = Vec::new();
+            for (slot, mode) in logical_children.iter().zip(&content.labels) {
+                let slot = self.node(*slot)?;
+                if !structural(slot) || slot.children.len() != 3 {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                for (index, part) in slot.children.iter().enumerate() {
+                    let part = self.node(*part)?;
+                    if !structural(part) || part.children.len() > 1 {
+                        return Err(ErrorCode::InvalidTree);
+                    }
+                    if index == 1 {
+                        let custom = *mode == gpuio_protocol::tab_content::Label::Custom;
+                        if part.children.len() != usize::from(custom) {
+                            return Err(ErrorCode::InvalidTree);
+                        }
+                        labels.extend(part.children.iter().map(|id| (*id, 3)));
+                    }
+                }
+            }
+            labels
+        } else {
+            logical_children
+                .iter()
+                .skip(skip)
+                .map(|id| (*id, 1))
+                .collect()
+        };
         let mut count = 0;
         while let Some((id, depth)) = pending.pop() {
             count += 1;
@@ -1502,7 +2276,7 @@ impl Plan<'_> {
                 return Err(ErrorCode::LimitExceeded);
             }
             let node = self.node(id)?;
-            if !matches!(
+            if (!matches!(
                 node.kind,
                 Kind::Container
                     | Kind::Text
@@ -1512,7 +2286,11 @@ impl Plan<'_> {
                     | Kind::Loading
                     | Kind::Animated
                     | Kind::AnimationProgram
-            ) || node.handler.is_some()
+            ) && !((rich_button || root.calendar_content.is_some())
+                && node.kind == Kind::Progress))
+                || node.handler.is_some()
+                || node.hover_handler.is_some()
+                || node.window_region.is_some()
                 || node.style.iter().any(|style| {
                     let fields: &[Field] = match style {
                         Style::Fields(fields) | Style::State(_, fields) => fields,
@@ -1544,7 +2322,12 @@ impl Plan<'_> {
     // changing the structural edges.
     fn validate_button_icons(&self, id: NodeId) -> Result<(), ErrorCode> {
         let node = self.node(id)?;
-        if !matches!(node.kind, Kind::Button | Kind::CommandButton) || node.children.is_empty() {
+        if !matches!(node.kind, Kind::Button | Kind::CommandButton)
+            || node.children.is_empty()
+            || node
+                .button_presentation
+                .is_some_and(|config| config.content == gpuio_protocol::button::Content::Rich)
+        {
             return Ok(());
         }
         if node.children.len() != 2 {
@@ -1554,6 +2337,7 @@ impl Plan<'_> {
             let slot = self.node(*slot)?;
             if slot.kind != Kind::Container
                 || slot.handler.is_some()
+                || slot.window_region.is_some()
                 || !slot.text.is_empty()
                 || slot.children.len() > 1
             {
@@ -1612,9 +2396,31 @@ impl Plan<'_> {
             | Op::SetLink(id, ..)
             | Op::SetStyle(id, ..)
             | Op::SetEditor(id, ..)
+            | Op::SetEditorPrivacy(id, ..)
+            | Op::SetEditorFrame(id, ..)
+            | Op::SetEditorContentHint(id, ..)
+            | Op::SetEditorFormat(id, ..)
+            | Op::SetEditorValidation(id, ..)
+            | Op::SetTextAreaLayout(id, ..)
+            | Op::SetEditorClearOnEscape(id, ..)
+            | Op::SetEditorSearchable(id, ..)
+            | Op::SetNumberStepMode(id, ..)
+            | Op::SetNumberPresentation(id, ..)
+            | Op::SetReveal(id, ..)
+            | Op::SetCalendarAppearance(id, ..)
+            | Op::SetCalendarContent(id, ..)
+            | Op::SetColorPresentation(id, ..)
+            | Op::SetSliderAppearance(id, ..)
+            | Op::SetOtpAppearance(id, ..)
             | Op::SetControl(id, ..)
             | Op::SetChoice(id, ..)
             | Op::SetFocusScope(id, ..)
+            | Op::SetOverlayBackdrop(id, ..)
+            | Op::SetOverlayMotion(id, ..)
+            | Op::SetTooltipMotion(id, ..)
+            | Op::SetPlacementGeometry(id, ..)
+            | Op::SetWindowRegion(id, ..)
+            | Op::SetSheetInsets(id, ..)
             | Op::SetOverlay(id, ..)
             | Op::SetPlacement(id, ..)
             | Op::SetTooltip(id, ..)
@@ -1626,21 +2432,46 @@ impl Plan<'_> {
             | Op::SetAnimationProgram(id, ..)
             | Op::SetNavigationStack(id, ..)
             | Op::SetTreeInput(id, ..)
+            | Op::SetListInput(id, ..)
+            | Op::SetTableBehavior(id, ..)
+            | Op::SetTableAppearance(id, ..)
             | Op::SetTable(id, ..)
             | Op::SetTableCell(id, ..)
+            | Op::SetTableHeader(id, ..)
+            | Op::SetTableHeaderStyle(id, ..)
+            | Op::SetTableRowStyle(id, ..)
             | Op::TableCommand(id, ..)
             | Op::SetTreeMoves(id, ..)
             | Op::SetCarousel(id, ..)
+            | Op::SetCarouselTrack(id, ..)
+            | Op::SetTabAppearance(id, ..)
+            | Op::SetTabContent(id, ..)
+            | Op::SetTabViewport(id, ..)
+            | Op::SetTabMotion(id, ..)
+            | Op::SetTabTrailing(id, ..)
+            | Op::SetChoiceMenu(id, ..)
+            | Op::SetCarouselTrackMotion(id, ..)
             | Op::SetContainerQuery(id, ..)
             | Op::SetAccessibility(id, ..)
             | Op::SetLoading(id, ..)
+            | Op::SetProgressPresentation(id, ..)
+            | Op::SetSpinner(id, ..)
             | Op::SetAvatar(id, ..)
             | Op::SetRating(id, ..)
+            | Op::SetRatingAppearance(id, ..)
+            | Op::SetTabOrder(id, ..)
+            | Op::SetCalendarViewportObserver(id, ..)
+            | Op::SetHoverObserver(id, ..)
+            | Op::SetChoicePicker(id, ..)
+            | Op::SetSplitButton(id, ..)
+            | Op::SetButtonPresentation(id, ..)
+            | Op::SetControlAppearance(id, ..)
             | Op::SetSlider(id, ..)
             | Op::SetNumberInput(id, ..)
             | Op::SetOtpInput(id, ..)
             | Op::SetColorInput(id, ..)
             | Op::SetCalendar(id, ..)
+            | Op::SetListAxis(id, ..)
             | Op::SetListConfig(id, ..)
             | Op::SetListOrder(id, ..)
             | Op::SetListRows(id, ..)
@@ -1651,10 +2482,21 @@ impl Plan<'_> {
             | Op::SetChart(id, ..)
             | Op::SetDocument(id, ..)
             | Op::SetDocumentDiff(id, ..)
+            | Op::SetDocumentSelectionFormat(id, ..)
+            | Op::SetDocumentPreview(id, ..)
+            | Op::SetDocumentProfile(id, ..)
+            | Op::SetDocumentActions(id, ..)
+            | Op::SetDocumentMarkdownOptions(id, ..)
+            | Op::SetDocumentTextStyle(id, ..)
             | Op::SetExtension(id, ..)
             | Op::SetSplit(id, ..)
+            | Op::SetSplitGroup(id, ..)
             | Op::SetProgress(id, ..)
             | Op::SetToast(id, ..)
+            | Op::SetToastPlacement(id, ..)
+            | Op::SetToastLayering(id, ..)
+            | Op::SetToastMotion(id, ..)
+            | Op::SetScrollbar(id, ..)
             | Op::SetToastStack(id, ..)
             | Op::SetDragSource(id, ..)
             | Op::SetDropTarget(id, ..)
@@ -1668,6 +2510,7 @@ impl Plan<'_> {
             | Op::Bind(id, ..)
             | Op::Splice(id, ..) => Some(*id),
             Op::SetRoot(_) => None,
+            Op::SetPopover(id, _) => Some(*id),
         };
         let bytes = |plan: &Self| {
             target
@@ -1738,12 +2581,28 @@ impl Plan<'_> {
                             text_spans: Arc::from([]),
                             text_shimmer: None,
                             editor: None,
+                            editor_privacy: EditorPrivacy::Plain,
+                            editor_content_hint: None,
+                            editor_format: None,
+                            textarea_layout: None,
+                            editor_clear_on_escape: false,
+                            editor_searchable: false,
+                            editor_validation: None,
+                            editor_frame: None,
+                            editor_frame_activation_revision: 0,
                             control: None,
                             link: None,
                             choice: None,
+                            choice_picker: None,
                             choice_appearance: None,
                             combobox_filter: None,
                             focus_scope: None,
+                            overlay_backdrop: None,
+                            overlay_motion: false,
+                            tooltip_motion: false,
+                            window_region: None,
+                            placement_geometry: None,
+                            sheet_insets: None,
                             overlay: None,
                             tooltip: None,
                             commands: None,
@@ -1751,40 +2610,84 @@ impl Plan<'_> {
                             menu: None,
                             palette: None,
                             progress: None,
+                            progress_presentation: None,
                             loading: None,
+                            spinner: None,
                             image: None,
                             avatar: None,
                             rating: None,
+                            rating_appearance: None,
+                            tab_order: None,
+                            split_button: None,
+                            button_presentation: None,
+                            button_activation_revision: 0,
+                            tab_appearance: None,
+                            tab_content: None,
+                            tab_viewport: None,
+                            tab_motion: None,
+                            tab_trailing: false,
+                            choice_menu: false,
+                            control_appearance: None,
                             slider: None,
                             number_input: None,
+                            number_step_mode: Default::default(),
+                            number_presentation: None,
                             otp_input: None,
+                            popover: false,
+                            reveal: None,
+                            slider_appearance: None,
+                            calendar_appearance: None,
+                            calendar_content: None,
+                            color_presentation: None,
+                            otp_appearance: None,
                             calendar: None,
                             color_input: None,
                             extension: None,
                             extension_command: None,
                             split: None,
+                            split_group: None,
                             document: None,
                             document_diff: None,
                             document_diff_epoch: 0,
+                            document_selection_markdown: false,
+                            document_text_style: None,
+                            document_markdown_options: Default::default(),
+                            document_profile: None,
+                            document_actions: None,
+                            document_preview: None,
                             canvas: None,
                             chart: None,
                             animation: None,
                             animation_program: None,
                             navigation_stack: None,
                             carousel: None,
+                            carousel_track: None,
+                            carousel_track_motion: None,
                             table: None,
                             table_cell: None,
+                            table_header: None,
+                            table_header_style: Arc::from([]),
+                            table_row_style: Arc::from([]),
                             table_serial: 0,
                             tree_input: false,
+                            list_input: None,
+                            table_behavior: None,
+                            table_appearance: None,
+                            list_input_generation: 0,
                             tree_moves: false,
                             container_query: None,
                             accessibility: None,
+                            list_axis: Default::default(),
                             list_config: None,
                             list_order: None,
                             list_index: None,
                             list_rows: Arc::from([]),
                             toast: None,
                             toast_stack: None,
+                            toast_placement: None,
+                            toast_layering: None,
+                            toast_motion: None,
+                            scrollbar: None,
                             drag_source: None,
                             drop_target: None,
                             pointer: None,
@@ -1794,6 +2697,8 @@ impl Plan<'_> {
                             placement: None,
                             style: Arc::from([]),
                             handler: *handler,
+                            hover_handler: None,
+                            calendar_viewport_handler: None,
                             children: Arc::from([]),
                             parent: None,
                         }),
@@ -1854,7 +2759,89 @@ impl Plan<'_> {
                 if self.node(*id)?.kind != Kind::Link || !config.is_valid() {
                     return Err(ErrorCode::InvalidTree);
                 }
-                self.node_mut(*id)?.link = Some(Arc::new(config.clone()));
+                let changed = self.node(*id)?.link.as_ref().is_some_and(|previous| {
+                    previous.loading != config.loading || previous.disabled != config.disabled
+                });
+                let activation_revision = self.original.revision + 1;
+                let node = self.node_mut(*id)?;
+                if changed {
+                    node.button_activation_revision = activation_revision;
+                }
+                node.link = Some(Arc::new(config.clone()));
+            }
+            Op::SetEditorSearchable(id, enabled) => {
+                if self.node(*id)?.kind != Kind::Textarea {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.editor_searchable = *enabled;
+            }
+            Op::SetEditorClearOnEscape(id, enabled) => {
+                if !matches!(self.node(*id)?.kind, Kind::Input | Kind::Textarea) {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.editor_clear_on_escape = *enabled;
+            }
+            Op::SetTextAreaLayout(id, config) => {
+                if self.node(*id)?.kind != Kind::Textarea
+                    || config.as_ref().is_some_and(|c| !c.is_valid())
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.textarea_layout = *config;
+            }
+            Op::SetEditorValidation(id, rule) => {
+                let node = self.node(*id)?;
+                if node.kind != Kind::Input {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                if node.editor_validation.as_ref().map(|policy| policy.rule()) != rule.as_ref() {
+                    let policy = rule
+                        .clone()
+                        .map(crate::input_validation::Policy::new)
+                        .transpose()
+                        .map_err(|error| match error {
+                            gpuio_protocol::input_validation::Error::TooComplex => {
+                                ErrorCode::LimitExceeded
+                            }
+                            _ => ErrorCode::InvalidTree,
+                        })?
+                        .map(Arc::new);
+                    self.node_mut(*id)?.editor_validation = policy;
+                }
+            }
+            Op::SetEditorFormat(id, config) => {
+                if self.node(*id)?.kind != Kind::Input
+                    || config.as_ref().is_some_and(|config| !config.is_valid())
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.editor_format = config.clone().map(Arc::new);
+            }
+            Op::SetEditorContentHint(id, hint) => {
+                if !matches!(self.node(*id)?.kind, Kind::Input | Kind::Textarea) {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.editor_content_hint = *hint;
+            }
+            Op::SetEditorFrame(id, config) => {
+                if !matches!(self.node(*id)?.kind, Kind::Input | Kind::Textarea)
+                    || config.as_ref().is_some_and(|config| !config.is_valid())
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                let changed = self.node(*id)?.editor_frame.as_deref() != config.as_ref();
+                let revision = self.original.revision + 1;
+                let node = self.node_mut(*id)?;
+                if changed {
+                    node.editor_frame_activation_revision = revision;
+                }
+                node.editor_frame = config.clone().map(Arc::new);
+            }
+            Op::SetEditorPrivacy(id, privacy) => {
+                if self.node(*id)?.kind != Kind::Input {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.editor_privacy = *privacy;
             }
             Op::SetEditor(id, config) => {
                 if !matches!(
@@ -1864,7 +2851,15 @@ impl Plan<'_> {
                 {
                     return Err(ErrorCode::InvalidTree);
                 }
-                self.node_mut(*id)?.editor = Some(Arc::new(config.clone()));
+                let changed = self.node(*id)?.editor.as_ref().is_some_and(|old| {
+                    old.read_only != config.read_only || old.disabled != config.disabled
+                });
+                let revision = self.original.revision + 1;
+                let node = self.node_mut(*id)?;
+                if changed {
+                    node.editor_frame_activation_revision = revision;
+                }
+                node.editor = Some(Arc::new(config.clone()));
             }
             Op::SetToast(id, config) => {
                 if self.node(*id)?.kind != Kind::Toast || !config.is_valid() {
@@ -1910,6 +2905,36 @@ impl Plan<'_> {
                 }
                 self.node_mut(*id)?.pointer = Some(Arc::new(config.clone()));
             }
+            Op::SetScrollbar(id, config) => {
+                if !matches!(self.node(*id)?.kind, Kind::Container | Kind::VirtualList)
+                    || config.as_ref().is_some_and(|c| !c.is_valid())
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.scrollbar = config.clone().map(Arc::from);
+            }
+            Op::SetToastMotion(id, config) => {
+                if self.node(*id)?.kind != Kind::ToastStack || config.is_some_and(|c| !c.is_valid())
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.toast_motion = *config;
+            }
+            Op::SetToastLayering(id, config) => {
+                if self.node(*id)?.kind != Kind::ToastStack || config.is_some_and(|c| !c.is_valid())
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.toast_layering = *config;
+            }
+            Op::SetToastPlacement(id, placement) => {
+                if self.node_mut(*id)?.kind != Kind::ToastStack
+                    || placement.is_some_and(|p| !p.is_valid())
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.toast_placement = *placement;
+            }
             Op::SetToastStack(id, config) => {
                 if self.node(*id)?.kind != Kind::ToastStack || !config.is_valid() {
                     return Err(ErrorCode::InvalidTree);
@@ -1931,6 +2956,33 @@ impl Plan<'_> {
                 }
                 self.node_mut(*id)?.table = Some(Arc::new(config.clone()));
             }
+            Op::SetTableHeaderStyle(id, styles) | Op::SetTableRowStyle(id, styles) => {
+                let row = matches!(op, Op::SetTableRowStyle(..));
+                let expected = if row {
+                    Kind::Container
+                } else {
+                    Kind::VirtualList
+                };
+                if self.node(*id)?.kind != expected
+                    || !gpuio_protocol::table_presentation::valid_scope(styles, row)
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                validate_style(styles)?;
+                if row {
+                    self.node_mut(*id)?.table_row_style = Arc::from(styles.clone());
+                } else {
+                    self.node_mut(*id)?.table_header_style = Arc::from(styles.clone());
+                }
+            }
+            Op::SetTableHeader(id, target) => {
+                if self.node(*id)?.kind != Kind::Container
+                    || target.as_ref().is_some_and(|target| !target.is_valid())
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.table_header = target.clone().map(Arc::new);
+            }
             Op::SetTableCell(id, cell) => {
                 let node = self.node(*id)?;
                 if node.kind != Kind::Container
@@ -1944,8 +2996,43 @@ impl Plan<'_> {
                 }
                 self.node_mut(*id)?.table_cell = Some(Arc::new(cell.clone()));
             }
+            Op::SetTableAppearance(id, appearance) => {
+                if self.node(*id)?.kind != Kind::VirtualList
+                    || appearance.as_ref().is_some_and(|a| !a.is_valid())
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.table_appearance = appearance.clone().map(Arc::new);
+            }
+            Op::SetTableBehavior(id, behavior) => {
+                if self.node(*id)?.kind != Kind::VirtualList
+                    || behavior.as_ref().is_some_and(|b| !b.is_valid())
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.table_behavior = behavior.clone().map(Arc::new);
+            }
             Op::TableCommand(id, command) => {
                 self.tables.push((*id, command.clone()));
+            }
+            Op::SetListInput(id, config) => {
+                let node = self.node(*id)?;
+                if node.kind != Kind::VirtualList
+                    || config.is_some_and(|config| {
+                        !config.is_valid()
+                            || match node.list_input {
+                                Some(old) => !config.can_replace(old),
+                                None => config.generation <= node.list_input_generation,
+                            }
+                    })
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                let node = self.node_mut(*id)?;
+                if let Some(config) = config {
+                    node.list_input_generation = config.generation;
+                }
+                node.list_input = *config;
             }
             Op::SetTreeInput(id, enabled) => {
                 if self.node(*id)?.kind != Kind::VirtualList {
@@ -1958,6 +3045,27 @@ impl Plan<'_> {
                     return Err(ErrorCode::InvalidTree);
                 }
                 self.node_mut(*id)?.tree_moves = *enabled;
+            }
+            Op::SetCarouselTrackMotion(id, motion) => {
+                if self.node(*id)?.kind != Kind::CarouselTrack
+                    || motion.is_some_and(|motion| !motion.is_valid())
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.carousel_track_motion = *motion;
+            }
+            Op::SetCarouselTrack(id, config) => {
+                let node = self.node(*id)?;
+                if node.kind != Kind::CarouselTrack
+                    || !config.is_valid()
+                    || node
+                        .carousel_track
+                        .as_ref()
+                        .is_some_and(|old| !config.can_replace(old))
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.carousel_track = Some(Arc::new(config.clone()));
             }
             Op::SetCarousel(id, config) => {
                 let node = self.node(*id)?;
@@ -2025,6 +3133,12 @@ impl Plan<'_> {
                 }
                 self.node_mut(*id)?.animation = Some(Arc::new(config.clone()));
                 self.structural = true;
+            }
+            Op::SetListAxis(id, axis) => {
+                if self.node(*id)?.kind != Kind::VirtualList {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.list_axis = *axis;
             }
             Op::SetListConfig(id, config) => {
                 if self.node(*id)?.kind != Kind::VirtualList || !config.is_valid() {
@@ -2138,6 +3252,73 @@ impl Plan<'_> {
                     initial_month,
                 });
             }
+            Op::SetNumberStepMode(id, mode) => {
+                if self.node(*id)?.kind != Kind::NumberInput {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.number_step_mode = *mode;
+            }
+            Op::SetNumberPresentation(id, config) => {
+                if self.node(*id)?.kind != Kind::NumberInput {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                if let Some(config) = config {
+                    crate::number_presentation::validate(config)?;
+                }
+                self.node_mut(*id)?.number_presentation = config.clone().map(Arc::new);
+            }
+            Op::SetPopover(id, enabled) => {
+                if self.node(*id)?.kind != Kind::Container {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.popover = *enabled;
+            }
+            Op::SetReveal(id, config) => {
+                if self.node(*id)?.kind != Kind::Panel || config.is_some_and(|c| !c.is_valid()) {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.reveal = *config;
+            }
+            Op::SetCalendarAppearance(id, appearance) => {
+                if self.node(*id)?.kind != Kind::Calendar
+                    || appearance.as_ref().is_some_and(|a| !a.is_valid())
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.calendar_appearance = appearance.clone().map(Arc::new);
+            }
+            Op::SetCalendarContent(id, content) => {
+                if self.node(*id)?.kind != Kind::Calendar
+                    || content.as_ref().is_some_and(|c| !c.is_valid())
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.calendar_content = content.clone().map(Arc::new);
+            }
+            Op::SetColorPresentation(id, presentation) => {
+                if self.node(*id)?.kind != Kind::ColorInput
+                    || presentation.as_ref().is_some_and(|p| !p.is_valid())
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.color_presentation = presentation.clone().map(Arc::new);
+            }
+            Op::SetSliderAppearance(id, appearance) => {
+                if self.node(*id)?.kind != Kind::Slider
+                    || appearance.as_ref().is_some_and(|a| !a.is_valid())
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.slider_appearance = appearance.clone().map(Arc::new);
+            }
+            Op::SetOtpAppearance(id, appearance) => {
+                if self.node(*id)?.kind != Kind::OtpInput
+                    || appearance.as_ref().is_some_and(|a| !a.is_valid())
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.otp_appearance = appearance.clone().map(Arc::new);
+            }
             Op::SetOtpInput(id, config, initial) => {
                 let node = self.node(*id)?;
                 if node.kind != Kind::OtpInput
@@ -2192,6 +3373,126 @@ impl Plan<'_> {
                     .ok_or(ErrorCode::InvalidTree)?;
                 mount.initial_draft = draft.as_deref().map(Arc::from);
             }
+            Op::SetCalendarViewportObserver(id, handler) => {
+                if self.node(*id)?.kind != Kind::Calendar {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.calendar_viewport_handler = *handler;
+            }
+            Op::SetHoverObserver(id, handler) => {
+                if !matches!(
+                    self.node(*id)?.kind,
+                    Kind::Button | Kind::CommandButton | Kind::Link
+                ) {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.hover_handler = *handler;
+            }
+            Op::SetSplitButton(id, config) => {
+                if self.node(*id)?.kind != Kind::Container {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                if let Some(config) = config {
+                    crate::split_button::validate(config)?;
+                }
+                self.node_mut(*id)?.split_button =
+                    config.as_ref().map(|config| Arc::new(config.clone()));
+            }
+            Op::SetButtonPresentation(id, config) => {
+                let node = self.node(*id)?;
+                if !matches!(node.kind, Kind::Button | Kind::CommandButton)
+                    || config.is_some_and(|config| !config.is_valid())
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                let changed = node
+                    .button_presentation
+                    .is_some_and(|config| config.policy.loading)
+                    != config.is_some_and(|config| config.policy.loading);
+                let activation_revision = self.original.revision + 1;
+                let node = self.node_mut(*id)?;
+                if changed {
+                    node.button_activation_revision = activation_revision;
+                }
+                node.button_presentation = *config;
+            }
+            Op::SetTabOrder(id, config) => {
+                if !matches!(
+                    self.node(*id)?.kind,
+                    Kind::Checkbox | Kind::Switch | Kind::Radio | Kind::RadioGroup
+                ) || config.is_some_and(|config| !config.is_valid())
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.tab_order = *config;
+            }
+            Op::SetChoiceMenu(id, enabled) => {
+                if self.node(*id)?.kind != Kind::Select {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.choice_menu = *enabled;
+            }
+            Op::SetTabTrailing(id, enabled) => {
+                if self.node(*id)?.kind != Kind::TabBar {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.tab_trailing = *enabled;
+            }
+            Op::SetTabMotion(id, config) => {
+                if self.node(*id)?.kind != Kind::TabBar {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                if config.is_some_and(|c| !c.is_valid()) {
+                    return Err(ErrorCode::Malformed);
+                }
+                self.node_mut(*id)?.tab_motion = config.map(Arc::new);
+            }
+            Op::SetTabViewport(id, config) => {
+                if self.node(*id)?.kind != Kind::TabBar {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                if config.as_ref().is_some_and(|c| !c.is_valid()) {
+                    return Err(ErrorCode::Malformed);
+                }
+                self.node_mut(*id)?.tab_viewport = config.clone().map(Arc::new);
+            }
+            Op::SetTabContent(id, config) => {
+                if self.node(*id)?.kind != Kind::TabBar {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                if config.as_ref().is_some_and(|c| !c.is_valid()) {
+                    return Err(ErrorCode::Malformed);
+                }
+                self.node_mut(*id)?.tab_content = config.clone().map(Arc::new);
+            }
+            Op::SetTabAppearance(id, config) => {
+                if self.node(*id)?.kind != Kind::TabBar {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                if let Some(config) = config {
+                    crate::tab_appearance::validate(config)?;
+                }
+                self.node_mut(*id)?.tab_appearance = config.clone().map(Arc::new);
+            }
+            Op::SetControlAppearance(id, appearance) => {
+                if !matches!(
+                    self.node(*id)?.kind,
+                    Kind::Checkbox | Kind::Switch | Kind::Radio | Kind::RadioGroup
+                ) {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                if let Some(appearance) = appearance {
+                    crate::control_appearance::validate(appearance)?;
+                }
+                self.node_mut(*id)?.control_appearance = appearance.clone().map(Arc::new);
+            }
+            Op::SetRatingAppearance(id, appearance) => {
+                if self.node(*id)?.kind != Kind::Rating || appearance.is_some_and(|a| !a.is_valid())
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.rating_appearance = appearance.map(Arc::new);
+            }
             Op::SetRating(id, config) => {
                 if self.node(*id)?.kind != Kind::Rating || !config.is_valid() {
                     return Err(ErrorCode::InvalidTree);
@@ -2242,6 +3543,23 @@ impl Plan<'_> {
                 }
                 node.extension = Some(Arc::new(config.clone()));
             }
+            Op::SetSplitGroup(id, config, appearance) => {
+                let node = self.node(*id)?;
+                if node.kind != Kind::SplitGroup
+                    || !config.is_valid()
+                    || node
+                        .split_group
+                        .as_ref()
+                        .is_some_and(|old| config.reset_generation < old.config.reset_generation)
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                crate::split_group_appearance::validate(appearance)?;
+                self.node_mut(*id)?.split_group = Some(SplitGroupMount {
+                    config: Arc::new(config.clone()),
+                    appearance: Arc::new(appearance.clone()),
+                });
+            }
             Op::SetSplit(id, config) => {
                 let node = self.node(*id)?;
                 if node.kind != Kind::SplitPane
@@ -2286,17 +3604,109 @@ impl Plan<'_> {
                 }
                 self.node_mut(*id)?.document = Some(Arc::new(config.clone()));
             }
+            Op::SetDocumentMarkdownOptions(id, options) => {
+                if self.node(*id)?.kind != Kind::DocumentView {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.document_markdown_options = *options;
+            }
+            Op::SetDocumentTextStyle(id, config) => {
+                if self.node(*id)?.kind != Kind::DocumentView {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                if let Some(config) = config {
+                    crate::document_style::validate(config)?;
+                }
+                self.node_mut(*id)?.document_text_style = config.clone().map(Arc::new);
+            }
+            Op::SetDocumentProfile(id, config) => {
+                let node = self.node(*id)?;
+                if node.kind != Kind::DocumentView
+                    || !config.is_valid()
+                    || config.epoch <= node.document_profile.as_ref().map_or(0, |old| old.epoch)
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                if let (Some(old), Some(next)) = (
+                    node.document_profile
+                        .as_ref()
+                        .and_then(|old| old.instance.as_ref()),
+                    config.instance.as_ref(),
+                ) && old.schema == next.schema
+                    && next.generation < old.generation
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.document_profile = Some(Arc::new(config.clone()));
+            }
+            Op::SetDocumentActions(id, config) => {
+                let node = self.node(*id)?;
+                if node.kind != Kind::DocumentView
+                    || !config.is_valid()
+                    || config.epoch <= node.document_actions.as_ref().map_or(0, |old| old.epoch)
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.document_actions = Some(Arc::new(config.clone()));
+            }
+            Op::SetDocumentPreview(id, config) => {
+                let node = self.node(*id)?;
+                if node.kind != Kind::DocumentView
+                    || !config.is_valid()
+                    || config.epoch
+                        <= node
+                            .document_preview
+                            .as_ref()
+                            .map_or(0, |previous| previous.epoch)
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.document_preview = Some(Arc::new(config.clone()));
+            }
+            Op::SetDocumentSelectionFormat(id, markdown) => {
+                if self.node(*id)?.kind != Kind::DocumentView {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.document_selection_markdown = *markdown;
+            }
+            Op::SetSpinner(id, config) => {
+                if self.node(*id)?.kind != Kind::Loading || !config.is_valid() {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                let node = self.node_mut(*id)?;
+                node.loading = Some(Arc::new(config.loading()));
+                node.image = config.image().map(Arc::new);
+                node.spinner = Some(Arc::new(config.clone()));
+            }
             Op::SetLoading(id, config) => {
                 if self.node(*id)?.kind != Kind::Loading || !config.is_valid() {
                     return Err(ErrorCode::InvalidTree);
                 }
-                self.node_mut(*id)?.loading = Some(Arc::new(config.clone()));
+                let node = self.node_mut(*id)?;
+                node.loading = Some(Arc::new(config.clone()));
+                node.spinner = None;
+                node.image = None;
+            }
+            Op::SetProgressPresentation(id, config) => {
+                if self.node(*id)?.kind != Kind::Progress || !config.is_valid() {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                let node = self.node_mut(*id)?;
+                node.progress = Some(Arc::new(config.progress.clone()));
+                node.progress_presentation = Some(Arc::new(config.clone()));
             }
             Op::SetProgress(id, config) => {
                 if self.node(*id)?.kind != Kind::Progress || !config.is_valid() {
                     return Err(ErrorCode::InvalidTree);
                 }
-                self.node_mut(*id)?.progress = Some(Arc::new(config.clone()));
+                let node = self.node_mut(*id)?;
+                node.progress = Some(Arc::new(config.clone()));
+                node.progress_presentation =
+                    Some(Arc::new(gpuio_protocol::progress_presentation::Config {
+                        progress: config.clone(),
+                        shape: gpuio_protocol::progress_presentation::Shape::Linear,
+                        transition: gpuio_protocol::progress_presentation::Transition::Immediate,
+                    }));
             }
             Op::SetPalette(id, config) => {
                 if self.node(*id)?.kind != Kind::CommandPalette || !config.is_valid() {
@@ -2328,7 +3738,12 @@ impl Plan<'_> {
                 {
                     return Err(ErrorCode::InvalidTree);
                 }
-                self.node_mut(*id)?.command_ref = Some(Arc::from(command.as_str()));
+                let revision = self.original.revision + 1;
+                let node = self.node_mut(*id)?;
+                if node.command_ref.as_deref() != Some(command.as_str()) {
+                    node.button_activation_revision = revision;
+                }
+                node.command_ref = Some(Arc::from(command.as_str()));
                 self.structural = true;
             }
             Op::SetTooltip(id, config) => {
@@ -2342,12 +3757,55 @@ impl Plan<'_> {
             Op::SetPlacement(id, placement) => {
                 if !matches!(
                     self.node(*id)?.kind,
-                    Kind::FocusScope | Kind::Tooltip | Kind::HoverCard
+                    Kind::FocusScope | Kind::Tooltip | Kind::HoverCard | Kind::Menu
                 ) || placement.is_some_and(|placement| !placement.is_valid())
                 {
                     return Err(ErrorCode::InvalidTree);
                 }
                 self.node_mut(*id)?.placement = *placement;
+            }
+            Op::SetWindowRegion(id, region) => {
+                if self.node(*id)?.kind != Kind::Container {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.window_region = region.map(Arc::new);
+            }
+            Op::SetSheetInsets(id, insets) => {
+                if self.node(*id)?.kind != Kind::FocusScope || insets.is_some_and(|n| !n.is_valid())
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.sheet_insets = *insets;
+            }
+            Op::SetPlacementGeometry(id, config) => {
+                if !matches!(
+                    self.node(*id)?.kind,
+                    Kind::FocusScope | Kind::Tooltip | Kind::HoverCard | Kind::Menu
+                ) || config.is_some_and(|config| !config.is_valid())
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.placement_geometry = *config;
+            }
+            Op::SetTooltipMotion(id, enabled) => {
+                if self.node(*id)?.kind != Kind::Tooltip {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.tooltip_motion = *enabled;
+            }
+            Op::SetOverlayMotion(id, enabled) => {
+                if self.node(*id)?.kind != Kind::FocusScope {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.overlay_motion = *enabled;
+            }
+            Op::SetOverlayBackdrop(id, color) => {
+                if self.node(*id)?.kind != Kind::FocusScope
+                    || color.is_some_and(|color| !(0..=0xffff_ffff).contains(&color))
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.overlay_backdrop = *color;
             }
             Op::SetOverlay(id, config) => {
                 if self.node(*id)?.kind != Kind::FocusScope
@@ -2379,6 +3837,13 @@ impl Plan<'_> {
                 crate::appearance::validate(appearance)?;
                 self.node_mut(*id)?.choice_appearance = Some(Arc::new(appearance.clone()));
             }
+            Op::SetChoicePicker(id, presentation) => {
+                if self.node(*id)?.kind != Kind::ChoicePicker {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                crate::choice_picker_admission::validate(presentation)?;
+                self.node_mut(*id)?.choice_picker = Some(Arc::new(presentation.as_ref().clone()));
+            }
             Op::SetChoice(id, config) => {
                 if !matches!(
                     self.node(*id)?.kind,
@@ -2390,6 +3855,10 @@ impl Plan<'_> {
                 self.node_mut(*id)?.choice = Some(Arc::new(config.clone()));
             }
             Op::SetControl(id, control) => {
+                if matches!(control, Control::Radio(_, Some(position), _) if !position.is_valid()) {
+                    return Err(ErrorCode::InvalidTree);
+                }
+
                 if self.node(*id)?.kind != control.kind() {
                     return Err(ErrorCode::InvalidTree);
                 }
@@ -2430,6 +3899,132 @@ impl Plan<'_> {
         Ok(())
     }
 
+    fn validate_calendar_content(&self, node: &Node) -> Result<(), ErrorCode> {
+        let Some(config) = &node.calendar_content else {
+            return Ok(());
+        };
+        if node.kind != Kind::Calendar
+            || !config.is_valid()
+            || node.children.len() != config.items.len()
+        {
+            return Err(ErrorCode::InvalidTree);
+        }
+        for id in node.children.iter() {
+            let slot = self.node(*id)?;
+            if slot.kind != Kind::Container
+                || !slot.text.is_empty()
+                || !slot.style.is_empty()
+                || slot.handler.is_some()
+                || slot.hover_handler.is_some()
+                || slot.accessibility.is_some()
+                || slot.overlay.is_some()
+                || slot.placement.is_some()
+                || slot.table_cell.is_some()
+                || slot.popover
+                || slot.children.len() != 1
+            {
+                return Err(ErrorCode::InvalidTree);
+            }
+        }
+        Ok(())
+    }
+
+    fn validate_number_presentation(&self, node: &Node) -> Result<(), ErrorCode> {
+        if node.number_presentation.is_none() {
+            return Ok(());
+        }
+        if node.kind != Kind::NumberInput || node.children.len() != 4 {
+            return Err(ErrorCode::InvalidTree);
+        }
+        for id in node.children.iter() {
+            let slot = self.node(*id)?;
+            if slot.kind != Kind::Container
+                || !slot.text.is_empty()
+                || !slot.style.is_empty()
+                || slot.handler.is_some()
+                || slot.hover_handler.is_some()
+                || slot.accessibility.is_some()
+                || slot.overlay.is_some()
+                || slot.placement.is_some()
+                || slot.table_cell.is_some()
+                || slot.children.len() > 1
+            {
+                return Err(ErrorCode::InvalidTree);
+            }
+        }
+        Ok(())
+    }
+
+    fn validate_editor_frame(&self, node: &Node) -> Result<(), ErrorCode> {
+        let Some(frame) = &node.editor_frame else {
+            if matches!(node.kind, Kind::Input | Kind::Textarea) && !node.children.is_empty() {
+                return Err(ErrorCode::InvalidTree);
+            }
+            return Ok(());
+        };
+        if !matches!(node.kind, Kind::Input | Kind::Textarea)
+            || !frame.is_valid()
+            || node.children.len() != 4
+            || (node.kind == Kind::Textarea && frame.clear_label.is_some())
+        {
+            return Err(ErrorCode::InvalidTree);
+        }
+        for (index, id) in node.children.iter().enumerate() {
+            let slot = self.node(*id)?;
+            if slot.kind != Kind::Container
+                || !slot.text.is_empty()
+                || !slot.style.is_empty()
+                || slot.handler.is_some()
+                || slot.hover_handler.is_some()
+                || slot.accessibility.is_some()
+                || slot.overlay.is_some()
+                || slot.placement.is_some()
+                || slot.table_cell.is_some()
+                || slot.children.len() > 1
+            {
+                return Err(ErrorCode::InvalidTree);
+            }
+            if index == 1 && (slot.children.len() == 1) != frame.loading {
+                return Err(ErrorCode::InvalidTree);
+            }
+            if let Some(child) = slot.children.first() {
+                let child = self.node(*child)?;
+                if (index == 1 && (child.kind != Kind::Loading || child.spinner.is_none()))
+                    || (index == 2
+                        && (child.kind != Kind::Button
+                            || node.editor_privacy == EditorPrivacy::Plain))
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn validate_track_group(&self, node: &Node) -> Result<(), ErrorCode> {
+        if node.kind == Kind::CarouselTrackGroup
+            && (!node.text.is_empty()
+                || node.handler.is_some()
+                || !(1..=2).contains(&node.children.len())
+                || self.node(node.children[0])?.kind != Kind::CarouselTrack
+                || node.children.get(1).is_some_and(|id| {
+                    self.node(*id).map_or(true, |controls| {
+                        controls.kind != Kind::Container
+                            || !controls.text.is_empty()
+                            || controls.handler.is_some()
+                            || controls.children.len() > 128
+                            || controls.children.iter().any(|id| {
+                                self.node(*id)
+                                    .map_or(true, |control| control.kind != Kind::Button)
+                            })
+                    })
+                }))
+        {
+            return Err(ErrorCode::InvalidTree);
+        }
+        Ok(())
+    }
+
     fn validate_structure(&mut self) -> Result<usize, ErrorCode> {
         let mut stack = Vec::new();
         if let Some(root) = self.root {
@@ -2450,7 +4045,11 @@ impl Plan<'_> {
             {
                 return Err(ErrorCode::InvalidTree);
             }
-            if !allows_children(node.kind) && !node.children.is_empty() {
+            if !allows_children(node.kind)
+                && node.editor_frame.is_none()
+                && node.number_presentation.is_none()
+                && !node.children.is_empty()
+            {
                 return Err(ErrorCode::InvalidTree);
             }
             if node.kind == Kind::Toast
@@ -2535,16 +4134,23 @@ impl Plan<'_> {
                     return Err(ErrorCode::InvalidTree);
                 }
             }
+            let editor_menu = node
+                .menu
+                .as_ref()
+                .is_some_and(|menu| menu.presentation == MenuPresentation::EditorContext);
             for command in references {
                 let mut cursor = Some(*id);
                 let mut found = false;
                 while let Some(id) = cursor {
                     let node = self.node(id)?;
-                    if node
+                    if let Some(entry) = node
                         .commands
                         .as_ref()
-                        .is_some_and(|commands| commands.iter().any(|entry| entry.id == command))
+                        .and_then(|commands| commands.iter().find(|entry| entry.id == command))
                     {
+                        if editor_menu && !matches!(entry.target, CommandTarget::Native(_)) {
+                            return Err(ErrorCode::InvalidTree);
+                        }
                         found = true;
                         break;
                     }

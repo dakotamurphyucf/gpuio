@@ -14,6 +14,7 @@
   (source_tree "../../../vendor/accesskit-macos")
   (source_tree "../../../vendor/taffy")
   (source_tree "../../extension_package/rust")
+  (source_tree "../../document_profile_package/rust")
   "../../../scripts/build_native.py")
  (action
   (run

@@ -7,6 +7,7 @@ impl Decoder<'_> {
         let config = Config {
             label: self.bounded_text(MAX_LABEL_BYTES)?,
             disabled: self.boolean()?,
+            loading: self.boolean()?,
             tab_stop: self.boolean()?,
             tab_index: self.int()?,
         };

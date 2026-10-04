@@ -77,6 +77,7 @@ pub(crate) type TableActionsFn =
 pub(crate) type LinkClickHandlerFn =
     dyn Fn(&SharedString, &ClickEvent, &mut Window, &mut App) + Send + Sync;
 
+pub(crate) type TabExitHandlerFn = dyn Fn(bool, &mut Window, &mut App);
 pub(crate) type LinkFocusGuardFn = dyn Fn(&App) -> bool + Send + Sync;
 
 pub(crate) fn handle_link_click(
@@ -132,6 +133,7 @@ pub struct TextView {
     table_actions: Option<Arc<TableActionsFn>>,
     link_click_handler: Option<Arc<LinkClickHandlerFn>>,
     link_focus_guard: Option<Arc<LinkFocusGuardFn>>,
+    tab_exit_handler: Option<std::rc::Rc<TabExitHandlerFn>>,
     markdown_extensions: Arc<MarkdownExtensions>,
 }
 
@@ -177,6 +179,7 @@ impl TextView {
             table_actions: None,
             link_click_handler: None,
             link_focus_guard: None,
+            tab_exit_handler: None,
             markdown_extensions: Arc::default(),
         }
     }
@@ -199,6 +202,7 @@ impl TextView {
             table_actions: None,
             link_click_handler: None,
             link_focus_guard: None,
+            tab_exit_handler: None,
             markdown_extensions: Arc::default(),
         }
     }
@@ -221,6 +225,7 @@ impl TextView {
             table_actions: None,
             link_click_handler: None,
             link_focus_guard: None,
+            tab_exit_handler: None,
             markdown_extensions: Arc::default(),
         }
     }
@@ -362,6 +367,13 @@ impl TextView {
         self
     }
 
+    /// Leave this document after asynchronous virtual-control realization finds
+    /// no further stops. The host supplies its composite/modal traversal policy.
+    pub fn on_tab_exit(mut self, handler: impl Fn(bool, &mut Window, &mut App) + 'static) -> Self {
+        self.tab_exit_handler = Some(std::rc::Rc::new(handler));
+        self
+    }
+
     /// Replace the Markdown extension registry.
     pub fn markdown_extensions(mut self, extensions: MarkdownExtensions) -> Self {
         self.markdown_extensions = Arc::new(extensions);
@@ -439,6 +451,7 @@ pub struct TextViewPrepaintState {
     /// straddles the bottom of the box. `None` leaves the clip at the box edge,
     /// where the container's hidden overflow already applies it.
     clip_bottom: Option<Pixels>,
+    accessibility_clip: Option<gpui::accesskit::Rect>,
 }
 
 /// Absorbs sub-pixel layout jitter: a line ending within a pixel of the box
@@ -535,6 +548,20 @@ impl Element for TextView {
         None
     }
 
+    fn a11y_role(&self) -> Option<gpui::Role> {
+        (self.max_lines.is_some() && !self.scrollable).then_some(gpui::Role::GenericContainer)
+    }
+
+    fn a11y_synthetic_children(
+        &mut self,
+        prepaint: &mut Self::PrepaintState,
+        builder: &mut gpui::A11ySubtreeBuilder,
+    ) {
+        if let Some(clip) = prepaint.accessibility_clip {
+            builder.clip_descendants(clip);
+        }
+    }
+
     fn request_layout(
         &mut self,
         _: Option<&GlobalElementId>,
@@ -588,15 +615,16 @@ impl Element for TextView {
             state.table_actions = self.table_actions.clone();
             state.link_click_handler = self.link_click_handler.clone();
             state.link_focus_guard = self.link_focus_guard.clone();
+            state.tab_exit_handler = self.tab_exit_handler.clone();
             state.set_markdown_extensions(self.markdown_extensions.clone(), cx);
             state.set_selectable(self.selectable, cx);
             state.selection_format = self.selection_format;
             state.scrollable = self.scrollable;
-            state.max_lines = max_lines;
-            if state.text_view_style != text_view_style {
-                state.selection_revision = state.selection_revision.wrapping_add(1);
+            if state.max_lines != max_lines {
+                state.link_reveal = None;
             }
-            state.text_view_style = text_view_style.clone();
+            state.max_lines = max_lines;
+            state.set_view_style(text_view_style.clone());
 
             if let Some(text) = self.text.clone() {
                 state.set_text(text.as_str(), cx);
@@ -626,12 +654,16 @@ impl Element for TextView {
             .on_mouse_down(
                 MouseButton::Left,
                 window.listener_for(&state, |state, _, _, cx| {
+                    state.control_navigation.cancel();
                     if state.link_navigation.active.take().is_some() {
                         state.link_reveal = None;
                         cx.notify();
                     }
                 }),
             )
+            .on_scroll_wheel(window.listener_for(&state, |state, _, _, _| {
+                state.control_navigation.cancel();
+            }))
             .when(self.scrollable, |this| this.size_full())
             .when_some(max_lines_cap, |this, cap| this.max_h(cap).overflow_hidden())
             .relative()
@@ -669,7 +701,14 @@ impl Element for TextView {
             })
             .refine_style(&self.style)
             .into_any_element();
+        // Flow-mode Inline elements lay out here, before prepaint. They need
+        // the same prepared decoration owner as virtual rows laid out during
+        // prepaint; otherwise displayed-text matches never paint in Flow mode.
+        GlobalState::global_mut(cx)
+            .text_view_state_stack
+            .push(state.clone());
         let layout_id = el.request_layout(window, cx);
+        GlobalState::global_mut(cx).text_view_state_stack.pop();
         (layout_id, TextViewLayoutState { state, element: el })
     }
 
@@ -682,59 +721,86 @@ impl Element for TextView {
         window: &mut Window,
         cx: &mut App,
     ) -> Self::PrepaintState {
-        let state = request_layout.state.clone();
-        let max_lines_active = state.read(cx).max_lines.is_some();
-        state.update(cx, |state, _| {
-            state.link_reveal_claimed = false;
-            state.link_active_owner = None;
-        });
-        if max_lines_active {
-            if let Ok(mut line_spans) = state.read(cx).line_spans.lock() {
-                line_spans.clear();
+        window.with_prepaint_clip(|window| {
+            let state = request_layout.state.clone();
+            let max_lines_active = state.read(cx).max_lines.is_some();
+            state.update(cx, |state, _| {
+                state.link_reveal_claimed = false;
+                state.link_active_owner = None;
+            });
+            if max_lines_active {
+                if let Ok(mut line_spans) = state.read(cx).line_spans.lock() {
+                    line_spans.clear();
+                }
+                // Descendant `Inline`s report their line spans through the state
+                // stack during prepaint (in addition to the paint-time push below).
             }
-            // Descendant `Inline`s report their line spans through the state
-            // stack during prepaint (in addition to the paint-time push below).
-        }
-        GlobalState::global_mut(cx)
-            .text_view_state_stack
-            .push(state.clone());
-        request_layout.element.prepaint(window, cx);
-        GlobalState::global_mut(cx).text_view_state_stack.pop();
+            GlobalState::global_mut(cx)
+                .text_view_state_stack
+                .push(state.clone());
+            request_layout.element.prepaint(window, cx);
+            GlobalState::global_mut(cx).text_view_state_stack.pop();
 
-        let mut clip_bottom = None;
-        if max_lines_active {
-            let (line_spans, content_bottom) = {
-                let state = state.read(cx);
-                (
-                    state
-                        .line_spans
-                        .lock()
-                        .map(|spans| spans.clone())
-                        .unwrap_or_default(),
-                    state.bounds().bottom(),
-                )
-            };
-            // The content keeps its natural height inside the capped box, so
-            // this sees everything the box cannot show — including a tall image
-            // that reports no lines of its own.
-            let clipped = content_bottom > bounds.bottom() + px(1.);
-            // Notify on change so observers (e.g. an "expand" button gated on
-            // `is_clamped`) re-render once the flag flips.
-            if state.read(cx).clamped != clipped {
+            let mut clip_bottom = None;
+            if max_lines_active {
+                let (line_spans, content_bottom) = {
+                    let state = state.read(cx);
+                    (
+                        state
+                            .line_spans
+                            .lock()
+                            .map(|spans| spans.clone())
+                            .unwrap_or_default(),
+                        state.bounds().bottom(),
+                    )
+                };
+                // The content keeps its natural height inside the capped box, so
+                // this sees everything the box cannot show — including a tall image
+                // that reports no lines of its own.
+                let clipped = content_bottom > bounds.bottom() + px(1.);
+                // Notify on change so observers (e.g. an "expand" button gated on
+                // `is_clamped`) re-render once the flag flips.
+                if state.read(cx).clamped != clipped {
+                    state.update(cx, |state, cx| {
+                        state.clamped = clipped;
+                        cx.notify();
+                    });
+                }
+                if clipped {
+                    clip_bottom =
+                        line_safe_clip_bottom(&line_spans, bounds.bottom(), content_bottom);
+                }
+            } else if state.read(cx).clamped {
                 state.update(cx, |state, cx| {
-                    state.clamped = clipped;
+                    state.clamped = false;
                     cx.notify();
                 });
             }
-            if clipped {
-                clip_bottom = line_safe_clip_bottom(&line_spans, bounds.bottom(), content_bottom);
-            }
-        }
 
-        TextViewPrepaintState {
-            hitbox: window.insert_hitbox(bounds, HitboxBehavior::Normal),
-            clip_bottom,
-        }
+            let input_clip = max_lines_active.then(|| ContentMask {
+                bounds: Bounds::from_corners(
+                    bounds.origin,
+                    point(bounds.right(), clip_bottom.unwrap_or(bounds.bottom())),
+                ),
+            });
+            (
+                TextViewPrepaintState {
+                    hitbox: window.insert_hitbox(bounds, HitboxBehavior::Normal),
+                    clip_bottom,
+                    accessibility_clip: max_lines_active.then(|| {
+                        let scale = f64::from(window.scale_factor());
+                        gpui::accesskit::Rect {
+                            x0: f64::from(f32::from(bounds.left())) * scale,
+                            y0: f64::from(f32::from(bounds.top())) * scale,
+                            x1: f64::from(f32::from(bounds.right())) * scale,
+                            y1: f64::from(f32::from(clip_bottom.unwrap_or(bounds.bottom())))
+                                * scale,
+                        }
+                    }),
+                },
+                input_clip,
+            )
+        })
     }
 
     fn paint(
@@ -748,6 +814,7 @@ impl Element for TextView {
         cx: &mut App,
     ) {
         let state = &request_layout.state;
+        state.update(cx, |state, _| state.preview_links.clear());
         if self.selectable {
             state.update(cx, |state, _| state.selection_adapter.begin_frame());
         }
@@ -755,21 +822,42 @@ impl Element for TextView {
         GlobalState::global_mut(cx)
             .text_view_state_stack
             .push(state.clone());
-        if let Some(clip_bottom) = prepaint.clip_bottom {
-            // Snap the `max_lines` clip to the last whole line that fits, so a
-            // line of glyphs is never cut in half.
-            let mask = ContentMask {
-                bounds: Bounds::from_corners(bounds.origin, point(bounds.right(), clip_bottom)),
-            };
-            window.with_content_mask(Some(mask), |window| {
+        let clipped_input = state.read(cx).max_lines.is_some() || self.scrollable;
+        let mut paint = |window: &mut Window| {
+            if let Some(clip_bottom) = prepaint.clip_bottom {
+                // Snap the `max_lines` clip to the last whole line that fits, so a
+                // line of glyphs is never cut in half.
+                let mask = ContentMask {
+                    bounds: Bounds::from_corners(bounds.origin, point(bounds.right(), clip_bottom)),
+                };
+                window.with_content_mask(Some(mask), |window| {
+                    request_layout.element.paint(window, cx);
+                });
+            } else {
                 request_layout.element.paint(window, cx);
-            });
+            }
+        };
+        if clipped_input {
+            let (_, clipped_focus) = window.with_clipped_input(paint);
+            if clipped_focus {
+                let focus = state.read(cx).focus_handle.clone();
+                focus.focus(window, cx);
+            }
         } else {
-            request_layout.element.paint(window, cx);
+            paint(window);
         }
         GlobalState::global_mut(cx).text_view_state_stack.pop();
+        state.update(cx, |state, cx| state.schedule_control_focus(window, cx));
 
         state.update(cx, |state, _| {
+            if state
+                .link_navigation
+                .active
+                .is_some_and(|source| !state.link_is_visible(source))
+            {
+                state.link_navigation.active = None;
+                state.link_reveal = None;
+            }
             if state.link_reveal_claimed {
                 state.link_reveal = None;
             }

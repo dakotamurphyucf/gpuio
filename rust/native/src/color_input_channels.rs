@@ -2,7 +2,8 @@ use super::*;
 
 impl ColorInput {
     fn channel_enabled(&self, channel: c::Channel) -> bool {
-        !self.model.config().disabled
+        self.shows_panel(Panel::Channels)
+            && !self.model.config().disabled
             && self.access(false) == Access::Allowed
             && !(channel == c::Channel::Alpha
                 && self.model.config().alpha_policy == AlphaPolicy::OpaqueOnly)
@@ -145,7 +146,7 @@ impl ColorInput {
         let mut track = div()
             .id(("channel", index))
             .relative()
-            .h(px(28.))
+            .h(px(self.presentation.channel_height as f32))
             .w_full()
             .role(Role::Slider)
             .aria_label(label.clone())
@@ -288,8 +289,11 @@ impl ColorInput {
                             bounds.left() + bounds.size.width * (value / channel.maximum()) as f32,
                             bounds.center().y,
                         );
-                        let thumb =
-                            Bounds::new(center - point(px(5.), px(8.)), size(px(10.), px(16.)));
+                        let thumb_height = (bounds.size.height - px(6.)).clamp(px(1.), px(16.));
+                        let thumb = Bounds::new(
+                            center - point(px(5.), thumb_height / 2.),
+                            size(px(10.), thumb_height),
+                        );
                         let color = w.text_style().color;
                         let mut quad = fill(thumb, color);
                         quad.corner_radii = px(3.).into();
@@ -383,6 +387,8 @@ impl ColorInput {
                     ),
             )
             .child(crate::semantics::State {
+                identity: None,
+                busy: false,
                 element: track,
                 metadata: None,
                 live: None,

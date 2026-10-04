@@ -1328,6 +1328,22 @@ pub trait StatefulInteractiveElement: InteractiveElement {
     /// focused, the claim is ignored.
     fn aria_active_descendant(mut self) -> Self {
         self.interactivity().report_active_descendant_focus = true;
+        self.interactivity().active_descendant_owner = None;
+        self
+    }
+
+    /// Report this option as accessibility-focused while an explicitly related
+    /// input holds real keyboard focus, even if that input is not an ancestor.
+    ///
+    /// The input must be exposed as the real focused accessibility node in this
+    /// frame; either sibling may paint first. Claims are resolved at frame end
+    /// and rolled back with rejected prepaint attempts. The weak owner does not
+    /// retain a removed input. Missing,
+    /// retired, unfocused or self targets are ignored. This never moves keyboard
+    /// focus, and only one option may claim accessibility focus in a frame.
+    fn aria_active_descendant_for(mut self, owner: &FocusHandle) -> Self {
+        self.interactivity().report_active_descendant_focus = true;
+        self.interactivity().active_descendant_owner = Some(owner.downgrade());
         self
     }
 
@@ -2144,6 +2160,7 @@ pub struct Interactivity {
         Vec<(accesskit::Action, crate::window::a11y::A11yActionListener)>,
     pub(crate) a11y_synthetic_children: Option<Box<dyn FnOnce(&mut crate::A11ySubtreeBuilder)>>,
     pub(crate) report_active_descendant_focus: bool,
+    pub(crate) active_descendant_owner: Option<crate::WeakFocusHandle>,
     pub(crate) override_role: Option<accesskit::Role>,
     pub(crate) aria: AriaProperties,
 
@@ -2296,9 +2313,19 @@ impl Interactivity {
 
         if self.report_active_descendant_focus && window.a11y.is_active() {
             if let Some(global_id) = global_id {
-                window
-                    .a11y
-                    .set_active_descendant(global_id.accesskit_node_id());
+                if let Some(owner) = &self.active_descendant_owner {
+                    if let Some(owner) = owner.upgrade()
+                        && owner.is_focused(window)
+                    {
+                        window
+                            .a11y
+                            .set_active_descendant_for(global_id.accesskit_node_id(), owner.id);
+                    }
+                } else {
+                    window
+                        .a11y
+                        .set_active_descendant(global_id.accesskit_node_id());
+                }
             }
         }
         window.with_optional_element_state::<InteractiveElementState, _>(
@@ -2538,8 +2565,39 @@ impl Interactivity {
                                         // sibling groups every container would then sort ahead of
                                         // every item, and `focus_next` from a container would jump
                                         // to the first item in the whole window instead of its own.
+                                        let visible =
+                                            bounds.intersect(&window.content_mask().bounds);
+                                        let input_visible = !window.clip_keyboard_input
+                                            || (visible.size.width > Pixels::ZERO
+                                                && visible.size.height > Pixels::ZERO);
+                                        if !input_visible
+                                            && self
+                                                .tracked_focus_handle
+                                                .as_ref()
+                                                .is_some_and(|handle| handle.is_focused(window))
+                                        {
+                                            window.clipped_input_focus = true;
+                                        }
+                                        if !input_visible
+                                            && let Some(state) = element_state.as_mut()
+                                        {
+                                            if let Some(pending) = &state.pending_keyboard_down {
+                                                pending.borrow_mut().take();
+                                            }
+                                            if let Some(pending) = &state.pending_mouse_down {
+                                                pending.borrow_mut().take();
+                                            }
+                                            if let Some(clicked) = &state.clicked_state {
+                                                *clicked.borrow_mut() =
+                                                    ElementClickedState::default();
+                                            }
+                                        }
                                         if let Some(focus_handle) = &self.tracked_focus_handle {
-                                            window.next_frame.tab_stops.insert(focus_handle);
+                                            window.next_frame.tab_stops.insert_with_bounds(
+                                                focus_handle,
+                                                Some(bounds),
+                                                input_visible,
+                                            );
                                         }
                                         if let Some(hitbox) = hitbox {
                                             #[cfg(debug_assertions)]
@@ -2568,16 +2626,22 @@ impl Interactivity {
                                                 );
                                             }
 
-                                            self.paint_mouse_listeners(
-                                                hitbox,
-                                                element_state.as_mut(),
-                                                window,
-                                                cx,
-                                            );
-                                            self.paint_scroll_listener(hitbox, &style, window, cx);
+                                            if input_visible {
+                                                self.paint_mouse_listeners(
+                                                    hitbox,
+                                                    element_state.as_mut(),
+                                                    window,
+                                                    cx,
+                                                );
+                                                self.paint_scroll_listener(
+                                                    hitbox, &style, window, cx,
+                                                );
+                                            }
                                         }
 
-                                        self.paint_keyboard_listeners(window, cx);
+                                        if input_visible {
+                                            self.paint_keyboard_listeners(window, cx);
+                                        }
 
                                         if window.a11y.is_active() {
                                             if let Some(global_id) = global_id {

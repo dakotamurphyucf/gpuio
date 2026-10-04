@@ -113,7 +113,9 @@ impl Collector {
                 .text_view_state()
                 .is_some_and(|view| {
                     let state = view.read(cx);
-                    state.link_navigation.active.is_some() || state.link_reveal.is_some()
+                    state.max_lines.is_some()
+                        || state.link_navigation.active.is_some()
+                        || state.link_reveal.is_some()
                 });
         Self {
             fragments: Rc::default(),
@@ -189,6 +191,45 @@ fn coalesce(fragments: Vec<Fragment>) -> Vec<Run> {
         adjacent = true;
     }
     runs
+}
+
+/// Record links against the actual paint mask, including the whole-line clip.
+/// This runs even when accessibility and keyboard link focus are inactive.
+pub(super) fn record_preview_link(
+    link: &LinkMark,
+    bounds: Bounds<Pixels>,
+    window: &Window,
+    cx: &mut App,
+) {
+    let Some(source) = link.source_start else {
+        return;
+    };
+    let Some(view) = GlobalState::global(cx).text_view_state().cloned() else {
+        return;
+    };
+    if view.read(cx).max_lines.is_none() {
+        return;
+    }
+    let visible = bounds.intersect(&window.content_mask().bounds);
+    if visible.size.width > px(0.) && visible.size.height > px(0.) {
+        view.update(cx, |state, _| {
+            state.preview_links.insert(source);
+        });
+    }
+}
+
+pub(super) fn activation_allowed(
+    target: &Option<(gpui::WeakEntity<super::TextViewState>, Option<usize>)>,
+    cx: &App,
+) -> bool {
+    target.as_ref().is_none_or(|(view, source)| {
+        view.upgrade().is_some_and(|view| {
+            let state = view.read(cx);
+            source.map_or(state.max_lines.is_none(), |source| {
+                state.link_is_visible(source)
+            })
+        })
+    })
 }
 
 pub(super) fn reveal(runs: &[Run], window: &mut Window, cx: &mut App) {
@@ -270,6 +311,9 @@ pub(super) fn elements(
                 });
                 let active = active && !std::mem::replace(&mut active_claimed, true);
                 let url = link.url.clone();
+                let activation_target = view
+                    .as_ref()
+                    .map(|view| (view.downgrade(), link.source_start));
                 let focus_target = view
                     .as_ref()
                     .filter(|_| link.source_start.is_some())
@@ -293,6 +337,9 @@ pub(super) fn elements(
                         builder.parent_node().set_url(metadata_url.to_string())
                     })
                     .on_a11y_action(gpui::AccessibleAction::Click, move |_, window, cx| {
+                        if !super::inline_semantics::activation_allowed(&activation_target, cx) {
+                            return;
+                        }
                         handle_link_click(
                             &handler,
                             url.clone(),

@@ -17,10 +17,14 @@ fn negotiation_advertises_extended_styles_without_waiving_unknown_bits() {
         CAP_COMMAND_BINDINGS,
         CAP_NUMBER_INPUT_DRAFT,
         CAP_DISABLED_SUBTREES,
+        CAP_AVATAR_FALLBACK,
+        CAP_CONTROL_APPEARANCE,
+        CAP_CONTROL_LABELS,
+        CAP_CHECKABLE_NAVIGATION,
         CAPABILITIES,
     ] {
         let mut session = Session::default();
-        for invalid in [-1, CAPABILITIES | (1_i64 << 56)] {
+        for invalid in [-1, i64::MIN] {
             assert_eq!(
                 session.hello(VERSION, invalid),
                 Err(ErrorCode::UnsupportedCapability)
@@ -60,9 +64,16 @@ fn negotiation_closed_generations_and_render_requests() {
         session.validate_open(window(1), "one", 100., 100.),
         Err(ErrorCode::NotReady)
     );
-    assert_eq!(session.hello(2, 0), Err(ErrorCode::UnsupportedVersion));
     assert_eq!(
-        session.hello(VERSION, 1 << 60),
+        session.hello(VERSION + 1, 0),
+        Err(ErrorCode::UnsupportedVersion)
+    );
+    assert_eq!(
+        session.hello(1, CAPABILITIES),
+        Err(ErrorCode::UnsupportedVersion)
+    );
+    assert_eq!(
+        session.hello(VERSION, i64::MIN),
         Err(ErrorCode::UnsupportedCapability)
     );
     assert_eq!(

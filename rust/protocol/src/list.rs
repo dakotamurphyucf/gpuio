@@ -42,6 +42,14 @@ impl Order {
     }
 }
 
+/// Main-axis metadata, independent of the legacy configuration record layout.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, BinProtWrite)]
+pub enum Axis {
+    #[default]
+    Vertical,
+    Horizontal,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
 pub enum ScrollPolicy {
     KeepPosition,

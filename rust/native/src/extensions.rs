@@ -1,20 +1,22 @@
 //! Application-wide, immutable build-time extension catalog.
 use gpuio_extension_sdk::{Descriptor, Error, Factory, Registry, contain};
 use gpuio_protocol::extension::{Config, Schema};
-use std::sync::{Arc, OnceLock};
-
-static REGISTRY: OnceLock<Registry> = OnceLock::new();
+use std::sync::Arc;
 
 /// Install exactly once before creating a transport or reading the catalog.
 /// Generated application backends call this with their compiled factories.
 /// Validation is atomic; a rejected catalog does not freeze registration.
 pub fn install(factories: impl IntoIterator<Item = Arc<dyn Factory>>) -> Result<(), Error> {
     let registry = Registry::new(factories)?;
-    REGISTRY.set(registry).map_err(|_| Error::Closed)
+    crate::registrations::install_prepared(
+        registry,
+        gpuio_document_sdk::Registry::new([]).expect("empty document catalog is valid"),
+    )
+    .map_err(|_| Error::Closed)
 }
 
 pub(crate) fn registry() -> &'static Registry {
-    REGISTRY.get_or_init(|| Registry::new([]).expect("empty registry is valid"))
+    &crate::registrations::get().components
 }
 
 pub fn catalog() -> Vec<Schema> {

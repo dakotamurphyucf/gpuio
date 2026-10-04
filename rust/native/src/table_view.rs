@@ -1,4 +1,8 @@
 //! Native table delegate over the admitted retained tree. No host-language calls.
+#[path = "table_header_view.rs"]
+mod header_view;
+pub(super) use header_view::clip as clip_header_control;
+
 use super::{Interaction, SharedSession, View, apply_styles};
 use crate::{
     list_index::Index,
@@ -24,6 +28,34 @@ use std::{
     rc::Rc,
     sync::Arc,
 };
+
+fn presentation_states(
+    mut element: gpui::Stateful<gpui::Div>,
+    states: [Option<gpui::StyleRefinement>; 7],
+    focused: bool,
+    selected: bool,
+    disabled: bool,
+) -> gpui::Stateful<gpui::Div> {
+    if selected && let Some(style) = &states[6] {
+        element = element.refine_style(style);
+    }
+    if focused && let Some(style) = &states[0] {
+        element = element.refine_style(style);
+    }
+    if disabled {
+        if let Some(style) = &states[5] {
+            element = element.refine_style(style);
+        }
+    } else {
+        if let Some(style) = states[1].clone() {
+            element = element.hover(move |e| e.refine_style(&style));
+        }
+        if let Some(style) = states[2].clone() {
+            element = element.active(move |e| e.refine_style(&style));
+        }
+    }
+    element
+}
 
 #[derive(Clone)]
 struct Route {
@@ -115,14 +147,111 @@ struct Delegate {
     owner: WeakEntity<View>,
     route: Route,
     config: Arc<wire::Config>,
+    behavior: Option<Arc<wire::Behavior>>,
+    appearance: Option<Arc<wire::Appearance>>,
     schema: wire::Schema,
     index: Arc<Index>,
     rows: BTreeMap<i64, Arc<[NodeId]>>,
+    headers: BTreeMap<Arc<gpuio_protocol::table_header::Target>, NodeId>,
+    header_style: Arc<[gpuio_protocol::v1::Style]>,
+    row_styles: BTreeMap<i64, Arc<[gpuio_protocol::v1::Style]>>,
     handles: BTreeMap<i64, FocusHandle>,
     interaction: Interaction,
     styles: Arc<[gpuio_protocol::v1::Style]>,
     #[cfg(feature = "native-tests")]
     rendered: BTreeSet<(i64, String)>,
+}
+impl Delegate {
+    fn header_content(
+        &self,
+        target: &gpuio_protocol::table_header::Target,
+        window: &mut Window,
+        cx: &mut Context<TableState<Self>>,
+    ) -> Option<gpui::AnyElement> {
+        if !self.route.live() {
+            return None;
+        }
+        let slot = *self.headers.get(target)?;
+        self.owner
+            .update(cx, |view, cx| {
+                let shared = self.route.session.clone();
+                let session = shared.borrow();
+                let tree = session.tree(self.route.window)?;
+                let node = tree.get(slot)?;
+                if node.parent != Some(self.route.node)
+                    || node.table_header.as_deref() != Some(target)
+                {
+                    return None;
+                }
+                let content = view.element(
+                    tree,
+                    *node.children.first()?,
+                    Interaction {
+                        table_header: true,
+                        ..self.interaction
+                    },
+                    window,
+                    cx,
+                );
+                Some(header_view::content(slot, content, &self.route.gate))
+            })
+            .ok()
+            .flatten()
+    }
+
+    fn base_appearance(&self) -> gpuio_table_adapter::Appearance {
+        use gpuio_protocol::v1::{Field, Fill, Style};
+        let mut appearance = gpuio_table_adapter::Appearance::default();
+        let mut custom_foreground = false;
+        // The outer host box paints the surface once, including gradients and
+        // alpha. Nested native table layers must not obscure or blend it again.
+        appearance.tokens.table = gpui::transparent_black();
+        appearance.tokens.table_head = gpui::transparent_black();
+        for style in self.styles.iter() {
+            match style {
+                Style::Foreground(value) => {
+                    appearance.foreground = super::color(value);
+                    custom_foreground = true;
+                    appearance.table_head_foreground = super::color(value);
+                }
+                Style::Radius(value) => appearance.radius = px(*value as f32),
+                Style::State(7, fields) => {
+                    for field in fields {
+                        if let Field::Background(Fill::Solid(value)) = field {
+                            appearance.tokens.table_active = super::color(value);
+                        }
+                    }
+                }
+                Style::Fields(fields) => {
+                    for field in fields {
+                        match field {
+                            Field::Foreground(value) => {
+                                appearance.foreground = super::color(value);
+                                custom_foreground = true;
+                                appearance.table_head_foreground = super::color(value);
+                            }
+                            Field::BorderColor(value) => {
+                                appearance.border = super::color(value);
+                                appearance.table_row_border = super::color(value);
+                            }
+                            _ => (),
+                        }
+                    }
+                }
+                _ => (),
+            }
+        }
+        if custom_foreground {
+            // Native hover and sort affordances must remain legible on the
+            // caller's surface, including a light theme changed in place.
+            // A translucent foreground tint preserves alpha/gradient surfaces.
+            appearance.tokens.table_hover = appearance.foreground.opacity(0.06);
+            appearance.tokens.secondary = appearance.foreground.opacity(0.08);
+            appearance.tokens.secondary_active = appearance.foreground.opacity(0.12);
+            appearance.secondary_foreground = appearance.foreground;
+        }
+        appearance
+    }
 }
 impl TableDelegate for Delegate {
     fn table_event(&self, event: &TableEvent, _: &mut Context<TableState<Self>>) {
@@ -193,57 +322,102 @@ impl TableDelegate for Delegate {
     }
 
     fn appearance(&self) -> gpuio_table_adapter::Appearance {
-        use gpuio_protocol::v1::{Field, Fill, Style};
-        let mut appearance = gpuio_table_adapter::Appearance::default();
-        let mut custom_foreground = false;
-        // The outer host box paints the surface once, including gradients and
-        // alpha. Nested native table layers must not obscure or blend it again.
-        appearance.tokens.table = gpui::transparent_black();
-        appearance.tokens.table_head = gpui::transparent_black();
-        for style in self.styles.iter() {
-            match style {
-                Style::Foreground(value) => {
-                    appearance.foreground = super::color(value);
-                    custom_foreground = true;
-                    appearance.table_head_foreground = super::color(value);
+        let mut appearance = self.base_appearance();
+        if let Some(presentation) = &self.appearance {
+            for (part, value) in &presentation.colors {
+                let color = super::color(&gpuio_protocol::v1::Color::Rgba(*value));
+                match part {
+                    wire::Part::HeaderBackground => appearance.tokens.table_head = color,
+                    wire::Part::HeaderForeground => appearance.table_head_foreground = color,
+                    wire::Part::StripeBackground => appearance.tokens.table_even = color,
+                    wire::Part::HoverBackground => appearance.tokens.table_hover = color,
+                    wire::Part::SelectedBackground => appearance.tokens.table_active = color,
+                    wire::Part::SelectedBorder => appearance.table_active_border = color,
+                    wire::Part::RowBorder => appearance.table_row_border = color,
+                    wire::Part::ColumnBorder => appearance.border = color,
+                    wire::Part::SortHoverBackground => appearance.tokens.secondary = color,
+                    wire::Part::SortPressedBackground => appearance.tokens.secondary_active = color,
+                    wire::Part::SortForeground => appearance.secondary_foreground = color,
+                    wire::Part::DragBorder => appearance.drag_border = color,
+                    wire::Part::ContextBorder => appearance.selection = color,
                 }
-                Style::Radius(value) => appearance.radius = px(*value as f32),
-                Style::State(7, fields) => {
-                    for field in fields {
-                        if let Field::Background(Fill::Solid(value)) = field {
-                            appearance.tokens.table_active = super::color(value);
-                        }
-                    }
-                }
-                Style::Fields(fields) => {
-                    for field in fields {
-                        match field {
-                            Field::Foreground(value) => {
-                                appearance.foreground = super::color(value);
-                                custom_foreground = true;
-                                appearance.table_head_foreground = super::color(value);
-                            }
-                            Field::BorderColor(value) => {
-                                appearance.border = super::color(value);
-                                appearance.table_row_border = super::color(value);
-                            }
-                            _ => (),
-                        }
-                    }
-                }
-                _ => (),
             }
         }
-        if custom_foreground {
-            // Native hover and sort affordances must remain legible on the
-            // caller's surface, including a light theme changed in place.
-            // A translucent foreground tint preserves alpha/gradient surfaces.
-            appearance.tokens.table_hover = appearance.foreground.opacity(0.06);
-            appearance.tokens.secondary = appearance.foreground.opacity(0.08);
-            appearance.tokens.secondary_active = appearance.foreground.opacity(0.12);
-            appearance.secondary_foreground = appearance.foreground;
-        }
         appearance
+    }
+
+    fn render_header(
+        &mut self,
+        _: &mut Window,
+        _: &mut Context<TableState<Self>>,
+    ) -> gpui::Stateful<gpui::Div> {
+        let header = div().id("header");
+        let header = match self
+            .appearance
+            .as_ref()
+            .and_then(|a| a.color(wire::Part::HeaderForeground))
+        {
+            Some(color) => header.text_color(super::color(&gpuio_protocol::v1::Color::Rgba(color))),
+            None => header,
+        };
+        let (header, states) = apply_styles(
+            header,
+            &self.header_style,
+            self.interaction,
+            self.config.disabled,
+        );
+        presentation_states(header, states, false, false, self.config.disabled)
+    }
+    fn render_th(
+        &mut self,
+        column: usize,
+        window: &mut Window,
+        cx: &mut Context<TableState<Self>>,
+    ) -> impl IntoElement {
+        let column = &self.schema.columns[column];
+        self.header_content(
+            &gpuio_protocol::table_header::Target::Column(column.id.clone()),
+            window,
+            cx,
+        )
+        .unwrap_or_else(|| {
+            div()
+                .size_full()
+                .child(column.label.clone())
+                .into_any_element()
+        })
+    }
+    fn render_group_header(
+        &mut self,
+        level: usize,
+        columns: std::ops::Range<usize>,
+        label: &gpui::SharedString,
+        width: gpui::Pixels,
+        window: &mut Window,
+        cx: &mut Context<TableState<Self>>,
+    ) -> impl IntoElement {
+        let mut members = self.schema.columns[columns.clone()]
+            .iter()
+            .map(|c| c.id.clone())
+            .collect::<Vec<_>>();
+        members.sort();
+        let target = gpuio_protocol::table_header::Target::Group {
+            level: level as i64,
+            columns: members,
+        };
+        if let Some(content) = self.header_content(&target, window, cx) {
+            div()
+                .w(width)
+                .h_full()
+                .flex_shrink_0()
+                .border_r_1()
+                .border_color(self.appearance().border)
+                .child(content)
+                .into_any_element()
+        } else {
+            self.render_group_th(label, columns.len(), width, window, cx)
+                .into_any_element()
+        }
     }
     fn pointer_enabled(&self, _: &App) -> bool {
         self.route.pointer_allowed(self.interaction.pointer)
@@ -288,9 +462,22 @@ impl TableDelegate for Delegate {
                         wire::Direction::Descending => ColumnSort::Descending,
                     })
             }),
+            paddings: self
+                .appearance
+                .as_ref()
+                .and_then(|a| a.column_padding(&col.id))
+                .map(|p| gpui::Edges {
+                    top: px(p.top as f32),
+                    right: px(p.right as f32),
+                    bottom: px(p.bottom as f32),
+                    left: px(p.left as f32),
+                }),
             resizable: col.resizable,
             movable: col.movable,
-            ..Default::default()
+            selectable: self
+                .behavior
+                .as_ref()
+                .is_none_or(|b| b.header_selectable(&col.id)),
         }
     }
     fn group_headers(&self, _: &App) -> Option<Vec<Vec<ColumnGroup>>> {
@@ -313,13 +500,63 @@ impl TableDelegate for Delegate {
         _: &mut Window,
         _: &mut Context<TableState<Self>>,
     ) -> gpui::Stateful<gpui::Div> {
-        let key = self.index.id(row).expect("native logical row");
+        let Some(key) = self.index.id(row) else {
+            // Stripe filler rows are decorative native layout, not application
+            // records. They own no focus handle and never request OCaml cells.
+            return div().id(("table-filler", row as u64));
+        };
         let element = div().id(("table-row", key as u64));
-        if let Some(handle) = self.handles.get(&key) {
+        let element = if let Some(handle) = self.handles.get(&key) {
             element.track_focus(handle)
         } else {
             element
+        };
+        if let Some(styles) = self.row_styles.get(&key) {
+            apply_styles(element, styles, self.interaction, self.config.disabled).0
+        } else {
+            element
         }
+    }
+    fn finish_row(
+        &mut self,
+        row: usize,
+        state: gpuio_table_adapter::table::RowPresentation,
+        element: gpui::Stateful<gpui::Div>,
+        window: &mut Window,
+        cx: &mut Context<TableState<Self>>,
+    ) -> gpui::Stateful<gpui::Div> {
+        let key = self.index.id(row);
+        let mut states = key
+            .and_then(|key| self.row_styles.get(&key))
+            .map(|styles| {
+                apply_styles(
+                    div().id("row-state-probe"),
+                    styles,
+                    self.interaction,
+                    self.config.disabled,
+                )
+                .1
+            })
+            .unwrap_or_default();
+        let focused = state.focused
+            || key
+                .and_then(|key| self.handles.get(&key))
+                .is_some_and(|handle| handle.contains_focused(window, cx));
+        states[1] = match (state.hover, states[1].take()) {
+            (Some(native), Some(custom)) => Some(native.refine_style(&custom)),
+            (native, custom) => custom.or(native),
+        };
+        if !self.pointer_enabled(cx) {
+            states[1] = None;
+            states[2] = None;
+        }
+        presentation_states(
+            element,
+            states,
+            focused,
+            state.selected,
+            self.config.disabled,
+        )
     }
     fn render_td(
         &mut self,
@@ -404,6 +641,7 @@ pub(super) struct State {
     pub(super) extra_pins: BTreeSet<i64>,
     pub(super) observed: Option<Viewport>,
     observed_revision: Option<i64>,
+    observed_columns: Option<(i64, wire::ColumnViewport)>,
 }
 fn selection(value: &Selection) -> wire::Selection {
     match value {
@@ -514,6 +752,14 @@ impl State {
                 )
             })
             .collect();
+        let headers = node
+            .children
+            .iter()
+            .filter_map(|id| {
+                let header = tree.get(*id)?;
+                Some((header.table_header.clone()?, *id))
+            })
+            .collect();
         self.native.update(cx, |state, cx| {
             let old = state.delegate();
             let reset = old.config.schema_revision != config.schema_revision
@@ -535,8 +781,20 @@ impl State {
                 delegate.route.schema = config.schema_revision;
                 delegate.route.query = config.query_generation;
                 delegate.config = config.clone();
+                delegate.behavior = node.table_behavior.clone();
+                delegate.appearance = node.table_appearance.clone();
                 delegate.index = index;
                 delegate.rows = rows;
+                delegate.headers = headers;
+                delegate.header_style = node.table_header_style.clone();
+                delegate.row_styles = node
+                    .list_rows
+                    .iter()
+                    .filter_map(|row| {
+                        let styles = &tree.get(row.node)?.table_row_style;
+                        (!styles.is_empty()).then(|| (row.id, styles.clone()))
+                    })
+                    .collect();
                 delegate.handles = handles;
                 delegate.styles = node.style.clone();
             };
@@ -549,9 +807,18 @@ impl State {
             state.row_selectable = config.selection_mode != wire::SelectionMode::Cells;
             state.cell_selectable = config.selection_mode != wire::SelectionMode::Rows;
             state.col_selectable = config.column_selection;
+            state.row_header = node.table_behavior.as_ref().is_none_or(|b| b.row_header);
+            state.loop_selection = node
+                .table_behavior
+                .as_ref()
+                .is_none_or(|b| b.boundary == wire::Boundary::Wrap);
             if !config.allows_selection(&selection(state.selection()), |row| {
                 state.delegate().index.position(row).is_some()
-            }) {
+            }) || node
+                .table_behavior
+                .as_ref()
+                .is_some_and(|b| !b.allows_selection(&selection(state.selection())))
+            {
                 state.replace_selection(Selection::Empty, cx);
             }
             if reset {
@@ -588,8 +855,13 @@ impl View {
                     route,
                     schema: config.schema.clone(),
                     config,
+                    behavior: node.table_behavior.clone(),
+                    appearance: node.table_appearance.clone(),
                     index: node.list_index.clone().unwrap(),
                     rows: BTreeMap::new(),
+                    headers: BTreeMap::new(),
+                    header_style: node.table_header_style.clone(),
+                    row_styles: BTreeMap::new(),
                     handles: BTreeMap::new(),
                     interaction: Interaction::default(),
                     styles: node.style.clone(),
@@ -605,6 +877,7 @@ impl View {
             extra_pins: BTreeSet::new(),
             observed: None,
             observed_revision: None,
+            observed_columns: None,
         };
         state.update(tree, node, cx);
         state
@@ -749,12 +1022,86 @@ impl View {
                 pending.extend(node.children.iter().copied());
             }
         }
-        let appearance = native.read(cx).delegate().appearance();
+        let scrollbar_presentation = if let Some(config) = &node.scrollbar {
+            use super::scrollbar_host::{Mount, Owner};
+            let horizontal = self.scrollbar_owner(
+                tree,
+                node,
+                Mount {
+                    kind: Owner::TableHorizontal,
+                    handle: Rc::new(native.read(cx).horizontal_scroll_handle.clone()),
+                },
+                interaction,
+                window,
+                cx,
+            );
+            let vertical = self.scrollbar_owner(
+                tree,
+                node,
+                Mount {
+                    kind: Owner::TableVertical,
+                    handle: Rc::new(native.read(cx).vertical_scroll_handle.clone()),
+                },
+                interaction,
+                window,
+                cx,
+            );
+            if let Some(owner) = &horizontal {
+                // An empty table omits its uniform list; that handle's previous
+                // metrics must not reserve a corner for an absent vertical bar.
+                owner.borrow_mut().set_corner_peer(
+                    vertical
+                        .as_ref()
+                        .filter(|_| !native.read(cx).delegate().index.is_empty())
+                        .map(|_| {
+                            Rc::new(native.read(cx).vertical_scroll_handle.clone())
+                                as Rc<dyn gpui_base::ScrollbarHandle>
+                        }),
+                );
+            }
+            if let Some(owner) = &vertical {
+                owner
+                    .borrow_mut()
+                    .set_corner_peer(horizontal.as_ref().map(|_| {
+                        Rc::new(native.read(cx).horizontal_scroll_handle.clone())
+                            as Rc<dyn gpui_base::ScrollbarHandle>
+                    }));
+            }
+            let horizontal = horizontal.as_ref().map(Rc::downgrade);
+            let vertical = vertical.as_ref().map(Rc::downgrade);
+            let resolved = crate::scrollbar_presentation::Resolved::new(config, 0)
+                .expect("admitted scrollbar");
+            let width = resolved
+                .parts(crate::scrollbar_presentation::Interaction::Rest)
+                .geometry
+                .envelope_width;
+            Some(
+                gpuio_table_adapter::table::ScrollbarPresentation::new(
+                    px(width as f32),
+                    Rc::new(move |axis| {
+                        let owner = match axis {
+                            gpui::Axis::Horizontal => &horizontal,
+                            gpui::Axis::Vertical => &vertical,
+                        };
+                        owner
+                            .as_ref()
+                            .and_then(std::rc::Weak::upgrade)
+                            .map(|owner| crate::scrollbar_widget::inherited_element(&owner))
+                    }),
+                )
+                .expect("validated scrollbar width"),
+            )
+        } else {
+            None
+        };
+        let appearance = native.read(cx).delegate().base_appearance();
         let element = DataTable::new(&native)
+            .stripe(node.table_appearance.as_ref().is_some_and(|a| a.striped))
             .bordered(false)
             .inherit_text_style(true)
             .with_size(Size::Size(px(config.row_height as f32)))
             .scrollbar_visible(config.scrollbar, config.scrollbar)
+            .scrollbar_presentation(scrollbar_presentation)
             .into_any_element();
         let frame = Frame {
             element,
@@ -803,7 +1150,7 @@ impl View {
         let element =
             self.finish_element(root.child(frame), node, tree.revision(), config.disabled);
         if config.disabled {
-            crate::semantics::InteractionShield::inert(element).into_any_element()
+            crate::semantics::InteractionShield::disabled(element).into_any_element()
         } else {
             element
         }
@@ -965,6 +1312,15 @@ impl gpui::Element for Frame {
             let state = self.state.borrow();
             state.native.read(cx).delegate().route.gate.clone()
         };
+        // Unrendered leaf headers never reach their slot's paint callback.
+        // Start all retained slots inert; painted visible slots enable themselves.
+        {
+            let state = self.state.borrow();
+            let mut gate = gate.borrow_mut();
+            for slot in state.native.read(cx).delegate().headers.values() {
+                gate.track_card_clipped(*slot, true);
+            }
+        }
         let boundary = gate.borrow_mut().enter_clip(super::focus::Clip {
             bounds,
             x: true,
@@ -981,9 +1337,9 @@ impl gpui::Element for Frame {
             cx,
         );
         gate.borrow_mut().leave_boundary(boundary);
-        let state = self.state.borrow();
+        let mut state = self.state.borrow_mut();
         let native = state.native.read(cx);
-        let route = &native.delegate().route;
+        let route = native.delegate().route.clone();
         if bounds.size.width > px(0.)
             && bounds.size.height > px(0.)
             && route.live()
@@ -997,6 +1353,56 @@ impl gpui::Element for Frame {
                 focus.is_focused(window),
                 bounds,
             );
+        }
+        if route.live()
+            && let Some(viewport) = native.column_viewport()
+        {
+            let viewport = wire::ColumnViewport {
+                schema_revision: route.schema,
+                query_generation: route.query,
+                columns: if route.gate.borrow().visible(route.node) {
+                    viewport
+                        .columns
+                        .iter()
+                        .map(|c| {
+                            (
+                                c.column.to_string(),
+                                if c.pinned {
+                                    wire::Pin::Left
+                                } else {
+                                    wire::Pin::Unpinned
+                                },
+                                c.fully_visible,
+                            )
+                        })
+                        .collect()
+                } else {
+                    Vec::new()
+                },
+            };
+            if state
+                .observed_columns
+                .as_ref()
+                .is_none_or(|(revision, previous)| {
+                    *revision != self.revision || previous != &viewport
+                })
+            {
+                let event = route.session.borrow().table_columns_observed(
+                    route.window,
+                    route.node,
+                    route.handler,
+                    self.revision,
+                    viewport.clone(),
+                );
+                if let Some(event) = event {
+                    state.observed_columns = Some((self.revision, viewport));
+                    if !route.transport.input(event)
+                        && route.session.borrow_mut().overload(route.window)
+                    {
+                        route.transport.fault(route.window);
+                    }
+                }
+            }
         }
     }
 }

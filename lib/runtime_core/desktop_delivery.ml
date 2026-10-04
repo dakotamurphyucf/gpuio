@@ -71,8 +71,12 @@ and received t response =
          | Too_large | Full | Closed -> failwith "desktop batch admission invariant");
        t.dropped <- batch.dropped
      | Failed error -> t.error <- Some (Gpuio.Desktop.Expert.error_of_wire error)
-     | Links _ | Configured | Capabilities _ | Requested | Registered ->
-       t.error <- Some Native_failure);
+     | Links _
+     | Configured
+     | Capabilities _
+     | Requested
+     | Registered
+     | Scrollbar_preference _ -> t.error <- Some Native_failure);
     wake t)
 
 and pump t =

@@ -15,7 +15,7 @@ type t =
   ; factor : float
   }
 
-let create appearance scale =
+let create ?profile appearance scale =
   let document_appearance =
     match appearance with
     | Appearance.Dark -> Document.Appearance.Dark
@@ -40,16 +40,31 @@ let create appearance scale =
       , 0xd3dce5
       , Presentation.Appearance.light )
   in
-  { background = Color.rgb_exn background
-  ; surface = Color.rgb_exn surface
-  ; foreground = Color.rgb_exn foreground
-  ; muted = Color.rgb_exn muted
-  ; accent = Color.rgb_exn accent
-  ; border = Color.rgb_exn border
-  ; appearance
-  ; document_appearance
-  ; factor = Appearance.Scale.factor scale
-  }
+  let palette =
+    { background = Color.rgb_exn background
+    ; surface = Color.rgb_exn surface
+    ; foreground = Color.rgb_exn foreground
+    ; muted = Color.rgb_exn muted
+    ; accent = Color.rgb_exn accent
+    ; border = Color.rgb_exn border
+    ; appearance
+    ; document_appearance
+    ; factor = Appearance.Scale.factor scale
+    }
+  in
+  match profile with
+  | None -> palette
+  | Some profile ->
+    let module P = Gpuio_gallery_model.Theme_profile in
+    { palette with
+      background = P.background profile
+    ; surface = P.surface profile
+    ; foreground = P.foreground profile
+    ; muted = P.muted profile
+    ; accent = P.accent profile
+    ; border = P.border profile
+    ; appearance = P.presentation profile
+    }
 ;;
 
 let background t = t.background
@@ -60,6 +75,12 @@ let accent t = t.accent
 let border t = t.border
 let appearance t = t.appearance
 let document_appearance t = t.document_appearance
+
+let avatar_appearance t =
+  match t.document_appearance with
+  | Document.Appearance.Light -> Avatar.Palette.Appearance.Light
+  | Dark -> Dark
+;;
 
 let theme t =
   Theme.create

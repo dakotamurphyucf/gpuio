@@ -26,6 +26,31 @@ pub(super) struct State {
     axes: Cell<Axes>,
     ongoing: RefCell<gpui::OngoingScroll>,
 }
+impl gpui_base::ScrollbarHandle for State {
+    fn viewport_bounds(&self) -> Bounds<Pixels> {
+        self.handle.bounds()
+    }
+    fn offset(&self) -> gpui::Point<Pixels> {
+        self.handle.offset()
+    }
+    fn set_offset(&self, offset: gpui::Point<Pixels>) {
+        let axes = self.axes.get();
+        let old = self.handle.offset();
+        self.handle.set_offset(gpui::point(
+            if axes.x { offset.x } else { old.x },
+            if axes.y { offset.y } else { old.y },
+        ));
+    }
+    fn content_size(&self) -> gpui::Size<Pixels> {
+        let bounds = self.handle.bounds();
+        let max = self.handle.max_offset();
+        let axes = self.axes.get();
+        gpui::size(
+            bounds.size.width + if axes.x { max.x } else { px(0.) },
+            bounds.size.height + if axes.y { max.y } else { px(0.) },
+        )
+    }
+}
 fn reveal_axis(start: Pixels, end: Pixels, near: Pixels, far: Pixels) -> Pixels {
     if end - start > far - near || start < near {
         near - start
@@ -172,6 +197,9 @@ pub(super) struct Frame<E> {
     state: Weak<State>,
     focus: super::focus::Shared,
     node: NodeId,
+    tab_offset: Option<Weak<RefCell<super::tab_viewport::State>>>,
+    scrollbar: Option<crate::scrollbar_widget::Shared>,
+    scrollbar_element: Option<gpui::AnyElement>,
 }
 impl<E: InteractiveElement> InteractiveElement for Frame<E> {
     fn interactivity(&mut self) -> &mut gpui::Interactivity {
@@ -179,6 +207,13 @@ impl<E: InteractiveElement> InteractiveElement for Frame<E> {
     }
 }
 impl<E> Frame<E> {
+    pub(super) fn with_scrollbar(
+        mut self,
+        scrollbar: Option<crate::scrollbar_widget::Shared>,
+    ) -> Self {
+        self.scrollbar = scrollbar;
+        self
+    }
     pub(super) fn new(
         element: E,
         state: &Rc<State>,
@@ -190,6 +225,27 @@ impl<E> Frame<E> {
             state: Rc::downgrade(state),
             focus,
             node,
+            tab_offset: None,
+            scrollbar: None,
+            scrollbar_element: None,
+        }
+    }
+    pub(super) fn with_tab_offset(
+        element: E,
+        state: &Rc<State>,
+        focus: super::focus::Shared,
+        node: NodeId,
+        tab: Option<&Rc<RefCell<super::tab_viewport::State>>>,
+    ) -> Self {
+        // Avoid a second bulky Frame temporary in the recursive host renderer.
+        Self {
+            element,
+            state: Rc::downgrade(state),
+            focus,
+            node,
+            tab_offset: tab.map(Rc::downgrade),
+            scrollbar: None,
+            scrollbar_element: None,
         }
     }
 }
@@ -219,6 +275,12 @@ impl<E: Element<PrepaintState = Option<Hitbox>> + InteractiveElement + Styled> E
         window: &mut Window,
         cx: &mut App,
     ) -> (LayoutId, Self::RequestLayoutState) {
+        if let (Some(tab), Some(scroll)) = (
+            self.tab_offset.as_ref().and_then(Weak::upgrade),
+            self.state.upgrade(),
+        ) {
+            tab.borrow_mut().prepare_layout(&scroll);
+        }
         self.element.request_layout(id, inspector, window, cx)
     }
     fn prepaint(
@@ -230,8 +292,36 @@ impl<E: Element<PrepaintState = Option<Hitbox>> + InteractiveElement + Styled> E
         window: &mut Window,
         cx: &mut App,
     ) -> Self::PrepaintState {
-        self.element
-            .prepaint(id, inspector, bounds, layout, window, cx)
+        let prepaint = self
+            .element
+            .prepaint(id, inspector, bounds, layout, window, cx);
+        let style = self
+            .element
+            .interactivity()
+            .compute_style(id, prepaint.as_ref(), window, cx);
+        if let Some(state) = self.state.upgrade() {
+            let axes = Axes {
+                x: style.overflow.x == gpui::Overflow::Scroll,
+                y: style.overflow.y == gpui::Overflow::Scroll,
+            };
+            if state.axes.replace(axes) != axes {
+                *state.ongoing.borrow_mut() = gpui::OngoingScroll::default();
+            }
+        }
+        self.scrollbar_element = self.scrollbar.as_ref().map(|owner| {
+            window.with_text_style(style.text_style().cloned(), |window| {
+                let foreground = u32::from(window.text_style().color.to_rgb());
+                let mut bar = crate::scrollbar_widget::overlay(
+                    owner,
+                    foreground,
+                    style.opacity.unwrap_or(1.),
+                );
+                bar.layout_as_root(bounds.size.map(gpui::AvailableSpace::Definite), window, cx);
+                bar.prepaint_at(bounds.origin, window, cx);
+                bar
+            })
+        });
+        prepaint
     }
     fn paint(
         &mut self,
@@ -268,6 +358,13 @@ impl<E: Element<PrepaintState = Option<Hitbox>> + InteractiveElement + Styled> E
         };
         self.element
             .paint(id, inspector, bounds, layout, prepaint, window, cx);
+        if let Some(bar) = &mut self.scrollbar_element {
+            let style =
+                self.element
+                    .interactivity()
+                    .compute_style(id, prepaint.as_ref(), window, cx);
+            window.with_text_style(style.text_style().cloned(), |window| bar.paint(window, cx));
+        }
         if let Some(depth) = boundary {
             self.focus.borrow_mut().leave_boundary(depth);
         }

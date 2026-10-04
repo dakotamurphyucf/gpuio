@@ -177,6 +177,7 @@ impl ParsedDocument {
 
     pub(super) fn render_root(
         &self,
+        scopes: std::collections::BTreeMap<usize, gpui::FocusHandle>,
         list_state: Option<ListState>,
         node_cx: &NodeContext,
         window: &mut Window,
@@ -188,7 +189,7 @@ impl ParsedDocument {
                 .id("document")
                 .children(self.blocks.iter().enumerate().map(move |(ix, node)| {
                     let is_last = ix + 1 == blocks_len;
-                    node.render_block(
+                    let element = node.render_block(
                         NodeRenderOptions {
                             ix,
                             is_last,
@@ -197,7 +198,8 @@ impl ParsedDocument {
                         node_cx,
                         window,
                         cx,
-                    )
+                    );
+                    wrap_block(ix, scopes.get(&ix), element)
                 }));
         };
 
@@ -217,21 +219,37 @@ impl ParsedDocument {
                 let blocks = blocks.clone();
                 move |ix, window, cx| {
                     let is_last = ix + 1 == blocks.len();
-                    blocks[ix]
-                        .render_block(
-                            NodeRenderOptions {
-                                ix,
-                                is_last,
-                                ..options
-                            },
-                            &node_cx,
-                            window,
-                            cx,
-                        )
-                        .into_any_element()
+                    let element = blocks[ix].render_block(
+                        NodeRenderOptions {
+                            ix,
+                            is_last,
+                            ..options
+                        },
+                        &node_cx,
+                        window,
+                        cx,
+                    );
+                    wrap_block(ix, scopes.get(&ix), element).into_any_element()
                 }
             })
             .size_full(),
         )
+    }
+}
+
+fn wrap_block(
+    ix: usize,
+    scope: Option<&gpui::FocusHandle>,
+    element: impl IntoElement,
+) -> gpui::AnyElement {
+    if let Some(scope) = scope {
+        div()
+            .id(("document-block", ix))
+            .w_full()
+            .track_focus(scope)
+            .child(element)
+            .into_any_element()
+    } else {
+        element.into_any_element()
     }
 }

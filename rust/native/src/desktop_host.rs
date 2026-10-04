@@ -173,6 +173,9 @@ fn request_immediate(
     }
     match request {
         Request::Capabilities => Response::Capabilities(capabilities(transport)),
+        Request::ScrollbarPreference => scrollbar_preference(cfg!(target_os = "macos"), || {
+            cx.should_auto_hide_scrollbars()
+        }),
         Request::Configure(identity) => {
             let configured = state
                 .borrow()
@@ -239,5 +242,85 @@ fn request_immediate(
         Request::OpenFile(_) | Request::RegisterScheme(_) => {
             unreachable!("immediate request partition")
         }
+    }
+}
+
+// The pinned Linux getter is a fixed default, not an OS preference. Do not read
+// it or report it as AlwaysVisible. Keep native access lazy and main-thread only.
+fn scrollbar_preference(supported: bool, read: impl FnOnce() -> bool) -> wire::Response {
+    use wire::{Error, Response, ScrollbarPreference};
+    if !supported {
+        return Response::Failed(Error::Unsupported);
+    }
+    Response::ScrollbarPreference(if read() {
+        ScrollbarPreference::AutoHide
+    } else {
+        ScrollbarPreference::AlwaysVisible
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn scrollbar_dispatch_preserves_correlation_without_identity_or_windows() {
+        use gpuio_protocol::v1::Message;
+        use std::os::{fd::AsRawFd, unix::net::UnixStream};
+
+        let (_reader, writer) = UnixStream::pair().unwrap();
+        let transport = Arc::new(Transport::new(writer.as_raw_fd()).unwrap());
+        let state = Rc::new(RefCell::new(HostState {
+            inbox: transport.desktop_inbox.clone(),
+            operations: Arc::new(Operations::default()),
+            #[cfg(target_os = "linux")]
+            services: crate::desktop_linux::Services::default(),
+        }));
+        let app = gpui::TestAppContext::single();
+        for id in [7, 8] {
+            let request = wire::Request::ScrollbarPreference;
+            {
+                let mut mailbox = transport.mailbox.lock().unwrap();
+                mailbox
+                    .submit(Message::Desktop(id, request.clone()), 3)
+                    .unwrap();
+                assert_eq!(mailbox.pop(), Some(Message::Desktop(id, request.clone())));
+            }
+            app.update(|cx| dispatch(&state, id, request, cx, &transport));
+        }
+        // TestPlatform deliberately reports false; this is dispatch evidence,
+        // not a query of the developer's macOS setting.
+        let response = if cfg!(target_os = "macos") {
+            wire::Response::ScrollbarPreference(wire::ScrollbarPreference::AlwaysVisible)
+        } else {
+            wire::Response::Failed(wire::Error::Unsupported)
+        };
+        assert_eq!(
+            transport.mailbox.lock().unwrap().drain(16),
+            vec![
+                Event::DesktopResponse(7, response.clone()),
+                Event::DesktopResponse(8, response),
+            ]
+        );
+        assert!(state.borrow().inbox.lock().unwrap().identity().is_none());
+        assert!(!transport.mailbox.lock().unwrap().has_output());
+    }
+
+    #[test]
+    fn scrollbar_query_reads_each_snapshot_and_never_reads_unsupported_backends() {
+        use wire::{Error, Response, ScrollbarPreference::*};
+        assert_eq!(
+            scrollbar_preference(false, || panic!("unsupported backend read")),
+            Response::Failed(Error::Unsupported)
+        );
+        let mut reads = 0;
+        for (auto_hide, expected) in [(true, AutoHide), (false, AlwaysVisible), (true, AutoHide)] {
+            let response = scrollbar_preference(true, || {
+                reads += 1;
+                auto_hide
+            });
+            assert_eq!(response, Response::ScrollbarPreference(expected));
+        }
+        assert_eq!(reads, 3, "snapshots must not cache a stale preference");
     }
 }

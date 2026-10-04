@@ -196,7 +196,9 @@ pub(super) async fn exercise(
     );
     select(cx, window, &p, "keep β", false);
     publish(&mut session.borrow_mut(), source, 1, 1, PATCH.len(), "\n");
-    p.update(cx, |p, cx| p.refresh(p.config.clone(), cx));
+    p.update(cx, |p, cx| {
+        p.refresh(p.config.clone(), p.markdown_options, cx)
+    });
     assert!(!p.read_with(cx, |p, _| p.ready));
     crate::host::editor_test::key(cx, window, "enter");
     line(&transport, "keep β", Some(8), Some(10));

@@ -225,6 +225,7 @@ let component (t : t) ~window ~results ~on_generation ~dark graph =
                  { model with number_error = None })
             | Observed snapshot | Changed snapshot | Rejected (_, snapshot) ->
               { model with number_error = number_error snapshot }
+            | Step_requested _ -> model
             | Cancelled (_, _) ->
               { model with number_error = None; notice = "Numeric draft restored." }))
         ()

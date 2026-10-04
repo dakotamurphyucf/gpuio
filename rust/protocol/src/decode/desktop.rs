@@ -25,6 +25,7 @@ impl Decoder<'_> {
             4 => Request::RevealFile(self.file_path()?),
             5 => Request::OpenFile(self.file_path()?),
             6 => Request::RegisterScheme(self.desktop_text(MAX_SCHEME_BYTES)?),
+            7 => Request::ScrollbarPreference,
             _ => return Err(DecodeError::Malformed),
         };
         if value.is_valid() {

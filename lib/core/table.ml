@@ -24,9 +24,32 @@ module Selection_mode = struct
   [@@deriving equal, sexp_of]
 end
 
+module Boundary = W.Boundary
+module Appearance = Table_appearance
+
+module Column_viewport = struct
+  module Column = struct
+    type t =
+      { id : Table_column.Id.t
+      ; pin : Table_column.Pin.t
+      ; fully_visible : bool
+      }
+    [@@deriving equal, sexp_of]
+
+    let id t = t.id
+    let pin t = t.pin
+    let fully_visible t = t.fully_visible
+  end
+
+  type t = Column.t list [@@deriving equal, sexp_of]
+
+  let columns t = t
+end
+
 module Config = struct
   type t =
-    { columns : Table_column.Collection.t
+    { appearance : Appearance.t
+    ; columns : Table_column.Collection.t
     ; sort : Sort.t option
     ; row_height : float
     ; overscan : float
@@ -34,6 +57,9 @@ module Config = struct
     ; max_active_cells : int
     ; selection_mode : Selection_mode.t
     ; column_selection : bool
+    ; row_header : bool
+    ; boundary : W.Boundary.t
+    ; selectable_headers : Table_column.Id.t list option
     ; disabled : bool
     ; scrollbar : bool
     ; label : string
@@ -69,7 +95,18 @@ module Config = struct
   ;;
 
   let validate t =
-    if W.Config.valid (to_wire t ~schema_revision:1L ~query_generation:0L)
+    if not (Appearance.Expert.valid_columns t.appearance t.columns)
+    then Or_error.error_string "table padding refers to an unknown column"
+    else if
+      not
+        (Option.for_all t.selectable_headers ~f:(fun ids ->
+           List.length ids <= Table_column.Collection.max_columns
+           && (not (List.contains_dup ids ~compare:Table_column.Id.compare))
+           && List.for_all ids ~f:(fun id ->
+             Option.is_some (Table_column.Collection.find t.columns id))))
+    then
+      Or_error.error_string "selectable table headers must be distinct existing columns"
+    else if W.Config.valid (to_wire t ~schema_revision:1L ~query_generation:0L)
     then Ok t
     else
       Or_error.error_string
@@ -85,7 +122,11 @@ module Config = struct
         ?max_active_rows
         ?(max_active_cells = 4096)
         ?(selection_mode = Selection_mode.Rows_and_cells)
+        ?(appearance = Appearance.default)
         ?(column_selection = false)
+        ?(row_header = true)
+        ?(boundary = W.Boundary.Wrap)
+        ?selectable_headers
         ?(disabled = false)
         ?(scrollbar = true)
         ()
@@ -97,7 +138,8 @@ module Config = struct
         ~default:(Int.min 64 (max_active_cells / Int.max 1 count))
     in
     validate
-      { columns
+      { appearance
+      ; columns
       ; label
       ; sort
       ; row_height
@@ -106,11 +148,16 @@ module Config = struct
       ; max_active_cells
       ; selection_mode
       ; column_selection
+      ; row_header
+      ; boundary
+      ; selectable_headers
       ; disabled
       ; scrollbar
       }
   ;;
 
+  let appearance t = t.appearance
+  let with_appearance t appearance = validate { t with appearance }
   let columns t = t.columns
   let sort t = t.sort
   let row_height t = t.row_height
@@ -119,6 +166,23 @@ module Config = struct
   let max_active_cells t = t.max_active_cells
   let selection_mode t = t.selection_mode
   let column_selection t = t.column_selection
+  let row_header t = t.row_header
+  let boundary t = t.boundary
+  let selectable_headers t = t.selectable_headers
+  let with_row_header t row_header = { t with row_header }
+  let with_boundary t boundary = { t with boundary }
+
+  let with_selectable_headers t selectable_headers =
+    validate { t with selectable_headers }
+  ;;
+
+  let header_selectable t id =
+    t.column_selection
+    && Option.is_some (Table_column.Collection.find t.columns id)
+    && Option.for_all t.selectable_headers ~f:(fun ids ->
+      List.mem ids id ~equal:Table_column.Id.equal)
+  ;;
+
   let is_disabled t = t.disabled
   let scrollbar t = t.scrollbar
   let label t = t.label
@@ -226,6 +290,32 @@ module Command = struct
 end
 
 module Expert = struct
+  let appearance_to_wire config ~theme =
+    if Appearance.equal (Config.appearance config) Appearance.default
+    then Ok None
+    else
+      Or_error.map
+        (Appearance.Expert.to_wire (Config.appearance config) ~theme)
+        ~f:Option.some
+  ;;
+
+  let behavior_to_wire config =
+    if
+      Config.row_header config
+      && Boundary.equal (Config.boundary config) Wrap
+      && Option.is_none (Config.selectable_headers config)
+    then None
+    else
+      Some
+        { W.Behavior.row_header = Config.row_header config
+        ; boundary = Config.boundary config
+        ; selectable_headers =
+            Option.map
+              (Config.selectable_headers config)
+              ~f:(List.map ~f:Table_column.Id.to_string)
+        }
+  ;;
+
   let to_wire config ~schema_revision ~query_generation =
     let wire = Config.to_wire config ~schema_revision ~query_generation in
     if W.Config.valid wire
@@ -257,6 +347,25 @@ module Expert = struct
 
   let column_id config name = Option.map (column config name) ~f:Table_column.id
 
+  let column_viewport_of_wire config (viewport : W.Column_viewport.t) =
+    if not (W.Column_viewport.valid viewport)
+    then None
+    else
+      List.map viewport.columns ~f:(fun (name, pin, fully_visible) ->
+        Option.bind (column config name) ~f:(fun column ->
+          let pin =
+            match pin with
+            | W.Pin.Left -> Table_column.Pin.Left
+            | Unpinned -> Unpinned
+          in
+          if Table_column.Pin.equal pin (Table_column.pin column)
+          then
+            Some
+              { Column_viewport.Column.id = Table_column.id column; pin; fully_visible }
+          else None))
+      |> Option.all
+  ;;
+
   let optional_column config = function
     | None -> Some None
     | Some name -> Option.map (column_id config name) ~f:Option.some
@@ -270,8 +379,8 @@ module Expert = struct
       let%map row = find_key row in
       Selection.Row row
     | Column col when Config.column_selection config ->
-      let%map col = column_id config col in
-      Selection.Column col
+      let%bind col = column_id config col in
+      if Config.header_selectable config col then Some (Selection.Column col) else None
     | Cell (row, col) when not (Selection_mode.equal (Config.selection_mode config) Rows)
       ->
       let%bind row = find_key row in

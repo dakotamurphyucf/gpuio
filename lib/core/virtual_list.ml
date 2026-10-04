@@ -1,12 +1,21 @@
 open Core
 module W = Gpuio_protocol.List_wire
 
-module Height = struct
+module Axis = struct
+  type t =
+    | Vertical
+    | Horizontal
+  [@@deriving equal, sexp_of]
+end
+
+module Extent = struct
   type t =
     | Estimated of float
     | Fixed of float
   [@@deriving equal, sexp_of]
 end
+
+module Height = Extent
 
 module Scroll_policy = struct
   type t =
@@ -17,7 +26,8 @@ end
 
 module Config = struct
   type t =
-    { height : Height.t
+    { axis : Axis.t
+    ; extent : Extent.t
     ; overscan : float
     ; max_active : int
     ; scroll : Scroll_policy.t
@@ -27,7 +37,7 @@ module Config = struct
 
   let to_wire t ~managed : W.Config.t =
     { estimated_height =
-        (match t.height with
+        (match t.extent with
          | Estimated value | Fixed value -> value)
     ; overscan = t.overscan
     ; max_active = Int64.of_int t.max_active
@@ -40,21 +50,32 @@ module Config = struct
     }
   ;;
 
-  let create
+  let make
         ?(overscan = 256.)
         ?(max_active = 4096)
         ?(scroll = Scroll_policy.Keep_position)
         ?(scrollbar = true)
-        ~height
+        ~axis
+        ~extent
         ()
     =
-    let t = { height; overscan; max_active; scroll; scrollbar } in
+    let t = { axis; extent; overscan; max_active; scroll; scrollbar } in
     let open Or_error.Let_syntax in
     let%map () = W.Config.validate (to_wire t ~managed:true) in
     t
   ;;
 
-  let height t = t.height
+  let create ?overscan ?max_active ?scroll ?scrollbar ~height () =
+    make ?overscan ?max_active ?scroll ?scrollbar ~axis:Vertical ~extent:height ()
+  ;;
+
+  let horizontal ?overscan ?max_active ?scroll ?scrollbar ~width () =
+    make ?overscan ?max_active ?scroll ?scrollbar ~axis:Horizontal ~extent:width ()
+  ;;
+
+  let axis t = t.axis
+  let extent t = t.extent
+  let height = extent
   let max_active t = t.max_active
 end
 
@@ -128,20 +149,37 @@ module Scroll_request = struct
 end
 
 module Expert = struct
+  let axis_to_wire : Axis.t -> W.Axis.t = function
+    | Vertical -> Vertical
+    | Horizontal -> Horizontal
+  ;;
+
   let config_to_wire = Config.to_wire
 
   let row_style t =
+    let open Style.Property in
     let sizing =
-      match Config.height t with
-      | Estimated _ -> [ Style.Property.Min_height (Length.px_exn 1.) ]
-      | Fixed height ->
-        [ Style.Property.Height (Length.px_exn height)
-        ; Min_height (Length.px_exn height)
-        ; Max_height (Length.px_exn height)
+      match Config.axis t, Config.extent t with
+      | Vertical, Estimated _ ->
+        [ Width (Length.percent_exn 100.); Min_height (Length.px_exn 1.) ]
+      | Horizontal, Estimated _ ->
+        [ Height (Length.percent_exn 100.); Min_width (Length.px_exn 1.) ]
+      | Vertical, Fixed value ->
+        [ Width (Length.percent_exn 100.)
+        ; Height (Length.px_exn value)
+        ; Min_height (Length.px_exn value)
+        ; Max_height (Length.px_exn value)
         ; Overflow_y Hidden
         ]
+      | Horizontal, Fixed value ->
+        [ Height (Length.percent_exn 100.)
+        ; Width (Length.px_exn value)
+        ; Min_width (Length.px_exn value)
+        ; Max_width (Length.px_exn value)
+        ; Overflow_x Hidden
+        ]
     in
-    Style.create_exn (Style.Property.Width (Length.percent_exn 100.) :: sizing)
+    Style.create_exn sizing
   ;;
 
   let viewport_of_wire (t : W.Viewport.t) ~find_key =

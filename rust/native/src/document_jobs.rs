@@ -25,11 +25,25 @@ pub enum Error {
     Cancelled,
     Parse,
     Highlight,
+    Profile(
+        gpuio_protocol::document_profile::Stage,
+        gpuio_document_sdk::Error,
+    ),
 }
 
 pub struct Charge {
     used: Arc<AtomicUsize>,
     bytes: usize,
+}
+impl Charge {
+    fn reduce_to(&mut self, bytes: usize) -> Result<(), Error> {
+        if bytes > self.bytes {
+            return Err(Error::ResourceLimit);
+        }
+        self.used.fetch_sub(self.bytes - bytes, Ordering::Relaxed);
+        self.bytes = bytes;
+        Ok(())
+    }
 }
 impl Drop for Charge {
     fn drop(&mut self) {
@@ -39,7 +53,8 @@ impl Drop for Charge {
 pub enum Prepared {
     Markdown {
         document: Box<PreparedMarkdown>,
-        code: BTreeMap<(String, String), Vec<highlight::Run>>,
+        code: BTreeMap<(String, String), crate::document_profile_jobs::Highlights>,
+        profile: Option<crate::document_profile_jobs::Prepared>,
     },
     Code(Vec<highlight::Run>),
     Diff {
@@ -56,6 +71,7 @@ pub struct Ready {
 #[derive(Default, Clone, Copy, Debug)]
 pub struct Measurements {
     pub queue_us: u128,
+    pub configure_us: u128,
     pub parse_us: u128,
     pub highlight_us: u128,
     pub search_us: u128,
@@ -67,13 +83,27 @@ pub struct Request {
     pub observer: Option<gpui::WindowId>,
     pub snapshot: Arc<Snapshot>,
     pub mode: Mode,
+    pub profile: Option<crate::document_profile_jobs::Request>,
+    pub markdown_options: gpuio_protocol::document::MarkdownOptions,
     pub dark: bool,
     pub search: String,
 }
 impl Request {
+    fn validate(&self) -> Result<(), Error> {
+        if self.profile.is_some() && !matches!(self.mode, Mode::Markdown | Mode::Html) {
+            return Err(Error::Profile(
+                gpuio_protocol::document_profile::Stage::Configure,
+                gpuio_document_sdk::Error::InvalidProperties,
+            ));
+        }
+        Ok(())
+    }
     fn equal(&self, other: &Self) -> bool {
         Arc::ptr_eq(&self.snapshot, &other.snapshot)
+            && self.profile.as_ref().map(|p| (p.config(), p.observer()))
+                == other.profile.as_ref().map(|p| (p.config(), p.observer()))
             && self.mode == other.mode
+            && self.markdown_options == other.markdown_options
             && self.dark == other.dark
             && self.search == other.search
     }
@@ -101,6 +131,7 @@ impl Handle {
         if entry.closed {
             return Err(Error::Closed);
         }
+        request.validate()?;
         if entry.request.equal(&request) {
             return Ok(false);
         }
@@ -138,7 +169,7 @@ pub struct Completion {
     pub measurements: Measurements,
 }
 impl Work {
-    pub fn run(self) -> Completion {
+    pub fn run(mut self) -> Completion {
         let mut measurements = Measurements {
             queue_us: self.queued_at.elapsed().as_micros(),
             source_bytes: self.request.snapshot.text.len(),
@@ -157,7 +188,7 @@ impl Work {
                 return Err(Error::Cancelled);
             }
             let max = match self.request.mode {
-                Mode::Markdown => 65536,
+                Mode::Markdown | Mode::Html => 65536,
                 _ => highlight::MAX_HIGHLIGHT_BYTES,
             };
             if self.request.snapshot.text.len() > max {
@@ -165,14 +196,50 @@ impl Work {
             }
             let text = self.request.snapshot.text.to_string();
             let value = match &self.request.mode {
-                Mode::Markdown => {
+                Mode::Markdown | Mode::Html => {
                     let start = Instant::now();
-                    let document = PreparedMarkdown::parse(
-                        &text,
-                        crate::document_markdown::extensions(Default::default()),
-                    )
-                    .map_err(|_| Error::Parse)?;
-                    measurements.parse_us = start.elapsed().as_micros();
+                    let extensions = crate::document_markdown::extensions_with_options(
+                        Default::default(),
+                        self.request.markdown_options,
+                    );
+                    let (document, profile, mut custom) =
+                        if let Some(profile) = &self.request.profile {
+                            let (prepared, configure_time) = profile.prepare(
+                                &text,
+                                matches!(self.request.mode, Mode::Html),
+                                extensions,
+                                self.serial,
+                                self.request.dark,
+                                self.cancel.clone(),
+                            )?;
+                            measurements.configure_us = configure_time.as_micros();
+                            measurements.parse_us = prepared.timings.parse.as_micros();
+                            measurements.highlight_us = prepared.timings.highlight.as_micros();
+                            let retained_units = profile.retained_units(&prepared);
+                            (
+                                prepared.document,
+                                Some(crate::document_profile_jobs::Prepared {
+                                    profile: prepared.profile,
+                                    parser_epoch: prepared.parser_epoch,
+                                    descriptor: profile.descriptor(),
+                                    retained_units,
+                                }),
+                                prepared.highlights,
+                            )
+                        } else {
+                            let document = if matches!(self.request.mode, Mode::Html) {
+                                PreparedMarkdown::parse_html(
+                                    &text,
+                                    extensions,
+                                    crate::document_markdown::html_image,
+                                )
+                            } else {
+                                PreparedMarkdown::parse(&text, extensions)
+                            }
+                            .map_err(|_| Error::Parse)?;
+                            measurements.parse_us = start.elapsed().as_micros();
+                            (document, None, BTreeMap::new())
+                        };
                     let start = Instant::now();
                     let mut code = BTreeMap::new();
                     let mut runs = 0;
@@ -184,19 +251,32 @@ impl Work {
                             .lang()
                             .map_or_else(|| "txt".to_string(), |s| s.to_string());
                         let text = block.code().to_string();
-                        let styles =
-                            highlight::highlight(&text, &language, self.request.dark, cancelled)
-                                .map_err(|_| Error::Highlight)?;
+                        let key = (language, text);
+                        // Identical blocks share one immutable highlight result.
+                        // Do not consume a custom result then overwrite it with
+                        // the default highlighter on a duplicate block.
+                        if code.contains_key(&key) {
+                            continue;
+                        }
+                        let styles = if let Some(styles) = custom.remove(&key) {
+                            crate::document_profile_jobs::Highlights::Profile(styles)
+                        } else {
+                            crate::document_profile_jobs::Highlights::Native(
+                                highlight::highlight(&key.1, &key.0, self.request.dark, cancelled)
+                                    .map_err(|_| Error::Highlight)?,
+                            )
+                        };
                         runs += styles.len();
                         if runs > highlight::MAX_RUNS {
                             return Err(Error::ResourceLimit);
                         }
-                        code.insert((language, text), styles);
+                        code.insert(key, styles);
                     }
-                    measurements.highlight_us = start.elapsed().as_micros();
+                    measurements.highlight_us += start.elapsed().as_micros();
                     Prepared::Markdown {
                         document: Box::new(document),
                         code,
+                        profile,
                     }
                 }
                 Mode::Code(language) => {
@@ -250,11 +330,57 @@ impl Work {
         }))
         .unwrap_or(Err(Error::Parse));
         let prepared = match prepared {
-            Err(Error::ResourceLimit | Error::Parse | Error::Highlight) => {
+            Err(Error::ResourceLimit | Error::Parse | Error::Highlight | Error::Profile(..)) => {
                 Ok(Prepared::Source(prepared.err().unwrap()))
             }
             other => other,
         };
+        // Workers need worst-case capacity. Published pictures keep only a
+        // checked allowance for retained metadata, vector capacities and declared
+        // opaque state; otherwise a handful of short messages exhaust the pool.
+        let prepared = prepared.map(|prepared| {
+            if self.request.profile.is_none() {
+                return prepared;
+            }
+            let base = 4096
+                + self
+                    .request
+                    .snapshot
+                    .text
+                    .len()
+                    .min(highlight::MAX_HIGHLIGHT_BYTES)
+                    * 32;
+            let extra = match &prepared {
+                Prepared::Markdown {
+                    profile: Some(profile),
+                    code,
+                    ..
+                } => code
+                    .iter()
+                    .fold(profile.retained_units, |bytes, ((language, text), runs)| {
+                        bytes
+                            .saturating_add(language.capacity())
+                            .saturating_add(text.capacity())
+                            .saturating_add(256)
+                            .saturating_add(runs.retained_units())
+                    }),
+                _ => 0,
+            };
+            if self.charge.reduce_to(base.saturating_add(extra)).is_err() {
+                // Trusted hooks can return excessive backing capacity even when
+                // their logical output length is small. Reject the whole result.
+                drop(prepared);
+                self.charge
+                    .reduce_to(base)
+                    .expect("base was reserved before work");
+                Prepared::Source(Error::Profile(
+                    gpuio_protocol::document_profile::Stage::Parse,
+                    gpuio_document_sdk::Error::LimitExceeded,
+                ))
+            } else {
+                prepared
+            }
+        });
         Completion {
             observer: self.request.observer,
             id: self.id,
@@ -308,6 +434,7 @@ impl Pool {
         if self.closed {
             return Err(Error::Closed);
         }
+        request.validate()?;
         self.entries.retain(|_, entry| entry.strong_count() > 0);
         if self.entries.len() >= MAX_VIEWS {
             return Err(Error::ResourceLimit);
@@ -342,6 +469,11 @@ impl Pool {
             if entry.running.is_some() || entry.serial == entry.completed {
                 continue;
             }
+            // No unpublished source can supply the positive provenance required
+            // by profile callbacks. Wait for a source update without invoking hooks.
+            if entry.request.profile.is_some() && entry.request.snapshot.revision == 0 {
+                continue;
+            }
             // Conservative work/cache units, distinct from measured allocator RSS.
             let source_bytes = entry.request.snapshot.text.len();
             let bytes = if matches!(entry.request.mode, Mode::Diff) {
@@ -349,6 +481,7 @@ impl Pool {
             } else {
                 4096 + source_bytes.min(highlight::MAX_HIGHLIGHT_BYTES) * 32
             };
+            let bytes = bytes + entry.request.profile.as_ref().map_or(0, |p| p.work_units());
             let reserved = self.reserved.load(Ordering::Relaxed);
             if bytes > MAX_RESERVED_BYTES - reserved {
                 entry.completed = entry.serial;
@@ -387,6 +520,10 @@ impl Pool {
             .totals
             .queue_us
             .saturating_add(completion.measurements.queue_us);
+        self.totals.configure_us = self
+            .totals
+            .configure_us
+            .saturating_add(completion.measurements.configure_us);
         self.totals.parse_us = self
             .totals
             .parse_us
@@ -460,7 +597,7 @@ mod tests {
 
     use gpuio_protocol::document::{Status, Update};
 
-    fn request(text: &str) -> Request {
+    pub(super) fn request(text: &str) -> Request {
         let mut store = Store::default();
         let id = store.create().unwrap();
         store
@@ -482,9 +619,123 @@ mod tests {
             observer: None,
             snapshot: store.acquire(id).unwrap().snapshot(),
             mode: Mode::Markdown,
+            profile: None,
+            markdown_options: Default::default(),
             dark: true,
             search: String::new(),
         }
+    }
+
+    #[test]
+    fn markdown_options_supersede_work_without_republishing_source() {
+        use gpuio_protocol::document::{Frontmatter, MarkdownOptions};
+        let source = "---\nname: Native 世界\n---\n\n<Card>Child **text**</Card>\n\n{1 + 2}\n";
+        let mut pool = Pool::default();
+        let mut request = request(source);
+        let original = request.snapshot.clone();
+        let handle = pool.request(request.clone()).unwrap();
+        let stale = pool.next_work().unwrap();
+        request.markdown_options = MarkdownOptions {
+            frontmatter: Frontmatter::CodeBlock,
+            mdx: true,
+        };
+        assert!(handle.update(request.clone()).unwrap());
+        assert!(!handle.update(request.clone()).unwrap());
+        pool.complete(stale.run());
+        assert!(handle.take_ready().is_none());
+        let work = pool.next_work().unwrap();
+        pool.complete(work.run());
+        let ready = handle.take_ready().unwrap().unwrap();
+        let Prepared::Markdown { document, code, .. } = &ready.prepared else {
+            panic!("rich Markdown");
+        };
+        assert_eq!(document.source().as_ref(), source);
+        assert!(document.plain_text().contains("Child text"));
+        assert!(!document.plain_text().contains("<Card>"));
+        assert!(
+            code.keys()
+                .any(|(language, text)| language == "yml" && text.contains("Native 世界"))
+        );
+        assert!(
+            code.keys()
+                .any(|(language, text)| language == "mdx" && text == "1 + 2")
+        );
+        assert!(Arc::ptr_eq(&original, &request.snapshot));
+        drop(ready);
+        request.markdown_options = Default::default();
+        handle.update(request.clone()).unwrap();
+        let work = pool.next_work().unwrap();
+        pool.complete(work.run());
+        let ready = handle.take_ready().unwrap().unwrap();
+        let Prepared::Markdown { document, code, .. } = &ready.prepared else {
+            panic!("default Markdown");
+        };
+        assert!(document.plain_text().contains("<Card>"));
+        assert!(code.is_empty());
+        drop(ready);
+        drop(handle);
+        assert_eq!(pool.reserved_bytes(), 0);
+    }
+
+    #[test]
+    fn malformed_mdx_falls_back_and_releases_worker_reservations() {
+        let mut pool = Pool::default();
+        let mut request = request("<Card>never closed");
+        request.markdown_options.mdx = true;
+        let handle = pool.request(request).unwrap();
+        let work = pool.next_work().unwrap();
+        pool.complete(work.run());
+        let ready = handle.take_ready().unwrap().unwrap();
+        assert!(matches!(ready.prepared, Prepared::Source(Error::Parse)));
+        drop(ready);
+        drop(handle);
+        assert_eq!(pool.reserved_bytes(), 0);
+    }
+
+    #[test]
+    fn html_reader_uses_bounded_jobs_and_rejects_stale_mode_results() {
+        let mut pool = Pool::default();
+        let mut request = request("<h1>Hello 世界</h1><p>Second &amp; final.</p>");
+        request.mode = Mode::Html;
+        let handle = pool.request(request.clone()).unwrap();
+        let stale = pool.next_work().unwrap();
+        request.mode = Mode::Markdown;
+        handle.update(request.clone()).unwrap();
+        pool.complete(stale.run());
+        assert!(handle.take_ready().is_none());
+        let current = pool.next_work().unwrap();
+        pool.complete(current.run());
+        let current = handle.take_ready().unwrap().unwrap();
+        let Prepared::Markdown { document, .. } = current.prepared else {
+            panic!("rich literal Markdown");
+        };
+        assert!(document.plain_text().contains("<h1>"));
+        drop(current.charge);
+        for source in [
+            "<p>Hello 世界</p>".to_owned(),
+            "<div>".repeat(100),
+            "<p>x</p>\n".repeat(257),
+            "x".repeat(65537),
+        ] {
+            let mut request = super::tests::request(&source);
+            request.mode = Mode::Html;
+            handle.update(request).unwrap();
+            let work = pool.next_work().unwrap();
+            pool.complete(work.run());
+            let ready = handle.take_ready().unwrap().unwrap();
+            if source == "<p>Hello 世界</p>" {
+                let Prepared::Markdown { document, .. } = ready.prepared else {
+                    panic!("rich HTML");
+                };
+                assert_eq!(document.source().as_ref(), source);
+                assert!(document.plain_text().contains("Hello 世界"));
+            } else {
+                assert!(matches!(ready.prepared, Prepared::Source(_)));
+            }
+            drop(ready.charge);
+        }
+        drop(handle);
+        assert_eq!(pool.reserved_bytes(), 0);
     }
 
     #[test]
@@ -647,3 +898,7 @@ mod tests {
         assert_eq!(pool.reserved_bytes(), 0);
     }
 }
+
+#[cfg(test)]
+#[path = "document_profile_jobs_test.rs"]
+mod profile_tests;

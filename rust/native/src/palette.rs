@@ -470,7 +470,7 @@ impl View {
                 row_height: appearance.row_height,
                 max_rows: appearance.max_visible_rows,
                 index,
-                viewport: window.viewport_size(),
+                viewport: crate::window_frame::content_bounds(window).size,
             };
             if state.revealed.as_ref() != Some(&reveal) {
                 state
@@ -595,6 +595,8 @@ impl View {
                         .size_full(),
                     );
                     crate::semantics::State {
+                        identity: None,
+                        busy: false,
                         hidden: false,
                         metadata: None,
                         live: None,
@@ -612,14 +614,14 @@ impl View {
             (count.min(appearance.max_visible_rows as usize).max(1) as f64 * appearance.row_height)
                 as f32,
         )
-        .min((window.viewport_size().height - px(120.)).max(px(1.))))
+        .min((crate::window_frame::content_bounds(window).size.height - px(120.)).max(px(1.))))
         .w_full();
         let owner = cx.weak_entity();
         let escape_owner = owner.clone();
         let enter_owner = owner.clone();
         let key_owner = owner.clone();
         let width = px(appearance.popup_width as f32)
-            .min((window.viewport_size().width - px(32.)).max(px(1.)));
+            .min((crate::window_frame::content_bounds(window).size.width - px(32.)).max(px(1.)));
         let mut panel = div()
             .id(("palette", id.slot()))
             .track_focus(&scope_focus)
@@ -734,6 +736,8 @@ impl View {
         let bounds = self.palettes[&id].bounds.clone();
         let outside = owner;
         let panel = crate::semantics::State {
+            identity: None,
+            busy: false,
             hidden: false,
             metadata: None,
             live: None,
@@ -743,8 +747,8 @@ impl View {
             modal: true,
         };
         let backdrop = div()
-            .w(window.viewport_size().width)
-            .h(window.viewport_size().height)
+            .w(crate::window_frame::content_bounds(window).size.width)
+            .h(crate::window_frame::content_bounds(window).size.height)
             .flex()
             .items_center()
             .justify_center()

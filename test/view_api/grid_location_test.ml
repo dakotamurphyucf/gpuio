@@ -71,7 +71,7 @@ let%expect_test "grid placement requires the matching native capability" =
     print_endline "");
   [%expect
     {|
-    0001fc0000000000008000
-    0001fcffffffffffffff00
+    0003fc0000000000008000
+    0003fcffffffffffffff7f
     |}]
 ;;

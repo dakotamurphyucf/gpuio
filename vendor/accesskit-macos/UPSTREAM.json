@@ -26,7 +26,9 @@
     "table-state.patch",
     "document-semantics.patch",
     "table-headers.patch",
-    "initial-window-focus.patch"
+    "initial-window-focus.patch",
+    "busy-state.patch",
+    "list-selection.patch"
   ],
   "license_files_sha256": {
     "LICENSE-APACHE": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a",

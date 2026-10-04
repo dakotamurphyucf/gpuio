@@ -498,3 +498,53 @@ let%expect_test "revisiting a list generation fences captured callbacks and cont
   [%expect
     {| new visit accepts current observation; old viewport, pin and controller effects ignored |}]
 ;;
+
+let%expect_test "reactive list axis changes preserve row models and controller lifetime" =
+  let dynamic_config = B.Expert.Var.create config in
+  let activations = ref 0 in
+  let deactivations = ref 0 in
+  let injections = Int.Table.create () in
+  let driver =
+    create (fun graph ->
+      V.component_with_config
+        (module Int)
+        (B.return (source [ 1, "one"; 2, "two" ]))
+        ~row_key:key
+        ~config:(B.Expert.Var.value dynamic_config)
+        ~render_row:(fun ~key ~data:_ ~lifetime:_ graph ->
+          let count, set_count = B.state 0 graph in
+          B.Edge.lifecycle
+            ~on_activate:(B.return (E.of_thunk (fun () -> Int.incr activations)))
+            ~on_deactivate:(B.return (E.of_thunk (fun () -> Int.incr deactivations)))
+            graph;
+          let open B.Let_syntax in
+          let%arr key = key
+          and count = count
+          and set_count = set_count in
+          Hashtbl.set injections ~key ~data:set_count;
+          View.text (Int.to_string count))
+        graph)
+  in
+  display driver;
+  observe driver [ 1; 2 ];
+  display driver;
+  Bonsai_driver.schedule_event driver ((Hashtbl.find_exn injections 1) 7);
+  let before = result driver in
+  let controller = V.Output.controller before in
+  display driver;
+  let horizontal =
+    V.Config.horizontal ~max_active:4 ~width:(Estimated 80.) () |> Or_error.ok_exn
+  in
+  List.iter [ horizontal; config; horizontal ] ~f:(fun config ->
+    B.Expert.Var.set dynamic_config config;
+    let output = result driver in
+    assert (V.Config.equal (payload output).config config);
+    assert (Option.is_none (V.Output.viewport output));
+    assert (List.equal [%equal: string * string] (row_text output) [ "1", "7"; "2", "0" ]);
+    display driver;
+    assert (!activations = 2 && !deactivations = 0));
+  Bonsai_driver.schedule_event driver (V.Controller.reveal controller 2);
+  assert (Option.is_some (payload (result driver)).scroll);
+  Bonsai_driver.Expert.invalidate_observers driver;
+  [%expect {| |}]
+;;

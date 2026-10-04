@@ -51,6 +51,75 @@ fn observation(revision: i64, kind: EditorEventKind, len: usize) -> Event {
         },
     )
 }
+
+#[test]
+fn password_privacy_is_single_line_only_and_rejected_batches_roll_back() {
+    for kind in [Kind::Input, Kind::Textarea, Kind::Text] {
+        let mut tree = Tree::new(window());
+        let mut tx = create();
+        tx.operations[0] = Op::Create(
+            node(0),
+            kind,
+            "seed".into(),
+            (kind != Kind::Text).then(|| HandlerId::from_parts(0, 1).unwrap()),
+        );
+        if kind == Kind::Text {
+            tx.operations.remove(1);
+        } else if kind == Kind::Input {
+            tx.operations[1] = Op::SetEditor(
+                node(0),
+                EditorConfig {
+                    max_rows: 1,
+                    ..config()
+                },
+            );
+        }
+        tree.apply(&tx).unwrap();
+        assert_eq!(
+            tree.get(node(0)).unwrap().editor_privacy,
+            EditorPrivacy::Plain
+        );
+        let retained = tree.retained_bytes();
+        for privacy in [
+            EditorPrivacy::PasswordHidden,
+            EditorPrivacy::PasswordRevealed,
+            EditorPrivacy::Plain,
+        ] {
+            let base = tree.revision();
+            let update = Transaction {
+                window: window(),
+                base,
+                revision: base + 1,
+                operations: vec![Op::SetEditorPrivacy(node(0), privacy)],
+            };
+            if kind == Kind::Input {
+                tree.apply(&update).unwrap();
+                assert_eq!(tree.get(node(0)).unwrap().editor_privacy, privacy);
+                let mut rejected = Transaction {
+                    base: tree.revision(),
+                    revision: tree.revision() + 1,
+                    ..update
+                };
+                rejected.operations = vec![
+                    Op::SetEditorPrivacy(node(0), EditorPrivacy::PasswordHidden),
+                    Op::SetText(node(0), "forbidden overwrite".into()),
+                ];
+                assert_eq!(tree.apply(&rejected), Err(ErrorCode::InvalidTree));
+                assert_eq!(tree.revision(), base + 1);
+                assert_eq!(tree.get(node(0)).unwrap().editor_privacy, privacy);
+            } else {
+                assert_eq!(tree.apply(&update), Err(ErrorCode::InvalidTree));
+                assert_eq!(tree.revision(), base);
+                assert_eq!(
+                    tree.get(node(0)).unwrap().editor_privacy,
+                    EditorPrivacy::Plain
+                );
+            }
+            assert_eq!(tree.get(node(0)).unwrap().text.as_ref(), "seed");
+            assert_eq!(tree.retained_bytes(), retained);
+        }
+    }
+}
 #[test]
 fn tree_requires_valid_config_and_explicit_commands_and_accounts_for_editors() {
     let mut tree = Tree::new(window());
@@ -151,4 +220,41 @@ fn snapshot_coalescing_preserves_submission_barriers_and_drain_byte_limit() {
     mailbox
         .input(observation(17, EditorEventKind::Changed, MAX_TEXT_BYTES))
         .unwrap();
+}
+
+#[test]
+fn escape_policy_is_editor_only_and_failed_batch_preserves_prior_policy_and_resources() {
+    let mut tree = Tree::new(window());
+    tree.apply(&create()).unwrap();
+    let bytes = tree.retained_bytes();
+    let tx = |base, operations| Transaction {
+        window: window(),
+        base,
+        revision: base + 1,
+        operations,
+    };
+    tree.apply(&tx(1, vec![Op::SetEditorClearOnEscape(node(0), true)]))
+        .unwrap();
+    let original = tree.get(node(0)).unwrap().clone();
+    assert!(original.editor_clear_on_escape);
+    assert_eq!(original.text.as_ref(), "initial");
+    assert_eq!(tree.retained_bytes(), bytes);
+    assert_eq!(
+        tree.apply(&tx(
+            2,
+            vec![
+                Op::SetEditorClearOnEscape(node(0), false),
+                Op::Create(node(1), Kind::Text, "label".into(), None),
+                Op::SetEditorClearOnEscape(node(1), false),
+            ]
+        )),
+        Err(ErrorCode::InvalidTree)
+    );
+    assert_eq!(tree.revision(), 2);
+    assert_eq!(tree.get(node(0)).unwrap(), &original);
+    assert_eq!(tree.retained_bytes(), bytes);
+    assert!(tree.get(node(1)).is_none());
+    tree.apply(&tx(2, vec![Op::SetEditorClearOnEscape(node(0), false)]))
+        .unwrap();
+    assert!(!tree.get(node(0)).unwrap().editor_clear_on_escape);
 }

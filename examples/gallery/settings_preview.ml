@@ -100,23 +100,26 @@ let component ~save window palette graph =
   let number_visit = ref None in
   let mirror_name visit event =
     E.of_thunk (fun () ->
-      let revision, text, composing =
+      let observed =
         match event with
-        | Text_input.Event.Changed snapshot ->
-          ( Text_input.Snapshot.revision snapshot
-          , Text_input.Snapshot.text snapshot
-          , Option.is_some (Text_input.Snapshot.composition snapshot) )
+        | Text_input.Event.Search_changed _ -> None
+        | Changed snapshot ->
+          Some
+            ( Text_input.Snapshot.revision snapshot
+            , Text_input.Snapshot.text snapshot
+            , Option.is_some (Text_input.Snapshot.composition snapshot) )
         | Submitted submission ->
-          ( Text_input.Submission.revision submission
-          , Text_input.Submission.text submission
-          , false )
+          Some
+            ( Text_input.Submission.revision submission
+            , Text_input.Submission.text submission
+            , false )
       in
-      (* Record every revision, but persist only text outside native composition.
-         A delayed older reply must not replace data during a newer preedit. *)
-      if
-        Visit.observe visit ~revision:(Text_input.Revision.to_int64 revision)
-        && not composing
-      then update (Model.Action.Name text))
+      (* Persist only text outside native composition; metadata never edits it. *)
+      Option.iter observed ~f:(fun (revision, text, composing) ->
+        if
+          Visit.observe visit ~revision:(Text_input.Revision.to_int64 revision)
+          && not composing
+        then update (Model.Action.Name text)))
   in
   let mirror_number visit event =
     E.of_thunk (fun () ->
@@ -127,6 +130,7 @@ let component ~save window palette graph =
         | Committed (_, snapshot)
         | Rejected (_, snapshot)
         | Cancelled (_, snapshot) -> snapshot
+        | Step_requested request -> Number_input.Step_request.snapshot request
       in
       if
         Visit.observe

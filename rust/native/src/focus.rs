@@ -370,6 +370,33 @@ fn navigation_hidden(tree: &crate::tree::Tree, node: &crate::tree::Node) -> bool
         })
 }
 
+// Structural visibility is available before first paint, including retained
+// editors and asynchronous actions inside hidden panels and terminal grips.
+fn split_group_hidden(tree: &crate::tree::Tree, node: &crate::tree::Node) -> bool {
+    let Some(parent) = node.parent.and_then(|id| tree.get(id)) else {
+        return false;
+    };
+    if let Some(mount) = &parent.split_group {
+        return parent
+            .children
+            .iter()
+            .position(|id| *id == node.id)
+            .is_none_or(|i| !mount.config.panels[i].visible);
+    }
+    if parent.children.get(1) == Some(&node.id)
+        && let Some(group) = parent.parent.and_then(|id| tree.get(id))
+        && let Some(mount) = &group.split_group
+    {
+        let terminal = mount.config.panels.iter().rposition(|p| p.visible);
+        return group
+            .children
+            .iter()
+            .position(|id| *id == parent.id)
+            .is_none_or(|i| !mount.config.panels[i].visible || Some(i) == terminal);
+    }
+    false
+}
+
 #[derive(Default)]
 struct Navigation {
     selected: Option<NodeId>,
@@ -388,6 +415,7 @@ struct Scope {
     handle: FocusHandle,
     selection: gpui_base::TextSelectionScopeId,
     restore: Option<WeakFocusHandle>,
+    restore_trigger: Option<NodeId>,
     config: FocusScopeConfig,
     order: u64,
     overlay: Option<OverlayKind>,
@@ -489,19 +517,27 @@ pub(super) struct Manager {
     active: Option<NodeId>,
     hidden: BTreeSet<NodeId>,
     query_hidden: BTreeSet<NodeId>,
+    avatar_hidden: BTreeSet<NodeId>,
+    picker_hidden: BTreeSet<NodeId>,
+    track_clipped: BTreeSet<NodeId>,
+    retired_input: BTreeSet<NodeId>,
+    previous_track_clipped: BTreeSet<NodeId>,
     visibility_identity: Rc<()>,
     highlight_styles: BTreeMap<NodeId, HighlightStyle>,
     last_command_target: Option<NodeId>,
     order: u64,
     enter: Option<NodeId>,
+    entering_overlay: bool,
     pending: bool,
     navigation: BTreeMap<NodeId, Navigation>,
     navigation_enter: Vec<(NodeId, Option<WeakFocusHandle>)>,
     paint_path: Vec<Boundary>,
     last_focus: Option<WeakFocusHandle>,
+    control_bounds: Option<(NodeId, Bounds<Pixels>)>,
     reveal_requested: Cell<bool>,
     viewport: Bounds<Pixels>,
     clipped_targets: bool,
+    clipped_handles: Vec<FocusHandle>,
 }
 impl Manager {
     pub(super) fn new(window: WindowId, session: SharedSession) -> Shared {
@@ -515,19 +551,27 @@ impl Manager {
             active: None,
             hidden: BTreeSet::new(),
             query_hidden: BTreeSet::new(),
+            avatar_hidden: BTreeSet::new(),
+            picker_hidden: BTreeSet::new(),
+            track_clipped: BTreeSet::new(),
+            retired_input: BTreeSet::new(),
+            previous_track_clipped: BTreeSet::new(),
             visibility_identity: Rc::new(()),
             highlight_styles: BTreeMap::new(),
             last_command_target: None,
             order: 0,
             enter: None,
+            entering_overlay: false,
             pending: false,
             navigation: BTreeMap::new(),
             navigation_enter: Vec::new(),
             paint_path: Vec::new(),
             last_focus: None,
+            control_bounds: None,
             reveal_requested: Cell::new(false),
             viewport: Bounds::default(),
             clipped_targets: false,
+            clipped_handles: Vec::new(),
         }))
     }
     pub(super) fn active_selection_scope(&self) -> gpui_base::TextSelectionScopeId {
@@ -567,12 +611,66 @@ impl Manager {
         };
         let mut cursor = Some(node);
         while let Some(id) = cursor {
-            if self.hidden.contains(&id) || self.query_hidden.contains(&id) {
+            if self.hidden.contains(&id)
+                || self.query_hidden.contains(&id)
+                || self.avatar_hidden.contains(&id)
+                || self.picker_hidden.contains(&id)
+            {
                 return true;
             }
             cursor = tree.get(id).and_then(|node| node.parent);
         }
         false
+    }
+    pub(super) fn picker_hides(&self, node: NodeId) -> bool {
+        let session = self.session.borrow();
+        let Some(tree) = session.tree(self.window) else {
+            return false;
+        };
+        let mut cursor = Some(node);
+        while let Some(id) = cursor {
+            if self.picker_hidden.contains(&id) {
+                return true;
+            }
+            cursor = tree.get(id).and_then(|node| node.parent);
+        }
+        false
+    }
+    /// Update only this picker's structural slots, preserving other surfaces and
+    /// visibility identity when the effective hidden set is unchanged.
+    pub(super) fn replace_picker_hidden(&mut self, previous: &[NodeId], hidden: &[NodeId]) {
+        let next: BTreeSet<_> = hidden.iter().copied().collect();
+        let mut changed = false;
+        for id in previous {
+            if !next.contains(id) {
+                changed |= self.picker_hidden.remove(id);
+            }
+        }
+        for id in next {
+            changed |= self.picker_hidden.insert(id);
+        }
+        if changed {
+            self.visibility_identity = Rc::new(());
+            self.pending = true;
+        }
+    }
+    pub(super) fn set_avatar_hidden(&mut self, hidden: BTreeSet<NodeId>) {
+        if self.avatar_hidden != hidden {
+            self.avatar_hidden = hidden;
+            self.visibility_identity = Rc::new(());
+            self.pending = true;
+        }
+    }
+    pub(super) fn show_avatar_fallback(&mut self, child: NodeId, visible: bool) {
+        let changed = if visible {
+            self.avatar_hidden.remove(&child)
+        } else {
+            self.avatar_hidden.insert(child)
+        };
+        if changed {
+            self.visibility_identity = Rc::new(());
+            self.pending = true;
+        }
     }
     pub(super) fn set_query_hidden(&mut self, hidden: BTreeSet<NodeId>) {
         if self.query_hidden != hidden {
@@ -600,6 +698,49 @@ impl Manager {
             self.hidden = hidden;
             self.visibility_identity = Rc::new(());
             self.pending = true;
+        }
+    }
+    pub(super) fn set_retired_input(&mut self, retired: BTreeSet<NodeId>) {
+        self.retired_input = retired;
+    }
+    /// Unlike frame clipping, lifetime retirement also crosses modal portals.
+    pub(super) fn input_retired(&self, node: NodeId) -> bool {
+        let session = self.session.borrow();
+        let Some(tree) = session.tree(self.window) else {
+            return false;
+        };
+        let mut cursor = Some(node);
+        while let Some(id) = cursor {
+            let Some(item) = tree.get(id) else {
+                return false;
+            };
+            if self.retired_input.contains(&id) {
+                return true;
+            }
+            cursor = item.parent;
+        }
+        false
+    }
+    pub(super) fn retire_input(&mut self, node: NodeId, window: &mut Window, cx: &mut App) {
+        self.retired_input.insert(node);
+        let Some(scope) = self.scopes.get(&node) else {
+            return;
+        };
+        if !scope.handle.contains_focused(window, cx)
+            && !self
+                .focused_entry(window, cx)
+                .is_some_and(|entry| self.within(entry.node, node))
+        {
+            return;
+        }
+        let restore = scope.restore.as_ref().and_then(|h| h.upgrade());
+        if self.active.is_some_and(|id| self.input_retired(id)) {
+            self.active = None;
+        }
+        if let Some(handle) = restore.filter(|h| self.can_focus(h, window)) {
+            window.focus(&handle, cx);
+        } else {
+            window.blur(cx);
         }
     }
     pub(super) fn allows(&self, node: NodeId) -> bool {
@@ -706,6 +847,11 @@ impl Manager {
     /// modal interaction gates. Hidden popup/query/navigation branches still
     /// contribute no displayed source.
     pub(super) fn highlight_visible(&self, tree: &crate::tree::Tree, node: NodeId) -> bool {
+        self.paint_visible(tree, node)
+    }
+    /// Inert content still paints. Retained slot selection must not confuse
+    /// rendering eligibility with the stricter focus/timer visibility policy.
+    pub(super) fn paint_visible(&self, tree: &crate::tree::Tree, node: NodeId) -> bool {
         let mut cursor = Some(node);
         while let Some(id) = cursor {
             let Some(item) = tree.get(id) else {
@@ -713,7 +859,10 @@ impl Manager {
             };
             if self.hidden.contains(&id)
                 || self.query_hidden.contains(&id)
+                || self.avatar_hidden.contains(&id)
+                || self.picker_hidden.contains(&id)
                 || navigation_hidden(tree, item)
+                || split_group_hidden(tree, item)
                 || self.highlight_style_hidden(tree, item)
             {
                 return false;
@@ -752,6 +901,10 @@ impl Manager {
             config.disabled || config.focus == gpuio_protocol::input::Focus::None
         }) || item.table.as_ref().is_some_and(|config| config.disabled)
             || item.carousel.as_ref().is_some_and(|config| config.disabled)
+            || item
+                .carousel_track
+                .as_ref()
+                .is_some_and(|config| config.carousel.disabled)
             || item.canvas.as_ref().is_some_and(|config| config.disabled)
             || item.chart.as_ref().is_some_and(|config| config.disabled)
             || item
@@ -798,6 +951,7 @@ impl Manager {
             };
             if style_hidden(item)
                 || navigation_hidden(tree, item)
+                || split_group_hidden(tree, item)
                 || item.table.as_ref().is_some_and(|config| config.disabled)
             {
                 return false;
@@ -818,15 +972,68 @@ impl Manager {
             let Some(item) = tree.get(id) else {
                 return true;
             };
-            if crate::style::disabled(&item.style) {
+            if crate::style::disabled(&item.style)
+                || item.list_input.is_some_and(|config| config.disabled)
+                || (item.number_presentation.is_some()
+                    && item
+                        .number_input
+                        .as_ref()
+                        .is_some_and(|mount| mount.config.disabled))
+                || item
+                    .choice_picker
+                    .as_ref()
+                    .is_some_and(|p| p.config.disabled)
+            {
                 return true;
             }
             cursor = item.parent;
         }
         false
     }
+    /// Paint-only input visibility. Layout visibility remains unchanged so all
+    /// retained cards continue to contribute measured geometry.
+    pub(super) fn track_card_clipped(&mut self, node: NodeId, clipped: bool) {
+        if clipped {
+            self.track_clipped.insert(node);
+        } else {
+            self.track_clipped.remove(&node);
+        }
+    }
+    pub(super) fn track_visibility_changed(&self) -> bool {
+        self.track_clipped != self.previous_track_clipped
+    }
+    fn track_hides(&self, node: NodeId) -> bool {
+        let session = self.session.borrow();
+        let Some(tree) = session.tree(self.window) else {
+            return true;
+        };
+        let mut current = Some(node);
+        while let Some(id) = current {
+            let Some(item) = tree.get(id) else {
+                return true;
+            };
+            // Application-owned modal portals paint in window coordinates. A
+            // card's visual clipping cannot retire their independent lifetime.
+            // Structural hidden/disabled ancestors are still checked separately.
+            if item
+                .overlay
+                .as_ref()
+                .is_some_and(|overlay| overlay.kind.is_modal())
+            {
+                return false;
+            }
+            if self.track_clipped.contains(&id) {
+                return true;
+            }
+            current = item.parent;
+        }
+        false
+    }
     pub(super) fn interactive(&self, node: NodeId) -> bool {
-        self.visible(node) && !self.disabled(node)
+        self.visible(node)
+            && !self.input_retired(node)
+            && !self.disabled(node)
+            && !self.track_hides(node)
     }
     pub(super) fn handle(&self, node: NodeId) -> Option<FocusHandle> {
         self.scopes.get(&node).map(|scope| scope.handle.clone())
@@ -926,9 +1133,12 @@ impl Manager {
                     // node once rather than rewalking its ancestry for every node.
                     if self.hidden.contains(&id)
                         || self.query_hidden.contains(&id)
+                        || self.avatar_hidden.contains(&id)
+                        || self.picker_hidden.contains(&id)
                         || style_hidden(node)
                         || crate::style::disabled(&node.style)
                         || navigation_hidden(tree, node)
+                        || split_group_hidden(tree, node)
                     {
                         continue;
                     }
@@ -957,7 +1167,19 @@ impl Manager {
                             },
                         )
                     });
-                    if let Some(config) = config {
+                    if let Some(mut config) = config {
+                        if self.input_retired(id) {
+                            config.trap = false;
+                            config.auto_focus = false;
+                            config.restore_focus = false;
+                        }
+                        let restore_trigger = node.parent.and_then(|parent| {
+                            let owner = tree.get(parent)?;
+                            let trigger = *owner.children.first()?;
+                            (owner.children.get(1) == Some(&id)
+                                && tree.popover_for_trigger(trigger).is_some())
+                            .then_some(trigger)
+                        });
                         result.push((
                             id,
                             config,
@@ -965,6 +1187,7 @@ impl Manager {
                                 .as_ref()
                                 .map(|config| config.kind)
                                 .or_else(|| node.palette.as_ref().map(|_| OverlayKind::Dialog)),
+                            restore_trigger,
                         ));
                     }
                     stack.extend(node.children.iter().rev().copied());
@@ -974,7 +1197,7 @@ impl Manager {
         };
         let present = configs
             .iter()
-            .map(|(id, _, _)| *id)
+            .map(|(id, _, _, _)| *id)
             .collect::<BTreeSet<_>>();
         let mut restore = None;
         let mut removed = self
@@ -987,17 +1210,26 @@ impl Manager {
         for (id, _) in removed.into_iter().rev() {
             let scope = self.scopes.remove(&id).expect("known scope");
             if scope.config.restore_focus && scope.handle.contains_focused(window, cx) {
-                restore = scope.restore.and_then(|handle| handle.upgrade());
+                // Semantic activation and programmatic replacement need not focus
+                // the anchor first. Never remember a retiring sibling editor as
+                // the sole return target for a declared button-owned popover.
+                restore = scope
+                    .restore_trigger
+                    .filter(|trigger| self.eligible(*trigger))
+                    .and_then(|trigger| self.entries.iter().find(|entry| entry.node == trigger))
+                    .map(|entry| entry.handle.clone())
+                    .or_else(|| scope.restore.and_then(|handle| handle.upgrade()));
             }
         }
         let mut enter = None;
-        for (id, config, overlay) in configs {
+        for (id, config, overlay, restore_trigger) in configs {
             if let Some(scope) = self.scopes.get_mut(&id) {
                 if !scope.config.trap && config.trap {
                     enter = Some(id);
                 }
                 scope.config = config;
                 scope.overlay = overlay;
+                scope.restore_trigger = restore_trigger;
             } else {
                 self.order += 1;
                 self.scopes.insert(
@@ -1006,6 +1238,7 @@ impl Manager {
                         handle: cx.focus_handle(),
                         selection: gpui_base::TextSelectionScopeId::new(),
                         restore: window.focused(cx).map(|handle| handle.downgrade()),
+                        restore_trigger,
                         config,
                         order: self.order,
                         overlay,
@@ -1132,11 +1365,20 @@ impl Manager {
         }
     }
     pub(super) fn begin_frame(&mut self, viewport: Bounds<Pixels>) {
+        std::mem::swap(&mut self.track_clipped, &mut self.previous_track_clipped);
+        self.track_clipped.clear();
         self.entries.clear();
         self.seen.clear();
         self.paint_path.clear();
         self.viewport = viewport;
         self.clipped_targets = false;
+        self.clipped_handles.clear();
+        self.entering_overlay = false;
+    }
+    pub(super) fn defer_overlay_entry(&mut self, node: NodeId) {
+        if self.enter == Some(node) {
+            self.entering_overlay = true;
+        }
     }
     pub(super) fn enter_scroll(&mut self, node: NodeId, state: &Rc<super::scroll::State>) -> usize {
         let depth = self.paint_path.len();
@@ -1211,6 +1453,15 @@ impl Manager {
         if let Some(entry) = self.entries.iter().find(|entry| &entry.handle == handle) {
             return Some(entry);
         }
+        // A registered but clipped native control must not inherit permission
+        // from a visible ancestor's focus handle.
+        if self
+            .clipped_handles
+            .iter()
+            .any(|clipped| clipped == handle || clipped.contains(handle, window))
+        {
+            return None;
+        }
         self.entries
             .iter()
             .filter(|entry| entry.handle.contains(handle, window))
@@ -1241,6 +1492,12 @@ impl Manager {
     pub(super) fn last_command_target(&self) -> Option<NodeId> {
         self.last_command_target.filter(|node| self.eligible(*node))
     }
+    pub(super) fn replace_control_bounds(
+        &mut self,
+        bounds: Option<(NodeId, Bounds<Pixels>)>,
+    ) -> Option<(NodeId, Bounds<Pixels>)> {
+        std::mem::replace(&mut self.control_bounds, bounds)
+    }
     pub(super) fn record(
         &mut self,
         node: NodeId,
@@ -1249,6 +1506,12 @@ impl Manager {
         focused: bool,
         bounds: Bounds<Pixels>,
     ) {
+        // Absolute marker children occupy the padding box and omit borders.
+        // Simple controls reveal their measured outer box, including the border.
+        let bounds = self
+            .control_bounds
+            .filter(|(id, _)| *id == node)
+            .map_or(bounds, |(_, bounds)| bounds);
         self.record_part(
             node,
             0,
@@ -1269,10 +1532,13 @@ impl Manager {
             bounds,
         } = target;
         if bounds.size.width <= gpui::px(0.) || bounds.size.height <= gpui::px(0.) {
+            self.clipped_targets = true;
+            self.clipped_handles.push(handle);
             return;
         }
         if !self.reachable(node, bounds) {
             self.clipped_targets = true;
+            self.clipped_handles.push(handle);
             return;
         }
         if focused
@@ -1321,8 +1587,18 @@ impl Manager {
                 .borrow()
                 .tree(self.window)
                 .and_then(|tree| tree.get(node))
-                .and_then(|node| node.link.as_ref())
-                .map_or(0, |config| config.tab_index);
+                .map_or(0, |node| {
+                    let button_order =
+                        node.button_presentation
+                            .and_then(|config| match config.policy.focus {
+                                gpuio_protocol::button::Focus::Focusable(order) => Some(order),
+                                gpuio_protocol::button::Focus::Preserve => None,
+                            });
+                    button_order.or(node.tab_order).map_or_else(
+                        || node.link.as_ref().map_or(0, |config| config.tab_index),
+                        |config| config.index,
+                    )
+                });
             self.entries.push(Entry {
                 node,
                 handle,
@@ -1411,6 +1687,15 @@ impl Manager {
             if self.focused_entry(window, cx).is_some_and(|entry| {
                 entry.tab_stop && self.eligible(entry.node) && self.within(entry.node, scope)
             }) {
+                return;
+            }
+            // Transient entry geometry can put the intended first control offscreen.
+            // Hold the trap itself until entry settles. A user's earlier focus
+            // choice in a visible control wins via the check above.
+            if self.entering_overlay {
+                self.enter = Some(scope);
+                self.pending = true;
+                window.focus(&self.scopes[&scope].handle, cx);
                 return;
             }
             let target = self
@@ -1535,6 +1820,69 @@ impl Manager {
         if entries.iter().any(|entry| entry.tab_index != 0) {
             entries.sort_by_key(|entry| entry.tab_index);
         }
+        self.traverse_entries(&entries, reverse, window, cx);
+    }
+
+    /// Deferred popup children paint after surrounding controls. Insert their
+    /// eligible stops at the trigger's position for logical keyboard traversal,
+    /// without making the nonmodal popup a focus trap.
+    pub(super) fn traverse_anchored(
+        &self,
+        anchor: NodeId,
+        parts: &[FocusHandle],
+        reverse: bool,
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        self.request_reveal();
+        let mut entries: Vec<_> = self
+            .entries
+            .iter()
+            .filter(|entry| self.eligible(entry.node))
+            .collect();
+        entries.sort_by_key(|entry| entry.tab_index);
+        let mut descendants: Vec<_> = entries
+            .iter()
+            .copied()
+            .filter(|entry| entry.node != anchor && self.within(entry.node, anchor))
+            .collect();
+        // Cached GPUI subtrees may replay paint records in a different order.
+        // Use the accepted child order, including the query before the footer.
+        let session = self.session.borrow();
+        if let Some(tree) = session.tree(self.window) {
+            let mut order = BTreeMap::new();
+            let mut pending = vec![anchor];
+            while let Some(id) = pending.pop() {
+                order.insert(id, order.len());
+                if let Some(node) = tree.get(id) {
+                    pending.extend(node.children.iter().rev().copied());
+                }
+            }
+            descendants.sort_by_key(|entry| (entry.tab_index, order.get(&entry.node).copied()));
+        }
+        drop(session);
+        entries.retain(|entry| entry.node == anchor || !self.within(entry.node, anchor));
+        if let Some(index) = entries.iter().position(|entry| entry.node == anchor) {
+            let mut anchors: Vec<_> = entries
+                .iter()
+                .copied()
+                .filter(|entry| entry.node == anchor)
+                .collect();
+            anchors.sort_by_key(|entry| parts.iter().position(|part| *part == entry.handle));
+            entries.retain(|entry| entry.node != anchor);
+            anchors.extend(descendants);
+            entries.splice(index..index, anchors);
+        }
+        self.traverse_entries(&entries, reverse, window, cx);
+    }
+
+    fn traverse_entries(
+        &self,
+        entries: &[&Entry],
+        reverse: bool,
+        window: &mut Window,
+        cx: &mut App,
+    ) {
         let current = self
             .focused_entry(window, cx)
             .and_then(|owner| entries.iter().position(|entry| std::ptr::eq(*entry, owner)));

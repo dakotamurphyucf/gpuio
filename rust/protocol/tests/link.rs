@@ -4,10 +4,10 @@ use gpuio_protocol::{NodeId, WindowId, link::Config, v1::*};
 #[test]
 fn links_have_a_distinct_negotiated_capability() {
     assert_eq!(CAP_LINKS, 1_i64 << 48);
-    assert_eq!(CAPABILITIES, (1_i64 << 56) - 1);
+    assert_eq!(CAPABILITIES, i64::MAX);
     for (required, expected) in [
-        (CAP_LINKS, "0001fc0000000000000100"),
-        (CAPABILITIES, "0001fcffffffffffffff00"),
+        (CAP_LINKS, "0003fc0000000000000100"),
+        (CAPABILITIES, "0003fcffffffffffffff7f"),
     ] {
         let hello = Message::Hello(VERSION, required);
         let mut bytes = vec![];
@@ -29,6 +29,7 @@ fn op60_and_kind51_match_independent_ocaml_bytes() {
     let config = Config {
         label: "Guide 世界".into(),
         disabled: false,
+        loading: false,
         tab_stop: false,
         tab_index: -2,
     };
@@ -49,7 +50,7 @@ fn op60_and_kind51_match_independent_ocaml_bytes() {
     let bytes = encode(&message);
     assert_eq!(
         bytes.iter().map(|b| format!("{b:02x}")).collect::<String>(),
-        "0300010001013c00010c477569646520e4b896e7958c0000fffe"
+        "0300010001013c00010c477569646520e4b896e7958c000000fffe"
     );
     assert_eq!(gpuio_protocol::decode(&bytes), Ok(message));
     for end in 0..bytes.len() {

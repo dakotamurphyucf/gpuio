@@ -19,9 +19,11 @@ root = Path(__file__).resolve().parent.parent
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--run", action="store_true")
 parser.add_argument("--workspace", type=Path)
-parser.add_argument("--example", choices=["extension_consumer", "signal_studio", "gallery"], default="extension_consumer")
+parser.add_argument("--example", choices=["getting_started", "extension_consumer", "signal_studio", "gallery"], default="extension_consumer")
 parser.add_argument("--gallery-section", default="all", help="Section passed to the macOS gallery acceptance driver with --example gallery --run")
 args = parser.parse_args()
+if args.example == "getting_started" and args.run:
+    parser.error("getting_started is an interactive example without an automatic GUI driver; omit --run for its independent build check")
 if args.example == "gallery" and args.run and sys.platform != "darwin":
     parser.error("Gallery --run uses the macOS AX driver; omit --run for the required cross-platform consumer build")
 workspace = (args.workspace or Path(tempfile.mkdtemp(prefix="gpuio-extension-consumer-"))).resolve()
@@ -46,10 +48,14 @@ packages = sorted(path.stem for path in (root / "vendor").glob("*/*.opam"))
 install_targets = [str(path.relative_to(root).with_suffix(".install")) for path in (root / "vendor").glob("*/*.opam")]
 run(["dune", "build", "-j", env["GPUIO_JOBS"], "@install", *install_targets])
 run(["dune", "install", "--prefix", str(prefix), "gpuio", *packages])
-shutil.copytree(root / "examples/extension_package", consumer / "component")
 example = root / "examples" / args.example
-backend_example = root / "examples/extension_consumer" if args.example == "gallery" else example
-manifest = json.loads((backend_example / "native.json").read_text())
+composed_backend = args.example != "getting_started"
+if composed_backend:
+    shutil.copytree(root / "examples/extension_package", consumer / "component")
+    backend_example = root / "examples/extension_consumer" if args.example == "gallery" else example
+    manifest = json.loads((backend_example / "native.json").read_text())
+else:
+    manifest = {}
 for path in example.iterdir():
     if path.suffix in (".ml", ".mli") or path.name == "dune":
         shutil.copyfile(path, consumer / path.name)
@@ -58,21 +64,34 @@ for directory in ("model", "files", "notifications"):
         shutil.copytree(example / directory, consumer / directory)
 if args.example == "gallery":
     shutil.copytree(root / "examples/charts/samples", consumer / "chart_samples")
+if manifest.get("document_profiles"):
+    shutil.copytree(root / "examples/document_profile_package", consumer / "document_profile")
 (consumer / "dune-project").write_text("(lang dune 3.21)\n(name independent_extension_consumer)\n")
 # Dune runs Cargo from this outside-checkout workspace. Preserve the repository
 # pin there too, rather than falling back to the developer's global Rust default.
 shutil.copyfile(root / "rust-toolchain.toml", consumer / "rust-toolchain.toml")
 (consumer / ".ocamlformat").write_text((root / ".ocamlformat").read_text())
-(consumer / "native.json").write_text(json.dumps({
-    "library": manifest["library"], "gpuio": str(root),
-    "components": [{"path": "component/rust", "factory": "factory"}],
-}, indent=2) + "\n")
-run(["python3", str(root / "scripts/compose_backend.py"), str(consumer / "native.json"), str(consumer / "backend")])
-shutil.copyfile(backend_example / "backend/Cargo.lock", consumer / "backend/Cargo.lock")
+if composed_backend:
+    consumer_manifest = {
+        "library": manifest["library"], "gpuio": str(root),
+        "components": [{"path": "component/rust", "factory": "factory"}],
+    }
+    if manifest.get("document_profiles"):
+        consumer_manifest["document_profiles"] = [{"path": "document_profile/rust", "factory": "factory"}]
+    (consumer / "native.json").write_text(json.dumps(consumer_manifest, indent=2) + "\n")
+    run(["python3", str(root / "scripts/compose_backend.py"), str(consumer / "native.json"), str(consumer / "backend")])
+    shutil.copyfile(backend_example / "backend/Cargo.lock", consumer / "backend/Cargo.lock")
 # Cargo.lock stores package identities, not these relocated path spellings.
 # The build uses --locked; a consumer check must never resolve newer versions.
 env["OCAMLPATH"] = str(prefix / "lib") + (os.pathsep + env["OCAMLPATH"] if env.get("OCAMLPATH") else "")
-run(["dune", "build", "--root", str(consumer), "-j", env["GPUIO_JOBS"], "main.exe"])
+targets = ["main.exe"]
+if manifest.get("document_profiles"):
+    targets.append("@document_profile/test/runtest")
+run(["dune", "build", "--root", str(consumer), "-j", env["GPUIO_JOBS"], *targets])
+if args.example == "gallery":
+    # A fresh linked process validates both schemas without creating a window.
+    subprocess.run([str(consumer / "_build/default/main.exe"), "--check-catalogs"],
+                   check=True, env=env, timeout=30)
 if args.run:
     executable = consumer / "_build/default/main.exe"
     if args.example == "gallery":

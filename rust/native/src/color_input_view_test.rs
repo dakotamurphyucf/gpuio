@@ -26,7 +26,7 @@ use std::{
 fn node() -> NodeId {
     NodeId::from_parts(0, 1).unwrap()
 }
-fn config() -> c::Config {
+pub(super) fn config() -> c::Config {
     c::Config {
         labels: c::Labels {
             control: "Accent".into(),

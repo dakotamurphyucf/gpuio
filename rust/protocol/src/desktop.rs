@@ -69,6 +69,12 @@ pub struct Capabilities {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
+pub enum ScrollbarPreference {
+    AutoHide,
+    AlwaysVisible,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
 pub enum Error {
     InvalidRequest,
     NotReady,
@@ -90,6 +96,7 @@ pub enum Request {
     RevealFile(FilePath),
     OpenFile(FilePath),
     RegisterScheme(String),
+    ScrollbarPreference,
 }
 impl Request {
     pub fn is_valid(&self) -> bool {
@@ -97,6 +104,7 @@ impl Request {
             Self::Configure(identity) => identity.is_valid(),
             Self::RegisterScheme(scheme) => valid_scheme(scheme),
             Self::Capabilities
+            | Self::ScrollbarPreference
             | Self::TakeLinks
             | Self::Activate(_)
             | Self::RevealFile(_)
@@ -129,6 +137,7 @@ pub enum Response {
     Requested,
     Registered,
     Failed(Error),
+    ScrollbarPreference(ScrollbarPreference),
 }
 impl Response {
     pub fn is_valid(&self) -> bool {

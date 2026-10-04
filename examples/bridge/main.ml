@@ -135,6 +135,7 @@ let worker native notification_read =
       | Number_input_event _
       | Otp_input_event _
       | Rating_requested _
+      | Calendar_viewport_changed _
       | Calendar_event _
       | Calendar_result _
       | Color_input_event _
@@ -148,7 +149,18 @@ let worker native notification_read =
       | Input_observed _
       | Highlight_observed _
       | Command_binding_observed _
+      | Menu_open_changed _
+      | Hover_changed _
+      | Choice_picker_event _
+      | Editor_search_observed _
       | Document_diff_event _
+      | Document_preview_observed _
+      | Carousel_track_requested _
+      | Split_group_resized _
+      | List_input _
+      | Document_profile_event _
+      | Document_action _
+      | Table_columns_observed _
       | Command_invoked _ -> ()
     in
     send (Hello (Wire.version, Wire.capabilities));

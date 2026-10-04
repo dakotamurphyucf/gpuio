@@ -58,6 +58,99 @@ module Month = struct
   ;;
 end
 
+module Slot = struct
+  module Wire = Gpuio_protocol.Calendar_content_wire.Slot
+
+  type t = Wire.t [@@deriving compare, equal, sexp_of]
+
+  let previous = Wire.Previous
+  let next = Wire.Next
+  let choose_month = Wire.Choose_month
+  let choose_year = Wire.Choose_year
+  let today = Wire.Today
+  let clear = Wire.Clear
+
+  let day date =
+    let%map.Or_error date = validate_date date in
+    Wire.Day (Int64.of_int (Date.diff date min_date))
+  ;;
+
+  let month month = Wire.Month (Int64.of_int (Core.Month.to_int month))
+
+  let year year =
+    if year < 1 || year > 9999
+    then Or_error.error_string "calendar year slot must be within years 1..9999"
+    else Ok (Wire.Year (Int64.of_int year))
+  ;;
+
+  let month_index month =
+    Int64.of_int
+      (((Month.year month - 1) * 12) + Core.Month.to_int (Month.month month) - 1)
+  ;;
+
+  let month_heading month = Wire.Month_heading (month_index month)
+
+  let weekday month ~day =
+    Wire.Weekday (month_index month, Int64.of_int (Day_of_week.to_int day))
+  ;;
+end
+
+module Appearance = struct
+  type t =
+    { geometry : Gpuio_protocol.Calendar_presentation_wire.t
+    ; selected_background : Color.t option
+    ; selected_foreground : Color.t option
+    ; hover_background : Color.t option
+    ; today_border : Color.t option
+    ; focus_border : Color.t option
+    ; muted_foreground : Color.t option
+    }
+  [@@deriving equal, sexp_of]
+
+  let create
+        ?(months = 1)
+        ?(cell_height = 32.0)
+        ?(cell_gap = 4.0)
+        ?(month_gap = 16.0)
+        ?(padding = 8.0)
+        ?(cell_radius = 6.0)
+        ?(outline_width = 1.0)
+        ?selected_background
+        ?selected_foreground
+        ?hover_background
+        ?today_border
+        ?focus_border
+        ?muted_foreground
+        ()
+    =
+    let geometry =
+      { Gpuio_protocol.Calendar_presentation_wire.default with
+        months = Int64.of_int months
+      ; cell_height
+      ; cell_gap
+      ; month_gap
+      ; padding
+      ; cell_radius
+      ; outline_width
+      }
+    in
+    if Gpuio_protocol.Calendar_presentation_wire.valid geometry
+    then
+      Ok
+        { geometry
+        ; selected_background
+        ; selected_foreground
+        ; hover_background
+        ; today_border
+        ; focus_border
+        ; muted_foreground
+        }
+    else Or_error.error_string "invalid calendar presentation dimensions or month count"
+  ;;
+
+  let default = create () |> Or_error.ok_exn
+end
+
 module Range = struct
   type t =
     { first : Date.t
@@ -550,6 +643,61 @@ let month_of_wire value =
       ~month:(Core.Month.of_int_exn ((index % 12) + 1)))
 ;;
 
+module Viewport = struct
+  module Display = struct
+    type t =
+      | Days of
+          { first_month : Month.t
+          ; months : int
+          ; first_weekday : Day_of_week.t
+          }
+      | Months of { year : int }
+      | Years of
+          { first : int
+          ; last : int
+          }
+    [@@deriving equal, sexp_of]
+  end
+
+  type t =
+    { window : Gpuio_protocol.Window_id.t
+    ; node : Gpuio_protocol.Node_id.t
+    ; observer : Gpuio_protocol.Handler_id.t
+    ; wire : Gpuio_protocol.Calendar_viewport_wire.t
+    }
+  [@@deriving equal, sexp_of]
+
+  let display t : Display.t =
+    match t.wire.display with
+    | Days { first_month; months; first_weekday } ->
+      Days
+        { first_month = month_of_wire first_month |> Or_error.ok_exn
+        ; months = Int64.to_int_exn months
+        ; first_weekday = Day_of_week.of_int_exn (Int64.to_int_exn first_weekday)
+        }
+    | Months { year } -> Months { year = Int64.to_int_exn year }
+    | Years { first; last } ->
+      Years { first = Int64.to_int_exn first; last = Int64.to_int_exn last }
+  ;;
+
+  let months t =
+    match display t with
+    | Days { first_month; months; first_weekday = _ } ->
+      List.init months ~f:(fun months ->
+        Month.shift first_month ~months |> Or_error.ok_exn)
+    | Months _ | Years _ -> []
+  ;;
+
+  let dates t =
+    match display t with
+    | Days { first_weekday; _ } ->
+      List.concat_map (months t) ~f:(fun month ->
+        Month.weeks month ~first_weekday |> List.concat |> List.filter_opt)
+      |> List.dedup_and_sort ~compare:Date.compare
+    | Months _ | Years _ -> []
+  ;;
+end
+
 module Snapshot = struct
   type t =
     { window : Gpuio_protocol.Window_id.t
@@ -618,6 +766,44 @@ module Command_error = struct
 end
 
 module Expert = struct
+  let viewport_of_wire ~window ~node ~observer wire =
+    if Gpuio_protocol.Calendar_viewport_wire.valid wire
+    then Ok Viewport.{ window; node; observer; wire }
+    else Or_error.error_string "invalid calendar viewport observation"
+  ;;
+
+  let slot_to_wire (slot : Slot.t) = slot
+
+  let slot_of_wire slot =
+    if Gpuio_protocol.Calendar_content_wire.Slot.valid slot
+    then Ok slot
+    else Or_error.error_string "invalid calendar content slot"
+  ;;
+
+  let slot_key = Gpuio_protocol.Calendar_content_wire.Slot.key
+
+  let appearance_to_wire (t : Appearance.t) ~theme =
+    let open Or_error.Let_syntax in
+    let resolve = function
+      | None -> return None
+      | Some color -> Theme.resolve theme color |> Or_error.map ~f:Option.some
+    in
+    let%bind selected_background = resolve t.selected_background in
+    let%bind selected_foreground = resolve t.selected_foreground in
+    let%bind hover_background = resolve t.hover_background in
+    let%bind today_border = resolve t.today_border in
+    let%bind focus_border = resolve t.focus_border in
+    let%map muted_foreground = resolve t.muted_foreground in
+    { t.geometry with
+      selected_background
+    ; selected_foreground
+    ; hover_background
+    ; today_border
+    ; focus_border
+    ; muted_foreground
+    }
+  ;;
+
   include Wire_conversion
 
   let config_to_wire t = t

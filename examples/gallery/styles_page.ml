@@ -34,7 +34,10 @@ let cursors : (string * Style.Cursor.t) array =
   |]
 ;;
 
-let component palette graph =
+let component ~load_theme ~selection window palette graph =
+  let theme_preview =
+    Theme_preview.component ~load:load_theme ~selection window palette graph
+  in
   let aspect_preview = Aspect_preview.component palette graph in
   let index, next =
     B.state_machine0
@@ -49,6 +52,7 @@ let component palette graph =
   let rounded, toggle_corners = B.toggle ~default_model:true graph in
   let open B.Let_syntax in
   let%arr p = palette
+  and theme_preview = theme_preview
   and aspect_preview = aspect_preview
   and index = index
   and next = next
@@ -74,7 +78,7 @@ let component palette graph =
             (style
                [ Width (px width)
                ; Font_size 16.
-               ; Font_family "Menlo"
+               ; Font_family ".SystemUIFont"
                ; Foreground (Palette.foreground p)
                ; White_space No_wrap
                ; Text_overflow overflow
@@ -93,7 +97,8 @@ let component palette graph =
   in
   V.column
     ~style:(style [ Gap (px 20.) ])
-    [ Palette.card
+    [ theme_preview
+    ; Palette.card
         p
         ~title:"Keep the part that matters"
         [ Palette.text

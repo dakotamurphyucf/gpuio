@@ -38,6 +38,13 @@ module Step_controls = struct
   [@@deriving bin_io, equal, sexp_of]
 end
 
+module Step_mode = struct
+  type t =
+    | Native
+    | Application
+  [@@deriving bin_io, equal, sexp_of]
+end
+
 module Config = struct
   type t =
     { domain : Numeric_wire.Domain.t
@@ -185,6 +192,26 @@ module Cancel_reason = struct
   [@@deriving bin_io, equal, sexp_of]
 end
 
+module Step_request = struct
+  type t =
+    { id : int64
+    ; direction : Numeric_wire.Direction.t
+    ; source : Source.t
+    ; snapshot : Snapshot.t
+    }
+  [@@deriving bin_io, equal, sexp_of]
+
+  let valid t =
+    Int64.(t.id > 0L)
+    && Snapshot.valid t.snapshot
+    && Option.is_none t.snapshot.composition
+    &&
+    match Snapshot.classification t.snapshot with
+    | Empty | Valid _ | Out_of_range _ -> true
+    | Incomplete | Invalid _ -> false
+  ;;
+end
+
 module Event = struct
   type t =
     | Observed of Snapshot.t
@@ -192,10 +219,12 @@ module Event = struct
     | Committed of Source.t * Snapshot.t
     | Rejected of Rejection.t * Snapshot.t
     | Cancelled of Cancel_reason.t * Snapshot.t
+    | Step_requested of Step_request.t
   [@@deriving bin_io, equal, sexp_of]
 
   let snapshot = function
     | Observed s | Changed s | Committed (_, s) | Rejected (_, s) | Cancelled (_, s) -> s
+    | Step_requested request -> request.snapshot
   ;;
 
   let valid t =
@@ -204,6 +233,7 @@ module Event = struct
     &&
     match t with
     | Observed _ -> true
+    | Step_requested request -> Step_request.valid request
     | Changed _ -> Int64.(s.revision > 0L)
     | Committed _ | Cancelled _ -> Int64.(s.revision > 0L) && Snapshot.settled s
     | Rejected (reason, _) -> Int64.(s.revision > 0L) && Rejection.matches reason s
@@ -232,11 +262,18 @@ module Command = struct
     | Cancel
     | Step of Numeric_wire.Direction.t
     | Read_snapshot
+    | Resolve_step of
+        { request_id : int64
+        ; revision : int64
+        ; value : Value.t option
+        }
   [@@deriving bin_io, equal, sexp_of]
 
   let valid_revision = Option.value_map ~default:true ~f:(fun r -> Int64.(r >= 0L))
 
   let valid = function
+    | Resolve_step { request_id; revision; value } ->
+      Int64.(request_id > 0L && revision >= 0L) && Option.for_all value ~f:Value.valid
     | Replace_draft { text; selection; undo = _; if_revision } ->
       valid_text text
       && Selection_policy.within selection text

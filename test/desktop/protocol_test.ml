@@ -27,6 +27,7 @@ let%expect_test "desktop requests match independently defined Rust fixtures" =
     ; Reveal_file "/tmp/\255", "\004\006/tmp/\255"
     ; Open_file "/a", "\005\002/a"
     ; Register_scheme "gpuio", "\006\005gpuio"
+    ; Scrollbar_preference, "\007"
     ]
   in
   List.iter cases ~f:(fun (request, bytes) ->
@@ -219,8 +220,30 @@ let%expect_test "packaging quotes literal arguments and keeps identity declarati
 let%expect_test "desktop capability is required by the current OCaml handshake" =
   let module Bridge = Gpuio_protocol.Wire in
   assert (Int64.equal (Int64.bit_and Bridge.capabilities 2199023255552L) 2199023255552L);
-  assert (Int64.equal Bridge.capabilities 72057594037927935L);
+  assert (Int64.equal Bridge.capabilities 9223372036854775807L);
   assert (
     Or_error.is_ok (Bridge.Message.encode (Hello (Bridge.version, Bridge.capabilities))));
   [%expect {||}]
+;;
+
+let%expect_test "scrollbar snapshots match Rust and reject malformed response payloads" =
+  let module Bridge = Gpuio_protocol.Wire in
+  assert (
+    String.equal
+      (Bridge.Message.encode (Desktop (7L, Scrollbar_preference)) |> Or_error.ok_exn)
+      "\019\007\007");
+  List.iter [ "\001\057\007\006\000"; "\001\057\007\006\001" ] ~f:(fun bytes ->
+    print_s [%sexp (Bridge.Event.decode bytes |> Or_error.ok_exn : Bridge.Event.t list)]);
+  List.iter
+    [ "\001\057\007\006"
+    ; "\001\057\007\006\002"
+    ; "\001\057\007\006\000\000"
+    ; "\001\057\000\006\000"
+    ]
+    ~f:(fun bytes -> assert (Result.is_error (Bridge.Event.decode bytes)));
+  [%expect
+    {|
+    ((Desktop_response 7 (Scrollbar_preference Auto_hide)))
+    ((Desktop_response 7 (Scrollbar_preference Always_visible)))
+  |}]
 ;;

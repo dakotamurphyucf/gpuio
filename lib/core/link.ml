@@ -13,12 +13,21 @@ module Config = struct
          in -1000000..1000000"
   ;;
 
-  let create ~label ?(disabled = false) ?(tab_stop = true) ?(tab_index = 0) () =
-    of_wire { Wire.label; disabled; tab_stop; tab_index = Int64.of_int tab_index }
+  let create
+        ~label
+        ?(disabled = false)
+        ?(loading = false)
+        ?(tab_stop = true)
+        ?(tab_index = 0)
+        ()
+    =
+    of_wire
+      { Wire.label; disabled; loading; tab_stop; tab_index = Int64.of_int tab_index }
   ;;
 
   let label (t : t) = t.label
   let is_disabled (t : t) = t.disabled
+  let is_loading (t : t) = t.loading
   let tab_stop (t : t) = t.tab_stop
   let tab_index (t : t) = Int64.to_int_exn t.tab_index
 end

@@ -72,9 +72,22 @@ val dispose : t -> unit
     backend and freezes registration. Call on the OS main thread before [run]. *)
 val extension_catalog : unit -> Gpuio_protocol.Extension_wire.Schema.t list Or_error.t
 
+(** Immutable static document profile schemas; same initialization/main-thread
+    rules as [extension_catalog]. *)
+val document_profile_catalog
+  :  unit
+  -> Gpuio_protocol.Extension_wire.Schema.t list Or_error.t
+
 (** Preflight before [run] or command submission; owns native startup input and
     Linux session-bus lease. Blocking OS work releases the OCaml runtime. *)
 val prepare_desktop
   :  t
   -> Gpuio_protocol.Desktop_wire.Launch_request.t
   -> Gpuio_protocol.Desktop_wire.Launch_response.t
+
+(** Pure bounded regex syntax/resource preflight. Copies the bounded request and
+    releases the OCaml runtime while compiling. No transport/backend initialization
+    or GPUI window is required. Prefer the Eio wrapper to avoid blocking its domain. *)
+val prepare_input_regex
+  :  Gpuio_protocol.Input_validation_wire.Source.t
+  -> Gpuio_protocol.Input_validation_wire.Preparation.t Or_error.t

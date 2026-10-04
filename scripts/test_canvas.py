@@ -2,6 +2,7 @@
 """Public OCaml canvas acceptance through a child app's macOS AX/keyboard APIs."""
 import argparse
 import ctypes as C
+import os
 from pathlib import Path
 import subprocess
 import tempfile
@@ -129,7 +130,9 @@ def main():
     args = parser.parse_args()
     repo = Path(__file__).resolve().parent.parent
     with tempfile.TemporaryFile(mode='w+') as log:
-        child = subprocess.Popen([str(repo / '_build/default/examples/canvas/main.exe')],
+        child = subprocess.Popen([str(repo / '_build/default/examples/canvas/main.exe'),
+                                  '--trace-events'],
+                                 env={**os.environ, 'GPUIO_TRACE_CANVAS': '1'},
                                  cwd=repo, stdout=log, stderr=subprocess.STDOUT, text=True)
         mac = None
         try:

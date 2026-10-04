@@ -21,6 +21,7 @@ pub(super) struct Route {
     revision: i64,
     pub(super) config: Arc<CommandConfig>,
     source: CommandSource,
+    editor_target: Option<(NodeId, gpui::WeakFocusHandle)>,
 }
 impl Route {
     pub(super) fn new(
@@ -39,7 +40,12 @@ impl Route {
             revision: tree.revision(),
             config: config.clone(),
             source,
+            editor_target: None,
         }
+    }
+    pub(super) fn bind_editor(mut self, target: (NodeId, gpui::WeakFocusHandle)) -> Self {
+        self.editor_target = Some(target);
+        self
     }
     pub(super) fn request(&self) -> CommandInvocation<'_> {
         CommandInvocation {
@@ -79,6 +85,17 @@ fn keystroke(shortcut: &Shortcut) -> Keystroke {
     }
 }
 
+fn native_action(action: NativeCommand) -> Box<dyn gpui::Action> {
+    match action {
+        NativeCommand::Copy => Box::new(gpui_base::input::Copy),
+        NativeCommand::Cut => Box::new(gpui_base::input::Cut),
+        NativeCommand::Paste => Box::new(gpui_base::input::Paste),
+        NativeCommand::SelectAll => Box::new(gpui_base::input::SelectAll),
+        NativeCommand::Undo => Box::new(gpui_base::input::Undo),
+        NativeCommand::Redo => Box::new(gpui_base::input::Redo),
+    }
+}
+
 /// Native input policy shared by routing and binding inspection. Availability
 /// and scope/modal gates are separate: the first matching declaration reserves
 /// the chord even when invocation subsequently fails those checks.
@@ -107,7 +124,11 @@ impl InputContext {
                 && focused_kind.is_some_and(|kind| {
                     matches!(
                         kind,
-                        Kind::Button | Kind::CommandButton | Kind::Checkbox | Kind::Switch
+                        Kind::Button
+                            | Kind::CommandButton
+                            | Kind::Checkbox
+                            | Kind::Switch
+                            | Kind::Radio
                     )
                 }))
     }
@@ -143,6 +164,71 @@ impl InputContext {
     }
 }
 impl View {
+    fn bound_editor_action(
+        &self,
+        route: &Route,
+        window: &Window,
+        cx: &App,
+    ) -> Option<(gpui::FocusHandle, NativeCommand)> {
+        let CommandSource::Menu(menu) = route.source else {
+            return None;
+        };
+        if !self.focus.borrow().interactive(menu)
+            || !self.focus.borrow().allows(menu)
+            || !self.command_route_available(route, window, cx)
+        {
+            return None;
+        }
+        let target = self.bound_editor_target(route, cx)?;
+        let focus = self.editors.get(&target)?.focus_handle(cx);
+        let action = self
+            .session
+            .borrow()
+            .command_target(self.id, route.request())?;
+        if !focus.is_focused(window) || action != route.config.target {
+            return None;
+        }
+        let CommandTarget::Native(action) = action else {
+            return None;
+        };
+        Some((focus, action))
+    }
+    fn bound_editor_target(&self, route: &Route, cx: &App) -> Option<NodeId> {
+        let (target, focus) = route.editor_target.as_ref()?;
+        let CommandSource::Menu(menu) = route.source else {
+            return None;
+        };
+        let session = self.session.borrow();
+        let owner = session.tree(self.id)?.get(menu)?;
+        if owner.menu.as_ref()?.presentation != MenuPresentation::EditorContext
+            || owner.children.as_ref() != [*target]
+            || !self.focus.borrow().allows(*target)
+            || !self.focus.borrow().visible(*target)
+        {
+            return None;
+        }
+        let editor = self.editors.get(target)?;
+        (!editor.is_composing(cx) && editor.focus_handle(cx) == *focus).then_some(*target)
+    }
+
+    pub(super) fn command_route_available(&self, route: &Route, window: &Window, cx: &App) -> bool {
+        if route.editor_target.is_none() {
+            return self.command_available(&route.config, window, cx);
+        }
+        let Some(target) = self.bound_editor_target(route, cx) else {
+            return false;
+        };
+        let CommandTarget::Native(action) = route.config.target else {
+            return false;
+        };
+        route.config.enabled
+            && self.editors[&target].command_available(action, cx)
+            && (action != NativeCommand::Paste
+                || cx
+                    .read_from_clipboard()
+                    .and_then(|item| item.text())
+                    .is_some_and(|text| !text.is_empty()))
+    }
     pub(super) fn install_command_interceptor(&mut self, window: &Window, cx: &mut Context<Self>) {
         if self.command_subscription.is_some() {
             return;
@@ -178,7 +264,21 @@ impl View {
                     cx.stop_propagation();
                     return;
                 }
-                view.command_shortcut(&event.keystroke, ShortcutPriority::Override, window, cx)
+                // A scrollbar drag preserves the editor/table's focus. Its
+                // bound Escape action runs before element key listeners, so
+                // cancel capture here before that action can clear selection.
+                if event.keystroke.key == "escape"
+                    && !event.keystroke.modifiers.modified()
+                    && view.cancel_scrollbar_drags(window, cx)
+                {
+                    window.prevent_default();
+                    cx.stop_propagation();
+                    return;
+                }
+                if !view.command_shortcut(&event.keystroke, ShortcutPriority::Override, window, cx)
+                {
+                    view.list_input_key(&event.keystroke, window, cx);
+                }
             });
         }));
     }
@@ -293,7 +393,7 @@ impl View {
             CommandSource::Button(_) => self.focus.borrow().allows(source),
             CommandSource::Shortcut => !self.focus.borrow().blocks_pointer(source),
         };
-        if !allowed || !self.command_available(&route.config, window, cx) {
+        if !allowed || !self.command_route_available(route, window, cx) {
             return false;
         }
         let target = self
@@ -315,6 +415,25 @@ impl View {
                 true
             }
             Some(CommandTarget::Native(action)) => {
+                if route.editor_target.is_some() {
+                    if self.bound_editor_action(route, window, cx).is_none() {
+                        return false;
+                    }
+                    let owner = cx.weak_entity();
+                    let route = route.clone();
+                    window.defer(cx, move |window, cx| {
+                        let resolved = owner
+                            .update(cx, |view, cx| view.bound_editor_action(&route, window, cx))
+                            .ok()
+                            .flatten();
+                        if let Some((focus, action)) = resolved {
+                            // Revalidate after deferral, then dispatch to this exact focus
+                            // node after releasing the host View borrow. No second queue.
+                            focus.dispatch_action(native_action(action).as_ref(), window, cx);
+                        }
+                    });
+                    return true;
+                }
                 let Some(editor) = self.command_target_node(window, cx) else {
                     return false;
                 };
@@ -342,19 +461,15 @@ impl View {
                     return false;
                 };
                 window.focus(&focus, cx);
-                let action: Box<dyn gpui::Action> = match action {
-                    NativeCommand::Copy => Box::new(gpui_base::input::Copy),
-                    NativeCommand::Cut => Box::new(gpui_base::input::Cut),
-                    NativeCommand::Paste => Box::new(gpui_base::input::Paste),
-                    NativeCommand::SelectAll => Box::new(gpui_base::input::SelectAll),
-                    NativeCommand::Undo => Box::new(gpui_base::input::Undo),
-                    NativeCommand::Redo => Box::new(gpui_base::input::Redo),
-                };
-                window.dispatch_action(action, cx);
+                window.dispatch_action(native_action(action), cx);
                 true
             }
             None => false,
         }
+    }
+    /// Includes composite editors (numeric/OTP/color/palette), not just Input.
+    pub(super) fn focused_input_composing(&self, window: &Window, cx: &App) -> bool {
+        self.command_input_context(None, window, cx).composing
     }
     fn command_input_context(
         &self,
@@ -404,7 +519,7 @@ impl View {
         priority: ShortcutPriority,
         window: &mut Window,
         cx: &mut Context<Self>,
-    ) {
+    ) -> bool {
         let focused = self.focus.borrow().focused_node(window, cx);
         let focused_kind = focused.and_then(|id| {
             self.session
@@ -417,13 +532,13 @@ impl View {
         if priority == ShortcutPriority::NativeFirst
             && InputContext::reserves_navigation(key, focused_kind)
         {
-            return;
+            return false;
         }
         let input = self.command_input_context(focused_kind, window, cx);
         let route = {
             let session = self.session.borrow();
             let Some(tree) = session.tree(self.id) else {
-                return;
+                return false;
             };
             focused.or(tree.root()).and_then(|start| {
                 tree.commands_from(start)
@@ -442,6 +557,9 @@ impl View {
             && self.invoke_command(&route, window, cx)
         {
             cx.stop_propagation();
+            true
+        } else {
+            false
         }
     }
 }

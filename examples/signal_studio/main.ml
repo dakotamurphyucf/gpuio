@@ -845,7 +845,7 @@ let () =
       |> ok
       |> Gpuio.Desktop_package.contents
     in
-    Eio_main.run (fun env -> Eio.Flow.copy_string text (Eio.Stdenv.stdout env))
+    Eio_main.run (fun env -> Gpuio_eio.Output.write (Eio.Stdenv.stdout env) text)
   | [ _; "--print-desktop-entry"; executable ] ->
     let executable = Gpuio.File_path.of_string executable |> ok in
     let text =
@@ -853,6 +853,6 @@ let () =
       |> ok
       |> Gpuio.Desktop_package.contents
     in
-    Eio_main.run (fun env -> Eio.Flow.copy_string text (Eio.Stdenv.stdout env))
+    Eio_main.run (fun env -> Gpuio_eio.Output.write (Eio.Stdenv.stdout env) text)
   | _ -> main ()
 ;;

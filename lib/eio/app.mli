@@ -44,6 +44,35 @@ module Window : sig
     -> Gpuio.Window.Command.t
     -> (Gpuio.Window.Snapshot.t, Gpuio.Window.Error.t) Result.t Bonsai.Effect.t
 
+  (** Native focus at request execution, including read-only text inputs but
+      excluding hidden/disabled/modal-blocked owners. The option reports presence;
+      it contains metadata only, never password/OTP values or arbitrary text.
+      Uses the same bounded request lane and close rules as [command]. *)
+  val focused_input
+    :  t
+    -> (Gpuio.Window.Input.t option, Gpuio.Window.Error.t) Result.t Bonsai.Effect.t
+
+  (** Registered read-only text/document selection in the active native scope.
+      These helpers neither access the clipboard nor read editable input values. *)
+  val has_text_selection : t -> (bool, Gpuio.Window.Error.t) Result.t Bonsai.Effect.t
+
+  (** Nonempty fragments joined in logical order with newlines. [max_bytes] is
+      a UTF-8 byte limit in [0,262144], default [65536]. Oversize returns
+      [Limit_exceeded], never a truncated result. Legacy renderer callbacks may
+      allocate their individual fragment before the collector checks its size. *)
+  val selected_text
+    :  t
+    -> ?max_bytes:int
+    -> unit
+    -> (string, Gpuio.Window.Error.t) Result.t Bonsai.Effect.t
+
+  (** Clear window geometry and all registered renderer-local selections. Acts
+      on current native selection at execution, including inactive registrations. *)
+  val clear_text_selection : t -> (unit, Gpuio.Window.Error.t) Result.t Bonsai.Effect.t
+
+  (** Stop selection drag/auto-scroll while preserving its visible range. *)
+  val end_text_selection : t -> (unit, Gpuio.Window.Error.t) Result.t Bonsai.Effect.t
+
   val is_closed : t -> bool
   val set_theme : t -> Gpuio.Theme.t -> unit
 
@@ -78,6 +107,45 @@ module Window : sig
       -> Gpuio.Text_input.Snapshot.t
       -> Gpuio.Text_input.Command.t
       -> (Gpuio.Text_input.Snapshot.t, Gpuio.Text_input.Command_error.t) Result.t
+           Bonsai.Effect.t
+
+    (** Metadata-only query on the exact observed editor lease, sharing the
+        ordinary editor request budget and close/correlation checks. *)
+    val editor_content_hint_status
+      :  t
+      -> Gpuio.Text_input.Snapshot.t
+      -> ( Gpuio.Text_input.Content_hint.Status.t
+           , Gpuio.Text_input.Command_error.t )
+           Result.t
+           Bonsai.Effect.t
+
+    (** Last completed layout; acceptance of a scroll request is distinct from paint. *)
+    val editor_viewport
+      :  t
+      -> Gpuio.Text_input.Snapshot.t
+      -> (Gpuio.Editor_viewport.t option, Gpuio.Text_input.Command_error.t) Result.t
+           Bonsai.Effect.t
+
+    val editor_scroll_to
+      :  t
+      -> Gpuio.Text_input.Snapshot.t
+      -> Gpuio.Editor_viewport.Offset.t
+      -> (unit, Gpuio.Text_input.Command_error.t) Result.t Bonsai.Effect.t
+
+    val editor_range_bounds
+      :  t
+      -> Gpuio.Text_input.Snapshot.t
+      -> Gpuio.Text_input.Selection.t
+      -> (Gpuio.Editor_geometry.t option, Gpuio.Text_input.Command_error.t) Result.t
+           Bonsai.Effect.t
+
+    val editor_search
+      :  t
+      -> Gpuio.Text_input.Snapshot.t
+      -> Gpuio.Text_input.Search.Command.t
+      -> ( Gpuio.Text_input.Search.Response.t * Gpuio.Text_input.Snapshot.t option
+           , Gpuio.Text_input.Command_error.t )
+           Result.t
            Bonsai.Effect.t
 
     (** Correlated slider commands bound to the exact observed window/node lease. *)
@@ -120,6 +188,11 @@ module Window : sig
       -> Gpuio.Color_input.Command.t
       -> (Gpuio.Color_input.Snapshot.t, Gpuio.Color_input.Command_error.t) Result.t
            Bonsai.Effect.t
+
+    (** Internal nonblocking cleanup on the owning UI domain. Uses the original
+        request lease/token/revision, takes no ordinary pending-command slot and
+        ignores its reply. Closed/stopping windows need no further decline. *)
+    val decline_number_step : t -> Gpuio.Number_input.Step_request.t -> unit
 
     (** Correlated numeric commands bound to the observed window/node lease;
         at most 64 requests pending. Closing completes them with [Closed]. *)
@@ -293,6 +366,7 @@ val open_window
   -> ?focus:bool
   -> ?chrome:Gpuio.Window.Chrome.t
   -> ?resizable:bool
+  -> ?frame:Gpuio.Window_frame.t
   -> title:string
   -> width:float
   -> height:float
@@ -311,9 +385,14 @@ val open_window_config
     With [exit_on_last_window=false], application/conversation work may continue
     with no windows; call [shutdown] to finish. Parameter validation raises.
     [tick_hz] is in [0.01,240]; [max_tasks] is in [1,65536].
-    Application/task callback failures propagate after native and Eio cleanup. *)
+    Application/task callback failures propagate after native and Eio cleanup.
+
+    [document_defaults] belongs to this run and applies to every window, including
+    later windows. Config omissions inherit; explicit values/Builtin override.
+    Shared action/profile callbacks receive the resolved source config. *)
 val run
-  :  ?tick_hz:float
+  :  ?document_defaults:unit Bonsai.Effect.t Gpuio.Document.Defaults.t
+  -> ?tick_hz:float
   -> ?max_tasks:int
   -> ?exit_on_last_window:bool
   -> ?motion:Gpuio.Animation.Preference.t
@@ -325,6 +404,9 @@ val run
     This initializes the selected backend and freezes native registration.
     Compare with package definitions before constructing application windows. *)
 val extension_catalog : unit -> Gpuio.Extension.Schema.t list Or_error.t
+
+(** Statically linked document profiles; preflight on the main thread before run. *)
+val document_profile_catalog : unit -> Gpuio.Document.Profile.Schema.t list Or_error.t
 
 module Launch_outcome : sig
   type t =
@@ -349,7 +431,8 @@ end
     [Exited] means the primary ran and completed cleanup. Other options and
     callback exception behavior match [run]. No global argv parsing occurs. *)
 val run_desktop
-  :  ?tick_hz:float
+  :  ?document_defaults:unit Bonsai.Effect.t Gpuio.Document.Defaults.t
+  -> ?tick_hz:float
   -> ?max_tasks:int
   -> ?exit_on_last_window:bool
   -> ?motion:Gpuio.Animation.Preference.t

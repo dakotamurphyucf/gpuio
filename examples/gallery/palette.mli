@@ -3,7 +3,8 @@
 type t
 
 val create
-  :  Gpuio_gallery_model.Appearance.t
+  :  ?profile:Gpuio_gallery_model.Theme_profile.t
+  -> Gpuio_gallery_model.Appearance.t
   -> Gpuio_gallery_model.Appearance.Scale.t
   -> t
 
@@ -15,6 +16,7 @@ val accent : t -> Gpuio.Color.t
 val border : t -> Gpuio.Color.t
 val appearance : t -> Gpuio.Presentation.Appearance.t
 val document_appearance : t -> Gpuio.Document.Appearance.t
+val avatar_appearance : t -> Gpuio.Avatar.Palette.Appearance.t
 val theme : t -> Gpuio.Theme.t
 val size : t -> float -> float
 val text : t -> ?size:float -> ?muted:bool -> string -> Gpuio_bonsai.View.t

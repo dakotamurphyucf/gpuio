@@ -6,6 +6,16 @@ This document refines the accepted
 [managed-list contract](accepted-contracts.md#managed-list-contract). See the
 [acceptance evidence](../evidence/managed-lists-och13.md) for exact coverage.
 
+## Axis extension (OCH-41)
+
+The [horizontal-list contract](horizontal-managed-lists.md) extends the same
+ownership, paging and retained-row model to `Config.horizontal ~width`. The native
+engine supports both axes; perpendicular gestures remain available to ancestors.
+Use `component_with_config`/`paged_with_config` for reactive configuration changes.
+Existing vertical constructors remain compatible. Local integration and the
+remaining physical/platform scope are recorded in
+[horizontal integration evidence](../evidence/horizontal-list-integration-och41.md).
+
 ## Ownership and data
 
 `Gpuio.List_collection` is an immutable, ordered collection with unique typed

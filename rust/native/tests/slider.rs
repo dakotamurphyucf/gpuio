@@ -407,3 +407,102 @@ fn command_responses_survive_full_input_lane_and_fence_window_reuse_until_draine
     assert_eq!(mailbox.drain(1), [response]);
     assert!(!mailbox.has_window_output(window().slot()));
 }
+
+#[test]
+fn presentation_admission_is_atomic_and_releases_retained_storage() {
+    use gpuio_protocol::slider_presentation::Appearance;
+    let mut session = session();
+    session
+        .apply(&transaction(
+            0,
+            vec![
+                Op::Create(node(), Kind::Slider, "".into(), Some(handler())),
+                Op::SetSlider(node(), config(), value()),
+                Op::SetRoot(Some(node())),
+            ],
+        ))
+        .unwrap();
+    let baseline = session.retained_bytes();
+    let appearance = Appearance {
+        thumb_color: Some(0x11223344),
+        ..Appearance::default()
+    };
+    session
+        .apply(&transaction(
+            1,
+            vec![Op::SetSliderAppearance(node(), Some(appearance.clone()))],
+        ))
+        .unwrap();
+    assert_eq!(
+        session.retained_bytes(),
+        baseline + std::mem::size_of::<Appearance>()
+    );
+    for bad in [
+        Appearance {
+            target_size: 0.,
+            ..appearance.clone()
+        },
+        Appearance {
+            thumb_size: 21.,
+            ..appearance.clone()
+        },
+        Appearance {
+            ring_color: Some(-1),
+            ..appearance.clone()
+        },
+        Appearance {
+            ring_width: f64::NAN,
+            ..appearance.clone()
+        },
+    ] {
+        assert!(
+            session
+                .apply(&transaction(
+                    2,
+                    vec![Op::SetSliderAppearance(node(), Some(bad))]
+                ))
+                .is_err()
+        );
+        assert_eq!(session.tree(window()).unwrap().revision(), 2);
+        assert_eq!(
+            session
+                .tree(window())
+                .unwrap()
+                .get(node())
+                .unwrap()
+                .slider_appearance
+                .as_deref(),
+            Some(&appearance)
+        );
+    }
+    let other = NodeId::from_parts(1, 1).unwrap();
+    assert!(
+        session
+            .apply(&transaction(
+                2,
+                vec![
+                    Op::Create(other, Kind::Container, "".into(), None),
+                    Op::SetSliderAppearance(other, Some(appearance)),
+                    Op::SetRoot(Some(other))
+                ]
+            ))
+            .is_err()
+    );
+    assert!(session.tree(window()).unwrap().get(other).is_none());
+    session
+        .apply(&transaction(2, vec![Op::SetSliderAppearance(node(), None)]))
+        .unwrap();
+    assert_eq!(session.retained_bytes(), baseline);
+    assert_eq!(
+        session
+            .tree(window())
+            .unwrap()
+            .get(node())
+            .unwrap()
+            .slider
+            .as_ref()
+            .unwrap()
+            .initial,
+        value()
+    );
+}

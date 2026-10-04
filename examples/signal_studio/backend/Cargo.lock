@@ -2444,6 +2444,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "gpuio-document-sdk"
+version = "0.0.0"
+dependencies = [
+ "gpui-base",
+ "gpuio-extension-sdk",
+]
+
+[[package]]
 name = "gpuio-extension-sdk"
 version = "0.0.0"
 dependencies = [
@@ -2463,6 +2471,7 @@ dependencies = [
  "gpui",
  "gpui-base",
  "gpui_platform",
+ "gpuio-document-sdk",
  "gpuio-extension-sdk",
  "gpuio-plot",
  "gpuio-portal",
@@ -2478,6 +2487,8 @@ dependencies = [
  "objc2-user-notifications",
  "ocaml-interop",
  "raw-window-handle",
+ "regex-automata",
+ "regex-syntax",
  "resvg",
  "ropey",
  "roxmltree 0.21.1",
@@ -2509,6 +2520,7 @@ name = "gpuio-protocol"
 version = "0.0.0"
 dependencies = [
  "binprot",
+ "unicode-properties",
 ]
 
 [[package]]

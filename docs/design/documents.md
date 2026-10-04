@@ -1,5 +1,10 @@
 # Revisioned display documents (OCH-14)
 
+The [pinned document catalog audit](../catalog/documents-review.md) distinguishes
+these implemented baseline contracts from remaining OCH-41 public format,
+selection/clamp, internal styling and static renderer/plugin integration. Baseline
+Markdown/code/diff support is not complete catalog acceptance.
+
 OCaml owns canonical content; Rust owns display copies, parsing, layout and
 selection. A document outlives its mounted views and belongs to an application
 or conversation scope. Offscreen row eviction releases presentation resources,
@@ -100,7 +105,7 @@ huge-document mode; the source API remains available for application-owned range
 Literal full-source search runs over rope chunks in the worker using a bounded
 KMP matcher. It counts all non-overlapping matches and retains at most4096
 navigable ranges. The UI labels that limit. Navigating a match opens its source
-page; Markdown can switch back to rendered content. Markdown raw HTML is literal
+page; Markdown/HTML can switch back to rendered content. Markdown raw HTML is literal
 text, and images resolve only through registered decoded assets. Source copy,
 rendered Markdown selection, fenced-code copy and table-source copy are distinct
 native operations.
@@ -190,3 +195,13 @@ generation in the meantime. Record that interaction against the current source
 lease generation, including when preparation has not yet caught up. Delayed
 preparation cannot overwrite the newer interaction. An append retains collapse
 state; a subsequent reset without a new interaction restores the initial value.
+
+The standalone [HTML reader](document-html.md) uses `Document.Mode.Html`, bounded
+worker parsing and the same registered image/navigation model. HTML selected
+content copies plain text and source replacement clears its selection. Markdown
+embedded HTML remains literal.
+
+[Link activation metadata](document-link-activation.md) accompanies queued
+navigation from both rich reader modes. Applications receive the URL, input source,
+mouse button and release modifiers, and decide how to route it. The public Link
+payload is now a record; legacy wire events retain unknown input metadata.

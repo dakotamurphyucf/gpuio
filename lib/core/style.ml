@@ -703,7 +703,7 @@ let unset t ?(state = State.Base) name =
 ;;
 
 module Expert = struct
-  let validate_link_content t =
+  let validate_passive_content t ~context =
     let invalid =
       Map.exists t ~f:(fun fields ->
         Map.exists fields ~f:(function
@@ -717,11 +717,13 @@ module Expert = struct
           | Some _ | None -> false))
     in
     if invalid
-    then
-      Or_error.error_string
-        "link content cannot select text, scroll or shield pointer input"
+    then Or_error.errorf "%s cannot select text, scroll or shield pointer input" context
     else Ok ()
   ;;
+
+  let validate_link_content t = validate_passive_content t ~context:"link content"
+  let validate_avatar_fallback t = validate_passive_content t ~context:"avatar fallback"
+  let validate_control_label t = validate_passive_content t ~context:"control label"
 
   let declaration_count t =
     Map.fold t ~init:0 ~f:(fun ~key:_ ~data count -> count + Map.length data)
@@ -761,6 +763,8 @@ module Expert = struct
          Wire.Fill.Linear_gradient (angle, from, start, to_, stop)
        | Oklab -> Wire.Fill.Linear_gradient_in (1L, angle, from, start, to_, stop))
   ;;
+
+  let background_to_wire background ~theme = fill theme background
 
   let shadow theme shadow =
     let { Shadow.Expert.color = c; offset_x; offset_y; blur; spread; inset } =

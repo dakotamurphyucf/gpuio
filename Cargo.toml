@@ -1,5 +1,5 @@
 [workspace]
-members = ["rust/protocol", "rust/native", "rust/table", "rust/plot", "rust/foundation", "rust/portal", "rust/wayland", "rust/extension-sdk", "examples/extension_package/rust"]
+members = ["rust/protocol", "rust/native", "rust/table", "rust/plot", "rust/foundation", "rust/portal", "rust/wayland", "rust/extension-sdk", "rust/document-sdk", "examples/extension_package/rust", "examples/document_profile_package/rust"]
 resolver = "3"
 exclude = ["vendor/gpui", "vendor/gpui-base", "vendor/accesskit-macos", "vendor/taffy"]
 
@@ -16,6 +16,7 @@ debug = 0
 opt-level = 1
 
 [patch.crates-io]
+gpuio-document-sdk = { path = "rust/document-sdk" }
 gpuio-extension-sdk = { path = "rust/extension-sdk" }
 accesskit_macos = { path = "vendor/accesskit-macos" }
 taffy = { path = "vendor/taffy" }

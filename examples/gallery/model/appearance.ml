@@ -15,6 +15,25 @@ let label = function
   | Dark -> "Dark"
 ;;
 
+module Preference = struct
+  type appearance = t [@@deriving equal, sexp_of]
+
+  type t =
+    | System
+    | Explicit of appearance
+  [@@deriving equal, sexp_of]
+
+  let resolve t ~native =
+    match t with
+    | Explicit appearance -> appearance
+    | System ->
+      (match native with
+       | None -> Dark
+       | Some appearance ->
+         if Gpuio.Window.Appearance.is_dark appearance then Dark else Light)
+  ;;
+end
+
 module Scale = struct
   type t =
     | Compact

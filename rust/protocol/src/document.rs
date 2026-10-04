@@ -59,6 +59,7 @@ pub enum Mode {
     Markdown,
     Code(String),
     Diff,
+    Html,
 }
 #[derive(Clone, Debug, PartialEq, binprot::macros::BinProtWrite)]
 pub enum Layout {
@@ -135,10 +136,40 @@ pub enum Side {
     Before,
     After,
 }
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, binprot::macros::BinProtWrite)]
+pub enum Frontmatter {
+    #[default]
+    Disabled,
+    CodeBlock,
+    DescriptionList,
+}
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, binprot::macros::BinProtWrite)]
+pub struct MarkdownOptions {
+    pub frontmatter: Frontmatter,
+    pub mdx: bool,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, binprot::macros::BinProtWrite)]
+pub enum ActivationSource {
+    Mouse(crate::pointer::PointerButton),
+    Keyboard,
+    Touch { long_press: bool },
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, binprot::macros::BinProtWrite)]
+pub struct Activation {
+    pub source: ActivationSource,
+    pub modifiers: crate::pointer::PointerModifiers,
+}
+impl Activation {
+    pub fn is_valid(&self) -> bool {
+        matches!(self.source, ActivationSource::Mouse(_))
+            || self.modifiers == crate::pointer::PointerModifiers::default()
+    }
+}
 #[derive(Clone, Debug, PartialEq, Eq, binprot::macros::BinProtWrite)]
 pub enum Navigation {
     Link(String),
     Line(Option<String>, Side, i64),
+    LinkActivated(String, Activation),
 }
 
 impl Navigation {
@@ -146,6 +177,9 @@ impl Navigation {
         let valid = |value: &str| value.len() <= 4096 && !value.contains('\0');
         match self {
             Self::Link(url) => !url.is_empty() && valid(url),
+            Self::LinkActivated(url, activation) => {
+                !url.is_empty() && valid(url) && activation.is_valid()
+            }
             Self::Line(path, _, line) => {
                 *line > 0 && *line <= i32::MAX as i64 && path.as_deref().is_none_or(valid)
             }
@@ -280,6 +314,75 @@ mod presentation_fixtures {
             let mut out = Vec::new();
             events.binprot_write(&mut out).unwrap();
             assert_eq!(out, bytes(hex));
+        }
+    }
+}
+
+#[cfg(test)]
+mod activation_fixtures {
+    use super::*;
+    use crate::{
+        HandlerId, NodeId, WindowId,
+        pointer::{PointerButton, PointerModifiers},
+        v1::Event,
+    };
+    use binprot::BinProtWrite;
+    #[test]
+    fn link_activation_matches_ocaml_and_rejects_invented_nonmouse_modifiers() {
+        for (source, flags, hex) in [
+            (
+                ActivationSource::Mouse(PointerButton::Middle),
+                true,
+                "011e0001000100010100010302017800020101010101",
+            ),
+            (
+                ActivationSource::Keyboard,
+                false,
+                "011e00010001000101000103020178010000000000",
+            ),
+            (
+                ActivationSource::Touch { long_press: true },
+                false,
+                "011e0001000100010100010302017802010000000000",
+            ),
+        ] {
+            let modifiers = PointerModifiers {
+                shift: flags,
+                control: flags,
+                alt: flags,
+                command: flags,
+                function: flags,
+            };
+            let activation = Activation { source, modifiers };
+            assert!(activation.is_valid());
+            let event = Event::DocumentNavigation(
+                WindowId::from_parts(0, 1).unwrap(),
+                NodeId::from_parts(0, 1).unwrap(),
+                HandlerId::from_parts(0, 1).unwrap(),
+                1,
+                ResourceId::from_parts(0, 1).unwrap(),
+                3,
+                Navigation::LinkActivated("x".into(), activation),
+            );
+            let mut bytes = Vec::new();
+            vec![event].binprot_write(&mut bytes).unwrap();
+            assert_eq!(
+                bytes.iter().map(|n| format!("{n:02x}")).collect::<String>(),
+                hex
+            );
+        }
+        for source in [
+            ActivationSource::Keyboard,
+            ActivationSource::Touch { long_press: false },
+        ] {
+            let activation = Activation {
+                source,
+                modifiers: PointerModifiers {
+                    command: true,
+                    ..Default::default()
+                },
+            };
+            assert!(!Navigation::LinkActivated("x".into(), activation).is_valid());
         }
     }
 }

@@ -126,7 +126,7 @@ fn calendar_admission_is_atomic_and_configuration_preserves_historical_seeds() {
     }
     mount(&mut s);
     let retained = s.retained_bytes();
-    assert_eq!(retained, 32 + config().retained_bytes());
+    assert_eq!(retained, 32 + 128 + config().retained_bytes());
     let old_config = Arc::downgrade(
         &s.tree(window())
             .unwrap()
@@ -203,7 +203,7 @@ fn calendar_admission_is_atomic_and_configuration_preserves_historical_seeds() {
     ))
     .unwrap();
     assert!(old_config.upgrade().is_none());
-    assert_eq!(s.retained_bytes(), 32 + next_config.retained_bytes());
+    assert_eq!(s.retained_bytes(), 32 + 128 + next_config.retained_bytes());
     let mounted = s
         .tree(window())
         .unwrap()
@@ -550,4 +550,219 @@ fn form_metadata_updates_preserve_the_retained_seed_and_reject_role_overrides() 
             .as_deref(),
         Some(&metadata)
     );
+}
+
+#[test]
+fn calendar_presentation_admission_is_atomic_and_accounts_for_retained_bytes() {
+    use gpuio_protocol::calendar_presentation::Appearance;
+    let mut s = session();
+    mount(&mut s);
+    let baseline = s.retained_bytes();
+    let appearance = Appearance {
+        months: 12,
+        ..Appearance::default()
+    };
+    s.apply(&tx(
+        1,
+        vec![Op::SetCalendarAppearance(node(), Some(appearance.clone()))],
+    ))
+    .unwrap();
+    let retained = baseline + std::mem::size_of::<Appearance>();
+    assert_eq!(s.retained_bytes(), retained);
+    for invalid in [
+        Appearance {
+            months: 0,
+            ..appearance.clone()
+        },
+        Appearance {
+            months: 13,
+            ..appearance.clone()
+        },
+        Appearance {
+            cell_height: f64::NAN,
+            ..appearance.clone()
+        },
+        Appearance {
+            focus_border: Some(-1),
+            ..appearance.clone()
+        },
+    ] {
+        assert!(
+            s.apply(&tx(
+                2,
+                vec![Op::SetCalendarAppearance(node(), Some(invalid))]
+            ))
+            .is_err()
+        );
+        assert_eq!(s.tree(window()).unwrap().revision(), 2);
+        assert_eq!(s.retained_bytes(), retained);
+        assert_eq!(
+            s.tree(window())
+                .unwrap()
+                .get(node())
+                .unwrap()
+                .calendar_appearance
+                .as_deref(),
+            Some(&appearance)
+        );
+    }
+    let other = NodeId::from_parts(1, 1).unwrap();
+    assert!(
+        s.apply(&tx(
+            2,
+            vec![
+                Op::Create(other, Kind::Text, "wrong kind".into(), None),
+                Op::SetCalendarAppearance(other, Some(appearance))
+            ]
+        ))
+        .is_err()
+    );
+    assert!(s.tree(window()).unwrap().get(other).is_none());
+    s.apply(&tx(2, vec![Op::SetCalendarAppearance(node(), None)]))
+        .unwrap();
+    assert_eq!(s.retained_bytes(), baseline);
+}
+
+#[test]
+fn viewport_observer_is_independent_validated_and_released() {
+    use gpuio_protocol::calendar_viewport::{Display, Observation};
+    let mut s = Session::default();
+    s.hello(VERSION, CAPABILITIES).unwrap();
+    s.open(1, window(), "Viewport", 600., 500.).unwrap();
+    let observer = HandlerId::from_parts(9, 1).unwrap();
+    s.apply(&tx(
+        0,
+        vec![
+            create(),
+            Op::SetCalendar(node(), Box::new(config()), c::Selection::Empty, month()),
+            Op::SetCalendarViewportObserver(node(), Some(observer)),
+            Op::SetRoot(Some(node())),
+        ],
+    ))
+    .unwrap();
+    let sample = Observation {
+        sequence: 0,
+        display: Display::Days {
+            first_month: month().index(),
+            months: 2,
+            first_weekday: 1,
+        },
+    };
+    assert!(
+        s.calendar_viewport_event(window(), node(), observer, 1, sample)
+            .is_some()
+    );
+    assert!(
+        s.calendar_viewport_event(window(), node(), handler(), 1, sample)
+            .is_none()
+    );
+    assert!(
+        s.calendar_event(
+            window(),
+            node(),
+            handler(),
+            1,
+            c::Event::Observed(snapshot(0))
+        )
+        .is_some()
+    );
+    assert!(
+        s.calendar_viewport_event(
+            window(),
+            node(),
+            observer,
+            1,
+            Observation {
+                sequence: -1,
+                ..sample
+            }
+        )
+        .is_none()
+    );
+    assert!(
+        s.calendar_viewport_event(window(), node(), observer, 2, sample)
+            .is_none()
+    );
+    let text = NodeId::from_parts(1, 1).unwrap();
+    assert!(
+        s.apply(&tx(
+            1,
+            vec![
+                Op::Create(text, Kind::Text, "bad".into(), None),
+                Op::SetCalendarViewportObserver(text, Some(observer))
+            ]
+        ))
+        .is_err()
+    );
+    assert_eq!(s.tree(window()).unwrap().revision(), 1);
+    s.apply(&tx(1, vec![Op::SetCalendarViewportObserver(node(), None)]))
+        .unwrap();
+    assert!(
+        s.calendar_viewport_event(window(), node(), observer, 1, sample)
+            .is_none()
+    );
+    assert!(
+        s.calendar_event(
+            window(),
+            node(),
+            handler(),
+            2,
+            c::Event::Observed(snapshot(0))
+        )
+        .is_some()
+    );
+}
+
+#[test]
+fn viewport_latest_coalescing_preserves_selection_boundaries_and_bounded_overload() {
+    use gpuio_protocol::calendar_viewport::{Display, Observation};
+    let viewport = |h, revision, sequence| {
+        Event::CalendarViewportChanged(
+            window(),
+            node(),
+            h,
+            revision,
+            Observation {
+                sequence,
+                display: Display::Months { year: 2024 },
+            },
+        )
+    };
+    let h = HandlerId::from_parts(9, 1).unwrap();
+    let mut m = Mailbox::default();
+    for sequence in 0..1000 {
+        m.input(viewport(h, 1, sequence)).unwrap();
+    }
+    m.calendar_completion(pair(1)).unwrap();
+    m.input(viewport(h, 1, 1000)).unwrap();
+    let output = m.drain(128);
+    assert_eq!(output.len(), 4);
+    assert_eq!(output[0], viewport(h, 1, 999));
+    assert_eq!(&output[1..3], &pair(1));
+    assert_eq!(output[3], viewport(h, 1, 1000));
+    let newer = HandlerId::from_parts(9, 2).unwrap();
+    m.input(viewport(h, 1, 0)).unwrap();
+    m.input(viewport(newer, 1, 1)).unwrap();
+    m.input(viewport(newer, 2, 2)).unwrap();
+    assert_eq!(m.drain(128).len(), 3);
+    for revision in 0..MAX_INPUT_EVENTS {
+        m.input(viewport(h, revision as i64, 0)).unwrap();
+    }
+    // Same tail route still fits by replacement at capacity; an event boundary does not.
+    m.input(viewport(h, (MAX_INPUT_EVENTS - 1) as i64, 1))
+        .unwrap();
+    assert!(m.input(viewport(h, MAX_INPUT_EVENTS as i64, 0)).is_err());
+    assert!(m.calendar_completion(pair(3)).is_err());
+    assert_eq!(m.drain(128).len(), MAX_INPUT_EVENTS);
+    m.input(viewport(h, 1, 0)).unwrap();
+    assert!(m.has_window_output(window().slot()));
+    m.fault(window());
+    assert_eq!(
+        m.drain(128),
+        vec![viewport(h, 1, 0), Event::Overloaded(window())]
+    );
+    assert!(!m.has_window_output(window().slot()));
+    m.close();
+    assert!(m.input(viewport(h, 1, 1)).is_err());
+    assert_eq!(m.drain(128), vec![Event::Stopped]);
 }

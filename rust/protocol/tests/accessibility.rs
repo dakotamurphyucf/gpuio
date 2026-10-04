@@ -22,6 +22,47 @@ fn encode(value: &Config) -> Vec<u8> {
     bytes
 }
 
+#[test]
+fn transcript_log_fixture_preserves_tags_and_bounds() {
+    use gpuio_protocol::v1::Kind;
+    let config = Config {
+        role: Some(Role::Log),
+        label: Some("Transcript".into()),
+        description: None,
+        live: Live::Polite,
+        field: None,
+        current: None,
+    };
+    let bytes = encode(&config);
+    assert_eq!(
+        bytes.iter().map(|b| format!("{b:02x}")).collect::<String>(),
+        include_str!("../../../test/fixtures/accessibility-log.hex").trim()
+    );
+    assert_eq!(decode_accessibility(&bytes), Ok(config.clone()));
+    for length in 0..bytes.len() {
+        assert!(decode_accessibility(&bytes[..length]).is_err());
+    }
+    let mut invalid = bytes.clone();
+    invalid[1] = 17;
+    assert!(decode_accessibility(&invalid).is_err());
+    let mut trailing = bytes;
+    trailing.push(0);
+    assert!(decode_accessibility(&trailing).is_err());
+    for kind in [Kind::Container, Kind::VirtualList] {
+        assert!(config.supports(kind));
+    }
+    for kind in [Kind::Text, Kind::Button, Kind::Input] {
+        assert!(!config.supports(kind));
+    }
+    for live in [Live::Off, Live::Polite, Live::Assertive] {
+        let value = Config {
+            live,
+            ..config.clone()
+        };
+        assert_eq!(decode_accessibility(&encode(&value)), Ok(value));
+    }
+}
+
 fn tree_config(role: Role, label: &str) -> Config {
     Config {
         role: Some(role),
@@ -304,4 +345,126 @@ fn current_item_fixture_validation_and_placement() {
     assert!(!nav.supports(Kind::Text));
     assert_eq!(encode(&nav)[1], 11);
     assert_eq!(decode_accessibility(&encode(&nav)), Ok(nav));
+}
+
+#[test]
+fn toolbar_orientations_match_independent_bytes_and_reject_invalid_placement() {
+    use gpuio_protocol::v1::Kind;
+    let configs = vec![
+        tree_config(Role::Toolbar(Orientation::Horizontal), "Row"),
+        tree_config(Role::Toolbar(Orientation::Vertical), "Column"),
+    ];
+    let mut bytes = vec![];
+    configs.binprot_write(&mut bytes).unwrap();
+    assert_eq!(
+        bytes.iter().map(|b| format!("{b:02x}")).collect::<String>(),
+        include_str!("../../../test/fixtures/accessibility-toolbar.hex").trim()
+    );
+    for config in configs {
+        let bytes = encode(&config);
+        assert_eq!(decode_accessibility(&bytes), Ok(config.clone()));
+        for n in 0..bytes.len() {
+            assert!(decode_accessibility(&bytes[..n]).is_err());
+        }
+        let mut invalid = bytes.clone();
+        invalid[2] = 2;
+        assert_eq!(decode_accessibility(&invalid), Err(DecodeError::Malformed));
+        let mut trailing = bytes;
+        trailing.push(0);
+        assert!(decode_accessibility(&trailing).is_err());
+        assert!(config.supports(Kind::Container));
+        for kind in [
+            Kind::Text,
+            Kind::Button,
+            Kind::Checkbox,
+            Kind::RadioGroup,
+            Kind::VirtualList,
+            Kind::CommandScope,
+        ] {
+            assert!(!config.supports(kind));
+        }
+    }
+}
+
+#[test]
+fn structural_table_roles_have_paired_coordinates_and_strict_bounds() {
+    use gpuio_protocol::v1::Kind;
+    let roles = [
+        Role::Table(TableInfo {
+            rows: Some(3),
+            columns: Some(4),
+        }),
+        Role::RowGroup,
+        Role::TableRow(1),
+        Role::TableCell(TableCell {
+            row: 1,
+            column: 0,
+            column_span: 2,
+        }),
+        Role::ColumnHeader(TableCell {
+            row: 0,
+            column: 0,
+            column_span: 4,
+        }),
+        Role::RowHeader(TableCell {
+            row: 1,
+            column: 0,
+            column_span: 1,
+        }),
+        Role::Caption,
+    ];
+    let config = |role| Config {
+        role: Some(role),
+        label: None,
+        description: None,
+        live: Live::Off,
+        field: None,
+        current: None,
+    };
+    for (role, fixture) in roles
+        .into_iter()
+        .zip(include_str!("../../../test/fixtures/accessibility-structural-table.hex").lines())
+    {
+        let value = config(role);
+        let bytes = encode(&value);
+        assert_eq!(
+            bytes.iter().map(|b| format!("{b:02x}")).collect::<String>(),
+            fixture
+        );
+        assert_eq!(decode_accessibility(&bytes), Ok(value.clone()));
+        assert!(value.supports(Kind::Container));
+        for kind in [Kind::Text, Kind::Button, Kind::VirtualList, Kind::Input] {
+            assert!(!value.supports(kind));
+        }
+        for len in 0..bytes.len() {
+            assert!(decode_accessibility(&bytes[..len]).is_err());
+        }
+        let mut trailing = bytes;
+        trailing.push(0);
+        assert!(decode_accessibility(&trailing).is_err());
+    }
+    for role in [
+        Role::Table(TableInfo {
+            rows: Some(-1),
+            columns: None,
+        }),
+        Role::Table(TableInfo {
+            rows: None,
+            columns: Some(1025),
+        }),
+        Role::TableRow(-1),
+        Role::TableRow(1_000_000),
+        Role::TableCell(TableCell {
+            row: 1,
+            column: 1023,
+            column_span: 2,
+        }),
+        Role::TableCell(TableCell {
+            row: 1,
+            column: 0,
+            column_span: 0,
+        }),
+    ] {
+        assert!(decode_accessibility(&encode(&config(role))).is_err());
+    }
 }

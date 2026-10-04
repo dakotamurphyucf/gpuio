@@ -30,3 +30,34 @@ independent gallery's document/diff UI; omit the section option to run all pages
 consumer binary without rebuilding it. `test_signal_studio.py --executable PATH`
 likewise runs the complete Signal Studio AppKit walkthrough against an independent
 consumer. Full Linux desktop behavior remains OCH-47.
+
+`package_macos_reference.py` assembles already-built chat/gallery/Signal Studio
+executables into local macOS qualification bundles and zip artifacts, with load-
+command audits, supplied notices, provenance and optional ad-hoc signing. It never
+installs/registers/opens the bundle. See [distribution](../docs/distribution.md);
+assembly does not establish clean-machine, licensing or notarization acceptance.
+`test_package_macos_reference.py` checks portable input admission without a desktop.
+
+`collect_rust_notices.py` reads offline locked Cargo metadata, follows a conservative
+normal/build dependency closure, and copies package-local license/notice texts with
+identity and hash evidence. It never approves licenses or selects a dual-license
+alternative. Missing texts, workspace declarations and additional OCaml/asset
+review remain explicit. See [distribution](../docs/distribution.md).
+`--supplemental third_party/notice-sources.json` adds explicitly attributed pinned
+workspace texts, with drift checks and unchanged discovery issues kept visible.
+`test_collect_rust_notices.py` checks graph selection, identity, byte preservation
+and unresolved inputs without invoking Cargo or opening windows.
+
+`collect_ocaml_notices.py` uses an explicit opam root/switch and optional repeated
+`--vendor` roots to collect installed/doc/source notice bytes, package metadata and
+project pins. It includes development tools, rejects installed-version drift, and
+leaves missing texts and license review explicit. It never installs packages,
+changes switches or claims exact linker membership. Its five portable tests cover
+byte preservation, nested notices, symlinks, output safety, switch isolation and
+concurrent installed-version changes; both foundation jobs run them. See
+[OCaml notice evidence](../docs/evidence/ocaml-notices-och17.md).
+
+`test_output_sink.py` drives `test/output/probe.exe` through inherited file, pipe,
+null-device and private pseudo-terminal output. It tests exact bytes, typed errors,
+nonblocking pipe cancellation and scheduler responsiveness without a GUI. See
+[the output adapter evidence](../docs/evidence/output-sinks-och17.md).

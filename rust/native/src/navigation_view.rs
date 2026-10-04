@@ -157,12 +157,14 @@ impl View {
                 page = page.hidden();
             }
             let body = if Some(*id) != selected {
+                let identity = ((id.generation() as u64) << 32) | id.slot() as u64;
+                let identity = ("gpuio-inactive-page", identity).into();
                 if let Some(carousel) = node.parent.and_then(|parent| self.carousels.get(&parent))
                     && layer.is_some()
                 {
-                    carousel::input::inert_page(body, carousel)
+                    carousel::input::inert_page(body, carousel, identity)
                 } else {
-                    crate::semantics::InteractionShield::inert(body).into_any_element()
+                    crate::semantics::InteractionShield::inert(body, identity).into_any_element()
                 }
             } else {
                 body

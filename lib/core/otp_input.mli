@@ -99,6 +99,43 @@ module Config : sig
   val is_read_only : t -> bool
 end
 
+module Appearance : sig
+  type t [@@deriving equal, sexp_of]
+
+  val default : t
+
+  (** Presentation for one native editor, changed without replacing its draft,
+      selection, composition, focus or history. Root View style still controls
+      height, font and foreground. Cell width defaults to twice the font size,
+      at least 28 logical pixels.
+
+      [groups] is 1..32 (default 1), clamped to the code length. Cells per group
+      are the ceiling of length/groups; the last group may be shorter and empty
+      trailing groups are omitted. Ordinary gaps default to 5 pixels; group gaps
+      to 20. Width is in [1,4096]; gaps/radius in [0,4096]; border width in [0,64].
+      Radius and border width clamp to the painted cell dimensions.
+
+      Colors may use theme tokens. Defaults preserve the existing translucent
+      cells, blue focus/selection, and inherited caret color. [focus_border]
+      applies to every cell while the editor is focused, preserving the default
+      field focus treatment. Native caret blinking follows focus/activity and
+      reduced-motion policy; appearance changes do not restart its phase. *)
+  val create
+    :  ?groups:int
+    -> ?cell_width:float
+    -> ?cell_gap:float
+    -> ?group_gap:float
+    -> ?radius:float
+    -> ?border_width:float
+    -> ?background:Color.t
+    -> ?border:Color.t
+    -> ?focus_border:Color.t
+    -> ?selection:Color.t
+    -> ?caret:Color.t
+    -> unit
+    -> t Or_error.t
+end
+
 module Revision : sig
   type t [@@deriving compare, equal, sexp_of]
 
@@ -199,6 +236,11 @@ module Command_error : sig
 end
 
 module Expert : sig
+  val appearance_to_wire
+    :  Appearance.t
+    -> theme:Theme.t
+    -> Gpuio_protocol.Otp_presentation_wire.t Or_error.t
+
   val config_to_wire : Config.t -> Gpuio_protocol.Otp_wire.Config.t
   val value_to_wire : Value.t -> string
   val policy_to_wire : Policy.t -> Gpuio_protocol.Otp_wire.Policy.t

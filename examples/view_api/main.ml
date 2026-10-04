@@ -142,7 +142,19 @@ let worker native notification_read ~self_test =
       | Input_observed _
       | Highlight_observed _
       | Command_binding_observed _
+      | Menu_open_changed _
+      | Hover_changed _
+      | Choice_picker_event _
+      | Editor_search_observed _
       | Document_diff_event _
+      | Document_preview_observed _
+      | Calendar_viewport_changed _
+      | Carousel_track_requested _
+      | Split_group_resized _
+      | List_input _
+      | Document_profile_event _
+      | Document_action _
+      | Table_columns_observed _
       | File_dialog_result _ -> ()
     in
     send (Hello (Wire.version, Wire.capabilities));

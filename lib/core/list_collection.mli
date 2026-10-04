@@ -1,5 +1,39 @@
 open Core
 
+module Source_id : sig
+  (** Process-local identity of one collection source, with no payload snapshot.
+      Structural and value edits preserve it; a fresh collection has a new ID. *)
+  type t [@@deriving compare, equal, sexp_of]
+
+  include Comparator.S with type t := t
+
+  val to_key : t -> Key.t
+end
+
+module Item_ref : sig
+  (** Process-local membership identity. It is neither a persistence ID nor a
+      native handle. A key reused after deletion has a different reference. *)
+  type 'key t [@@deriving compare, equal, sexp_of]
+
+  val key : 'key t -> 'key
+end
+
+module Identity : sig
+  (** Metadata only; retains no application records. Point updates share this
+      snapshot. Structural changes retain the source and surviving memberships. *)
+  type ('key, 'cmp) t
+
+  val source_id : (_, _) t -> Source_id.t
+  val same_source : ('key, 'cmp) t -> ('key, 'cmp) t -> bool
+  val length : (_, _) t -> int
+  val keys : ('key, _) t -> 'key list
+  val index : ('key, 'cmp) t -> 'key -> int option
+  val nth : ('key, _) t -> int -> 'key option
+  val item_ref : ('key, 'cmp) t -> 'key -> 'key Item_ref.t option
+  val contains_ref : ('key, 'cmp) t -> 'key Item_ref.t -> bool
+  val comparator : ('key, 'cmp) t -> ('key, 'cmp) Comparator.t
+end
+
 (** Immutable, ordered application data. Collection lifetime is independent of
     viewport membership. Keys are unique, stable application identities; replacing
     a value preserves its key and position. No row views or Bonsai models are stored.
@@ -18,6 +52,14 @@ val of_alist
   -> ('key * 'data) list
   -> ('key, 'data, 'cmp) t Or_error.t
 
+(** The identity snapshot is shared by point updates. References survive [set],
+    reorder and atomic splice replacement of a surviving key. A removal followed
+    by reintroduction, including across unobserved intermediate snapshots, retires
+    the old reference. Creating a fresh collection starts a distinct source. *)
+val identity : ('key, _, 'cmp) t -> ('key, 'cmp) Identity.t
+
+val item_ref : ('key, _, 'cmp) t -> 'key -> 'key Item_ref.t option
+val contains_ref : ('key, _, 'cmp) t -> 'key Item_ref.t -> bool
 val length : (_, _, _) t -> int
 val is_empty : (_, _, _) t -> bool
 
@@ -78,3 +120,10 @@ val fold_changed_values
   -> init:'acc
   -> f:('acc -> 'key -> 'acc)
   -> 'acc
+
+module Expert : sig
+  (** Stable process-local view identity for the membership, distinct from its
+      reusable application key. Used by adapters to retire row models/native
+      nodes even when deletion and reinsertion coalesce before rendering. *)
+  val item_key : _ Item_ref.t -> Key.t
+end

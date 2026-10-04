@@ -7,6 +7,18 @@ module Open_state : sig
   [@@deriving equal, sexp_of]
 end
 
+(** Native tooltip entry and rapid switching. [Immediate] is the default.
+    [Enter_and_switch] fades/slides entry and slides same-row changes. Animated
+    managed tips replace other animated managed tips on native open requests;
+    controlled tips close only after the application accepts that change.
+    Reduced motion settles immediately; removal never retains outgoing content. *)
+module Motion : sig
+  type t =
+    | Immediate
+    | Enter_and_switch
+  [@@deriving equal, sexp_of]
+end
+
 module Config : sig
   type t [@@deriving equal, sexp_of]
 
@@ -29,6 +41,7 @@ module Config : sig
     -> ?show_delay:Time_ns.Span.t
     -> ?hide_delay:Time_ns.Span.t
     -> ?skip_delay:Time_ns.Span.t
+    -> ?motion:Motion.t
     -> unit
     -> t Or_error.t
 end
@@ -36,5 +49,6 @@ end
 module Expert : sig
   val to_wire : Config.t -> Gpuio_protocol.Wire.Tooltip.t
   val placement : Config.t -> Placement.t
+  val motion : Config.t -> Motion.t
   val is_disabled : Config.t -> bool
 end

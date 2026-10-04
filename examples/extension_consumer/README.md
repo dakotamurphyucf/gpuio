@@ -12,7 +12,7 @@ Run from the repository root:
 _build/default/examples/extension_consumer/main.exe
 ```
 
-`--smoke` opens without requesting focus and closes after command acknowledgment
+`--smoke` activates its window and closes after command acknowledgment
 and a correlated paint observation. Interactive mode supports native pointer,
 keyboard and accessibility activation and an OCaml button issuing a new command.
 The application checks the linked schema catalog before starting the runtime.

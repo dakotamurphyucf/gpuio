@@ -1,6 +1,9 @@
 (library
  (name gpuio_gallery_file_tests)
- (libraries core eio_main gpuio_gallery_files)
- (inline_tests)
+ (libraries core eio_main gpuio_gallery_files gpuio_gallery_model)
+ (inline_tests
+  (deps aurora.sexp))
  (preprocess
   (pps ppx_jane ppx_expect)))
+
+(copy_files ../../themes/aurora.sexp)

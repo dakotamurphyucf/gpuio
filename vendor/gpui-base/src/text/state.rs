@@ -99,6 +99,9 @@ pub struct TextViewState {
     pub(super) line_spans: Arc<Mutex<Vec<LineSpan>>>,
     /// Whether the last painted frame clipped content due to `max_lines`.
     pub(super) clamped: bool,
+    /// Painted link sources under the current preview clip. Only consulted
+    /// with `max_lines`; virtualized documents retain logical navigation.
+    pub(super) preview_links: std::collections::BTreeSet<usize>,
     pub(super) text_view_style: TextViewStyle,
     pub(super) code_block_actions: Option<std::sync::Arc<CodeBlockActionsFn>>,
     pub(super) code_block_highlighter: Option<std::sync::Arc<CodeBlockHighlighterFn>>,
@@ -119,6 +122,8 @@ pub struct TextViewState {
 
     pub(super) parsed_content: ParsedContent,
     pub(super) text_backgrounds: Option<std::rc::Rc<super::TextBackgrounds>>,
+    pub(super) control_navigation: super::control_navigation::Navigation,
+    pub(super) tab_exit_handler: Option<std::rc::Rc<super::text_view::TabExitHandlerFn>>,
     pub(super) link_navigation: super::link_navigation::Navigation,
     pub(super) link_reveal: Option<usize>,
     pub(super) link_reveal_claimed: bool,
@@ -180,6 +185,15 @@ impl TextViewState {
         unchanged_prefix: Option<usize>,
         cx: &mut Context<Self>,
     ) {
+        // HTML lacks trustworthy source spans. Never transfer an old selection
+        // across a replacement or a format change.
+        let unchanged_prefix =
+            if self.format == prepared.format && prepared.format == TextViewFormat::Markdown {
+                unchanged_prefix
+            } else {
+                None
+            };
+        self.format = prepared.format;
         let all = self.select_all;
         let selected_plain = all.then(|| self.parsed_content.document.text());
         let selected_source = all.then(|| self.parsed_content.document.source.to_string());
@@ -310,6 +324,7 @@ impl TextViewState {
             max_lines: None,
             line_spans: Arc::default(),
             clamped: false,
+            preview_links: Default::default(),
             // Measure all blocks (not just visible ones) so the scrollbar
             // thumb size stays stable. Without this, off-screen blocks count
             // as zero height until scrolled into view, which makes the
@@ -328,6 +343,8 @@ impl TextViewState {
             selection_adapter,
             parsed_content: Default::default(),
             text_backgrounds: None,
+            control_navigation: Default::default(),
+            tab_exit_handler: None,
             link_navigation: Default::default(),
             link_reveal: None,
             link_reveal_claimed: false,
@@ -350,12 +367,18 @@ impl TextViewState {
     }
 
     fn refresh_links(&mut self, unchanged_prefix: Option<usize>) {
+        self.control_navigation.invalidate();
+        self.preview_links.clear();
         self.link_navigation.refresh(
             &self.parsed_content.document,
             &self.parsed_content.node_cx,
             unchanged_prefix,
         );
         self.link_reveal = None;
+    }
+
+    pub(super) fn link_is_visible(&self, source: usize) -> bool {
+        self.max_lines.is_none() || self.preview_links.contains(&source)
     }
 
     pub(super) fn focus_link(
@@ -367,6 +390,9 @@ impl TextViewState {
         let Some(source) = link.source_start else {
             return;
         };
+        if !self.link_is_visible(source) {
+            return;
+        }
         let Ok(index) = self
             .link_navigation
             .links
@@ -398,25 +424,48 @@ impl TextViewState {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if !self.focus_handle.is_focused(window) {
-            return;
+        if event.keystroke.key != "tab" {
+            self.control_navigation.cancel();
         }
         let modifiers = event.keystroke.modifiers;
         if modifiers.control || modifiers.alt || modifiers.platform || modifiers.function {
             return;
         }
+        if event.keystroke.key == "tab" && self.control_navigation.is_pending() {
+            if self.tab_controls(modifiers.shift, window, cx) {
+                cx.stop_propagation();
+            }
+            return;
+        }
+        if !self.focus_handle.is_focused(window) {
+            if event.keystroke.key == "tab" && self.tab_controls(modifiers.shift, window, cx) {
+                cx.stop_propagation();
+            }
+            return;
+        }
         if event.keystroke.key == "tab" {
             self.link_reveal = None;
-            if let Some(link) = self.link_navigation.step(modifiers.shift) {
+            let mut link_found = false;
+            while let Some(link) = self.link_navigation.step(modifiers.shift) {
+                if self.max_lines.is_some() && !self.preview_links.contains(&link.source_start) {
+                    continue;
+                }
                 self.link_reveal = Some(link.source_start);
                 if self.scrollable {
                     self.list_state.scroll_to_reveal_item(link.block);
                 }
+                link_found = true;
+                cx.stop_propagation();
+                break;
+            }
+            if !link_found && !modifiers.shift && self.tab_controls(false, window, cx) {
                 cx.stop_propagation();
             }
             cx.notify();
         } else if event.keystroke.key == "enter" && !modifiers.shift {
-            if let Some(link) = self.link_navigation.selected() {
+            if let Some(link) = self.link_navigation.selected()
+                && self.link_is_visible(link.source_start)
+            {
                 super::text_view::handle_link_click(
                     &self.link_click_handler,
                     link.url.clone(),
@@ -572,7 +621,7 @@ impl TextViewState {
     /// step, and html5ever records no source offsets to fall back on (it
     /// reports only line numbers), so there is no original text to copy from
     /// either.
-    fn effective_format(&self) -> SelectionFormat {
+    pub(super) fn effective_format(&self) -> SelectionFormat {
         match self.format {
             TextViewFormat::Markdown => self.selection_format,
             TextViewFormat::Html => SelectionFormat::Plain,
@@ -633,6 +682,18 @@ impl TextViewState {
         let count = self.list_state.item_count();
         if count > 0 {
             self.list_state.remeasure_items(0..count);
+        }
+    }
+
+    /// Internal style changes can resize virtual rows without changing inherited
+    /// typography. Preserve logical selections while retiring cached geometry.
+    pub(super) fn set_view_style(&mut self, style: TextViewStyle) {
+        if self.text_view_style != style {
+            self.selection_revision = self.selection_revision.wrapping_add(1);
+            self.preserve_inline_selection = true;
+            self.compatible_layout_update = true;
+            self.invalidate_measured_heights();
+            self.text_view_style = style;
         }
     }
 
@@ -941,6 +1002,7 @@ impl Render for TextViewState {
         self.layout_text_style = Some(typography);
         let state = cx.entity();
         let document = self.parsed_content.document.clone();
+        self.control_navigation.prepare(&document, cx);
         let mut node_cx = self.parsed_content.node_cx.clone();
         node_cx.displayed_text = self.parsed_content.displayed_text.clone();
 
@@ -958,6 +1020,7 @@ impl Render for TextViewState {
             .when(self.max_lines.is_none(), |this| this.h_full())
             .map(|this| match &mut self.parsed_error {
                 None => this.child(document.render_root(
+                    self.control_navigation.scopes.clone(),
                     if self.scrollable {
                         Some(self.list_state.clone())
                     } else {
@@ -1017,14 +1080,18 @@ pub(crate) struct ParsedContent {
     bounded: bool,
 }
 
-/// A single-use full Markdown parse prepared outside the native UI thread.
+/// A single-use full Markdown or HTML parse prepared outside the native UI thread.
 /// This deliberately does not implement Clone: parsed inline nodes contain
 /// mutable selection/layout state and must not be shared between mounted views.
-pub struct PreparedMarkdown {
+pub struct PreparedText {
     content: ParsedContent,
+    format: TextViewFormat,
 }
 
-impl PreparedMarkdown {
+/// Backward-compatible name for externally prepared Markdown.
+pub type PreparedMarkdown = PreparedText;
+
+impl PreparedText {
     /// Admission bounds: 64 KiB source, 16 KiB per line, 4096 AST nodes, depth32
     /// and 256 top-level blocks. Call from a bounded background scheduler.
     /// Failure means the caller should offer its source/large-document view.
@@ -1034,11 +1101,35 @@ impl PreparedMarkdown {
             ..NodeContext::default()
         };
         let document = format::markdown::parse_bounded(source, &mut node_cx)?;
+        Self::finish(document, node_cx, TextViewFormat::Markdown)
+    }
+
+    /// Bounded reader HTML. The required adapter replaces *every* image with a
+    /// caller-owned custom node before layout; no builtin URL loader survives.
+    pub fn parse_html(
+        source: &str,
+        extensions: MarkdownExtensions,
+        image: impl FnMut(&super::HtmlImage) -> super::MarkdownNode,
+    ) -> Result<Self, SharedString> {
+        let mut node_cx = NodeContext {
+            markdown_extensions: Arc::new(extensions),
+            ..NodeContext::default()
+        };
+        let document = format::html::parse_bounded(source, &mut node_cx, image)?;
+        Self::finish(document, node_cx, TextViewFormat::Html)
+    }
+
+    fn finish(
+        document: ParsedDocument,
+        node_cx: NodeContext,
+        format: TextViewFormat,
+    ) -> Result<Self, SharedString> {
         let displayed_text = Some(super::DisplayedText::prepare(
             &document,
             &node_cx.markdown_extensions,
         )?);
         Ok(Self {
+            format,
             content: ParsedContent {
                 document,
                 node_cx,

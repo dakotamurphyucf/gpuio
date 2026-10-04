@@ -119,6 +119,24 @@ pub(crate) const ROOT_NODE_ID: NodeId = NodeId(0);
 pub(crate) type A11yActionListener =
     Box<dyn FnMut(Option<&accesskit::ActionData>, &mut Window, &mut App) + 'static>;
 
+// Only mutations made during a prepaint transaction are journaled. Completed
+// sibling subtrees are never cloned; retry restores the open ancestor stack.
+enum PrepaintMutation {
+    Focus(NodeId, Option<FocusId>),
+    Bounds(NodeId, Option<Bounds<Pixels>>),
+}
+pub(crate) struct PrepaintCheckpoint {
+    nodes_len: usize,
+    ids_stack: SmallVec<[NodeId; 16]>,
+    nodes_stack: SmallVec<[accesskit::Node; 16]>,
+    focus: Option<NodeId>,
+    active_descendant: Option<NodeId>,
+    explicit_active_descendant: Option<(NodeId, FocusId)>,
+    disabled_scope: bool,
+    last_focus_without_node: Option<FocusId>,
+    mutations_len: usize,
+}
+
 /// Per-window accessibility state.
 ///
 /// Manages the AccessKit tree that is built each frame and the mappings
@@ -146,6 +164,11 @@ pub(crate) struct A11y {
     /// determine whether we should actually send the finished [`TreeUpdate`].
     active_this_frame: bool,
     pub(crate) nodes: A11yNodeBuilder,
+    // One physical keyboard owner may lend focus to one option. Resolve again
+    // after all siblings paint; the input can follow its list in layout order.
+    explicit_active_descendant: Option<(NodeId, FocusId)>,
+    prepaint_depth: usize,
+    prepaint_mutations: Vec<PrepaintMutation>,
     pub(crate) focus_ids: FxHashMap<NodeId, FocusId>,
     pub(crate) node_bounds: FxHashMap<NodeId, Bounds<Pixels>>,
     pub(crate) action_listeners: FxHashMap<NodeId, Vec<(Action, A11yActionListener)>>,
@@ -174,6 +197,9 @@ impl A11y {
             active_flag,
             active_this_frame: false,
             nodes: A11yNodeBuilder::new(),
+            explicit_active_descendant: None,
+            prepaint_depth: 0,
+            prepaint_mutations: Vec::new(),
             focus_ids: FxHashMap::default(),
             node_bounds: FxHashMap::default(),
             action_listeners: FxHashMap::default(),
@@ -218,7 +244,91 @@ impl A11y {
     }
 
     pub(crate) fn set_focusable(&mut self, node_id: NodeId, focus_id: FocusId) {
-        self.focus_ids.insert(node_id, focus_id);
+        let previous = self.focus_ids.insert(node_id, focus_id);
+        if self.prepaint_depth > 0 {
+            self.prepaint_mutations
+                .push(PrepaintMutation::Focus(node_id, previous));
+        }
+    }
+
+    pub(crate) fn set_bounds(&mut self, node_id: NodeId, bounds: Bounds<Pixels>) {
+        let previous = self.node_bounds.insert(node_id, bounds);
+        if self.prepaint_depth > 0 {
+            self.prepaint_mutations
+                .push(PrepaintMutation::Bounds(node_id, previous));
+        }
+    }
+
+    pub(crate) fn prepaint_checkpoint(&mut self) -> Option<PrepaintCheckpoint> {
+        if !self.is_active() {
+            return None;
+        }
+        self.prepaint_depth += 1;
+        Some(PrepaintCheckpoint {
+            nodes_len: self.nodes.all_nodes.len(),
+            ids_stack: self.nodes.ids_stack.clone(),
+            nodes_stack: self.nodes.nodes_stack.clone(),
+            focus: self.nodes.focus,
+            active_descendant: self.nodes.active_descendant,
+            explicit_active_descendant: self.explicit_active_descendant,
+            disabled_scope: self.nodes.disabled_scope,
+            last_focus_without_node: self.last_focus_without_node,
+            mutations_len: self.prepaint_mutations.len(),
+        })
+    }
+
+    pub(crate) fn finish_prepaint(
+        &mut self,
+        checkpoint: Option<PrepaintCheckpoint>,
+        rollback: bool,
+    ) {
+        let Some(checkpoint) = checkpoint else { return };
+        debug_assert_eq!(
+            self.nodes.ids_stack, checkpoint.ids_stack,
+            "unbalanced a11y prepaint scope"
+        );
+        if rollback {
+            for (id, _) in self.nodes.all_nodes.drain(checkpoint.nodes_len..) {
+                self.nodes.seen_ids.remove(&id);
+                #[cfg(debug_assertions)]
+                self.nodes.node_info.remove(&id);
+            }
+            self.nodes.ids_stack = checkpoint.ids_stack;
+            self.nodes.nodes_stack = checkpoint.nodes_stack;
+            self.nodes.focus = checkpoint.focus;
+            self.nodes.active_descendant = checkpoint.active_descendant;
+            self.explicit_active_descendant = checkpoint.explicit_active_descendant;
+            self.nodes.disabled_scope = checkpoint.disabled_scope;
+            self.last_focus_without_node = checkpoint.last_focus_without_node;
+            for mutation in self
+                .prepaint_mutations
+                .drain(checkpoint.mutations_len..)
+                .rev()
+            {
+                match mutation {
+                    PrepaintMutation::Focus(id, old) => match old {
+                        Some(value) => {
+                            self.focus_ids.insert(id, value);
+                        }
+                        None => {
+                            self.focus_ids.remove(&id);
+                        }
+                    },
+                    PrepaintMutation::Bounds(id, old) => match old {
+                        Some(value) => {
+                            self.node_bounds.insert(id, value);
+                        }
+                        None => {
+                            self.node_bounds.remove(&id);
+                        }
+                    },
+                }
+            }
+        }
+        self.prepaint_depth -= 1;
+        if self.prepaint_depth == 0 {
+            self.prepaint_mutations.clear();
+        }
     }
 
     /// Report `node_id` as the currently-focused node, if it is present in the
@@ -267,9 +377,45 @@ impl A11y {
         }
     }
 
+    /// Explicit composite ownership permits sibling input/list layouts without
+    /// moving real keyboard focus or pretending that the input is an ancestor.
+    pub(crate) fn set_active_descendant_for(&mut self, node_id: NodeId, owner: FocusId) -> bool {
+        if !self.nodes.has_node(node_id)
+            || self.nodes.focus.is_some_and(|focused| {
+                focused == node_id || self.focus_ids.get(&focused) != Some(&owner)
+            })
+        {
+            return false;
+        }
+        if self
+            .explicit_active_descendant
+            .is_some_and(|(existing, previous_owner)| {
+                previous_owner == owner && existing != node_id
+            })
+        {
+            if cfg!(debug_assertions) {
+                panic!("active descendant claimed by multiple nodes in one frame");
+            } else {
+                log::warn!(
+                    "a11y: multiple explicit active descendants; using last-wins ({node_id:?})"
+                );
+            }
+        }
+        self.explicit_active_descendant = Some((node_id, owner));
+        // The Div caller has already checked real keyboard focus. If its owner
+        // has not prepainted yet, retain only this fixed-size claim for end_frame.
+        if self.nodes.focus.is_some() {
+            self.nodes.set_active_descendant(node_id);
+            true
+        } else {
+            false
+        }
+    }
+
     /// Clear per-frame state and push the root node to start a new frame.
     pub(crate) fn begin_frame(&mut self) {
         self.focus_ids.clear();
+        self.explicit_active_descendant = None;
         self.node_bounds.clear();
         self.action_listeners.clear();
         self.nodes.begin_frame(self.window_title.as_ref());
@@ -277,7 +423,16 @@ impl A11y {
 
     /// Finalize the tree and produce a [`TreeUpdate`] for the platform adapter.
     pub(crate) fn end_frame(&mut self, frame: debug::FrameDebugInfo) -> TreeUpdate {
-        let update = self.nodes.finalize();
+        if let Some((node_id, owner)) = self.explicit_active_descendant
+            && let Some(focused) = self.nodes.focus
+            && focused != node_id
+            && self.nodes.has_node(node_id)
+            && self.focus_ids.get(&focused) == Some(&owner)
+        {
+            self.nodes.set_active_descendant(node_id);
+        }
+        let mut update = self.nodes.finalize();
+        self.remove_hidden_actions(&mut update);
         self.debug.capture(
             &update,
             self.nodes.focus,
@@ -288,6 +443,33 @@ impl A11y {
         #[cfg(debug_assertions)]
         self.debug.capture_node_info(&self.nodes.node_info);
         update
+    }
+
+    fn remove_hidden_actions(&mut self, update: &mut TreeUpdate) {
+        let mut pending: Vec<_> = update.nodes.iter()
+            .filter(|(_, node)| node.is_hidden()).map(|(id, _)| *id).collect();
+        if pending.is_empty() {
+            return;
+        }
+        let nodes: FxHashMap<_, _> = update.nodes.iter().map(|(id, node)| (*id, node)).collect();
+        let mut hidden = FxHashSet::default();
+        while let Some(id) = pending.pop() {
+            if hidden.insert(id)
+                && let Some(node) = nodes.get(&id)
+            {
+                pending.extend(node.children().iter().copied());
+            }
+        }
+        // Remove both explicit handlers and fallback click/focus targets. These
+        // mappings are rebuilt every frame, so revealing the subtree restores
+        // behavior without changing its identities or losing its descendants.
+        self.action_listeners.retain(|id, _| !hidden.contains(id));
+        self.node_bounds.retain(|id, _| !hidden.contains(id));
+        self.focus_ids.retain(|id, _| !hidden.contains(id));
+        if hidden.contains(&update.focus) {
+            update.focus = self.nodes.focus.filter(|id| !hidden.contains(id)).unwrap_or(ROOT_NODE_ID);
+            self.nodes.active_descendant = None;
+        }
     }
 
     pub(crate) fn debug_tree_json(&self) -> Option<String> {
@@ -335,6 +517,47 @@ impl<'a> A11ySubtreeBuilder<'a> {
         NodeId(hasher.finish())
     }
 
+    /// The accessibility node of the element owning this builder.
+    pub fn parent_id(&self) -> NodeId {
+        self.parent_id
+    }
+
+    /// Insert a synthetic container around an ordered, contiguous range of this
+    /// element's existing direct children. Their identities, subtrees and actions
+    /// stay intact. The container replaces that range in the parent's child order.
+    ///
+    /// Returns `None` without changing the tree for empty, repeated, foreign or
+    /// out-of-order members, an occupied synthetic ID, or a container that already
+    /// has children. Call after the real children have finished prepaint.
+    pub fn group_children(
+        &mut self,
+        key: impl Hash,
+        mut group: accesskit::Node,
+        members: &[NodeId],
+    ) -> Option<NodeId> {
+        let first = *members.first()?;
+        let id = self.synthetic_node_id(key);
+        if self.nodes.has_node(id) || !group.children().is_empty() {
+            return None;
+        }
+        let children = self.parent_node().children();
+        let start = children.iter().position(|child| *child == first)?;
+        let end = start.checked_add(members.len())?;
+        if children.get(start..end) != Some(members)
+            || members.iter().collect::<FxHashSet<_>>().len() != members.len()
+        {
+            return None;
+        }
+        let mut replacement = children.to_vec();
+        replacement.splice(start..end, [id]);
+        group.set_children(members.to_vec());
+        if !self.push_child(id, group) {
+            return None;
+        }
+        self.parent_node().set_children(replacement);
+        Some(id)
+    }
+
     /// Append a synthetic leaf node as a child of this element's node.
     ///
     /// Returns `false` if a node with this id is already present in the tree,
@@ -354,6 +577,46 @@ impl<'a> A11ySubtreeBuilder<'a> {
             );
         }
         pushed
+    }
+
+    /// Clip this subtree's finalized descendant bounds in accessibility (scaled
+    /// window) coordinates. Fully clipped nodes become hidden; IDs and children
+    /// remain intact. Call after descendants finish prepaint. Hidden descendants
+    /// lose accessibility actions at frame finalization. The element must still
+    /// enforce its separate pointer and keyboard input policy.
+    pub fn clip_descendants(&mut self, clip: accesskit::Rect) {
+        // The builder belongs to one subtree. Do not alter siblings or ancestors,
+        // including nodes without bounds (e.g. synthetic text runs).
+        let mut descendants = FxHashSet::default();
+        let mut pending: FxHashSet<_> = self.parent_node().children().iter().copied().collect();
+        let mut start = self.nodes.all_nodes.len();
+        // Completed nodes are in postorder. Stop once this subtree has been
+        // visited rather than scanning every earlier sibling for each preview.
+        for (index, (id, node)) in self.nodes.all_nodes.iter().enumerate().rev() {
+            if pending.is_empty() {
+                break;
+            }
+            start = index;
+            if pending.remove(id) {
+                descendants.insert(*id);
+                pending.extend(node.children().iter().copied());
+            }
+        }
+        for (id, node) in &mut self.nodes.all_nodes[start..] {
+            if descendants.contains(id)
+                && let Some(bounds) = node.bounds()
+            {
+                let visible = bounds.intersect(clip);
+                if visible.width() <= 0. || visible.height() <= 0. {
+                    node.set_hidden();
+                    if self.nodes.active_descendant == Some(*id) {
+                        self.nodes.active_descendant = None;
+                    }
+                } else {
+                    node.set_bounds(visible);
+                }
+            }
+        }
     }
 
     /// A mutable reference to the parent node.
@@ -705,6 +968,120 @@ mod tests {
     }
 
     #[test]
+    fn synthetic_groups_preserve_option_subtrees_order_actions_and_focus() {
+        use super::A11ySubtreeBuilder;
+        let mut builder = new_builder();
+        let list = NodeId(1);
+        let before = NodeId(2);
+        let option = NodeId(3);
+        let text = NodeId(4);
+        let disabled = NodeId(5);
+        let after = NodeId(6);
+        let mut stable_group = None;
+        for with_header in [true, false, true] {
+            builder.begin_frame(None);
+            assert!(builder.push(list, accesskit::Node::new(Role::ListBox)));
+            if with_header {
+                assert!(builder.push_leaf(before, test_node()));
+            }
+            let mut item = accesskit::Node::new(Role::ListBoxOption);
+            item.set_selected(true);
+            item.add_action(accesskit::Action::Click);
+            assert!(builder.push(option, item));
+            assert!(builder.push_leaf(text, accesskit::Node::new(Role::Label)));
+            builder.set_focus(option);
+            builder.pop();
+            let mut item = accesskit::Node::new(Role::ListBoxOption);
+            item.set_disabled();
+            assert!(builder.push_leaf(disabled, item));
+            assert!(builder.push_leaf(after, test_node()));
+            let mut group = accesskit::Node::new(Role::Group);
+            group.set_label("Tools");
+            let mut subtree = A11ySubtreeBuilder::new(list, &mut builder);
+            assert_eq!(subtree.parent_id(), list);
+            let group = subtree
+                .group_children("tools", group, &[option, disabled])
+                .unwrap();
+            assert_eq!(*stable_group.get_or_insert(group), group);
+            builder.pop();
+            let update = builder.finalize();
+            let node = |id| &update.nodes.iter().find(|(key, _)| *key == id).unwrap().1;
+            assert_eq!(
+                node(list).children(),
+                if with_header {
+                    vec![before, group, after]
+                } else {
+                    vec![group, after]
+                }
+            );
+            assert_eq!(node(group).label(), Some("Tools"));
+            assert_eq!(node(group).children(), &[option, disabled]);
+            assert_eq!(node(option).children(), &[text]);
+            assert!(node(option).supports_action(accesskit::Action::Click));
+            assert_eq!(node(option).is_selected(), Some(true));
+            assert!(node(disabled).is_disabled());
+            assert_eq!(update.focus, option);
+            let mut parents = std::collections::HashMap::new();
+            for (id, node) in &update.nodes {
+                for child in node.children() {
+                    assert!(parents.insert(child, id).is_none(), "multiple parents");
+                    assert!(update.nodes.iter().any(|(id, _)| id == child));
+                }
+            }
+            assert_eq!(parents.len() + 1, update.nodes.len());
+        }
+        builder.begin_frame(None);
+        let update = builder.finalize();
+        assert_eq!(update.nodes.len(), 1, "groups retire with their children");
+    }
+
+    #[test]
+    fn synthetic_group_rejects_invalid_members_without_partial_mutation() {
+        use super::A11ySubtreeBuilder;
+        let mut builder = new_builder();
+        for id in [NodeId(1), NodeId(2), NodeId(3)] {
+            assert!(builder.push_leaf(id, test_node()));
+        }
+        for members in [
+            vec![],
+            vec![NodeId(99)],
+            vec![NodeId(1), NodeId(1)],
+            vec![NodeId(1), NodeId(3)],
+            vec![NodeId(2), NodeId(1)],
+            vec![ROOT_NODE_ID],
+        ] {
+            let mut subtree = A11ySubtreeBuilder::new(ROOT_NODE_ID, &mut builder);
+            assert_eq!(
+                subtree.group_children("invalid", test_node(), &members),
+                None
+            );
+            assert_eq!(
+                subtree.parent_node().children(),
+                &[NodeId(1), NodeId(2), NodeId(3)]
+            );
+            assert_eq!(builder.all_nodes.len(), 3);
+        }
+        let mut subtree = A11ySubtreeBuilder::new(ROOT_NODE_ID, &mut builder);
+        let mut populated = test_node();
+        populated.set_children(vec![ROOT_NODE_ID]);
+        assert_eq!(
+            subtree.group_children("invalid", populated, &[NodeId(1)]),
+            None
+        );
+        let occupied = subtree.synthetic_node_id("occupied");
+        assert!(subtree.push_child(occupied, test_node()));
+        assert_eq!(
+            subtree.group_children("occupied", test_node(), &[NodeId(1)]),
+            None
+        );
+        assert_eq!(
+            subtree.parent_node().children(),
+            &[NodeId(1), NodeId(2), NodeId(3), occupied]
+        );
+        assert_eq!(builder.all_nodes.len(), 4);
+    }
+
+    #[test]
     fn disabled_container_preserves_values_and_restores_original_child_actions() {
         let mut builder = new_builder();
         let container = NodeId(1);
@@ -1013,5 +1390,212 @@ mod tests {
 
         let update = a11y.end_frame(Default::default());
         assert_eq!(update.focus, a);
+    }
+    #[test]
+    fn explicit_active_descendant_can_precede_its_owner_and_does_not_survive_retry() {
+        for rollback in [false, true] {
+            for matched in [false, true] {
+                let mut ids = slotmap::SlotMap::<FocusId, ()>::with_key();
+                let owner = ids.insert(());
+                let unrelated = ids.insert(());
+                let mut a11y = new_a11y();
+                a11y.sync_active_flag();
+                let checkpoint = a11y.prepaint_checkpoint();
+                assert!(
+                    checkpoint.is_some(),
+                    "exercise an active prepaint transaction"
+                );
+                let option = NodeId(1);
+                let input = NodeId(2);
+                assert!(
+                    a11y.nodes
+                        .push(option, accesskit::Node::new(Role::ListBoxOption))
+                );
+                assert!(
+                    !a11y.set_active_descendant_for(option, owner),
+                    "not resolved until owner paints"
+                );
+                a11y.nodes.pop();
+                a11y.finish_prepaint(checkpoint, rollback);
+                if rollback {
+                    assert!(
+                        a11y.nodes
+                            .push(option, accesskit::Node::new(Role::ListBoxOption))
+                    );
+                    a11y.nodes.pop();
+                }
+                assert!(
+                    a11y.nodes
+                        .push(input, accesskit::Node::new(Role::TextInput))
+                );
+                a11y.set_focusable(input, if matched { owner } else { unrelated });
+                a11y.set_focus(input);
+                a11y.nodes.pop();
+                let update = a11y.end_frame(Default::default());
+                assert_eq!(
+                    update.focus,
+                    if matched && !rollback { option } else { input }
+                );
+                assert_eq!(a11y.nodes.focus, Some(input), "never move real focus");
+                a11y.begin_frame();
+                assert!(a11y.explicit_active_descendant.is_none());
+            }
+        }
+    }
+
+    #[test]
+    fn explicit_active_descendant_keeps_real_sibling_input_focus_and_value() {
+        for accept in [false, true] {
+            let mut ids = slotmap::SlotMap::<FocusId, ()>::with_key();
+            let owner = ids.insert(());
+            let unrelated = ids.insert(());
+            let mut a11y = new_a11y();
+            let query = NodeId(1);
+            let list = NodeId(2);
+            let option = NodeId(3);
+            let mut input = accesskit::Node::new(Role::TextInput);
+            input.set_value("京都 draft");
+            assert!(a11y.nodes.push(query, input));
+            a11y.set_focusable(query, owner);
+            a11y.set_focus(query);
+            assert!(!a11y.set_active_descendant_for(query, owner));
+            assert!(!a11y.set_active_descendant_for(NodeId(999), owner));
+            a11y.nodes.pop();
+            assert!(a11y.nodes.push(list, accesskit::Node::new(Role::ListBox)));
+            assert!(
+                a11y.nodes
+                    .push(option, accesskit::Node::new(Role::ListBoxOption))
+            );
+            assert!(!a11y.set_active_descendant_for(option, unrelated));
+            if accept {
+                assert!(a11y.set_active_descendant_for(option, owner));
+            }
+            assert_eq!(
+                a11y.nodes.focus,
+                Some(query),
+                "real input focus is unchanged"
+            );
+            a11y.nodes.pop();
+            a11y.nodes.pop();
+            let update = a11y.end_frame(Default::default());
+            assert_eq!(update.focus, if accept { option } else { query });
+            let input = &update.nodes.iter().find(|(id, _)| *id == query).unwrap().1;
+            assert_eq!(input.role(), Role::TextInput);
+            assert_eq!(input.value(), Some("京都 draft"));
+            assert!(
+                !input.children().contains(&option),
+                "no fabricated input ancestry"
+            );
+            // The following frame has neither this input nor its focus mapping.
+            a11y.begin_frame();
+            assert!(a11y.nodes.push(option, test_node()));
+            assert!(!a11y.set_active_descendant_for(option, owner));
+            a11y.nodes.pop();
+            assert_eq!(a11y.end_frame(Default::default()).focus, ROOT_NODE_ID);
+        }
+    }
+
+    #[test]
+    #[cfg_attr(
+        debug_assertions,
+        should_panic(expected = "active descendant claimed by multiple nodes")
+    )]
+    fn explicit_active_descendant_keeps_duplicate_claim_guard() {
+        let mut a11y = new_a11y();
+        let owner = FocusId::default();
+        let query = NodeId(1);
+        assert!(a11y.nodes.push(query, test_node()));
+        a11y.set_focusable(query, owner);
+        a11y.set_focus(query);
+        a11y.nodes.pop();
+        for option in [NodeId(2), NodeId(3)] {
+            assert!(a11y.nodes.push(option, test_node()));
+            assert!(a11y.set_active_descendant_for(option, owner));
+            a11y.nodes.pop();
+        }
+    }
+    #[test]
+    fn explicit_active_descendant_runs_through_real_element_prepaint_without_moving_focus() {
+        use crate::{
+            Context, FocusHandle, InteractiveElement, IntoElement, ParentElement, Render,
+            StatefulInteractiveElement, Styled, TestAppContext, Window, div,
+        };
+        struct Composite {
+            input: FocusHandle,
+            other: FocusHandle,
+            explicit: bool,
+        }
+        impl Render for Composite {
+            fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+                let option = div()
+                    .id("option")
+                    .role(Role::ListBoxOption)
+                    .aria_label("Result");
+                let option = if self.explicit {
+                    option.aria_active_descendant_for(&self.input)
+                } else {
+                    option.aria_active_descendant()
+                };
+                div()
+                    .size_full()
+                    .child(
+                        div()
+                            .id("input")
+                            .role(Role::TextInput)
+                            .track_focus(&self.input)
+                            .aria_value("draft")
+                            .w_32()
+                            .h_8(),
+                    )
+                    .child(div().id("list").role(Role::ListBox).child(option))
+                    .child(
+                        div()
+                            .id("other")
+                            .role(Role::Button)
+                            .track_focus(&self.other)
+                            .w_32()
+                            .h_8(),
+                    )
+            }
+        }
+        let mut app = TestAppContext::single();
+        let (view, cx) = app.add_window_view(|_, cx| Composite {
+            input: cx.focus_handle(),
+            other: cx.focus_handle(),
+            explicit: false,
+        });
+        for (explicit, input_focused) in [(false, true), (true, true), (true, false)] {
+            cx.update(|window, cx| {
+                window.a11y.force_disabled = false;
+                window
+                    .a11y
+                    .active_flag
+                    .store(true, std::sync::atomic::Ordering::SeqCst);
+                view.update(cx, |view, cx| {
+                    view.explicit = explicit;
+                    window.focus(
+                        if input_focused {
+                            &view.input
+                        } else {
+                            &view.other
+                        },
+                        cx,
+                    );
+                    cx.notify();
+                });
+                window.draw(cx).clear(cx);
+                view.read_with(cx, |view, _| {
+                    assert!(if input_focused {
+                        view.input.is_focused(window)
+                    } else {
+                        view.other.is_focused(window)
+                    });
+                });
+                assert_eq!(
+                    window.a11y.nodes.active_descendant.is_some(),
+                    explicit && input_focused
+                );
+            });
+        }
     }
 }

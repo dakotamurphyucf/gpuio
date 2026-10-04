@@ -26,6 +26,54 @@ module Month : sig
   val weeks : t -> first_weekday:Day_of_week.t -> Date.t option list list
 end
 
+module Slot : sig
+  (** Identity of one native cell or control. Content must not replace its native
+      date/action semantics. Month-qualified headings avoid sharing one retained
+      content node between simultaneous panes. *)
+  type t [@@deriving compare, equal, sexp_of]
+
+  val previous : t
+  val next : t
+  val choose_month : t
+  val choose_year : t
+  val today : t
+  val clear : t
+  val day : Date.t -> t Or_error.t
+  val month : Core.Month.t -> t
+  val year : int -> t Or_error.t
+  val month_heading : Month.t -> t
+  val weekday : Month.t -> day:Day_of_week.t -> t
+end
+
+module Appearance : sig
+  type t [@@deriving equal, sexp_of]
+
+  (** 1..12 consecutive months, default one. Multiple day panes wrap at a minimum
+      width of seven cell heights plus six gaps; one month retains flexible width.
+      Cell height is 16..128px, gaps and
+      padding 0..64px, radius 0..64px, outline 0..half cell height. Theme colors
+      are optional. Presentation changes retain the native selection/focus and
+      cursor; snapshot [month] remains the cursor month, not the first pane. *)
+  val create
+    :  ?months:int
+    -> ?cell_height:float
+    -> ?cell_gap:float
+    -> ?month_gap:float
+    -> ?padding:float
+    -> ?cell_radius:float
+    -> ?outline_width:float
+    -> ?selected_background:Color.t
+    -> ?selected_foreground:Color.t
+    -> ?hover_background:Color.t
+    -> ?today_border:Color.t
+    -> ?focus_border:Color.t
+    -> ?muted_foreground:Color.t
+    -> unit
+    -> t Or_error.t
+
+  val default : t
+end
+
 module Range : sig
   type t [@@deriving equal, sexp_of]
 
@@ -205,6 +253,40 @@ module Revision : sig
   val to_int64 : t -> int64
 end
 
+module Viewport : sig
+  module Display : sig
+    type t = private
+      | Days of
+          { first_month : Month.t
+          ; months : int
+          ; first_weekday : Day_of_week.t
+          }
+      | Months of { year : int }
+      | Years of
+          { first : int
+          ; last : int
+          }
+    [@@deriving equal, sexp_of]
+  end
+
+  (** Logical displayed panes, independent of the keyboard cursor and selection
+      revision. These describe a mounted calendar even when hidden, not pixel
+      clipping or OS window visibility. Equality includes native owner and
+      subscription identity and observation sequence, so an async response can
+      be checked against the observation that requested it. *)
+  type t [@@deriving equal, sexp_of]
+
+  val display : t -> Display.t
+
+  (** Consecutive day panes, or [] in month/year selection mode. *)
+  val months : t -> Month.t list
+
+  (** Sorted unique supported dates in the day panes' six-week grids, including
+      neighboring-month cells. At most 504 dates; [] in month/year mode. This is
+      a bounded prefetch set, not a selection or permission to select a date. *)
+  val dates : t -> Date.t list
+end
+
 module Snapshot : sig
   (** Immutable observation bound to one window/node lifetime. Configuration
       may invalidate a historical selection; [selection_allowed] reports this
@@ -240,7 +322,9 @@ module Command : sig
   (** Replace/Clear optionally guard the current revision and remain available
       read-only/disabled; replacements must fit mode and current constraints.
       Show_month/Move_months preserve selection and clamp the day cursor into the
-      target month. Focus_date reveals and focuses that civil day, including a
+      target month. With multiple panes, Show_month aligns the first pane when
+      the civil boundary permits; Move_months only keeps the cursor visible.
+      Focus_date reveals and focuses that civil day, including a
       disabled day for discovery, but must pass native focus/visibility gates.
       Unsupported dates, out-of-domain navigation and offsets outside +/-119987
       fail; no operation wraps across the civil boundary. *)
@@ -280,6 +364,22 @@ module Command_error : sig
 end
 
 module Expert : sig
+  val viewport_of_wire
+    :  window:Gpuio_protocol.Window_id.t
+    -> node:Gpuio_protocol.Node_id.t
+    -> observer:Gpuio_protocol.Handler_id.t
+    -> Gpuio_protocol.Calendar_viewport_wire.t
+    -> Viewport.t Or_error.t
+
+  val slot_to_wire : Slot.t -> Gpuio_protocol.Calendar_content_wire.Slot.t
+  val slot_of_wire : Gpuio_protocol.Calendar_content_wire.Slot.t -> Slot.t Or_error.t
+  val slot_key : Slot.t -> string
+
+  val appearance_to_wire
+    :  Appearance.t
+    -> theme:Theme.t
+    -> Gpuio_protocol.Calendar_presentation_wire.t Or_error.t
+
   (** Bridge representation: days since 0001-01-01, in [0..3652058].
       Validate before conversion; this is not a timestamp or Julian day. *)
   val date_to_ordinal : Date.t -> int64 Or_error.t

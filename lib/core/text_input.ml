@@ -10,6 +10,20 @@ module Mode = struct
   [@@deriving equal, sexp_of]
 end
 
+module Password_display = struct
+  type t =
+    | Hidden
+    | Revealed
+  [@@deriving equal, sexp_of]
+end
+
+module Privacy = struct
+  type t =
+    | Plain
+    | Password of Password_display.t
+  [@@deriving equal, sexp_of]
+end
+
 let valid_utf8 text =
   Stdlib.String.is_valid_utf_8 text && not (String.contains text '\000')
 ;;
@@ -28,9 +42,19 @@ let validate_text ~mode text =
     | Single_line | Multiline -> Ok ())
 ;;
 
+module Content_hint = Input_content_hint
+module Search = Editor_search
+
 module Config = struct
   type t =
     { mode : Mode.t
+    ; privacy : Privacy.t
+    ; content_hint : Content_hint.t option
+    ; format : Input_format.t option
+    ; edit_filter : Input_validation.t option
+    ; layout : Text_area_layout.t option
+    ; clear_on_escape : bool
+    ; searchable : bool
     ; label : string
     ; placeholder : string
     ; read_only : bool
@@ -43,6 +67,13 @@ module Config = struct
   [@@deriving equal, sexp_of]
 
   let create
+        ?(privacy = Privacy.Plain)
+        ?content_hint
+        ?format
+        ?edit_filter
+        ?layout
+        ?(clear_on_escape = false)
+        ?(searchable = false)
         ?(placeholder = "")
         ?(read_only = false)
         ?(disabled = false)
@@ -68,6 +99,20 @@ module Config = struct
     then
       Or_error.error_string
         "input placeholder must contain at most 4096 UTF-8 bytes without NUL"
+    else if Mode.equal mode Single_line && searchable
+    then Or_error.error_string "search requires multiline mode"
+    else if Mode.equal mode Single_line && Option.is_some layout
+    then Or_error.error_string "text-area layout requires multiline mode"
+    else if Mode.equal mode Multiline && Option.is_some edit_filter
+    then Or_error.error_string "input edit filtering requires single-line mode"
+    else if Mode.equal mode Multiline && Option.is_some format
+    then Or_error.error_string "input formatting requires single-line mode"
+    else if Mode.equal mode Multiline && not (Privacy.equal privacy Plain)
+    then Or_error.error_string "password input must be single-line"
+    else if
+      Option.exists content_hint ~f:Content_hint.Expert.is_password
+      && Privacy.equal privacy Plain
+    then Or_error.error_string "password content hint requires explicit password privacy"
     else if min_rows < 1 || max_rows < min_rows || max_rows > 256
     then Or_error.error_string "input rows must satisfy 1 <= min_rows <= max_rows <= 256"
     else if Mode.equal mode Single_line && (min_rows <> 1 || max_rows <> 1)
@@ -75,6 +120,13 @@ module Config = struct
     else
       Ok
         { mode
+        ; privacy
+        ; content_hint
+        ; format
+        ; edit_filter
+        ; layout
+        ; clear_on_escape
+        ; searchable
         ; label
         ; placeholder
         ; read_only
@@ -87,6 +139,13 @@ module Config = struct
   ;;
 
   let mode t = t.mode
+  let privacy t = t.privacy
+  let content_hint t = t.content_hint
+  let format t = t.format
+  let edit_filter t = t.edit_filter
+  let layout t = t.layout
+  let clear_on_escape t = t.clear_on_escape
+  let searchable t = t.searchable
 end
 
 module Revision = struct
@@ -200,6 +259,9 @@ module Command_error = struct
     | Native_failure
     | Invalid_text
     | Focus_blocked
+    | Search_unavailable
+    | Stale_search
+    | Not_editable
   [@@deriving equal, sexp_of]
 end
 
@@ -207,12 +269,20 @@ module Event = struct
   type t =
     | Changed of Snapshot.t
     | Submitted of Submission.t
+    | Search_changed of Search.Snapshot.t
   [@@deriving equal, sexp_of]
 end
 
 module Expert = struct
   type config = Config.t =
     { mode : Mode.t
+    ; privacy : Privacy.t
+    ; content_hint : Content_hint.t option
+    ; format : Input_format.t option
+    ; edit_filter : Input_validation.t option
+    ; layout : Text_area_layout.t option
+    ; clear_on_escape : bool
+    ; searchable : bool
     ; label : string
     ; placeholder : string
     ; read_only : bool
@@ -260,6 +330,12 @@ module Expert = struct
     ; min_rows = Int64.of_int t.min_rows
     ; max_rows = Int64.of_int t.max_rows
     }
+  ;;
+
+  let privacy_to_wire : Privacy.t -> Gpuio_protocol.Wire.Editor.Privacy.t = function
+    | Plain -> Plain
+    | Password Hidden -> Password_hidden
+    | Password Revealed -> Password_revealed
   ;;
 
   let selection_to_wire (t : Selection.t) : Gpuio_protocol.Wire.Editor.Selection.t =
@@ -327,5 +403,8 @@ module Expert = struct
     | Native_failure -> Native_failure
     | Invalid_text -> Invalid_text
     | Focus_blocked -> Focus_blocked
+    | Search_unavailable -> Search_unavailable
+    | Stale_search -> Stale_search
+    | Not_editable -> Not_editable
   ;;
 end

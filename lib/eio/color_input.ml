@@ -70,9 +70,10 @@ let create window ~config ~initial ?on_event graph =
   }
 ;;
 
-let view ?style t =
+let view ?style ?appearance t =
   Gpuio.View.color_input
     ?style
+    ?appearance
     ~controller:t.controller
     ~config:t.config
     ~initial:t.initial

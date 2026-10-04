@@ -4,6 +4,10 @@
 use gpuio_protocol::{numeric::Direction, slider::*};
 use std::sync::Arc;
 
+/// Two native interaction springs and one weak frame callback per mounted slider.
+/// Conservative admission allowance, not an allocator/RSS measurement.
+pub const INTERACTION_RESERVED_BYTES: usize = 512;
+
 #[derive(Clone, Copy, Debug)]
 pub enum Adjustment {
     Set(f64),

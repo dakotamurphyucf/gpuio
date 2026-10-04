@@ -14,7 +14,12 @@ pub(super) fn within_input_collection(tree: &crate::tree::Tree, id: NodeId) -> b
         let Some(node) = tree.get(id) else {
             return false;
         };
-        if node.tree_input || node.table.is_some() {
+        if node.tree_input
+            || node.list_input.is_some()
+            || node.table.is_some()
+            || node.tab_content.is_some()
+            || node.tab_trailing
+        {
             return true;
         }
         current = node.parent;

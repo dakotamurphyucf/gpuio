@@ -13,7 +13,17 @@ import time
 
 
 class Mac:
+    @staticmethod
+    def require_accessibility():
+        """Check without prompting or launching an application window."""
+        ax = C.CDLL('/System/Library/Frameworks/ApplicationServices.framework/ApplicationServices')
+        trusted = ax.AXIsProcessTrusted
+        trusted.restype, trusted.argtypes = C.c_bool, []
+        if not trusted():
+            raise RuntimeError('macOS accessibility access is unavailable to this test process')
+
     def __init__(self, pid, child=None):
+        self.require_accessibility()
         self.pid = pid
         self.child = child
         self.cf = C.CDLL('/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation')
@@ -36,8 +46,6 @@ class Mac:
         self.copy = bind(self.ax, 'AXUIElementCopyAttributeValue', C.c_int, ptr, ptr, C.POINTER(ptr))
         self.set_attr = bind(self.ax, 'AXUIElementSetAttributeValue', C.c_int, ptr, ptr, ptr)
         self.action = bind(self.ax, 'AXUIElementPerformAction', C.c_int, ptr, ptr)
-        if not bind(self.ax, 'AXIsProcessTrusted', C.c_bool)():
-            raise RuntimeError('macOS accessibility access is unavailable to this test process')
         self.app = bind(self.ax, 'AXUIElementCreateApplication', ptr, C.c_int)(pid)
         self.true = ptr.in_dll(self.cf, 'kCFBooleanTrue').value
         self.key_event = bind(self.cg, 'CGEventCreateKeyboardEvent', ptr, ptr, C.c_ushort, C.c_bool)
@@ -126,11 +134,12 @@ class Mac:
             for name in names:
                 self.release(name)
 
-    def find(self, title, label, role=None, contains=False, search_files=False):
+    def find(self, title, label, role=None, contains=False, search_files=False, *, deadline=None):
         root = self.window(title)
         if not root:
             return None
-        deadline = time.monotonic() + 3
+        if deadline is None:
+            deadline = time.monotonic() + 3
         def visit(node, depth):
             if depth > 48 or time.monotonic() >= deadline:
                 return None
@@ -162,7 +171,10 @@ class Mac:
         while time.monotonic() < end:
             if self.child is not None and self.child.poll() is not None:
                 raise RuntimeError(f"Reference app exited early: {self.child.returncode}")
-            node = self.find(title, label, role, contains, search_files)
+            # A large or busy AX tree may take more than three seconds to walk.
+            # Keep the original overall deadline instead of repeatedly abandoning
+            # the same prefix and starving a valid node later in the tree.
+            node = self.find(title, label, role, contains, search_files, deadline=end)
             if node:
                 return node
             time.sleep(0.05)
@@ -174,19 +186,27 @@ class Mac:
         if not root:
             print('Window absent:', title, flush=True)
             return
+        deadline = time.monotonic() + 3
+        remaining, truncated = 200, False
         def visit(node, depth):
-            print(' ' * depth, self.text(node, 'AXRole'),
-                  [self.text(node, field) for field in ['AXTitle', 'AXDescription', 'AXValue']], flush=True)
-            if depth < 12 and self.text(node, 'AXRole') not in ['AXTable', 'AXOutline', 'AXBrowser']:
-                children = self.children(node)
-                try:
+            nonlocal remaining, truncated
+            if remaining == 0 or time.monotonic() >= deadline:
+                truncated = True
+                return
+            remaining -= 1
+            values, children = self.node_values(node)
+            try:
+                print(' ' * depth, values[0], values[1:], flush=True)
+                if depth < 12 and values[0] not in ['AXTable', 'AXOutline', 'AXBrowser']:
                     for child in children:
                         visit(child, depth + 1)
-                finally:
-                    for child in children:
-                        self.release(child)
+            finally:
+                for child in children:
+                    self.release(child)
         try:
             visit(root, 0)
+            if truncated:
+                print('AX_DUMP_TRUNCATED: diagnostic node/time budget reached', flush=True)
         finally:
             self.release(root)
 

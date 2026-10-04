@@ -34,6 +34,27 @@ module Config = struct
   ;;
 end
 
+module Transition = struct
+  type t = Gpuio_protocol.Progress_wire.Transition.t [@@deriving equal, sexp_of]
+
+  let immediate = Gpuio_protocol.Progress_wire.Transition.Immediate
+
+  let tween ?(easing = Animation.Easing.ease_out) duration =
+    let milliseconds = Time_ns.Span.to_ms duration in
+    if
+      Float.is_finite milliseconds && Float.(milliseconds > 0. && milliseconds <= 60_000.)
+    then
+      Ok
+        (Gpuio_protocol.Progress_wire.Transition.Tween
+           { duration_ms = Float.iround_up_exn milliseconds
+           ; easing = Animation.Expert.easing_to_wire easing
+           })
+    else
+      Or_error.error_string
+        "progress transition duration must be positive and at most 60s"
+  ;;
+end
+
 module Expert = struct
   let to_wire (t : Config.t) : Gpuio_protocol.Wire.Progress.t =
     { label = t.label
@@ -42,5 +63,11 @@ module Expert = struct
          | Indeterminate -> None
          | Determinate value -> Some value)
     }
+  ;;
+
+  let presentation_to_wire t ~shape ~transition
+    : Gpuio_protocol.Progress_wire.Presentation.t
+    =
+    { progress = to_wire t; shape; transition }
   ;;
 end

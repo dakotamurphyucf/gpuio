@@ -4,9 +4,7 @@ use gpui::{Context, Window};
 use ropey::Rope;
 use std::{ops::Range, rc::Rc};
 
-use super::{
-    InputBaseState, Replace, RopeExt as _, Search, movement::MoveDirection, state::ScrollPadding,
-};
+use super::{InputBaseState, Replace, Search, movement::MoveDirection, state::ScrollPadding};
 
 /// Stateful, presentation-independent search engine used by text inputs.
 #[derive(Debug, Clone)]
@@ -20,6 +18,7 @@ pub struct SearchMatcher {
 
 #[derive(Debug, Clone)]
 pub struct SearchSession {
+    revision: i64,
     pub open: bool,
     pub replace_mode: bool,
     pub case_insensitive: bool,
@@ -32,6 +31,7 @@ pub struct SearchSession {
 impl Default for SearchSession {
     fn default() -> Self {
         Self {
+            revision: 0,
             open: false,
             replace_mode: false,
             case_insensitive: true,
@@ -44,6 +44,20 @@ impl Default for SearchSession {
 }
 
 impl SearchSession {
+    /// Monotonic session identity for asynchronous search commands. Text edits
+    /// have a separate editor revision; callers must check both revisions.
+    pub fn revision(&self) -> i64 {
+        self.revision
+    }
+
+    fn advance_revision(&mut self) -> bool {
+        let Some(next) = self.revision.checked_add(1) else {
+            return false;
+        };
+        self.revision = next;
+        true
+    }
+
     pub(crate) fn open(&mut self, replace_mode: bool, replaceable: bool) {
         self.open = true;
         self.replace_mode = replace_mode && replaceable;
@@ -76,14 +90,14 @@ impl<M: InputModeKind> InputBaseState<M> {
     /// observer that runs every frame — that would re-select the field under
     /// the user on every frame and make it impossible to type.
     pub fn open_search(&mut self, replace_mode: bool, cx: &mut Context<Self>) {
-        if !self.searchable {
+        if !self.searchable || !self.search_session.advance_revision() {
             return;
         }
-        self.search_activation_revision = self.search_activation_revision.wrapping_add(1);
+        self.search_activation_revision += 1;
         self.search_session
             .open(replace_mode, self.is_replaceable());
         let selected = self.selected_text().to_string();
-        let query = if selected.is_empty() {
+        let query = if selected.is_empty() || !self.bridge_accepts_search_query(&selected) {
             self.search_session.query.clone()
         } else {
             selected
@@ -123,7 +137,13 @@ impl<M: InputModeKind> InputBaseState<M> {
 
     #[doc(hidden)]
     pub fn set_search_replace_mode(&mut self, replace_mode: bool, cx: &mut Context<Self>) {
-        self.search_session.replace_mode = replace_mode && self.is_replaceable();
+        let replace_mode = replace_mode && self.is_replaceable();
+        if self.search_session.replace_mode == replace_mode
+            || !self.search_session.advance_revision()
+        {
+            return;
+        }
+        self.search_session.replace_mode = replace_mode;
         cx.notify();
     }
 
@@ -141,17 +161,33 @@ impl<M: InputModeKind> InputBaseState<M> {
         case_insensitive: bool,
         cx: &mut Context<Self>,
     ) {
+        let query = query.into();
+        if !self.bridge_accepts_search_query(&query) {
+            return;
+        }
+        if (query != self.search_session.query
+            || case_insensitive != self.search_session.case_insensitive)
+            && !self.search_session.advance_revision()
+        {
+            return;
+        }
         self.search_session.update_query(query, case_insensitive);
         self.search_session.matcher.update(&self.text);
         cx.notify();
     }
 
     pub fn close_search(&mut self, cx: &mut Context<Self>) {
+        if !self.search_session.open || !self.search_session.advance_revision() {
+            return;
+        }
         self.search_session.close();
         cx.notify();
     }
 
     pub fn next_search_match(&mut self, cx: &mut Context<Self>) -> Option<Range<usize>> {
+        if self.search_session.matcher.is_empty() || !self.search_session.advance_revision() {
+            return None;
+        }
         let range = self.search_session.matcher.next()?;
         // Match order does not describe viewport direction after a manual
         // scroll. Always allow search navigation to reveal the active match.
@@ -160,6 +196,9 @@ impl<M: InputModeKind> InputBaseState<M> {
     }
 
     pub fn previous_search_match(&mut self, cx: &mut Context<Self>) -> Option<Range<usize>> {
+        if self.search_session.matcher.is_empty() || !self.search_session.advance_revision() {
+            return None;
+        }
         let range = self.search_session.matcher.next_back()?;
         // Match order does not describe viewport direction after a manual
         // scroll. Always allow search navigation to reveal the active match.
@@ -173,10 +212,10 @@ impl<M: InputModeKind> InputBaseState<M> {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> bool {
-        if !self.is_replaceable() {
+        if self.search_session.revision() == i64::MAX {
             return false;
         }
-        let matcher = &mut self.search_session.matcher;
+        let matcher = &self.search_session.matcher;
         let Some(range) = matcher
             .matched_ranges()
             .get(matcher.current_match_index())
@@ -184,17 +223,33 @@ impl<M: InputModeKind> InputBaseState<M> {
         else {
             return false;
         };
-        let next = matcher.peek().unwrap_or_else(|| range.clone());
-        let direction = matcher
-            .has_next_without_wrap()
-            .then_some(MoveDirection::Down);
-        if direction.is_none() {
-            matcher.set_current_match_index(0);
+        if self
+            .prepare_search_replacement(std::slice::from_ref(&range), replacement)
+            .is_none()
+        {
+            return false;
         }
-        matcher.begin_replacement();
+        let before = self.search_session.matcher.clone();
+        let revision = self.bridge_revision();
+        if !self.search_session.matcher.has_next_without_wrap() {
+            self.search_session.matcher.set_current_match_index(0);
+        }
+        self.search_session.matcher.begin_replacement();
         let range_utf16 = self.range_to_utf16(&range);
-        self.scroll_to(next.end, direction, cx);
         self.replace_text_in_range_silent(Some(range_utf16), replacement, window, cx);
+        if self.bridge_revision() == revision {
+            self.search_session.matcher = before;
+            return false;
+        }
+        assert!(self.search_session.advance_revision());
+        // Reveal the updated occurrence: pre-edit byte offsets may be outside
+        // the document after a shortening replacement.
+        let matcher = &self.search_session.matcher;
+        let target = matcher
+            .matched_ranges()
+            .get(matcher.current_match_index())
+            .map_or_else(|| range.start.min(self.text.len()), |range| range.end);
+        self.scroll_to_with_padding(target, None, ScrollPadding::SurroundingLines, cx);
         true
     }
 
@@ -204,22 +259,25 @@ impl<M: InputModeKind> InputBaseState<M> {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> usize {
-        if !self.is_replaceable() {
+        if self.search_session.revision() == i64::MAX {
             return 0;
         }
         let ranges = self.search_session.matcher.matched_ranges();
-        if ranges.is_empty() {
+        let Some(text) = self.prepare_search_replacement(&ranges, replacement) else {
+            return 0;
+        };
+        let before = self.search_session.matcher.clone();
+        let revision = self.bridge_revision();
+        self.search_session.matcher.begin_replacement();
+        let range_utf16 = self.range_to_utf16(&(0..self.text.len()));
+        self.replace_text_in_range_silent(Some(range_utf16), &text, window, cx);
+        if self.bridge_revision() == revision {
+            self.search_session.matcher = before;
             return 0;
         }
-        let mut text = self.text.clone();
-        for range in ranges.iter().rev() {
-            text.replace(range.clone(), replacement);
-        }
-        self.search_session.matcher.begin_replacement();
-        let count = ranges.len();
-        self.replace_text_in_range_silent(Some(0..self.text.len()), &text.to_string(), window, cx);
+        assert!(self.search_session.advance_revision());
         self.scroll_to(0, Some(MoveDirection::Down), cx);
-        count
+        ranges.len()
     }
 
     pub(super) fn update_search(&mut self, _cx: &mut gpui::App) {
@@ -287,6 +345,19 @@ impl SearchMatcher {
         self.matched_ranges.clone()
     }
 
+    /// Indices of matches wholly within a laid-out byte range. Literal matches
+    /// are sorted and disjoint, so locating the slice takes logarithmic time.
+    /// Partial matches are excluded, matching the highlight layout contract.
+    pub fn contained_match_indices(&self, range: Range<usize>) -> Range<usize> {
+        let start = self
+            .matched_ranges
+            .partition_point(|item| item.start < range.start);
+        let end = self
+            .matched_ranges
+            .partition_point(|item| item.end <= range.end);
+        start..end.max(start)
+    }
+
     pub fn current_match_index(&self) -> usize {
         self.current_match_ix
     }
@@ -305,11 +376,6 @@ impl SearchMatcher {
         } else {
             format!("{}/{}", self.current_match_ix + 1, self.len())
         }
-    }
-
-    fn peek(&self) -> Option<Range<usize>> {
-        self.next_index()
-            .and_then(|ix| self.matched_ranges.get(ix).cloned())
     }
 
     fn has_next_without_wrap(&self) -> bool {

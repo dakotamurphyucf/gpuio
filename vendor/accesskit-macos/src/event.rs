@@ -8,7 +8,7 @@ use accesskit_consumer::{FilterResult, Node, NodeId, TreeChangeHandler};
 use hashbrown::HashSet;
 use objc2::runtime::{AnyObject, ProtocolObject};
 use objc2_app_kit::*;
-use objc2_foundation::{NSMutableDictionary, NSNumber, NSString};
+use objc2_foundation::{NSMutableDictionary, NSNumber, NSString, ns_string};
 use std::{collections::VecDeque, rc::Rc};
 
 use crate::{
@@ -274,6 +274,12 @@ impl TreeChangeHandler for EventGenerator {
             });
         }
         let new_value = new_wrapper.value();
+        if old_node.is_busy() != new_node.is_busy() {
+            self.events.push(QueuedEvent::Generic {
+                node_id,
+                notification: ns_string!("AXElementBusyChanged"),
+            });
+        }
         if old_wrapper.value() != new_value {
             if !new_node.is_focused() && new_value.is_some_and(|v| matches!(v, Value::Bool(_))) {
                 // Bool value changed event for the focused node must come last

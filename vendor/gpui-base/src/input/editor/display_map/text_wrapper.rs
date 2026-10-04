@@ -636,9 +636,8 @@ impl LineLayout {
         let mut acc_len = 0;
         let mut offset_y = px(0.);
 
-        let x_offset = last_layout.alignment_offset(self.longest_width);
-
         for (i, line) in self.wrapped_lines.iter().enumerate() {
+            let x_offset = last_layout.alignment_offset(line.width);
             let is_last = i + 1 == self.wrapped_lines.len();
 
             let matches = if line.len == 0 {
@@ -821,16 +820,14 @@ impl LineLayout {
         }
     }
 
-    pub(crate) fn paint_range_background(
+    pub(crate) fn range_bounds(
         &self,
         bytes: Range<usize>,
         origin: Point<Pixels>,
         line_height: Pixels,
         align: TextAlign,
         width: Pixels,
-        color: gpui::Hsla,
-        radius: Pixels,
-        window: &mut Window,
+        mut emit: impl FnMut(gpui::Bounds<Pixels>),
     ) {
         let geometries = self.range_geometry.get_or_init(|| {
             self.wrapped_lines
@@ -855,17 +852,8 @@ impl LineLayout {
                             + point(self.line_indent(row) + align_x + x.start, row * line_height),
                         size(x.end - x.start, line_height),
                     );
-                    if bounds.size.width > px(0.)
-                        && bounds.intersects(&window.content_mask().bounds)
-                    {
-                        window.paint_quad(gpui::quad(
-                            bounds,
-                            radius,
-                            color,
-                            px(0.),
-                            gpui::transparent_black(),
-                            Default::default(),
-                        ));
+                    if bounds.size.width > px(0.) {
+                        emit(bounds);
                     }
                 };
                 if let Some(geometry) = &geometries[row] {
@@ -882,6 +870,31 @@ impl LineLayout {
             }
             offset = end;
         }
+    }
+
+    pub(crate) fn paint_range_background(
+        &self,
+        bytes: Range<usize>,
+        origin: Point<Pixels>,
+        line_height: Pixels,
+        align: TextAlign,
+        width: Pixels,
+        color: gpui::Hsla,
+        radius: Pixels,
+        window: &mut Window,
+    ) {
+        self.range_bounds(bytes, origin, line_height, align, width, |bounds| {
+            if bounds.intersects(&window.content_mask().bounds) {
+                window.paint_quad(gpui::quad(
+                    bounds,
+                    radius,
+                    color,
+                    px(0.),
+                    gpui::transparent_black(),
+                    Default::default(),
+                ));
+            }
+        });
     }
 
     pub(crate) fn paint(
@@ -1281,6 +1294,9 @@ mod tests {
     /// A layout context whose only load-bearing field is the line height.
     fn test_last_layout(line_height: Pixels) -> LastLayout {
         LastLayout {
+            source_revision: 0,
+            masked: false,
+            range_origin: Point::default(),
             visible_range: 0..1,
             visible_buffer_lines: vec![0],
             visible_line_byte_offsets: vec![0],
@@ -1582,6 +1598,9 @@ mod tests {
         line_layout = line_layout.wrap_indent(px(20.0));
 
         let last_layout = LastLayout {
+            source_revision: 0,
+            masked: false,
+            range_origin: Point::default(),
             visible_range: 0..1,
             visible_buffer_lines: vec![0],
             visible_line_byte_offsets: vec![0],

@@ -141,3 +141,7 @@ pub(super) fn indicator(
             .into_any_element()
     }
 }
+
+#[cfg(all(test, feature = "native-image-tests"))]
+#[path = "loading_lifecycle_test.rs"]
+mod lifecycle_test;

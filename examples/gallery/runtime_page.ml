@@ -10,6 +10,8 @@ let style = Style.create_exn
 let px = Length.px_exn
 
 let component app window palette graph =
+  let input_preview = Window_input_preview.component window palette graph in
+  let selection_preview = Window_selection_preview.component window palette graph in
   let snapshot, set_snapshot = B.state None graph in
   let notice, set_notice = B.state "No native command requested" graph in
   let open B.Let_syntax in
@@ -24,7 +26,9 @@ let component app window palette graph =
   and snapshot = snapshot
   and refresh = refresh
   and notice = notice
-  and set_notice = set_notice in
+  and set_notice = set_notice
+  and input_preview = input_preview
+  and selection_preview = selection_preview in
   let observe =
     E.bind (App.Window.command window Observe) ~f:(function
       | Ok value ->
@@ -36,6 +40,11 @@ let component app window palette graph =
                  value.content_height)
           ; refresh
           ]
+      | Error error -> set_notice (Sexp.to_string_hum [%sexp (error : Window.Error.t)]))
+  in
+  let minimize =
+    E.bind (App.Window.command window Minimize) ~f:(function
+      | Ok _ -> set_notice "Minimize requested"
       | Error error -> set_notice (Sexp.to_string_hum [%sexp (error : Window.Error.t)]))
   in
   let choose =
@@ -97,7 +106,9 @@ let component app window palette graph =
   in
   V.column
     ~style:(style [ Gap (px 20.) ])
-    [ Palette.card
+    [ input_preview
+    ; selection_preview
+    ; Palette.card
         p
         ~title:"A window on the runtime"
         ((Palette.button p "Refresh resource counts" refresh :: resources)
@@ -113,6 +124,7 @@ let component app window palette graph =
         [ V.row
             ~style:(style [ Gap (px 12.); Wrap Wrap ])
             [ Palette.button p "Observe this window" observe
+            ; Palette.button p "Minimize this window" minimize
             ; Palette.button p "Choose a file" choose
             ]
         ; Palette.text p notice

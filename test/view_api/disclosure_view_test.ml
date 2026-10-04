@@ -152,3 +152,185 @@ let%expect_test
     (Unmount (a))
     |}]
 ;;
+
+let choice_id text = Choice.Id.of_string text |> ok
+
+let rich_model () =
+  let items =
+    List.map
+      [ "first", false; "locked", true; "last", false ]
+      ~f:(fun (label, disabled) ->
+        Choice.create ~id:(choice_id label) ~label ~disabled () |> ok)
+    |> Choice.Collection.create
+    |> ok
+  in
+  Disclosure.create ~items ~mode:Multiple ~expanded:[ choice_id "first" ] () |> ok
+;;
+
+let rich_view ?(hidden = Content_policy.Retain) model labels =
+  View.accordion_with_labels
+    ~model
+    ~labels
+    ~hidden
+    ~on_request:Fn.id
+    ~content:(fun id ->
+      [ View.text ~key:(Key.of_string_exn "body") ("Body " ^ Choice.Id.to_string id) ])
+    ()
+;;
+
+let%expect_test "rich accordion headings preserve triggers, bodies and current callbacks" =
+  let model = rich_model () in
+  let labels suffix =
+    [ choice_id "first", View.row [ View.text "◆"; View.text suffix ] ]
+  in
+  let r = Reconciler.create window in
+  let initial = commit r (rich_view model (labels "Initial") |> ok) in
+  let trigger, handler =
+    List.find_map_exn initial ~f:(function
+      | W.Op.Create (n, Button, "first", Some h) -> Some (n, h)
+      | _ -> None)
+  in
+  assert (
+    List.count initial ~f:(function
+      | W.Op.Set_accessibility (_, Some { role = Some (Heading 3); _ }) -> true
+      | _ -> false)
+    = 3);
+  assert (
+    List.count initial ~f:(function
+      | W.Op.Create (_, Button, _, Some _) -> true
+      | _ -> false)
+    = 2);
+  let request =
+    Reconciler.dispatch r (W.Event.Press (window, trigger, handler, 1L))
+    |> Option.value_exn
+  in
+  let closed = Disclosure.apply_request model request in
+  let updates = commit r (rich_view closed (labels "Changed") |> ok) in
+  assert (
+    not
+      (List.exists updates ~f:(function
+         | W.Op.Remove _ -> true
+         | _ -> false)));
+  assert (
+    Option.equal
+      Disclosure.Request.equal
+      (Reconciler.dispatch r (W.Event.Press (window, trigger, handler, 1L)))
+      (Some request));
+  ignore
+    (commit r (rich_view (Disclosure.with_disabled closed true) (labels "Disabled") |> ok)
+     : W.Op.t list);
+  assert (
+    Option.is_none (Reconciler.dispatch r (W.Event.Press (window, trigger, handler, 1L))));
+  print_endline
+    "three headings, two enabled triggers; labels update without replacing retained \
+     bodies; disable fences queued presses";
+  [%expect
+    {| three headings, two enabled triggers; labels update without replacing retained bodies; disable fences queued presses |}]
+;;
+
+let%expect_test
+    "rich accordion rejects unknown, duplicate, interactive and excessive labels"
+  =
+  let model = rich_model () in
+  let first = choice_id "first" in
+  List.iter
+    [ [ choice_id "missing", View.text "Unknown" ]
+    ; [ first, View.text "First"; first, View.text "Duplicate" ]
+    ; [ ( first
+        , View.button
+            ~on_click:(fun () -> Disclosure.Request.Toggle first)
+            "Nested action" )
+      ]
+    ; [ first, View.column (List.init 4096 ~f:(fun _ -> View.text "Too many")) ]
+    ]
+    ~f:(fun labels -> assert (Result.is_error (rich_view model labels)));
+  List.iter [ 0; 7 ] ~f:(fun heading_level ->
+    assert (
+      Result.is_error
+        (View.accordion_with_labels
+           ~heading_level
+           ~model
+           ~labels:[]
+           ~hidden:Retain
+           ~on_request:Fn.id
+           ~content:(fun _ -> [])
+           ())));
+  print_endline
+    "invalid label ownership, focus descendants, aggregate budget and heading levels \
+     rejected";
+  [%expect
+    {| invalid label ownership, focus descendants, aggregate budget and heading levels rejected |}]
+;;
+
+let%expect_test "rich accordion Unmount skips collapsed content construction" =
+  let model = rich_model () in
+  let built = ref [] in
+  let view =
+    View.accordion_with_labels
+      ~model
+      ~labels:[]
+      ~hidden:Unmount
+      ~on_request:Fn.id
+      ~content:(fun id ->
+        built := Choice.Id.to_string id :: !built;
+        [ View.text "body" ])
+      ()
+    |> ok
+  in
+  ignore (commit (Reconciler.create window) view : W.Op.t list);
+  print_s [%sexp (!built : string list)];
+  [%expect {| (first) |}]
+;;
+
+let%expect_test "public rich accordion transaction sequence" =
+  let model = rich_model () in
+  let closed = Disclosure.apply_request model (Toggle (choice_id "first")) in
+  let reconciler = Reconciler.create window in
+  List.iteri [ model; closed; model ] ~f:(fun index model ->
+    let labels =
+      [ choice_id "first", View.row [ View.text "◆"; View.text "First section" ] ]
+    in
+    let view =
+      View.accordion_with_labels
+        ~model
+        ~labels
+        ~hidden:Retain
+        ~on_request:(fun _ -> ())
+        ~content:(fun id ->
+          if Choice.Id.equal id (choice_id "first")
+          then
+            [ View.text_input
+                ~controller:(Key.of_string_exn "accordion-draft")
+                ~style:
+                  (Style.create_exn
+                     [ Width (Length.px_exn 280.); Height (Length.px_exn 72.) ])
+                ~config:
+                  (Text_input.Config.create ~mode:Multiline ~label:"Accordion draft" ()
+                   |> ok)
+                ~initial_text:"Retained draft"
+                ~on_event:(fun _ -> ())
+                ()
+              |> ok
+            ]
+          else [ View.text "Panel content" ])
+        ()
+      |> ok
+    in
+    let update = Reconciler.prepare reconciler ~theme:Theme.default (Some view) |> ok in
+    let message = Reconciler.message update |> Option.value_exn in
+    Reconciler.accept reconciler update |> ok;
+    let bytes = W.Message.encode message |> ok in
+    let hex =
+      String.to_list bytes
+      |> List.map ~f:(fun c -> sprintf "%02x" (Char.to_int c))
+      |> String.concat
+    in
+    let expected =
+      Eio_main.run (fun env ->
+        Eio.Path.load
+          Eio.Path.(Eio.Stdenv.fs env / sprintf "disclosure-rich-%d.hex" index)
+        |> String.strip)
+    in
+    assert (String.equal hex expected));
+  [%expect {| |}]
+;;

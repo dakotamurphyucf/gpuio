@@ -6,6 +6,7 @@ let max_tab_index = 1000000L
 type t =
   { label : string
   ; disabled : bool
+  ; loading : bool
   ; tab_stop : bool
   ; tab_index : int64
   }

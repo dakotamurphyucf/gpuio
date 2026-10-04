@@ -108,7 +108,16 @@ This command needs Python 3.12+, curl and patch; it verifies both the downloaded
 archive and the patch, retains the upstream manifest/license, and unifies GPUI,
 macros and sum-tree with the recorded Zed revision. `--archive PATH` accepts a
 local archive with the same hash validation. A nonempty diff needs investigation.
-Use a fresh output path when repeating the check.
+Use a fresh output path when repeating the check. A local
+`vendor/gpui-base/Cargo.lock` is explicitly Git-ignored and is not a reconstructed
+source input; confirm that with `git ls-files`/`git check-ignore` before classifying
+that sole difference. Do not ignore other differences.
+
+GPUI core uses the analogous `scripts/vendor_gpui.py --output` reconstruction
+and optional hash-verified `--archive` input. Its test-support appearance accessor
+forwards to the existing simulated platform notification; it does not implement
+production appearance behavior. Keep the deferred native observer path and weak
+window ownership checks when upgrading; see [appearance evidence](evidence/window-appearance-och41.md).
 
 The read-only diff adapter also carries a bounded Base row-adornment hook. Its
 gutter controls and metadata suffixes are laid out with current shaped source
@@ -125,15 +134,31 @@ actual shaped geometry, first-fragment reveal and guarded queued link actions wh
 upgrading; see [the contract](design/document-accessibility.md) and
 [the evidence](evidence/document-accessibility-och17.md).
 
-The Bonsai reconstruction script writes a whole `vendor/` directory and has no
-output option. Run it in a disposable staging tree containing copies of
-`scripts/vendor_bonsai.py`, `third_party/sources.json` and
-`third_party/patches/`, preserving that layout. Compare each reconstructed
-`native_bonsai` member with its committed vendor directory. Do not move/delete
-the live checkout's vendor tree to make the script run. Ordinary reconstruction
-omits `--record-archives`; that flag records new hashes and belongs only in a
-deliberate source-update review. See [development](development.md) for opam and
-Cargo lock updates in the isolated environment.
+Reconstruct the Bonsai family into a fresh directory without changing the live
+vendor tree:
+
+```sh
+python3 scripts/vendor_bonsai.py --output scratch/reconstruction/native-bonsai
+```
+
+For offline verification, add `--archive-dir PATH`, containing `<name>.tar.gz`
+for every requested member of `native_bonsai` in `third_party/sources.json`.
+Local archives and patches must match their recorded hashes; missing local files
+fail rather than falling back to downloads. All requested inputs are verified
+and patched before output copying begins. Existing destinations, including dangling
+symlinks, are refused. An I/O failure while copying may leave an incomplete output;
+use a new destination for a retry and never treat its existence as success.
+
+`--package bonsai` (repeatable) explicitly limits a maintenance check to selected
+members. A subset result does not establish full-family reconstruction. Compare
+all reconstructed files, symlink targets and executable bits with their live vendor
+counterparts; do not move/delete the live tree to run the checker. The current
+[Bonsai-only evidence](evidence/bonsai-reconstruction-och17.md) records the exact
+scope and remaining archive availability.
+
+Ordinary reconstruction omits `--record-archives`; that flag records new hashes
+and belongs only in a deliberate source-update review. See [development](development.md)
+for opam and Cargo lock updates in the isolated environment.
 
 Native dependency changes also affect the independent application lockfiles:
 `examples/extension_consumer/backend/Cargo.lock` (used by Component Studio) and
@@ -165,6 +190,23 @@ syntax/theme asset notices and extracted chart sources. A project's Apache-2.0
 license does not replace the licenses of its dependencies.
 
 ## Native document selection ownership
+
+Window-wide reads use the maintained Base `TextSelection::selected_text_limited`
+collector. Keep renderer callbacks responsible for plain/source normalization;
+do not replace them with a second parser or truncate the final merged string.
+The collector bounds copied fallback text and merged output, snapshots callback
+ownership before invocation and stops after overflow. An existing callback may
+allocate its whole fragment before its size is checked. Preserve this explicit
+limitation when adapting third-party renderers. Never invoke synchronous OCaml
+callbacks from the native collector. See [the public selection contract](design/window-selection.md)
+and [regression/reconstruction evidence](evidence/window-selection-och41.md).
+
+Document selection format updates must reach both the retained TextView and the
+window selection participant's copy callback. The callback normalizes rendered
+paragraph separators only for effective plain copy; Markdown source selection
+must retain its own whitespace. Testing `TextViewState.selected_text` alone misses
+the participant adapter. The [selection-format regression](evidence/document-selection-format-och41.md)
+exercises the real window copy provider and records exact fork reconstruction.
 
 Read-only document bodies inherit the optional `User_select` declaration and
 otherwise default to selectable. Editable inputs retain their widget-owned
@@ -205,3 +247,52 @@ never trim the combined window result in a focused widget's Copy handler.
 Markdown Select All clears shared geometry before borrowing its native state,
 then invokes the local selection listener. Clear callbacks can revisit that same
 entity, so clearing from inside the listener's mutable borrow is unsafe.
+
+Document preview clipping needs separate visual, pointer, keyboard and accessibility
+handling. A paint mask alone does not rewrite prepainted hitboxes or disable
+focused child controls. The pinned fork now offers scoped hitbox refinement,
+interactive-Div input clipping with focus recovery, and finalized accessibility
+subtree clipping. These underpin the public [document preview API](design/document-preview.md). Custom extension elements registering input directly must enforce
+their own visibility contract. See [the regression evidence](evidence/document-preview-prerequisites-och41.md).
+
+The [HTML reader adapter](design/document-html.md) validates DOM structure before
+recursive conversion and replaces all URL-backed image nodes before layout.
+PreparedText retains its format so selection/source behavior cannot accidentally
+use Markdown reconstruction for HTML. Reader format is part of worker identity;
+renderer-only asset updates preserve the prepared source. See [local evidence](evidence/document-html-och41.md).
+
+Internal [document styling](design/document-styling.md) caches the theme-resolved
+configuration independently of the parser request. Do not route paint or metrics
+changes through source replacement. Effective metric updates invalidate both the
+TextView virtual row measurements and its owning managed-list row while retaining
+logical selection. The [native regression](evidence/document-styling-och41.md)
+checks actual painted parts and scroll extent restoration, not only outer bounds.
+
+[Markdown parser settings](design/document-markdown-options.md) are part of worker
+request equality. Retain the installed extension configuration while new work is
+pending, then install matching preparation and renderers together. Source revision
+alone cannot fence an option-only reparse: old link closures also capture the
+installed interpretation's identity. Renderer-only image updates use installed
+options so they do not accidentally restart parsing on the UI thread.
+
+[Frontmatter descriptions](design/document-frontmatter.md) use prepared native
+label/value Paragraphs so selection, displayed-text fragments, reflow and semantic
+clipping describe the actual rendered text. Unsupported restricted-YAML input
+falls back to code. This built-in renderer does not establish arbitrary document
+plugin ownership or turn opaque plugin content into searchable/selectable text.
+
+[Document actions](design/document-actions.md) capture an installed interpretation,
+source revision/generation and configuration epoch. Revalidate them against the
+live View before enqueueing; retain immutable snapshots rather than AST handles.
+Native Copy is independent of custom-event payload limits. Action geometry changes
+invalidate both TextView measurements and the enclosing managed-list row. Recognize
+focus inside the text owner: exact focus equality makes the host's fallback steal
+focus from nested controls. Painted child tab stops supplement logical link order;
+arbitrary static renderer ownership and offscreen traversal still need qualification.
+
+
+Declared document-plugin block Text now participates in ordinary glyph selection.
+The maintained Base adaptation gives each parsed occurrence retained selection
+state and connects it to the AST copy/clear traversal; partial Markdown copy
+falls back to selected display text when no source-character mapping exists.
+See [selection regression and reconstruction evidence](evidence/document-profile-selection-och41.md).

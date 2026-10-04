@@ -73,6 +73,7 @@ pub(crate) enum BlockNode {
     /// A custom Markdown node produced by [`MarkdownExtensions`].
     Custom(MarkdownNode),
     Table(Table),
+    DescriptionList(DescriptionList),
     Break {
         html: bool,
         span: Option<Span>,
@@ -124,6 +125,7 @@ impl BlockNode {
             BlockNode::CodeBlock(code_block) => code_block.span,
             BlockNode::Custom(el) => el.span,
             BlockNode::Table(table) => table.span,
+            BlockNode::DescriptionList(list) => list.span,
             BlockNode::Break { span, .. } => *span,
             BlockNode::HorizontalRule { span, .. } => *span,
             BlockNode::Definition { span, .. } => *span,
@@ -256,6 +258,26 @@ impl BlockNode {
                     }
                 }
             }
+            BlockNode::DescriptionList(list) => {
+                for entry in &list.entries {
+                    let read = |p: &Paragraph| match kind {
+                        BlockTextKind::All => p.text(),
+                        BlockTextKind::Selected => p.selected_text(),
+                        BlockTextKind::SelectedSource => p.selected_source(),
+                    };
+                    let key = read(&entry.label);
+                    let value = read(&entry.value);
+                    if key.is_empty() && value.is_empty() {
+                        continue;
+                    }
+                    text.push_str(&key);
+                    if !key.is_empty() && !value.is_empty() {
+                        text.push(' ');
+                    }
+                    text.push_str(&value);
+                    text.push('\n');
+                }
+            }
             BlockNode::CodeBlock(code_block) => {
                 let block_text = match kind {
                     BlockTextKind::All => code_block.text(),
@@ -274,6 +296,20 @@ impl BlockNode {
                         text.push_str(content);
                         text.push('\n');
                     }
+                } else if let Ok(state) = node.block_text.lock()
+                    && let Some(selection) = state.selection
+                    && let Some(selected) = state.text.get(selection.start..selection.end)
+                    && !selected.is_empty()
+                {
+                    if matches!(kind, BlockTextKind::SelectedSource)
+                        && selection.start == 0
+                        && selection.end == state.text.len()
+                    {
+                        text.push_str(&node.to_markdown());
+                    } else {
+                        text.push_str(selected);
+                    }
+                    text.push('\n');
                 }
             }
             BlockNode::Definition { .. }
@@ -319,9 +355,16 @@ impl BlockNode {
                     .iter()
                     .any(|cell| cell.children.has_selection())
             }),
+            BlockNode::DescriptionList(list) => list
+                .entries
+                .iter()
+                .any(|entry| entry.label.has_selection() || entry.value.has_selection()),
             BlockNode::CodeBlock(code_block) => code_block.has_selection(),
-            BlockNode::Custom { .. }
-            | BlockNode::Definition { .. }
+            BlockNode::Custom(node) => node
+                .block_text
+                .lock()
+                .is_ok_and(|state| state.selection.is_some()),
+            BlockNode::Definition { .. }
             | BlockNode::Break { .. }
             | BlockNode::HorizontalRule { .. }
             | BlockNode::Unknown { .. } => false,
@@ -347,9 +390,19 @@ impl BlockNode {
                     }
                 }
             }
+            BlockNode::DescriptionList(list) => {
+                for entry in &list.entries {
+                    entry.label.clear_selection();
+                    entry.value.clear_selection();
+                }
+            }
             BlockNode::CodeBlock(code_block) => code_block.clear_selection(),
-            BlockNode::Custom { .. }
-            | BlockNode::Definition { .. }
+            BlockNode::Custom(node) => {
+                if let Ok(mut state) = node.block_text.lock() {
+                    state.selection = None;
+                }
+            }
+            BlockNode::Definition { .. }
             | BlockNode::Break { .. }
             | BlockNode::HorizontalRule { .. }
             | BlockNode::Unknown { .. } => {}
@@ -1111,6 +1164,81 @@ impl Paragraph {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct DescriptionEntry {
+    pub(super) label: Paragraph,
+    pub(super) value: Paragraph,
+}
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct DescriptionList {
+    pub(super) entries: Vec<DescriptionEntry>,
+    source: SharedString,
+    span: Option<Span>,
+}
+impl DescriptionList {
+    pub(super) fn new(
+        mapping: super::frontmatter::Frontmatter,
+        source: SharedString,
+        span: Option<Span>,
+    ) -> Self {
+        Self {
+            entries: mapping
+                .entries
+                .into_iter()
+                .map(|entry| DescriptionEntry {
+                    label: Paragraph::new(format!("{}:", entry.key)),
+                    value: Paragraph::new(entry.value.to_string()),
+                })
+                .collect(),
+            source,
+            span,
+        }
+    }
+    fn render(
+        &self,
+        ix: usize,
+        node_cx: &NodeContext,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> AnyElement {
+        v_flex()
+            .id(("description", ix))
+            .role(gpui::Role::DescriptionList)
+            .w_full()
+            .min_w_0()
+            .gap(rems(0.5))
+            .children(self.entries.iter().enumerate().map(|(row, entry)| {
+                h_flex()
+                    .id(("entry", row))
+                    .items_start()
+                    .w_full()
+                    .min_w_0()
+                    .gap(rems(0.75))
+                    .child(
+                        div()
+                            .id("term")
+                            .role(gpui::Role::Term)
+                            .w(rems(12.))
+                            .max_w(relative(0.4))
+                            .min_w_0()
+                            .flex_shrink_0()
+                            .text_color(node_cx.style.muted_foreground())
+                            .font_weight(FontWeight::MEDIUM)
+                            .child(entry.label.render(node_cx, window, cx)),
+                    )
+                    .child(
+                        div()
+                            .id("definition")
+                            .role(gpui::Role::Definition)
+                            .flex_1()
+                            .min_w_0()
+                            .child(entry.value.render(node_cx, window, cx)),
+                    )
+            }))
+            .into_any_element()
+    }
+}
+
 #[derive(Debug, Clone, Default, PartialEq)]
 pub(crate) struct Table {
     pub(crate) children: Vec<TableRow>,
@@ -1476,11 +1604,12 @@ impl CodeBlock {
                         this.child(
                             div()
                                 .id("actions")
-                                .absolute()
-                                .top_2()
-                                .right_2()
-                                .bg(style.code_background())
-                                .rounded(cx.theme().tokens.radius.md)
+                                // Action toolbars can contain several wrapped
+                                // controls. Keep them in flow so they cannot
+                                // cover code glyphs or escape preview clipping.
+                                .w_full()
+                                .min_w_0()
+                                .mt_2()
                                 .child(actions(&self, window, cx)),
                         )
                     }),
@@ -2107,6 +2236,7 @@ impl BlockNode {
                 )
             }
             BlockNode::Table(table) => table.to_markdown(),
+            BlockNode::DescriptionList(list) => list.source.to_string(),
             BlockNode::Break { html, .. } => {
                 if *html {
                     "<br>".to_string()
@@ -2279,6 +2409,7 @@ impl BlockNode {
                             | BlockNode::CodeBlock(_)
                             | BlockNode::Custom(_)
                             | BlockNode::Table(_)
+                            | BlockNode::DescriptionList(_)
                             | BlockNode::HorizontalRule { .. } => {
                                 let block = child.render_block(
                                     NodeRenderOptions {
@@ -2770,19 +2901,26 @@ impl BlockNode {
                     items
                 })
                 .into_any_element(),
+            BlockNode::DescriptionList(list) => div()
+                .pb(mb)
+                .child(list.render(ix, node_cx, window, cx))
+                .into_any_element(),
             BlockNode::CodeBlock(code_block) => code_block.render(&options, node_cx, window, cx),
             BlockNode::Custom(node) => {
                 if let Some(state) = node_cx
                     .displayed_text
                     .as_ref()
-                    .and_then(|source| source.object_text(node))
+                    .and_then(|source| source.object_block_text(node))
                 {
                     return div()
                         .pb(mb)
-                        .child(
-                            Inline::new(("projected-block", ix), state, vec![], vec![], None)
-                                .passive_block(),
-                        )
+                        .child(Inline::new(
+                            ("projected-block", ix),
+                            state,
+                            vec![],
+                            vec![],
+                            None,
+                        ))
                         .into_any_element();
                 }
                 let inner = match node_cx.markdown_extensions.render_block(node, window, cx) {
@@ -3826,6 +3964,14 @@ impl BlockNode {
             (Self::Custom(new), Self::Custom(old)) => new.as_text().starts_with(old.as_text()),
             (Self::CodeBlock(new), Self::CodeBlock(old)) => {
                 transfer_inline_selection(&old.state, &new.state, &old.code(), &new.code(), all)
+            }
+            (Self::DescriptionList(new), Self::DescriptionList(old)) => {
+                new.entries.len() == old.entries.len()
+                    && new.entries.iter().zip(&old.entries).all(|(new, old)| {
+                        new.label.text() == old.label.text()
+                            && new.label.transfer_selection(&old.label, all)
+                            && new.value.transfer_selection(&old.value, all)
+                    })
             }
             (Self::Table(new), Self::Table(old)) => {
                 old.children.iter().enumerate().all(|(r, old)| {

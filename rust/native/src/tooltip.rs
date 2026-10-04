@@ -7,13 +7,7 @@ use gpui::{
     deferred, div, prelude::*, px, rgba,
 };
 use gpuio_protocol::{NodeId, v1::*};
-use std::{
-    cell::Cell,
-    collections::BTreeSet,
-    rc::Rc,
-    sync::Arc,
-    time::{Duration, Instant},
-};
+use std::{cell::Cell, collections::BTreeSet, rc::Rc, sync::Arc, time::Duration};
 
 pub(super) struct State {
     kind: Kind,
@@ -30,6 +24,8 @@ pub(super) struct State {
     focus_handle: Option<FocusHandle>,
     subscriptions: Vec<Subscription>,
     bounds: Rc<Cell<gpui::Bounds<gpui::Pixels>>>,
+    motion: bool,
+    painted: super::tooltip_motion::Painted,
 }
 impl State {
     fn new(config: Arc<TooltipConfig>, kind: Kind) -> Self {
@@ -52,6 +48,8 @@ impl State {
             focus_handle: None,
             subscriptions: Vec::new(),
             bounds: Default::default(),
+            motion: false,
+            painted: Default::default(),
         }
     }
     fn cancel(&mut self) {
@@ -140,7 +138,13 @@ impl View {
                 while let Some(id) = stack.pop() {
                     let node = tree.get(id).expect("validated node");
                     if let Some(config) = &node.tooltip {
-                        nodes.push((id, node.kind, config.clone(), node.children[1]));
+                        nodes.push((
+                            id,
+                            node.kind,
+                            config.clone(),
+                            node.children[1],
+                            node.tooltip_motion,
+                        ));
                     }
                     stack.extend(node.children.iter().copied());
                 }
@@ -149,12 +153,12 @@ impl View {
         };
         let present = nodes
             .iter()
-            .map(|(id, _, _, _)| *id)
+            .map(|(id, _, _, _, _)| *id)
             .collect::<BTreeSet<_>>();
         self.tooltips.retain(|id, _| present.contains(id));
         let mut hidden = BTreeSet::new();
         let mut reschedule = Vec::new();
-        for (id, kind, config, content) in nodes {
+        for (id, kind, config, content, motion) in nodes {
             let state = self
                 .tooltips
                 .entry(id)
@@ -163,10 +167,28 @@ impl View {
                 reschedule.push(id);
             }
             let was_open = state.open;
+            if was_open
+                && state.motion
+                && !config.disabled
+                && kind == Kind::Tooltip
+                && matches!(config.open_state, TooltipOpenState::Controlled(false))
+                && self.focus.borrow().interactive(id)
+            {
+                self.tooltip_previous =
+                    state
+                        .painted
+                        .get()
+                        .map(|anchor| super::tooltip_motion::Previous {
+                            owner: id,
+                            anchor,
+                            closed: cx.background_executor().now(),
+                        });
+            }
+            state.motion = motion;
             state.configure(config);
             if was_open && !state.open {
                 if kind == Kind::Tooltip {
-                    self.tooltip_last_closed = Some(Instant::now());
+                    self.tooltip_last_closed = Some(cx.background_executor().now());
                 } else {
                     // Restoring an anchor after an accepted controlled close
                     // must not generate a fresh open request from our own focus.
@@ -188,11 +210,31 @@ impl View {
                 .map(|(id, _)| *id),
         );
         hidden.extend(self.closed_toasts());
+        self.focus
+            .borrow_mut()
+            .set_retired_input(self.retiring_toasts());
         self.focus.borrow_mut().set_hidden(hidden.clone());
         hidden.extend(self.dismiss_hidden_palettes());
         hidden.extend(self.invisible_toasts());
         self.focus.borrow_mut().set_hidden(hidden);
         self.focus.borrow_mut().sync(window, cx);
+        for (id, state) in &mut self.tooltips {
+            if !state.open
+                || !state.motion
+                || state.config.disabled
+                || self.focus.borrow().blocks_pointer(*id)
+            {
+                state.painted.set(None);
+            }
+        }
+        if self.tooltip_previous.is_some_and(|previous| {
+            self.tooltips
+                .get(&previous.owner)
+                .is_none_or(|state| !state.motion || state.config.disabled)
+                || self.focus.borrow().blocks_pointer(previous.owner)
+        }) {
+            self.tooltip_previous = None;
+        }
         self.pointer_capture.borrow_mut().sync(window);
         super::drag_drop::sync(self.id, window, cx);
         self.sync_tree_drag(window, cx);
@@ -240,6 +282,14 @@ impl View {
         cx: &mut Context<Self>,
     ) {
         let allowed = !self.focus.borrow().blocks_pointer(id);
+        let other_animated = self.tooltips.iter().any(|(other, state)| {
+            *other != id
+                && state.motion
+                && state.open
+                && !state.config.disabled
+                && matches!(state.config.open_state, TooltipOpenState::Managed(_))
+                && !self.focus.borrow().blocks_pointer(*other)
+        });
         let Some(state) = self.tooltips.get_mut(&id) else {
             return;
         };
@@ -266,9 +316,17 @@ impl View {
         }
         let delay = if desired {
             let recent = self.tooltip_last_closed.is_some_and(|closed| {
-                closed.elapsed() < Duration::from_nanos(state.config.skip_delay_ns as u64)
+                cx.background_executor()
+                    .now()
+                    .saturating_duration_since(closed)
+                    < Duration::from_nanos(state.config.skip_delay_ns as u64)
             });
-            if state.focused || recent {
+            if state.focused
+                || recent
+                || (state.motion
+                    && other_animated
+                    && matches!(state.config.open_state, TooltipOpenState::Managed(_)))
+            {
                 0
             } else {
                 state.config.show_delay_ns
@@ -307,12 +365,68 @@ impl View {
         cx: &mut Context<Self>,
     ) {
         let blocked = self.focus.borrow().blocks_pointer(id);
+        let replace = open
+            && !blocked
+            && self.tooltips.get(&id).is_some_and(|state| {
+                state.motion
+                    && !state.config.disabled
+                    && !state.requested
+                    && matches!(state.config.open_state, TooltipOpenState::Managed(_))
+            });
+        let mut changed = false;
+        if replace {
+            let previous = self
+                .tooltips
+                .iter()
+                .filter_map(|(other, state)| {
+                    (*other != id
+                        && state.motion
+                        && state.open
+                        && !self.focus.borrow().blocks_pointer(*other)
+                        && matches!(state.config.open_state, TooltipOpenState::Managed(_)))
+                    .then_some(*other)
+                })
+                .collect::<Vec<_>>();
+            for other in previous {
+                changed |= self.change_tooltip_request(other, false, cx);
+                if let Some(state) = self.tooltips.get_mut(&other) {
+                    state.suppressed = state.interested();
+                }
+            }
+        }
+        changed |= self.change_tooltip_request(id, open, cx);
+        if changed {
+            // One visibility/focus synchronization for the complete replacement,
+            // including the uncommon case of many explicit initially-open tips.
+            self.sync_tooltips(window, cx);
+            cx.notify();
+        }
+    }
+
+    fn change_tooltip_request(&mut self, id: NodeId, open: bool, cx: &App) -> bool {
+        let blocked = self.focus.borrow().blocks_pointer(id);
         let Some(state) = self.tooltips.get_mut(&id) else {
-            return;
+            return false;
         };
         state.cancel();
         if state.requested == open || (open && (blocked || state.config.disabled)) {
-            return;
+            return false;
+        }
+        if !open
+            && state.motion
+            && !blocked
+            && !state.config.disabled
+            && matches!(state.config.open_state, TooltipOpenState::Managed(_))
+        {
+            self.tooltip_previous =
+                state
+                    .painted
+                    .get()
+                    .map(|anchor| super::tooltip_motion::Previous {
+                        owner: id,
+                        anchor,
+                        closed: cx.background_executor().now(),
+                    });
         }
         state.requested = open;
         if matches!(state.config.open_state, TooltipOpenState::Managed(_)) {
@@ -320,7 +434,7 @@ impl View {
             if !open {
                 state.panel_hover = false;
                 if state.kind == Kind::Tooltip {
-                    self.tooltip_last_closed = Some(Instant::now());
+                    self.tooltip_last_closed = Some(cx.background_executor().now());
                 }
             }
         }
@@ -338,8 +452,7 @@ impl View {
         {
             self.transport.fault(self.id);
         }
-        self.sync_tooltips(window, cx);
-        cx.notify();
+        true
     }
 
     pub(super) fn tooltip_element(
@@ -355,6 +468,8 @@ impl View {
         let state = self.tooltips.get(&id).expect("mounted tooltip");
         let open = state.open && !self.focus.borrow().blocks_pointer(id);
         let panel_bounds = state.bounds.clone();
+        let painted = state.painted.clone();
+        painted.set(None);
         let identity = ((id.generation() as u64) << 32) | id.slot() as u64;
         let scope = {
             let focus = self.focus.borrow();
@@ -450,9 +565,12 @@ impl View {
                 .aria_label(config.label.clone())
                 .flex()
                 .flex_col()
-                .w(px(config.width as f32)
-                    .min((window.viewport_size().width - px(16.)).max(px(1.))))
-                .max_h((window.viewport_size().height - px(16.)).max(px(1.)))
+                .w(px(config.width as f32).min(
+                    (crate::window_frame::content_bounds(window).size.width - px(16.)).max(px(1.)),
+                ))
+                .max_h(
+                    (crate::window_frame::content_bounds(window).size.height - px(16.)).max(px(1.)),
+                )
                 .p(px(8.))
                 .rounded(px(4.))
                 .bg(rgba(0x25272aff))
@@ -501,29 +619,63 @@ impl View {
                 });
             }
             self.focus.borrow_mut().surface(id, panel_bounds.clone());
+            let painted_anchor = anchor_bounds.clone();
+            let animated = node.tooltip_motion;
             let panel = panel
                 .child(self.element(tree, node.children[1], panel_interaction, window, cx))
                 .child(
                     canvas(
                         move |bounds, _, _| panel_bounds.set(bounds),
-                        |_, _, _, _| {},
+                        move |bounds, _, window, _| {
+                            if animated
+                                && window.element_opacity() > 0.
+                                && bounds.intersects(&window.content_mask().bounds)
+                            {
+                                painted.set(Some(painted_anchor.get()));
+                            }
+                        },
                     )
                     .absolute()
                     .top_0()
                     .left_0()
                     .size_full(),
                 );
+            let panel =
+                super::highlight_style::Frame::part(panel, node, 1, &self.focus).into_any_element();
+            let panel = if node.kind == Kind::Tooltip {
+                let previous = self
+                    .tooltip_previous
+                    .filter(|previous| {
+                        previous.owner != id
+                            && cx
+                                .background_executor()
+                                .now()
+                                .saturating_duration_since(previous.closed)
+                                < Duration::from_nanos(config.skip_delay_ns as u64)
+                    })
+                    .map(|previous| previous.anchor);
+                super::tooltip_motion::Entry {
+                    id: ("gpuio-tooltip-motion", identity).into(),
+                    enabled: node.tooltip_motion,
+                    anchor: anchor_bounds.clone(),
+                    previous,
+                    content: Some(panel),
+                }
+                .into_any_element()
+            } else {
+                panel
+            };
             let priority = self.focus.borrow().layer(id);
             wrapper = wrapper.child(
                 deferred(super::popup::Surface {
+                    geometry: node.placement_geometry,
                     trigger: anchor_bounds,
                     placement: node.placement.unwrap_or(Placement {
                         side: Side::Top,
                         align: Align::Center,
                         offset: 6.,
                     }),
-                    content: super::highlight_style::Frame::part(panel, node, 1, &self.focus)
-                        .into_any_element(),
+                    content: panel,
                 })
                 .with_priority(priority),
             );
@@ -578,3 +730,7 @@ mod tests {
         );
     }
 }
+
+#[cfg(all(test, feature = "native-image-tests"))]
+#[path = "tooltip_motion_test.rs"]
+mod motion_tests;

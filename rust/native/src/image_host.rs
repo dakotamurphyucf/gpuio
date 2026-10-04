@@ -19,9 +19,23 @@ type Output = (asset_cache::Completion, Done);
 type Shared = Rc<RefCell<Service>>;
 struct Global(Shared);
 impl gpui::Global for Global {}
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+enum Representation {
+    Color,
+    Mask,
+}
+impl Representation {
+    fn bytes(self, image: &RenderImage) -> usize {
+        let color_bytes = bytes(image);
+        match self {
+            Self::Color => color_bytes,
+            Self::Mask => color_bytes / 4,
+        }
+    }
+}
 struct WindowUse {
     window: AnyWindowHandle,
-    images: HashMap<gpui::ImageId, Arc<RenderImage>>,
+    images: HashMap<(gpui::ImageId, Representation), Arc<RenderImage>>,
 }
 struct Service {
     cache: asset_cache::Cache,
@@ -81,8 +95,8 @@ pub fn init(cx: &mut App) {
                     .sum::<usize>();
                 state.atlas_bytes -= window
                     .images
-                    .values()
-                    .map(|image| bytes(image))
+                    .iter()
+                    .map(|((_, representation), image)| representation.bytes(image))
                     .sum::<usize>();
             }
             drop(state);
@@ -139,15 +153,24 @@ fn flush(service: &Shared, cx: &mut App) {
         let mut operations = Vec::new();
         for image in evictions {
             let mut count = 0;
+            let mut removed_bytes = 0;
             for window in state.windows.values_mut() {
-                if window.images.remove(&image.id).is_some() {
+                let mut removed = false;
+                for representation in [Representation::Color, Representation::Mask] {
+                    if window.images.remove(&(image.id, representation)).is_some() {
+                        count += 1;
+                        removed_bytes += representation.bytes(&image);
+                        removed = true;
+                    }
+                }
+                if removed {
+                    // GPUI drops both atlas representations in a single call.
                     operations.push((window.window, image.clone()));
-                    count += 1;
                 }
             }
             state.atlas_entries -= count;
             state.atlas_frames -= count * image.frame_count();
-            state.atlas_bytes -= count * bytes(&image);
+            state.atlas_bytes -= removed_bytes;
         }
         operations
     };
@@ -291,6 +314,26 @@ pub fn image(
     window: &mut Window,
     cx: &mut App,
 ) -> Result<Option<Arc<RenderImage>>, Error> {
+    image_for(handle, window, cx, Representation::Color)
+}
+
+/// Reserve the alpha-only atlas representation for paint_image_mask. Decoded
+/// pixels are shared with color users; each window/representation reserves its
+/// own full animation footprint. This accounts payload, not atlas page padding.
+pub fn image_mask(
+    handle: &Handle,
+    window: &mut Window,
+    cx: &mut App,
+) -> Result<Option<Arc<RenderImage>>, Error> {
+    image_for(handle, window, cx, Representation::Mask)
+}
+
+fn image_for(
+    handle: &Handle,
+    window: &mut Window,
+    cx: &mut App,
+    representation: Representation,
+) -> Result<Option<Arc<RenderImage>>, Error> {
     let service = handle.service.upgrade().ok_or(Error::Closed)?;
     if !cx
         .try_global::<Global>()
@@ -317,10 +360,11 @@ pub fn image(
         asset_cache::State::Failed(error) => return Err(error),
         asset_cache::State::Ready(image) => image,
     };
-    if state.windows[&id].images.contains_key(&image.id) {
+    let key = (image.id, representation);
+    if state.windows[&id].images.contains_key(&key) {
         return Ok(Some(image));
     }
-    let bytes = bytes(&image);
+    let bytes = representation.bytes(&image);
     if state.atlas_entries >= MAX_ATLAS_ENTRIES
         || image.frame_count() > MAX_ATLAS_FRAMES - state.atlas_frames
         || bytes > MAX_ATLAS_BYTES - state.atlas_bytes
@@ -335,7 +379,7 @@ pub fn image(
             images: HashMap::new(),
         })
         .images
-        .insert(image.id, image.clone());
+        .insert(key, image.clone());
     state.atlas_entries += 1;
     state.atlas_frames += image.frame_count();
     state.atlas_bytes += bytes;
@@ -388,3 +432,7 @@ pub fn finish_before_quit(cx: &mut App) {
 #[cfg(feature = "native-image-tests")]
 #[path = "image_host_test.rs"]
 pub(crate) mod test;
+
+#[cfg(all(test, feature = "native-image-tests"))]
+#[path = "image_host_accounting_test.rs"]
+mod accounting_test;

@@ -3,6 +3,7 @@ open Core
 open Gpuio_protocol
 module Wire = Wire
 module TW = Gpuio_protocol.Table_wire
+module LI = Gpuio_protocol.List_input_wire
 
 exception Cannot_prepare of Error.t
 
@@ -51,6 +52,7 @@ module Identity = struct
     type t =
       | Key of string
       | Position of int
+      | Structural of string * string
     [@@deriving compare, sexp]
   end
 
@@ -58,9 +60,11 @@ module Identity = struct
   include Comparable.Make (T)
 
   let of_view view position =
-    match (View.Expert.describe view).key with
-    | Some key -> Key (Key.to_string key)
-    | None -> Position position
+    let description = View.Expert.describe view in
+    match description.structural_key, description.key with
+    | Some (namespace, identity), _ -> Structural (namespace, identity)
+    | None, Some key -> Key (Key.to_string key)
+    | None, None -> Position position
   ;;
 end
 
@@ -69,6 +73,7 @@ type 'a callback =
       Wire.Container_query.Config.t * int64 ref * (Container_query.Selection.t -> 'a)
   | Extension of Wire.Extension.Config.t * (Wire.Extension.Signal.t -> 'a)
   | Split_pane of Split_pane.Config.t * (Split_pane.Snapshot.t -> 'a)
+  | Split_group of Split_group.Config.t * (Split_group.Snapshot.t -> 'a)
   | Canvas of Wire.Canvas_view.Config.t * (Canvas.Event.t -> 'a)
   | Chart of Wire.Chart_view.Config.t * (Chart.Event.t -> 'a)
   | Document of
@@ -77,8 +82,23 @@ type 'a callback =
       ; diff_epoch : int64
       ; on_navigate : (Document.Navigation.t -> 'a) option
       ; on_diff : (Document.Diff.Event.t -> 'a) option
+      ; preview_epoch : int64
+      ; preview_max_lines : int option
+      ; on_preview : (Document.Preview.Event.t -> 'a) option
+      ; on_action : (Document.Actions.Event.t -> 'a) option
+      ; actions_epoch : int64
+      ; actions_config : Document.Actions.Config.t
+      ; profile :
+          (int64
+          * Gpuio_protocol.Document_profile_wire.Instance.t
+          * (Gpuio_protocol.Document_profile_wire.Event.t -> 'a option))
+            option
       }
-  | Virtual_list of List_identity.t * 'a View.Expert.virtual_list * TW.Config.t option
+  | Virtual_list of
+      List_identity.t
+      * 'a View.Expert.virtual_list
+      * TW.Config.t option
+      * LI.Config.t option
   | Animation_program of int64 * (int64 * int64) ref * (Animation.Program.Event.t -> 'a)
   | Animation of int64 * int64 ref * (Animation.Event.t -> 'a)
   | Image of (Image.State.t -> 'a)
@@ -95,17 +115,22 @@ type 'a callback =
   | Click of (unit -> 'a)
   | Commands of 'a Ui_command.Registry.t * Wire.Command.t list
   | Dismiss of Overlay.Config.t * (Overlay.Dismissal.t -> 'a)
+  | Menu of (bool -> 'a)
   | Tooltip of Tooltip.Config.t * (bool -> 'a)
-  | Editor of (Text_input.Event.t -> 'a)
+  | Editor of Text_input.Config.t * (Text_input.Event.t -> 'a)
   | Choice of Choice.Config.t * (Choice.Id.t -> 'a)
   | Carousel of Wire.Carousel.Config.t * (Carousel.Request.t -> 'a)
+  | Carousel_track of Wire.Carousel_track.Config.t * (Carousel_track.Request.t -> 'a)
   | Rating of Rating.Config.t * (Rating.Request.t -> 'a)
   | Slider of Slider.Value.t * int64 ref * (Slider.Event.t -> 'a)
-  | Number_input of int64 ref * (Number_input.Event.t -> 'a)
+  | Number_input of (int64 * int64) ref * (Number_input.Event.t -> 'a)
   | Otp_input of Otp_input.Policy.t * int64 ref * (Otp_input.Event.t -> 'a)
   | Color_input of int64 ref * (Color_input.Event.t -> 'a)
   | Calendar of Calendar.Mode.t * int64 ref * (Calendar.Event.t -> 'a)
   | Combobox of Combobox.Config.t * (Combobox.Event.t -> 'a)
+  | Picker_query
+  | Choice_picker of
+      Choice_picker.Config.t * Node_id.t option * (Choice_picker.Event.t -> 'a)
 
 type 'a binding =
   { node : Node_id.t
@@ -113,10 +138,19 @@ type 'a binding =
   ; callback : 'a callback
   }
 
+type list_input_state =
+  { config : List_input.Config.t
+  ; multiple : bool
+  ; query_controller : Key.t option
+  ; wire : LI.Config.t
+  }
+
 type 'a mounted =
   { view : 'a View.t
   ; id : Node_id.t
   ; handler : Handler_id.t option
+  ; hover_handler : Handler_id.t option
+  ; calendar_viewport_handler : Handler_id.t option
   ; style : Wire.Style.t list
   ; text_content : Gpuio_protocol.Text_content_wire.t option
   ; animation : Wire.Animation.Config.t option
@@ -127,15 +161,46 @@ type 'a mounted =
   ; query_seen : int64 ref
   ; binding_seen : int64 ref
   ; document_diff_epoch : int64
+  ; document_profile_epoch : int64
+  ; document_actions_epoch : int64
+  ; document_preview_epoch : int64
+  ; document_text_style : Wire.Document_style.t option
   ; slider_seen : int64 ref
-  ; number_input_seen : int64 ref
+  ; number_input_seen : (int64 * int64) ref
   ; otp_input_seen : int64 ref
   ; color_input_seen : int64 ref
   ; calendar_seen : int64 ref
   ; list_identity : List_identity.t option
+  ; list_input_state : list_input_state option
+  ; list_input_generation : int64
   ; table_config : TW.Config.t option
+  ; table_behavior : TW.Behavior.t option
+  ; table_appearance : TW.Appearance.t option
+  ; table_header_style : Wire.Style.t list
+  ; table_row_style : Wire.Style.t list
   ; table_serial : int64
+  ; choice_picker : Wire.Choice_picker_presentation.t option
+  ; split_group :
+      (Gpuio_protocol.Split_group_wire.Config.t * Wire.Split_group_appearance.t) option
+  ; tab_appearance : Wire.Tab_appearance.t option
+  ; tab_content : Wire.Tab_content.t option
+  ; tab_viewport : Wire.Tab_viewport.t option
+  ; tab_motion : Wire.Tab_motion.t option
+  ; tab_trailing : bool
+  ; choice_menu : bool
   ; choice_appearance : Wire.Choice_appearance.t option
+  ; split_button : Wire.Split_button.t option
+  ; control_appearance : Wire.Control_appearance.t option
+  ; scrollbar : Wire.Scrollbar.t option
+  ; number_step_mode : Wire.Number_input.Step_mode.t
+  ; number_presentation : Wire.Number_presentation.t option
+  ; reveal : Gpuio_protocol.Reveal_wire.t option
+  ; overlay_backdrop : int64 option
+  ; calendar_appearance : Gpuio_protocol.Calendar_presentation_wire.t option
+  ; color_presentation : Gpuio_protocol.Color_presentation_wire.t option
+  ; slider_appearance : Gpuio_protocol.Slider_presentation_wire.t option
+  ; otp_appearance : Gpuio_protocol.Otp_presentation_wire.t option
+  ; rating_appearance : Wire.Rating.Appearance.t option
   ; children : 'a mounted list
   ; controllers : String.Set.t
   ; commands : Wire.Command.t list
@@ -144,9 +209,36 @@ type 'a mounted =
   ; platform_menus : int
   }
 
+type command_button =
+  { node : Node_id.t
+  ; command : Ui_command.Id.t
+  ; loading : bool
+  ; activation_revision : int64
+  }
+
+module Hover_binding = struct
+  type 'a t =
+    { node : Node_id.t
+    ; handler : Handler_id.t
+    ; on_change : bool -> 'a
+    }
+end
+
+module Calendar_viewport_binding = struct
+  type 'a t =
+    { node : Node_id.t
+    ; handler : Handler_id.t
+    ; seen : int64 ref
+    ; on_change : Calendar.Viewport.t -> 'a
+    }
+end
+
 type 'a state =
   { root : 'a mounted option
   ; bindings : 'a binding Int.Map.t
+  ; hover_bindings : 'a Hover_binding.t Int.Map.t
+  ; calendar_viewport_bindings : 'a Calendar_viewport_binding.t Int.Map.t
+  ; command_buttons : command_button Int.Map.t
   ; nodes : Allocator.t
   ; handlers : Allocator.t
   ; theme : Theme.t
@@ -157,6 +249,7 @@ type 'a state =
 
 type 'a t =
   { owner : unit ref
+  ; document_defaults : 'a Document.Defaults.t
   ; asset_owner : Asset.Expert.Owner.t option
   ; document_owner : Text_source.Expert.Owner.t option
   ; canvas_owner : Canvas_scene.Expert.Owner.t option
@@ -175,9 +268,14 @@ type 'a update =
 
 type 'a builder =
   { window : Window_id.t
+  ; document_defaults : 'a Document.Defaults.t
   ; mutable nodes : Allocator.t
   ; mutable handlers : Allocator.t
   ; mutable bindings : 'a binding Int.Map.t
+  ; mutable hover_bindings : 'a Hover_binding.t Int.Map.t
+  ; mutable calendar_viewport_bindings : 'a Calendar_viewport_binding.t Int.Map.t
+  ; mutable command_buttons : command_button Int.Map.t
+  ; base_revision : int64
   ; mutable operations : Wire.Op.t list
   ; mutable operation_count : int
   ; mutable command_generation : int64
@@ -189,8 +287,16 @@ type 'a builder =
   ; chart_owner : Chart_resource.Expert.Owner.t option
   }
 
-let create ?asset_owner ?document_owner ?canvas_owner ?chart_owner window =
+let create
+      ?(document_defaults = Document.Defaults.empty)
+      ?asset_owner
+      ?document_owner
+      ?canvas_owner
+      ?chart_owner
+      window
+  =
   { owner = ref ()
+  ; document_defaults
   ; asset_owner
   ; document_owner
   ; canvas_owner
@@ -200,6 +306,9 @@ let create ?asset_owner ?document_owner ?canvas_owner ?chart_owner window =
   ; state =
       { root = None
       ; bindings = Int.Map.empty
+      ; hover_bindings = Int.Map.empty
+      ; calendar_viewport_bindings = Int.Map.empty
+      ; command_buttons = Int.Map.empty
       ; nodes = Allocator.empty
       ; handlers = Allocator.empty
       ; theme = Theme.default
@@ -239,7 +348,15 @@ let rec remove builder mounted =
   builder.nodes <- Allocator.release builder.nodes (node_slot mounted.id);
   Option.iter mounted.handler ~f:(fun handler ->
     builder.handlers <- Allocator.release builder.handlers (handler_slot handler));
-  builder.bindings <- Map.remove builder.bindings (node_slot mounted.id)
+  Option.iter mounted.hover_handler ~f:(fun handler ->
+    builder.handlers <- Allocator.release builder.handlers (handler_slot handler));
+  builder.hover_bindings <- Map.remove builder.hover_bindings (node_slot mounted.id);
+  Option.iter mounted.calendar_viewport_handler ~f:(fun handler ->
+    builder.handlers <- Allocator.release builder.handlers (handler_slot handler));
+  builder.calendar_viewport_bindings
+  <- Map.remove builder.calendar_viewport_bindings (node_slot mounted.id);
+  builder.bindings <- Map.remove builder.bindings (node_slot mounted.id);
+  builder.command_buttons <- Map.remove builder.command_buttons (node_slot mounted.id)
 ;;
 
 let kind = function
@@ -250,13 +367,17 @@ let kind = function
   | Textarea -> Textarea
   | Checkbox -> Checkbox
   | Switch -> Switch
+  | Radio -> Radio
   | Radio_group -> Radio_group
   | Select -> Select
   | Combobox -> Combobox
+  | Choice_picker -> Choice_picker
   | Focus_scope -> Focus_scope
   | Tooltip -> Tooltip
   | Hover_card -> Hover_card
   | Carousel -> Carousel
+  | Carousel_track_group -> Carousel_track_group
+  | Carousel_track -> Carousel_track
   | Command_scope -> Command_scope
   | Command_button -> Command_button
   | Menu -> Menu
@@ -294,6 +415,7 @@ let kind = function
   | Tab_bar -> Tab_bar
   | Tab_panel -> Tab_panel
   | Split_pane -> Split_pane
+  | Split_group -> Split_group
   | Extension -> Extension
 ;;
 
@@ -311,6 +433,7 @@ let compatible mounted view =
           Option.bind list.table ~f:(fun table -> table.source_key)))
        (Option.bind next.virtual_list ~f:(fun list ->
           Option.bind list.table ~f:(fun table -> table.source_key)))
+  && Bool.equal (Option.is_some old.table_header) (Option.is_some next.table_header)
   && Option.equal
        Table_column.Id.equal
        (Option.map old.table_cell ~f:Table.Cell.column)
@@ -360,12 +483,157 @@ let splice builder id old_children new_children =
          , inserted )))
 ;;
 
+(* A list may precede its query sibling. Finalize after the whole sibling set
+   exists, including unchanged children reused by mount's fast path. Candidate
+   state is immutable: rejected preparations never consume an accepted epoch. *)
+let finalize_list_input builder ~query (mounted : _ mounted) =
+  let description = View.Expert.describe mounted.view in
+  let input = Option.bind description.virtual_list ~f:(fun list -> list.list_input) in
+  let old = mounted.list_input_state in
+  let old_wire = Option.map old ~f:(fun old -> old.wire) in
+  match input with
+  | None ->
+    (match old with
+     | None -> mounted
+     | Some _ ->
+       emit builder (Set_list_input (mounted.id, None));
+       { mounted with list_input_state = None })
+  | Some (config, _) ->
+    let list = Option.value_exn description.virtual_list in
+    if Option.is_some list.on_tree_input || list.tree_moves || Option.is_some list.table
+    then fail "list input cannot share tree or table input";
+    let multiple =
+      match
+        Option.bind description.accessibility ~f:(fun a ->
+          (Accessibility.Expert.to_wire a).role)
+      with
+      | Some (List_box multiple) -> multiple
+      | _ -> fail "list input requires List_box accessibility"
+    in
+    let resolved =
+      Option.map (List_input.Config.query config) ~f:(fun key ->
+        match query key with
+        | Some query -> query
+        | None -> fail "list query must name a direct sibling single-line input")
+    in
+    let query_node = Option.map resolved ~f:fst in
+    let query_controller = Option.map resolved ~f:snd in
+    let generation =
+      match old with
+      | Some old
+        when List_input.Expert.same_interaction old.config config
+             && Bool.equal old.multiple multiple
+             && Option.equal Key.equal old.query_controller query_controller
+             && Option.equal Node_id.equal old.wire.query query_node ->
+        old.wire.generation
+      | Some _ | None ->
+        if Int64.equal mounted.list_input_generation Int64.max_value
+        then fail "list input generation exhausted";
+        Int64.succ mounted.list_input_generation
+    in
+    let cursor =
+      Option.map (List_input.Config.cursor config) ~f:(fun key ->
+        let identity = Option.value_exn mounted.list_identity in
+        let id =
+          match List_identity.id identity key with
+          | Some id -> id
+          | None -> fail "list cursor is absent from logical order"
+        in
+        Option.iter
+          (List.find mounted.children ~f:(fun row ->
+             Option.equal Key.equal (View.Expert.describe row.view).key (Some key)))
+          ~f:(fun row ->
+            match
+              Option.bind (View.Expert.describe row.view).accessibility ~f:(fun a ->
+                (Accessibility.Expert.to_wire a).role)
+            with
+            | Some (Option_item item) when not item.disabled -> ()
+            | _ -> fail "mounted list cursor requires enabled Option_item metadata");
+        id)
+    in
+    let wire : LI.Config.t =
+      { generation
+      ; cursor
+      ; query = query_node
+      ; selection_on_navigation = List_input.Config.selection_on_navigation config
+      ; disabled = List_input.Config.disabled config
+      ; busy = List_input.Config.busy config
+      }
+    in
+    if not (Option.equal LI.Config.equal old_wire (Some wire))
+    then emit builder (Set_list_input (mounted.id, Some wire));
+    let slot = node_slot mounted.id in
+    (match Map.find builder.bindings slot with
+     | Some ({ callback = Virtual_list (identity, list, table, _); _ } as binding) ->
+       builder.bindings
+       <- Map.set
+            builder.bindings
+            ~key:slot
+            ~data:
+              { binding with callback = Virtual_list (identity, list, table, Some wire) }
+     | Some _ | None -> fail "list input requires an input callback");
+    { mounted with
+      list_input_state = Some { config; multiple; query_controller; wire }
+    ; list_input_generation = generation
+    }
+;;
+
+let finalize_sibling_list_inputs builder children =
+  let has_query =
+    List.exists children ~f:(fun child ->
+      Option.exists (View.Expert.describe child.view).virtual_list ~f:(fun list ->
+        Option.exists list.list_input ~f:(fun (config, _) ->
+          Option.is_some (List_input.Config.query config))))
+  in
+  let queries =
+    if not has_query
+    then String.Map.empty
+    else
+      List.filter_map children ~f:(fun child ->
+        let view = View.Expert.describe child.view in
+        match view.kind, view.key, view.editor with
+        | Input, Some key, Some editor ->
+          Some (Key.to_string key, (child.id, editor.controller))
+        | _ -> None)
+      |> String.Map.of_alist_exn
+  in
+  let used = ref String.Set.empty in
+  List.map
+    children
+    ~f:
+      (finalize_list_input builder ~query:(fun key ->
+         let key = Key.to_string key in
+         if Set.mem !used key then fail "query input cannot serve multiple lists";
+         used := Set.add !used key;
+         Map.find queries key))
+;;
+
+let document_description builder view =
+  Option.map (View.Expert.describe view).document ~f:(fun document ->
+    let config =
+      Document.Defaults.Expert.resolve builder.document_defaults document.config |> value
+    in
+    let on_action =
+      match document.on_action with
+      | Some _ as handler -> handler
+      | None -> Document.Defaults.Expert.action_handler builder.document_defaults config
+    in
+    let profile =
+      if document.inherit_profile
+      then Document.Defaults.Expert.profile builder.document_defaults config
+      else document.profile
+    in
+    { document with config; on_action; profile })
+;;
+
 let rec mount builder ~depth previous view =
   if depth > 128 then fail "view exceeds native depth limit";
   match previous with
   | Some mounted when phys_equal mounted.view view && builder.theme_unchanged -> mounted
   | _ ->
-    let description = View.Expert.describe view in
+    let description =
+      { (View.Expert.describe view) with document = document_description builder view }
+    in
     if String.length description.text > 262_144
     then fail "text field exceeds native byte limit";
     let previous =
@@ -391,7 +659,10 @@ let rec mount builder ~depth previous view =
       Option.value_map previous ~default:(ref (-1L)) ~f:(fun old -> old.otp_input_seen)
     in
     let number_input_seen =
-      Option.value_map previous ~default:(ref (-1L)) ~f:(fun old -> old.number_input_seen)
+      Option.value_map
+        previous
+        ~default:(ref (-1L, 0L))
+        ~f:(fun old -> old.number_input_seen)
     in
     let slider_seen =
       Option.value_map previous ~default:(ref (-1L)) ~f:(fun old -> old.slider_seen)
@@ -536,7 +807,11 @@ let rec mount builder ~depth previous view =
         , description.commands )
       with
       | Some callback, None, None, None, None, None, None -> Some (Click callback)
-      | None, Some editor, None, None, None, None, None -> Some (Editor editor.on_event)
+      | None, Some editor, None, None, None, None, None ->
+        Some
+          (match editor.on_event with
+           | View.Expert.Editor_events callback -> Editor (editor.config, callback)
+           | Picker_query -> Picker_query)
       | None, None, Some choice, None, None, None, None ->
         if Choice.Config.is_disabled choice.config
         then None
@@ -552,6 +827,20 @@ let rec mount builder ~depth previous view =
         Some (Commands (registry, commands))
       | None, None, None, None, None, None, None -> None
       | _ -> fail "a view cannot combine incompatible handler kinds"
+    in
+    let callback =
+      match description.choice_picker, callback with
+      | Some (picker, callback), None ->
+        Some (Choice_picker (Choice_picker.Description.config picker, None, callback))
+      | None, callback -> callback
+      | Some _, Some _ -> fail "picker cannot combine another handler"
+    in
+    let callback =
+      match description.menu, callback with
+      | Some menu, None ->
+        Option.map menu.on_open_change ~f:(fun callback -> Menu callback)
+      | None, callback -> callback
+      | Some _, Some _ -> fail "menu cannot combine another handler"
     in
     let callback =
       match description.slider, callback with
@@ -587,6 +876,12 @@ let rec mount builder ~depth previous view =
              (Calendar.Config.mode calendar.config, calendar_seen, calendar.on_event))
       | None, callback -> callback
       | Some _, Some _ -> fail "calendar cannot combine another handler"
+    in
+    let callback =
+      match description.carousel_track, callback with
+      | Some (config, on_request), None -> Some (Carousel_track (config, on_request))
+      | None, callback -> callback
+      | Some _, Some _ -> fail "carousel track cannot combine another handler"
     in
     let callback =
       match description.carousel, callback with
@@ -671,6 +966,13 @@ let rec mount builder ~depth previous view =
       | Some _, Some _ -> fail "split pane cannot combine another handler"
     in
     let callback =
+      match description.split_group, callback with
+      | Some item, None ->
+        Option.map item.on_resize ~f:(fun callback -> Split_group (item.config, callback))
+      | None, _ -> callback
+      | Some _, Some _ -> fail "split group cannot combine another handler"
+    in
+    let callback =
       match description.canvas, callback with
       | Some item, None ->
         Option.map item.on_event ~f:(fun callback ->
@@ -688,7 +990,7 @@ let rec mount builder ~depth previous view =
     in
     let old_diff =
       Option.bind previous ~f:(fun mounted ->
-        Option.bind (View.Expert.describe mounted.view).document ~f:(fun item ->
+        Option.bind (document_description builder mounted.view) ~f:(fun item ->
           Document.Config.diff item.config))
     in
     let next_diff =
@@ -705,12 +1007,108 @@ let rec mount builder ~depth previous view =
         then fail "document diff configuration epoch exhausted";
         Int64.succ old_diff_epoch)
     in
+    let preview_settings document =
+      match document with
+      | None -> None, false
+      | Some (item : _ View.Expert.document) ->
+        Document.Config.max_lines item.config, Option.is_some item.on_preview
+    in
+    let previous_preview =
+      Option.bind previous ~f:(fun old -> document_description builder old.view)
+    in
+    let old_limit, old_observe = preview_settings previous_preview in
+    let next_limit, next_observe = preview_settings description.document in
+    let old_preview_epoch =
+      Option.value_map previous ~default:0L ~f:(fun old -> old.document_preview_epoch)
+    in
+    let document_preview_epoch =
+      if
+        Option.equal Int.equal old_limit next_limit && Bool.equal old_observe next_observe
+      then old_preview_epoch
+      else (
+        if Int64.equal old_preview_epoch Int64.max_value
+        then fail "document preview epoch exhausted";
+        Int64.succ old_preview_epoch)
+    in
+    let profile_settings document =
+      Option.bind document ~f:(fun (item : _ View.Expert.document) ->
+        Option.map item.profile ~f:fst)
+    in
+    let old_profile = profile_settings previous_preview in
+    let next_profile = profile_settings description.document in
+    Option.iter next_profile ~f:(fun next ->
+      if not (Gpuio_protocol.Document_profile_wire.Instance.valid next)
+      then fail "invalid document profile instance";
+      Option.iter old_profile ~f:(fun old ->
+        if
+          Gpuio_protocol.Extension_wire.Schema.equal old.schema next.schema
+          && Int64.(next.generation < old.generation)
+        then fail "document profile generation decreased"));
+    let old_profile_epoch =
+      Option.value_map previous ~default:0L ~f:(fun old -> old.document_profile_epoch)
+    in
+    let document_profile_epoch =
+      if
+        Option.equal
+          Gpuio_protocol.Document_profile_wire.Instance.equal
+          old_profile
+          next_profile
+      then old_profile_epoch
+      else (
+        if Int64.equal old_profile_epoch Int64.max_value
+        then fail "document profile epoch exhausted";
+        Int64.succ old_profile_epoch)
+    in
+    let actions_settings document =
+      match document with
+      | None -> Document.Actions.Config.default, false
+      | Some (item : _ View.Expert.document) ->
+        Document.Config.actions item.config, Option.is_some item.on_action
+    in
+    let old_actions, old_actions_observe = actions_settings previous_preview in
+    let next_actions, next_actions_observe = actions_settings description.document in
+    let old_actions_epoch =
+      Option.value_map previous ~default:0L ~f:(fun old -> old.document_actions_epoch)
+    in
+    let document_actions_epoch =
+      if
+        Document.Actions.Config.equal old_actions next_actions
+        && Bool.equal old_actions_observe next_actions_observe
+      then old_actions_epoch
+      else (
+        if Int64.equal old_actions_epoch Int64.max_value
+        then fail "document actions epoch exhausted";
+        Int64.succ old_actions_epoch)
+    in
     let callback =
       match description.document, callback with
       | Some item, None ->
+        if
+          ((not (List.is_empty (Document.Actions.Config.code next_actions)))
+           || not (List.is_empty (Document.Actions.Config.table next_actions)))
+          && Option.is_none item.on_action
+        then fail "custom document actions require on_action";
+        if
+          (Option.is_some item.on_action || Option.is_some item.profile)
+          && not
+               (Document.Mode.equal (Document.Config.mode item.config) Markdown
+                || Document.Mode.equal (Document.Config.mode item.config) Html)
+        then fail "document action callback requires Markdown or HTML";
         if Option.is_some item.on_diff && Option.is_none next_diff
         then fail "document diff callback requires explicit diff configuration";
-        if Option.is_none item.on_navigate && Option.is_none item.on_diff
+        if
+          Option.is_some item.on_preview
+          && not
+               ((Document.Mode.equal (Document.Config.mode item.config) Markdown
+                 || Document.Mode.equal (Document.Config.mode item.config) Html)
+                && Document.Layout.equal (Document.Config.layout item.config) Flow)
+        then fail "document preview callback requires Markdown/HTML Flow";
+        if
+          Option.is_none item.on_navigate
+          && Option.is_none item.on_diff
+          && Option.is_none item.on_preview
+          && Option.is_none item.on_action
+          && Option.is_none item.profile
         then None
         else
           Some
@@ -720,6 +1118,15 @@ let rec mount builder ~depth previous view =
                ; diff_epoch = document_diff_epoch
                ; on_navigate = item.on_navigate
                ; on_diff = item.on_diff
+               ; preview_epoch = document_preview_epoch
+               ; preview_max_lines = next_limit
+               ; on_action = item.on_action
+               ; actions_epoch = document_actions_epoch
+               ; actions_config = next_actions
+               ; profile =
+                   Option.map item.profile ~f:(fun (instance, callback) ->
+                     document_profile_epoch, instance, callback)
+               ; on_preview = item.on_preview
                })
       | None, callback -> callback
       | Some _, Some _ -> fail "document cannot combine another handler"
@@ -768,6 +1175,44 @@ let rec mount builder ~depth previous view =
     in
     let table = Option.bind description.virtual_list ~f:(fun list -> list.table) in
     let old_table_config = Option.bind previous ~f:(fun old -> old.table_config) in
+    let old_table_behavior = Option.bind previous ~f:(fun old -> old.table_behavior) in
+    let table_behavior =
+      Option.bind table ~f:(fun table -> Table.Expert.behavior_to_wire table.config)
+    in
+    let old_table_appearance =
+      Option.bind previous ~f:(fun old -> old.table_appearance)
+    in
+    let table_appearance =
+      Option.bind table ~f:(fun table ->
+        Table.Expert.appearance_to_wire table.config ~theme:builder.theme |> value)
+    in
+    let presentation style =
+      Option.value_map style ~default:[] ~f:(fun style ->
+        Style.Expert.to_wire style ~theme:builder.theme |> value)
+    in
+    let table_header_style =
+      presentation
+        (Option.map description.table_header_style ~f:Table_presentation.Header.style)
+    in
+    let table_row_style =
+      presentation
+        (Option.map description.table_row_style ~f:Table_presentation.Row.style)
+    in
+    let header_targets view =
+      List.filter_map view.View.Expert.children ~f:(fun child ->
+        let child = View.Expert.describe child in
+        Option.map child.table_header ~f:(fun target ->
+          Option.value_exn child.key, target))
+      |> List.sort ~compare:(fun (a, _) (b, _) -> Key.compare a b)
+    in
+    let header_targets_changed =
+      not
+        (List.equal
+           [%equal: Key.t * Table_header.Target.t]
+           (Option.value_map previous ~default:[] ~f:(fun old ->
+              header_targets (View.Expert.describe old.view)))
+           (header_targets description))
+    in
     let table_config =
       Option.map table ~f:(fun table ->
         let candidate =
@@ -784,7 +1229,10 @@ let rec mount builder ~depth previous view =
           then fail "table query generation went backwards";
           let changed =
             (not (TW.Schema.equal old.schema candidate.schema))
-            || not (Option.equal TW.Sort.equal old.sort candidate.sort)
+            || (not (Option.equal TW.Sort.equal old.sort candidate.sort))
+            || (not (Option.equal TW.Behavior.equal old_table_behavior table_behavior))
+            || (not (TW.Appearance.geometry_equal old_table_appearance table_appearance))
+            || header_targets_changed
           in
           if changed && Int64.equal old.schema_revision Int64.max_value
           then fail "table schema revision exhausted";
@@ -800,7 +1248,8 @@ let rec mount builder ~depth previous view =
           Option.is_some list.on_viewport
           || Option.is_some list.on_retain
           || Option.is_some list.on_tree_input
-        then Some (Virtual_list (identity, list, table_config))
+          || Option.is_some list.list_input
+        then Some (Virtual_list (identity, list, table_config, None))
         else None
       | None, None, callback -> callback
       | _ -> fail "incompatible virtual list callback"
@@ -844,6 +1293,11 @@ let rec mount builder ~depth previous view =
             Option.exists (View.Expert.describe mounted.view).split_pane ~f:(fun old ->
               not (Split_pane.Config.equal old.config item.config))
           | None, _ | Some _, None -> false)
+      || (match description.split_group, previous with
+          | Some item, Some mounted ->
+            Option.exists (View.Expert.describe mounted.view).split_group ~f:(fun old ->
+              not (Split_group.Config.equal old.config item.config))
+          | None, _ | Some _, None -> false)
       || (match description.canvas, previous with
           | Some item, Some mounted ->
             Option.exists (View.Expert.describe mounted.view).canvas ~f:(fun old ->
@@ -856,7 +1310,7 @@ let rec mount builder ~depth previous view =
           | None, _ | Some _, None -> false)
       || (match description.document, previous with
           | Some document, Some mounted ->
-            Option.exists (View.Expert.describe mounted.view).document ~f:(fun old ->
+            Option.exists (document_description builder mounted.view) ~f:(fun old ->
               not
                 (Text_source.Handle.equal
                    (Document.Config.source old.config)
@@ -869,6 +1323,24 @@ let rec mount builder ~depth previous view =
                 (Asset.Handle.equal
                    (Image.Config.asset old.config)
                    (Image.Config.asset image.config)))
+          | None, _ | Some _, None -> false)
+      || (match description.menu, previous with
+          | Some menu, Some mounted ->
+            Option.exists (View.Expert.describe mounted.view).menu ~f:(fun old ->
+              (not (List.equal Menu.equal old.menus menu.menus))
+              || not (Menu.Expert.equal_presentation old.presentation menu.presentation))
+          | None, _ | Some _, None -> false)
+      || (match description.choice_picker, previous with
+          | Some (picker, _), Some mounted ->
+            Option.exists
+              (View.Expert.describe mounted.view).choice_picker
+              ~f:(fun (old, _) ->
+                not
+                  (Bool.equal
+                     (Choice_picker.Config.is_disabled
+                        (Choice_picker.Description.config old))
+                     (Choice_picker.Config.is_disabled
+                        (Choice_picker.Description.config picker))))
           | None, _ | Some _, None -> false)
       || (match description.combobox, previous with
           | Some combo, Some mounted ->
@@ -909,6 +1381,57 @@ let rec mount builder ~depth previous view =
             ~data:{ node = id; handler; callback }
      | None, None -> builder.bindings <- Map.remove builder.bindings (node_slot id)
      | Some _, None | None, Some _ -> assert false);
+    let old_viewport =
+      Option.bind previous ~f:(fun mounted -> mounted.calendar_viewport_handler)
+    in
+    let on_viewport_change =
+      Option.bind description.calendar ~f:(fun calendar -> calendar.on_viewport_change)
+    in
+    let calendar_viewport_handler =
+      match old_viewport, on_viewport_change with
+      | Some handler, Some _ -> Some handler
+      | None, Some _ -> Some (new_handler builder)
+      | Some handler, None ->
+        builder.handlers <- Allocator.release builder.handlers (handler_slot handler);
+        None
+      | None, None -> None
+    in
+    (match calendar_viewport_handler, on_viewport_change with
+     | Some handler, Some on_change ->
+       let seen =
+         match Map.find builder.calendar_viewport_bindings (node_slot id) with
+         | Some binding when Handler_id.equal binding.handler handler -> binding.seen
+         | Some _ | None -> ref (-1L)
+       in
+       builder.calendar_viewport_bindings
+       <- Map.set
+            builder.calendar_viewport_bindings
+            ~key:(node_slot id)
+            ~data:Calendar_viewport_binding.{ node = id; handler; seen; on_change }
+     | None, None ->
+       builder.calendar_viewport_bindings
+       <- Map.remove builder.calendar_viewport_bindings (node_slot id)
+     | Some _, None | None, Some _ -> assert false);
+    let old_hover = Option.bind previous ~f:(fun mounted -> mounted.hover_handler) in
+    let hover_handler =
+      match old_hover, description.on_hover with
+      | Some handler, Some _ -> Some handler
+      | None, Some _ -> Some (new_handler builder)
+      | Some handler, None ->
+        builder.handlers <- Allocator.release builder.handlers (handler_slot handler);
+        None
+      | None, None -> None
+    in
+    (match hover_handler, description.on_hover with
+     | Some handler, Some on_change ->
+       builder.hover_bindings
+       <- Map.set
+            builder.hover_bindings
+            ~key:(node_slot id)
+            ~data:Hover_binding.{ node = id; handler; on_change }
+     | None, None ->
+       builder.hover_bindings <- Map.remove builder.hover_bindings (node_slot id)
+     | Some _, None | None, Some _ -> assert false);
     let text_content =
       Option.map description.text_content ~f:(fun content ->
         Text_content.Expert.to_wire content ~theme:builder.theme |> value)
@@ -929,6 +1452,10 @@ let rec mount builder ~depth previous view =
        then emit builder (Set_text (id, description.text));
        if not (Option.equal Handler_id.equal old_handler handler)
        then emit builder (Bind (id, handler)));
+    if not (Option.equal Handler_id.equal old_hover hover_handler)
+    then emit builder (Set_hover_observer (id, hover_handler));
+    if not (Option.equal Handler_id.equal old_viewport calendar_viewport_handler)
+    then emit builder (Set_calendar_viewport_observer (id, calendar_viewport_handler));
     if
       not
         (Option.equal
@@ -980,7 +1507,8 @@ let rec mount builder ~depth previous view =
              | Menu.Expert.Button -> Button
              | Context -> Context
              | Bar -> Bar
-             | Platform_bar -> Platform_bar)
+             | Platform_bar -> Platform_bar
+             | Editor_context -> Editor_context)
         ; menus = List.map menu.menus ~f:Menu.Expert.to_wire
         })
     in
@@ -1056,8 +1584,28 @@ let rec mount builder ~depth previous view =
         Option.bind previous ~f:(fun mounted ->
           (View.Expert.describe mounted.view).toast_stack)
       in
-      if not (Option.equal Toast.Stack.equal old (Some config))
-      then emit builder (Set_toast_stack (id, Toast.Expert.stack_to_wire config)));
+      let next_wire = Toast.Expert.stack_to_wire config in
+      if
+        not
+          (Option.equal
+             Wire.Toast_stack.equal
+             (Option.map old ~f:Toast.Expert.stack_to_wire)
+             (Some next_wire))
+      then emit builder (Set_toast_stack (id, next_wire));
+      let placement = Toast.Expert.placement config in
+      let old_placement = Option.bind old ~f:Toast.Expert.placement in
+      if
+        not
+          (Option.equal Gpuio_protocol.Toast_placement_wire.equal old_placement placement)
+      then emit builder (Set_toast_placement (id, placement));
+      let layering = Toast.Expert.layering config in
+      let old_layering = Option.bind old ~f:Toast.Expert.layering in
+      if not (Option.equal Gpuio_protocol.Toast_layering_wire.equal old_layering layering)
+      then emit builder (Set_toast_layering (id, layering));
+      let motion = Toast.Expert.motion config in
+      let old_motion = Option.bind old ~f:Toast.Expert.motion in
+      if not (Option.equal Gpuio_protocol.Toast_motion_wire.equal old_motion motion)
+      then emit builder (Set_toast_motion (id, motion)));
     let accessibility = description.accessibility in
     let old_accessibility =
       Option.bind previous ~f:(fun mounted ->
@@ -1068,6 +1616,29 @@ let rec mount builder ~depth previous view =
       emit
         builder
         (Set_accessibility (id, Option.map accessibility ~f:Accessibility.Expert.to_wire));
+    let old_header =
+      Option.bind previous ~f:(fun old -> (View.Expert.describe old.view).table_header)
+    in
+    if not (Option.equal Table_header.Target.equal old_header description.table_header)
+    then
+      emit
+        builder
+        (Set_table_header
+           (id, Option.map description.table_header ~f:Table_header.Expert.target_to_wire));
+    if
+      not
+        (List.equal
+           Wire.Style.equal
+           table_header_style
+           (Option.value_map previous ~default:[] ~f:(fun old -> old.table_header_style)))
+    then emit builder (Set_table_header_style (id, table_header_style));
+    if
+      not
+        (List.equal
+           Wire.Style.equal
+           table_row_style
+           (Option.value_map previous ~default:[] ~f:(fun old -> old.table_row_style)))
+    then emit builder (Set_table_row_style (id, table_row_style));
     Option.iter description.table_cell ~f:(fun cell ->
       let old =
         Option.bind previous ~f:(fun old -> (View.Expert.describe old.view).table_cell)
@@ -1077,6 +1648,10 @@ let rec mount builder ~depth previous view =
     Option.iter table_config ~f:(fun config ->
       if not (Option.equal TW.Config.equal old_table_config (Some config))
       then emit builder (Set_table (id, config)));
+    if not (Option.equal TW.Behavior.equal old_table_behavior table_behavior)
+    then emit builder (Set_table_behavior (id, table_behavior));
+    if not (Option.equal TW.Appearance.equal old_table_appearance table_appearance)
+    then emit builder (Set_table_appearance (id, table_appearance));
     let tree_input description =
       Option.exists description.View.Expert.virtual_list ~f:(fun list ->
         Option.is_some list.on_tree_input)
@@ -1102,7 +1677,19 @@ let rec mount builder ~depth previous view =
                   | Image
                   | Heading _
                   | Navigation
-                  | Tree_item _ ) -> false))
+                  | Tree_item _
+                  | List_box _
+                  | Option_item _
+                  | Table _
+                  | Row_group
+                  | Table_row _
+                  | Table_cell _
+                  | Column_header _
+                  | Row_header _
+                  | Caption
+                  | Toolbar _
+                  | Radio_group _
+                  | Log ) -> false))
     then fail "native tree input requires Tree accessibility on its managed list root";
     let old_input =
       Option.exists previous ~f:(fun mounted ->
@@ -1119,6 +1706,28 @@ let rec mount builder ~depth previous view =
     in
     if not (Bool.equal enabled_moves old_moves)
     then emit builder (Set_tree_moves (id, enabled_moves));
+    let track = Option.map description.carousel_track ~f:fst in
+    let old_track =
+      Option.bind previous ~f:(fun mounted ->
+        Option.map (View.Expert.describe mounted.view).carousel_track ~f:fst)
+    in
+    Option.iter track ~f:(fun config ->
+      if
+        Option.exists old_track ~f:(fun old ->
+          not (Wire.Carousel_track.Config.can_replace config old))
+      then
+        fail
+          "carousel track model revision and lineage must advance when policy or \
+           collection changes";
+      if not (Option.equal Wire.Carousel_track.Config.equal track old_track)
+      then emit builder (Set_carousel_track (id, config)));
+    let track_motion = description.carousel_track_motion in
+    let old_track_motion =
+      Option.bind previous ~f:(fun mounted ->
+        (View.Expert.describe mounted.view).carousel_track_motion)
+    in
+    if not (Option.equal Wire.Carousel_track.Motion.equal track_motion old_track_motion)
+    then emit builder (Set_carousel_track_motion (id, track_motion));
     let carousel = Option.map description.carousel ~f:fst in
     let old_carousel =
       Option.bind previous ~f:(fun mounted ->
@@ -1167,6 +1776,27 @@ let rec mount builder ~depth previous view =
       then fail "extension generation must not decrease";
       if not (Option.equal Wire.Extension.Config.equal old (Some item.config))
       then emit builder (Set_extension (id, item.config)));
+    let split_group =
+      Option.map description.split_group ~f:(fun item ->
+        ( Split_group.Expert.to_wire item.config
+        , Split_group.Expert.appearance_to_wire item.appearance ~theme:builder.theme
+          |> value ))
+    in
+    let old_group = Option.bind previous ~f:(fun mounted -> mounted.split_group) in
+    Option.iter split_group ~f:(fun (config, appearance) ->
+      if
+        Option.exists old_group ~f:(fun (old, _) ->
+          Int64.(config.reset_generation < old.reset_generation))
+      then fail "split group reset_generation must not decrease";
+      if
+        not
+          (Option.equal
+             (fun (config, appearance) (other_config, other_appearance) ->
+                Gpuio_protocol.Split_group_wire.Config.equal config other_config
+                && Wire.Split_group_appearance.equal appearance other_appearance)
+             old_group
+             split_group)
+      then emit builder (Set_split_group (id, config, appearance)));
     Option.iter description.split_pane ~f:(fun item ->
       let old =
         Option.bind previous ~f:(fun mounted ->
@@ -1200,29 +1830,103 @@ let rec mount builder ~depth previous view =
         emit
           builder
           (Set_chart (id, Chart.Expert.to_wire item.config ~owner:builder.chart_owner)));
+    let markdown_options view =
+      Option.value_map
+        (document_description builder view)
+        ~default:Document.Markdown_options.default
+        ~f:(fun document -> Document.Config.markdown_options document.config)
+    in
+    let document_markdown_options = markdown_options view in
+    let old_markdown_options =
+      Option.value_map previous ~default:Document.Markdown_options.default ~f:(fun old ->
+        markdown_options old.view)
+    in
+    if
+      not (Document.Markdown_options.equal old_markdown_options document_markdown_options)
+    then
+      emit
+        builder
+        (Set_document_markdown_options
+           (id, Document.Markdown_options.Expert.to_wire document_markdown_options));
+    let document_text_style =
+      Option.bind description.document ~f:(fun document ->
+        Document.Config.text_style document.config)
+      |> Option.map ~f:(fun style ->
+        Document.Style.Expert.to_wire style ~theme:builder.theme |> value)
+    in
+    let old_document_text_style =
+      Option.bind previous ~f:(fun old -> old.document_text_style)
+    in
+    if
+      not
+        (Option.equal
+           Wire.Document_style.equal
+           old_document_text_style
+           document_text_style)
+    then emit builder (Set_document_text_style (id, document_text_style));
     Option.iter description.document ~f:(fun document ->
       let old =
         Option.bind previous ~f:(fun mounted ->
-          Option.map (View.Expert.describe mounted.view).document ~f:(fun old ->
+          Option.map (document_description builder mounted.view) ~f:(fun old ->
             old.config))
       in
-      if not (Option.equal Document.Config.equal old (Some document.config))
-      then
-        emit
-          builder
-          (Set_document
-             ( id
-             , Document.Expert.to_wire
-                 document.config
-                 ~owner:builder.document_owner
-                 ~asset_owner:builder.asset_owner )));
+      let to_wire config =
+        Document.Expert.to_wire
+          config
+          ~owner:builder.document_owner
+          ~asset_owner:builder.asset_owner
+      in
+      let wire = to_wire document.config in
+      if
+        not
+          (Option.equal
+             Gpuio_protocol.Document_wire.Config.equal
+             (Option.map old ~f:to_wire)
+             (Some wire))
+      then emit builder (Set_document (id, wire));
+      let markdown config =
+        Document.Selection_format.equal (Document.Config.selection_format config) Markdown
+      in
+      let next = markdown document.config in
+      let previous = Option.value_map old ~default:false ~f:markdown in
+      if not (Bool.equal previous next)
+      then emit builder (Set_document_selection_format (id, next)));
+    if not (Int64.equal old_profile_epoch document_profile_epoch)
+    then
+      emit
+        builder
+        (Set_document_profile
+           ( id
+           , { Gpuio_protocol.Document_profile_wire.Config.epoch = document_profile_epoch
+             ; instance = next_profile
+             } ));
+    if not (Int64.equal old_actions_epoch document_actions_epoch)
+    then
+      emit
+        builder
+        (Set_document_actions
+           ( id
+           , Document.Actions.Expert.to_wire
+               next_actions
+               ~epoch:document_actions_epoch
+               ~observe:next_actions_observe ));
+    if not (Int64.equal old_preview_epoch document_preview_epoch)
+    then
+      emit
+        builder
+        (Set_document_preview
+           ( id
+           , { Gpuio_protocol.Document_preview_wire.Config.epoch = document_preview_epoch
+             ; max_lines = Option.map next_limit ~f:Int64.of_int
+             ; observe = next_observe
+             } ));
     if not (Int64.equal old_diff_epoch document_diff_epoch)
     then
       emit
         builder
         (Set_document_diff
            (id, document_diff_epoch, Option.map next_diff ~f:Document.Diff.Expert.to_wire));
-    if Option.is_none description.avatar
+    if Option.is_none description.avatar && Option.is_none description.spinner
     then
       Option.iter description.image ~f:(fun image ->
         let old =
@@ -1260,7 +1964,9 @@ let rec mount builder ~depth previous view =
       if
         not
           (Option.exists old ~f:(fun old ->
-             Number_input.Config.equal old.config number_input.config
+             Wire.Number_input.Config.equal
+               (Number_input.Expert.config_to_wire old.config)
+               (Number_input.Expert.config_to_wire number_input.config)
              && Number_input.Value.equal old.initial number_input.initial))
       then
         emit
@@ -1308,7 +2014,9 @@ let rec mount builder ~depth previous view =
       if
         not
           (Option.exists old ~f:(fun old ->
-             Color_input.Config.equal old.config input.config))
+             Gpuio_protocol.Color_input_wire.Config.equal
+               (Color_input.Expert.config_to_wire old.config)
+               (Color_input.Expert.config_to_wire input.config)))
       then
         emit
           builder
@@ -1347,7 +2055,14 @@ let rec mount builder ~depth previous view =
              ( id
              , Calendar.Expert.config_to_wire calendar.config
              , Calendar.Expert.selection_to_wire calendar.initial
-             , Calendar.Expert.month_to_wire calendar.initial_month )));
+             , Calendar.Expert.month_to_wire calendar.initial_month ));
+      if
+        not
+          (Option.equal
+             Gpuio_protocol.Calendar_content_wire.equal
+             calendar.content
+             (Option.bind old ~f:(fun old -> old.content)))
+      then emit builder (Set_calendar_content (id, calendar.content)));
     Option.iter description.rating ~f:(fun rating ->
       let old =
         Option.bind previous ~f:(fun mounted ->
@@ -1356,6 +2071,233 @@ let rec mount builder ~depth previous view =
       in
       if not (Option.equal Rating.Config.equal old (Some rating.config))
       then emit builder (Set_rating (id, Rating.Expert.to_wire rating.config)));
+    let button_presentation =
+      Option.map description.button_presentation ~f:Button.Expert.Presentation.to_wire
+    in
+    let old_button_presentation =
+      Option.bind previous ~f:(fun mounted ->
+        Option.map
+          (View.Expert.describe mounted.view).button_presentation
+          ~f:Button.Expert.Presentation.to_wire)
+    in
+    if
+      not
+        (Option.equal
+           Gpuio_protocol.Button_wire.Config.equal
+           old_button_presentation
+           button_presentation)
+    then emit builder (Set_button_presentation (id, button_presentation));
+    (match description.kind, description.command_ref with
+     | Command_button, Some command ->
+       let loading =
+         Option.exists button_presentation ~f:(fun config -> config.policy.loading)
+       in
+       let old = Map.find builder.command_buttons (node_slot id) in
+       let activation_revision =
+         match old with
+         | Some old
+           when Node_id.equal old.node id
+                && Ui_command.Id.equal old.command command
+                && Bool.equal old.loading loading -> old.activation_revision
+         | Some _ | None ->
+           if Int64.equal builder.base_revision Int64.max_value
+           then fail "native revision exhausted";
+           Int64.succ builder.base_revision
+       in
+       builder.command_buttons
+       <- Map.set
+            builder.command_buttons
+            ~key:(node_slot id)
+            ~data:{ node = id; command; loading; activation_revision }
+     | _ -> ());
+    let tab_order = Option.map description.tab_order ~f:Tab_order.Expert.to_wire in
+    let old_tab_order =
+      Option.bind previous ~f:(fun mounted ->
+        Option.map
+          (View.Expert.describe mounted.view).tab_order
+          ~f:Tab_order.Expert.to_wire)
+    in
+    if
+      not
+        (Option.equal
+           Gpuio_protocol.Checkable_wire.Tab_order.equal
+           old_tab_order
+           tab_order)
+    then emit builder (Set_tab_order (id, tab_order));
+    let split_button =
+      Option.map description.split_button ~f:(fun (appearance, parts) ->
+        Split_button.Expert.to_wire appearance ~parts ~theme:builder.theme |> value)
+    in
+    let old_split_button =
+      Option.bind previous ~f:(fun mounted -> mounted.split_button)
+    in
+    if not (Option.equal Wire.Split_button.equal old_split_button split_button)
+    then emit builder (Set_split_button (id, split_button));
+    let scrollbar =
+      Option.map description.scrollbar ~f:(fun config ->
+        Scrollbar.Expert.to_wire config ~theme:builder.theme |> value)
+    in
+    if
+      not
+        (Option.equal
+           Wire.Scrollbar.equal
+           scrollbar
+           (Option.bind previous ~f:(fun mounted -> mounted.scrollbar)))
+    then emit builder (Set_scrollbar (id, scrollbar));
+    let control_appearance =
+      Option.map description.control_appearance ~f:(fun appearance ->
+        Control_appearance.Expert.to_wire appearance ~theme:builder.theme |> value)
+    in
+    let old_control_appearance =
+      Option.bind previous ~f:(fun mounted -> mounted.control_appearance)
+    in
+    if
+      not
+        (Option.equal
+           Wire.Control_appearance.equal
+           old_control_appearance
+           control_appearance)
+    then emit builder (Set_control_appearance (id, control_appearance));
+    let number_step_mode : Wire.Number_input.Step_mode.t =
+      match
+        Option.map description.number_input ~f:(fun input ->
+          Number_input.Config.step_mode input.config)
+      with
+      | None | Some Native -> Native
+      | Some Application -> Application
+    in
+    let old_mode =
+      Option.value_map previous ~default:Wire.Number_input.Step_mode.Native ~f:(fun old ->
+        old.number_step_mode)
+    in
+    if not (Wire.Number_input.Step_mode.equal number_step_mode old_mode)
+    then emit builder (Set_number_step_mode (id, number_step_mode));
+    let number_presentation =
+      Option.bind description.number_input ~f:(fun input ->
+        Option.map input.appearance ~f:(fun appearance ->
+          Number_input.Expert.appearance_to_wire appearance ~theme:builder.theme |> value))
+    in
+    if
+      not
+        (Option.equal
+           Wire.Number_presentation.equal
+           number_presentation
+           (Option.bind previous ~f:(fun old -> old.number_presentation)))
+    then emit builder (Set_number_presentation (id, number_presentation));
+    let previous_popover =
+      Option.value_map previous ~default:false ~f:(fun old ->
+        (View.Expert.describe old.view).popover)
+    in
+    if not (Bool.equal description.popover previous_popover)
+    then emit builder (Set_popover (id, description.popover));
+    let reveal = description.reveal in
+    if
+      not
+        (Option.equal
+           Gpuio_protocol.Reveal_wire.equal
+           reveal
+           (Option.bind previous ~f:(fun old -> old.reveal)))
+    then emit builder (Set_reveal (id, reveal));
+    let color_presentation =
+      Option.bind description.color_input ~f:(fun input ->
+        let appearance =
+          Option.value input.appearance ~default:Color_input.Appearance.default
+        in
+        let wire =
+          Color_input.Expert.presentation_to_wire
+            input.config
+            ~appearance
+            ~theme:builder.theme
+          |> value
+        in
+        Option.some_if
+          (not
+             (Gpuio_protocol.Color_presentation_wire.equal
+                wire
+                Gpuio_protocol.Color_presentation_wire.default))
+          wire)
+    in
+    if
+      not
+        (Option.equal
+           Gpuio_protocol.Color_presentation_wire.equal
+           color_presentation
+           (Option.bind previous ~f:(fun old -> old.color_presentation)))
+    then emit builder (Set_color_presentation (id, color_presentation));
+    let calendar_appearance =
+      Option.bind description.calendar ~f:(fun calendar ->
+        Option.bind calendar.appearance ~f:(fun appearance ->
+          let wire =
+            Calendar.Expert.appearance_to_wire appearance ~theme:builder.theme |> value
+          in
+          Option.some_if
+            (not
+               (Gpuio_protocol.Calendar_presentation_wire.equal
+                  wire
+                  Gpuio_protocol.Calendar_presentation_wire.default))
+            wire))
+    in
+    if
+      not
+        (Option.equal
+           Gpuio_protocol.Calendar_presentation_wire.equal
+           calendar_appearance
+           (Option.bind previous ~f:(fun old -> old.calendar_appearance)))
+    then emit builder (Set_calendar_appearance (id, calendar_appearance));
+    let slider_appearance =
+      Option.bind description.slider ~f:(fun slider ->
+        Option.bind slider.appearance ~f:(fun appearance ->
+          let wire =
+            Slider.Expert.appearance_to_wire appearance ~theme:builder.theme |> value
+          in
+          Option.some_if
+            (not
+               (Gpuio_protocol.Slider_presentation_wire.equal
+                  wire
+                  Gpuio_protocol.Slider_presentation_wire.default))
+            wire))
+    in
+    if
+      not
+        (Option.equal
+           Gpuio_protocol.Slider_presentation_wire.equal
+           slider_appearance
+           (Option.bind previous ~f:(fun old -> old.slider_appearance)))
+    then emit builder (Set_slider_appearance (id, slider_appearance));
+    let otp_appearance =
+      Option.bind description.otp_input ~f:(fun input ->
+        Option.bind input.appearance ~f:(fun appearance ->
+          let wire =
+            Otp_input.Expert.appearance_to_wire appearance ~theme:builder.theme |> value
+          in
+          Option.some_if
+            (not
+               (Gpuio_protocol.Otp_presentation_wire.equal
+                  wire
+                  Gpuio_protocol.Otp_presentation_wire.default))
+            wire))
+    in
+    let old_otp_appearance =
+      Option.bind previous ~f:(fun mounted -> mounted.otp_appearance)
+    in
+    if
+      not
+        (Option.equal
+           Gpuio_protocol.Otp_presentation_wire.equal
+           old_otp_appearance
+           otp_appearance)
+    then emit builder (Set_otp_appearance (id, otp_appearance));
+    let rating_appearance =
+      match Option.bind description.rating ~f:(fun rating -> rating.appearance) with
+      | None -> None
+      | Some appearance ->
+        Rating.Expert.appearance_to_wire appearance ~theme:builder.theme |> value
+    in
+    let old_appearance =
+      Option.bind previous ~f:(fun mounted -> mounted.rating_appearance)
+    in
+    if not (Option.equal Wire.Rating.Appearance.equal old_appearance rating_appearance)
+    then emit builder (Set_rating_appearance (id, rating_appearance));
     Option.iter description.avatar ~f:(fun config ->
       let old =
         Option.bind previous ~f:(fun mounted ->
@@ -1366,20 +2308,49 @@ let rec mount builder ~depth previous view =
         emit
           builder
           (Set_avatar (id, Avatar.Expert.to_wire config ~owner:builder.asset_owner)));
-    Option.iter description.loading ~f:(fun config ->
+    Option.iter description.spinner ~f:(fun config ->
       let old =
         Option.bind previous ~f:(fun mounted ->
-          (View.Expert.describe mounted.view).loading)
+          (View.Expert.describe mounted.view).spinner)
       in
-      if not (Option.equal Loading.Config.equal old (Some config))
-      then emit builder (Set_loading (id, Loading.Expert.to_wire config)));
-    Option.iter description.progress ~f:(fun progress ->
+      if not (Option.equal Spinner.Config.equal old (Some config))
+      then
+        emit
+          builder
+          (Set_spinner (id, Spinner.Expert.to_wire config ~owner:builder.asset_owner)));
+    if Option.is_none description.spinner
+    then
+      Option.iter description.loading ~f:(fun config ->
+        let old =
+          Option.bind previous ~f:(fun mounted ->
+            (View.Expert.describe mounted.view).loading)
+        in
+        if
+          (not (Option.equal Loading.Config.equal old (Some config)))
+          || Option.exists previous ~f:(fun mounted ->
+            Option.is_some (View.Expert.describe mounted.view).spinner)
+        then emit builder (Set_loading (id, Loading.Expert.to_wire config)));
+    Option.iter description.progress_presentation ~f:(fun config ->
       let old =
         Option.bind previous ~f:(fun mounted ->
-          (View.Expert.describe mounted.view).progress)
+          (View.Expert.describe mounted.view).progress_presentation)
       in
-      if not (Option.equal Progress.Config.equal old (Some progress))
-      then emit builder (Set_progress (id, Progress.Expert.to_wire progress)));
+      if
+        not
+          (Option.equal Gpuio_protocol.Progress_wire.Presentation.equal old (Some config))
+      then emit builder (Set_progress_presentation (id, config)));
+    if Option.is_none description.progress_presentation
+    then
+      Option.iter description.progress ~f:(fun progress ->
+        let old =
+          Option.bind previous ~f:(fun mounted ->
+            (View.Expert.describe mounted.view).progress)
+        in
+        if
+          (not (Option.equal Progress.Config.equal old (Some progress)))
+          || Option.exists previous ~f:(fun mounted ->
+            Option.is_some (View.Expert.describe mounted.view).progress_presentation)
+        then emit builder (Set_progress (id, Progress.Expert.to_wire progress)));
     Option.iter description.palette ~f:(fun palette ->
       let old =
         Option.bind previous ~f:(fun mounted ->
@@ -1400,8 +2371,76 @@ let rec mount builder ~depth previous view =
         Option.bind previous ~f:(fun mounted ->
           editor_config (View.Expert.describe mounted.view))
       in
-      if not (Option.equal Text_input.Config.equal old (Some config))
-      then emit builder (Set_editor (id, Text_input.Expert.config_to_wire config)));
+      let next = Text_input.Expert.config_to_wire config in
+      if
+        not
+          (Option.equal
+             Wire.Editor.Config.equal
+             (Option.map old ~f:Text_input.Expert.config_to_wire)
+             (Some next))
+      then emit builder (Set_editor (id, next));
+      let previous_privacy =
+        Option.value_map
+          old
+          ~default:Text_input.Privacy.Plain
+          ~f:Text_input.Config.privacy
+      in
+      let privacy = Text_input.Config.privacy config in
+      if not (Text_input.Privacy.equal previous_privacy privacy)
+      then
+        emit builder (Set_editor_privacy (id, Text_input.Expert.privacy_to_wire privacy));
+      let old_hint = Option.bind old ~f:Text_input.Config.content_hint in
+      let hint = Text_input.Config.content_hint config in
+      if not (Option.equal Text_input.Content_hint.equal old_hint hint)
+      then
+        emit
+          builder
+          (Set_editor_content_hint
+             (id, Option.map hint ~f:Text_input.Content_hint.Expert.to_wire));
+      let old_format = Option.bind old ~f:Text_input.Config.format in
+      let format = Text_input.Config.format config in
+      if not (Option.equal Input_format.equal old_format format)
+      then
+        emit
+          builder
+          (Set_editor_format (id, Option.map format ~f:Input_format.Expert.to_wire));
+      let old_filter = Option.bind old ~f:Text_input.Config.edit_filter in
+      let filter = Text_input.Config.edit_filter config in
+      if not (Option.equal Input_validation.equal old_filter filter)
+      then
+        emit
+          builder
+          (Set_editor_validation (id, Option.map filter ~f:Input_validation.Expert.to_wire));
+      let old_clear =
+        Option.value_map old ~default:false ~f:Text_input.Config.clear_on_escape
+      in
+      let clear = Text_input.Config.clear_on_escape config in
+      if not (Bool.equal old_clear clear)
+      then emit builder (Set_editor_clear_on_escape (id, clear));
+      let old_searchable =
+        Option.value_map old ~default:false ~f:Text_input.Config.searchable
+      in
+      let searchable = Text_input.Config.searchable config in
+      if not (Bool.equal old_searchable searchable)
+      then emit builder (Set_editor_searchable (id, searchable));
+      let old_layout = Option.bind old ~f:Text_input.Config.layout in
+      let layout = Text_input.Config.layout config in
+      if not (Option.equal Text_area_layout.equal old_layout layout)
+      then
+        emit
+          builder
+          (Set_text_area_layout (id, Option.map layout ~f:Text_area_layout.Expert.to_wire)));
+    let editor_frame (description : _ View.Expert.description) =
+      Option.bind description.editor ~f:(fun editor ->
+        Option.map editor.frame ~f:Input_frame.Expert.to_wire)
+    in
+    let frame = editor_frame description in
+    let old_frame =
+      Option.bind previous ~f:(fun mounted ->
+        editor_frame (View.Expert.describe mounted.view))
+    in
+    if not (Option.equal Gpuio_protocol.Editor_frame_wire.equal old_frame frame)
+    then emit builder (Set_editor_frame (id, frame));
     Option.iter description.combobox ~f:(fun combo ->
       let filter = Combobox.Config.filter combo.config in
       let old =
@@ -1434,6 +2473,50 @@ let rec mount builder ~depth previous view =
       let next = Tooltip.Expert.to_wire tooltip.config in
       if not (Option.equal Wire.Tooltip.equal old (Some next))
       then emit builder (Set_tooltip (id, next)));
+    let next_region = description.View.Expert.window_region in
+    let old_region =
+      Option.bind previous ~f:(fun mounted ->
+        (View.Expert.describe mounted.view).window_region)
+    in
+    if not (Option.equal Window_region.equal next_region old_region)
+    then
+      emit
+        builder
+        (Set_window_region (id, Option.map next_region ~f:Window_region.Expert.to_wire));
+    let tooltip_motion description =
+      Option.exists description.View.Expert.tooltip ~f:(fun tooltip ->
+        Tooltip.Motion.equal (Tooltip.Expert.motion tooltip.config) Enter_and_switch)
+    in
+    let tooltip_entering = tooltip_motion description in
+    let old_tooltip_entering =
+      Option.exists previous ~f:(fun mounted ->
+        tooltip_motion (View.Expert.describe mounted.view))
+    in
+    if not (Bool.equal tooltip_entering old_tooltip_entering)
+    then emit builder (Set_tooltip_motion (id, tooltip_entering));
+    let motion description =
+      Option.exists description.View.Expert.overlay ~f:(fun overlay ->
+        Overlay.Motion.equal overlay.motion Enter)
+    in
+    let entering = motion description in
+    let previous_entering =
+      Option.exists previous ~f:(fun mounted ->
+        motion (View.Expert.describe mounted.view))
+    in
+    if not (Bool.equal entering previous_entering)
+    then emit builder (Set_overlay_motion (id, entering));
+    let overlay_backdrop =
+      Option.bind description.overlay ~f:(fun overlay ->
+        Option.map overlay.backdrop ~f:(fun color ->
+          Theme.resolve builder.theme color |> value))
+    in
+    if
+      not
+        (Option.equal
+           Int64.equal
+           overlay_backdrop
+           (Option.bind previous ~f:(fun old -> old.overlay_backdrop)))
+    then emit builder (Set_overlay_backdrop (id, overlay_backdrop));
     let overlay =
       Option.map description.overlay ~f:(fun overlay ->
         Overlay.Expert.to_wire overlay.config ~kind:overlay.kind)
@@ -1445,19 +2528,52 @@ let rec mount builder ~depth previous view =
     in
     if not (Option.equal Wire.Overlay.equal old_overlay overlay)
     then emit builder (Set_overlay (id, overlay));
+    let sheet_insets description =
+      Option.bind description.View.Expert.overlay ~f:(fun overlay ->
+        Option.map overlay.sheet_insets ~f:Sheet.Expert.insets_to_wire)
+    in
+    let next_insets = sheet_insets description in
+    let old_insets =
+      Option.bind previous ~f:(fun mounted ->
+        sheet_insets (View.Expert.describe mounted.view))
+    in
+    if not (Option.equal Gpuio_protocol.Sheet_insets_wire.equal old_insets next_insets)
+    then emit builder (Set_sheet_insets (id, next_insets));
     let placement description =
       match description.View.Expert.overlay, description.tooltip with
-      | Some overlay, None ->
-        Some (Overlay.Expert.placement overlay.config |> Placement.Expert.to_wire)
-      | None, Some tooltip ->
-        Some (Tooltip.Expert.placement tooltip.config |> Placement.Expert.to_wire)
-      | None, None -> None
+      | Some overlay, None -> Some (Overlay.Expert.placement overlay.config)
+      | None, Some tooltip -> Some (Tooltip.Expert.placement tooltip.config)
+      | None, None -> Option.bind description.menu ~f:(fun menu -> menu.placement)
       | Some _, Some _ -> fail "incompatible overlay descriptions"
     in
-    let next_placement = placement description in
+    let geometry description =
+      match description.View.Expert.overlay with
+      | Some
+          { kind =
+              Dialog | Alert_dialog | Sheet_left | Sheet_right | Sheet_top | Sheet_bottom
+          ; _
+          } -> None
+      | Some { kind = Popover; _ } | None ->
+        Option.bind (placement description) ~f:Placement.Expert.geometry
+    in
+    let next_geometry = geometry description in
+    let old_geometry =
+      Option.bind previous ~f:(fun mounted ->
+        geometry (View.Expert.describe mounted.view))
+    in
+    if
+      not
+        (Option.equal
+           Gpuio_protocol.Placement_geometry_wire.equal
+           old_geometry
+           next_geometry)
+    then emit builder (Set_placement_geometry (id, next_geometry));
+    let next_placement = Option.map (placement description) ~f:Placement.Expert.to_wire in
     let old_placement =
       Option.bind previous ~f:(fun mounted ->
-        placement (View.Expert.describe mounted.view))
+        Option.map
+          (placement (View.Expert.describe mounted.view))
+          ~f:Placement.Expert.to_wire)
     in
     if not (Option.equal Wire.Placement.equal old_placement next_placement)
     then emit builder (Set_placement (id, next_placement));
@@ -1482,6 +2598,73 @@ let rec mount builder ~depth previous view =
       in
       if not (Option.equal Choice.Config.equal old (Some config))
       then emit builder (Set_choice (id, Choice.Expert.config_to_wire config)));
+    let choice_picker =
+      Option.map description.choice_picker ~f:(fun (picker, _) ->
+        Choice_picker.Expert.description_to_wire picker ~theme:builder.theme |> value)
+    in
+    if
+      not
+        (Option.equal
+           Wire.Choice_picker_presentation.equal
+           choice_picker
+           (Option.bind previous ~f:(fun mounted -> mounted.choice_picker)))
+    then
+      Option.iter choice_picker ~f:(fun presentation ->
+        emit builder (Set_choice_picker (id, presentation)));
+    let choice_menu =
+      Option.exists description.choice ~f:(fun choice -> choice.choice_menu)
+    in
+    if not (Bool.equal choice_menu (Option.exists previous ~f:(fun m -> m.choice_menu)))
+    then emit builder (Set_choice_menu (id, choice_menu));
+    let tab_trailing =
+      Option.exists description.choice ~f:(fun choice -> choice.tab_trailing)
+    in
+    if not (Bool.equal tab_trailing (Option.exists previous ~f:(fun m -> m.tab_trailing)))
+    then emit builder (Set_tab_trailing (id, tab_trailing));
+    let tab_motion =
+      Option.bind description.choice ~f:(fun choice -> choice.tab_motion)
+      |> Option.map ~f:Tab_bar.Expert.motion_to_wire
+    in
+    if
+      not
+        (Option.equal
+           Wire.Tab_motion.equal
+           tab_motion
+           (Option.bind previous ~f:(fun m -> m.tab_motion)))
+    then emit builder (Set_tab_motion (id, tab_motion));
+    let tab_viewport =
+      Option.bind description.choice ~f:(fun choice -> choice.tab_viewport)
+      |> Option.map ~f:Tab_bar.Expert.viewport_to_wire
+    in
+    if
+      not
+        (Option.equal
+           Wire.Tab_viewport.equal
+           tab_viewport
+           (Option.bind previous ~f:(fun mounted -> mounted.tab_viewport)))
+    then emit builder (Set_tab_viewport (id, tab_viewport));
+    let tab_content =
+      Option.bind description.choice ~f:(fun choice -> choice.tab_content)
+    in
+    if
+      not
+        (Option.equal
+           Wire.Tab_content.equal
+           tab_content
+           (Option.bind previous ~f:(fun mounted -> mounted.tab_content)))
+    then emit builder (Set_tab_content (id, tab_content));
+    let tab_appearance =
+      Option.bind description.choice ~f:(fun choice -> choice.tab_appearance)
+      |> Option.map ~f:(fun appearance ->
+        Tab_bar.Expert.to_wire appearance ~theme:builder.theme |> value)
+    in
+    if
+      not
+        (Option.equal
+           Wire.Tab_appearance.equal
+           tab_appearance
+           (Option.bind previous ~f:(fun mounted -> mounted.tab_appearance)))
+    then emit builder (Set_tab_appearance (id, tab_appearance));
     let choice_appearance =
       (match description.palette, description.menu, description.combobox with
        | Some palette, _, _ -> Some palette.appearance
@@ -1528,7 +2711,28 @@ let rec mount builder ~depth previous view =
       List.map keys ~f:(fun (key, child) ->
         mount builder ~depth:(depth + 1) (Map.find old_by_key key) child)
     in
+    let children = finalize_sibling_list_inputs builder children in
     splice builder id old_children children;
+    Option.iter description.choice_picker ~f:(fun (picker, callback) ->
+      let query_node =
+        Option.bind choice_picker ~f:(fun presentation ->
+          List.find_mapi presentation.slots ~f:(fun index slot ->
+            match slot with
+            | Gpuio_protocol.Choice_picker_wire.Slot.Query ->
+              Some (List.hd_exn (List.nth_exn children index).children).id
+            | Trigger | Empty | Footer | Group _ | Option _ -> None))
+      in
+      builder.bindings
+      <- Map.set
+           builder.bindings
+           ~key:(node_slot id)
+           ~data:
+             { node = id
+             ; handler = Option.value_exn handler
+             ; callback =
+                 Choice_picker
+                   (Choice_picker.Description.config picker, query_node, callback)
+             });
     Option.iter description.virtual_list ~f:(fun list ->
       let identity = Option.value_exn list_identity in
       let old_list =
@@ -1544,11 +2748,20 @@ let rec mount builder ~depth previous view =
              (Option.map old_list ~f:config)
              (Some (config list)))
       then emit builder (Set_list_config (id, config list));
+      let axis = Virtual_list.Config.axis list.config in
+      let old_axis =
+        Option.value_map old_list ~default:Virtual_list.Axis.Vertical ~f:(fun old ->
+          Virtual_list.Config.axis old.config)
+      in
+      if not (Virtual_list.Axis.equal old_axis axis)
+      then emit builder (Set_list_axis (id, Virtual_list.Expert.axis_to_wire axis));
       let old_identity = Option.bind previous ~f:(fun old -> old.list_identity) in
       if not (Option.exists old_identity ~f:(fun old -> phys_equal old identity))
       then emit builder (Set_list_order (id, List_identity.order identity));
       let rows identity children =
-        List.map children ~f:(fun child ->
+        List.filter children ~f:(fun child ->
+          Option.is_none (View.Expert.describe child.view).table_header)
+        |> List.map ~f:(fun child ->
           let key = Option.value_exn (View.Expert.describe child.view).key in
           { Gpuio_protocol.List_wire.Row.id =
               Option.value_exn (List_identity.id identity key)
@@ -1694,7 +2907,7 @@ let rec mount builder ~depth previous view =
          Option.exists menu ~f:(fun menu ->
            match menu.presentation with
            | Platform_bar -> true
-           | Button | Context | Bar -> false)
+           | Button | Context | Bar | Editor_context -> false)
        then 1
        else 0)
       + List.sum (module Int) children ~f:(fun child -> child.platform_menus)
@@ -1703,6 +2916,8 @@ let rec mount builder ~depth previous view =
     { view
     ; id
     ; handler
+    ; hover_handler
+    ; calendar_viewport_handler
     ; style
     ; text_content
     ; animation
@@ -1713,15 +2928,46 @@ let rec mount builder ~depth previous view =
     ; query_seen
     ; binding_seen
     ; document_diff_epoch
+    ; document_profile_epoch
+    ; document_actions_epoch
+    ; document_preview_epoch
+    ; document_text_style
     ; slider_seen
     ; number_input_seen
     ; otp_input_seen
     ; color_input_seen
     ; calendar_seen
     ; list_identity
+    ; list_input_state = Option.bind previous ~f:(fun old -> old.list_input_state)
+    ; list_input_generation =
+        Option.value_map previous ~default:0L ~f:(fun old -> old.list_input_generation)
     ; table_config
+    ; table_behavior
+    ; table_appearance
+    ; table_header_style
+    ; table_row_style
     ; table_serial
+    ; choice_picker
+    ; split_group
+    ; tab_appearance
+    ; tab_content
+    ; tab_viewport
+    ; tab_motion
+    ; tab_trailing
+    ; choice_menu
     ; choice_appearance
+    ; split_button
+    ; control_appearance
+    ; scrollbar
+    ; number_step_mode
+    ; number_presentation
+    ; reveal
+    ; overlay_backdrop
+    ; calendar_appearance
+    ; color_presentation
+    ; slider_appearance
+    ; otp_appearance
+    ; rating_appearance
     ; children
     ; controllers
     ; commands
@@ -1740,9 +2986,14 @@ let prepare t ~theme view =
     try
       let builder =
         { window = t.window
+        ; document_defaults = t.document_defaults
         ; nodes = t.state.nodes
         ; handlers = t.state.handlers
         ; bindings = t.state.bindings
+        ; hover_bindings = t.state.hover_bindings
+        ; calendar_viewport_bindings = t.state.calendar_viewport_bindings
+        ; command_buttons = t.state.command_buttons
+        ; base_revision = t.state.revision
         ; operations = []
         ; operation_count = 0
         ; command_generation = t.state.command_generation
@@ -1759,7 +3010,10 @@ let prepare t ~theme view =
         | None ->
           Option.iter t.state.root ~f:(remove builder);
           None
-        | Some view -> Some (mount builder ~depth:0 t.state.root view)
+        | Some view ->
+          Some
+            (mount builder ~depth:0 t.state.root view
+             |> finalize_list_input builder ~query:(fun _ -> None))
       in
       Option.iter root ~f:(fun root ->
         if not (Set.is_empty root.free_commands)
@@ -1797,6 +3051,9 @@ let prepare t ~theme view =
         ; candidate =
             { root
             ; bindings = builder.bindings
+            ; hover_bindings = builder.hover_bindings
+            ; calendar_viewport_bindings = builder.calendar_viewport_bindings
+            ; command_buttons = builder.command_buttons
             ; nodes = builder.nodes
             ; handlers = builder.handlers
             ; theme
@@ -1834,7 +3091,7 @@ let retain_list_rows t notices =
           t.state.bindings
           (node_slot notice.Gpuio_protocol.List_wire.Retained.node)
       with
-      | Some { node; callback = Virtual_list (identity, list, _); _ }
+      | Some { node; callback = Virtual_list (identity, list, _, _); _ }
         when Node_id.equal node notice.node ->
         let%bind callback =
           Option.value_map
@@ -1890,6 +3147,23 @@ let dispatch t = function
             && Int64.equal generation (Split_pane.Expert.generation config) ->
        Split_pane.Expert.snapshot_of_wire snapshot |> Result.ok |> Option.map ~f:callback
      | Some _ | None -> None)
+  | Wire.Event.Split_group_resized (window, node, handler, revision, generation, snapshot)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match Map.find t.state.bindings (node_slot node) with
+     | Some
+         { node = expected
+         ; handler = expected_handler
+         ; callback = Split_group (config, callback)
+         }
+       when Node_id.equal node expected
+            && Handler_id.equal handler expected_handler
+            && Int64.equal generation (Split_group.Expert.generation config) ->
+       Split_group.Expert.snapshot_of_wire config snapshot
+       |> Result.ok
+       |> Option.map ~f:callback
+     | Some _ | None -> None)
   | Wire.Event.Canvas_event
       ( window
       , node
@@ -1944,6 +3218,110 @@ let dispatch t = function
        |> Result.ok
        |> Option.map ~f:callback
      | Some _ | None -> None)
+  | Wire.Event.Document_profile_event (window, node, handler, revision, source, event)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision)
+         && Gpuio_protocol.Document_profile_wire.Event.valid event ->
+    (match Map.find t.state.bindings (node_slot node) with
+     | Some
+         { node = expected
+         ; handler = expected_handler
+         ; callback =
+             Document
+               { source = expected_source
+               ; profile = Some (epoch, instance, callback)
+               ; diff_config = _
+               ; diff_epoch = _
+               ; on_navigate = _
+               ; on_diff = _
+               ; preview_epoch = _
+               ; preview_max_lines = _
+               ; on_preview = _
+               ; on_action = _
+               ; actions_epoch = _
+               ; actions_config = _
+               }
+         }
+       when Node_id.equal node expected
+            && Handler_id.equal handler expected_handler
+            && Gpuio_protocol.Resource_id.equal
+                 source
+                 (Text_source.Expert.native_id expected_source)
+            && Int64.equal epoch event.config_epoch
+            && Int64.equal instance.generation event.instance_generation -> callback event
+     | Some _ | None -> None)
+  | Wire.Event.Document_action (window, node, handler, revision, source, event)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match Map.find t.state.bindings (node_slot node) with
+     | Some
+         { node = expected
+         ; handler = expected_handler
+         ; callback =
+             Document
+               { source = expected_source
+               ; actions_config
+               ; actions_epoch
+               ; profile = _
+               ; on_action = Some callback
+               ; on_navigate = _
+               ; on_diff = _
+               ; diff_config = _
+               ; diff_epoch = _
+               ; on_preview = _
+               ; preview_epoch = _
+               ; preview_max_lines = _
+               }
+         }
+       when Node_id.equal node expected
+            && Handler_id.equal handler expected_handler
+            && Gpuio_protocol.Resource_id.equal
+                 source
+                 (Text_source.Expert.native_id expected_source)
+            && Int64.equal actions_epoch event.config_epoch ->
+       Document.Actions.Expert.event_of_wire ~config:actions_config event
+       |> Result.ok
+       |> Option.map ~f:callback
+     | Some _ | None -> None)
+  | Wire.Event.Document_preview_observed (window, node, handler, revision, source, event)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match Map.find t.state.bindings (node_slot node) with
+     | Some
+         { node = expected
+         ; handler = expected_handler
+         ; callback =
+             Document
+               { source = expected_source
+               ; preview_epoch
+               ; preview_max_lines
+               ; on_preview = Some callback
+               ; diff_config = _
+               ; diff_epoch = _
+               ; on_diff = _
+               ; on_navigate = _
+               ; profile = _
+               ; on_action = _
+               ; actions_epoch = _
+               ; actions_config = _
+               }
+         }
+       when Node_id.equal node expected
+            && Handler_id.equal handler expected_handler
+            && Gpuio_protocol.Resource_id.equal
+                 source
+                 (Text_source.Expert.native_id expected_source)
+            && Int64.equal preview_epoch event.config_epoch
+            && (Option.is_some preview_max_lines
+                || not
+                     (Gpuio_protocol.Document_preview_wire.State.equal
+                        event.state
+                        (Rich true))) ->
+       Document.Preview.Expert.event_of_wire event |> Result.ok |> Option.map ~f:callback
+     | Some _ | None -> None)
   | Wire.Event.Document_diff_event (window, node, handler, revision, source, event)
     when (not t.closed)
          && Window_id.equal window t.window
@@ -1959,6 +3337,13 @@ let dispatch t = function
                ; diff_epoch
                ; on_diff = Some callback
                ; on_navigate = _
+               ; profile = _
+               ; on_action = _
+               ; actions_epoch = _
+               ; actions_config = _
+               ; preview_epoch = _
+               ; preview_max_lines = _
+               ; on_preview = _
                }
          }
        when Node_id.equal node expected
@@ -1983,9 +3368,16 @@ let dispatch t = function
              Document
                { source = expected_source
                ; on_navigate = Some callback
+               ; profile = _
+               ; on_action = _
+               ; actions_epoch = _
+               ; actions_config = _
                ; diff_config = _
                ; diff_epoch = _
                ; on_diff = _
+               ; preview_epoch = _
+               ; preview_max_lines = _
+               ; on_preview = _
                }
          }
        when Node_id.equal node expected
@@ -1995,6 +3387,25 @@ let dispatch t = function
                  (Text_source.Expert.native_id expected_source) ->
        Document.Expert.navigation navigation |> Result.ok |> Option.map ~f:callback
      | Some _ | None -> None)
+  | Wire.Event.Table_columns_observed (window, node, handler, revision, viewport)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.equal revision t.state.revision ->
+    (match Map.find t.state.bindings (node_slot node) with
+     | Some
+         { node = expected
+         ; handler = expected_handler
+         ; callback = Virtual_list (_, list, Some config, _)
+         }
+       when Node_id.equal node expected
+            && Handler_id.equal handler expected_handler
+            && Int64.equal viewport.schema_revision config.schema_revision
+            && Int64.equal viewport.query_generation config.query_generation ->
+       Option.bind list.table ~f:(fun table ->
+         Option.bind table.on_column_viewport ~f:(fun callback ->
+           Table.Expert.column_viewport_of_wire table.config viewport
+           |> Option.map ~f:callback))
+     | Some _ | None -> None)
   | Wire.Event.Table_input (window, node, handler, revision, input)
     when (not t.closed)
          && Window_id.equal window t.window
@@ -2003,7 +3414,7 @@ let dispatch t = function
      | Some
          { node = expected
          ; handler = expected_handler
-         ; callback = Virtual_list (identity, list, Some config)
+         ; callback = Virtual_list (identity, list, Some config, _)
          }
        when Node_id.equal node expected
             && Handler_id.equal handler expected_handler
@@ -2016,6 +3427,24 @@ let dispatch t = function
            ~find_key:(List_identity.key identity)
          |> Option.map ~f:table.on_input)
      | Some _ | None -> None)
+  | Wire.Event.List_input (window, node, handler, revision, generation, request)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match Map.find t.state.bindings (node_slot node) with
+     | Some
+         { node = expected
+         ; handler = expected_handler
+         ; callback = Virtual_list (identity, list, _, Some config)
+         }
+       when Node_id.equal node expected
+            && Handler_id.equal handler expected_handler
+            && Int64.equal generation config.generation
+            && not config.disabled ->
+       List_input.Expert.of_wire request ~find_key:(List_identity.key identity)
+       |> Option.bind ~f:(fun request ->
+         Option.map list.list_input ~f:(fun (_, callback) -> callback request))
+     | Some _ | None -> None)
   | Wire.Event.Tree_input (window, node, handler, revision, request)
     when (not t.closed)
          && Window_id.equal window t.window
@@ -2024,7 +3453,7 @@ let dispatch t = function
      | Some
          { node = expected
          ; handler = expected_handler
-         ; callback = Virtual_list (identity, list, _)
+         ; callback = Virtual_list (identity, list, _, _)
          }
        when Node_id.equal node expected && Handler_id.equal handler expected_handler ->
        Tree_input.Expert.of_wire request ~find_key:(List_identity.key identity)
@@ -2054,7 +3483,7 @@ let dispatch t = function
      | Some
          { node = expected
          ; handler = expected_handler
-         ; callback = Virtual_list (identity, list, _)
+         ; callback = Virtual_list (identity, list, _, _)
          }
        when Node_id.equal node expected
             && Handler_id.equal handler expected_handler
@@ -2156,6 +3585,7 @@ let dispatch t = function
         | Editor _
         | Rating _
         | Carousel _
+        | Carousel_track _
         | Slider _
         | Number_input _
         | Otp_input _
@@ -2163,7 +3593,10 @@ let dispatch t = function
         | Calendar _
         | Choice _
         | Combobox _
+        | Choice_picker _
+        | Picker_query
         | Dismiss _
+        | Menu _
         | Tooltip _
         | Commands _
         | Palette _
@@ -2181,6 +3614,7 @@ let dispatch t = function
         | Virtual_list _
         | Extension _
         | Split_pane _
+        | Split_group _
         | Canvas _
         | Chart _
         | Document _ -> None)
@@ -2223,13 +3657,24 @@ let dispatch t = function
          }
        when Node_id.equal node expected && Handler_id.equal handler expected_handler ->
        let snapshot = Wire.Number_input.Event.snapshot event in
-       if Int64.(snapshot.revision <= !seen)
+       let seen_revision, seen_request = !seen in
+       let request_id =
+         match event with
+         | Wire.Number_input.Event.Step_requested request -> Some request.id
+         | Observed _ | Changed _ | Committed _ | Rejected _ | Cancelled _ -> None
+       in
+       let stale =
+         match request_id with
+         | None -> Int64.(snapshot.revision <= seen_revision)
+         | Some id -> Int64.(snapshot.revision < seen_revision || id <= seen_request)
+       in
+       if stale
        then None
        else (
          match Number_input.Expert.event_of_wire ~window ~node event with
          | Error _ -> None
          | Ok event ->
-           seen := snapshot.revision;
+           seen := snapshot.revision, Option.value request_id ~default:seen_request;
            Some (callback event))
      | Some _ | None -> None)
   | Otp_input_event (window, node, handler, revision, event)
@@ -2305,6 +3750,23 @@ let dispatch t = function
            seen := snapshot.revision;
            Some (callback event))
      | Some _ | None -> None)
+  | Carousel_track_requested (window, node, handler, revision, request)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match Map.find t.state.bindings (node_slot node) with
+     | Some
+         { node = expected
+         ; handler = expected_handler
+         ; callback = Carousel_track (config, callback)
+         }
+       when Node_id.equal node expected
+            && Handler_id.equal handler expected_handler
+            && Wire.Carousel_track.accepts_request config request ->
+       Carousel_track.Expert.request_of_wire ~window ~node ~handler request
+       |> Result.ok
+       |> Option.map ~f:callback
+     | Some _ | None -> None)
   | Carousel_requested (window, node, handler, revision, request)
     when (not t.closed)
          && Window_id.equal window t.window
@@ -2371,7 +3833,9 @@ let dispatch t = function
           Text_input.Expert.snapshot_of_wire ~window ~node snapshot
           |> Result.ok
           |> Option.map ~f:(fun snapshot -> callback (Changed snapshot)))
-     | Some { node = expected; handler = expected_handler; callback = Editor callback }
+     | Some { callback = Picker_query; _ } -> None
+     | Some
+         { node = expected; handler = expected_handler; callback = Editor (_, callback) }
        when Node_id.equal node expected && Handler_id.equal handler expected_handler ->
        let snapshot = Text_input.Expert.snapshot_of_wire ~window ~node snapshot in
        (match snapshot with
@@ -2383,6 +3847,41 @@ let dispatch t = function
              Text_input.Expert.submission snapshot
              |> Result.ok
              |> Option.map ~f:(fun submission -> callback (Submitted submission))))
+     | Some _ | None -> None)
+  | Editor_search_observed (window, node, handler, revision, search)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match Map.find t.state.bindings (node_slot node) with
+     | Some
+         { node = expected
+         ; handler = expected_handler
+         ; callback = Editor (config, callback)
+         }
+       when Node_id.equal node expected
+            && Handler_id.equal handler expected_handler
+            && Text_input.Mode.equal (Text_input.Config.mode config) Multiline
+            && (Text_input.Config.searchable config
+                || Gpuio_protocol.Editor_search_wire.Mode.equal search.mode Closed) ->
+       Text_input.Search.Expert.snapshot_of_wire ~window ~node search
+       |> Result.ok
+       |> Option.map ~f:(fun snapshot -> callback (Search_changed snapshot))
+     | Some _ | None -> None)
+  | Choice_picker_event (window, node, handler, revision, event)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match Map.find t.state.bindings (node_slot node) with
+     | Some
+         { node = expected
+         ; handler = expected_handler
+         ; callback = Choice_picker (config, query_node, callback)
+         }
+       when Node_id.equal node expected && Handler_id.equal handler expected_handler ->
+       Choice_picker.Expert.event_of_wire event ~window ~query_node
+       |> Result.ok
+       |> Option.filter ~f:(Choice_picker.Expert.accepts_event config)
+       |> Option.map ~f:callback
      | Some _ | None -> None)
   | Combobox_selected (window, node, handler, revision, selected, snapshot)
     when (not t.closed)
@@ -2420,6 +3919,41 @@ let dispatch t = function
          | Outside_pointer -> Outside_pointer
        in
        if Overlay.Expert.allows config reason then Some (callback reason) else None
+     | Some _ | None -> None)
+  | Calendar_viewport_changed (window, node, handler, revision, viewport)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match Map.find t.state.calendar_viewport_bindings (node_slot node) with
+     | Some { node = expected; handler = expected_handler; seen; on_change }
+       when Node_id.equal node expected
+            && Handler_id.equal handler expected_handler
+            && Int64.(viewport.sequence > !seen) ->
+       (match
+          Calendar.Expert.viewport_of_wire ~window ~node ~observer:handler viewport
+        with
+        | Error _ -> None
+        | Ok viewport_value ->
+          seen := viewport.sequence;
+          Some (on_change viewport_value))
+     | Some _ | None -> None)
+  | Hover_changed (window, node, handler, revision, hovered)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match Map.find t.state.hover_bindings (node_slot node) with
+     | Some { node = expected; handler = expected_handler; on_change }
+       when Node_id.equal node expected && Handler_id.equal handler expected_handler ->
+       Some (on_change hovered)
+     | Some _ | None -> None)
+  | Menu_open_changed (window, node, handler, revision, open_)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match Map.find t.state.bindings (node_slot node) with
+     | Some { node = expected; handler = expected_handler; callback = Menu callback }
+       when Node_id.equal node expected && Handler_id.equal handler expected_handler ->
+       Some (callback open_)
      | Some _ | None -> None)
   | Tooltip_open_changed (window, node, handler, revision, open_)
     when (not t.closed)
@@ -2542,7 +4076,7 @@ let dispatch t = function
        when Node_id.equal node expected && Handler_id.equal handler expected_handler ->
        Command_palette.Expert.dismissal config reason |> Option.map ~f:callback
      | Some _ | None -> None)
-  | Command_invoked (window, node, handler, revision, id, generation, _)
+  | Command_invoked (window, node, handler, revision, id, generation, source)
     when (not t.closed)
          && Window_id.equal window t.window
          && Int64.(revision >= 0L && revision <= t.state.revision) ->
@@ -2553,8 +4087,21 @@ let dispatch t = function
          ; callback = Commands (registry, commands)
          }
        when Node_id.equal node expected && Handler_id.equal handler expected_handler ->
+       let source_available =
+         match source with
+         | Wire.Command_source.Button source ->
+           Option.exists
+             (Map.find t.state.command_buttons (node_slot source))
+             ~f:(fun button ->
+               Node_id.equal button.node source
+               && String.equal (Ui_command.Id.to_string button.command) id
+               && (not button.loading)
+               && Int64.(revision >= button.activation_revision))
+         | Menu _ | Palette _ | Shortcut -> true
+       in
        if
-         List.exists commands ~f:(fun command ->
+         source_available
+         && List.exists commands ~f:(fun command ->
            String.equal command.id id && Int64.equal command.generation generation)
        then
          Result.ok (Ui_command.Id.of_string id)
@@ -2571,6 +4118,9 @@ let dispatch t = function
   | Toast_dismissed _
   | Palette_dismissed _
   | Command_invoked _
+  | Calendar_viewport_changed _
+  | Hover_changed _
+  | Menu_open_changed _
   | Tooltip_open_changed _
   | Overlay_dismissed _
   | Welcome _
@@ -2583,6 +4133,8 @@ let dispatch t = function
   | Press _
   | Choice _
   | Combobox_selected _
+  | Choice_picker_event _
+  | Editor_search_observed _
   | Editor_event _
   | File_dialog_result _
   | Image_state _
@@ -2590,8 +4142,11 @@ let dispatch t = function
   | Animation_program_event _
   | Rating_requested _
   | Carousel_requested _
+  | Carousel_track_requested _
   | Tree_input _
+  | List_input _
   | Table_input _
+  | Table_columns_observed _
   | Slider_result _
   | Slider_event _
   | Color_input_result _
@@ -2617,14 +4172,18 @@ let dispatch t = function
   | Window_response _
   | Window_capabilities _
   | Extension_event _
+  | Split_group_resized _
   | Split_resized _
   | Canvas_event _
   | Chart_event _
   | Chart_response _
   | Canvas_response _
   | Document_response _
+  | Document_profile_event _
+  | Document_action _
   | Document_navigation _
   | Document_diff_event _
+  | Document_preview_observed _
   | Editor_result _
   | Failed _
   | Stopped
@@ -2639,6 +4198,9 @@ let close t =
   <- { t.state with
        root = None
      ; bindings = Int.Map.empty
+     ; hover_bindings = Int.Map.empty
+     ; calendar_viewport_bindings = Int.Map.empty
+     ; command_buttons = Int.Map.empty
      ; nodes = Allocator.empty
      ; handlers = Allocator.empty
      }

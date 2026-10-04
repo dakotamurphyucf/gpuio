@@ -1,11 +1,14 @@
-# Rich form composition — OCH-41 design draft
+# Rich form composition — OCH-41
 
-Status: rich item/collection API **not implemented or accepted**. The
-[grid-location prerequisite](native-grid-location.md) is implemented locally with
-passing native geometry/GPU, Core/codec and full local build/lint checks;
-public integration remains in progress. The current `Form.field` helper retains its existing contract.
+Status: the rich `Form.Item`/`Form.create` API and public gallery example are
+implemented locally. Core construction/reconciliation tests and the full local
+OCaml build/test/format checks pass. **Native collection acceptance is pending**:
+the first gallery driver attempt stopped at the macOS Accessibility preflight,
+before exercising any Form behavior. The [grid-location primitive](native-grid-location.md)
+has separate passing native geometry/GPU evidence. The existing `Form.field`
+helper retains its contract.
 
-## Pinned source and gap
+## Pinned source and mapping
 
 The reviewed sources are Longbridge GPUI Kit
 `84f57fdfcb4910623fb0bb7f795b077e249f9271`:
@@ -14,14 +17,14 @@ The reviewed sources are Longbridge GPUI Kit
 [Field](../catalog/sources/component-form-field.rs.txt). Snapshots match the
 SHA-256-verified dependency archive; the catalog manifest records each blob.
 
-| Source behavior | Current GPUIO mapping and required addition |
+| Source behavior | Current GPUIO mapping (native collection acceptance pending) |
 | --- | --- |
-| Vertical/horizontal labels, independently of form columns | `Form.field` supports both orientations. Add a collection composition; changing label orientation must not redefine the field grid. |
-| Multiple columns and per-field span/start/end | Not exposed by Form. The new atomic native grid-location primitive supplies spans and signed endpoints; the collection still needs to connect it to typed items. Regrouping controls into fresh keyed rows must not destroy native editor identity. |
-| Rich optional labels/descriptions and arbitrary content | Current helper uses semantic strings and one native field-compatible control. Add rich slots and arbitrary view content without weakening its existing direct control/metadata association. Rust render closures become Bonsai-produced views, never synchronous FFI callbacks. |
-| Label indentation, width, text size and item alignment | Current label width/style can be refined; richer composition needs explicit shared defaults, per-field override rules and behavior for absent labels. |
-| Size-dependent form/field spacing | Define typed size policy, with ordinary style refinements. Exact source pixels are not required; control-specific configuration remains caller-owned. |
-| Full-width trailing footer | Add an optional rich footer after every field, spanning all columns. Footer controls/state/tasks stay application-owned. |
+| Vertical/horizontal labels, independently of form columns | `Form.create` separates label layout from its explicit column count. |
+| Multiple columns and per-field span/start/end | `Item.column` uses a typed grid axis with spans/signed endpoints and strict explicit-column validation. Items remain direct keyed grid children. |
+| Rich optional labels/descriptions and arbitrary content | `Item.create` accepts arbitrary views and rich slots; `Item.of_field` associates metadata directly with a native control. Rust render closures become Bonsai-produced views, never synchronous FFI callbacks. |
+| Label indentation, width, text size and item alignment | Shared defaults and item overrides include width, indentation, layout, alignment and label style. An absent horizontal label can reserve width; a present label is never suppressed by indentation policy. |
+| Size-dependent form/field spacing | `Size.XSmall | Small | Medium | Large` defines composition spacing and label typography; control sizing remains caller-owned. |
+| Full-width trailing footer | An optional footer follows the grid at full width, with trailing alignment. Footer controls/state/tasks stay application-owned. |
 | Required marker and semantic metadata | Existing `Accessibility.Field` and `Form.field` supply this. Rich display slots must not replace an actual input's semantic name/help/error with an unlabeled group. |
 | Visibility | Source stores `visible`, but its pinned render method never reads it. Define actual caller-controlled removal or retained hiding explicitly; do not copy an ineffective flag. |
 | Style refinement | Pinned Field applies its style, while Form's render method omits its stored style. GPUIO should honor documented root/field/slot refinements. |
@@ -31,14 +34,14 @@ are not invariants to copy. Stable caller field keys, validated bounds and expli
 placement semantics are needed. Existing `Form.Field` aliases semantic metadata;
 do not repurpose that module incompatibly as a new rich field object.
 
-## Proposed public shape
+## Public shape
 
-Keep `Form.field` unchanged. Draft a separate `Form.Item` domain with a required
-stable key, content and optional display slots. A form constructor accepts items,
-column/layout/size policy, optional footer and style refinements. Use distinct
-validated placement types rather than unqualified integers for spans versus grid
-lines. Review whether explicit signed grid lines are required or can be expressed
-through the existing general layout API before freezing the interface.
+`Form.field` remains unchanged. `Form.Item.create` accepts a required stable key,
+arbitrary content, optional rich label/description/error and per-item overrides.
+`Form.Item.of_field` attaches `Accessibility.Field` directly to a native control,
+then constructs its display slots. `Form.create` accepts items, explicit columns,
+shared layout/size/label policy, slot styles and an optional footer.
+`Style.Grid_location.Axis` distinguishes signed lines from validated spans.
 
 For a normal input, attach `Accessibility.Field` to the native control through
 the existing validated operation; the rich item places that decorated control.
@@ -46,9 +49,14 @@ For arbitrary content, the application supplies meaningful semantics to each
 interactive child. Label/help/error display is separate from native metadata, so
 a decorative label cannot silently erase an input's accessible name.
 
-This is a draft, not a promised final signature. Review call sites and native
-placement requirements before implementation. Add no editor owner, persistence
-service, validation scheduler or native callback registry to Form.
+The signatures live in [form.mli](../../lib/core/form.mli). Form introduces no
+editor owner, persistence service, validation scheduler or native callback registry.
+Default label width is 160px. Size changes composition spacing and label typography;
+control sizing stays with its caller. Root/grid/item/slot styles refine defaults.
+Base structural properties are applied last; callers must not override structure
+with interaction-state styles. Absent labels reserve width only in horizontal
+layout with indentation enabled. Item removal unmounts; normal retained hiding
+preserves identity and follows existing visibility semantics.
 
 ## Placement contract to implement first
 
@@ -108,7 +116,7 @@ end
 ```
 
 Lines are signed and nonzero: positive indices count from the first explicit
-grid line, negative indices from the last. Proposed limits are absolute line
+grid line, negative indices from the last. Limits are absolute line
 index 1,025 and span 1..1,024, matching the existing 1,024-track limit while
 allowing the final line. The general style follows native placement/normalization
 semantics, including both-span endpoints; it does not invent a second layout
@@ -138,14 +146,14 @@ For `columns = n`, positive line `k` maps to zero-based line `k - 1` and
 negative line `k` to `k + n + 1`. A definite form range must satisfy
 `0 <= start < end <= n`; an automatic span must be at most `n`. For example,
 in four columns `1..-1` covers all four tracks, `3..1` covers the first two,
-`2..2` covers the second, and `Auto..1` lies outside the form. These are
-source-derived normalization cases, not yet passing GPUIO behavior evidence.
+`2..2` covers the second, and `Auto..1` lies outside the form. These cases pass
+the Core collection validator and the separate native grid primitive matrix. Actual Form collection geometry still requires its gallery run.
 Absolutely positioned grid items have different native Auto-edge behavior;
 cover that in the general style primitive and do not apply form validation to it.
 
 ## Item and collection ownership
 
-Add a separate `Form.Item` type; retain `Form.Field = Accessibility.Field` and
+The separate `Form.Item` type retains `Form.Field = Accessibility.Field` and
 `Form.field` unchanged. Each item has a caller-supplied stable key, column-axis
 placement, arbitrary rich content, optional rich label/description/error slots,
 required-marker display and optional overrides for layout, size, label width,
@@ -176,8 +184,8 @@ separate lifecycle tests; no ineffective item `visible` flag is copied.
 Implementation sequence: paired grid-location primitive and native/state-style
 geometry tests; typed item/collection composition and deterministic identity
 checks; public gallery and fresh installed-consumer keyboard/metadata/paint
-acceptance. The placement types are exported; rich Form.Item and collection constructors
-remain unimplemented.
+acceptance. The placement types and rich Form constructors are exported. Native collection
+and installed-consumer behavior acceptance remain pending.
 
 ## Acceptance before changing the catalog status
 
@@ -194,3 +202,56 @@ remain unimplemented.
 Keep the Forms row pending until those requirements pass. Settings source-row
 acceptance does not imply this separate collection API has shipped. Required
 Linux non-GUI and OCH-17 release qualification remain separate gates.
+
+## Current local evidence
+
+On macOS 14.5 arm64, the repository's isolated OCaml 5.3/Bonsai v0.17 environment:
+
+- `GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j 2 @test/view_api/runtest`
+  passed the new collection tests: 20 signed-line/span combinations, invalid
+  columns/widths/duplicate keys, rich semantic metadata and editor identity across
+  column/orientation/reorder/error/footer/retained-hiding changes. Explicit removal
+  and remount obtain a new native identity. These are reconciliation tests, not
+  assertions about physical focus or rendered geometry. A further lifecycle test
+  covers 128 combinations/transitions of rich label/description/error/footer slots,
+  both orientations and one/three columns: removed-slot actions are fenced,
+  surviving controls use current callbacks, repeated views are idle and complete
+  unmount fences all recorded actions.
+- `GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j 2 @all @runtest @fmt`
+  passed after adding the public gallery preview.
+- `GPUIO_JOBS=2 python3 scripts/test_extension_consumer.py --example gallery
+  --workspace <fresh-local-workspace>` passed with `run=False`. Installed public
+  libraries and copied gallery sources built successfully without modifying the
+  switch. This proves consumer compilation, not native behavior.
+- `python3 scripts/test_gallery.py --section forms --images <local-directory>`
+  stopped at `macOS accessibility access is unavailable to this test process`.
+  The bounded wrapper reaped the application. No native Form assertions executed;
+  the new `scripts/gallery_forms.py` scenario is not yet validated. The gallery
+  driver now checks Accessibility before launching its app; a subsequent attempt
+  failed at that preflight without opening a window.
+
+The gallery's Text editing page demonstrates rich labels, help/error metadata,
+required display, multi-control content, absent-label indentation, column and size
+changes, signed full-span summary, mixed spans, reordering, hiding and a full-width
+footer. It uses only public APIs. Its acceptance driver must pass on the repository
+application and a fresh installed consumer before the catalog row is accepted.
+
+```ocaml
+let metadata =
+  Form.Field.create ~label:"Workspace" ~help:"Visible to your team." ~required:true ()
+  |> Or_error.ok_exn
+in
+let item =
+  Form.Item.of_field metadata
+    ~key:(Key.of_string_exn "workspace")
+    ~column:Style.Grid_location.Axis.full
+    ~label:(View.text "Your workspace")
+    ~control ()
+  |> Or_error.ok_exn
+in
+Form.create ~columns:2 ~layout:Horizontal ~footer:save_button [ item ]
+```
+
+`control` and `save_button` above are caller-created views with caller-owned
+state/actions. Overriding the visible label preserves the semantic name
+`Workspace` and its required/help metadata on the control.

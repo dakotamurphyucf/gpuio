@@ -80,6 +80,8 @@ impl Route {
                 }
             });
         crate::semantics::State {
+            identity: None,
+            busy: false,
             hidden: false,
             metadata: None,
             element,
@@ -228,6 +230,8 @@ pub(in crate::host::chart_view) fn element(state: Shared) -> Option<gpui::AnyEle
             );
         }
         rows = rows.child(crate::semantics::State {
+            identity: None,
+            busy: false,
             hidden: false,
             metadata: None,
             element,

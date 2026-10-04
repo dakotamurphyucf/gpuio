@@ -16,7 +16,7 @@ use gpui_base::input::EditorState;
 use gpui_base::{Editor, TextView, TextViewState};
 use gpuio_protocol::{
     NodeId, ResourceId,
-    document::{Config, Layout, Navigation},
+    document::{Activation, ActivationSource, Config, Layout, Navigation},
     v1::*,
 };
 use std::{cell::RefCell, collections::BTreeMap, rc::Rc, sync::Arc};
@@ -27,7 +27,38 @@ pub(super) struct State {
     image_sources: Vec<(String, ImageSource)>,
     images: BTreeMap<String, crate::image_host::Handle>,
     pub(super) presentation: Option<Entity<Presentation>>,
+    profile_owner: profile_view::Owner,
 }
+
+#[cfg(all(test, feature = "native-image-tests"))]
+#[path = "document_selection_format_test.rs"]
+mod selection_format_test;
+
+#[cfg(all(test, feature = "native-image-tests"))]
+#[path = "document_actions_test.rs"]
+mod actions_test;
+#[cfg(all(test, feature = "native-image-tests"))]
+#[path = "document_link_activation_test.rs"]
+mod link_activation_test;
+#[cfg(all(test, feature = "native-image-tests"))]
+#[path = "document_markdown_options_test.rs"]
+mod markdown_options_test;
+
+#[cfg(all(test, feature = "native-image-tests"))]
+#[path = "document_style_test.rs"]
+mod style_test;
+
+#[path = "document_actions_view.rs"]
+mod action_rows;
+#[cfg(all(test, feature = "native-image-tests"))]
+#[path = "document_clamp_test.rs"]
+mod clamp_test;
+#[cfg(all(test, feature = "native-image-tests"))]
+#[path = "document_preview_test.rs"]
+mod preview_test;
+#[path = "document_profile_view.rs"]
+mod profile_view;
+
 struct Page {
     text: String,
     end: usize,
@@ -78,8 +109,30 @@ pub(super) struct Presentation {
     node: NodeId,
     lease: Lease,
     config: Arc<Config>,
+    markdown_options: gpuio_protocol::document::MarkdownOptions,
+    installed_markdown_options: gpuio_protocol::document::MarkdownOptions,
+    installed_profile_epoch: Option<i64>,
+    interpretation: Arc<()>,
     selection_color: Option<gpui::Hsla>,
+    text_style_config: Option<Arc<gpuio_protocol::document_style::Config>>,
+    text_style: gpui_base::TextViewStyle,
+    text_style_dark: bool,
+    text_style_selection: Option<gpui::Hsla>,
     user_selectable: bool,
+    selection_markdown: bool,
+    profile_config: Option<Arc<gpuio_protocol::document_profile::Config>>,
+    profile_request: Result<Option<crate::document_profile_jobs::Request>, document_jobs::Error>,
+    profile_install: Option<Arc<profile_view::Installed>>,
+    profile_environment: profile_view::Environment,
+    profile_failure: Option<(i64, i64, i64)>,
+    profile_owner: profile_view::Owner,
+    actions_config: Option<Arc<gpuio_protocol::document_actions::Config>>,
+    preview_config: Option<Arc<gpuio_protocol::document_preview::Config>>,
+    preview_handler: Option<gpuio_protocol::HandlerId>,
+    last_preview: Option<(
+        gpuio_protocol::HandlerId,
+        gpuio_protocol::document_preview::Event,
+    )>,
     snapshot: Arc<Snapshot>,
     job: Result<document_host::Handle, document_jobs::Error>,
     markdown: Option<Entity<TextViewState>>,
@@ -104,7 +157,7 @@ pub(super) struct Presentation {
     projection_error: Option<String>,
     projected_page: Option<Arc<str>>,
     raw_diff: bool,
-    charge: Option<document_jobs::Charge>,
+    charge: Option<Arc<document_jobs::Charge>>,
     collapsed: bool,
     // Generation whose default or explicit input produced `collapsed`.
     collapse_generation: i64,
@@ -286,25 +339,44 @@ impl Presentation {
     }
     fn new(
         root: WeakEntity<View>,
-        node: NodeId,
+        node: &Node,
         lease: Lease,
-        config: Arc<Config>,
         highlight_identity: Rc<RefCell<Rc<()>>>,
+        profile_attachment: profile_view::Attachment,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Self {
+        let profile_view::Attachment {
+            environment: profile_environment,
+            owner: profile_owner,
+        } = profile_attachment;
+        let config = node.document.clone().expect("document node");
+        let markdown_options = node.document_markdown_options;
         let snapshot = lease.snapshot();
-        let job = document_host::request(
-            document_jobs::Request {
-                observer: None,
-                snapshot: snapshot.clone(),
-                mode: config.mode.clone(),
-                dark: config.dark,
-                search: config.search.clone(),
-            },
-            window,
-            cx,
-        );
+        let profile_config = node.document_profile.clone();
+        let profile_request = profile_config
+            .as_ref()
+            .filter(|c| c.instance.is_some())
+            .map(|c| {
+                crate::document_profile_jobs::Request::bind(c.clone())
+                    .map(|request| request.with_observer(node.handler))
+            })
+            .transpose();
+        let job = profile_request.clone().and_then(|profile| {
+            document_host::request(
+                document_jobs::Request {
+                    observer: None,
+                    profile,
+                    snapshot: snapshot.clone(),
+                    mode: config.mode.clone(),
+                    markdown_options,
+                    dark: config.dark,
+                    search: config.search.clone(),
+                },
+                window,
+                cx,
+            )
+        });
         let editor = cx.new(|cx| {
             let mut editor = EditorState::new(window, cx)
                 .language("gpuio-prepared")
@@ -316,18 +388,37 @@ impl Presentation {
         });
         Self {
             highlight_identity,
+            markdown_options,
+            installed_markdown_options: markdown_options,
+            installed_profile_epoch: None,
+            interpretation: Arc::new(()),
             highlight: None,
             highlight_paint: None,
             markdown_highlight: None,
             buttons: BTreeMap::new(),
             root,
-            node,
+            node: node.id,
             lease,
             collapsed: config.initially_collapsed,
             collapse_generation: snapshot.generation,
+            text_style: markdown_style(config.dark, None),
+            text_style_dark: config.dark,
+            text_style_config: None,
+            text_style_selection: None,
             config,
             selection_color: None,
             user_selectable: true,
+            selection_markdown: false,
+            profile_config,
+            profile_request,
+            profile_environment,
+            profile_owner,
+            profile_install: None,
+            profile_failure: None,
+            actions_config: node.document_actions.clone(),
+            preview_config: None,
+            preview_handler: None,
+            last_preview: None,
             snapshot,
             job,
             editor,
@@ -365,7 +456,10 @@ impl Presentation {
             source_lines: 1,
             installed: None,
             images: Default::default(),
-            markdown_extensions: document_markdown::extensions(Default::default()),
+            markdown_extensions: document_markdown::extensions_with_options(
+                Default::default(),
+                markdown_options,
+            ),
         }
     }
     fn primary_focus(&self, cx: &App) -> gpui::FocusHandle {
@@ -441,6 +535,8 @@ impl Presentation {
                         });
                     });
                 crate::semantics::State {
+                    identity: None,
+                    busy: false,
                     hidden: false,
                     metadata: None,
                     live: None,
@@ -463,7 +559,7 @@ impl Presentation {
             || self
                 .markdown
                 .as_ref()
-                .is_some_and(|state| state.read(cx).focus_handle().is_focused(window))
+                .is_some_and(|state| state.read(cx).focus_handle().contains_focused(window, cx))
     }
     fn retained(&self, window: &Window, cx: &App) -> bool {
         self.focused(window, cx)
@@ -483,13 +579,176 @@ impl Presentation {
             });
         });
     }
-    fn refresh(&mut self, config: Arc<Config>, cx: &mut Context<Self>) {
+    fn refresh_text_style(
+        &mut self,
+        config: Option<Arc<gpuio_protocol::document_style::Config>>,
+        cx: &mut Context<Self>,
+    ) {
+        if self.text_style_config == config
+            && self.text_style_dark == self.config.dark
+            && self.text_style_selection == self.selection_color
+        {
+            return;
+        }
+        let base = markdown_style(self.config.dark, self.selection_color);
+        self.text_style = config.as_ref().map_or_else(
+            || base.clone(),
+            |config| crate::document_style::resolve(base.clone(), config),
+        );
+        self.text_style_config = config;
+        self.text_style_dark = self.config.dark;
+        self.text_style_selection = self.selection_color;
+        self.invalidate_row(cx);
+        cx.notify();
+    }
+
+    fn refresh_preview(
+        &mut self,
+        config: Option<Arc<gpuio_protocol::document_preview::Config>>,
+        handler: Option<gpuio_protocol::HandlerId>,
+        cx: &mut Context<Self>,
+    ) {
+        if self.preview_config == config && self.preview_handler == handler {
+            return;
+        }
+        let old_limit = self.preview_config.as_ref().and_then(|c| c.max_lines);
+        let new_limit = config.as_ref().and_then(|c| c.max_lines);
+        self.preview_config = config;
+        self.preview_handler = handler;
+        self.last_preview = None;
+        if old_limit != new_limit {
+            self.invalidate_row(cx);
+        }
+        cx.notify();
+    }
+
+    fn preview_candidate(
+        &self,
+        cx: &App,
+    ) -> Option<(
+        gpuio_protocol::HandlerId,
+        gpuio_protocol::document_preview::Event,
+    )> {
+        use gpuio_protocol::document_preview::{Event, State};
+        let config = self.preview_config.as_ref().filter(|c| c.observe)?;
+        let handler = self.preview_handler?;
+        let (snapshot, state) = if self.collapsed {
+            (&self.snapshot, State::Collapsed)
+        } else if let Some(snapshot) = self.installed.as_ref() {
+            let state = if self.source_mode || self.markdown.is_none() {
+                State::SourceView
+            } else {
+                State::Rich(self.markdown.as_ref()?.read(cx).is_clamped())
+            };
+            (snapshot, state)
+        } else {
+            (&self.snapshot, State::Pending)
+        };
+        Some((
+            handler,
+            Event {
+                config_epoch: config.epoch,
+                source_revision: snapshot.revision,
+                source_generation: snapshot.generation,
+                state,
+            },
+        ))
+    }
+
+    fn observe_preview(&mut self, cx: &mut Context<Self>) {
+        let Some(candidate) = self.preview_candidate(cx) else {
+            return;
+        };
+        if self.last_preview.as_ref() == Some(&candidate) {
+            return;
+        }
+        let weak = cx.entity().downgrade();
+        cx.defer(move |cx| {
+            let _ = weak.update(cx, |this, cx| {
+                if this.preview_candidate(cx).as_ref() != Some(&candidate)
+                    || this.last_preview.as_ref() == Some(&candidate)
+                {
+                    return;
+                }
+                let Some(source) = this.config.source else {
+                    return;
+                };
+                let own = cx.entity();
+                let sent = this
+                    .root
+                    .update(cx, |root, _| {
+                        if root
+                            .documents
+                            .get(&this.node)
+                            .and_then(|state| state.presentation.as_ref())
+                            != Some(&own)
+                        {
+                            return false;
+                        }
+                        let event = root.session.borrow().document_preview_observed(
+                            root.id,
+                            this.node,
+                            candidate.0,
+                            source,
+                            candidate.1.clone(),
+                        );
+                        let Some(event) = event else {
+                            return false;
+                        };
+                        if !root.transport.input(event)
+                            && root.session.borrow_mut().overload(root.id)
+                        {
+                            root.transport.fault(root.id);
+                        }
+                        true
+                    })
+                    .unwrap_or(false);
+                if sent {
+                    this.last_preview = Some(candidate);
+                }
+            });
+        });
+    }
+
+    fn selection_format(&self) -> gpui_base::text::SelectionFormat {
+        if self.selection_markdown {
+            gpui_base::text::SelectionFormat::Source
+        } else {
+            gpui_base::text::SelectionFormat::Plain
+        }
+    }
+
+    fn refresh_selection_format(&mut self, markdown: bool, cx: &mut Context<Self>) {
+        if self.selection_markdown == markdown {
+            return;
+        }
+        self.selection_markdown = markdown;
+        let format = self.selection_format();
+        if let Some(state) = &self.markdown {
+            state.update(cx, |state, cx| state.set_selection_format(format, cx));
+        }
+        cx.notify();
+    }
+
+    fn refresh(
+        &mut self,
+        config: Arc<Config>,
+        markdown_options: gpuio_protocol::document::MarkdownOptions,
+        cx: &mut Context<Self>,
+    ) {
         let snapshot = self.lease.snapshot();
         let changed = !Arc::ptr_eq(&snapshot, &self.snapshot)
             || config.mode != self.config.mode
+            || markdown_options != self.markdown_options
             || config.dark != self.config.dark
             || config.search != self.config.search;
         if changed {
+            if snapshot.generation != self.snapshot.generation
+                || config.mode != self.config.mode
+                || markdown_options != self.markdown_options
+            {
+                self.revoke_profile();
+            }
             self.snapshot = snapshot;
             self.ready = false;
             cx.notify();
@@ -497,8 +756,10 @@ impl Presentation {
                 let _ = job.update(
                     document_jobs::Request {
                         observer: None,
+                        profile: self.profile_request.as_ref().ok().and_then(Clone::clone),
                         snapshot: self.snapshot.clone(),
                         mode: config.mode.clone(),
+                        markdown_options,
                         dark: config.dark,
                         search: config.search.clone(),
                     },
@@ -507,6 +768,7 @@ impl Presentation {
             }
         }
         self.config = config;
+        self.markdown_options = markdown_options;
     }
     fn refresh_diff(
         &mut self,
@@ -806,6 +1068,9 @@ impl Presentation {
             state.set_search_query(self.config.search.clone(), false, cx);
         });
         self.source_mode = true;
+        if let Some(profile) = &self.profile_install {
+            profile.hide();
+        }
         self.installed_page_start = self.page_start;
         let same_generation = self
             .installed
@@ -843,21 +1108,35 @@ impl Presentation {
             self.collapsed = self.config.initially_collapsed;
             self.collapse_generation = self.snapshot.generation;
         }
+        let previous_options = self.installed_markdown_options;
+        let previous_profile_epoch = self.installed_profile_epoch;
+        // An option-only reparse can keep the same source generation/revision.
+        // Retire callbacks from the prior interpretation too, including A/B/A.
+        self.interpretation = Arc::new(());
         self.ready = true;
         self.error = None;
         self.diff = None;
         self.code_highlighter = None;
         self.runs = Arc::default();
+        self.revoke_profile();
         self.charge = None;
         match ready {
             Ok(ready) => {
+                let charge = Arc::new(ready.charge);
                 self.search = ready.search;
                 self.search_index = None;
                 if !matches!(&ready.prepared, Prepared::Markdown { .. }) {
                     self.markdown = None;
                 }
                 match ready.prepared {
-                    Prepared::Markdown { document, code } => {
+                    Prepared::Markdown {
+                        document,
+                        code,
+                        profile,
+                    } => {
+                        self.install_profile(profile, charge.clone());
+                        self.installed_markdown_options = self.markdown_options;
+                        self.markdown_extensions = self.profile_extensions();
                         self.projection = None;
                         self.projection_charge = None;
                         self.projection_error = None;
@@ -865,13 +1144,19 @@ impl Presentation {
                         self.diff_controls = None;
                         self.raw_diff = false;
                         let showing_source = self.source_mode && self.markdown.is_some();
+                        let selection_format = self.selection_format();
                         let state = self
                             .markdown
                             .get_or_insert_with(|| cx.new(TextViewState::externally_prepared));
                         let prefix = self
                             .installed
                             .as_ref()
-                            .filter(|old| old.generation == self.snapshot.generation)
+                            .filter(|old| {
+                                old.generation == self.snapshot.generation
+                                    && previous_options == self.markdown_options
+                                    && previous_profile_epoch
+                                        == self.profile_config.as_ref().map(|c| c.epoch)
+                            })
                             .map(|old| {
                                 if old.revision + 1 == self.snapshot.revision {
                                     self.snapshot.unchanged_bytes
@@ -881,23 +1166,24 @@ impl Presentation {
                             });
                         state.update(cx, |state, cx| {
                             state.set_prepared(*document, prefix, cx);
+                            state.set_selection_format(selection_format, cx);
                             state.set_markdown_extensions(
                                 Arc::new(self.markdown_extensions.clone()),
                                 cx,
                             );
                         });
+                        self.installed_markdown_options = self.markdown_options;
+                        let retained_charge = self.profile_install.as_ref().map(|_| charge.clone());
                         self.code_highlighter = Some(Arc::new(move |block| {
+                            // Cached highlighters may outlive the presentation.
+                            let _retained_charge = &retained_charge;
                             let key = (
                                 block
                                     .lang()
                                     .map_or_else(|| "txt".to_string(), |s| s.to_string()),
                                 block.code().to_string(),
                             );
-                            code.get(&key).map_or_else(Vec::new, |runs| {
-                                runs.iter()
-                                    .map(|run| (run.bytes.clone(), document_editor::style(run)))
-                                    .collect()
-                            })
+                            code.get(&key).map_or_else(Vec::new, |runs| runs.styles())
                         }));
                         if showing_source {
                             self.show_page_for(self.snapshot.clone(), None, false, window, cx);
@@ -915,6 +1201,7 @@ impl Presentation {
                         }
                     }
                     Prepared::Source(error) => {
+                        self.report_profile_failure(error);
                         self.error = Some(format!(
                             "Rich view unavailable ({error:?}); showing source."
                         ));
@@ -926,9 +1213,10 @@ impl Presentation {
                         self.show_source(runs, window, cx);
                     }
                 }
-                self.charge = Some(ready.charge);
+                self.charge = Some(charge);
             }
             Err(error) => {
+                self.report_profile_failure(error);
                 self.markdown = None;
                 self.error = Some(format!(
                     "Rich view unavailable ({error:?}); showing source."
@@ -936,6 +1224,7 @@ impl Presentation {
                 self.show_source(vec![], window, cx);
             }
         }
+        self.installed_profile_epoch = self.profile_config.as_ref().map(|c| c.epoch);
         self.invalidate_row(cx);
     }
     fn next_match(&mut self, forward: bool, window: &mut Window, cx: &mut Context<Self>) {
@@ -1206,6 +1495,31 @@ impl Presentation {
             None
         }
     }
+    fn navigate_link(
+        &self,
+        interpretation: &Arc<()>,
+        installed_revision: Option<(i64, i64)>,
+        url: &gpui::SharedString,
+        event: &gpui::ClickEvent,
+        cx: &mut Context<Self>,
+    ) {
+        if self.matches_interpretation(interpretation)
+            && !self.collapsed
+            && !self.source_mode
+            && self.markdown.is_some()
+            && self.installed.as_ref().map(|s| (s.generation, s.revision)) == installed_revision
+        {
+            self.navigate(
+                Navigation::LinkActivated(url.to_string(), link_activation(event)),
+                cx,
+            );
+        }
+    }
+
+    fn matches_interpretation(&self, interpretation: &Arc<()>) -> bool {
+        Arc::ptr_eq(&self.interpretation, interpretation)
+    }
+
     fn allows_link_focus(
         &self,
         installed_revision: Option<(i64, i64)>,
@@ -1334,8 +1648,11 @@ impl Presentation {
 }
 impl Render for Presentation {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        self.refresh(self.config.clone(), cx);
+        self.refresh(self.config.clone(), self.markdown_options, cx);
         self.accept_ready(window, cx);
+        if let Some(profile) = &self.profile_install {
+            profile.poll_failure();
+        }
         if !self.has_more_diff()
             && self
                 .buttons
@@ -1384,6 +1701,11 @@ impl Render for Presentation {
                 if self.collapsed { "Expand" } else { "Collapse" },
                 |this, _, cx| {
                     this.collapsed = !this.collapsed;
+                    if this.collapsed
+                        && let Some(profile) = &this.profile_install
+                    {
+                        profile.hide();
+                    }
                     // Publication can precede this view's next render/refresh.
                     // Associate input with the current lease, not the old body.
                     this.collapse_generation = this.lease.snapshot().generation;
@@ -1542,22 +1864,17 @@ impl Render for Presentation {
         if self.has_more_diff() {
             order.push(self.buttons["document-diff-more"].clone());
         }
+        let content_focus = (!self.collapsed && !self.source_mode)
+            .then(|| {
+                self.markdown
+                    .as_ref()
+                    .map(|text| text.read(cx).focus_handle().clone())
+            })
+            .flatten();
         let root_view = self.root.clone();
         let node = self.node;
-        let mut root = div()
-            .id("document-presentation")
-            .role(gpui::Role::Group)
-            .aria_label(self.config.label.clone())
-            .flex()
-            .flex_col()
-            .w_full()
-            .gap(px(6.))
-            .child(toolbar)
-            .on_key_down(move |event, window, cx| {
-                if event.keystroke.key != "tab" {
-                    return;
-                }
-                let backward = event.keystroke.modifiers.shift;
+        let tab_exit =
+            std::rc::Rc::new(move |backward: bool, window: &mut Window, cx: &mut App| {
                 let mut order = order.clone();
                 order.splice(
                     header_slot..header_slot,
@@ -1566,7 +1883,14 @@ impl Render for Presentation {
                         .filter(|(index, _)| header_visible.borrow().contains_key(index))
                         .map(|(_, focus)| focus.clone()),
                 );
-                let index = order.iter().position(|focus| focus.is_focused(window));
+                // TextView has exhausted its links and native controls, including
+                // virtual candidates. Continue the document/host composite order.
+                let content = content_focus
+                    .as_ref()
+                    .filter(|focus| focus.contains_focused(window, cx));
+                let index = order.iter().position(|focus| {
+                    focus.is_focused(window) || content.is_some_and(|content| content == focus)
+                });
                 let next = index.and_then(|i| {
                     if backward {
                         i.checked_sub(1)
@@ -1587,11 +1911,52 @@ impl Render for Presentation {
                         {
                             window.focus(&p.read(cx).primary_focus(cx), cx);
                         }
-                        root.focus.borrow().traverse(backward, window, cx);
+                        // Leave this composite through declared host entries;
+                        // native focus_next would reenter a document child.
+                        root.focus
+                            .borrow()
+                            .traverse_anchored(node, &[], backward, window, cx);
+                        if let Some(p) = root
+                            .documents
+                            .get(&node)
+                            .and_then(|state| state.presentation.as_ref())
+                            && p.read(cx).primary_focus(cx).is_focused(window)
+                            && let Some(edge) = if backward {
+                                order.last()
+                            } else {
+                                order.first()
+                            }
+                        {
+                            window.focus(edge, cx);
+                        }
                     });
                 }
-                cx.stop_propagation();
             });
+        let key_tab_exit = tab_exit.clone();
+        let mut root = div()
+            .id("document-presentation")
+            .role(gpui::Role::Group)
+            .aria_label(self.config.label.clone())
+            .flex()
+            .flex_col()
+            .w_full()
+            .gap(px(6.))
+            .child(toolbar)
+            .on_key_down(move |event, window, cx| {
+                let modifiers = event.keystroke.modifiers;
+                if event.keystroke.key == "tab"
+                    && !modifiers.control
+                    && !modifiers.alt
+                    && !modifiers.platform
+                    && !modifiers.function
+                {
+                    key_tab_exit(modifiers.shift, window, cx);
+                    cx.stop_propagation();
+                }
+            });
+        if let Some(gate) = self.profile_paint_gate() {
+            root = root.child(gate);
+        }
         if self.collapsed {
             return root.into_any_element();
         }
@@ -1620,66 +1985,52 @@ impl Render for Presentation {
                 .clone()
                 .expect("prepared Markdown highlighter");
             let focus_weak = weak.clone();
+            let focus_interpretation = self.interpretation.clone();
+            let click_interpretation = self.interpretation.clone();
+            let code_actions = self.action_owner(cx);
+            let table_actions = code_actions.clone();
+            let code_profile = self.profile_install.clone();
+            let table_profile = code_profile.clone();
             let text = TextView::new(state)
-                .style(markdown_style(self.config.dark, self.selection_color))
+                .when_some(
+                    self.preview_config.as_ref().and_then(|c| c.max_lines),
+                    |text, n| text.max_lines(n as usize),
+                )
+                .selection_format(self.selection_format())
+                .style(self.text_style.clone())
                 .selectable(self.user_selectable)
                 .scrollable(matches!(self.config.layout, Layout::Viewport(_)))
                 .markdown_extensions(self.markdown_extensions.clone())
-                .table_actions(|table, _, _| {
-                    let markdown = table.markdown.clone();
-                    let accessible_markdown = markdown.clone();
-                    gpui_base::Button::new("copy-table")
-                        .aria_label("Copy table")
-                        .child("Copy table")
-                        .on_a11y_action(gpui::AccessibleAction::Click, move |_, _, cx| {
-                            cx.write_to_clipboard(gpui::ClipboardItem::new_string(
-                                accessible_markdown.clone(),
-                            ));
-                            cx.stop_propagation();
-                        })
-                        .on_click(move |_, _, cx| {
-                            cx.write_to_clipboard(gpui::ClipboardItem::new_string(markdown.clone()))
-                        })
+                .table_actions(move |table, window, cx| {
+                    table_profile
+                        .as_ref()
+                        .and_then(|p| p.table(table, window, cx))
+                        .unwrap_or_else(|| action_rows::table(&table_actions, table))
                 })
-                .code_block_actions(|block, _, _| {
-                    let code = block.code();
-                    let accessible_code = code.clone();
-                    gpui_base::Button::new("copy-code")
-                        .aria_label("Copy code")
-                        .child("Copy code")
-                        .on_a11y_action(gpui::AccessibleAction::Click, move |_, _, cx| {
-                            cx.write_to_clipboard(gpui::ClipboardItem::new_string(
-                                accessible_code.to_string(),
-                            ));
-                            cx.stop_propagation();
-                        })
-                        .on_click(move |_, _, cx| {
-                            cx.write_to_clipboard(gpui::ClipboardItem::new_string(code.to_string()))
-                        })
+                .code_block_actions(move |block, window, cx| {
+                    code_profile
+                        .as_ref()
+                        .and_then(|p| p.code(block, window, cx))
+                        .unwrap_or_else(|| action_rows::code(&code_actions, block))
                 })
                 .code_block_highlighter_shared(highlighter)
+                .on_tab_exit(move |backward, window, cx| tab_exit(backward, window, cx))
                 .link_focus_guard(move |cx| {
                     focus_weak.upgrade().is_some_and(|presentation| {
-                        presentation.read(cx).allows_link_focus(
-                            installed_revision,
-                            &presentation,
-                            cx,
-                        )
+                        let state = presentation.read(cx);
+                        state.matches_interpretation(&focus_interpretation)
+                            && state.allows_link_focus(installed_revision, &presentation, cx)
                     })
                 })
-                .on_link_click(move |url, _, _, cx| {
+                .on_link_click(move |url, event, _, cx| {
                     let _ = weak.update(cx, |this, cx| {
-                        if !this.collapsed
-                            && !this.source_mode
-                            && this.markdown.is_some()
-                            && this
-                                .installed
-                                .as_ref()
-                                .map(|snapshot| (snapshot.generation, snapshot.revision))
-                                == installed_revision
-                        {
-                            this.navigate(Navigation::Link(url.to_string()), cx)
-                        }
+                        this.navigate_link(
+                            &click_interpretation,
+                            installed_revision,
+                            url,
+                            event,
+                            cx,
+                        );
                     });
                 });
             let content = div().w_full().child(text);
@@ -1709,11 +2060,7 @@ impl Render for Presentation {
                 div()
                     .w_full()
                     .h(px(height))
-                    .font_family(if cfg!(target_os = "macos") {
-                        "Menlo"
-                    } else {
-                        "DejaVu Sans Mono"
-                    })
+                    .font_family(crate::font_defaults::monospace(cx))
                     .child(Editor::new(&self.editor)),
             );
         }
@@ -1786,6 +2133,7 @@ impl View {
             let Some(config) = tree.get(*id).and_then(|node| node.document.as_ref()) else {
                 continue;
             };
+            let environment = profile_view::Environment::new(self, tree, tree.get(*id).unwrap());
             if !self
                 .documents
                 .get(id)
@@ -1801,6 +2149,7 @@ impl View {
                         image_sources: vec![],
                         images: BTreeMap::new(),
                         presentation: None,
+                        profile_owner: Default::default(),
                     },
                 );
             }
@@ -1825,8 +2174,20 @@ impl View {
             }
             if let Some(presentation) = &state.presentation {
                 presentation.update(cx, |state, cx| {
-                    state.refresh(config.clone(), cx);
                     let node = tree.get(*id).unwrap();
+                    state.refresh_profile(
+                        node.document_profile.clone(),
+                        environment,
+                        config,
+                        node.document_markdown_options,
+                        window,
+                        cx,
+                    );
+                    state.refresh(config.clone(), node.document_markdown_options, cx);
+                    state.refresh_actions(node.document_actions.clone(), cx);
+                    state.refresh_selection_format(node.document_selection_markdown, cx);
+                    state.refresh_text_style(node.document_text_style.clone(), cx);
+                    state.refresh_preview(node.document_preview.clone(), node.handler, cx);
                     state.refresh_diff(
                         node.document_diff.clone(),
                         node.document_diff_epoch,
@@ -1836,6 +2197,19 @@ impl View {
                     );
                     cx.notify();
                 });
+            }
+        }
+        for (id, state) in &self.documents {
+            if let Some(owner) = state
+                .profile_owner
+                .borrow()
+                .as_ref()
+                .and_then(std::sync::Weak::upgrade)
+            {
+                owner.update_policy(
+                    self.focus.borrow().allows(*id),
+                    super::pointer_enabled(tree, *id),
+                );
             }
         }
     }
@@ -1849,6 +2223,18 @@ impl View {
             return;
         }
         for id in ids {
+            if let Some(state) = self.documents.get(&id)
+                && let (Some(owner), Some(lease)) = (
+                    state
+                        .profile_owner
+                        .borrow()
+                        .as_ref()
+                        .and_then(std::sync::Weak::upgrade),
+                    &state.lease,
+                )
+            {
+                owner.source_changed(lease.snapshot().generation);
+            }
             self.invalidate_resource_row(id);
         }
         cx.notify();
@@ -1878,6 +2264,7 @@ impl View {
         cx: &mut Context<Self>,
     ) -> gpui::AnyElement {
         self.visited.insert(node.id);
+        let profile_environment = profile_view::Environment::new(self, tree, node);
         let identity = (node.id.generation() as u64) << 32 | node.id.slot() as u64;
         let root = div().id(("gpuio-document", identity)).w_full();
         let (mut root, states) = apply_styles(root, &node.style, interaction, false);
@@ -1945,10 +2332,13 @@ impl View {
             cx.new(|cx| {
                 Presentation::new(
                     root,
-                    node.id,
+                    node,
                     lease.clone(),
-                    config.clone(),
                     highlight_identity,
+                    profile_view::Attachment {
+                        environment: profile_environment.clone(),
+                        owner: state.profile_owner.clone(),
+                    },
                     window,
                     cx,
                 )
@@ -1996,9 +2386,7 @@ impl View {
                 });
             state.images = document_markdown::Images(images);
             if changed {
-                state.markdown_extensions = document_markdown::extensions(
-                    document_markdown::Images(state.images.0.clone()),
-                );
+                state.markdown_extensions = state.profile_extensions();
                 if let Some(markdown) = &state.markdown {
                     markdown.update(cx, |markdown, cx| {
                         markdown.set_markdown_extensions(
@@ -2010,7 +2398,19 @@ impl View {
                 state.invalidate_row(cx);
                 cx.notify();
             }
-            state.refresh(config, cx);
+            state.refresh_profile(
+                node.document_profile.clone(),
+                profile_environment,
+                &config,
+                node.document_markdown_options,
+                window,
+                cx,
+            );
+            state.refresh(config, node.document_markdown_options, cx);
+            state.refresh_selection_format(node.document_selection_markdown, cx);
+            state.refresh_actions(node.document_actions.clone(), cx);
+            state.refresh_text_style(node.document_text_style.clone(), cx);
+            state.refresh_preview(node.document_preview.clone(), node.handler, cx);
             state.refresh_diff(
                 node.document_diff.clone(),
                 node.document_diff_epoch,
@@ -2028,6 +2428,9 @@ impl View {
             gpui::canvas(
                 |_, _, _| (),
                 move |bounds, _, window, cx| {
+                    if let Some(p) = weak.upgrade() {
+                        p.update(cx, |p, cx| p.observe_preview(cx));
+                    }
                     if bounds.size.width > px(0.)
                         && bounds.size.height > px(0.)
                         && let Some(p) = weak.upgrade()
@@ -2104,3 +2507,18 @@ fn editor_style(dark: bool, selection: Option<gpui::Hsla>) -> gpui_base::input::
 
 #[path = "document_file_headers.rs"]
 mod file_headers;
+
+fn link_activation(event: &gpui::ClickEvent) -> Activation {
+    Activation {
+        source: match event {
+            gpui::ClickEvent::Mouse(click) => {
+                ActivationSource::Mouse(super::pointer::button(click.up.button))
+            }
+            gpui::ClickEvent::Keyboard(_) => ActivationSource::Keyboard,
+            gpui::ClickEvent::Touch(click) => ActivationSource::Touch {
+                long_press: click.long_press,
+            },
+        },
+        modifiers: super::pointer::modifiers(event.modifiers()),
+    }
+}

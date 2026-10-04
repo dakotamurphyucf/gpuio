@@ -8,11 +8,23 @@ module Id : sig
 end
 
 module Item : sig
+  module Activation : sig
+    (** Expansion policy when an eligible destination is selected through
+        [apply_request]. Navigation and the independent caret remain available.
+        [Select_only] is the default. Leaves only select under every policy. *)
+    type t =
+      | Select_only
+      | Expand
+      | Toggle
+    [@@deriving equal, sexp_of]
+  end
+
   type t [@@deriving equal, sexp_of]
 
   (** A destination may also have children. Navigation and expansion are separate
       requests, so clicking an expansion control never navigates accidentally.
-      Labels and [compact_label] require 1..4096 UTF-8 bytes without NUL; compact
+      Labels require nonblank UTF-8, at most 4096 bytes, without NUL.
+      [compact_label] requires 1..4096 UTF-8 bytes without NUL; compact
       fallback defaults to a bullet when no icon is supplied. Children are ordered.
       Each subtree is bounded to 4096 items, depth 16 and 256 KiB of text/IDs. *)
   val create
@@ -20,6 +32,7 @@ module Item : sig
     -> label:string
     -> ?compact_label:string
     -> ?disabled:bool
+    -> ?activation:Activation.t
     -> ?children:t list
     -> unit
     -> t Or_error.t
@@ -27,6 +40,7 @@ module Item : sig
   val id : t -> Id.t
   val label : t -> string
   val compact_label : t -> string
+  val activation : t -> Activation.t
   val is_disabled : t -> bool
   val children : t -> t list
 end
@@ -107,7 +121,11 @@ val select : t -> Id.t option -> t Or_error.t
 val with_groups : t -> Group.t list -> t Or_error.t
 
 (** Reduce against the latest model. Stale, hidden, disabled and leaf-toggle
-    requests do nothing. Selection does not implicitly change expansion. Programmatic
+    requests do nothing. Selection preserves expansion by default; a branch's
+    opt-in [Item.Activation] can expand or toggle it with selection, including
+    its retained expansion preference while in compact icon mode. The independent
+    caret never navigates. Policies are read from the latest collection, so stale
+    callbacks do not capture an obsolete expansion policy. Programmatic
     [select]/[with_collapsed] remain available while user requests are disabled.
     This governs built-in requests; custom slots/commands own their enabled policy. *)
 val apply_request : t -> Request.t -> t
@@ -169,10 +187,18 @@ module Decoration : sig
 
   (** Slots are ordinary views; icons use existing scoped SVG registrations and
       context menus resolve commands from the enclosing command scope. Suffix is
-      hidden in icon mode. Decoration callbacks run only during OCaml construction. *)
+      hidden in icon mode. [style] refines this destination's link after the shared
+      item style and before current-destination styling. [label_style] applies only
+      to the text, including its compact fallback; the icon keeps its own style.
+      Label styles must satisfy the passive-link content contract (no selection,
+      scrolling, inert/disabled subtree or pointer shield); [view] checks them.
+      Style updates retain the native link and its focus. Decoration callbacks
+      run only during OCaml construction. *)
   val create
     :  ?icon:Icon.Decoration.t
     -> ?suffix:'action View.t
+    -> ?style:Style.t
+    -> ?label_style:Style.t
     -> ?context_menu:Menu.t
     -> unit
     -> 'action t

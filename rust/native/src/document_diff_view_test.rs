@@ -159,7 +159,7 @@ pub(super) async fn exercise(
     window
         .update(cx, |_, window, cx| {
             p.update(cx, |p, cx| {
-                p.refresh(p.config.clone(), cx);
+                p.refresh(p.config.clone(), p.markdown_options, cx);
                 assert!(!p.ready);
                 assert_eq!(p.installed.as_ref().unwrap().revision, 1);
                 p.show_page(window, cx);

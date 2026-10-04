@@ -55,7 +55,7 @@ fn has_divider(tree: &crate::tree::Tree, id: NodeId) -> bool {
 }
 impl View {
     pub(super) fn cancel_split_drag(&mut self, window: &mut Window, cx: &mut App) -> bool {
-        let mut cancelled = false;
+        let mut cancelled = self.cancel_group_drags(window);
         for state in self.splits.values() {
             cancelled = state.cancel(window, cx) || cancelled;
         }

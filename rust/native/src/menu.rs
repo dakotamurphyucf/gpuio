@@ -2,8 +2,8 @@
 //! transient navigation and focus never roundtrip through OCaml.
 use super::{Interaction, View, command::Route};
 use gpui::{
-    App, Bounds, Context, FocusHandle, Pixels, UniformListScrollHandle, Window, canvas, deferred,
-    div, prelude::*, px, rgba,
+    App, Bounds, Context, FocusHandle, Pixels, UniformListScrollHandle, WeakFocusHandle, Window,
+    canvas, deferred, div, prelude::*, px, rgba,
 };
 use gpuio_protocol::{NodeId, v1::*};
 use std::{
@@ -14,10 +14,17 @@ use std::{
 };
 
 type Geometry = Rc<Cell<Bounds<Pixels>>>;
+#[cfg(all(test, feature = "native-image-tests"))]
+#[path = "editor_menu_test.rs"]
+mod editor_menu_tests;
+#[cfg(all(test, feature = "native-tests"))]
+#[path = "menu_observation_test.rs"]
+mod observation_tests;
 pub(super) struct State {
     config: Arc<MenuConfig>,
     pub(super) focus: FocusHandle,
     restore: Option<FocusHandle>,
+    editor_target: Option<(NodeId, WeakFocusHandle)>,
     context_position: Option<gpui::Point<Pixels>>,
     path: Vec<usize>,
     selected: Vec<Option<usize>>,
@@ -28,6 +35,7 @@ pub(super) struct State {
     rows: Rc<RefCell<BTreeMap<(usize, usize), Geometry>>>,
     scrolls: Vec<UniformListScrollHandle>,
     search: super::typeahead::Search,
+    observed: Option<(gpuio_protocol::HandlerId, bool)>,
 }
 impl State {
     fn new(config: Arc<MenuConfig>, cx: &mut App) -> Self {
@@ -36,6 +44,7 @@ impl State {
             config,
             focus: cx.focus_handle(),
             restore: None,
+            editor_target: None,
             context_position: None,
             path: vec![],
             selected: vec![None; 8],
@@ -46,6 +55,7 @@ impl State {
             rows: Default::default(),
             scrolls: Vec::new(),
             search: Default::default(),
+            observed: None,
         }
     }
     #[cfg(feature = "native-tests")]
@@ -93,6 +103,7 @@ impl State {
     }
     fn close(&mut self) {
         self.path.clear();
+        self.editor_target = None;
         self.panels.clear();
         self.scrolls.clear();
         self.rows.borrow_mut().clear();
@@ -135,6 +146,115 @@ struct Panel<'a> {
     pointer: bool,
 }
 impl View {
+    fn editor_menu_target(
+        &self,
+        tree: &crate::tree::Tree,
+        id: NodeId,
+        cx: &App,
+    ) -> Option<(NodeId, WeakFocusHandle)> {
+        let node = tree.get(id)?;
+        if node.menu.as_ref()?.presentation != MenuPresentation::EditorContext {
+            return None;
+        }
+        let target = *node.children.first()?;
+        let editor = self.editors.get(&target)?;
+        if !self.focus.borrow().allows(target)
+            || !self.focus.borrow().visible(target)
+            || editor.is_composing(cx)
+        {
+            return None;
+        }
+        Some((target, editor.focus_handle(cx).downgrade()))
+    }
+    pub(super) fn split_menu_open(
+        &self,
+        tree: &crate::tree::Tree,
+        id: NodeId,
+        window: &Window,
+    ) -> bool {
+        let Some(config) = tree.get(id).and_then(|node| node.menu.as_ref()) else {
+            return false;
+        };
+        let Some(state) = self.menus.get(&id) else {
+            return false;
+        };
+        let state = state.borrow();
+        let focus = self.focus.borrow();
+        state.config == *config
+            && !state.path.is_empty()
+            && state.focus.is_focused(window)
+            && focus.visible(id)
+            && focus.allows(id)
+            && !focus.disabled(id)
+            && config.menus.first().is_some_and(|menu| !menu.disabled)
+    }
+
+    pub(super) fn retire_unvisited_menus(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let retired: Vec<_> = self
+            .menus
+            .keys()
+            .copied()
+            .filter(|id| !self.visited.contains(id))
+            .collect();
+        for id in retired {
+            self.menus[&id].borrow_mut().close();
+            // A retained node that was culled still has a subscriber. An actual
+            // tree removal has none and publish drops its final observation.
+            self.publish_menu_observation(id, window, cx);
+        }
+        self.menus.retain(|id, _| self.visited.contains(id));
+    }
+
+    fn publish_menu_observation(
+        &mut self,
+        id: NodeId,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let event = {
+            let session = self.session.borrow();
+            let Some(tree) = session.tree(self.id) else {
+                return;
+            };
+            let Some(node) = tree.get(id) else {
+                return;
+            };
+            let Some(config) = &node.menu else {
+                return;
+            };
+            let Some(state) = self.menus.get(&id) else {
+                return;
+            };
+            let mut state = state.borrow_mut();
+            if &state.config != config {
+                return;
+            }
+            let observed = node
+                .handler
+                .map(|handler| (handler, !state.path.is_empty()));
+            if state.observed == observed {
+                return;
+            }
+            state.observed = observed;
+            observed.and_then(|(handler, open)| {
+                session.menu_open_changed(self.id, id, handler, tree.revision(), open)
+            })
+        };
+        if let Some(event) = event
+            && !self.transport.input(event)
+        {
+            // Render may hold a shared Session borrow. Fault handling must run
+            // after it ends, never reentrantly mutate that borrow on overflow.
+            let session = self.session.clone();
+            let transport = self.transport.clone();
+            let window_id = self.id;
+            window.defer(cx, move |_, _| {
+                if session.borrow_mut().overload(window_id) {
+                    transport.fault(window_id);
+                }
+            });
+        }
+    }
     fn menu_rows(
         &self,
         tree: &crate::tree::Tree,
@@ -147,8 +267,20 @@ impl View {
             .iter()
             .map(|item| match item {
                 MenuItem::Command(command) => {
-                    let route = tree.command(id, command).map(|(scope, config)| {
-                        Route::new(tree, scope, config, CommandSource::Menu(id))
+                    let route = tree.command(id, command).and_then(|(scope, config)| {
+                        let route = Route::new(tree, scope, config, CommandSource::Menu(id));
+                        if tree.get(id)?.menu.as_ref()?.presentation
+                            == MenuPresentation::EditorContext
+                        {
+                            self.menus
+                                .get(&id)?
+                                .borrow()
+                                .editor_target
+                                .clone()
+                                .map(|target| route.bind_editor(target))
+                        } else {
+                            Some(route)
+                        }
                     });
                     Row {
                         label: route
@@ -156,7 +288,7 @@ impl View {
                             .map_or_else(|| command.clone(), |route| route.config.label.clone()),
                         enabled: !menu.disabled
                             && route.as_ref().is_some_and(|route| {
-                                self.command_available(&route.config, window, cx)
+                                self.command_route_available(route, window, cx)
                             }),
                         checked: route.as_ref().and_then(|route| route.config.checked),
                         route,
@@ -204,7 +336,11 @@ impl View {
         {
             window.focus(&focus, cx);
         }
-        cx.notify();
+        drop(state);
+        self.publish_menu_observation(id, window, cx);
+        if was_open {
+            cx.notify();
+        }
     }
     fn open_menu(
         &mut self,
@@ -217,16 +353,34 @@ impl View {
         if !self.focus.borrow().allows(id) || !self.focus.borrow().visible(id) {
             return;
         }
-        for (other, state) in &self.menus {
-            if *other != id {
-                state.borrow_mut().close();
-            }
-        }
         let Some(state) = self.menus.get(&id).cloned() else {
             return;
         };
-        let mut state = state.borrow_mut();
+        let current = self
+            .session
+            .borrow()
+            .tree(self.id)
+            .and_then(|tree| tree.get(id))
+            .and_then(|node| node.menu.as_ref())
+            .is_some_and(|config| config == &state.borrow().config);
+        if !current {
+            return;
+        }
+        let editor_target = if state.borrow().config.presentation == MenuPresentation::EditorContext
+        {
+            let session = self.session.borrow();
+            let Some(target) = session
+                .tree(self.id)
+                .and_then(|tree| self.editor_menu_target(tree, id, cx))
+            else {
+                return;
+            };
+            Some(target)
+        } else {
+            None
+        };
         if state
+            .borrow()
             .config
             .menus
             .get(index)
@@ -234,9 +388,23 @@ impl View {
         {
             return;
         }
-        if state.path.is_empty() {
-            state.restore = window.focused(cx);
+        let others: Vec<_> = self
+            .menus
+            .keys()
+            .copied()
+            .filter(|other| *other != id)
+            .collect();
+        for other in others {
+            self.close_menu(other, false, window, cx);
         }
+        let mut state = state.borrow_mut();
+        if state.path.is_empty() {
+            state.restore = editor_target
+                .as_ref()
+                .and_then(|(_, focus)| focus.upgrade())
+                .or_else(|| window.focused(cx));
+        }
+        state.editor_target = editor_target;
         state.context_position = position;
         if let Some(position) = position {
             state.triggers[index].set(Bounds::new(position, gpui::size(px(0.), px(0.))));
@@ -247,6 +415,8 @@ impl View {
         state.revealed.fill(None);
         state.search.clear();
         window.focus(&state.focus, cx);
+        drop(state);
+        self.publish_menu_observation(id, window, cx);
         cx.notify();
     }
     fn activate_menu_row(&mut self, hit: Hit<'_>, window: &mut Window, cx: &mut Context<Self>) {
@@ -299,7 +469,7 @@ impl View {
         };
         let key = event.keystroke.key.as_str();
         let modifiers = event.keystroke.modifiers;
-        let context = state.borrow().config.presentation == MenuPresentation::Context;
+        let context = state.borrow().config.presentation.is_context();
         let open = !state.borrow().path.is_empty();
         if context
             && key == "f10"
@@ -489,6 +659,13 @@ impl View {
             .entry(id)
             .or_insert_with(|| Rc::new(RefCell::new(State::new(config.clone(), cx))))
             .clone();
+        let current_editor = self.editor_menu_target(tree, id, cx);
+        if state.borrow().config.presentation == MenuPresentation::EditorContext
+            && state.borrow().editor_target.is_some()
+            && (state.borrow().editor_target != current_editor || state.borrow().config != config)
+        {
+            self.close_menu(id, true, window, cx);
+        }
         {
             let mut state = state.borrow_mut();
             if state.config != config {
@@ -503,6 +680,7 @@ impl View {
             }
             state.rows.borrow_mut().clear();
         }
+        self.publish_menu_observation(id, window, cx);
         for style in node.style.iter() {
             if let Style::Fields(fields) = style {
                 for field in fields {
@@ -517,7 +695,7 @@ impl View {
         if platform {
             return div().into_any_element();
         }
-        let tab_stop = config.presentation != MenuPresentation::Context;
+        let tab_stop = !config.presentation.is_context();
         let own_disabled = config.menus.is_empty() || config.menus.iter().all(|menu| menu.disabled);
         let disabled = own_disabled || self.focus.borrow().disabled(id);
         if (disabled || !visible) && state.borrow().focus.is_focused(window) {
@@ -534,7 +712,7 @@ impl View {
             base = base.tab_index(0);
         }
         let (styled, states) = super::apply_styles(base, &node.style, interaction, disabled);
-        base = styled;
+        base = self.coordinate_split(tree, id, styled, interaction.pointer && !disabled, window);
         let [focused, hovered, pressed, _, _, disabled_style, _] = states;
         if let Some(style) = focused {
             base = base.focus(move |_| style);
@@ -566,7 +744,7 @@ impl View {
                 }
             });
         }
-        if config.presentation == MenuPresentation::Context {
+        if config.presentation.is_context() {
             base = base.child(self.element(tree, node.children[0], interaction, window, cx));
             if interaction.pointer {
                 base = base.on_mouse_down(
@@ -652,6 +830,8 @@ impl View {
                     }
                 }
                 base = base.child(crate::semantics::State {
+                    identity: None,
+                    busy: false,
                     hidden: false,
                     metadata: None,
                     live: None,
@@ -671,8 +851,10 @@ impl View {
                     let state = root_state.borrow();
                     if matches!(
                         state.config.presentation,
-                        MenuPresentation::Button | MenuPresentation::Context
-                    ) && !(state.config.presentation == MenuPresentation::Context
+                        MenuPresentation::Button
+                            | MenuPresentation::Context
+                            | MenuPresentation::EditorContext
+                    ) && !(state.config.presentation.is_context()
                         && !state.path.is_empty()
                         && state.context_position.is_some())
                     {
@@ -761,15 +943,26 @@ impl View {
                 .surface(id, state.borrow().panels[depth].clone());
             base = base.child(
                 deferred(super::popup::Surface {
-                    trigger,
-                    placement: Placement {
-                        side: if depth == 0 {
-                            Side::Bottom
+                    geometry: node.placement_geometry.map(|geometry| {
+                        if depth == 0 {
+                            geometry
                         } else {
-                            Side::Right
-                        },
-                        align: Align::Start,
-                        offset: 2.,
+                            geometry.submenu()
+                        }
+                    }),
+                    trigger,
+                    placement: if depth == 0 {
+                        node.placement.unwrap_or(Placement {
+                            side: Side::Bottom,
+                            align: Align::Start,
+                            offset: 2.,
+                        })
+                    } else {
+                        Placement {
+                            side: Side::Right,
+                            align: Align::Start,
+                            offset: 2.,
+                        }
                     },
                     content: panel,
                 })
@@ -777,6 +970,8 @@ impl View {
             );
         }
         crate::semantics::State {
+            identity: None,
+            busy: false,
             hidden: false,
             metadata: None,
             live: None,
@@ -814,7 +1009,7 @@ impl View {
             let geometry = (
                 appearance.row_height,
                 appearance.max_visible_rows,
-                window.viewport_size(),
+                crate::window_frame::content_bounds(window).size,
             );
             if state.geometry != Some(geometry) {
                 state.geometry = Some(geometry);
@@ -836,9 +1031,9 @@ impl View {
         let active = rgba(if dark { 0x385477ff } else { 0xdbeaffff });
         let height = px((count.clamp(1, appearance.max_visible_rows as usize) as f64
             * appearance.row_height) as f32)
-        .min((window.viewport_size().height - px(18.)).max(px(1.)));
+        .min((crate::window_frame::content_bounds(window).size.height - px(18.)).max(px(1.)));
         let width = px(appearance.popup_width as f32)
-            .min((window.viewport_size().width - px(16.)).max(px(1.)));
+            .min((crate::window_frame::content_bounds(window).size.width - px(16.)).max(px(1.)));
         let config = state.borrow().config.clone();
         let path = path.to_vec();
         let owner = cx.weak_entity();
@@ -1020,6 +1215,8 @@ impl View {
                             .size_full(),
                     );
                     crate::semantics::State {
+                        identity: None,
+                        busy: false,
                         hidden: false,
                         metadata: None,
                         live: None,
@@ -1081,3 +1278,7 @@ impl View {
         panel.into_any_element()
     }
 }
+
+#[cfg(all(test, feature = "native-image-tests"))]
+#[path = "placement_menu_test.rs"]
+mod placement_geometry_test;

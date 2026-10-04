@@ -4,6 +4,7 @@ module Image = Image_wire
 module Animation = Animation_wire
 module Accessibility = Accessibility_wire
 module Loading = Loading_wire
+module Spinner = Spinner_wire
 module Avatar = Avatar_wire
 module Rating = Rating_wire
 module Slider = Slider_wire
@@ -13,7 +14,9 @@ module Calendar = Calendar_wire
 module Color_input = Color_input_wire
 module Table = Table_wire
 module Tree_input = Tree_input_wire
+module List_input = List_input_wire
 module Carousel = Carousel_wire
+module Carousel_track = Carousel_track_wire
 module Navigation_stack = Navigation_stack_wire
 module Container_query = Container_query_wire
 module Animation_program = Animation_program_wire
@@ -30,9 +33,24 @@ module Desktop = Desktop_wire
 module Notification = Notification_wire
 module Grid_location = Grid_location_wire
 
-let version = 1L
-let capabilities = 72057594037927935L
+(* Epoch 3 adds MenuButton observation/placement to epoch 2 button presentation. *)
+let version = 3L
+let capabilities = 9223372036854775807L
 let max_message_bytes = 1_048_576
+
+let validate_welcome ~protocol_version ~available_capabilities =
+  if not (Int64.equal protocol_version version)
+  then
+    Or_error.errorf
+      "unsupported native protocol version %Ld (expected %Ld)"
+      protocol_version
+      version
+  else if
+    Int64.(available_capabilities < 0L)
+    || not (Int64.equal (Int64.bit_and available_capabilities capabilities) capabilities)
+  then Or_error.error_string "native backend is missing required capabilities"
+  else Ok ()
+;;
 
 module Kind = struct
   type t =
@@ -88,6 +106,11 @@ module Kind = struct
     | Input_region
     | Highlight_scope
     | Link
+    | Radio
+    | Choice_picker
+    | Carousel_track
+    | Carousel_track_group
+    | Split_group
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -206,6 +229,7 @@ module Control = struct
     | Button of bool
     | Checkbox of Check_state.t * bool
     | Switch of bool * bool
+    | Radio of bool * Checkable_wire.Position.t option * bool
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -251,6 +275,143 @@ module Fill = struct
     | Linear_gradient of float * Color.t * float * Color.t * float
     | Linear_gradient_in of int64 * float * Color.t * float * Color.t * float
   [@@deriving bin_io, equal, sexp_of]
+end
+
+module Scrollbar = struct
+  module Axis = struct
+    type t =
+      | Horizontal
+      | Vertical
+      | Both
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Mode = struct
+    type t =
+      | Scrolling
+      | Hover
+      | Always
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Entrance = struct
+    type t =
+      | Fade
+      | Slide_and_fade
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Track = struct
+    type t =
+      { background : int64 option
+      ; border : int64 option
+      ; width : float option
+      }
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Thumb = struct
+    type t =
+      { background : Fill.t option
+      ; width : float option
+      ; inset : float option
+      ; radius : float option
+      ; min_length : float option
+      }
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Appearance = struct
+    type t =
+      { track : Track.t
+      ; track_hover : Track.t
+      ; track_pressed : Track.t
+      ; thumb : Thumb.t
+      ; thumb_hover : Thumb.t
+      ; thumb_pressed : Thumb.t
+      }
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Motion = struct
+    type t =
+      { idle_ms : int64
+      ; enter_ms : int64
+      ; exit_ms : int64
+      ; expand_ms : int64
+      ; entrance : Entrance.t
+      ; thumb_hover_entrance : Entrance.t
+      }
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  type t =
+    { label : string
+    ; axis : Axis.t
+    ; mode : Mode.t
+    ; appearance : Appearance.t
+    ; motion : Motion.t
+    }
+  [@@deriving bin_io, equal, sexp_of]
+
+  let max_config_bytes = 8192
+  let dimension n = Float.is_finite n && Float.(n >= 0. && n <= 16384.)
+  let rgba n = Int64.(n >= 0L && n <= 0xffffffffL)
+
+  let color = function
+    | Color.Rgba n -> rgba n
+    | Token _ -> false
+  ;;
+
+  let gradient angle from start to_ stop =
+    Float.is_finite angle
+    && Float.(angle >= 0. && angle <= 360.)
+    && Float.is_finite start
+    && Float.is_finite stop
+    && Float.(start >= 0. && start <= stop && stop <= 1.)
+    && color from
+    && color to_
+  ;;
+
+  let fill = function
+    | Fill.Solid c -> color c
+    | Linear_gradient (angle, from, start, to_, stop) ->
+      gradient angle from start to_ stop
+    | Linear_gradient_in (space, angle, from, start, to_, stop) ->
+      Int64.(space = 0L || space = 1L) && gradient angle from start to_ stop
+  ;;
+
+  let valid_track (t : Track.t) =
+    Option.for_all t.width ~f:dimension
+    && Option.for_all t.background ~f:rgba
+    && Option.for_all t.border ~f:rgba
+  ;;
+
+  let valid_thumb (t : Thumb.t) =
+    List.for_all
+      [ t.width; t.inset; t.radius; t.min_length ]
+      ~f:(Option.for_all ~f:dimension)
+    && Option.for_all t.background ~f:fill
+  ;;
+
+  let valid_motion (t : Motion.t) =
+    List.for_all [ t.idle_ms; t.enter_ms; t.exit_ms; t.expand_ms ] ~f:(fun n ->
+      Int64.(n >= 0L && n <= 60_000L))
+  ;;
+
+  let valid t =
+    String.length t.label <= 1024
+    && (not (String.is_empty (String.strip t.label)))
+    && Stdlib.String.is_valid_utf_8 t.label
+    && (not (String.contains t.label '\000'))
+    && List.for_all
+         [ t.appearance.track; t.appearance.track_hover; t.appearance.track_pressed ]
+         ~f:valid_track
+    && List.for_all
+         [ t.appearance.thumb; t.appearance.thumb_hover; t.appearance.thumb_pressed ]
+         ~f:valid_thumb
+    && valid_motion t.motion
+  ;;
 end
 
 module Shadow = struct
@@ -367,6 +528,211 @@ module Style = struct
   [@@deriving bin_io, equal, sexp_of]
 end
 
+module Number_presentation = struct
+  type t =
+    { gap : float
+    ; button_width : float
+    ; button_min_height : float
+    ; stacked_button_min_height : float
+    ; editor_padding : float
+    ; border_width : float option
+    ; frame_style : Style.t list
+    ; editor_style : Style.t list
+    ; decrement_style : Style.t list
+    ; increment_style : Style.t list
+    }
+  [@@deriving bin_io, equal, sexp_of]
+end
+
+module Split_button = struct
+  module Parts = struct
+    type t =
+      | Primary
+      | Menu
+      | Split
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  type t =
+    { parts : Parts.t
+    ; surface : Style.t list
+    ; menu_open : Style.t list
+    }
+  [@@deriving bin_io, equal, sexp_of]
+end
+
+module Choice_picker_presentation = struct
+  type t =
+    { config : Choice_picker_wire.Config.t
+    ; popup_width : float
+    ; max_height : float
+    ; estimated_row_height : float
+    ; overscan : float
+    ; empty_label : string
+    ; popup_style : Style.t list
+    ; option_style : Style.t list
+    ; header_style : Style.t list
+    ; empty_style : Style.t list
+    ; slots : Choice_picker_wire.Slot.t list
+    }
+  [@@deriving bin_io, equal, sexp_of]
+end
+
+module Document_style = struct
+  module Part = struct
+    type t =
+      | Foreground
+      | Muted_foreground
+      | Link
+      | Selection
+      | Code_background
+      | Border
+    [@@deriving bin_io, compare, equal, sexp_of]
+  end
+
+  module Heading_sizes = struct
+    type t =
+      { h1 : float
+      ; h2 : float
+      ; h3 : float
+      ; h4 : float
+      ; h5 : float
+      ; h6 : float
+      }
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Underline = struct
+    type t =
+      { color : Color.t option
+      ; thickness : float
+      ; wavy : bool
+      }
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Strikethrough = struct
+    type t =
+      { color : Color.t option
+      ; thickness : float
+      }
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  module Inline_code = struct
+    type t =
+      { foreground : Color.t option
+      ; background : Color.t option
+      ; font_weight : int64 option
+      ; italic : bool option
+      ; underline : Underline.t option
+      ; strikethrough : Strikethrough.t option
+      ; fade_out : float option
+      }
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  type t =
+    { colors : (Part.t * Color.t) list
+    ; paragraph_gap_rem : float option
+    ; heading_base_font_size : float option
+    ; heading_sizes : Heading_sizes.t option
+    ; inline_code : Inline_code.t
+    ; code_block : Style.t list
+    ; table : Style.t list
+    ; table_head : Style.t list
+    ; table_cell : Style.t list
+    }
+  [@@deriving bin_io, equal, sexp_of]
+end
+
+module Control_appearance = struct
+  module Label_position = struct
+    type t =
+      | Before
+      | After
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  type t =
+    { size : float
+    ; switch_width : float
+    ; gap : float
+    ; label_position : Label_position.t
+    ; indicator_style : Style.t list
+    ; mark_style : Style.t list
+    }
+  [@@deriving bin_io, equal, sexp_of]
+end
+
+module Tab_motion = struct
+  type t =
+    { spring : Animation.Spring.t
+    ; color_duration_ms : int64
+    }
+  [@@deriving bin_io, equal, sexp_of]
+end
+
+module Tab_viewport = struct
+  module Reveal = struct
+    type t =
+      { serial : int64
+      ; target : string
+      }
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  type t = { reveal : Reveal.t option } [@@deriving bin_io, equal, sexp_of]
+end
+
+module Tab_content = struct
+  module Label = struct
+    type t =
+      | Default
+      | Custom
+      | Hidden
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  type t =
+    { max_width : float option
+    ; labels : Label.t list
+    }
+  [@@deriving bin_io, equal, sexp_of]
+end
+
+module Split_group_appearance = struct
+  type t =
+    { thickness : float
+    ; hit_extent : float
+    ; handle_style : Style.t list
+    ; item_styles : (string * Style.t list) list
+    }
+  [@@deriving bin_io, equal, sexp_of]
+end
+
+module Tab_appearance = struct
+  module Variant = struct
+    type t =
+      | Tab
+      | Outline
+      | Pill
+      | Segmented
+      | Underline
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  type t =
+    { variant : Variant.t
+    ; height : float
+    ; gap : float
+    ; padding : float
+    ; tab_style : Style.t list
+    ; item_styles : (string * Style.t list) list
+    }
+  [@@deriving bin_io, equal, sexp_of]
+end
+
 module Choice_appearance = struct
   type t =
     { popup_width : float
@@ -380,98 +746,7 @@ module Choice_appearance = struct
   [@@deriving bin_io, equal, sexp_of]
 end
 
-module Editor = struct
-  module Selection = struct
-    type t =
-      { anchor : int64
-      ; head : int64
-      }
-    [@@deriving bin_io, equal, sexp_of]
-  end
-
-  module Config = struct
-    type t =
-      { label : string
-      ; placeholder : string
-      ; read_only : bool
-      ; disabled : bool
-      ; submit_on_enter : bool
-      ; auto_focus : bool
-      ; min_rows : int64
-      ; max_rows : int64
-      }
-    [@@deriving bin_io, equal, sexp_of]
-  end
-
-  module Snapshot = struct
-    type t =
-      { revision : int64
-      ; text : string
-      ; selection : Selection.t
-      ; composition : Selection.t option
-      ; focused : bool
-      }
-    [@@deriving bin_io, equal, sexp_of]
-  end
-
-  module Selection_policy = struct
-    type t =
-      | Start
-      | End
-      | Preserve
-      | Select of Selection.t
-    [@@deriving bin_io, equal, sexp_of]
-  end
-
-  module Undo_policy = struct
-    type t =
-      | Record
-      | Reset
-    [@@deriving bin_io, equal, sexp_of]
-  end
-
-  module Command = struct
-    type t =
-      | Replace of string * Selection_policy.t * Undo_policy.t * int64 option
-      | Select of Selection.t
-      | Focus
-      | Undo
-      | Redo
-      | Submit
-      | Read_snapshot
-    [@@deriving bin_io, equal, sexp_of]
-  end
-
-  module Error = struct
-    type t =
-      | Not_mounted
-      | Closed
-      | Stale_editor
-      | Stale_revision
-      | Composing
-      | Invalid_selection
-      | Limit_exceeded
-      | Busy
-      | Native_failure
-      | Invalid_text
-      | Focus_blocked
-    [@@deriving bin_io, equal, sexp_of]
-  end
-
-  module Result = struct
-    type t =
-      | Applied of Snapshot.t
-      | Failed of Error.t
-    [@@deriving bin_io, equal, sexp_of]
-  end
-
-  module Event_kind = struct
-    type t =
-      | Changed
-      | Submitted
-    [@@deriving bin_io, equal, sexp_of]
-  end
-end
+module Editor = Editor_wire
 
 module Menu_definition = struct
   type t =
@@ -493,6 +768,7 @@ module Menu_presentation = struct
     | Context
     | Bar
     | Platform_bar
+    | Editor_context
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -522,13 +798,7 @@ module Palette_dismissal = struct
   [@@deriving bin_io, equal, sexp_of]
 end
 
-module Progress = struct
-  type t =
-    { label : string
-    ; fraction : float option
-    }
-  [@@deriving bin_io, equal, sexp_of]
-end
+module Progress = Progress_wire
 
 module Toast_politeness = struct
   type t =
@@ -646,6 +916,65 @@ module Op = struct
     | Set_text_shimmer of Node_id.t * Text_shimmer_wire.Config.t option
     | Set_command_binding of Node_id.t * Command_binding_wire.Config.t option
     | Set_number_input_draft of Node_id.t * string option
+    | Set_rating_appearance of Node_id.t * Rating.Appearance.t option
+    | Set_spinner of Node_id.t * Spinner.Config.t
+    | Set_progress_presentation of Node_id.t * Progress.Presentation.t
+    | Set_control_appearance of Node_id.t * Control_appearance.t option
+    | Set_tab_order of Node_id.t * Checkable_wire.Tab_order.t option
+    | Set_button_presentation of Node_id.t * Button_wire.Config.t option
+    | Set_split_button of Node_id.t * Split_button.t option
+    | Set_hover_observer of Node_id.t * Handler_id.t option
+    | Set_choice_picker of Node_id.t * Choice_picker_presentation.t
+    | Set_editor_privacy of Node_id.t * Editor.Privacy.t
+    | Set_editor_frame of Node_id.t * Editor_frame_wire.t option
+    | Set_editor_content_hint of Node_id.t * Input_content_hint_wire.t option
+    | Set_editor_format of Node_id.t * Input_format_wire.t option
+    | Set_editor_validation of Node_id.t * Input_validation_wire.Rule.t option
+    | Set_text_area_layout of Node_id.t * Text_area_layout_wire.t option
+    | Set_editor_clear_on_escape of Node_id.t * bool
+    | Set_editor_searchable of Node_id.t * bool
+    | Set_otp_appearance of Node_id.t * Otp_presentation_wire.t option
+    | Set_number_presentation of Node_id.t * Number_presentation.t option
+    | Set_number_step_mode of Node_id.t * Number_input.Step_mode.t
+    | Set_slider_appearance of Node_id.t * Slider_presentation_wire.t option
+    | Set_reveal of Node_id.t * Reveal_wire.t option
+    | Set_calendar_appearance of Node_id.t * Calendar_presentation_wire.t option
+    | Set_color_presentation of Node_id.t * Color_presentation_wire.t option
+    | Set_popover of Node_id.t * bool
+    | Set_calendar_content of Node_id.t * Calendar_content_wire.t option
+    | Set_overlay_backdrop of Node_id.t * int64 option
+    | Set_overlay_motion of Node_id.t * bool
+    | Set_tooltip_motion of Node_id.t * bool
+    | Set_placement_geometry of Node_id.t * Placement_geometry_wire.t option
+    | Set_sheet_insets of Node_id.t * Sheet_insets_wire.t option
+    | Set_calendar_viewport_observer of Node_id.t * Handler_id.t option
+    | Set_carousel_track of Node_id.t * Carousel_track.Config.t
+    | Set_carousel_track_motion of Node_id.t * Carousel_track.Motion.t option
+    | Set_tab_appearance of Node_id.t * Tab_appearance.t option
+    | Set_tab_content of Node_id.t * Tab_content.t option
+    | Set_tab_viewport of Node_id.t * Tab_viewport.t option
+    | Set_tab_trailing of Node_id.t * bool
+    | Set_choice_menu of Node_id.t * bool
+    | Set_tab_motion of Node_id.t * Tab_motion.t option
+    | Set_split_group of Node_id.t * Split_group_wire.Config.t * Split_group_appearance.t
+    | Set_toast_placement of Node_id.t * Toast_placement_wire.t option
+    | Set_toast_layering of Node_id.t * Toast_layering_wire.t option
+    | Set_toast_motion of Node_id.t * Toast_motion_wire.t option
+    | Set_scrollbar of Node_id.t * Scrollbar.t option
+    | Set_list_axis of Node_id.t * List_wire.Axis.t
+    | Set_list_input of Node_id.t * List_input.Config.t option
+    | Set_table_behavior of Node_id.t * Table_wire.Behavior.t option
+    | Set_table_appearance of Node_id.t * Table_wire.Appearance.t option
+    | Set_table_header of Node_id.t * Table_header_wire.t option
+    | Set_table_header_style of Node_id.t * Style.t list
+    | Set_table_row_style of Node_id.t * Style.t list
+    | Set_document_selection_format of Node_id.t * bool
+    | Set_document_preview of Node_id.t * Document_preview_wire.Config.t
+    | Set_document_text_style of Node_id.t * Document_style.t option
+    | Set_document_markdown_options of Node_id.t * Document.Markdown_options.t
+    | Set_document_actions of Node_id.t * Document_actions_wire.Config.t
+    | Set_document_profile of Node_id.t * Document_profile_wire.Config.t
+    | Set_window_region of Node_id.t * Window_region_wire.t option
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -809,7 +1138,8 @@ module Message = struct
         Int64.(correlation <= 0L)
         || not
              (Window.valid_title config.title
-              && Window.valid_size config.width config.height)
+              && Window.valid_size config.width config.height
+              && Window.Frame.valid config.frame)
       | Color_input_command (correlation, _, _, command) ->
         Int64.(correlation <= 0L) || not (Color_input.Command.valid command)
       | Calendar_command (correlation, _, _, command) ->
@@ -844,6 +1174,14 @@ module Message = struct
           (match request with
           | Append (_, _, data) -> String.length data > Asset.max_chunk_bytes
           | Begin _ | Finish _ | Release _ -> false)
+      | Editor_command (correlation, _, _, Read_range_bounds (revision, range)) ->
+        Int64.(
+          correlation <= 0L
+          || revision < 0L
+          || range.anchor < 0L
+          || range.head < 0L
+          || range.anchor > 262_144L
+          || range.head > 262_144L)
       | Hello _
       | Open _
       | Close _
@@ -1007,6 +1345,48 @@ module Event = struct
         * Handler_id.t
         * int64
         * Command_binding_wire.Observation.t
+    | Menu_open_changed of Window_id.t * Node_id.t * Handler_id.t * int64 * bool
+    | Hover_changed of Window_id.t * Node_id.t * Handler_id.t * int64 * bool
+    | Choice_picker_event of
+        Window_id.t * Node_id.t * Handler_id.t * int64 * Choice_picker_wire.Event.t
+    | Editor_search_observed of
+        Window_id.t * Node_id.t * Handler_id.t * int64 * Editor_search_wire.Snapshot.t
+    | Calendar_viewport_changed of
+        Window_id.t * Node_id.t * Handler_id.t * int64 * Calendar_viewport_wire.t
+    | Carousel_track_requested of
+        Window_id.t * Node_id.t * Handler_id.t * int64 * Carousel_track.Request.t
+    | Split_group_resized of
+        Window_id.t
+        * Node_id.t
+        * Handler_id.t
+        * int64
+        * int64
+        * Split_group_wire.Snapshot.t
+    | List_input of
+        Window_id.t * Node_id.t * Handler_id.t * int64 * int64 * List_input.Request.t
+    | Table_columns_observed of
+        Window_id.t * Node_id.t * Handler_id.t * int64 * Table_wire.Column_viewport.t
+    | Document_preview_observed of
+        Window_id.t
+        * Node_id.t
+        * Handler_id.t
+        * int64
+        * Resource_id.t
+        * Document_preview_wire.Event.t
+    | Document_action of
+        Window_id.t
+        * Node_id.t
+        * Handler_id.t
+        * int64
+        * Resource_id.t
+        * Document_actions_wire.Event.t
+    | Document_profile_event of
+        Window_id.t
+        * Node_id.t
+        * Handler_id.t
+        * int64
+        * Resource_id.t
+        * Document_profile_wire.Event.t
   [@@deriving bin_io, equal, sexp_of]
 
   let valid_snapshot (t : Editor.Snapshot.t) =
@@ -1062,11 +1442,20 @@ module Event = struct
       && (Option.is_some source || failure_before_scene)
     | Extension_event (_, _, _, revision, generation, signal) ->
       Int64.(revision >= 0L && generation > 0L) && Extension.Signal.valid signal
+    | Split_group_resized (_, _, _, revision, generation, snapshot) ->
+      Int64.(revision >= 0L && generation >= 0L)
+      && Split_group_wire.Snapshot.valid snapshot
     | Split_resized (_, _, _, revision, generation, snapshot) ->
       Int64.(revision >= 0L && generation >= 0L) && Split.Snapshot.valid snapshot
     | Window_changed (_, snapshot) | Window_response (_, _, Observed snapshot) ->
       Window.Snapshot.valid snapshot
+    | Window_response (_, _, Selected_text text) ->
+      String.length text <= Window.max_selection_bytes
+      && Stdlib.String.is_valid_utf_8 text
+    | Window_response (_, _, Selection_present _)
+    | Window_response (_, _, Selection_updated)
     | Window_response (_, _, Failed _)
+    | Window_response (_, _, Focused_input _)
     | Window_capabilities _ | Close_requested _ | Quit_requested | Reopen_requested ->
       true
     | Document_navigation (_, _, _, revision, _, generation, navigation) ->
@@ -1079,6 +1468,8 @@ module Event = struct
       &&
         (match navigation with
         | Link url -> (not (String.is_empty url)) && valid url
+        | Link_activated (url, activation) ->
+          (not (String.is_empty url)) && valid url && Document.Activation.valid activation
         | Line (path, _, line) ->
           Int64.(line > 0L && line <= 2_147_483_647L) && Option.for_all path ~f:valid)
     | List_retained (_, revision, notices) ->
@@ -1107,8 +1498,14 @@ module Event = struct
       Int64.(revision >= 0L) && Slider.Event.valid event
     | Table_input (_, _, _, revision, input) ->
       Int64.(revision >= 0L) && Table.Input.valid input
+    | Table_columns_observed (_, _, _, revision, viewport) ->
+      Int64.(revision >= 0L) && Table_wire.Column_viewport.valid viewport
+    | List_input (_, _, _, revision, generation, request) ->
+      Int64.(revision >= 0L && generation > 0L) && List_input.Request.valid request
     | Tree_input (_, _, _, revision, request) ->
       Int64.(revision >= 0L) && Tree_input.Request.valid request
+    | Carousel_track_requested (_, _, _, revision, request) ->
+      Int64.(revision >= 0L) && Carousel_track.Request.valid request
     | Carousel_requested (_, _, _, revision, request) ->
       Int64.(revision >= 0L) && Carousel.Request.valid request
     | Rating_requested (_, _, _, revision, request) ->
@@ -1153,6 +1550,12 @@ module Event = struct
       Int64.(revision >= 0L) && Drag_and_drop.Source_sample.is_valid sample
     | Drop_target_event (_, _, _, revision, sample) ->
       Int64.(revision >= 0L) && Drag_and_drop.Target_sample.is_valid sample
+    | Document_profile_event (_, _, _, revision, _, event) ->
+      Int64.(revision >= 0L) && Document_profile_wire.Event.valid event
+    | Document_action (_, _, _, revision, _, event) ->
+      Int64.(revision >= 0L) && Document_actions_wire.Event.valid event
+    | Document_preview_observed (_, _, _, revision, _, event) ->
+      Int64.(revision >= 0L) && Document_preview_wire.Event.valid event
     | Document_diff_event (_, _, _, revision, _, event) ->
       Int64.(revision >= 0L) && Document_diff.Event.valid event
     | Command_binding_observed (_, _, _, revision, observation) ->
@@ -1176,12 +1579,20 @@ module Event = struct
       && String.length id <= 256
       && Stdlib.String.is_valid_utf_8 id
       && not (String.contains id '\000')
+    | Calendar_viewport_changed (_, _, _, revision, viewport) ->
+      Int64.(revision >= 0L) && Calendar_viewport_wire.valid viewport
+    | Editor_search_observed (_, _, _, revision, search) ->
+      Int64.(revision >= 0L) && Editor_search_wire.Snapshot.is_valid search
+    | Choice_picker_event (_, _, _, revision, event) ->
+      Int64.(revision >= 0L) && Choice_picker_wire.Event.valid event
     | Combobox_selected (window, node, handler, revision, id, snapshot) ->
       valid_event (Choice (window, node, handler, revision, id))
       && valid_snapshot snapshot
       && Option.is_none snapshot.composition
       && not (String.contains snapshot.text '\n' || String.contains snapshot.text '\r')
     | Toast_dismissed (_, _, _, revision, _)
+    | Hover_changed (_, _, _, revision, _)
+    | Menu_open_changed (_, _, _, revision, _)
     | Tooltip_open_changed (_, _, _, revision, _)
     | Overlay_dismissed (_, _, _, revision, _) -> Int64.(revision >= 0L)
     | Choice (_, _, _, revision, id) ->
@@ -1198,7 +1609,23 @@ module Event = struct
         | Changed -> true
         | Submitted -> Option.is_none snapshot.composition)
     | Editor_result (_, _, _, Applied snapshot) -> valid_snapshot snapshot
+    | Editor_result (_, _, _, Range_bounds geometry) ->
+      Option.for_all geometry ~f:Editor_geometry_wire.is_valid
+    | Editor_result (_, _, _, Viewport viewport) ->
+      Option.for_all viewport ~f:Editor_viewport_wire.is_valid
+    | Editor_result (_, _, _, Search_observed value) ->
+      Editor_search_wire.Snapshot.is_valid value
+    | Editor_result (_, _, _, Search_replaced (editor, search, count)) ->
+      valid_snapshot editor
+      && Editor_search_wire.Snapshot.is_valid search
+      && Int64.equal editor.revision search.stamp.editor_revision
+      && Int64.(
+           search.text_bytes = of_int (String.length editor.text)
+           && count >= 0L
+           && count <= 262_144L)
     | Editor_result (_, _, _, Failed _)
+    | Editor_result (_, _, _, Viewport_scroll_accepted)
+    | Editor_result (_, _, _, Content_hint_status _)
     | Welcome _
     | Opened _
     | Closed _

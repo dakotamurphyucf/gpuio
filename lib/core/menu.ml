@@ -73,6 +73,7 @@ module Expert = struct
     | Context
     | Bar
     | Platform_bar
+    | Editor_context
   [@@deriving equal, sexp_of]
 
   let rec command_ids t =

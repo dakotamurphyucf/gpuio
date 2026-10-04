@@ -114,6 +114,7 @@ fn input_requires_opt_in_tree_metadata_handler_and_current_eligible_row() {
     );
     for operations in [
         vec![Op::SetAccessibility(node(0), None)],
+        vec![Op::SetAccessibility(node(0), Some(metadata(Role::Log)))],
         vec![Op::Bind(node(0), None)],
         vec![Op::SetTreeInput(node(1), true)],
     ] {
@@ -295,4 +296,53 @@ fn move_proposals_require_explicit_policy_and_two_current_eligible_items() {
         ))
         .unwrap();
     assert!(event(&session, 2, 1, Placement::After).is_none());
+}
+
+#[test]
+fn horizontal_list_metadata_is_rejected_for_a_valid_native_tree() {
+    let mut session = session();
+    assert!(
+        session
+            .apply(&tx(
+                1,
+                vec![Op::SetListAxis(
+                    node(0),
+                    gpuio_protocol::list::Axis::Horizontal
+                ),]
+            ))
+            .is_err()
+    );
+    assert_eq!(session.tree(window()).unwrap().revision(), 1);
+    assert_eq!(
+        session
+            .tree(window())
+            .unwrap()
+            .get(node(0))
+            .unwrap()
+            .list_axis,
+        gpuio_protocol::list::Axis::Vertical
+    );
+    assert!(
+        session
+            .tree_input(window(), node(0), handler(), 1, Request::Focus(1))
+            .is_some()
+    );
+    session
+        .apply(&tx(
+            1,
+            vec![
+                Op::SetTreeInput(node(0), false),
+                Op::SetListAxis(node(0), gpuio_protocol::list::Axis::Horizontal),
+            ],
+        ))
+        .unwrap();
+    assert_eq!(
+        session
+            .tree(window())
+            .unwrap()
+            .get(node(0))
+            .unwrap()
+            .list_axis,
+        gpuio_protocol::list::Axis::Horizontal
+    );
 }

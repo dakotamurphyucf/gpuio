@@ -12,6 +12,8 @@ module Backend = Gpuio_agent_chat_model.Fake_backend
 module List_view = Gpuio_bonsai.Virtual_list
 module E = Bonsai.Effect
 
+let output env text = Gpuio_eio.Output.write (Eio.Stdenv.stdout env) text
+
 let perform scope ui_effect =
   let promise, resolve = Eio.Promise.create () in
   Scope.Expert.enqueue scope (fun () ->
@@ -133,14 +135,14 @@ let run ~self_test ~native_test ~workload_metrics ~attachment_directory ~motion 
                   |> Option.bind ~f:Document.source
                   |> Option.value_map ~default:0 ~f:Source.byte_length)
             in
-            Eio.Flow.copy_string
+            output
+              env
               (sprintf
                  "GPUIO_CHAT_WORKLOAD elapsed_ms=%.0f response=(response_bytes %d) \
                   diagnostics=%s\n"
                  ((Eio.Time.now clock -. started) *. 1000.)
                  response_bytes
                  (Sexp.to_string (App.Diagnostics.sexp_of_t diagnostics)))
-              (Eio.Stdenv.stdout env)
           done)
         ~on_result:(fun result -> E.of_thunk (fun () -> Or_error.ok_exn result))
       |> Or_error.ok_exn
@@ -401,18 +403,18 @@ let run ~self_test ~native_test ~workload_metrics ~attachment_directory ~motion 
           assert (diagnostics.traffic.drain_calls = stats.turns);
           assert (diagnostics.traffic.drained_bytes > 0);
           assert (diagnostics.traffic.received_events > stats.rendered);
-          Eio.Flow.copy_string
+          output
+            env
             (sprintf
                "GPUIO_AGENT_CHAT_METRICS elapsed_ms=%.0f stats=%s\n"
                ((Eio.Time.now clock -. started) *. 1000.)
-               (Sexp.to_string (App.Stats.sexp_of_t stats)))
-            (Eio.Stdenv.stdout env);
-          Eio.Flow.copy_string
+               (Sexp.to_string (App.Stats.sexp_of_t stats)));
+          output
+            env
             "GPUIO_AGENT_CHAT_PUBLIC_OK: exact submit, protected draft, concurrent \
              streams, cancellation/retry, offscreen generation/history, retained tabs, \
              independent windows, attachments, errors/retry, pending-send cancellation, \
-             theme and cleanup\n"
-            (Eio.Stdenv.stdout env))
+             theme and cleanup\n")
         ~on_result:(fun result ->
           E.of_thunk (fun () ->
             App.shutdown app;
@@ -421,14 +423,10 @@ let run ~self_test ~native_test ~workload_metrics ~attachment_directory ~motion 
       |> fun (_ : Scope.Task.t) -> ()));
   if self_test then assert !passed;
   if native_test
-  then
-    Eio_main.run (fun env ->
-      Eio.Flow.copy_string
-        "GPUIO_AGENT_CHAT_NATIVE_APP_RETURNED\n"
-        (Eio.Stdenv.stdout env))
+  then Eio_main.run (fun env -> output env "GPUIO_AGENT_CHAT_NATIVE_APP_RETURNED\n")
 ;;
 
-let () =
+let main () =
   let flag value = Array.exists (Sys.get_argv ()) ~f:(String.equal value) in
   let attachment_directory =
     let args = Sys.get_argv () in
@@ -452,4 +450,27 @@ let () =
     ~self_test:(flag "--self-test")
     ~native_test:(flag "--native-test")
     ~workload_metrics:(flag "--workload-metrics")
+;;
+
+let () =
+  if Array.exists (Sys.get_argv ()) ~f:(String.equal "--print-info-plist")
+  then (
+    let identity =
+      Gpuio.Desktop.Identity.create
+        ~identifier:"com.gpuio.agent-chat"
+        ~name:"GPUIO Agent Workspace"
+        ~schemes:[]
+        ()
+      |> Or_error.ok_exn
+    in
+    let package =
+      Gpuio.Desktop_package.macos_info_plist
+        identity
+        ~executable:"gpuio-agent-chat"
+        ~version:"0.1.0"
+        ~build:"1"
+      |> Or_error.ok_exn
+    in
+    Eio_main.run (fun env -> output env (Gpuio.Desktop_package.contents package)))
+  else main ()
 ;;

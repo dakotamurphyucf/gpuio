@@ -1,0 +1,5 @@
+(library
+ (name gpuio_example_document)
+ (libraries core gpuio)
+ (preprocess
+  (pps ppx_jane)))

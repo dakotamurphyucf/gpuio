@@ -4,9 +4,11 @@ OCH-41, implementation in progress. `Text_shimmer` now connects typed Core/Bonsa
 text descriptions, atomic live transport and the native retained Host to one
 shaped glyph layout. Plain/selectable text, foreground spans and search underlays
 share that layout. A background mounted fixture verifies GPU output, logical
-selection/copy and native source labels. Capability advertisement, public gallery
-and installed-consumer acceptance remain open. `Loading.Kind.Shimmer` remains a
-separate rectangular placeholder effect.
+selection/copy and native source labels. Scoped public-gallery and fresh
+installed-consumer checks also pass, as recorded below. Capability advertisement,
+whole-application measurements and consolidated release acceptance remain open.
+`Loading.Kind.Shimmer` remains a separate rectangular placeholder effect; see the
+[loading source review](../catalog/loading-review.md) for the family mapping.
 
 The pinned [component source](../catalog/sources/component-shimmer.rs.txt) is
 gpui-kit `84f57fdfcb4910623fb0bb7f795b077e249f9271`. The snapshot is verified against
@@ -206,8 +208,9 @@ These are implementation requirements, **not completed acceptance**:
 - Measure frame performance and whole-window idle/resource behavior. The shared
   window-frame overlay work budget and owner admission do not establish application
   FPS, latency, power or whole-application bounds.
-- Finish foreground OS keyboard/clipboard, screen-reader and public gallery/
-  installed-consumer acceptance. Dispatched GPUI keys are not physical input.
+- Preserve the focused public-gallery/installed-consumer OS keyboard and clipboard
+  evidence below while completing consolidated application and screen-reader
+  acceptance. Dispatched GPUI keys alone are not OS-input evidence.
 - Attachment/Marker examples now have scoped source review and native/consumer
   evidence in their linked contracts below. Complete remaining family/release
   acceptance before advertising the shimmer capability.
@@ -505,3 +508,29 @@ Python syntax and structural catalog audit also pass. Later
 adapter checkpoints record their scoped native/consumer acceptance.
 Whole-application measurements and hosted release gates remain open. No shimmer
 capability bit is advertised by this checkpoint.
+
+
+## Prepared-frame callback ordering correction
+
+A deterministic text-shimmer regression now reproduces the same delivery-order
+fault found in progress: prepare at 100ms, deliver the pending callback at 200ms,
+then paint at 250ms in a one-second cycle. Before the correction the phase stayed
+at 0.1 instead of 0.25 because delivery discarded the prepared interval. Delivery
+now preserves that interval until paint consumes it or the paired frame finish
+discards it. Pending callbacks still hold weak owners and remain bounded to one.
+
+The regression checks that an omitted frame does not replay its elapsed time on
+reveal, and reduced motion remains quiet. Text shimmer checks both Loop and Once.
+Preparation alone cannot prove that paint will be omitted; one pending callback
+may request paint before finish. The older tests now pair omitted construction
+with `finish_frame` and require silence afterward, preserving the hidden-phase
+assertions rather than treating callback delivery as a substitute for finish.
+
+Both new tests fail on the previous implementation and pass after the correction.
+The full native library passes **468 tests with two existing ignores**. These are
+headless timing/lifecycle checks, not fresh GPU, OS-input or whole-application
+performance acceptance. Earlier gallery/installed-consumer evidence predates this
+private timing correction; no OCaml API, wire schema or dependency changed.
+
+Strict native/protocol all-target Clippy and Rust formatting pass after this
+correction. The structural catalog audit also passes; it is not native acceptance.

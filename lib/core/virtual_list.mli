@@ -1,11 +1,21 @@
 open Core
 
-module Height : sig
+module Axis : sig
+  type t =
+    | Vertical
+    | Horizontal
+  [@@deriving equal, sexp_of]
+end
+
+module Extent : sig
   type t =
     | Estimated of float
     | Fixed of float
   [@@deriving equal, sexp_of]
 end
+
+(** Source-compatible spelling for vertical item extents. *)
+module Height = Extent
 
 module Scroll_policy : sig
   type t =
@@ -33,7 +43,24 @@ module Config : sig
     -> unit
     -> t Or_error.t
 
+  (** Horizontal items advance left to right. [width] is the main-axis estimate
+      or fixed clipped extent; validation and budgets match [create]. Provide a
+      bounded viewport width and a constrained height. Tree input is vertical-only. *)
+  val horizontal
+    :  ?overscan:float
+    -> ?max_active:int
+    -> ?scroll:Scroll_policy.t
+    -> ?scrollbar:bool
+    -> width:Extent.t
+    -> unit
+    -> t Or_error.t
+
+  val axis : t -> Axis.t
+  val extent : t -> Extent.t
+
+  (** Legacy alias for [extent]. For horizontal configurations this is a width. *)
   val height : t -> Height.t
+
   val max_active : t -> int
 end
 
@@ -86,6 +113,7 @@ module Scroll_request : sig
 end
 
 module Expert : sig
+  val axis_to_wire : Axis.t -> Gpuio_protocol.List_wire.Axis.t
   val config_to_wire : Config.t -> managed:bool -> Gpuio_protocol.List_wire.Config.t
   val row_style : Config.t -> Style.t
 

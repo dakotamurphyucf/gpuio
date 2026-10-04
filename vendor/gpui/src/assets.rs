@@ -75,6 +75,13 @@ impl RenderImage {
             .map(|frame| frame.buffer().as_raw().as_slice())
     }
 
+    /// Extract coverage from an already decoded BGRA frame. Call only on an
+    /// alpha-atlas cache miss; color and animation transforms do not change it.
+    pub(crate) fn alpha_mask(&self, frame_index: usize) -> Option<Vec<u8>> {
+        self.as_bytes(frame_index)
+            .map(|bytes| bytes.chunks_exact(4).map(|pixel| pixel[3]).collect())
+    }
+
     /// Get the size of this image, in pixels.
     pub fn size(&self, frame_index: usize) -> Size<DevicePixels> {
         self.data
@@ -119,6 +126,25 @@ impl fmt::Debug for RenderImage {
 mod tests {
     use super::*;
     use smallvec::SmallVec;
+
+    #[test]
+    fn decoded_image_mask_uses_alpha_independently_of_rgb_and_frame() {
+        let image = RenderImage::new(vec![
+            Frame::new(
+                image::RgbaImage::from_raw(
+                    2,
+                    2,
+                    vec![255, 1, 7, 0, 2, 250, 9, 64, 3, 8, 240, 128, 0, 0, 0, 255],
+                )
+                .unwrap(),
+            ),
+            Frame::new(image::RgbaImage::from_raw(1, 1, vec![255, 255, 255, 17]).unwrap()),
+        ]);
+        assert_eq!(image.alpha_mask(0), Some(vec![0, 64, 128, 255]));
+        assert_eq!(image.alpha_mask(1), Some(vec![17]));
+        assert_eq!(image.alpha_mask(2), None);
+        assert_eq!(RenderImage::new(SmallVec::new()).alpha_mask(0), None);
+    }
 
     #[test]
     fn empty_render_image_does_not_panic() {

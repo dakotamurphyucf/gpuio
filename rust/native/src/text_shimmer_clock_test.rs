@@ -124,11 +124,10 @@ fn reduce_static_capacity_and_skipped_paint_pause_without_accumulating_wakes() {
             dark: false,
         },
     );
-    assert!(
-        !owner.0.borrow_mut().delivered(false),
-        "constructing but skipping paint disarms a wake"
-    );
+    assert!(owner.0.borrow_mut().delivered(false));
     drop(text);
+    owner.finish_frame(); // Only the completed frame establishes omitted paint.
+    assert!(!owner.0.borrow_mut().delivered(false));
     at(&clock, 18000);
     assert_eq!(sample(&owner), 0.5);
 }
@@ -289,4 +288,37 @@ fn omitted_frame_discards_layout_interval_even_after_the_wake_was_delivered() {
     owner.suspend(); // Explicit lifecycle suspension also cancels resumption.
     at(&clock, 20_000);
     assert_eq!(sample(&owner), 0.35);
+}
+
+#[test]
+fn delivery_during_preparation_preserves_visible_time_and_discards_omitted_time() {
+    for repeat in [Repeat::Loop, Repeat::Once] {
+        let (owner, clock) = setup(repeat);
+        paint(&owner);
+        at(&clock, 100);
+        owner.prepare_frame();
+        at(&clock, 200);
+        owner.0.borrow_mut().delivered(false);
+        at(&clock, 250);
+        assert_eq!(sample(&owner), 0.25, "delivery lost visible prepared time");
+        paint(&owner);
+        owner.finish_frame();
+
+        at(&clock, 300);
+        owner.prepare_frame();
+        at(&clock, 400);
+        assert!(owner.0.borrow_mut().delivered(false));
+        at(&clock, 700);
+        owner.finish_frame();
+        assert!(!owner.0.borrow_mut().delivered(false));
+        at(&clock, 10000);
+        assert_eq!(sample(&owner), 0.3, "omitted layout interval replayed");
+        paint(&owner);
+        at(&clock, 10100);
+        owner.prepare_frame();
+        assert!(!owner.0.borrow_mut().delivered(true));
+        assert!(owner.0.borrow_mut().sample(true).reduced_motion);
+        assert!(!owner.0.borrow_mut().painted(Report::OutsideBand, true));
+        assert!(!owner.0.borrow().running);
+    }
 }

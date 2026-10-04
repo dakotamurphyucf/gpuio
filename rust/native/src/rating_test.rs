@@ -3,6 +3,9 @@ use super::super::{
     native_test::{mouse, move_mouse},
 };
 use super::*;
+#[cfg(feature = "native-image-tests")]
+#[path = "rating_appearance_test.rs"]
+mod appearance;
 use gpuio_protocol::{
     rating::{Config as RatingConfig, Request},
     v1::Field as StyleField,
@@ -566,6 +569,8 @@ pub(super) async fn exercise(
     }
     move_mouse(cx, handle, gpui::point(px(-10.), px(-10.)), false);
     frame(cx, handle).await;
+    #[cfg(feature = "native-image-tests")]
+    appearance::exercise(cx, handle, transport).await;
     let renders = handle.update(cx, |v, _, _| v.render_count).unwrap();
     cx.background_executor()
         .timer(std::time::Duration::from_millis(150))

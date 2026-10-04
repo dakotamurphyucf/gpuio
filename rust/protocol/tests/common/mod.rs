@@ -31,7 +31,7 @@ pub fn request() -> Message {
 pub fn events() -> Vec<Event> {
     let window = WindowId::from_parts(0, 1).unwrap();
     vec![
-        Event::Welcome(VERSION, 7),
+        Event::Welcome(1, 7),
         Event::Opened(1, window),
         Event::Accepted(window, 128),
         Event::Rendered(window, 128),

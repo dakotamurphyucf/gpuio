@@ -7,11 +7,13 @@
 //!
 //! If all of your elements are the same height, see [`crate::UniformList`] for a simpler API
 
+mod axis;
+
 use crate::{
-    AnyElement, App, AvailableSpace, Bounds, ContentMask, DispatchPhase, Edges, Element, EntityId,
-    FocusHandle, GlobalElementId, Hitbox, HitboxBehavior, InspectorElementId, IntoElement,
-    Overflow, Pixels, Point, ScrollDelta, ScrollWheelEvent, Size, Style, StyleRefinement, Styled,
-    Window, point, px, size,
+    AnyElement, App, AvailableSpace, Axis, Bounds, ContentMask, DispatchPhase, Edges, Element,
+    EntityId, FocusHandle, GlobalElementId, Hitbox, HitboxBehavior, InspectorElementId,
+    IntoElement, Overflow, Pixels, Point, ScrollDelta, ScrollWheelEvent, Size, Style,
+    StyleRefinement, Styled, Window, point, px, size,
 };
 use collections::VecDeque;
 use refineable::Refineable as _;
@@ -60,6 +62,8 @@ impl std::fmt::Debug for ListState {
 }
 
 struct StateInner {
+    // Cached geometry is normalized: x/width cross-axis, y/height main-axis.
+    axis: axis::Mapping,
     last_layout_bounds: Option<Bounds<Pixels>>,
     last_padding: Option<Edges<Pixels>>,
     items: SumTree<ListItem>,
@@ -312,7 +316,20 @@ impl ListState {
     /// be measured even though they are not visible. This can help ensure
     /// that the list doesn't flicker or pop in when scrolling.
     pub fn new(item_count: usize, alignment: ListAlignment, overdraw: Pixels) -> Self {
+        Self::new_for_axis(Axis::Vertical, item_count, alignment, overdraw)
+    }
+
+    /// Construct a measured list along an immutable axis. Horizontal items
+    /// advance left to right; Top/Bottom alignment mean leading/trailing edge.
+    /// All public pixel bounds and scrollbar offsets use physical coordinates.
+    pub fn new_for_axis(
+        axis: Axis,
+        item_count: usize,
+        alignment: ListAlignment,
+        overdraw: Pixels,
+    ) -> Self {
         let this = Self(Rc::new(RefCell::new(StateInner {
+            axis: axis::Mapping(axis),
             last_layout_bounds: None,
             last_padding: None,
             items: SumTree::default(),
@@ -328,6 +345,18 @@ impl ListState {
         })));
         this.splice(0..0, item_count);
         this
+    }
+
+    /// The native layout and scrolling axis of this list owner.
+    pub fn axis(&self) -> Axis {
+        self.0.borrow().axis.0
+    }
+
+    /// Seed unmeasured items with a main-axis extent (width for horizontal
+    /// lists, height for vertical lists). Native measurements replace hints.
+    pub fn with_uniform_item_extent(self, extent: Pixels) -> Self {
+        self.apply_uniform_item_height(extent);
+        self
     }
 
     /// Set the list to measure all items in the list in the first layout phase.
@@ -726,11 +755,12 @@ impl ListState {
         if let Some(&ListItem::Measured { size, .. }) = cursor.item() {
             let &Dimensions(Count(count), Height(top), _) = cursor.start();
             if count == ix {
-                let top = bounds.top() + top - scroll_top;
-                return Some(Bounds::from_corners(
+                let top =
+                    bounds.top() + state.last_padding.unwrap_or_default().top + top - scroll_top;
+                return Some(state.axis.bounds(Bounds::from_corners(
                     point(bounds.left(), top),
                     point(bounds.right(), top + size.height),
-                ));
+                )));
             }
         }
         None
@@ -764,25 +794,31 @@ impl ListState {
 
     /// Set the offset from the scrollbar
     pub fn set_offset_from_scrollbar(&self, point: Point<Pixels>) {
-        self.0.borrow_mut().set_offset_from_scrollbar(point);
+        let mut state = self.0.borrow_mut();
+        let logical = state.axis.point(point);
+        state.set_offset_from_scrollbar(logical);
     }
 
     /// Returns the maximum scroll offset according to the items we have measured.
     /// This value remains constant while dragging to prevent the scrollbar from moving away unexpectedly.
     pub fn max_offset_for_scrollbar(&self) -> Point<Pixels> {
         let state = self.0.borrow();
-        point(Pixels::ZERO, state.max_scroll_offset())
+        state
+            .axis
+            .point(point(Pixels::ZERO, state.max_scroll_offset()))
     }
 
     /// Returns the current scroll offset adjusted for the scrollbar.
     ///
-    /// The returned offset has a negative `y` component representing
-    /// how far the content has scrolled.
+    /// The returned offset has a negative component on the configured axis
+    /// representing how far the content has scrolled.
     pub fn scroll_px_offset_for_scrollbar(&self) -> Point<Pixels> {
         let state = &self.0.borrow();
 
         if state.logical_scroll_top.is_none() && state.alignment == ListAlignment::Bottom {
-            return Point::new(px(0.), -state.max_scroll_offset());
+            return state
+                .axis
+                .point(Point::new(px(0.), -state.max_scroll_offset()));
         }
 
         let logical_scroll_top = state.logical_scroll_top();
@@ -792,15 +828,18 @@ impl ListState {
             cursor.summary(&Count(logical_scroll_top.item_ix), Bias::Right);
         let offset = summary.height + logical_scroll_top.offset_in_item;
 
-        Point::new(px(0.), -offset)
+        state.axis.point(Point::new(px(0.), -offset))
     }
 
     /// Return the bounds of the viewport in pixels.
     pub fn viewport_bounds(&self) -> Bounds<Pixels> {
-        self.0.borrow().last_layout_bounds.unwrap_or_default()
+        let state = self.0.borrow();
+        state
+            .axis
+            .bounds(state.last_layout_bounds.unwrap_or_default())
     }
 
-    /// Returns whether the item is entirely above the viewport, or `None` if
+    /// Returns whether the item is entirely before the viewport (above or left), or `None` if
     /// the list has not measured enough layout to know.
     ///
     /// A zero-height viewport still yields a definitive answer: callers may
@@ -817,11 +856,11 @@ impl ListState {
             return Some(true);
         }
 
-        let item_bounds = self.bounds_for_item(ix)?;
+        let item_bounds = self.0.borrow().axis.bounds(self.bounds_for_item(ix)?);
         Some(item_bounds.bottom() <= viewport_bounds.top())
     }
 
-    /// Returns whether the item is entirely below the viewport, or `None` if
+    /// Returns whether the item is entirely after the viewport (below or right), or `None` if
     /// the list has not measured enough layout to know.
     ///
     /// See [`Self::item_is_above_viewport`] for why a zero-height viewport
@@ -836,7 +875,7 @@ impl ListState {
             return Some(false);
         }
 
-        let item_bounds = self.bounds_for_item(ix)?;
+        let item_bounds = self.0.borrow().axis.bounds(self.bounds_for_item(ix)?);
         Some(item_bounds.top() >= viewport_bounds.bottom())
     }
 }
@@ -880,7 +919,8 @@ impl StateInner {
         let height = self
             .scrollbar_drag_start_height
             .unwrap_or_else(|| self.items.summary().height);
-        (height - bounds.size.height).max(px(0.))
+        let padding = self.last_padding.unwrap_or_default();
+        (height + padding.top + padding.bottom - bounds.size.height).max(px(0.))
     }
 
     fn visible_range(
@@ -906,7 +946,7 @@ impl StateInner {
     ) {
         // Drop scroll events after a reset, since we can't calculate
         // the new logical scroll top without the item heights
-        if self.reset {
+        if self.reset || delta.y == Pixels::ZERO {
             return;
         }
 
@@ -1012,7 +1052,8 @@ impl StateInner {
         for (ix, item) in cursor.enumerate() {
             let size = item.size().unwrap_or_else(|| {
                 let mut element = render_item(ix, window, cx);
-                element.layout_as_root(available_item_space, window, cx)
+                self.axis
+                    .layout(&mut element, available_item_space, window, cx)
             });
 
             measured_items.push(ListItem::Measured {
@@ -1074,7 +1115,9 @@ impl StateInner {
             if visible_height < available_height || size.is_none() {
                 let item_index = scroll_top.item_ix + ix;
                 let mut element = render_item(item_index, window, cx);
-                let element_size = element.layout_as_root(available_item_space, window, cx);
+                let element_size = self
+                    .axis
+                    .layout(&mut element, available_item_space, window, cx);
                 size = Some(element_size);
 
                 // If there's a pending scroll adjustment for the scroll-top
@@ -1135,7 +1178,9 @@ impl StateInner {
                 if let Some(item) = cursor.item() {
                     let item_index = cursor.start().0;
                     let mut element = render_item(item_index, window, cx);
-                    let element_size = element.layout_as_root(available_item_space, window, cx);
+                    let element_size =
+                        self.axis
+                            .layout(&mut element, available_item_space, window, cx);
                     let focus_handle = item.focus_handle();
                     rendered_height += element_size.height;
                     measured_items.push_front(ListItem::Measured {
@@ -1184,7 +1229,8 @@ impl StateInner {
                     *size
                 } else {
                     let mut element = render_item(cursor.start().0, window, cx);
-                    element.layout_as_root(available_item_space, window, cx)
+                    self.axis
+                        .layout(&mut element, available_item_space, window, cx)
                 };
 
                 leading_overdraw += size.height;
@@ -1229,7 +1275,9 @@ impl StateInner {
                 if item.contains_focused(window, cx) {
                     let item_index = cursor.start().0;
                     let mut element = render_item(cursor.start().0, window, cx);
-                    let size = element.layout_as_root(available_item_space, window, cx);
+                    let size = self
+                        .axis
+                        .layout(&mut element, available_item_space, window, cx);
                     item_layouts.push_back(ItemLayout {
                         index: item_index,
                         element,
@@ -1282,11 +1330,19 @@ impl StateInner {
                 let mut item_origin = bounds.origin + Point::new(px(0.), padding.top);
                 item_origin.y -= layout_response.scroll_top.offset_in_item;
                 for item in &mut layout_response.item_layouts {
-                    window.with_content_mask(Some(ContentMask { bounds }), |window| {
-                        item.element.prepaint_at(item_origin, window, cx);
-                    });
+                    window.with_content_mask(
+                        Some(ContentMask {
+                            bounds: self.axis.bounds(bounds),
+                        }),
+                        |window| {
+                            item.element
+                                .prepaint_at(self.axis.point(item_origin), window, cx);
+                        },
+                    );
 
-                    if let Some(autoscroll_bounds) = window.take_autoscroll()
+                    if let Some(autoscroll_bounds) = window
+                        .take_autoscroll()
+                        .map(|bounds| self.axis.bounds(bounds))
                         && autoscroll
                     {
                         if autoscroll_bounds.top() < bounds.top() {
@@ -1312,7 +1368,12 @@ impl StateInner {
                                             bounds.size.width.into(),
                                             AvailableSpace::MinContent,
                                         );
-                                        element.layout_as_root(item_available_size, window, cx)
+                                        self.axis.layout(
+                                            &mut element,
+                                            item_available_size,
+                                            window,
+                                            cx,
+                                        )
                                     });
                                     item_ix = cursor.start().0;
                                     offset_in_item += size.height;
@@ -1340,7 +1401,7 @@ impl StateInner {
                                     let mut item = render_item(cursor.start().0, window, cx);
                                     let item_available_size =
                                         size(bounds.size.width.into(), AvailableSpace::MinContent);
-                                    item.layout_as_root(item_available_size, window, cx)
+                                    self.axis.layout(&mut item, item_available_size, window, cx)
                                 });
                                 height -= size.height;
                             }
@@ -1459,7 +1520,11 @@ impl Element for List {
         let layout_id = match self.sizing_behavior {
             ListSizingBehavior::Infer => {
                 let mut style = Style::default();
-                style.overflow.y = Overflow::Scroll;
+                let axis = self.state.0.borrow().axis;
+                match axis.0 {
+                    Axis::Vertical => style.overflow.y = Overflow::Scroll,
+                    Axis::Horizontal => style.overflow.x = Overflow::Scroll,
+                }
                 style.refine(&self.style);
                 window.with_text_style(style.text_style().cloned(), |window| {
                     let state = &mut *self.state.0.borrow_mut();
@@ -1471,9 +1536,12 @@ impl Element for List {
                         // we might just use the overdraw value as the available height to layout enough items.
                         state.overdraw
                     };
-                    let padding = style.padding.to_pixels(
-                        state.last_layout_bounds.unwrap_or_default().size.into(),
-                        window.rem_size(),
+                    let padding = axis.edges(
+                        style.padding.to_pixels(
+                            axis.size(state.last_layout_bounds.unwrap_or_default().size)
+                                .into(),
+                            window.rem_size(),
+                        ),
                     );
 
                     let layout_response = state.layout_items(
@@ -1492,6 +1560,8 @@ impl Element for List {
                     window.request_measured_layout(
                         style,
                         move |known_dimensions, available_space, _window, _cx| {
+                            let known_dimensions = axis.size(known_dimensions);
+                            let available_space = axis.size(available_space);
                             let width =
                                 known_dimensions
                                     .width
@@ -1507,7 +1577,7 @@ impl Element for List {
                                     total_height
                                 }
                             };
-                            size(width, height)
+                            axis.size(size(width, height))
                         },
                     )
                 })
@@ -1540,14 +1610,24 @@ impl Element for List {
 
         let hitbox = window.insert_hitbox(bounds, HitboxBehavior::Normal);
 
-        // If the width of the list has changed, invalidate all cached item heights
+        let padding = state.axis.edges(
+            style
+                .padding
+                .to_pixels(bounds.size.into(), window.rem_size()),
+        );
+        let bounds = state.axis.bounds(bounds);
+
+        // A changed cross-axis constraint invalidates cached main-axis extents.
+        // Retain old extents as estimates while remeasuring visible items.
+        // Clearing every hint would collapse distant items to zero and lose
+        // scrollbar/reveal positions in a large partially measured collection.
         if state
             .last_layout_bounds
-            .is_none_or(|last_bounds| last_bounds.size.width != bounds.size.width)
+            .is_some_and(|last_bounds| last_bounds.size.width != bounds.size.width)
         {
             let new_items = SumTree::from_iter(
                 state.items.iter().map(|item| ListItem::Unmeasured {
-                    size_hint: None,
+                    size_hint: item.size_hint(),
                     focus_handle: item.focus_handle(),
                 }),
                 (),
@@ -1557,9 +1637,6 @@ impl Element for List {
             state.measuring_behavior.reset();
         }
 
-        let padding = style
-            .padding
-            .to_pixels(bounds.size.into(), window.rem_size());
         let layout =
             match state.prepaint_items(bounds, padding, true, &mut self.render_item, window, cx) {
                 Ok(layout) => layout,
@@ -1594,14 +1671,15 @@ impl Element for List {
         // to prevent the list from scrolling. This matches the ordering of
         // div-based scroll containers.
         let list_state = self.state.clone();
-        let height = bounds.size.height;
+        let axis = list_state.0.borrow().axis;
+        let height = axis.size(bounds.size).height;
         let scroll_top = prepaint.layout.scroll_top;
         let hitbox_id = prepaint.hitbox.id;
         let mut accumulated_scroll_delta = ScrollDelta::default();
         window.on_mouse_event(move |event: &ScrollWheelEvent, phase, window, cx| {
             if phase == DispatchPhase::Bubble && hitbox_id.should_handle_scroll(window) {
                 accumulated_scroll_delta = accumulated_scroll_delta.coalesce(event.delta);
-                let pixel_delta = accumulated_scroll_delta.pixel_delta(px(20.));
+                let pixel_delta = axis.point(accumulated_scroll_delta.pixel_delta(px(20.)));
                 list_state.0.borrow_mut().scroll(
                     &scroll_top,
                     height,

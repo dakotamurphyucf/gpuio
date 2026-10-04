@@ -1,11 +1,13 @@
 pub mod clipboard;
 mod column;
+mod column_viewport;
 mod data_table;
 mod delegate;
 mod selection;
 mod state;
 
 pub use column::*;
+pub use column_viewport::{ColumnViewport, VisibleColumn};
 pub use data_table::*;
 pub use delegate::*;
 pub use selection::*;

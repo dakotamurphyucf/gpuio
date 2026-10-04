@@ -3,6 +3,84 @@ use crate::table::*;
 use std::io::Cursor;
 
 impl Decoder<'_> {
+    fn table_padding(&mut self) -> Result<Padding, DecodeError> {
+        let p = Padding {
+            top: self.float()?,
+            right: self.float()?,
+            bottom: self.float()?,
+            left: self.float()?,
+        };
+        if p.is_valid() {
+            Ok(p)
+        } else {
+            Err(DecodeError::Malformed)
+        }
+    }
+    pub(super) fn table_appearance(&mut self) -> Result<Appearance, DecodeError> {
+        let striped = self.boolean()?;
+        let count = self.count(13)?;
+        let colors = (0..count)
+            .map(|_| {
+                let part = match self.tag()? {
+                    0 => Part::HeaderBackground,
+                    1 => Part::HeaderForeground,
+                    2 => Part::StripeBackground,
+                    3 => Part::HoverBackground,
+                    4 => Part::SelectedBackground,
+                    5 => Part::SelectedBorder,
+                    6 => Part::RowBorder,
+                    7 => Part::ColumnBorder,
+                    8 => Part::SortHoverBackground,
+                    9 => Part::SortPressedBackground,
+                    10 => Part::SortForeground,
+                    11 => Part::DragBorder,
+                    12 => Part::ContextBorder,
+                    _ => return Err(DecodeError::Malformed),
+                };
+                Ok((part, self.int()?))
+            })
+            .collect::<Result<Vec<_>, DecodeError>>()?;
+        let padding = self.option(Self::table_padding)?;
+        let count = self.count(MAX_COLUMNS)?;
+        let column_padding = (0..count)
+            .map(|_| Ok((self.bounded_text(256)?, self.table_padding()?)))
+            .collect::<Result<Vec<_>, DecodeError>>()?;
+        let value = Appearance {
+            striped,
+            colors,
+            padding,
+            column_padding,
+        };
+        if value.is_valid() {
+            Ok(value)
+        } else {
+            Err(DecodeError::Malformed)
+        }
+    }
+
+    pub(super) fn table_behavior(&mut self) -> Result<Behavior, DecodeError> {
+        let row_header = self.boolean()?;
+        let boundary = match self.tag()? {
+            0 => Boundary::Stop,
+            1 => Boundary::Wrap,
+            _ => return Err(DecodeError::Malformed),
+        };
+        let selectable_headers = self.option(|d| {
+            let count = d.count(MAX_COLUMNS)?;
+            (0..count)
+                .map(|_| d.bounded_text(256))
+                .collect::<Result<Vec<_>, _>>()
+        })?;
+        let value = Behavior {
+            row_header,
+            boundary,
+            selectable_headers,
+        };
+        if !value.is_valid() {
+            return Err(DecodeError::Malformed);
+        }
+        Ok(value)
+    }
     fn table_text(&mut self, budget: &mut usize, limit: usize) -> Result<String, DecodeError> {
         let value = self.bounded_text(limit.min(*budget))?;
         *budget -= value.len();

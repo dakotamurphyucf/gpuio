@@ -9,6 +9,7 @@ use html5ever::tendril::TendrilSink;
 use html5ever::{LocalName, ParseOpts, local_name, parse_document};
 use markup5ever_rcdom::{Node, NodeData, RcDom};
 
+use crate::text::MarkdownNode;
 use crate::text::document::ParsedDocument;
 use crate::text::node::{
     self, BlockNode, ImageNode, InlineNode, LinkMark, NodeContext, Paragraph, Table, TableRow,
@@ -55,11 +56,15 @@ const BLOCK_ELEMENTS: [&str; 35] = [
 
 /// Parse HTML into AST Node.
 pub(crate) fn parse(source: &str, cx: &mut NodeContext) -> Result<ParsedDocument, SharedString> {
+    let dom = parse_dom(&cleanup_html(source))?;
+    Ok(to_document(source, &dom, cx))
+}
+
+fn parse_dom(bytes: &[u8]) -> Result<RcDom, SharedString> {
     let opts = ParseOpts {
         ..Default::default()
     };
 
-    let bytes = cleanup_html(&source);
     let mut cursor = std::io::Cursor::new(bytes);
     // Ref
     // https://github.com/servo/html5ever/blob/main/rcdom/examples/print-rcdom.rs
@@ -68,16 +73,170 @@ pub(crate) fn parse(source: &str, cx: &mut NodeContext) -> Result<ParsedDocument
         .read_from(&mut cursor)
         .map_err(|e| SharedString::from(format!("{:?}", e)))?;
 
+    Ok(dom)
+}
+
+fn to_document(source: &str, dom: &RcDom, cx: &mut NodeContext) -> ParsedDocument {
     let mut paragraph = Paragraph::default();
     // NOTE: The outer paragraph is not used.
     let node: BlockNode =
         parse_node(&dom.document, &mut paragraph, cx).unwrap_or(BlockNode::Unknown);
     let node = node.compact();
 
-    Ok(ParsedDocument {
+    ParsedDocument {
         source: source.to_string().into(),
         blocks: Arc::new(vec![node]),
-    })
+    }
+}
+
+/// HTML has no source spans. Validate the repaired DOM before recursive mapping;
+/// lower every image before exposing the document to any native renderer.
+pub(crate) fn parse_bounded(
+    source: &str,
+    cx: &mut NodeContext,
+    mut image: impl FnMut(&ImageNode) -> MarkdownNode,
+) -> Result<ParsedDocument, SharedString> {
+    if source.len() > 64 * 1024 || source.lines().any(|line| line.len() > 16 * 1024) {
+        return Err("rich HTML input limit exceeded".into());
+    }
+    let dom = parse_dom(source.as_bytes())?;
+    let mut pending = vec![(dom.document.clone(), 0usize)];
+    let mut count = 0;
+    while let Some((node, depth)) = pending.pop() {
+        count += 1;
+        if count > 4096 || depth > 32 {
+            return Err("rich HTML structural limit exceeded".into());
+        }
+        pending.extend(
+            node.children
+                .borrow()
+                .iter()
+                .map(|child| (child.clone(), depth + 1)),
+        );
+        // Template contents are a separate document fragment in html5ever.
+        if let NodeData::Element {
+            template_contents, ..
+        } = &node.data
+        {
+            if let Some(content) = template_contents.borrow().as_ref() {
+                pending.push((content.clone(), depth + 1));
+            }
+        }
+    }
+    // Do not run the upstream recursive minifier before depth admission. Raw
+    // DOM text is already entity-decoded; normalize reader whitespace once,
+    // preserving all descendants of preformatted containers.
+    let mut pending = vec![(dom.document.clone(), false)];
+    while let Some((node, mut preformatted)) = pending.pop() {
+        match &node.data {
+            NodeData::Element { name, .. } => preformatted |= name.local == local_name!("pre"),
+            NodeData::Text { contents } if !preformatted => {
+                let original = contents.borrow().to_string();
+                let mut normalized = String::with_capacity(original.len());
+                let mut whitespace = false;
+                for c in original.chars() {
+                    if matches!(c, ' ' | '\t' | '\r' | '\n' | '\x0c') {
+                        if !whitespace {
+                            normalized.push(' ');
+                        }
+                        whitespace = true;
+                    } else {
+                        normalized.push(c);
+                        whitespace = false;
+                    }
+                }
+                *contents.borrow_mut() = normalized.into();
+            }
+            _ => (),
+        }
+        pending.extend(
+            node.children
+                .borrow()
+                .iter()
+                .map(|child| (child.clone(), preformatted)),
+        );
+    }
+    let mut document = to_document(source, &dom, cx);
+    // HTML wrappers must not turn an entire viewport into one virtual row.
+    let mut pending = Arc::try_unwrap(document.blocks).unwrap_or_else(|blocks| (*blocks).clone());
+    pending.reverse();
+    let mut blocks = Vec::new();
+    while let Some(block) = pending.pop() {
+        match block {
+            BlockNode::Root { children, .. } => pending.extend(children.into_iter().rev()),
+            BlockNode::Paragraph(ref p)
+                if p.children.iter().all(|n| {
+                    n.image.is_none() && n.custom.is_none() && n.text.trim().is_empty()
+                }) =>
+            {
+                ()
+            }
+            block => {
+                if blocks.len() >= 256 {
+                    return Err("rich HTML block limit exceeded".into());
+                }
+                blocks.push(block);
+            }
+        }
+    }
+    fn paragraph(
+        paragraph: &mut Paragraph,
+        image: &mut impl FnMut(&ImageNode) -> MarkdownNode,
+        links: &mut HashMap<usize, usize>,
+    ) {
+        for node in &mut paragraph.children {
+            if let Some(original) = node.image.take() {
+                let mut replacement = InlineNode::custom(image(&original));
+                if let Some(link) = original.link {
+                    replacement
+                        .marks
+                        .push((0..replacement.text.len(), TextMark::default().link(link)));
+                }
+                *node = replacement;
+            }
+            for (_, mark) in &mut node.marks {
+                if let Some(link) = &mut mark.link {
+                    if let Some(original) = link.source_start {
+                        let next = links.len();
+                        link.source_start = Some(*links.entry(original).or_insert(next));
+                    }
+                }
+            }
+        }
+    }
+    fn lower(
+        block: &mut BlockNode,
+        image: &mut impl FnMut(&ImageNode) -> MarkdownNode,
+        links: &mut HashMap<usize, usize>,
+    ) {
+        match block {
+            BlockNode::Paragraph(p) | BlockNode::Heading { children: p, .. } => {
+                paragraph(p, image, links)
+            }
+            BlockNode::Root { children, .. }
+            | BlockNode::Blockquote { children, .. }
+            | BlockNode::List { children, .. }
+            | BlockNode::ListItem { children, .. } => {
+                for child in children {
+                    lower(child, image, links);
+                }
+            }
+            BlockNode::Table(table) => {
+                for row in &mut table.children {
+                    for cell in &mut row.children {
+                        paragraph(&mut cell.children, image, links);
+                    }
+                }
+            }
+            _ => (),
+        }
+    }
+    let mut links = HashMap::new();
+    for block in &mut blocks {
+        lower(block, &mut image, &mut links);
+    }
+    document.blocks = Arc::new(blocks);
+    Ok(document)
 }
 
 fn cleanup_html(source: &str) -> Vec<u8> {
@@ -165,19 +324,22 @@ fn style_attrs(attrs: &RefCell<Vec<html5ever::Attribute>>) -> HashMap<String, St
 /// When is percentage, it will be converted to relative length.
 /// Else, it will be converted to pixels.
 fn value_to_length(value: &str) -> Option<DefiniteLength> {
-    if value.ends_with("%") {
-        value
-            .trim_end_matches("%")
-            .parse::<f32>()
-            .ok()
-            .map(|v| relative(v / 100.))
-    } else {
-        value
-            .trim_end_matches("px")
-            .parse()
-            .ok()
-            .map(|v| px(v).into())
+    let value = value.trim();
+    let percent = value.ends_with('%');
+    let numeric = value
+        .strip_suffix('%')
+        .unwrap_or(value)
+        .trim_end_matches("px");
+    let number = numeric.parse::<f32>().ok()?;
+    let max = if percent { 100. } else { 16384. };
+    if !number.is_finite() || !(0. ..=max).contains(&number) {
+        return None;
     }
+    Some(if percent {
+        relative(number / 100.)
+    } else {
+        px(number).into()
+    })
 }
 
 /// Get width, height from attributes or parse them from style attribute.
@@ -341,6 +503,11 @@ fn parse_paragraph(paragraph: &mut Paragraph, node: &Rc<Node>) {
             paragraph.push_str(&part);
         }
         NodeData::Element { name, attrs, .. } => match name.local {
+            local_name!("script")
+            | local_name!("style")
+            | local_name!("head")
+            | local_name!("template") => (),
+            local_name!("br") => paragraph.push_str("\n"),
             local_name!("em") | local_name!("i") => {
                 merge_children_with_mark(node, paragraph, Some(TextMark::default().italic()));
             }
@@ -370,6 +537,9 @@ fn parse_paragraph(paragraph: &mut Paragraph, node: &Rc<Node>) {
             }
             local_name!("a") => {
                 let link_mark = LinkMark {
+                    // Temporary identity shared by every fragment of this anchor.
+                    // Bounded preparation normalizes it to display order below.
+                    source_start: Some(Rc::as_ptr(node) as usize),
                     url: attr_value(&attrs, local_name!("href"))
                         .unwrap_or_default()
                         .into(),
@@ -433,10 +603,10 @@ fn parse_node(
             ref attrs,
             ..
         } => match name.local {
-            local_name!("br") => Some(BlockNode::Break {
-                html: true,
-                span: None,
-            }),
+            local_name!("br") => {
+                paragraph.push_str("\n");
+                None
+            }
             local_name!("h1")
             | local_name!("h2")
             | local_name!("h3")
@@ -590,7 +760,55 @@ fn parse_node(
                     span: None,
                 })
             }
-            local_name!("style") | local_name!("script") => None,
+            local_name!("style")
+            | local_name!("script")
+            | local_name!("head")
+            | local_name!("template") => None,
+            local_name!("hr") => Some(BlockNode::HorizontalRule { span: None }),
+            local_name!("pre") => {
+                // Paragraph::text trims reader prose. Preformatted code must
+                // retain decoded text byte-for-byte, including edge whitespace.
+                let mut text = String::new();
+                let mut pending = node
+                    .children
+                    .borrow()
+                    .iter()
+                    .rev()
+                    .cloned()
+                    .collect::<Vec<_>>();
+                let mut language = None;
+                while let Some(child) = pending.pop() {
+                    match &child.data {
+                        NodeData::Text { contents } => text.push_str(&contents.borrow()),
+                        NodeData::Element { name, attrs, .. } => {
+                            if matches!(
+                                name.local,
+                                local_name!("script")
+                                    | local_name!("style")
+                                    | local_name!("template")
+                            ) {
+                                continue;
+                            }
+                            if name.local == local_name!("br") {
+                                text.push('\n');
+                            }
+                            if name.local == local_name!("code") {
+                                language =
+                                    attr_value(attrs, local_name!("class")).and_then(|value| {
+                                        value.split_whitespace().find_map(|token| {
+                                            token.strip_prefix("language-").map(str::to_owned)
+                                        })
+                                    });
+                            }
+                            pending.extend(child.children.borrow().iter().rev().cloned());
+                        }
+                        _ => (),
+                    }
+                }
+                Some(BlockNode::CodeBlock(node::CodeBlock::from_code(
+                    text, language,
+                )))
+            }
             _ => {
                 if BLOCK_ELEMENTS.contains(&name.local.trim()) {
                     let mut children: Vec<BlockNode> = vec![];

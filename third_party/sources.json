@@ -85,13 +85,13 @@
     "version": "0.6.1",
     "gpui_commit": "a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b",
     "archive_sha256": "909c00c97bbfce11607eef7d3eccd01201d591af9d26cd9ebadfe0c90fca502f",
-    "patch_sha256": "56d0526fccf8afb11c2510827d7cf76f39cae05d5efae56eb93a58dc79a39ee9"
+    "patch_sha256": "d0d270991043787f9dbb800abd31bf28356b8c34608262858fd93565431e0971"
   },
   "gpui": {
     "url": "https://github.com/zed-industries/zed.git",
     "commit": "a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b",
     "version": "0.2.2",
     "archive_sha256": "10c9f20251c4ed9427db19456c6f8987ffd00bf7ef82df11edc6c75b13ff9fa2",
-    "patch_sha256": "3cfa8e054b31234841d1b9b26048b245b45b487ac64391ee1c45465b1aa5da29"
+    "patch_sha256": "2bb8cc1ae6303e86bc5d176f6799622e7df53d5bef0addf1572fa5c31506d7cd"
   }
 }

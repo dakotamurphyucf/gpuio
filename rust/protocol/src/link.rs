@@ -4,13 +4,14 @@ use binprot::macros::BinProtWrite;
 
 pub const MAX_LABEL_BYTES: usize = 4096;
 pub const MAX_TAB_INDEX: i64 = 1_000_000;
-// Worst-case length prefix, UTF-8 bytes, two booleans and signed integer.
-pub const MAX_CONFIG_BYTES: usize = 9 + MAX_LABEL_BYTES + 2 + 9;
+// Worst-case length prefix, UTF-8 bytes, three booleans and signed integer.
+pub const MAX_CONFIG_BYTES: usize = 9 + MAX_LABEL_BYTES + 3 + 9;
 
 #[derive(Clone, Debug, PartialEq, Eq, BinProtWrite)]
 pub struct Config {
     pub label: String,
     pub disabled: bool,
+    pub loading: bool,
     pub tab_stop: bool,
     pub tab_index: i64,
 }
@@ -35,6 +36,7 @@ mod tests {
         Config {
             label: "Guide 世界".into(),
             disabled: false,
+            loading: false,
             tab_stop: false,
             tab_index: -2,
         }
@@ -55,16 +57,28 @@ mod tests {
                 .iter()
                 .map(|byte| format!("{byte:02x}"))
                 .collect::<String>(),
-            "0c477569646520e4b896e7958c0000fffe"
+            "0c477569646520e4b896e7958c000000fffe"
         );
-        assert_eq!(decode_link_config(&bytes), Ok(config));
+        assert_eq!(decode_link_config(&bytes), Ok(config.clone()));
+        let busy = Config {
+            loading: true,
+            ..config
+        };
+        assert_eq!(
+            encode(&busy)
+                .iter()
+                .map(|byte| format!("{byte:02x}"))
+                .collect::<String>(),
+            "0c477569646520e4b896e7958c000100fffe"
+        );
+        assert_eq!(decode_link_config(&encode(&busy)), Ok(busy));
         for length in 0..bytes.len() {
             assert!(decode_link_config(&bytes[..length]).is_err());
         }
         let mut invalid = bytes.clone();
         invalid.push(0);
         assert_eq!(decode_link_config(&invalid), Err(DecodeError::Malformed));
-        for offset in [13, 14] {
+        for offset in [13, 14, 15] {
             let mut invalid = bytes.clone();
             invalid[offset] = 2;
             assert_eq!(decode_link_config(&invalid), Err(DecodeError::Malformed));
@@ -77,16 +91,19 @@ mod tests {
     #[test]
     fn link_validation_covers_labels_indices_and_all_focus_flags() {
         for disabled in [false, true] {
-            for tab_stop in [false, true] {
-                for tab_index in [-MAX_TAB_INDEX, -1, 0, MAX_TAB_INDEX] {
-                    let config = Config {
-                        disabled,
-                        tab_stop,
-                        tab_index,
-                        ..fixture()
-                    };
-                    assert!(config.is_valid());
-                    assert_eq!(decode_link_config(&encode(&config)), Ok(config));
+            for loading in [false, true] {
+                for tab_stop in [false, true] {
+                    for tab_index in [-MAX_TAB_INDEX, -1, 0, MAX_TAB_INDEX] {
+                        let config = Config {
+                            disabled,
+                            loading,
+                            tab_stop,
+                            tab_index,
+                            ..fixture()
+                        };
+                        assert!(config.is_valid());
+                        assert_eq!(decode_link_config(&encode(&config)), Ok(config));
+                    }
                 }
             }
         }

@@ -150,6 +150,7 @@ let component ~app ~window ~active ~dark ~on_sources graph =
            ; Border_color p.line
            ])
       ~on_event:(function
+        | Input.Event.Search_changed _ -> Bonsai.Effect.Ignore
         | Input.Event.Changed snapshot -> inject (Note (Input.Snapshot.text snapshot))
         | Submitted submission -> inject (Note (Input.Submission.text submission)))
       ()

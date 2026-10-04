@@ -14,6 +14,7 @@ fn config(disabled: bool) -> Config {
     Config {
         label: "Guide 世界".into(),
         disabled,
+        loading: false,
         tab_stop: true,
         tab_index: -2,
     }
@@ -262,4 +263,87 @@ fn disabled_and_retired_links_reject_queued_events_even_with_retained_handler() 
     session.close(window()).unwrap();
     assert!(session.press(window(), node(0), next_handler, 3).is_none());
     assert_eq!(session.retained_bytes(), 0);
+}
+
+#[test]
+fn loading_cycles_fence_retained_handlers_and_allow_unbound_busy_mounts() {
+    let mut session = Session::default();
+    session.hello(VERSION, CAPABILITIES).unwrap();
+    session.open(1, window(), "link", 400., 200.).unwrap();
+    session
+        .apply(&tx(session.tree(window()).unwrap(), mount()))
+        .unwrap();
+    for disabled in [false, true] {
+        let old_revision = session.tree(window()).unwrap().revision();
+        assert!(
+            session
+                .press(window(), node(0), handler(), old_revision)
+                .is_some()
+        );
+        let busy = Config {
+            loading: !disabled,
+            disabled,
+            ..config(false)
+        };
+        session
+            .apply(&tx(
+                session.tree(window()).unwrap(),
+                vec![Op::SetLink(node(0), busy)],
+            ))
+            .unwrap();
+        assert!(
+            session
+                .press(window(), node(0), handler(), old_revision)
+                .is_none()
+        );
+        session
+            .apply(&tx(
+                session.tree(window()).unwrap(),
+                vec![Op::SetLink(node(0), config(false))],
+            ))
+            .unwrap();
+        assert!(
+            session
+                .press(window(), node(0), handler(), old_revision)
+                .is_none()
+        );
+        let current = session.tree(window()).unwrap().revision();
+        assert!(
+            session
+                .press(window(), node(0), handler(), current)
+                .is_some()
+        );
+    }
+    // Public Core omits the callback on a busy owner; disabling is not required.
+    let mut tree = Tree::new(window());
+    tree.apply(&tx(
+        &tree,
+        vec![
+            Op::Create(node(0), Kind::Link, String::new(), None),
+            Op::SetLink(
+                node(0),
+                Config {
+                    loading: true,
+                    ..config(false)
+                },
+            ),
+            Op::SetRoot(Some(node(0))),
+        ],
+    ))
+    .unwrap();
+    let revision = tree.revision();
+    assert_eq!(
+        tree.apply(&tx(&tree, vec![Op::SetLink(node(0), config(false))])),
+        Err(ErrorCode::InvalidTree)
+    );
+    assert_eq!(tree.revision(), revision);
+    assert!(tree.get(node(0)).unwrap().link.as_ref().unwrap().loading);
+    tree.apply(&tx(
+        &tree,
+        vec![
+            Op::SetLink(node(0), config(false)),
+            Op::Bind(node(0), Some(handler())),
+        ],
+    ))
+    .unwrap();
 }

@@ -1,5 +1,6 @@
 open Core
 module W = Gpuio_protocol.Color_input_wire
+module P = Gpuio_protocol.Color_presentation_wire
 module Channel = W.Channel
 module Field = W.Field
 
@@ -84,18 +85,116 @@ module Labels = struct
   ;;
 end
 
+module Palette_section = struct
+  type t =
+    { layout : P.Section.t
+    ; entries : Palette_entry.t list
+    }
+  [@@deriving equal, sexp_of]
+
+  let create ~featured ~label entries =
+    let layout =
+      { P.Section.featured; label; count = Int64.of_int (List.length entries) }
+    in
+    if P.Section.valid layout
+    then Ok { layout; entries }
+    else Or_error.error_string "invalid palette section label or entry count (1..256)"
+  ;;
+
+  let featured ~label entries = create ~featured:true ~label entries
+  let group ~label entries = create ~featured:false ~label entries
+end
+
+module Panel = P.Panel
+
+module Panels = struct
+  type t = P.Panels.t [@@deriving equal, sexp_of]
+
+  let all = P.Panels.All
+
+  let tabs ?(initial = Panel.Palette) ~palette_label ~channels_label () =
+    let t = P.Panels.Tabs { palette_label; channels_label; initial } in
+    if P.Panels.valid t then Ok t else Or_error.error_string "invalid color panel labels"
+  ;;
+end
+
+module Appearance = struct
+  type t =
+    { geometry : P.t
+    ; selected_border : Color.t option
+    ; hover_border : Color.t option
+    }
+  [@@deriving equal, sexp_of]
+
+  let create
+        ?(swatch_size = 28.)
+        ?(featured_size = 36.)
+        ?(swatch_gap = 6.)
+        ?(section_gap = 10.)
+        ?(swatch_radius = 5.)
+        ?(outline_width = 2.)
+        ?(channel_height = 28.)
+        ?(control_gap = 10.)
+        ?(padding = 10.)
+        ?selected_border
+        ?hover_border
+        ?(panels = Panels.all)
+        ()
+    =
+    let geometry =
+      { P.default with
+        swatch_size
+      ; featured_size
+      ; swatch_gap
+      ; section_gap
+      ; swatch_radius
+      ; outline_width
+      ; channel_height
+      ; control_gap
+      ; padding
+      ; panels
+      }
+    in
+    if P.valid geometry
+    then Ok { geometry; selected_border; hover_border }
+    else Or_error.error_string "invalid color appearance dimensions"
+  ;;
+
+  let default = create () |> Or_error.ok_exn
+end
+
 module Config = struct
-  type t = W.Config.t [@@deriving equal, sexp_of]
+  type t =
+    { wire : W.Config.t
+    ; sections : P.Section.t list
+    }
+  [@@deriving equal, sexp_of]
 
   let create
         ~labels
-        ?(palette = [])
+        ?palette
+        ?palette_sections
         ?(alpha_policy = Color_value.Alpha_policy.Allow_alpha)
         ?(allow_empty = true)
         ?(disabled = false)
         ?(read_only = false)
         ()
     =
+    let open Or_error.Let_syntax in
+    let%bind palette, sections =
+      match palette, palette_sections with
+      | Some _, Some _ ->
+        Or_error.error_string "supply palette or palette_sections, not both"
+      | None, None -> Ok ([], [])
+      | Some entries, None -> Ok (entries, [])
+      | None, Some sections ->
+        let layout = List.map sections ~f:(fun s -> s.Palette_section.layout) in
+        if P.valid_sections layout
+        then Ok (List.concat_map sections ~f:(fun s -> s.Palette_section.entries), layout)
+        else
+          Or_error.error_string
+            "invalid palette sections: at most 32 sections, 256 entries, featured first"
+    in
     let alpha_policy =
       match alpha_policy with
       | Allow_alpha -> W.Alpha_policy.Allow_alpha
@@ -105,14 +204,14 @@ module Config = struct
       { W.Config.labels; palette; alpha_policy; allow_empty; disabled; read_only }
     in
     if W.Config.valid t
-    then Ok t
+    then Ok { wire = t; sections }
     else
       Or_error.error_string "invalid color configuration or palette limit (256 entries)"
   ;;
 
-  let allows t value = W.Config.allows t (value_to_wire value)
-  let is_disabled t = t.W.Config.disabled
-  let is_read_only t = t.W.Config.read_only
+  let allows t value = W.Config.allows t.wire (value_to_wire value)
+  let is_disabled t = t.wire.disabled
+  let is_read_only t = t.wire.read_only
 end
 
 module Revision = struct
@@ -201,10 +300,23 @@ end
 module Command_error = W.Error
 
 module Expert = struct
-  let config_to_wire t = t
+  let config_to_wire t = t.Config.wire
 
   let config_of_wire t =
-    if W.Config.valid t then Ok t else Or_error.error_string "invalid color configuration"
+    if W.Config.valid t
+    then Ok { Config.wire = t; sections = [] }
+    else Or_error.error_string "invalid color configuration"
+  ;;
+
+  let presentation_to_wire (config : Config.t) ~appearance:(t : Appearance.t) ~theme =
+    let open Or_error.Let_syntax in
+    let resolve = function
+      | None -> return None
+      | Some color -> Theme.resolve theme color |> Or_error.map ~f:Option.some
+    in
+    let%bind selected_border = resolve t.selected_border in
+    let%map hover_border = resolve t.hover_border in
+    { t.geometry with sections = config.sections; selected_border; hover_border }
   ;;
 
   let value_to_wire = value_to_wire

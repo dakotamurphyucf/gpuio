@@ -154,6 +154,18 @@ pub struct RowAdornment {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct InvalidRowAdornments;
 
+/// Rust-owned single-line formatting policy. The adapter validates configuration
+/// and bounds all returned text; no foreign-runtime callback is permitted here.
+/// Exact bridge replacements are checked with accepts before mutation. Interactive
+/// candidates may insert separators and return a caret in the resulting UTF-8 text.
+pub trait BridgeInputFormat {
+    fn accepts(&self, text: &str) -> bool;
+    fn format(&self, text: &str, caret: usize) -> Option<(String, usize)>;
+    fn normalize<'a>(&self, text: &'a str) -> Cow<'a, str> {
+        Cow::Borrowed(text)
+    }
+}
+
 /// Native adapter hook on the actual focus-owning editor element. This avoids
 /// registering the same focus handle again on an outer semantic wrapper.
 pub type BridgeDecorator<M> = Rc<
@@ -383,10 +395,14 @@ pub struct InputBaseState<M: InputModeKind> {
     bridge_revision: i64,
     bridge_max_bytes: Option<usize>,
     bridge_decorator: Option<BridgeDecorator<M>>,
+    bridge_input_format: Option<Rc<dyn BridgeInputFormat>>,
+    bridge_composition_before: Option<(Rope, CursorSelection)>,
     pub(super) row_adornments: Option<Rc<std::collections::BTreeMap<usize, RowAdornment>>>,
     pub(super) row_adornment_begin: Option<Rc<dyn Fn()>>,
     pub(super) display_map: DisplayMap,
     pub(super) undo_manager: UndoManager,
+    // Replay recorded text exactly; ignoring history also covers set_value.
+    replaying_history: bool,
     pub(super) search_session: super::SearchSession,
     /// Advances every time search is explicitly invoked. See
     /// [`InputBaseState::search_activation_revision`].
@@ -414,6 +430,7 @@ pub struct InputBaseState<M: InputModeKind> {
     /// The text bounds
     pub(super) last_bounds: Option<Bounds<Pixels>>,
     pub(super) last_selected_range: Option<CursorSelection>,
+    pub(super) last_layout_scroll_offset: Point<Pixels>,
     pub(super) selecting: bool,
     /// Anchor point of an in-progress columnar (block) selection.
     pub(super) column_select_start: Option<ColumnarPoint>,
@@ -752,6 +769,8 @@ impl<M: InputModeKind> InputBaseState<M> {
             bridge_revision: 0,
             bridge_max_bytes: None,
             bridge_decorator: None,
+            bridge_input_format: None,
+            bridge_composition_before: None,
             row_adornments: None,
             row_adornment_begin: None,
             display_map: DisplayMap::new(text_style.font(), window.rem_size(), None),
@@ -765,6 +784,7 @@ impl<M: InputModeKind> InputBaseState<M> {
             cursor_surrounding_lines: None,
             blink_cursor,
             undo_manager,
+            replaying_history: false,
             selections: Selections::default(),
             selected_word_range: None,
             ime_marked_range: None,
@@ -788,6 +808,7 @@ impl<M: InputModeKind> InputBaseState<M> {
             last_layout: None,
             last_bounds: None,
             last_selected_range: None,
+            last_layout_scroll_offset: Point::default(),
             column_select_start: None,
             last_cursor: None,
             scroll_handle: ScrollHandle::new(),
@@ -923,6 +944,39 @@ impl<M: InputModeKind> InputBaseState<M> {
     }
 
     /// Install native semantics on the element that owns keyboard focus.
+    /// Retain the draft, composition, selection and history when policy changes.
+    pub fn set_bridge_input_format(&mut self, format: Option<Rc<dyn BridgeInputFormat>>) {
+        self.bridge_input_format = format;
+    }
+
+    fn cancel_bridge_composition(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let Some((text, selection)) = self.bridge_composition_before.take() else {
+            return;
+        };
+        self.undo_manager.discard_bridge_composition();
+        self.undo_manager.set_ignoring(true);
+        self.replaying_history = true;
+        let range = self.range_to_utf16(&(0..self.text.len()));
+        self.with_edits_allowed(|this| {
+            this.replace_text_in_range(Some(range), &text.to_string(), window, cx);
+        });
+        self.replaying_history = false;
+        self.undo_manager.set_ignoring(false);
+        let (anchor, head) = if selection.reversed {
+            (selection.end, selection.start)
+        } else {
+            (selection.start, selection.end)
+        };
+        self.bridge_select(anchor, head, cx);
+    }
+
+    /// Used by the native adapter before applying an exact replacement command.
+    pub fn bridge_accepts_exact_text(&self, text: &str) -> bool {
+        self.bridge_input_format
+            .as_ref()
+            .is_none_or(|format| format.accepts(text))
+    }
+
     pub fn set_bridge_decorator(&mut self, decorate: BridgeDecorator<M>) {
         self.bridge_decorator = Some(decorate);
     }
@@ -981,6 +1035,14 @@ impl<M: InputModeKind> InputBaseState<M> {
         &self,
         offset: usize,
     ) -> (usize, usize, Option<Point<Pixels>>) {
+        self.line_and_position_for_offset_with_affinity(offset, false)
+    }
+
+    fn line_and_position_for_offset_with_affinity(
+        &self,
+        offset: usize,
+        line_end_affinity: bool,
+    ) -> (usize, usize, Option<Point<Pixels>>) {
         let Some(last_layout) = &self.last_layout else {
             return (0, 0, None);
         };
@@ -994,7 +1056,8 @@ impl<M: InputModeKind> InputBaseState<M> {
             let Some(local_offset) = offset.checked_sub(prev_lines_offset) else {
                 break;
             };
-            if let Some(pos) = line.position_for_index(local_offset, last_layout, false) {
+            if let Some(pos) = line.position_for_index(local_offset, last_layout, line_end_affinity)
+            {
                 let sub_line_index = (pos.y / line_height) as usize;
                 let adjusted_pos = point(pos.x + last_layout.line_number_width, pos.y + y_offset);
                 return (vi, sub_line_index, Some(adjusted_pos));
@@ -1189,7 +1252,7 @@ impl<M: InputModeKind> InputBaseState<M> {
 
         self.readonly = readonly;
         if readonly {
-            self.search_session.replace_mode = false;
+            self.set_search_replace_mode(false, cx);
         }
         cx.notify();
     }
@@ -1288,6 +1351,55 @@ impl<M: InputModeKind> InputBaseState<M> {
 
     fn bridge_accepts_size(&self, size: usize) -> bool {
         self.bridge_max_bytes.is_none_or(|limit| size <= limit)
+    }
+
+    /// GPUIO literal query bound. Oversized selection seeds retain the previous
+    /// query rather than compiling an unbounded matcher from a native shortcut.
+    pub(crate) fn bridge_accepts_search_query(&self, query: &str) -> bool {
+        self.bridge_max_bytes.is_none() || (query.len() <= 2048 && !query.contains('\0'))
+    }
+
+    /// Preflight search expansion before constructing any expanded document.
+    /// Ranges come from the current literal matcher, in ascending byte order.
+    pub(crate) fn prepare_search_replacement(
+        &self,
+        ranges: &[Range<usize>],
+        replacement: &str,
+    ) -> Option<String> {
+        if !self.is_replaceable()
+            || self.ime_marked_range.is_some()
+            || ranges.is_empty()
+            || (self.bridge_max_bytes.is_some() && replacement.contains('\0'))
+        {
+            return None;
+        }
+        let removed = ranges
+            .iter()
+            .try_fold(0usize, |total, range| total.checked_add(range.len()))?;
+        let size = self
+            .text
+            .len()
+            .checked_sub(removed)?
+            .checked_add(replacement.len().checked_mul(ranges.len())?)?;
+        if !self.bridge_accepts_size(size) {
+            return None;
+        }
+        // Build in source order, avoiding one Rope mutation per occurrence in
+        // dense documents. Both strings remain bounded by the bridge limit.
+        let source = self.text.to_string();
+        let mut text = String::with_capacity(size);
+        let mut previous_end = 0;
+        for range in ranges {
+            source.get(range.clone())?;
+            text.push_str(source.get(previous_end..range.start)?);
+            text.push_str(replacement);
+            previous_end = range.end;
+        }
+        text.push_str(source.get(previous_end..)?);
+        if !self.bridge_accepts_exact_text(&text) {
+            return None;
+        }
+        Some(text)
     }
 
     /// Set true to clear the input by pressing Escape key.
@@ -2733,17 +2845,18 @@ impl<M: InputModeKind> InputBaseState<M> {
         // `TextElement::layout_cursors` so both scroll-into-view paths agree
         // (a mismatch flickered on `Down` at end-of-buffer with a small
         // `cursor_surrounding_lines` override).
-        let edge_height =
-            if matches!(padding, ScrollPadding::SurroundingLines) && self.is_code_editor() {
-                super::element::cursor_surrounding_padding(
-                    self.mode.is_auto_grow(),
-                    self.cursor_surrounding_lines,
-                    super::element::viewport_visible_lines(bounds.size.height, line_height),
-                    line_height,
-                )
-            } else {
-                line_height
-            };
+        let edge_height = if matches!(padding, ScrollPadding::SurroundingLines)
+            && (self.is_code_editor() || self.cursor_surrounding_lines.is_some())
+        {
+            super::element::cursor_surrounding_padding(
+                self.mode.is_auto_grow(),
+                self.cursor_surrounding_lines,
+                super::element::viewport_visible_lines(bounds.size.height, line_height),
+                line_height,
+            )
+        } else {
+            line_height
+        };
         if row_offset_y - edge_height + line_height < -scroll_offset.y {
             // Scroll up
             scroll_offset.y = -row_offset_y + edge_height - line_height;
@@ -2936,6 +3049,7 @@ impl<M: InputModeKind> InputBaseState<M> {
 
     pub(super) fn undo(&mut self, _: &Undo, window: &mut Window, cx: &mut Context<Self>) {
         self.undo_manager.set_ignoring(true);
+        self.replaying_history = true;
         // The manager hands the changes back in reverse application order.
         if let Some(replay) = self.undo_manager.undo() {
             for change in &replay.changes {
@@ -2946,11 +3060,13 @@ impl<M: InputModeKind> InputBaseState<M> {
             self.mode
                 .restore_auto_closed_pairs(replay.auto_closed_pairs.unwrap_or_default());
         }
+        self.replaying_history = false;
         self.undo_manager.set_ignoring(false);
     }
 
     pub(super) fn redo(&mut self, _: &Redo, window: &mut Window, cx: &mut Context<Self>) {
         self.undo_manager.set_ignoring(true);
+        self.replaying_history = true;
         // Redo replays in forward application order.
         if let Some(replay) = self.undo_manager.redo() {
             for change in &replay.changes {
@@ -2961,6 +3077,7 @@ impl<M: InputModeKind> InputBaseState<M> {
             self.mode
                 .restore_auto_closed_pairs(replay.auto_closed_pairs.unwrap_or_default());
         }
+        self.replaying_history = false;
         self.undo_manager.set_ignoring(false);
     }
 
@@ -3031,6 +3148,16 @@ impl<M: InputModeKind> InputBaseState<M> {
     /// Current scroll offset of the editor viewport.
     pub fn scroll_offset(&self) -> gpui::Point<gpui::Pixels> {
         self.scroll_handle.offset()
+    }
+
+    /// Scroll offset recorded by the most recent completed editor layout/paint.
+    /// Unlike `scroll_offset`, this does not advance when wheel input updates the
+    /// live handle before another layout. It shares the layout generation of
+    /// `visible_row_range`, `input_bounds` and `line_height`.
+    pub fn layout_scroll_offset(&self) -> Option<Point<Pixels>> {
+        self.last_layout
+            .as_ref()
+            .map(|_| self.last_layout_scroll_offset)
     }
 
     /// Set scroll offset of the editor viewport.
@@ -3585,7 +3712,9 @@ impl<M: InputModeKind> InputBaseState<M> {
     /// full-width number characters into their ASCII equivalents,
     /// e.g. `12。5` -> `12.5`.
     fn normalize_input<'a>(&self, new_text: &'a str) -> Cow<'a, str> {
-        let normalized = if matches!(self.mask_pattern, MaskPattern::Number { .. }) {
+        let normalized = if let Some(format) = &self.bridge_input_format {
+            format.normalize(new_text)
+        } else if matches!(self.mask_pattern, MaskPattern::Number { .. }) {
             normalize_number_input(new_text)
         } else {
             Cow::Borrowed(new_text)
@@ -3696,32 +3825,58 @@ impl<M: InputModeKind> InputBaseState<M> {
         self.text.slice(range)
     }
 
-    /// Return the rendered bounds for a UTF-8 byte range in the current input contents.
-    ///
-    /// Returns `None` when the requested range is not currently laid out or visible.
+    /// Union of rendered glyph spans and endpoint carets for a UTF-8 source range.
+    /// Coordinates come from one completed paint, in window logical pixels, and
+    /// are not clipped. Both endpoints must be laid out (including overscan).
+    /// Invalid ranges or a source/masking change since that paint return `None`.
     pub fn range_to_bounds(&self, range: &Range<usize>) -> Option<Bounds<Pixels>> {
-        let Some(last_layout) = self.last_layout.as_ref() else {
+        let layout = self.last_layout.as_ref()?;
+        if layout.source_revision != self.bridge_revision
+            || layout.masked != self.masked
+            || range.start > range.end
+            || range.end > self.text.len()
+            || !self.text.is_char_boundary(range.start)
+            || !self.text.is_char_boundary(range.end)
+        {
             return None;
+        }
+        let range = if layout.masked {
+            super::element::masked_display_offset(&self.text, range.start)
+                ..super::element::masked_display_offset(&self.text, range.end)
+        } else {
+            range.clone()
         };
-
-        let Some(last_bounds) = self.last_bounds else {
-            return None;
+        let start = self.line_and_position_for_offset(range.start).2?;
+        let end = self
+            .line_and_position_for_offset_with_affinity(range.end, !range.is_empty())
+            .2?;
+        let caret = |position| {
+            Bounds::new(
+                layout.range_origin + position,
+                gpui::size(px(0.), layout.line_height),
+            )
         };
-
-        let (_, _, start_pos) = self.line_and_position_for_offset(range.start);
-        let (_, _, end_pos) = self.line_and_position_for_offset(range.end);
-
-        let Some(start_pos) = start_pos else {
-            return None;
-        };
-        let Some(end_pos) = end_pos else {
-            return None;
-        };
-
-        Some(Bounds::from_corners(
-            last_bounds.origin + start_pos,
-            last_bounds.origin + end_pos + point(px(0.), last_layout.line_height),
-        ))
+        let mut bounds = caret(start).union(&caret(end));
+        if range.is_empty() {
+            return Some(bounds);
+        }
+        let mut y = layout.visible_top;
+        for (line, &offset) in layout.lines.iter().zip(&layout.visible_line_byte_offsets) {
+            let start = range.start.max(offset);
+            let end = range.end.min(offset + line.len());
+            if start < end {
+                line.range_bounds(
+                    start - offset..end - offset,
+                    layout.range_origin + point(layout.line_number_width, y),
+                    layout.line_height,
+                    layout.text_align,
+                    layout.content_width,
+                    |fragment| bounds = bounds.union(&fragment),
+                );
+            }
+            y += line.size(layout.line_height).height;
+        }
+        Some(bounds)
     }
 
     /// Replace text in range in silent.
@@ -4001,7 +4156,19 @@ impl<M: InputModeKind> EntityInputHandler for InputBaseState<M> {
             .map(|range| self.range_to_utf16(&range.into()))
     }
 
-    fn unmark_text(&mut self, _window: &mut Window, _cx: &mut Context<Self>) {
+    fn unmark_text(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self.bridge_input_format.is_some() {
+            if let Some(range) = self.ime_marked_range {
+                let text = self.text.slice(range.start..range.end).to_string();
+                // A policy transition to readonly/disabled must not strand the
+                // already active platform composition when it is unmarked.
+                self.with_edits_allowed(|this| {
+                    this.replace_text_in_range(None, &text, window, cx);
+                });
+                return;
+            }
+        }
+        self.bridge_composition_before = None;
         self.ime_marked_range = None;
         self.undo_manager.commit_transaction();
     }
@@ -4031,7 +4198,11 @@ impl<M: InputModeKind> EntityInputHandler for InputBaseState<M> {
         // NOTE: The normalization keeps the UTF-16 length, but may change the
         // UTF-8 byte length, so all the byte-offset calculations below must
         // use the normalized text.
-        let new_text = self.normalize_input(new_text);
+        let new_text = if self.replaying_history {
+            Cow::Borrowed(new_text)
+        } else {
+            self.normalize_input(new_text)
+        };
         let new_text: &str = &new_text;
 
         let range = range_utf16
@@ -4146,21 +4317,54 @@ impl<M: InputModeKind> EntityInputHandler for InputBaseState<M> {
         // separators or completing a leading dot.
         let mut mask_changed = false;
 
-        if self.is_single_line() {
+        if self.is_single_line() && !self.replaying_history && self.bridge_input_format.is_some() {
+            let format = self.bridge_input_format.as_ref().unwrap();
+            let pending_text = self.text.to_string();
+            match format.format(&pending_text, new_offset) {
+                Some((formatted, caret)) => {
+                    // Enforce the bridge boundary even if a policy implementation
+                    // returns an invalid offset or expands beyond the text budget.
+                    if !formatted.is_char_boundary(caret)
+                        || !self.bridge_accepts_size(formatted.len())
+                    {
+                        self.text = old_text;
+                        return;
+                    }
+                    mask_changed = formatted != pending_text;
+                    self.text = Rope::from(formatted.as_str());
+                    new_offset = caret;
+                }
+                None if format.accepts(
+                    &self
+                        .bridge_composition_before
+                        .as_ref()
+                        .map_or_else(|| old_text.to_string(), |(text, _)| text.to_string()),
+                ) =>
+                {
+                    self.text = old_text;
+                    if ends_composition {
+                        self.cancel_bridge_composition(window, cx);
+                    }
+                    return;
+                }
+                None => (), // Retain incompatible drafts while the user repairs them.
+            }
+        } else if self.is_single_line() && !self.replaying_history {
             let pending_text = self.text.to_string();
             // Check if the new text is valid.
             //
             // Only reject the edit if the old text was valid, to avoid
             // trapping a pre-existing invalid text (e.g. a `default_value`
             // that does not conform), the user can still edit to fix it.
-            if !self.is_valid_input(&pending_text, cx)
-                && self.is_valid_input(&old_text.to_string(), cx)
-            {
+            let pending_is_valid = self.is_valid_input(&pending_text, cx);
+            if !pending_is_valid && self.is_valid_input(&old_text.to_string(), cx) {
                 self.text = old_text;
                 return;
             }
 
-            if !self.mask_pattern.is_none() {
+            // Preserve an invalid draft while the user repairs it. Applying a
+            // mask before its slots match could silently discard draft text.
+            if pending_is_valid && !self.mask_pattern.is_none() {
                 let mask_text = self.mask_pattern.mask(&pending_text);
                 mask_changed = mask_text.as_str() != pending_text;
                 self.text = Rope::from(mask_text.as_str());
@@ -4235,6 +4439,7 @@ impl<M: InputModeKind> EntityInputHandler for InputBaseState<M> {
         // edit into the same change, which then carries the text and selection
         // of the first composition.
         if ends_composition {
+            self.bridge_composition_before = None;
             self.undo_manager
                 .record_selections(vec![selection_before], vec![*self.active_selection()]);
             self.undo_manager.commit_transaction();
@@ -4268,6 +4473,13 @@ impl<M: InputModeKind> EntityInputHandler for InputBaseState<M> {
     ) {
         let requested_intent = self.undo_manager.take_pending_intent();
         if !self.is_editable() || (self.bridge_max_bytes.is_some() && new_text.contains('\0')) {
+            return;
+        }
+        if new_text.is_empty()
+            && self.bridge_input_format.is_some()
+            && self.bridge_composition_before.is_some()
+        {
+            self.cancel_bridge_composition(window, cx);
             return;
         }
         let selection_before = *self.active_selection();
@@ -4306,6 +4518,11 @@ impl<M: InputModeKind> EntityInputHandler for InputBaseState<M> {
             return;
         }
 
+        // Policy can first be enabled while a plain bridge input is already
+        // composing. Keep its bounded baseline before any provisional edits.
+        if starts_composition && self.is_single_line() && self.bridge_max_bytes.is_some() {
+            self.bridge_composition_before = Some((self.text.clone(), selection_before));
+        }
         let auto_closed_pairs_before = self.mode.auto_closed_pairs().clone();
         let old_text = self.text.clone();
         self.mode.adjust_auto_closed_pair(&range, new_text.len());
@@ -4314,11 +4531,15 @@ impl<M: InputModeKind> EntityInputHandler for InputBaseState<M> {
         if self.is_single_line() {
             let pending_text = self.text.to_string();
             // See the same NOTE in `replace_text_in_range`.
-            if !self.is_valid_input(&pending_text, cx)
+            // Marked text is provisional: e.g. several Latin keystrokes may
+            // become one CJK scalar. Bridge policy applies on commit/unmark.
+            if self.bridge_input_format.is_none()
+                && !self.is_valid_input(&pending_text, cx)
                 && self.is_valid_input(&old_text.to_string(), cx)
             {
                 self.text = old_text;
                 if starts_composition {
+                    self.bridge_composition_before = None;
                     self.undo_manager.commit_transaction();
                 }
                 return;
@@ -4384,6 +4605,7 @@ impl<M: InputModeKind> EntityInputHandler for InputBaseState<M> {
             );
         }
         if new_text.is_empty() {
+            self.bridge_composition_before = None;
             self.undo_manager.commit_transaction();
         }
         self.bridge_revision = self
@@ -9484,6 +9706,9 @@ impl<M: crate::input::MultiLineMode> InputBaseState<M> {
     }
 
     pub fn set_searchable(&mut self, searchable: bool, cx: &mut Context<Self>) {
+        if !searchable {
+            self.close_search(cx);
+        }
         self.searchable = searchable;
         cx.notify();
     }

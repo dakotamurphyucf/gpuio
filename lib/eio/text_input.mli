@@ -34,6 +34,11 @@ val view
     may refer to an unmounted lease; commands then return [Stale_editor]. *)
 val snapshot : t -> Gpuio.Text_input.Snapshot.t option
 
+(** Latest observed native search metadata. It may lag typing until the next
+    event batch; guarded replacement commands always recheck its native stamp.
+    Cleared on a new editor lease. No polling or text mutation is performed. *)
+val search_snapshot : t -> Gpuio.Text_input.Search.Snapshot.t option
+
 val command
   :  t
   -> Gpuio.Text_input.Command.t
@@ -98,3 +103,59 @@ val read_snapshot
   :  t
   -> (Gpuio.Text_input.Snapshot.t, Gpuio.Text_input.Command_error.t) Result.t
        Bonsai.Effect.t
+
+(** Query the current configured hint and native metadata exposure for this exact
+    editor lease. This does not read text, edit, focus or update the stored
+    snapshot. The result describes query execution, not guaranteed autofill.
+    Shares the ordinary editor request budget and close/error semantics. *)
+val content_hint_status
+  :  t
+  -> (Gpuio.Text_input.Content_hint.Status.t, Gpuio.Text_input.Command_error.t) Result.t
+       Bonsai.Effect.t
+
+(** Query the most recent completed native layout. [None] means this editor has
+    not been laid out. Does not update the stored text snapshot, edit, or focus.
+    Pending layout/scroll requests may not yet be reflected in this observation. *)
+val read_viewport
+  :  t
+  -> (Gpuio.Editor_viewport.t option, Gpuio.Text_input.Command_error.t) Result.t
+       Bonsai.Effect.t
+
+(** Query bounds for [range] against the exact native lease and source revision
+    of [snapshot]. Selection direction is normalized; byte boundaries are
+    validated against the snapshot and again natively. A newer native source
+    returns [Stale_revision]. [None] means matching layout is unavailable, including
+    after unpainted text/masking changes or when an endpoint is not laid out.
+    Overscan and unclipped bounds are not proof of visibility. Layout-only changes
+    may return the preceding coherent paint. Works during composition and for
+    read-only/disabled editors; does not edit, focus, scroll or update the stored
+    text snapshot. The asynchronous reply describes native execution time, not
+    guaranteed current geometry on delivery. Shares the 64-request editor budget
+    and exact correlation/window-close semantics. *)
+val range_bounds
+  :  t
+  -> snapshot:Gpuio.Text_input.Snapshot.t
+  -> range:Gpuio.Text_input.Selection.t
+  -> (Gpuio.Editor_geometry.t option, Gpuio.Text_input.Command_error.t) Result.t
+       Bonsai.Effect.t
+
+(** Execute an explicit search command on an opted-in multiline editor.
+    Metadata never replaces the draft. Successful replacements update the normal
+    editor observation with monotonic revision handling. Destructive commands
+    require an exact observed search stamp; opening does not focus the editor or
+    supply a search bar. Native keyboard observation/presentation is separate. *)
+val search_command
+  :  t
+  -> Gpuio.Text_input.Search.Command.t
+  -> (Gpuio.Text_input.Search.Response.t, Gpuio.Text_input.Command_error.t) Result.t
+       Bonsai.Effect.t
+
+(** Request a scroll offset, clamped by the next native layout. [Ok ()] means the
+    request was accepted, not painted. This preserves selection, composition and
+    history, does not focus, and works in read-only/disabled editors. Requests
+    before layout are accepted; later requests before layout replace earlier ones.
+    Bound to the exact observed editor lease, including after a remount. *)
+val scroll_to
+  :  t
+  -> Gpuio.Editor_viewport.Offset.t
+  -> (unit, Gpuio.Text_input.Command_error.t) Result.t Bonsai.Effect.t

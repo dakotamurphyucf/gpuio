@@ -246,6 +246,8 @@ module Event : sig
 end
 
 module Expert : sig
+  val easing_to_wire : Easing.t -> Gpuio_protocol.Wire.Animation.Easing.t
+
   val program_event_of_wire
     :  Gpuio_protocol.Wire.Animation_program.Signal.t list
     -> Program.Event.t Or_error.t

@@ -2440,6 +2440,7 @@ dependencies = [
 name = "gpuio-counter-backend"
 version = "0.0.0"
 dependencies = [
+ "gpuio-example-document",
  "gpuio-example-counter",
  "gpuio-native",
  "ocaml-interop",
@@ -2450,6 +2451,21 @@ name = "gpuio-example-counter"
 version = "0.0.0"
 dependencies = [
  "gpuio-extension-sdk",
+]
+
+[[package]]
+name = "gpuio-document-sdk"
+version = "0.0.0"
+dependencies = [
+ "gpui-base",
+ "gpuio-extension-sdk",
+]
+
+[[package]]
+name = "gpuio-example-document"
+version = "0.0.0"
+dependencies = [
+ "gpuio-document-sdk",
 ]
 
 [[package]]
@@ -2472,6 +2488,7 @@ dependencies = [
  "gpui",
  "gpui-base",
  "gpui_platform",
+ "gpuio-document-sdk",
  "gpuio-extension-sdk",
  "gpuio-plot",
  "gpuio-portal",
@@ -2487,6 +2504,8 @@ dependencies = [
  "objc2-user-notifications",
  "ocaml-interop",
  "raw-window-handle",
+ "regex-automata",
+ "regex-syntax",
  "resvg",
  "ropey",
  "roxmltree 0.21.1",
@@ -2518,6 +2537,7 @@ name = "gpuio-protocol"
 version = "0.0.0"
 dependencies = [
  "binprot",
+ "unicode-properties",
 ]
 
 [[package]]

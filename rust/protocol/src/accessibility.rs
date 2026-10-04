@@ -25,6 +25,54 @@ impl TreeItem {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
+pub struct OptionItem {
+    pub index: i64,
+    pub count: Option<i64>,
+    pub selected: bool,
+    pub disabled: bool,
+}
+impl OptionItem {
+    pub fn is_valid(self) -> bool {
+        (0..1_000_000).contains(&self.index)
+            && self
+                .count
+                .is_none_or(|count| count > self.index && count <= 1_000_000)
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
+pub enum Orientation {
+    Horizontal,
+    Vertical,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
+pub struct TableInfo {
+    pub rows: Option<i64>,
+    pub columns: Option<i64>,
+}
+impl TableInfo {
+    pub fn is_valid(self) -> bool {
+        self.rows.is_none_or(|n| (0..=1_000_000).contains(&n))
+            && self.columns.is_none_or(|n| (0..=1024).contains(&n))
+    }
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
+pub struct TableCell {
+    pub row: i64,
+    pub column: i64,
+    pub column_span: i64,
+}
+impl TableCell {
+    pub fn is_valid(self) -> bool {
+        (0..1_000_000).contains(&self.row)
+            && (0..1024).contains(&self.column)
+            && self.column_span > 0
+            && self.column_span <= 1024 - self.column
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
 pub enum Role {
     Group,
     Label,
@@ -40,12 +88,30 @@ pub enum Role {
     Navigation,
     Tree(bool),
     TreeItem(TreeItem),
+    Toolbar(Orientation),
+    RadioGroup(Orientation),
+    Log,
+    ListBox(bool),
+    OptionItem(OptionItem),
+    Table(TableInfo),
+    RowGroup,
+    TableRow(i64),
+    TableCell(TableCell),
+    ColumnHeader(TableCell),
+    RowHeader(TableCell),
+    Caption,
 }
 impl Role {
     pub fn is_valid(self) -> bool {
         match self {
             Self::Heading(level) => (1..=6).contains(&level),
             Self::TreeItem(item) => item.is_valid(),
+            Self::OptionItem(item) => item.is_valid(),
+            Self::Table(info) => info.is_valid(),
+            Self::TableRow(index) => (0..1_000_000).contains(&index),
+            Self::TableCell(cell) | Self::ColumnHeader(cell) | Self::RowHeader(cell) => {
+                cell.is_valid()
+            }
             _ => true,
         }
     }
@@ -112,6 +178,7 @@ impl Config {
                         | Kind::Combobox
                         | Kind::Checkbox
                         | Kind::Switch
+                        | Kind::Radio
                         | Kind::Rating
                         | Kind::Slider
                         | Kind::NumberInput
@@ -123,9 +190,21 @@ impl Config {
                 );
         }
         match self.role {
-            Some(Role::Tree(_)) => kind == Kind::VirtualList,
-            Some(Role::TreeItem(_)) => kind == Kind::Container,
-            Some(Role::Navigation) => kind == Kind::Container,
+            Some(Role::Log) => matches!(kind, Kind::Container | Kind::VirtualList),
+            Some(Role::Tree(_) | Role::ListBox(_)) => kind == Kind::VirtualList,
+            Some(Role::TreeItem(_) | Role::OptionItem(_)) => kind == Kind::Container,
+            Some(
+                Role::Table(_)
+                | Role::RowGroup
+                | Role::TableRow(_)
+                | Role::TableCell(_)
+                | Role::ColumnHeader(_)
+                | Role::RowHeader(_)
+                | Role::Caption,
+            ) => kind == Kind::Container,
+            Some(Role::Navigation | Role::Toolbar(_) | Role::RadioGroup(_)) => {
+                kind == Kind::Container
+            }
             Some(Role::Link) => matches!(kind, Kind::Button | Kind::CommandButton | Kind::Link),
             Some(
                 Role::Group
@@ -152,6 +231,7 @@ impl Config {
                     | Kind::Combobox
                     | Kind::Checkbox
                     | Kind::Switch
+                    | Kind::Radio
                     | Kind::Rating
                     | Kind::Slider
                     | Kind::NumberInput

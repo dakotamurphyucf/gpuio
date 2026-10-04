@@ -407,6 +407,8 @@ module Event = struct
 end
 
 module Expert = struct
+  let easing_to_wire (easing : Easing.t) = easing
+
   let program_event_of_wire signals =
     if not (P.Signal.valid_batch signals)
     then Or_error.error_string "invalid animation observation batch"

@@ -28,6 +28,34 @@ their upstream licenses in Cargo's pinned source checkouts. Cargo.lock records t
 full transitive dependency set. These dependency licenses are independent of
 GPUIO's project license. Run `cargo metadata --locked` when auditing the closure.
 
+`third_party/notice-sources.json` records exact supplemental notice attributions
+for pinned packages lacking separate package-local files. Zed Apache symlinks
+were compared byte-for-byte with `third_party/licenses/zed-gpui.txt`; the nested
+binprot and ocaml-interop derive crates have unchanged workspace texts retained
+as [binprot-rs](third_party/licenses/binprot-rs.txt) and
+[ocaml-interop](third_party/licenses/ocaml-interop.txt). First-party crates refer
+to GPUIO's root license. Each entry includes source/manifest/text hashes and an
+attribution rationale. These collection inputs do not select dual-license
+alternatives or establish a complete distribution notice set. See the
+[notice audit](docs/evidence/dependency-notices-och17.md).
+
+`third_party/licenses/registry/` retains additional unchanged upstream notice
+files from exact revisions recorded by the published crates' `.cargo_vcs_info.json`.
+The attribution manifest links each package to its source URL, Git blob SHA-1,
+local manifest hash and notice SHA-256. These include AccessKit's additional
+Chromium notice as well as dual-license files; collecting them does not choose
+an alternative or assert that source/asset obligations are fully reviewed.
+
+The zune-inflate attribution additionally verifies the packaged original manifest
+against its exact recorded upstream commit; retained files include its full Zlib
+text and root copyright/licensing policy. This does not select a license alternative.
+
+The OCaml collector separately captures installed package metadata, source/doc
+notices and all eight named native Bonsai vendor roots. The OCaml 5.3 source and
+installed runtime license texts match byte-for-byte, including the original linking
+exception. Tool/configuration packages and native/system/assets still require
+review; see [OCaml notice evidence](docs/evidence/ocaml-notices-och17.md).
+
 `vendor/gpui-base` retains GPUI Kit's Apache-2.0 sources/license at
 `84f57fdfcb4910623fb0bb7f795b077e249f9271` (0.6.1). Its original manifest and
 upstream README are retained. The adapted manifest unifies GPUI/macros/sum-tree

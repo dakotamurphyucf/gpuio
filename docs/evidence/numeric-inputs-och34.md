@@ -1,6 +1,16 @@
 # Numeric and OTP component evidence (OCH-34)
 
-## Current scope
+## Milestone 07 review
+
+The entries below record historical OCH-34 evidence. The new
+[pinned numeric/OTP review](../catalog/numeric-review.md) records missing styled
+presentation and custom-step-policy coverage and corrects the unrelated workflow
+Stepper mapping. Those gaps are required OCH-41 work; the earlier acceptance claim
+must not be read as complete pinned-catalog parity. Latest physical macOS release
+qualification remains OCH-17; Linux desktop qualification is deferred to OCH-47
+under the [platform policy](../platform-release-policy.md).
+
+## Historical OCH-34 scope
 
 Local macOS acceptance is complete for the full OCH-34 scope: single/range
 sliders, numeric editor/stepper layouts and segmented OTP inputs. Public controllers,

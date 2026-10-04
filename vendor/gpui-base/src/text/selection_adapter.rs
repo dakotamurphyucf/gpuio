@@ -143,10 +143,16 @@ impl TextViewSelectionAdapter {
                 }
                 let last = state.parsed_content.document.blocks.len().saturating_sub(1);
                 let blocks = blocks_for_copy.borrow().block_range(selection_id, last);
-                // Normalize this renderer's paragraph-edge separators here.
-                // Trimming the window result would also strip neighboring plain
-                // text and make Copy depend on which participant has focus.
-                state.selected_text_in(blocks).trim().to_string()
+                let text = state.selected_text_in(blocks);
+                if state.effective_format() == super::SelectionFormat::Source {
+                    // Source selection owns its whitespace, including the exact
+                    // source returned by select-all. Never normalize those bytes.
+                    text
+                } else {
+                    // Normalize rendered paragraph separators locally, without
+                    // trimming neighboring participants in the window result.
+                    text.trim().to_string()
+                }
             },
             cx,
         );
