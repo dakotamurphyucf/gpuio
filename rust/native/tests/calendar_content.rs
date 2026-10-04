@@ -141,3 +141,42 @@ fn final_slot_shape_passivity_and_heap_accounting_are_atomic() {
     .unwrap();
     assert_eq!(s.retained_bytes(), empty);
 }
+
+// The same bytes are asserted against View.Calendar_content + Reconciler in
+// OCaml. A hand-authored Rust transaction missed an empty Fields declaration
+// on the public constructor's structural wrappers and let the gallery crash.
+#[test]
+fn public_ocaml_calendar_content_is_admitted_by_the_native_tree() {
+    let hex = include_str!("../../../test/fixtures/calendar-content-public.hex").trim();
+    let bytes: Vec<_> = (0..hex.len())
+        .step_by(2)
+        .map(|i| u8::from_str_radix(&hex[i..i + 2], 16).unwrap())
+        .collect();
+    let Message::Apply(tx) = gpuio_protocol::decode(&bytes).unwrap() else {
+        panic!("expected public calendar transaction");
+    };
+    let mut s = Session::default();
+    s.hello(VERSION, CAPABILITIES).unwrap();
+    s.open(1, tx.window, "Public calendar", 400., 400.).unwrap();
+    s.apply(&tx).unwrap();
+    let tree = s.tree(tx.window).unwrap();
+    let calendar = tree.get(tree.root().unwrap()).unwrap();
+    let slots: Vec<_> = calendar
+        .children
+        .iter()
+        .map(|id| tree.get(*id).unwrap())
+        .collect();
+    assert_eq!(slots.len(), 2);
+    assert_eq!(calendar.calendar_content.as_ref().unwrap().items.len(), 2);
+    let labels: Vec<_> = slots
+        .iter()
+        .map(|slot| {
+            assert!(slot.style.is_empty());
+            assert_eq!(slot.children.len(), 1);
+            tree.get(slot.children[0]).unwrap().text.as_ref()
+        })
+        .collect();
+    assert_eq!(labels, ["Back", "Forward"]);
+    s.close(tx.window).unwrap();
+    assert_eq!(s.retained_bytes(), 0);
+}

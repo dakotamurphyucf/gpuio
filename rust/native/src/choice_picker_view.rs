@@ -880,7 +880,9 @@ impl View {
                 &crate::appearance::refinement(&p.empty_style, 0),
             );
             popup = popup.child(empty.child(if let Some(id) = slots.empty {
-                self.control_label(tree, id, interaction, false, window, cx)
+                // Empty-state instructions have no option owner that exposes
+                // their name. Keep their own semantics available to readers.
+                self.element(tree, id, interaction, window, cx)
             } else {
                 div()
                     .child(gpui::SharedString::from(p.empty_label.clone()))

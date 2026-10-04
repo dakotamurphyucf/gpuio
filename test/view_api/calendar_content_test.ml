@@ -128,6 +128,23 @@ let%expect_test
   let previous = content_item Calendar.Slot.previous "Back" in
   let next = content_item Calendar.Slot.next "Forward" in
   let initial = commit (view [ next; previous ]) in
+  let initial_message =
+    Gpuio_protocol.Wire.Message.Apply
+      { window; base = 0L; revision = 1L; operations = initial }
+  in
+  let initial_hex =
+    Gpuio_protocol.Wire.Message.encode initial_message
+    |> ok
+    |> String.to_list
+    |> List.map ~f:(fun c -> sprintf "%02x" (Char.to_int c))
+    |> String.concat
+  in
+  Eio_main.run (fun env ->
+    let expected =
+      Eio.Path.load Eio.Path.(Eio.Stdenv.fs env / "calendar-content-public.hex")
+      |> String.strip
+    in
+    assert (String.equal initial_hex expected));
   assert (
     List.count initial ~f:(function
       | Gpuio_protocol.Wire.Op.Set_calendar_content _ -> true

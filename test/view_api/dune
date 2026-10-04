@@ -3,6 +3,7 @@
  (libraries core gpuio gpuio.protocol eio_main)
  (inline_tests
   (deps
+   calendar-content-public.hex
    table-header-style.hex
    table-header-style-clear.hex
    table-row-style.hex

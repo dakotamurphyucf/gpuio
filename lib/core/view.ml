@@ -1715,10 +1715,14 @@ module Calendar_content = struct
         Or_error.error_string
           "calendar content has duplicate slots or exceeds description limits"
     in
+    (* Structural slots must carry no style declarations. [container []] emits
+       an empty base declaration, which native slot validation rejects. *)
     let children =
       List.map items ~f:(fun item ->
-        { (container [] [ item.Item.content ]) with
-          structural_key = Some ("calendar-content", Wire.Slot.key item.metadata.slot)
+        { (text "") with
+          kind = Container
+        ; structural_key = Some ("calendar-content", Wire.Slot.key item.metadata.slot)
+        ; children = [ item.Item.content ]
         })
     in
     let%map () = validate children in

@@ -714,7 +714,7 @@ def exercise_empty(mac, images):
     wait_absent(mac, 'Rich empty state', 'AXGroup')
     mac.press(TITLE, 'Refresh resource counts')
     mac.wait_text(TITLE, 'Registered source bytes: 0')
-    mac.wait_text(TITLE, 'Images: 0 · Charts: 0 · Canvases: 0')
+    wait_for_resource_cleanup(mac)
     mac.press(TITLE, 'Presentation')
     mac.wait_text(TITLE, f'Empty actions: {clicks}')
     print(f'GALLERY_EMPTY_OK: {cases} theme/media/alignment/width cases; {border_cases} border cases; '
@@ -830,7 +830,7 @@ def exercise_groups(mac, images):
     mac.press(TITLE, 'Runtime & windows')
     wait_absent(mac, 'Keep group updates', 'AXCheckBox')
     mac.press(TITLE, 'Refresh resource counts')
-    mac.wait_text(TITLE, 'Images: 0 · Charts: 0 · Canvases: 0')
+    wait_for_resource_cleanup(mac)
     mac.wait_text(TITLE, 'Registered source bytes: 0')
     mac.press(TITLE, 'Presentation')
     # Bonsai retains this page's scalar model while its native subtree is absent.
@@ -2574,7 +2574,7 @@ def exercise_labels(mac, images):
         subprocess.run(['/usr/bin/pbcopy'], input=saved_clipboard, check=True, env=clipboard_env)
     mac.press(TITLE, 'Runtime & windows')
     mac.press(TITLE, 'Refresh resource counts')
-    mac.wait_text(TITLE, 'Images: 0 · Charts: 0 · Canvases: 0')
+    wait_for_resource_cleanup(mac)
     mac.wait_text(TITLE, 'Registered source bytes: 0')
     mac.press(TITLE, 'Presentation')
     mac.wait_text(TITLE, primary + ' ' + secondary)
@@ -2710,7 +2710,7 @@ def exercise_badges(mac, images):
         mac.release(body)
     mac.press(TITLE, 'Runtime & windows')
     mac.press(TITLE, 'Refresh resource counts')
-    mac.wait_text(TITLE, 'Images: 0 · Charts: 0 · Canvases: 0')
+    wait_for_resource_cleanup(mac)
     mac.wait_text(TITLE, 'Registered source bytes: 0')
     mac.press(TITLE, 'Presentation')
     mac.release(mac.wait_find(TITLE, 'Open inbox', 'AXButton'))
@@ -2875,12 +2875,12 @@ def expect_focus(mac, trigger, role="AXButton", *, title=TITLE, focused=True):
     raise RuntimeError(f'{title}: expected {trigger} AXFocused={focused}')
 
 
-def expect_popup_expanded(mac, label, expected):
+def expect_popup_expanded(mac, label, expected, *, role="AXButton"):
     get = mac.cf.CFBooleanGetValue
     get.restype, get.argtypes = C.c_bool, [C.c_void_p]
     deadline = time.monotonic() + 10
     while time.monotonic() < deadline:
-        node = mac.wait_find(TITLE, label, 'AXButton')
+        node = mac.wait_find(TITLE, label, role)
         value = mac.attr(node, 'AXExpanded')
         try:
             if value and bool(get(value)) == expected:
@@ -3105,10 +3105,8 @@ def exercise_navigation(mac, images):
     mac.wait_text(TITLE, 'Closed archive')
     mac.press(TITLE, 'Restore tabs')
     expect_field(mac, TITLE, 'Retained notes', 'a', role='AXTextArea')
-    mac.press(TITLE, 'Identity')
-    mac.wait_text(TITLE, 'Stable keys preserve the identity')
-    mac.press(TITLE, 'Behavior')
-    mac.wait_text(TITLE, 'Native controls handle immediate input')
+    from gallery_disclosure import exercise as exercise_disclosure
+    exercise_disclosure(mac)
     exercise_pagination(mac)
     mac.press(TITLE, 'Next')
     mac.wait_text(TITLE, 'Preview page 43 of 120')
@@ -4158,7 +4156,7 @@ def exercise_canvas(mac, images):
         mac.wait_text(TITLE, 'Selected: Tile · x 470 · y 160')
     mac.press(TITLE, 'Runtime & windows')
     mac.press(TITLE, 'Refresh resource counts')
-    mac.wait_text(TITLE, 'Images: 0 · Charts: 0 · Canvases: 0')
+    wait_for_resource_cleanup(mac)
     mac.wait_text(TITLE, 'Registered source bytes: 0')
     print('GALLERY_CANVAS_OK: OS keyboard/pointer movement, source echo, native geometry/zoom, '
           'disabled commands, retained hide/show, reset and scoped cleanup', flush=True)
@@ -4211,7 +4209,7 @@ def exercise_assets(mac, images):
         mac.wait_text(TITLE, 'Sample approvals: 2')
     mac.press(TITLE, 'Runtime & windows')
     mac.press(TITLE, 'Refresh resource counts')
-    mac.wait_text(TITLE, 'Images: 0 · Charts: 0 · Canvases: 0')
+    wait_for_resource_cleanup(mac)
     mac.wait_text(TITLE, 'Registered source bytes: 0')
     print('GALLERY_ASSETS_OK: SVG/raster readiness, fit controls, native decode failure/recovery, '
           'icon semantics, OS activation and scoped cleanup', flush=True)
@@ -4298,7 +4296,7 @@ def exercise_charts(mac, images):
         mac.wait_text(TITLE, 'Select a chart value to inspect it.')
     mac.press(TITLE, 'Runtime & windows')
     mac.press(TITLE, 'Refresh resource counts')
-    mac.wait_text(TITLE, 'Images: 0 · Charts: 0 · Canvases: 0')
+    wait_for_resource_cleanup(mac)
     mac.wait_text(TITLE, 'Registered source bytes: 0')
     print('GALLERY_CHARTS_OK: seven families plus mixed layers, native keyboard selection, '
           'data updates, bounded original-data pages, styles and scope cleanup', flush=True)
@@ -5120,7 +5118,7 @@ def exercise_attachments(mac, images):
             mac.release(new_save)
         mac.press(TITLE, 'Runtime & windows')
         mac.press(TITLE, 'Refresh resource counts')
-        mac.wait_text(TITLE, 'Images: 0 · Charts: 0 · Canvases: 0')
+        wait_for_resource_cleanup(mac)
         mac.wait_text(TITLE, 'Registered source bytes: 0')
         absent(mac, 'Open Aurora attachment', 'AXButton')
         absent(mac, 'Attachment landscape', 'AXImage')
@@ -5409,7 +5407,7 @@ def exercise_attachment_paint(mac, images):
             mac.release(last)
         mac.press(TITLE,'Runtime & windows')
         mac.press(TITLE,'Refresh resource counts')
-        mac.wait_text(TITLE,'Images: 0 · Charts: 0 · Canvases: 0')
+        wait_for_resource_cleanup(mac)
         mac.wait_text(TITLE,'Registered source bytes: 0')
         print('GALLERY_ATTACHMENT_PAINT_OK: light/dark native glyph motion and static completion/failure; image alpha and undimmed overlay; no-image failure tint; pending dashed paint; reduced-motion stop/full-motion recovery; real horizontal scroll, revealed action and retained owners; released images/sources',flush=True)
     finally:

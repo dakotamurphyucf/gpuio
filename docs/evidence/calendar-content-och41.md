@@ -91,3 +91,47 @@ performance/resources, installed-consumer runtime or Linux GUI behavior. Exact v
 observation is separate from the existing cursor-month snapshot and remains an
 open design. OCH-41 and OCH-17 remain incomplete. See the
 [content contract](../design/calendar-content.md).
+
+## Public constructor/native admission repair — 2026-10-04
+
+A real macOS 14.5 arm64 run of `test_gallery.py --section pickers` at production
+revision `984210e` exited with `Invalid_tree` as soon as Dates & colors mounted.
+The native slot validator correctly required structural wrappers without style
+declarations. `View.Calendar_content.create` built those wrappers with
+`container []`, whose empty base-style map encoded as `[Fields []]` instead of
+`[]`. Hand-authored Rust fixtures had used truly empty styles and missed the
+public constructor mismatch.
+
+The constructor now uses the same unstyled structural-node pattern as number
+and editor frames. Slot identity, custom child styles, ordering and strict
+native validation remain intact. `calendar-content-public.hex` is a shared
+342-byte transaction: the OCaml test compares actual public reconciliation bytes
+against it, and the native test decodes it into a Session, validates the two
+slots and their content, and closes the window with zero retained tree bytes.
+Temporary diagnostic prints used to isolate the rejected node were removed.
+
+The rebuilt gallery passes the physical picker run: event-content updates keep
+the same native day target and selection; event-badge removal/restoration updates
+help text; the rich day still selects a range start. Appointment and color
+pickers preserve committed values on cancel, apply new values, clear values and
+shut down successfully. This is actual AppKit AX interaction on the local desktop;
+it does not establish VoiceOver, candidate IME, GPU performance or Linux GUI
+acceptance. Evidence: `gallery-pickers-001.log` (original failure),
+`picker-native-diagnostic-002.log` (rejected wrapper), and
+`gallery-pickers-003.log` (pass), under `scratch/agents/root-20261004-resumed/`.
+
+The local command `GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2
+examples/gallery/main.exe @test/view_api/runtest @fmt` passes after the fix.
+The physical command is `python3 scripts/test_gallery.py --section pickers
+--images scratch/agents/root-20261004-resumed/pickers-images-003`.
+
+The default-feature native `cargo test --locked --offline -j2 -p gpuio-native
+--test calendar_content` passes both the shared public transaction and the
+existing atomic shape/passivity/heap-accounting test. Strict Clippy for that
+test and `cargo fmt --all --check` also pass through the isolated wrapper.
+Logs: `calendar-public-native-001.log`, `calendar-public-clippy-001.log` and
+`calendar-public-rustfmt-001.log` in the same session directory.
+
+The broader `dune build -j2 @all @runtest @fmt` also exits zero for this calendar
+repair (`calendar-full-dune-001.log`). Later choice-picker accessibility changes
+have their own [native and physical evidence](choice-picker-macos-och41.md).

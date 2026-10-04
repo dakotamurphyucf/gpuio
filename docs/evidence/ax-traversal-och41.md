@@ -115,3 +115,63 @@ probe used an incorrect accessible-role assumption for a decorative loading
 preview and failed; it is not lifecycle evidence. Brief native/driver samples
 during the slow rich-links run are retained there, but do not establish a
 performance budget or prove the cause of its duration.
+
+## Cleanup snapshot follow-up
+
+The standalone empty-state run reproduced the same final snapshot race: all
+layout/action checks completed, but the Runtime page retained a captured count
+of three image registrations. The harness now uses the existing explicit-refresh
+wait at all nine remaining image/chart/canvas cleanup sites. Every site still
+requires zero registrations and separately checks zero registered source bytes.
+No production cleanup behavior or test threshold changed.
+
+The repaired `--section empty` run exits zero on the same macOS 14.5 arm64
+desktop: 16 theme/media/alignment/width cases, 10 border cases, 12 typography
+cases, intrinsic media and wrapped slots, retained identity/focus, 18 Return/AX
+actions, native Space, decoded media, optional retirement and asset teardown.
+The final refreshed resource count is zero and the application closes normally.
+Evidence: `gallery-empty-001.log` (failure), `gallery-empty-002.log` and
+`empty-images-002`, under the same ignored session directory. These runs use
+production sources at `984210e`; the passing run includes the cleanup-wait change.
+
+The subsequent shared-reveal regression (`--section tags`, `gallery-tags-003.log`)
+passes all 28 GPU cases and 30 OS actions, identity/focus and retirement. A
+sequential style/resource queue also exits zero for `styles`, `borders`,
+`aspect-ratio`, `assets` and `charts`. Coverage includes all 22 cursor
+configurations (not cursor artwork), gradients and bounded accessible text;
+border/aspect geometry and retention; SVG/raster readiness and decode recovery;
+seven chart families plus mixed layers, keyboard selection, data updates and
+bounded source-data pages. Assets and charts both reach zero native registrations
+and zero source bytes on page exit. Logs are `gallery-SECTION-001.log`; images
+are `SECTION-images-001`. These are functional checks, not timing acceptance.
+
+The next interaction queue stops at `pickers`: opening Dates & colors causes an
+`Invalid_tree` rejection and application exit before calendar interaction. This
+was a production-path failure: the public calendar constructor encoded a style
+declaration on a structural wrapper. The [calendar repair](calendar-content-och41.md)
+now passes the physical picker rerun. `gallery-pickers-001.log` retains the original
+failure; `gallery-pickers-003.log` records the passing rerun.
+
+## Navigation walkthrough refresh
+
+Overlays pass their focused physical walkthrough (`gallery-overlays-001.log`).
+The following navigation run completed the tab checks, then failed because its
+accordion assertions still named prose replaced by the retained-editor example.
+`gallery_disclosure.py` now exercises that current example: native editing and
+Unicode undo/redo survive retained closing/reopening; real Space toggles a
+heading; multiple and nonempty-single modes, disabled-item policy, hidden AX
+retirement and resetting the buffer after unmount all pass.
+
+An initial fixture asserted `CFEqual` across removal from the accessibility tree.
+That was not a valid native-editor identity check: AccessKit removes the platform
+AX object on `NodeDestroyed` (`vendor/accesskit-macos/src/event.rs`) even when
+the application retains its editor. The corrected test checks the native buffer
+and undo/redo history, matching the earlier form retention fixture. It retains
+the separate requirement that hidden fields disappear from accessibility.
+
+`python3 scripts/test_gallery.py --section navigation --images
+scratch/agents/root-20261004-resumed/navigation-images-003` exits zero, including
+the preceding tab retention/menu/reveal checks and following pagination popup,
+focus, cancel/submit and boundary-navigation checks. Earlier navigation logs
+`001` and `002` retain the stale-text and invalid-identity-check failures. This
+refresh changes the fixture, not production disclosure behavior.

@@ -3,7 +3,7 @@
 
 def exercise(mac, images=None):
     from test_gallery import (
-        TITLE, activate, expect_enabled, focus_gallery_control,
+        TITLE, activate, expect_enabled, expect_popup_expanded, focus_gallery_control,
         reveal_gallery_control, wait_absent,
     )
     from test_canvas import screenshot
@@ -12,6 +12,9 @@ def exercise(mac, images=None):
         reveal_gallery_control(mac, label, 'AXPopUpButton')
         focus_gallery_control(mac, label, 'AXPopUpButton')
         activate(mac, mac.wait_find(TITLE, label, 'AXPopUpButton'))
+        # Controlled opening makes a round trip through Bonsai before focus
+        # enters the native popup. Do not send Escape to the closed trigger.
+        expect_popup_expanded(mac, label, True, role='AXPopUpButton')
 
     def select(label):
         activate(mac, mac.wait_find(TITLE, label, 'AXStaticText'))

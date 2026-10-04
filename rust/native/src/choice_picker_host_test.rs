@@ -2465,3 +2465,96 @@ fn picker_viewport_resize_preserves_anchor_and_bounds_without_model_updates() {
         cx.run_until_parked();
     }
 }
+
+#[test]
+fn custom_empty_instructions_are_accessible_only_while_the_picker_is_open() {
+    let mut app = TestAppContext::single();
+    app.update(gpui_base::init);
+    let (_reader, writer) = UnixStream::pair().unwrap();
+    let transport = Arc::new(Transport::new(writer.as_raw_fd()).unwrap());
+    let session = Rc::new(RefCell::new(Session::default()));
+    let wid = WindowId::from_parts(0, 1).unwrap();
+    session.borrow_mut().hello(VERSION, CAPABILITIES).unwrap();
+    session
+        .borrow_mut()
+        .open(1, wid, "Empty picker", 600., 400.)
+        .unwrap();
+    let (entity, cx) =
+        app.add_window_view(|_, _| View::new(wid, session.clone(), transport.clone()));
+    cx.simulate_a11y_active(true);
+    let mut presentation = config(false, OpenState::Controlled(true));
+    presentation.slots = vec![Slot::Empty];
+    cx.update(|window, cx| {
+        entity.update(cx, |view, cx| {
+            apply(
+                view,
+                window,
+                cx,
+                vec![
+                    Op::Create(id(0), Kind::ChoicePicker, "".into(), Some(handler(0))),
+                    Op::SetChoicePicker(id(0), Box::new(presentation.clone())),
+                    Op::Create(id(1), Kind::Container, "".into(), None),
+                    Op::Create(
+                        id(2),
+                        Kind::Text,
+                        "Make room for your first idea".into(),
+                        None,
+                    ),
+                    Op::Splice(id(1), 0, 0, vec![id(2)]),
+                    Op::Splice(id(0), 0, 0, vec![id(1)]),
+                    Op::SetRoot(Some(id(0))),
+                ],
+            );
+            cx.notify();
+        });
+        window.draw(cx).clear(cx);
+    });
+    for open in [true, false, true] {
+        presentation.config.open_state = OpenState::Controlled(open);
+        cx.update(|window, cx| {
+            entity.update(cx, |view, cx| {
+                apply(
+                    view,
+                    window,
+                    cx,
+                    vec![Op::SetChoicePicker(id(0), Box::new(presentation.clone()))],
+                );
+                cx.notify();
+            });
+            window.draw(cx).clear(cx);
+        });
+        cx.run_until_parked();
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+        let tree = cx.a11y_tree().unwrap();
+        let instruction = tree
+            .nodes
+            .iter()
+            .find(|(_, node)| node.label() == Some("Make room for your first idea"));
+        if !open {
+            assert!(instruction.is_none());
+            continue;
+        }
+        let mut cursor = instruction.expect("empty instructions must be exposed").0;
+        // Hidden ancestor semantics matter: raw AccessKit updates also contain
+        // decorative descendants that platform readers deliberately suppress.
+        let mut reached_root = false;
+        for _ in 0..tree.nodes.len() {
+            let node = &tree.nodes.iter().find(|(id, _)| *id == cursor).unwrap().1;
+            assert!(
+                !node.is_hidden(),
+                "empty instructions have a hidden ancestor"
+            );
+            let parent = tree
+                .nodes
+                .iter()
+                .find(|(_, node)| node.children().contains(&cursor));
+            if let Some((parent, _)) = parent {
+                cursor = *parent;
+            } else {
+                reached_root = true;
+                break;
+            }
+        }
+        assert!(reached_root, "accessibility ancestry must be acyclic");
+    }
+}
