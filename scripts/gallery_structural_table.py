@@ -14,7 +14,9 @@ TITLE = "GPUIO · Component Studio 1"
 def exercise(mac, images):
     mac.press(TITLE, "Lists, trees & tables")
     mac.press(TITLE, "Structural table")
-    mac.wait_text(TITLE, "Grouped headings, merged cells, and native actions.")
+    # Captions belong to the table subtree, which ordinary label searches skip.
+    mac.release(mac.wait_find(TITLE, "Grouped headings, merged cells, and native actions.",
+                              contains=True, search_files=True))
     table = mac.wait_find(TITLE, "Workspace review summary", "AXTable")
     retained = []
 
@@ -52,7 +54,15 @@ def exercise(mac, images):
         try:
             get = mac.ax.AXValueGetValue
             get.restype, get.argtypes = C.c_bool, [C.c_void_p, C.c_int, C.c_void_p]
-            assert value and get(value, 4, C.byref(result)), attribute
+            if not value or not get(value, 4, C.byref(result)):
+                value_type_id = mac.ax.AXValueGetTypeID
+                value_type_id.restype, value_type_id.argtypes = C.c_ulong, []
+                kind = mac.ax.AXValueGetType
+                kind.restype, kind.argtypes = C.c_int, [C.c_void_p]
+                actual_kind = (kind(value) if value and mac.type_id(value) == value_type_id()
+                               else None)
+                raise AssertionError((attribute, bool(value), actual_kind,
+                                      mac.text(node, "AXRole"), label(node)))
             return result.location, result.length
         finally:
             if value:

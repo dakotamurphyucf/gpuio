@@ -3358,6 +3358,8 @@ def exercise_collections(mac, images):
     if not 1 <= counts.get('AXRow', 0) <= 16:
         raise RuntimeError(f'Outline escaped its row budget: {counts}')
     mac.press(TITLE, 'Result table')
+    # Virtual cells mount only after the table enters the page viewport.
+    reveal_gallery_control(mac, 'Preview results', 'AXTable')
     mac.release(mac.wait_find(TITLE, '0000', 'AXCell', search_files=True))
     mac.press(TITLE, 'Select last result')
     mac.wait_text(TITLE, 'Table selection: Cell 999 / detail')

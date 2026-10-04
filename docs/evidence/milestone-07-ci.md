@@ -1,6 +1,32 @@
 # Milestone 07 hosted validation follow-up
 
-Latest result: [run 37236900248](https://github.com/dakotamurphyucf/gpuio/actions/runs/37236900248)
+Current run [37239659043](https://github.com/dakotamurphyucf/gpuio/actions/runs/37239659043)
+at `984210e` has a terminal Linux unit-test failure. Its diagnostic succeeds:
+GDB stops in `View::node_presentation`, beneath recursive `element_body`, tooltip
+and rich-label construction. The exact fixture passes with an 8 MiB stack.
+This supports excessive finite renderer stack usage, rather than the earlier
+suspected recursive accessibility assertion. macOS unit tests and lint pass;
+its native-test build/lint and independent extension consumer pass; the independent
+public gallery consumer is running at this checkpoint.
+
+A local repair extracts component-specific construction into `node_content` so
+its builder temporaries are absent from ordinary recursive container frames.
+The moved branches retain their order and behavior. Local arm64 debug assembly
+shows `element_body` reserving 157,904 bytes before and 88,416 bytes after,
+including saved registers (about 44% less). This is stack-frame evidence, not
+heap/GPU usage or an x86-64 measurement. The full native suite passes 920 tests
+with two existing macOS private-bus skips; strict all-target native lint passes.
+The exact sidebar fixture also passes locally with an explicit 2 MiB test stack.
+Required CI stack settings remain unchanged. Linux revalidation is still needed;
+the change does not establish a maximum-depth stack budget for every component.
+
+Diagnostic artifacts are from `foundation-logs-Linux-X64` (artifact 11317542140),
+retained locally in `ci-linux-artifacts-003`. Local follow-up logs use
+`renderer-stack-native-001.log`, `renderer-stack-clippy-001.log`,
+`renderer-sidebar-2m-001.log` and `stack-prolog-*-macos-00{1,2}.txt` under
+`scratch/agents/root-20261004-resumed/`.
+
+Prior result: [run 37236900248](https://github.com/dakotamurphyucf/gpuio/actions/runs/37236900248)
 at `1cd5de9622a2b3841d63f1ef85e928b2373f78df` is terminal with both jobs failed.
 The earlier missing TestAppContext guard is resolved. macOS passed unit tests and
 workspace lint, then failed the independent table native-test build because its

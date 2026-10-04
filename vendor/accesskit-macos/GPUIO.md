@@ -1,7 +1,7 @@
 # GPUIO macOS accessibility adaptation
 
 This is the published `accesskit_macos` **0.26.3**, at AccessKit revision
-`c88605b96d04431f9c3c792464a0f2f253480e94`, with nine scoped patches.
+`c88605b96d04431f9c3c792464a0f2f253480e94`, with ten scoped patches.
 The upstream MIT/Apache-2.0 notices and both license texts are preserved. Source,
 archive checksum and original per-file checksums are recorded in `UPSTREAM.json`.
 Cargo uses the registry-normalized manifest, retaining its exact dependency ranges.
@@ -54,7 +54,7 @@ extract `Cargo.toml`, `Cargo.toml.orig`, README/CHANGELOG and `src/`, then apply
 `patch -p1 < expanded-state.patch` and then `patch -p1 < tree-state.patch` inside
 that directory, followed by `patch -p1 < tree-actions.patch`, `patch -p1 < table-state.patch`
 and `patch -p1 < document-semantics.patch`, then `patch -p1 < table-headers.patch`
-and `patch -p1 < initial-window-focus.patch`, then `patch -p1 < busy-state.patch` and `patch -p1 < list-selection.patch`.
+and `patch -p1 < initial-window-focus.patch`, then `patch -p1 < busy-state.patch` and `patch -p1 < list-selection.patch`, followed by `patch -p1 < table-row-header-ranges.patch`.
 Fetch LICENSE-APACHE and
 LICENSE-MIT from the pinned upstream Git revision and verify their recorded hashes.
 `UPSTREAM.json`, this note and the patches are GPUIO provenance additions. The
@@ -176,7 +176,7 @@ the network (download the exact `source` URL in UPSTREAM.json separately):
 python3 scripts/verify_accesskit_macos.py --archive /path/to/accesskit_macos-0.26.3.crate
 ```
 
-The verifier checks the archive and every original source hash, applies all nine
+The verifier checks the archive and every original source hash, applies all ten
 patches without offset/fuzz, compares every reconstructed source byte and verifies
 the two license hashes. Its temporary workspace is removed on completion.
 
@@ -193,3 +193,14 @@ setters before this patch using actual AppKit adapter objects on an NSView with
 no OS window. It checks ordered actions, unchanged selection snapshots, exact
 role/action opt-in and disabled/removal/adapter retirement. This is not external
 AX notification or VoiceOver acceptance.
+
+
+`table-row-header-ranges.patch` allows the existing row/column index-range
+getters for RowHeader nodes with the corresponding index metadata. The physical
+structural-table gallery reproduced an AXCell row header that displayed correctly
+but returned no `AXRowIndexRange`: the getters existed, while their selector
+availability omitted RowHeader. A direct Objective-C getter test alone missed
+this external-dispatch boundary. The regression now checks selector availability
+as well as returned ranges; the physical gallery checks every cell and merged
+range. This patch does not expand table selection opt-in, synthesize cells,
+change coordinates, or alter the dependency version.

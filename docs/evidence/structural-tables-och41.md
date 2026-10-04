@@ -67,3 +67,52 @@ has **not** run. No OS window was opened. Physical gallery/VoiceOver/GPU and
 broader catalog/release gates remain open. Linux desktop qualification is deferred
 OCH-47; required non-GUI Linux release checks remain separate. OCH-41 and OCH-17
 remain in progress.
+
+## External macOS range-query repair — 2026-10-04
+
+The physical gallery reached the Memory row header but external AX returned no
+`AXRowIndexRange`. Column-header ranges and table/header counts already worked.
+The adapter implemented the row-header getter but its
+`isAccessibilitySelectorAllowed:` gate only admitted Row, Cell and ColumnHeader.
+The earlier fixture invoked getters directly and therefore missed external
+dispatch's role check.
+
+The headless AppKit fixture now checks both range selectors on RowHeader, their
+zero-based values, and selector retirement after removal. It fails before the
+repair and passes afterward. `table-row-header-ranges.patch` extends just those
+two getter gates; desired-selection opt-in remains unchanged. There is no
+dependency version change. The pinned adapter reconstructs exactly: 13 upstream
+files, ten ordered patches without offset/fuzz, and both preserved license hashes.
+
+The external structural-table walkthrough then passes on macOS 14.5 arm64:
+6 rows, 3 columns, 5 column headers, 3 row headers, every zero-based row/column
+range including merged cells, native Memory/Streaming actions, reversal with
+retained keyed button identity, page retirement and clean application shutdown.
+The harness now explicitly searches within AXTable for its caption. The virtual
+table walkthrough separately reveals its viewport before requiring virtual cells
+to mount; neither adjustment weakens row or range assertions.
+
+Commands:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked --offline -j2 \
+  -p gpuio-native --test accessibility_structural_table
+python3 scripts/verify_accesskit_macos.py --archive /path/to/accesskit_macos-0.26.3.crate
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 examples/gallery/main.exe @fmt
+python3 scripts/test_gallery.py --section structural-tables \
+  --images scratch/agents/root-20261004-resumed/structural-tables-images-002
+```
+
+Logs in that local session directory: `row-header-native-before-001.log` (expected
+regression failure), `row-header-native-after-001.log`,
+`row-header-reconstruction-001.log`, `row-header-gallery-build-001.log`,
+`gallery-structural-tables-001.log` (external failure) and
+`gallery-structural-tables-002.log` (pass). The latter executable also includes
+the recursive renderer stack reduction. This is scoped AppKit/external AX
+acceptance, not VoiceOver speech, Linux desktop or performance qualification.
+
+The complete Collections walkthrough also passes (`gallery-collections-004.log`),
+including the managed message list, outline tree, virtual result table, structural
+table and searchable list. Final native validation reports 920 passed and two
+existing macOS private-bus skips; strict combined-feature all-target lint and
+Rust formatting pass (`row-header-*-001.log`).

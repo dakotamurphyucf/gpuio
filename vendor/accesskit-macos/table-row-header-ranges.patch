@@ -1,0 +1,15 @@
+--- a/src/node.rs
++++ b/src/node.rs
+@@ -1450,10 +1450,10 @@
+                     return node.role() == Role::Row && node.data().row_index().is_some();
+                 }
+                 if selector == sel!(accessibilityRowIndexRange) {
+-                    return table_item(node) && node.data().row_index().is_some();
++                    return (table_item(node) || node.role() == Role::RowHeader) && node.data().row_index().is_some();
+                 }
+                 if selector == sel!(accessibilityColumnIndexRange) {
+-                    return table_item(node) && node.data().column_index().is_some();
++                    return (table_item(node) || node.role() == Role::RowHeader) && node.data().column_index().is_some();
+                 }
+                 if selector == sel!(accessibilitySortDirection) { return node.role() == Role::ColumnHeader; }
+                 if selector == sel!(isAccessibilitySelected) {

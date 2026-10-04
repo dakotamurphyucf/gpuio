@@ -10,6 +10,7 @@ mod macos {
         msg_send,
         rc::{Retained, autoreleasepool},
         runtime::AnyObject,
+        sel,
     };
     use objc2_app_kit::NSView;
     use objc2_foundation::{MainThreadMarker, NSArray, NSRange, NSString};
@@ -109,6 +110,21 @@ mod macos {
             let table = find(&children, "Summary").unwrap();
             let header = find(&children, "Heading").unwrap();
             let cell = find(&children, "Ready").unwrap();
+            let row_header = find(&children, "Project").unwrap();
+            // External AX dispatch checks selector availability; directly
+            // invoking the getter alone misses an omitted role in its gate.
+            for selector in [
+                sel!(accessibilityRowIndexRange),
+                sel!(accessibilityColumnIndexRange),
+            ] {
+                let allowed: bool =
+                    unsafe { msg_send![&*row_header, isAccessibilitySelectorAllowed: selector] };
+                assert!(allowed, "row-header range selector must be advertised");
+            }
+            let range: NSRange = unsafe { msg_send![&*row_header, accessibilityRowIndexRange] };
+            assert_eq!((range.location, range.length), (1, 1));
+            let range: NSRange = unsafe { msg_send![&*row_header, accessibilityColumnIndexRange] };
+            assert_eq!((range.location, range.length), (0, 1));
             let rows: isize = unsafe { msg_send![&*table, accessibilityRowCount] };
             let columns: isize = unsafe { msg_send![&*table, accessibilityColumnCount] };
             assert_eq!((rows, columns), (2, 2));
@@ -122,6 +138,10 @@ mod macos {
             let range: NSRange = unsafe { msg_send![&*cell, accessibilityRowIndexRange] };
             assert_eq!((range.location, range.length), (1, 1));
             drop(adapter.update_if_active(|| update(true)).unwrap());
+            let allowed: bool = unsafe {
+                msg_send![&*row_header, isAccessibilitySelectorAllowed: sel!(accessibilityRowIndexRange)]
+            };
+            assert!(!allowed, "removed row-header selectors must retire");
             let range: NSRange = unsafe { msg_send![&*header, accessibilityColumnIndexRange] };
             assert_eq!((range.location, range.length), (0, 1));
             let range: NSRange = unsafe { msg_send![&*cell, accessibilityColumnIndexRange] };
