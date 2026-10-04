@@ -2,6 +2,8 @@ pub mod document_profiles;
 pub mod extensions;
 #[cfg(target_os = "macos")]
 pub mod input_content_macos;
+#[cfg(feature = "performance-diagnostics")]
+pub mod performance;
 pub mod registrations;
 pub use gpuio_extension_sdk as extension_sdk;
 

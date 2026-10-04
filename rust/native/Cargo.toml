@@ -9,6 +9,7 @@ repository.workspace = true
 crate-type = ["staticlib", "rlib"]
 
 [features]
+performance-diagnostics = ["gpui/profiler"]
 native-tests = []
 native-canvas-tests = ["native-tests", "gpui_platform/test-support"]
 native-image-tests = ["native-tests", "gpui_platform/test-support"]

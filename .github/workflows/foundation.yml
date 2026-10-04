@@ -178,6 +178,10 @@ jobs:
       - name: Lint
         id: lint
         run: ./scripts/gpuio lint 2>&1 | tee .cache/ci/lint.log
+      - name: Performance collector checks (no display)
+        run: |
+          ./scripts/gpuio exec cargo test --locked -p gpuio-native --features performance-diagnostics,native-image-tests,native-canvas-tests --lib performance::tests 2>&1 | tee .cache/ci/performance-collector.log
+          ./scripts/gpuio exec cargo clippy --locked -p gpuio-native --features performance-diagnostics,native-image-tests,native-canvas-tests --lib --tests -- -D warnings
       - name: Build and lint native UI tests
         id: native-ui-build
         run: |

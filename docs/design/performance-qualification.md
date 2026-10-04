@@ -78,7 +78,25 @@ evidence. Never relabel requested render callbacks as physical paint.
 
 ## Remaining implementation
 
-Add the opt-in collector and reproducible workload drivers, validate collectors
+The opt-in Rust integration API `gpuio_native::performance` is gated by Cargo
+feature `performance-diagnostics` (default off). `Snapshot::capture(&window)`
+reads cumulative native counters without scheduling frames or enabling tracing;
+`after.since(&before)` rejects mismatched windows, reversed timestamps and
+regressed buckets. Each interval exposes sorted raw buckets, nearest-rank
+percentiles, sample counts and dropped/coalesced input counts. Empty distributions
+have no percentile. Duration bucket bounds are nanoseconds, with upstream HDR
+quantization; counts-per-frame are dimensionless. Capture overhead must be
+measured separately. This is a Rust qualification/integration API, not an OCaml
+application API or an automatic report writer. Window owners choose phase
+boundaries and capture before retirement. Snapshots contain no window ownership.
+
+The optional feature enables the pinned GPUI profiler and locks its existing
+optional `hdrhistogram` dependency at 7.6.0. Default application dependency graphs
+and runtime behavior remain unchanged; profiled distribution notice inventories
+must include the additional dependency. Required CI runs the collector's pure
+and TestPlatform tests on macOS/Linux. These do not establish physical latency.
+
+Complete reproducible workload drivers and report export, validate collectors
 against deterministic/synthetic traces, measure instrumentation overhead, then
 run the matrix and investigate failures. Retain platform/hardware/build metadata,
 raw samples, phase markers, resource counters and cleanup status in each report.
