@@ -29,6 +29,25 @@ def expect_field(mac, title, label, expected, role="AXTextField"):
     raise RuntimeError(f'{label}: expected {expected!r}, got {actual!r}')
 
 
+def wait_for_resource_cleanup(mac):
+    """Refresh the explicit snapshot while native release acknowledgments settle."""
+    deadline = time.monotonic() + 35
+    actual = None
+    while time.monotonic() < deadline:
+        mac.press(TITLE, 'Refresh resource counts')
+        node = mac.find(TITLE, 'Images:', 'AXStaticText', contains=True, deadline=deadline)
+        if node:
+            try:
+                actual = mac.text(node, 'AXTitle')
+            finally:
+                mac.release(node)
+            print('GALLERY_RESOURCE_SNAPSHOT', actual, flush=True)
+            if actual == 'Images: 0 · Charts: 0 · Canvases: 0':
+                return
+        time.sleep(.05)
+    raise RuntimeError(f'Native registrations did not retire: {actual!r}')
+
+
 def exercise(mac, images):
     mac.wait_text(TITLE, 'A little context goes a long way')
     exercise_status_regions(mac, images)
@@ -135,7 +154,14 @@ def reveal_gallery_control(mac, label, role, *, scroll_fraction=.78):
             return x, y, w, h
         mouse.send(5, point)
         mouse.check_owner(point)
-        event = create(None, 0, 1, C.c_int(-75 if y + h > wy + wh - 30 else 75))
+        # A standalone section may start several screens above its target.
+        # Fixed 75-pixel steps exhausted this bounded loop before reaching later
+        # cards. Scale toward the measured target, at most one viewport per
+        # event, and re-read layout after every step.
+        below = y + h - (wy + wh - 30)
+        distance = below if below > 0 else wy + 170 - y
+        amount = round(min(max(75, distance), max(75, wh - 200)))
+        event = create(None, 0, 1, C.c_int(-amount if below > 0 else amount))
         assert event
         try:
             locate(event, GalleryMouse.Point(*point))
@@ -303,7 +329,7 @@ def exercise_links(mac, images):
     mac.press(TITLE, 'Runtime & windows')
     mac.press(TITLE, 'Refresh resource counts')
     mac.wait_text(TITLE, 'Registered source bytes: 0')
-    mac.wait_text(TITLE, 'Images: 0 · Charts: 0 · Canvases: 0')
+    wait_for_resource_cleanup(mac)
     mac.press(TITLE, 'Presentation')
     mac.release(mac.wait_find(TITLE, labels[0], 'AXLink'))
     print('GALLERY_COMPOSED_LINK_OK: 8 theme/content/icon cases plus image/avatar/loading, '
@@ -6020,6 +6046,8 @@ def exercise_settings_virtualization(mac):
 
 def exercise_settings_windows(mac):
     """Independent application data and native owners in two normal windows."""
+    equal = mac.cf.CFEqual
+    equal.restype, equal.argtypes = C.c_bool, [C.c_void_p, C.c_void_p]
     mac.press(TITLE, 'Settings')
     activate(mac, mac.wait_find(TITLE, 'Workspace', 'AXLink'))
     activate(mac, mac.wait_find(TITLE, 'Make it yours', 'AXLink'))
@@ -6062,6 +6090,13 @@ def exercise_settings_windows(mac):
                 try:
                     code = mac.ax.AXUIElementCopyElementAtPosition(system, *point, C.byref(hit))
                     assert not code and hit.value
+                    # Same-process/window ownership alone can pass when AppKit
+                    # returns AXWindow instead of routing into the content view.
+                    # Require the actual editor at this known content point.
+                    assert equal(hit, field), (
+                        'Window point did not resolve to its visible editor', title,
+                        mac.text(hit, 'AXRole'), mac.text(hit, 'AXTitle'),
+                        mac.text(hit, 'AXDescription'), point)
                     hit_window = (mac.retain(hit) if mac.text(hit, 'AXRole') == 'AXWindow'
                                   else mac.attr(hit, 'AXWindow'))
                     try:

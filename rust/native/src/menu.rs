@@ -17,7 +17,7 @@ type Geometry = Rc<Cell<Bounds<Pixels>>>;
 #[cfg(all(test, feature = "native-image-tests"))]
 #[path = "editor_menu_test.rs"]
 mod editor_menu_tests;
-#[cfg(all(test, feature = "native-tests"))]
+#[cfg(all(test, feature = "native-image-tests"))]
 #[path = "menu_observation_test.rs"]
 mod observation_tests;
 pub(super) struct State {

@@ -2326,6 +2326,10 @@ pub fn run(transport: Arc<Transport>) {
                                     },
                                     |window, cx| {
                                         window.set_window_title(&title);
+                                        // AppKit otherwise returns the NSWindow itself for
+                                        // screen-point AX queries instead of its controls.
+                                        #[cfg(target_os = "macos")]
+                                        gpui_base::install_window_hit_test_forwarder(window);
                                         cx.new(|cx| {
                                             let mut view=View::new(id, session.clone(), transport.clone());
                                             view.window_title=title.clone();

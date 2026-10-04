@@ -310,6 +310,10 @@ module Diagnostics : sig
       requests; queued commands have not yet been accepted by the native host.
       Native command-queue bytes count accepted serialized input awaiting dispatch,
       with a lifetime high-water mark; they exclude executing work and outputs.
+      Asset counts include uploads and registrations awaiting native release
+      acknowledgments. After scope cancellation, source reservations can be zero
+      while registrations are still retiring. Snapshot values do not update;
+      sample again to observe cleanup progress.
       Sampling creates no bridge command and does not request a frame. *)
   type t =
     { runtime : Stats.t

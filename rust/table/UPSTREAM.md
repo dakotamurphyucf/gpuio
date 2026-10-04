@@ -145,3 +145,8 @@ policy gates hover registration. The Host applies checked base paint/font fields
 through `render_tr`, with explicit selected/focused/hover/pressed/disabled layers
 in the final hook; native row geometry, outlines and accessibility stay owned by
 the table. Filler rows do not receive application row presentation.
+
+The optional test observation wrapper is applied after `finish_row`, then receives
+the final row accessibility decoration. Delegates keep the same concrete
+`Stateful<Div>` input/output contract with or without `gpui-base/test-support`;
+turning on observation must not change the delegate's row type.

@@ -2373,8 +2373,7 @@ where
             let mut tr = self.delegate.render_tr(row_ix, window, cx);
             let style = tr.style().clone();
 
-            tr.test_support()
-                .h_flex()
+            tr.h_flex()
                 .w_full()
                 .h(row_height)
                 .when(need_render_border, |this| {
@@ -2678,6 +2677,9 @@ where
                         cx,
                     )
                 })
+                // Keep the delegate's concrete row contract independent of the
+                // optional Observed wrapper, then observe its final semantics.
+                .test_support()
                 .map(|row| self.accessible_row(row, row_ix, window, cx))
                 .into_any_element()
         } else {

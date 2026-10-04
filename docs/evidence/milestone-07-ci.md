@@ -1,6 +1,53 @@
 # Milestone 07 hosted validation follow-up
 
-Latest result: [run 37234888418](https://github.com/dakotamurphyucf/gpuio/actions/runs/37234888418)
+Latest result: [run 37236900248](https://github.com/dakotamurphyucf/gpuio/actions/runs/37236900248)
+at `1cd5de9622a2b3841d63f1ef85e928b2373f78df` is terminal with both jobs failed.
+The earlier missing TestAppContext guard is resolved. macOS passed unit tests and
+workspace lint, then failed the independent table native-test build because its
+optional observation wrapper changed the row type passed to `finish_row`. Linux
+reached the feature-enabled native library tests and aborted on a sidebar fixture
+stack overflow. Later gates remain unqualified.
+
+## Current follow-up
+
+The table now applies `.test_support()` after the delegate finishes its concrete
+`Stateful<Div>` row, before accessibility decoration. That preserves the delegate
+contract with and without the optional `Observed` wrapper. The exact independent
+CI build and strict all-target table lint pass locally. The resulting native
+`native_table` executable also exits zero under a 120-second process-group bound:
+four sampled positions across 100,000 logical rows and 64 columns, keyed selection,
+gesture/event identity, anchor preservation and entity release pass. These are
+native fixture/layout/dispatch checks, not external OS keyboard or full-history
+performance acceptance. Evidence: `table-observed-{build,clippy,native}-001.log`.
+Hosted revalidation remains pending.
+
+A subsequent local check of the plain `native-tests` configuration found four
+TestPlatform modules guarded by that feature even though it does not enable GPUI
+test support: editor frame, input content, menu observations and split-button
+view tests. Their guards now use `native-image-tests`, consistent with the other
+TestPlatform modules and the required feature-enabled library suite. The tests
+remain required there. Plain, image-only and canvas-only strict all-target native
+Clippy now pass locally. The final combined library run still reports **919
+passed, two existing private-bus skips**; no tests were dropped from that required
+suite. Dune/Rust formatting and the workflow's YAML/embedded Python syntax checks
+also pass. Logs use `native-basic-clippy-002.log`, `native-image-clippy-001.log`,
+`native-canvas-clippy-001.log` and `native-final-feature-tests-001.log` in the local
+session directory.
+
+The failing Linux fixture is
+`host::sidebar_labels_view_test::public_sidebar_labels_retain_focus_paint_once_and_route_one_activation`.
+It passes locally on macOS with an explicit `RUST_MIN_STACK=2097152`; this neither
+reproduces nor fixes Linux. A conditional CI diagnostic captures a default-stack
+GDB backtrace and then compares an 8 MiB run. It leaves the required suite and its
+stack setting unchanged. Each probe has a 90-second process-group limit so a
+debugger timeout cannot leave its inferior running. The original required failure
+remains a failure regardless of the diagnostic outcome. Cause investigation is
+open; no larger-stack production policy is inferred.
+
+Logs: `ci-macos-002.log`, `ci-linux-002.log`, `sidebar-stack-2m-001.log` in
+`scratch/agents/root-20261004-resumed/`.
+
+Prior checkpoint: [run 37234888418](https://github.com/dakotamurphyucf/gpuio/actions/runs/37234888418)
 at `4453cbb1573533288e0ba9af303f10efe00b904c` failed on both macOS 15 and
 Ubuntu 24.04 during the OCaml/Rust tests step. Both platforms completed bootstrap,
 formatting and the build. Later acceptance steps were skipped; this is not a

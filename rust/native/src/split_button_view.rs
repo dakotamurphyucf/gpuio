@@ -3,7 +3,7 @@ use super::View;
 use gpui::{Div, InteractiveElement, Refineable, Stateful, Styled, Window};
 use gpuio_protocol::NodeId;
 
-#[cfg(all(test, feature = "native-tests"))]
+#[cfg(all(test, feature = "native-image-tests"))]
 #[path = "split_button_view_test.rs"]
 mod tests;
 

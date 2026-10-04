@@ -101,7 +101,53 @@ jobs:
             target
           key: foundation-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('gpuio.opam.locked', 'third_party/sources.json', 'rust-toolchain.toml', 'Cargo.lock') }}
       - name: OCaml and Rust tests
+        id: unit_tests
         run: ./scripts/gpuio test 2>&1 | tee .cache/ci/tests.log
+      - name: Diagnose Linux native test stack failure
+        if: runner.os == 'Linux' && failure() && steps.unit_tests.outcome == 'failure'
+        timeout-minutes: 5
+        continue-on-error: true
+        run: |
+          # Diagnostic only: the original test step remains a required failure.
+          # Compare the failing fixture at the default stack and at 8 MiB; do
+          # not silently increase the stack for the required suite.
+          sudo apt-get install -y gdb
+          ./scripts/gpuio exec cargo test -p gpuio-native --lib --locked \
+            --features native-image-tests,native-canvas-tests --no-run \
+            --message-format=json -j "$GPUIO_JOBS" > .cache/ci/native-stack-build.jsonl
+          python3 - <<'PY'
+          import json, os, signal, subprocess
+          from pathlib import Path
+          messages = [json.loads(line) for line in Path('.cache/ci/native-stack-build.jsonl').read_text().splitlines()]
+          binaries = {m['executable'] for m in messages
+                      if m.get('reason') == 'compiler-artifact' and m.get('executable')
+                      and m['target']['name'] == 'gpuio_native' and m['profile']['test']}
+          assert len(binaries) == 1, binaries
+          binary = binaries.pop()
+          case = 'host::sidebar_labels_view_test::public_sidebar_labels_retain_focus_paint_once_and_route_one_activation'
+          arguments = [binary, '--exact', case, '--nocapture', '--test-threads=1']
+          probes = [
+              ('default-backtrace', ['gdb', '--batch', '-ex', 'set pagination off',
+                                    '-ex', 'set disable-randomization off', '-ex', 'run',
+                                    '-ex', 'thread apply all bt 60', '--args', *arguments], {}),
+              ('eight-mib', arguments, {'RUST_MIN_STACK': '8388608'}),
+          ]
+          for name, command, overrides in probes:
+              with Path(f'.cache/ci/native-stack-{name}.log').open('w') as log:
+                  process = subprocess.Popen(command, env={**os.environ, **overrides},
+                                             stdout=log, stderr=subprocess.STDOUT,
+                                             start_new_session=True)
+                  try:
+                      print(name, 'exit', process.wait(timeout=90), flush=True)
+                  except subprocess.TimeoutExpired:
+                      # Include the debugger's inferior, not just the debugger.
+                      try:
+                          os.killpg(process.pid, signal.SIGKILL)
+                      except ProcessLookupError:
+                          pass
+                      process.wait()
+                      print(name, 'timed out', flush=True)
+          PY
       - name: Inherited output and Eio cancellation (no display)
         run: |
           ./scripts/gpuio build test/output/probe.exe

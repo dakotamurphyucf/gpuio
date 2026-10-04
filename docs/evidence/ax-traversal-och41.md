@@ -77,9 +77,41 @@ The same macOS desktop and gallery executable pass these focused checks:
 | `descriptions` | 75 packing/axis/width/style cases, 34 GPU cases, native Term/Definition parents, four OS actions, retained rich controls/editors and retirement. |
 | `keyboard-labels` | 13 layout/name/identity cases, four GPU cases, registration/disable/platform routing, slot/page retirement. |
 | `binding-observations` | 20 live binding/name/identity cases, OS Copy and shortcut invocation, context/config replacement, idle observation silence and retirement. |
+| `attachments` | 20 theme/axis/status cases, real keyboard/pointer activation, shielded gaps and disabled actions, image decode failure/recovery, five sizes, identity and page cleanup. |
+| `groups` | 64 theme/variant/style/slot cases, 128 pointer/Return actions, real Space input, retained checked state/focus/identity and cleanup. |
+| `separators` | 32 theme/axis/pattern/label/width cases and 12 clipping/reset cases, centered geometry, retained checked state/focus/identity and retirement. |
 
 Commands use `python3 scripts/test_gallery.py --section SECTION --images PATH`.
 Each run exits successfully and reaps its application. Per-section logs and PNGs
 are retained in the same local session directory. This checks the specified
 semantics; it is not a performance benchmark, complete IME/VoiceOver pass or
 whole-gallery acceptance.
+
+## Standalone links: reveal and cleanup snapshot diagnostics
+
+A standalone links run starts near the top of the large Presentation page. Its
+24 fixed 75-pixel reveal steps ended with the target still at screen y=6537,
+well below the window. The harness now scales each wheel step toward the observed
+target, capped at one viewport, and rereads layout after every event. Ownership
+checks and the iteration bound remain unchanged.
+
+The next run reached all 42 expected activations, then failed cleanup against
+a static Runtime-page snapshot showing five image registrations. Asset releases
+remain in the registry until native acknowledgments arrive; waiting on a captured
+label cannot observe later acknowledgments. A focused real-window probe refreshed
+the snapshot and observed **10 → 5 → 0 registrations** after switching pages.
+The links fixture now explicitly refreshes within its cleanup wait, retaining the
+zero-registration requirement. No production resource limit or release behavior
+changed. The final whole-links rerun passes all eight theme/content/icon cases,
+rich previews, 42 pointer/Return/Space/AX actions, Tab and reverse order, focused
+non-stop anchors, disabled recovery and cleanup. The refreshed final snapshots
+show six registrations followed by zero; the app exits successfully. This is
+`gallery-links-003.log`, with captures in `links-images-003`.
+
+Evidence: `gallery-links-001.log` (reveal failure), `gallery-links-002.log`
+(interactions followed by static-snapshot failure), and `link-cleanup-probe-002.log`
+(fresh snapshot observations) in `scratch/agents/root-20261004-resumed/`. The first
+probe used an incorrect accessible-role assumption for a decorative loading
+preview and failed; it is not lifecycle evidence. Brief native/driver samples
+during the slow rich-links run are retained there, but do not establish a
+performance budget or prove the cause of its duration.

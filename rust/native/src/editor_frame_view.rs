@@ -123,6 +123,6 @@ impl View {
     }
 }
 
-#[cfg(all(test, feature = "native-tests"))]
+#[cfg(all(test, feature = "native-image-tests"))]
 #[path = "editor_frame_test.rs"]
 mod tests;

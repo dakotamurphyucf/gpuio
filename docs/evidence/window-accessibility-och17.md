@@ -99,3 +99,39 @@ known window-content points across multiple windows and overlays; verify that
 the result is the expected visible native control. Record that independently of
 focused-node getters and keyboard input. The successful focus regression above
 must not be relabelled as point-based hit-test or VoiceOver evidence.
+
+## Screen-point routing repaired — 2026-10-04
+
+The formerly open routing question now has a physical reproduction. The
+`settings-windows` fixture queries `AXUIElementCopyElementAtPosition` at the
+center of each visible workspace-name editor and requires `CFEqual` with the
+editor found through the semantic tree. Before the fix, the second window returns
+`AXWindow` instead of its `AXTextField`. The former PID/window-only ownership
+assertion did not detect that failure.
+
+Production window creation now invokes Base's existing macOS
+`install_window_hit_test_forwarder`, which forwards the native window's point
+query into its content view. The call is macOS-only and uses the existing pinned,
+statically linked implementation. No additional vendor patch, protocol change or
+synchronous OCaml input callback was introduced.
+
+After rebuilding the gallery, the same physical fixture passes exact control
+identity at the editor's screen point across both windows, initial/switched AX
+focus, actual keyboard edits and independent reset values, then closes the second
+window and verifies that the first remains usable. The application exits zero.
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j 2 examples/gallery/main.exe
+python3 scripts/test_gallery.py --section settings-windows \
+  --images scratch/agents/root-20261004-resumed/window-hits-images-002
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test -p gpuio-native \
+  --features native-image-tests,native-canvas-tests --lib --offline --locked -j 2
+```
+
+Local macOS 14.5 arm64, worktree based on `1cd5de9`. Logs
+`gallery-window-hits-001.log` (failing), `gallery-window-hits-002.log` (passing),
+`window-hit-build-001.log` and `native-window-hit-tests-001.log` are retained in
+the same local session directory. All 919 native library tests pass, with the
+two existing private-bus skips. Other controls, overlay routing, VoiceOver speech,
+real input-method candidate windows and Linux desktop acceptance remain separate
+qualification work.

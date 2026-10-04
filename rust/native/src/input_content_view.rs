@@ -113,6 +113,6 @@ impl View {
     }
 }
 
-#[cfg(all(test, feature = "native-tests"))]
+#[cfg(all(test, feature = "native-image-tests"))]
 #[path = "input_content_test.rs"]
 mod tests;
