@@ -52,11 +52,11 @@ impl State {
     pub(super) fn focused(&self, window: &Window) -> bool {
         self.focus.is_focused(window)
     }
-    #[cfg(test)]
+    #[cfg(all(test, feature = "native-image-tests"))]
     pub(super) fn clock_snapshot(&self) -> (bool, bool) {
         (self.timer.is_some(), self.model.pending_proposal())
     }
-    #[cfg(test)]
+    #[cfg(all(test, feature = "native-image-tests"))]
     pub(super) fn focus_handle(&self) -> gpui::FocusHandle {
         self.focus.clone()
     }

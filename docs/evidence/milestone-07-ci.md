@@ -1,8 +1,46 @@
 # Milestone 07 hosted validation follow-up
 
-Latest result: run **36791905054** is terminal, with Linux success and macOS
-cancelled after two failed steps. See the final-result section below. All local
-grid/Form/avatar changes after `e54d279` remain outside that run's coverage.
+Latest result: [run 37234888418](https://github.com/dakotamurphyucf/gpuio/actions/runs/37234888418)
+at `4453cbb1573533288e0ba9af303f10efe00b904c` failed on both macOS 15 and
+Ubuntu 24.04 during the OCaml/Rust tests step. Both platforms completed bootstrap,
+formatting and the build. Later acceptance steps were skipped; this is not a
+current green result.
+
+## Default-feature compilation repair — 2026-10-04
+
+Both jobs report the same compile error in `desktop_host.rs`: the scrollbar
+correlation test refers to `gpui::TestAppContext`, which is unavailable in the
+default-feature workspace test build. The test now uses the existing
+`native-image-tests` feature guard, matching other TestPlatform tests. The next
+command in `scripts/gpuio test` explicitly enables that feature and runs library
+tests on both platforms without OS windows; the test remains part of required CI.
+The pure scrollbar policy tests remain in the default build.
+
+Local default-feature compilation also exposed unused carousel snapshot helpers
+whose callers already require that feature. Their guards now match the callers,
+without suppressing warnings or changing production code. Local macOS 14.5 arm64 validation:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --workspace --offline --locked -j 2
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test -p gpuio-native --features native-image-tests,native-canvas-tests --lib --offline --locked -j 2
+```
+
+Both commands exit successfully: the default workspace reports 1,386 passed and
+13 ignored across 260 reports; the feature-enabled native library reports 919
+passed and two existing private-bus skips. The scrollbar correlation test is
+explicitly present and passes in the second run. The default run began before
+the helper-guard cleanup and reported two dead-code warnings; subsequent `cargo clippy --workspace --all-targets --offline --locked -j 2 --
+-D warnings` through the repository wrapper passes and validates that cleanup
+separately. Cargo retains an upstream `block 0.1.6` future-incompatibility notice;
+this is not a first-party warning or a claim of future compiler compatibility.
+No hosted rerun has yet validated this repair. Local logs are in `scratch/agents/root-20261004-resumed/` as
+`default-tests-001.log` and `native-feature-tests-001.log`.
+
+## Earlier hosted checkpoints
+
+Run **36791905054** is terminal, with Linux success and macOS cancelled after two
+failed steps. See its final-result section below. Later local grid/Form/avatar
+changes remain outside that older run's coverage.
 
 [Run 36781947346](https://github.com/dakotamurphyucf/gpuio/actions/runs/36781947346)
 tested `afb4bba48892b25527db158d533f92eb1fdcaad6`. Linux completed successfully;

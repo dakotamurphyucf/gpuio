@@ -4,9 +4,11 @@ Current handoff: 2026-10-04. Milestone **07 — Expanded v1 macOS validation and
 release** is in progress. **OCH-41 and OCH-17 remain open.** This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
-The worktree is based on `83eb87e865c86717a8bc51b9db6fe1f379d909a9` and contains
-substantial uncommitted implementation. Preserve it. A HEAD revision alone does
-not identify the tested sources. The preceding 2,834-line chronological status is
+The accumulated implementation is committed and pushed as
+`4453cbb1573533288e0ba9af303f10efe00b904c` on draft PR #16. Earlier evidence
+identifies local worktree checkpoints based on `83eb87e`; their source snapshots
+must not be confused with that old HEAD alone. Current hosted qualification and
+remaining acceptance work are still open. The preceding 2,834-line chronological status is
 preserved unchanged in [status-history.md](status-history.md); dated evidence files
 retain exact commands, revisions, environments and limitations.
 
@@ -33,6 +35,8 @@ whole-family acceptance. Start from [the catalog](catalog/README.md),
 
 Recent completed local checkpoints:
 
+- Resumed physical macOS gallery testing: [forms and editor admission](evidence/gallery-editor-admission-och41.md) and [shimmer with bounded AX traversal](evidence/ax-traversal-och41.md) pass locally. Additional physical presentation checks, including tags and managed chat scrolling, pass at this follow-up. The broader gallery run and final release acceptance remain open.
+
 - Static document profiles: checked SDK/catalogs, worker preparation, renderer
   attachment, queued events, a public OCaml/Rust package and independent installed
   consumer. [Renderer evidence](evidence/document-profile-renderers-och41.md),
@@ -48,7 +52,7 @@ Recent completed local checkpoints:
   private-bus skips, strict lint and formatting passed. This is TestPlatform
   ownership evidence, not process/GPU memory. [Resource evidence](evidence/document-resources-och17.md).
 - Dependency notice collection: 144 OCaml package/root records and 499 text files;
-  current native/Signal/gallery Rust graphs have 28 missing-text packages each.
+  current native/Signal/gallery Rust graphs have 27 missing-text packages each.
   Runtime license retained; asset/system and final distribution review remain.
   [OCaml evidence](evidence/ocaml-notices-och17.md),
   [Rust evidence](evidence/dependency-notices-och17.md).
@@ -92,7 +96,7 @@ Actual OS operation remains open; see [minimize evidence](evidence/window-minimi
 | OCH-17: initial black window | Reproduced historical startup capture; source ordering reviewed, diagnostic added. A fresh foreground run captured twelve nonblack UI samples; this does not rule out earlier blank frames or qualify background presentation. No production startup fix is claimed. [Startup evidence](evidence/window-startup-och17.md). |
 | OCH-17: notices, source maintenance and distribution | All eight Bonsai-family packages now have [exact 2,348-entry reconstruction evidence](evidence/bonsai-reconstruction-och17.md). Complete remaining notice/asset/system review, clean-machine source and packaged GUI execution, final versions/platform minimums and the chosen signing/distribution workflow. Existing assembly/inventory success is insufficient. [Distribution](distribution.md), [maintenance](component-adapters.md). |
 | OCH-17: API/versioning, examples, review and publication | The [application guide](getting-started.md), [compatibility/limits](api-compatibility.md) and compiled starter now have [local installed-default-backend evidence](evidence/public-api-starter-och17.md). The [API boundary review](evidence/api-boundaries-och17.md) documents application versus integration layers and scoped-delivery contracts. Final whole-surface API/limitations review, required check results for the delivered sources, reviewed repository changes and release publication remain. Scratch artifacts are not release dependencies. |
-| Required Linux nongraphical and hosted checks | Historical hosted results do not cover the current dirty tree. Preserve required builds/unit/private-bus/consumer checks and report informational GUI failures separately. [Hosted evidence](evidence/milestone-07-ci.md). |
+| Required Linux nongraphical and hosted checks | Run 37234888418 failed on both platforms at the same missing test-feature guard. The local repair passes default workspace tests, 919 feature-enabled native tests and strict lint; hosted revalidation remains required. Preserve required builds/unit/private-bus/consumer checks and report informational GUI failures separately. [Hosted evidence](evidence/milestone-07-ci.md). |
 | Linear completion evidence | OCH-41/OCH-17 are In Progress in the latest read. Completion requires their actual acceptance criteria; no ticket may be closed from this summary alone. |
 
 ## Environment constraints and next action

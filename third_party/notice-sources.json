@@ -684,6 +684,24 @@
     },
     {
       "package": {
+        "name": "ocaml-boxroot-sys",
+        "version": "0.4.0",
+        "source": "registry+https://github.com/rust-lang/crates.io-index",
+        "license_expression": "MIT",
+        "manifest_sha256": "83f498787c402580b379747d19029a3023e321ac0a8d86d5806b2bb164bd9713"
+      },
+      "files": [
+        {
+          "path": "third_party/licenses/registry/ocaml-rust--ocaml-boxroot/d474b9e07c8a-LICENSE",
+          "sha256": "ddfc2cb4681112f197d193c7d95352f1122da17710c7d2bcd429c0d29842840a",
+          "provenance": "https://gitlab.com/ocaml-rust/ocaml-boxroot/-/blob/45d6313d4065e8ff65e75c6fad038c8da0c7b3eb/LICENSE",
+          "git_blob_sha1": "d474b9e07c8aadc68a008c0d815cea0dcec0e469"
+        }
+      ],
+      "rationale": "Unchanged Boxroot project LICENSE from the exact revision recorded by this published crate's .cargo_vcs_info.json (rust/ocaml-boxroot-sys). GitLab file API commit, blob and SHA-256 verified against the raw response; Cargo manifest declares MIT. This supplies the original project notice, not a generic replacement or a completeness approval."
+    },
+    {
+      "package": {
         "name": "ocaml-interop-derive",
         "version": "0.12.0",
         "source": "git+https://github.com/tizoc/ocaml-interop.git?rev=9f941c63b8a9dcd652c6535da196f48d7a4dcc75#9f941c63b8a9dcd652c6535da196f48d7a4dcc75",

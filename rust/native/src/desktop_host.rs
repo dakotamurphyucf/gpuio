@@ -263,6 +263,7 @@ fn scrollbar_preference(supported: bool, read: impl FnOnce() -> bool) -> wire::R
 mod tests {
     use super::*;
 
+    #[cfg(feature = "native-image-tests")]
     #[test]
     fn scrollbar_dispatch_preserves_correlation_without_identity_or_windows() {
         use gpuio_protocol::v1::Message;

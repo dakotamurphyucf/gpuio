@@ -1691,7 +1691,9 @@ def exercise_tags(mac, images):
         finally: mac.release(node)
 
     def reveal():
-        reveal_gallery_control(mac,'Tag action','AXButton')
+        # The nested action can be visible while the tag's bottom border is
+        # clipped. Pixel checks need the complete tag, not just its focus leaf.
+        reveal_gallery_control(mac,'Tag preview','AXGroup')
         wx,wy,ww,wh=window_rect()
         mouse.send(5,(wx+ww-25,wy+110))
         time.sleep(.08)

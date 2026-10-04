@@ -171,12 +171,13 @@ entirely uncollected.
 
 ## Remaining acceptance
 
-The [remaining-gap review](rust-notice-gaps-och17.md) classifies all 28 zero-text
-rows: eighteen share a verified upstream policy without complete notice texts,
-five have inspected source trees without notice files, and five retain specific
-source/retrieval questions. Release tags and published source bytes now establish
-several older crates' identities. The count is unchanged; this is review evidence,
-not an exemption list or permission to substitute invented attribution.
+The [remaining-gap review](rust-notice-gaps-och17.md) tracks the original 28
+zero-text rows. After access was restored, Boxroot's exact notice was collected,
+leaving 27: eighteen have upstream policy without complete notice texts, six have
+inspected source trees without notice files, and three retain source/retrieval
+questions. The refreshed three inventories now contain 2,515 hash-verified copied
+texts and use a 55-entry supplemental manifest. Every graph still requires final
+review; this is not an exemption list or permission to invent attribution.
 
 A subsequent [embedded-asset checkpoint](embedded-assets-och17.md) adds readable
 two-face notices to all three inventories (53 supplemental package attributions

@@ -6,3 +6,6 @@ vendor/accesskit-macos/*.patch whitespace=-blank-at-eol
 
 # Upstream license texts are retained byte-for-byte, including terminal blank lines.
 third_party/licenses/** whitespace=-blank-at-eof
+
+# Boxroot's unchanged upstream heading is seven equals signs, not a conflict.
+third_party/licenses/registry/ocaml-rust--ocaml-boxroot/d474b9e07c8a-LICENSE conflict-marker-size=32

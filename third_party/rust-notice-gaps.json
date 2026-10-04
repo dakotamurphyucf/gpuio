@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "license_review_complete": false,
-  "scope": "Manual classification of the 28 zero-text package rows in the recorded macOS dependency inventories; not an exemption list, legal approval or exact link inventory. Preserve original collection gaps. Revalidate exact manifest/source identities for each graph.",
+  "scope": "Manual review of the original 28 zero-text package rows in the recorded macOS inventories. Resolved rows remain with explicit status; current inventories have 27 zero-text rows after exact Boxroot notice collection. Not an exemption list, legal approval or exact link inventory. Revalidate exact manifest/source identities for each graph.",
   "packages": [
     {
       "name": "block2",
@@ -321,10 +321,14 @@
       "version": "0.4.0",
       "manifest_sha256": "83f498787c402580b379747d19029a3023e321ac0a8d86d5806b2bb164bd9713",
       "license_expression": "MIT",
-      "license_text_collected": false,
-      "classification": "source-or-notice-retrieval-unresolved",
+      "license_text_collected": true,
+      "classification": "resolved-exact-revision-notice",
       "revision": "45d6313d4065e8ff65e75c6fad038c8da0c7b3eb",
-      "limitation": "No sufficiently established complete notice text. See docs/evidence/rust-notice-gaps-och17.md for the remaining source/retrieval question."
+      "limitation": "Original project notice collected after access was restored. Final completeness and distribution review remain open.",
+      "notice_path": "third_party/licenses/registry/ocaml-rust--ocaml-boxroot/d474b9e07c8a-LICENSE",
+      "provenance": "https://gitlab.com/ocaml-rust/ocaml-boxroot/-/blob/45d6313d4065e8ff65e75c6fad038c8da0c7b3eb/LICENSE",
+      "git_blob_sha1": "d474b9e07c8aadc68a008c0d815cea0dcec0e469",
+      "crate_sha256": "0f3c2664a427c8046d334bf3a50fc466170a3dc53c65bc926a9be31a8e8debd1"
     },
     {
       "name": "pathfinder_geometry",
@@ -342,9 +346,27 @@
       "manifest_sha256": "1d610f6d1bce065add6ec5f2fb764e97eeda505afbe26271acc5f3d73a8c410a",
       "license_expression": "MIT",
       "license_text_collected": false,
-      "classification": "source-or-notice-retrieval-unresolved",
+      "classification": "verified-source-no-notice-file",
       "revision": "94b632aeac099031c373599313d5b5f0acbbaec0",
-      "limitation": "No sufficiently established complete notice text. See docs/evidence/rust-notice-gaps-och17.md for the remaining source/retrieval question."
+      "limitation": "The complete 17-entry tree at the recorded revision has no license/notice file. All 14 published original source/asset/manifest files match upstream Git blobs; Cargo declares MIT but supplies no complete terms. No generic MIT text substituted.",
+      "crate_sha256": "1c107b6f4780854c8b126e228ea8869f4d7b71260f962fefb57b996b8959ba6b",
+      "verified_files": [
+        "README.md",
+        ".gitignore",
+        "logo.png",
+        ".gitlab-ci.yml",
+        "Cargo.toml.orig",
+        "tests/chunking.rs",
+        "tests/quickchecks.rs",
+        "benches/bench.rs",
+        "src/stream.rs",
+        "src/impl_std.rs",
+        "src/lib.rs",
+        "src/helper.rs",
+        "src/buffer.rs",
+        "src/reference.rs"
+      ],
+      "source_tree_entries": 17
     },
     {
       "name": "simd_helpers",

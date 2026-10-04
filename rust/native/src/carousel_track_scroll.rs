@@ -4,7 +4,7 @@ use super::*;
 use crate::carousel_track_wheel::{Intent, Output, Phase};
 use std::time::Duration;
 impl State {
-    #[cfg(test)]
+    #[cfg(all(test, feature = "native-image-tests"))]
     pub(in super::super) fn wheel_snapshot(&self) -> (bool, bool, bool) {
         (
             self.wheel_task.is_some(),
