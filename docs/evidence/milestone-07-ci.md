@@ -1,8 +1,11 @@
 # Milestone 07 hosted validation follow-up
 
 Current run [37241646017](https://github.com/dakotamurphyucf/gpuio/actions/runs/37241646017)
-at `6d6d96f` is in progress. It contains the renderer and row-header repairs below.
-No current hosted pass is claimed.
+at `6d6d96f` is in progress. Linux has passed the required OCaml/Rust tests
+and private-bus instance arbitration with unchanged stack settings, validating
+the renderer repair below. macOS unit tests and later hosted gates are still
+running; no whole-run pass is claimed. The optional collector added in local
+`10ac15e` is not included in this run.
 
 Prior run [37239659043](https://github.com/dakotamurphyucf/gpuio/actions/runs/37239659043)
 at `984210e` has a terminal Linux unit-test failure. Its diagnostic succeeds:
@@ -21,7 +24,7 @@ including saved registers (about 44% less). This is stack-frame evidence, not
 heap/GPU usage or an x86-64 measurement. The full native suite passes 920 tests
 with two existing macOS private-bus skips; strict all-target native lint passes.
 The exact sidebar fixture also passes locally with an explicit 2 MiB test stack.
-Required CI stack settings remain unchanged. Linux revalidation is still needed;
+Required CI stack settings remain unchanged. Linux required unit tests now pass;
 the change does not establish a maximum-depth stack budget for every component.
 
 Diagnostic artifacts are from `foundation-logs-Linux-X64` (artifact 11317542140),
