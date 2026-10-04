@@ -3528,8 +3528,9 @@ def document_structure(mac):
     header_group = None
     try:
         headings = descendants(root, 'AXHeading')
-        assert len(headings) == 1, len(headings)
-        assert number(headings[0], 'AXValue') == 1
+        assert len(headings) == 2, len(headings)
+        # Disabled frontmatter leaves a level-two Setext metadata heading.
+        assert [number(heading, 'AXValue') for heading in headings] == [2, 1]
         tables = descendants(root, 'AXTable')
         assert len(tables) == 1, len(tables)
         table = tables[0]
@@ -3574,9 +3575,9 @@ def document_structure(mac):
             mac.release(node)
 
 
-def reveal_document_code(mac):
-    # The table makes the initial Markdown taller. Scroll the actual native
-    # viewport to mount the appended fence before looking for its Copy action.
+def reveal_document_control(mac, label="Copy code", role="AXButton"):
+    # Scroll the actual native viewport until the requested block/control mounts.
+    # A baseline code fence can exist before later appended content is visible.
     raise_gallery(mac)
     mouse = GalleryMouse(mac)
     create = mac.cg.CGEventCreateScrollWheelEvent
@@ -3585,7 +3586,7 @@ def reveal_document_code(mac):
     locate.restype, locate.argtypes = None, [C.c_void_p, GalleryMouse.Point]
     previous = None
     for _ in range(20):
-        control = mac.find(TITLE, 'Copy code', 'AXButton')
+        control = mac.find(TITLE, label, role)
         if control:
             mac.release(control)
             return
@@ -3610,7 +3611,7 @@ def reveal_document_code(mac):
             mac.release(event)
         time.sleep(.1)
     print('DOCUMENT_SCROLL_FINAL_BODY', mouse.bounds('Document content'), flush=True)
-    raise RuntimeError('Appended code did not become accessible after native document scrolling')
+    raise RuntimeError(f'{label!r} did not become accessible after native document scrolling')
 
 
 def document_reading_order(mac):
@@ -3653,7 +3654,9 @@ def exercise_document_links(mac, images):
     mac.wait_text(TITLE, 'Explore a direction')
     mac.wait_text(TITLE, 'Read the design notes')
     roles = tree_counts(mac, mac.wait_find(TITLE, 'Markdown preview', 'AXGroup'))
-    assert roles.get('AXHeading') == 1 and roles.get('AXList') == 1, roles
+    # Frontmatter detection defaults to Disabled: the metadata followed by ---
+    # is ordinary Markdown (a Setext heading), alongside the explicit title.
+    assert roles.get('AXHeading') == 2 and roles.get('AXList') == 1, roles
     assert roles.get('AXLink') == 2, roles
     document_link_reading_order(mac)
     document_structure(mac)
@@ -3728,8 +3731,9 @@ def exercise_document_links(mac, images):
         mac.release(stale_link)
     mac.press(TITLE, 'Append a finding')
     mac.wait_text(TITLE, 'Appended findings: 1 / 6')
-    reveal_document_code(mac)
+    reveal_document_control(mac)
     mac.release(mac.wait_find(TITLE, 'Copy code', 'AXButton'))
+    reveal_document_control(mac, 'Finding 1', 'AXStaticText')
     mac.wait_text(TITLE, 'Finding 1')
     for finding in range(2, 7):
         mac.press(TITLE, 'Append a finding')
@@ -3840,6 +3844,27 @@ def exercise_document_images(mac, images):
           'decorative omission, safe placeholder, AX focus/activation, collapse and remount', flush=True)
 
 
+def assert_reset_document_source(mac):
+    # The baseline now contains a code fence, so Copy code remains legitimate.
+    # Verify source reset directly rather than relying on viewport virtualization.
+    env = dict(os.environ, LANG='en_US.UTF-8', LC_ALL='en_US.UTF-8')
+    saved = subprocess.run(['/usr/bin/pbpaste'], capture_output=True, check=True, env=env).stdout
+    try:
+        subprocess.run(['/usr/bin/pbcopy'], input=b'GPUIO source pending', check=True, env=env)
+        mac.press(TITLE, 'Copy source')
+        deadline = time.monotonic() + 5
+        while True:
+            source = subprocess.run(['/usr/bin/pbpaste'], capture_output=True, check=True, env=env).stdout.decode('utf-8')
+            if '# A place for ideas' in source:
+                assert 'let next_step = "Explore"' in source, source
+                assert '## Finding ' not in source, source
+                return
+            assert time.monotonic() < deadline, source
+            time.sleep(.05)
+    finally:
+        subprocess.run(['/usr/bin/pbcopy'], input=saved, check=True, env=env)
+
+
 def exercise_documents(mac, images):
     exercise_document_images(mac, images)
     exercise_document_links(mac, images)
@@ -3886,13 +3911,13 @@ def exercise_documents(mac, images):
     mac.release(mac.wait_find(TITLE, 'Collapse', 'AXButton'))
     mac.release(mac.wait_find(TITLE, 'Diff preview', 'AXTextArea'))
     mac.press(TITLE, 'Markdown')
-    reveal_document_code(mac)
+    reveal_document_control(mac)
     mac.release(mac.wait_find(TITLE, 'Copy code', 'AXButton'))
     if images:
         screenshot(mac, images / 'gallery-documents.png', title=TITLE)
     mac.press(TITLE, 'Reset document')
     mac.wait_text(TITLE, 'Document reset')
-    wait_absent(mac, 'Copy code', 'AXButton')
+    assert_reset_document_source(mac)
     wait_absent(mac, 'Finding 1', 'AXStaticText')
     for _ in range(3):
         mac.press(TITLE, 'Presentation')
@@ -3901,10 +3926,10 @@ def exercise_documents(mac, images):
         mac.press(TITLE, 'Markdown & code')
         mac.wait_text(TITLE, 'Markdown preview')
         document_structure(mac)
-        wait_absent(mac, 'Copy code', 'AXButton')
+        assert_reset_document_source(mac)
         mac.press(TITLE, 'Append a finding')
         mac.wait_text(TITLE, 'Appended findings: 1 / 6')
-        reveal_document_code(mac)
+        reveal_document_control(mac)
         mac.release(mac.wait_find(TITLE, 'Copy code', 'AXButton'))
     mac.press(TITLE, 'Presentation')
     mac.wait_text(TITLE, 'A little context goes a long way')

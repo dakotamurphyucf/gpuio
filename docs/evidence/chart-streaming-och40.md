@@ -158,3 +158,50 @@ Final diagnostic checks: Python compilation and CLI help, repository formatting
 and `git diff --check` pass. The updated chart executable also builds after the
 selection-observation correction. No new frame timing or physical acceptance is
 inferred from these compilation/offline checks.
+
+## Physical staged rerun — 2026-10-04
+
+The development executable rebuilt from published `6d6d96f` completes all 80
+publications/150 desired updates in 22.502 seconds on the same M1 Max/macOS 14.5
+reference. No simultaneous GPUIO build or other test window ran. Peak child RSS
+is 840,843,264 bytes; final source charge is zero, peak source charge 102,531,200
+bytes, peak pending request count one and native accepted-command queue peak
+262,162 bytes. Full telemetry is in local `chart-stages-001/report.json` and
+`application.log` under `scratch/agents/root-20261004-resumed/`.
+
+| Dataset / policy / burst | Publication median ms | Publication→Ready median ms | Ready→render callback median ms | Total median / p95 / max ms |
+| --- | ---: | ---: | ---: | --- |
+| 10k / envelope / 1 | 15.686 | 23.307 | 6.722 | 45.904 / 49.847 / 54.388 |
+| 100k / envelope / 1 | 134.470 | 79.089 | 6.833 | 222.208 / 227.987 / 229.954 |
+| 100k / exact / 1 | 133.962 | 337.198 | 102.097 | 570.546 / 580.886 / 580.886 |
+| 100k / envelope / 8 | 137.281 | 81.147 | 7.317 | 225.026 / 234.500 / 234.500 |
+
+Independent read-only CoreGraphics sampling observed the owned normal window
+on-screen and first in normal-window order in 82 of 88 samples; the six absences
+were startup/shutdown observations. This is sampled window-list evidence, not
+proof of unobscured pixels or physical presentation. No 63-second delay recurred.
+
+A separate controlled experiment minimized the owned chart window just after
+sequence 61 began publication, then restored it 3,001.757 ms later. All 80 samples
+and cleanup assertions still pass. That update takes **3,688.929 ms**:
+630.619 ms until observed publication, **2,931.230 ms publication→Ready**, and
+127.079 ms Ready→render callback. The window observer records both interventions
+and no observer errors (`chart-stages-minimized-002/`). This demonstrates that
+visibility can delay this render-dependent readiness measurement at current
+sources. It does **not** prove the cause of the historical 63,050.99 ms sample,
+which lacks equivalent visibility/stage evidence. Applications must not use
+render-dependent Ready as their sole background publication/completion signal.
+
+The first intervention attempt (`chart-stages-minimized-001/`) is excluded from
+controlled-duration evidence: the scratch probe referenced a nonexistent false
+boolean helper while restoring. The owned window was restored by a separate
+recovery command, and the child completed/reaped. Its report is retained alongside
+`manual-restore.json`; its valid workload completion is not a valid three-second
+intervention. The corrected observer uses CoreFoundation's actual false value.
+
+Reproduction uses the existing `measure_chart_stream.py` runner and a local
+read-only window-list observer; the intervention additionally uses AXMinimized
+and AXRaise on that runner's exact child PID, never a process-name-wide action.
+The scratch probe is diagnostic evidence, not a build/release dependency. These
+remain development-build diagnostics; the predeclared optimized qualification
+matrix is in [the performance plan](../design/performance-qualification.md).

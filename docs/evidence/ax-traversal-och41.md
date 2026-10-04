@@ -175,3 +175,42 @@ the preceding tab retention/menu/reveal checks and following pagination popup,
 focus, cancel/submit and boundary-navigation checks. Earlier navigation logs
 `001` and `002` retain the stale-text and invalid-identity-check failures. This
 refresh changes the fixture, not production disclosure behavior.
+
+## Document walkthrough refresh — 2026-10-04
+
+At `6d6d96f` with the updated Python driver, the full physical macOS Documents
+walkthrough passes (`gallery-documents-004.log`). The earlier driver assumed the
+old fixture had no YAML preamble or initial code fence. With the documented
+frontmatter default Disabled, the preamble is ordinary Markdown and produces a
+level-two Setext heading before the level-one title. Both heading levels are now
+asserted. Table cell/range/identity checks remain unchanged.
+
+The initial code fence means its Copy code action can already exist before an
+appended finding enters the viewport. The driver explicitly scrolls until the
+finding is exposed. On reset and three page revisits it checks Copy source's
+actual clipboard content: the original title and fence remain, and appended
+findings are removed. The previous clipboard text is restored in a finally block.
+This replaces an obsolete assertion that all Copy code actions disappear.
+
+The passing run covers registered/decorative/linked image semantics, two-theme
+Markdown structure, external AX link focus/activation and stale-target retirement,
+keyboard traversal through appended links, read-only native code behavior, diff
+controls, collapse/expand, source reset and repeated page teardown. It does not
+establish real candidate-window IME, VoiceOver speech or performance budgets.
+Earlier logs `001`–`003` preserve the stale heading/viewport failures. Production
+Markdown parsing and defaults are unchanged.
+
+Focused highlighting, canvas, motion and responsive walkthroughs subsequently
+pass (`gallery-{highlighting,canvas,motion,responsive}-001.log`). Motion includes
+intermediate native geometry, interruption, paused spring sequence, cancellation,
+reverse, reduced-motion endpoints, shared phase and departure. These are scoped
+physical checks. The rest of that queue also exits zero: extensions, input,
+observations, desktop and runtime (`gallery-<section>-001.log`). The extension
+trace verifies five exact mount/unmount/component/value lifetimes and two commands
+without render/theme/resize replay. Input traces verify four unique transfer
+identities and two matching native drops; rejected/cancelled/disabled attempts do
+not deliver. Observations cover actual pointer/focus/raw keys and retained editing;
+desktop covers startup links and per-window metadata. Runtime verifies zero
+registered source bytes and native resource retirement plus file-picker cancel.
+None of these checks substitutes for real candidate IME, VoiceOver speech, external
+Finder-origin file drag, performance budgets or clean-machine distribution.

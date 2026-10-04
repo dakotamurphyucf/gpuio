@@ -1,13 +1,17 @@
 # Milestone 07 hosted validation follow-up
 
-Current run [37239659043](https://github.com/dakotamurphyucf/gpuio/actions/runs/37239659043)
+Current run [37241646017](https://github.com/dakotamurphyucf/gpuio/actions/runs/37241646017)
+at `6d6d96f` is in progress. It contains the renderer and row-header repairs below.
+No current hosted pass is claimed.
+
+Prior run [37239659043](https://github.com/dakotamurphyucf/gpuio/actions/runs/37239659043)
 at `984210e` has a terminal Linux unit-test failure. Its diagnostic succeeds:
 GDB stops in `View::node_presentation`, beneath recursive `element_body`, tooltip
 and rich-label construction. The exact fixture passes with an 8 MiB stack.
 This supports excessive finite renderer stack usage, rather than the earlier
 suspected recursive accessibility assertion. macOS unit tests and lint pass;
 its native-test build/lint and independent extension consumer pass; the independent
-public gallery consumer is running at this checkpoint.
+public gallery consumer was running when the new push cancelled the superseded run.
 
 A local repair extracts component-specific construction into `node_content` so
 its builder temporaries are absent from ordinary recursive container frames.
