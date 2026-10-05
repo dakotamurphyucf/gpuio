@@ -116,7 +116,7 @@
       "id": "buttons",
       "owner": "OCH-11",
       "scope": "v1",
-      "audit_status": "Seven pinned sources reviewed; rich content, loading/focus policy, appearance, split controls and hover observations implemented. Fresh installed macOS combined rich-button, appearance/busy-Link, menu-observation, split-mode and command-hint scenarios pass after tooltip path and observation-lifetime repairs. Shared-hover/placement pixels, complete family/resource and release acceptance remain separate.",
+      "audit_status": "Seven pinned sources reviewed; rich content, loading/focus policy, appearance, split controls and hover observations implemented. Fresh installed macOS combined rich-button, appearance/busy-Link, menu-observation, split-mode and command-hint scenarios pass after tooltip path and observation-lifetime repairs. Physical shared-hover/menu-held paint passes 20 Light/Dark cases; live menu placement/root scrolling passes 16 geometry samples. Complete family/resource and release acceptance remain separate.",
       "public_interface": "lib/core/view.mli",
       "example": "examples/controls",
       "evidence": [
@@ -252,11 +252,14 @@
       "id": "sliders",
       "owner": "OCH-34",
       "scope": "v1",
-      "audit_status": "Pinned base/styled sources reviewed. Existing single/range, axis, linear/log scale, disabled/read-only and native preview/commit/command behavior have public APIs; gallery now exposes these controls. Reversed single-value fill and independent part styling/geometry now have a public Appearance API, paired fixtures and native paint/capture evidence. Native hover/pressed spring rings now have deterministic capture, reduced-motion, idle and lifecycle coverage without OCaml frame events. Scalar rail radius is supported; per-corner rail radii/arbitrary native thumb replacement are not exposed. Physical gallery/resource/release acceptance remains open. See slider-review.md.",
+      "audit_status": "Pinned base/styled sources reviewed. Existing single/range, axis, linear/log scale, disabled/read-only and native preview/commit/command behavior have public APIs; gallery now exposes these controls. Reversed single-value fill and independent part styling/geometry now have a public Appearance API, paired fixtures and native paint/capture evidence. Native hover/pressed spring rings now have deterministic capture, reduced-motion, idle and lifecycle coverage without OCaml frame events. Scalar rail radius is supported; per-corner rail radii/arbitrary native thumb replacement are not exposed. Installed macOS range input, horizontal linear and vertical logarithmic pointer commit/cancel, policies, remount and 32 GPU appearance cases pass. Physical spring timing and consolidated resource/release acceptance remain open. See slider-review.md.",
       "public_interface": "lib/eio/slider.mli",
       "example": "examples/numeric",
       "evidence": [
-        "docs/evidence/numeric-inputs-och34.md"
+        "docs/evidence/numeric-inputs-och34.md",
+        "docs/catalog/slider-review.md",
+        "docs/evidence/slider-presentation-och41.md",
+        "docs/evidence/installed-sliders-och41.md"
       ],
       "gallery_page": "numeric-inputs",
       "contract": "Single/range, linear/log, horizontal/vertical; native drag/keyboard and explicit commands.",

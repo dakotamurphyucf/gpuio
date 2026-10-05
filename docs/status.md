@@ -65,6 +65,11 @@ whole-family acceptance. Start from [the catalog](catalog/README.md),
 
 Recent completed local checkpoints:
 
+- Installed sliders pass range-thumb keyboard/focus and bounds, linear and
+  vertical logarithmic pointer preview/commit/cancel, policies, retained owners,
+  remount and 32 static GPU cases. [Evidence](evidence/installed-sliders-och41.md)
+  preserves the scrolling/grab-offset harness corrections and remaining scope.
+
 - Installed split-button paint passes 20 Light/Dark GPU cases; menu placement
   passes 16 geometry samples, including actual root scrolling while open and
   Escape focus return. [Physical paint/placement evidence](evidence/installed-split-paint-menu-placement-och41.md)

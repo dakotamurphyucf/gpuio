@@ -2,6 +2,11 @@
 
 Locally implemented contract. Physical macOS and release acceptance remain open.
 
+The [2026-10-05 installed walkthrough](../evidence/installed-sliders-och41.md)
+now passes scoped physical input, policy, ownership and 32 static GPU cases.
+This supersedes the corresponding earlier unrun statements, without claiming
+physical spring timing or full resource/release qualification.
+
 `Slider.Appearance` separates presentation from `Slider.Config` and native value
 ownership. `View.slider` and the Eio controller's `view` accept optional appearance.
 `Fill.Selected` is the default. `Fill.Remaining` fills from a single thumb to the

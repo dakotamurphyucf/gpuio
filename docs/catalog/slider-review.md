@@ -1,5 +1,12 @@
 # Slider behavior review — OCH-41
 
+Current follow-up: [installed macOS input and paint](../evidence/installed-sliders-och41.md)
+now passes range focus/limits, real horizontal linear and vertical logarithmic
+drag commit/cancel, policies, retained owners, remount and 32 GPU appearance cases.
+Earlier unrun desktop statements below are historical; physical spring timing,
+remaining command walkthroughs and consolidated resource/release acceptance stay
+separate. VoiceOver remains on hold.
+
 Source review, 2026-10-02. This records functional coverage and missing styled
 behavior; it does not declare slider-family release acceptance.
 
