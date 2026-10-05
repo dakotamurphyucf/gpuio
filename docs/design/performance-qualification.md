@@ -158,5 +158,5 @@ retain windows in the audit, or extend retired component event delivery.
 Its own tracking overhead is excluded from responsiveness evidence. The
 intentional retained-entity fixture must fail and pass after release; malformed
 or missing audit records cannot satisfy completion. This coverage complements
-OS physical-memory accounting and cannot substitute for it. The four-close local smoke passes; full repeated audit
-results remain pending.
+OS physical-memory accounting and cannot substitute for it. The smoke and [three full native audit runs](../evidence/native-entity-retention-och17.md)
+now pass locally.

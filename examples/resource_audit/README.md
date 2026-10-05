@@ -32,8 +32,8 @@ python3 scripts/measure_resource_lifecycle.py --build-profile release --native-e
 ```
 
 Full qualification is three warmups plus 30 measured closes, repeated three
-times with separate smoke warmups. A local four-close smoke and the shared ordinary-backend smoke pass; full
-repeated runs are pending. Linux pure/build
+times with separate smoke warmups. The shared ordinary-backend smoke, all audit warmups and
+[three full local runs](../../docs/evidence/native-entity-retention-och17.md) pass. Linux pure/build
 coverage does not establish real desktop acceptance. The claim is specifically
 **no new live GPUI entity handles relative to the closed warmup baseline**;
 it is not zero global entities, nor all Arc/Objective-C/GPU resource ownership.
