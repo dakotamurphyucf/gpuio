@@ -51,3 +51,24 @@ hosted presentation-clock configuration.
 are preserved with a [verified six-file manifest](hosted-presentation-calibration-och17/run-37343201640/manifest.json).
 No gate or timestamp criterion changed. The owner's separate VoiceOver hold has
 now been lifted; these probes still provide no VoiceOver evidence.
+
+## Repeat on hosted run 37356882651
+
+[Run 37356882651](https://github.com/dakotamurphyucf/gpuio/actions/runs/37356882651)
+finished with failure on 2026-10-05 at branch checkpoint `e96d27e`. Linux passed;
+macOS failed Settings composition, navigation resize and both presentation
+probes. The fresh extracted-app receiver was skipped. The first two failures have
+[locally passing readiness corrections](macos-ci-readiness-och17.md#settings-and-navigation-follow-up--run-37356882651)
+in `3ea0bfc`, which this older hosted run does not qualify.
+
+The two GPUI sessions again admit 90 frames each and return all 180 timestamps
+as zero. Neither session loses, duplicates, saturates or truncates records; both
+close with zero pending submissions. All 120 standalone Metal frames are active,
+visible and GPU-completed, with zero presentation timestamps. The device remains
+Apple Paravirtual on macOS 15.7.9 (24G830). These results preserve the same
+environment limitation evidence; neither probe passes or establishes physical
+presentation timing.
+
+[Six raw reports and terminal metadata](hosted-presentation-calibration-och17/run-37356882651/reports.tar.gz)
+are retained with a [verified manifest](hosted-presentation-calibration-och17/run-37356882651/manifest.json).
+No threshold or gate was changed.

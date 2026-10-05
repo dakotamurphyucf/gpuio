@@ -73,8 +73,11 @@ leave ordinary wheel behavior and presentation/startup qualification open.
 The subsequent native pixel-wheel diagnostic moves through rows 0–48 and back
 with 32/96-pixel inputs; its 49 samples remain populated. Physical trackpad
 momentum, changed geometry and complete frame coverage remain outside that evidence.
-Run `37356882651` now passes Linux and reports Settings composition and navigation
-resize failures while the macOS table-history step continues. [Bounded readiness
+The owner also visually reports that the table flicker looks fixed.
+Run `37356882651` finished with failure: Linux passed; macOS failed Settings
+composition, navigation resize and both Metal probes. The fresh receiver was
+skipped. [Terminal presentation reports](evidence/hosted-presentation-calibration-och17.md#repeat-on-hosted-run-37356882651)
+again retain all-zero timestamps on the paravirtual device. [Bounded readiness
 corrections](evidence/macos-ci-readiness-och17.md#settings-and-navigation-follow-up--run-37356882651)
 pass both complete local walkthroughs; corrected hosted execution remains pending.
 Three full optimized loaded-list, paged-table and growing-document runs pass

@@ -173,3 +173,7 @@ logs, reports and selected original screenshots are in the
 a [verified manifest](table-scroll-flicker-och17/wheel-manifest.json). No application
 or global input-source settings were changed. Neither this interrupted diagnostic
 nor the earlier functional smoke replaces the still-open startup/performance gate.
+
+On 2026-10-05, the owner also reported that the table flicker looks fixed after
+visually checking it. This supports the sampled evidence above; it does not extend
+that evidence to every frame, all input devices or performance acceptance.
