@@ -621,6 +621,15 @@ fn menu_subscriptions_snapshot_transition_replace_and_retire_without_idle_duplic
 
 #[test]
 fn section_labels_expose_text_without_actions_and_navigation_skips_them() {
+    check_section_labels(false);
+}
+
+#[test]
+fn rich_menu_rows_paint_once_keep_owner_semantics_and_native_navigation() {
+    check_section_labels(true);
+}
+
+fn check_section_labels(rich: bool) {
     let mut app = TestAppContext::single();
     let (_reader, writer) = UnixStream::pair().unwrap();
     let transport = Arc::new(Transport::new(writer.as_raw_fd()).unwrap());
@@ -671,10 +680,74 @@ fn section_labels_expose_text_without_actions_and_navigation_skips_them() {
                 ],
             )
         });
+        if rich {
+            owner.update(cx, |view, cx| {
+                let mut ops = Vec::new();
+                for slot in 2..6 {
+                    ops.push(Op::Create(id(slot), Kind::Container, "".into(), None));
+                }
+                ops.extend([
+                    Op::Create(id(6), Kind::Text, "Decorative artwork".into(), None),
+                    Op::SetStyle(
+                        id(6),
+                        vec![Style::Fields(vec![
+                            Field::Background(Fill::Solid(Color::Rgba(0xff00ffff))),
+                            Field::Width(Length::Px(35.)),
+                            Field::Height(Length::Px(20.)),
+                        ])],
+                    ),
+                    Op::Create(id(7), Kind::Loading, "".into(), None),
+                    Op::SetSpinner(
+                        id(7),
+                        gpuio_protocol::spinner::Config {
+                            label: "Decorative activity".into(),
+                            animated: true,
+                            period_ms: 1000,
+                            easing: gpuio_protocol::animation::Easing::Linear,
+                            source: None,
+                        },
+                    ),
+                    Op::Splice(id(4), 0, 0, vec![id(7)]),
+                    Op::Splice(id(3), 0, 0, vec![id(6)]),
+                    Op::Splice(id(1), 0, 0, (2..6).map(id).collect()),
+                ]);
+                apply(view, window, cx, ops);
+            });
+        }
         window.draw(cx).clear(cx);
         owner.update(cx, |view, cx| view.open_menu(id(1), 0, None, window, cx));
         window.draw(cx).clear(cx);
     });
+    let panel_width = owner.read_with(cx, |view, _| {
+        view.menus[&id(1)].borrow().panels[0].get().size.width
+    });
+    cx.update(|window, _| {
+        let fills: [gpui::Background; 2] = [rgba(0xdbeaffff).into(), rgba(0x385477ff).into()];
+        assert!(
+            window
+                .painted_quads()
+                .iter()
+                .any(|quad| fills.contains(&quad.background)
+                    && quad.bounds.size.width.0
+                        >= (f32::from(panel_width) - 2.) * window.scale_factor()),
+            "selection highlight spans the menu row width"
+        );
+    });
+    if rich {
+        cx.update(|window, _| {
+            let color: gpui::Background = rgba(0xff00ffff).into();
+            assert_eq!(
+                window
+                    .painted_quads()
+                    .iter()
+                    .filter(|q| q.background == color)
+                    .count(),
+                1
+            );
+        });
+        cx.update(|window, cx| assert!(window.simulate_next_frame(cx) > 0));
+        owner.read_with(cx, |view, _| assert_eq!(view.spinners.len(), 1));
+    }
     let ax = cx.a11y_tree().unwrap();
     for text in ["Workflow", "Review"] {
         let matching: Vec<_> = ax
@@ -704,6 +777,15 @@ fn section_labels_expose_text_without_actions_and_navigation_skips_them() {
     key(cx, "end");
     assert_eq!(selected(cx), Some(3));
     key(cx, "enter");
+    if rich {
+        cx.update(|window, cx| {
+            // Drain the already requested frame; a closed popup must not keep
+            // its still-mounted decorative spinner requesting new frames.
+            window.simulate_next_frame(cx);
+            window.draw(cx).clear(cx);
+            assert_eq!(window.simulate_next_frame(cx), 0);
+        });
+    }
     let events = transport
         .mailbox
         .lock()
@@ -723,7 +805,12 @@ fn section_labels_expose_text_without_actions_and_navigation_skips_them() {
         owner.update(cx, |view, cx| {
             let mut only_labels = labeled;
             only_labels.menus[0].items = vec![MenuItem::Label("Only text".into())];
-            apply(view, window, cx, vec![Op::SetMenu(id(1), only_labels)]);
+            let mut ops = vec![Op::SetMenu(id(1), only_labels)];
+            if rich {
+                ops.push(Op::Splice(id(1), 0, 4, vec![]));
+                ops.extend((2..8).map(|slot| Op::Remove(id(slot))));
+            }
+            apply(view, window, cx, ops);
         });
         window.draw(cx).clear(cx);
         owner.update(cx, |view, cx| view.open_menu(id(1), 0, None, window, cx));
@@ -734,6 +821,7 @@ fn section_labels_expose_text_without_actions_and_navigation_skips_them() {
     assert_eq!(selected(cx), None);
     key(cx, "escape");
     owner.read_with(cx, |view, _| {
-        assert!(view.menus[&id(1)].borrow().path.is_empty())
+        assert!(view.menus[&id(1)].borrow().path.is_empty());
+        assert!(view.spinners.is_empty());
     });
 }

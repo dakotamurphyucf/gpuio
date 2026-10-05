@@ -1302,20 +1302,6 @@ let context_menu
   }
 ;;
 
-let editor_menu ?key ?style ?appearance ?(config = Editor_menu.default) child =
-  match child.kind, child.editor with
-  | (Input | Textarea), Some _ ->
-    let key = Option.first_some key child.key in
-    let menu = context_menu ?appearance ~menu:(Editor_menu.Expert.menu config) child in
-    let menu =
-      { menu with
-        menu = Option.map menu.menu ~f:(fun m -> { m with presentation = Editor_context })
-      }
-    in
-    Ok (command_scope ?key ?style ~commands:(Editor_menu.Expert.commands config) [ menu ])
-  | _ -> Or_error.error_string "editor menu requires one direct text_input view"
-;;
-
 let menu_bar
       ?key
       ?(style = Style.empty)
@@ -1604,6 +1590,85 @@ let validate_control_labels children =
     ~context:"control label"
     ~validate_style:Style.Expert.validate_control_label
     children
+;;
+
+let with_menu_item_content t ~items =
+  let open Or_error.Let_syntax in
+  match t.kind, t.menu with
+  | Menu, Some config ->
+    let%bind () =
+      match config.presentation with
+      | Platform_bar ->
+        Or_error.error_string "platform menu bars do not support custom content"
+      | Button | Context | Bar | Editor_context -> Ok ()
+    in
+    let path_key path =
+      Menu.Item_path.to_list path |> List.map ~f:Int.to_string |> String.concat ~sep:"/"
+    in
+    let%bind () =
+      if List.length items > 1024
+      then Or_error.error_string "menu content exceeds 1024 item paths"
+      else Ok ()
+    in
+    let%bind content =
+      Map.of_alist_or_error
+        (module String)
+        (List.map items ~f:(fun (path, view) -> path_key path, view))
+    in
+    let paths = Menu.Expert.item_paths config.menus in
+    let allowed =
+      List.filter_map paths ~f:(fun (path, item) ->
+        match item with
+        | Menu.Item.Separator -> None
+        | Command _ | Label _ | Submenu _ -> Some (path_key path))
+      |> String.Set.of_list
+    in
+    let%bind () =
+      match List.find (Map.keys content) ~f:(fun key -> not (Set.mem allowed key)) with
+      | None -> Ok ()
+      | Some key -> Or_error.errorf "unknown or separator menu content path: %s" key
+    in
+    let slots =
+      if Map.is_empty content
+      then []
+      else
+        List.map paths ~f:(fun (path, _) ->
+          let name = path_key path in
+          { (container [] (Option.to_list (Map.find content name))) with
+            style = Style.empty
+          ; structural_key = Some ("menu-content", name)
+          })
+    in
+    let%map () = validate_control_labels slots in
+    let target =
+      match config.presentation with
+      | Context | Editor_context -> List.take t.children 1
+      | Button | Bar | Platform_bar -> []
+    in
+    { t with children = target @ slots }
+  | _ -> Or_error.error_string "menu item content requires a direct menu view"
+;;
+
+let editor_menu
+      ?key
+      ?style
+      ?appearance
+      ?(config = Editor_menu.default)
+      ?(item_content = [])
+      child
+  =
+  match child.kind, child.editor with
+  | (Input | Textarea), Some _ ->
+    let key = Option.first_some key child.key in
+    let menu = context_menu ?appearance ~menu:(Editor_menu.Expert.menu config) child in
+    let menu =
+      { menu with
+        menu = Option.map menu.menu ~f:(fun m -> { m with presentation = Editor_context })
+      }
+    in
+    let%map.Or_error menu = with_menu_item_content menu ~items:item_content in
+    command_scope ?key ?style ~commands:(Editor_menu.Expert.commands config) [ menu ]
+  | _ -> Or_error.error_string "editor menu requires one direct text_input view"
 ;;
 
 let split_group

@@ -3171,6 +3171,36 @@ def exercise_feedback(mac, images):
                 mac.release(actions)
             mac.release(node)
 
+    temporary = tempfile.TemporaryDirectory(prefix='gpuio-menu-artwork-')
+    directory = images or Path(temporary.name)
+
+    def menu_artwork(label, name, expected=True):
+        node = mac.wait_find(TITLE, label, 'AXMenuItem')
+        window = mac.window(TITLE)
+        try:
+            x, y, w, h = element_rect(mac, node)
+            wx, wy, ww, wh = element_rect(mac, window)
+        finally:
+            mac.release(node)
+            mac.release(window)
+        deadline = time.monotonic() + 5
+        while True:
+            path = directory / f'gallery-menu-{name}.png'
+            screenshot(mac, path, title=TITLE)
+            pixels = read_png(mac, path)
+            colored = 0
+            for dy in range(2, max(3, int(h)-2)):
+                for dx in range(24, min(50, int(w))):
+                    rgb = pixels.rgb((x+dx-wx)*pixels.width/ww, (y+dy-wy)*pixels.height/wh)
+                    # The green accent survives disabled opacity; neither the
+                    # neutral caption nor blue selection fill has this hue.
+                    if rgb[1]-rgb[0] > 15 and rgb[1]-rgb[2] > 5:
+                        colored += 1
+            if (colored >= 8) == expected:
+                return
+            assert time.monotonic() < deadline, ('menu icon paint',name,expected,colored)
+            time.sleep(.05)
+
     mac.press(TITLE, 'Commands & feedback')
     mac.wait_text(TITLE, 'Ready to begin')
     mac.press(TITLE, 'Advance preview')
@@ -3194,6 +3224,7 @@ def exercise_feedback(mac, images):
     mac.wait_text(TITLE, 'Everything is in place')
     mac.press(TITLE, 'Preview actions')
     passive_menu_label('Preview workflow')
+    menu_artwork('Save preview', 'dropdown-rich')
     mac.key(125)  # Opening skipped the label; Down selects the second command.
     mac.key(36)
     mac.wait_text(TITLE, 'Notification visible')
@@ -3203,6 +3234,7 @@ def exercise_feedback(mac, images):
     passive_menu_label('Preview workflow')
     activate(mac, mac.wait_find(TITLE, 'Editing', 'AXMenuItem'))
     passive_menu_label('Selection actions')
+    menu_artwork('Copy preview selection', 'nested-rich')
     mac.key(53)
     draft = mac.wait_find(TITLE, 'Command preview draft', 'AXTextField')
     try:
@@ -3215,6 +3247,16 @@ def exercise_feedback(mac, images):
     mac.key(53)
     expect_focus(mac, 'Command preview draft', 'AXTextField')
     print('GALLERY_MENU_LABELS_OK: passive AX text in dropdown, nested drawn bar and editor context; OS keyboard skips labels and Escape restores focus', flush=True)
+    activate(mac, mac.wait_find(TITLE, 'Detailed menu items', 'AXCheckBox'))
+    mac.press(TITLE, 'Preview actions')
+    menu_artwork('Save preview', 'dropdown-plain', expected=False)
+    mac.key(53)
+    activate(mac, mac.wait_find(TITLE, 'Detailed menu items', 'AXCheckBox'))
+    mac.press(TITLE, 'Preview actions')
+    menu_artwork('Save preview', 'dropdown-restored')
+    mac.key(53)
+    print('GALLERY_MENU_CONTENT_OK: SVG pixels in dropdown and nested submenu; rich/plain/restored rows, native names and actions', flush=True)
+
     mac.press(TITLE, 'Save preview')
     mac.wait_text(TITLE, 'Notification visible')
     mac.wait_text(TITLE, 'Your preview is ready to share.')

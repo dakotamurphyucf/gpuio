@@ -319,12 +319,14 @@ val context_menu
     changes the tree placement and may remount the editing session. Menu enabled
     state, labels and appearance may change without replacing the editor. The
     wrapper defaults to the child's key, preserving keyed sibling reorders. It
-    declares scoped native commands and does not install keyboard shortcuts. *)
+    declares scoped native commands and does not install keyboard shortcuts.
+    [item_content] uses the same bounded passive labels as [with_menu_item_content]. *)
 val editor_menu
   :  ?key:Key.t
   -> ?style:Style.t
   -> ?appearance:Menu.Appearance.t
   -> ?config:Editor_menu.t
+  -> ?item_content:(Menu.Item_path.t * 'action t) list
   -> 'action t
   -> 'action t Core.Or_error.t
 
@@ -387,6 +389,22 @@ val menu_bar
   -> ?appearance:Menu.Appearance.t
   -> ?platform:bool
   -> Menu.t list
+  -> 'action t Core.Or_error.t
+
+(** Replace the visual label of drawn menu items with passive view content.
+    The receiver must be a menu button, context menu or drawn menu bar. Paths
+    address positions in its definitions; unknown/duplicate paths, separators
+    and platform bars are rejected. Omitted paths retain their string labels.
+    Passing an empty list removes all custom content. The command/submenu/label
+    still supplies the accessible name; descendants add no independent actions.
+    Content can compose icons, text and other passive rich-label elements. The
+    complete slot/content forest is bounded to 4096 nodes and 128 levels and
+    uses the rich control-label restrictions. Rows retain the configured uniform
+    menu row height; content must fit it. Resource registrations remain caller-
+    owned. Content is keyed by position: moving it to another path remounts it. *)
+val with_menu_item_content
+  :  'action t
+  -> items:(Menu.Item_path.t * 'action t) list
   -> 'action t Core.Or_error.t
 
 (** Rich labels are passive, with one native activation/focus target. The required

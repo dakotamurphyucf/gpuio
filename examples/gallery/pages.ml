@@ -529,7 +529,7 @@ let component
   | Pickers -> Pickers_page.component window palette graph
   | Overlays -> Overlays_page.component palette graph
   | Navigation -> Navigation_page.component app window palette graph
-  | Feedback -> Feedback_page.component window palette graph
+  | Feedback -> Feedback_page.component app window palette graph
   | Journeys -> Journeys_page.component window palette graph
   | Collections -> Collections_page.component app searchable window palette graph
   | Documents -> Documents_page.component app window palette graph

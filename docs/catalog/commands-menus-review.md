@@ -66,7 +66,7 @@ and a persistent list does not by itself demonstrate a command palette.
 | Scrolling and nested menus | Native GPUIO menus virtualize large menus, reveal selected items and support cascading panels. The source documents a submenu restriction for its `scrollable` mode; that source restriction is not a reason to remove GPUIO's existing nested scrolling behavior. |
 | Width/height, rows, empty state and theme | `Menu.Appearance = Choice.Appearance` supplies checked popup/row/empty-state style and geometry. This is GPUIO's theme vocabulary, not exact source preset dimensions. Source checkmark-side and external-link-icon switches are not public menu options. |
 | Noninteractive label rows | `Menu.Item.Label` adds bounded passive text to drawn dropdown/context/bar menus, including nested submenus. Keyboard navigation skips labels; they have no command, focus or press action. Platform menu bars explicitly reject them. [Contract](../design/menu-labels.md) and [installed macOS evidence](../evidence/menu-labels-och41.md). |
-| Per-item/submenu icons and custom element rows | **Missing from public `Menu.Item`.** A rich `command_button` is not a rich menu row. These remain explicit gaps until an admitted row/content contract and native rendering/AX evidence exist. |
+| Per-item/submenu icons and custom element rows | `Menu.Item_path` and `View.with_menu_item_content` compose registered icons and passive rich labels for command/submenu/section positions; `editor_menu ~item_content` covers the editor wrapper. Native row ownership, names, checks and navigation remain intact. [Contract](../design/menu-content.md) and [installed macOS evidence](../evidence/menu-content-och41.md). Content uses the configured uniform row height; arbitrary nested interactive controls and per-item variable heights are not provided. Platform bars reject these slots. This is an explicit functional equivalent for passive rich action rows, not unrestricted source `AnyElement` parity. |
 | Link items | An application command can request the desktop URL-opening service. It does not automatically add source link artwork or change menu accessibility semantics. Source handler/action precedence is replaced by one explicit command behavior. |
 | `NativeMenu.show(position)` outside window bounds | **No public OS popup-menu equivalent.** GPUIO's AppKit menu **bar** does not establish native context-popup support. Existing popup/context menus are rendered within the GPUI window. Source macOS uses an OS tracking loop outside the GPUI borrow and revalidates the window before action delivery; a future bridge must preserve native target lifetimes and avoid blocking the OCaml UI domain. |
 | Native popup Linux fallback | Source itself uses a drawn, window-clipped popup on Linux, held by its Root overlay. GPUIO's existing drawn menus are a corresponding rendering route; full Linux desktop behavior remains OCH-47, not proven by source similarity. |
@@ -91,7 +91,7 @@ standalone `examples/menus` / `examples/palette` expose the currently supported
 APIs. Current consolidated macOS acceptance remains OCH-17; Linux build/unit/
 consumer and deferred desktop evidence remain separate.
 
-The missing menu row kinds, palette presentation/search policies and OS context
+The remaining palette presentation/search policies and OS context
 popup route are catalog work/decisions, not newly approved post-v1 exclusions.
 Implement typed, bounded content/identity contracts first, retain native command
 resolution and editor targeting, and demonstrate the resulting public API in the

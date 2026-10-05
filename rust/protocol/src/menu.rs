@@ -28,6 +28,17 @@ pub struct MenuConfig {
     pub menus: Vec<MenuDefinition>,
 }
 impl MenuDefinition {
+    fn item_count(&self) -> usize {
+        self.items.len()
+            + self
+                .items
+                .iter()
+                .map(|item| match item {
+                    MenuItem::Submenu(child) => child.item_count(),
+                    MenuItem::Command(_) | MenuItem::Separator | MenuItem::Label(_) => 0,
+                })
+                .sum::<usize>()
+    }
     fn validate(&self, depth: usize, count: &mut usize, text: &mut usize) -> bool {
         if depth > 8 || !CommandConfig::valid_text(&self.label, 4096) {
             return false;
@@ -105,6 +116,57 @@ impl MenuDefinition {
     }
 }
 impl MenuConfig {
+    /// Preorder content slots for an already validated menu collection.
+    pub fn items_preorder(&self) -> Vec<&MenuItem> {
+        fn visit<'a>(menu: &'a MenuDefinition, output: &mut Vec<&'a MenuItem>) {
+            for item in &menu.items {
+                output.push(item);
+                if let MenuItem::Submenu(child) = item {
+                    visit(child, output);
+                }
+            }
+        }
+        let mut items = Vec::new();
+        for menu in &self.menus {
+            visit(menu, &mut items);
+        }
+        items
+    }
+
+    /// Slot indices of the direct rows in a root/submenu path. The caller has
+    /// admitted the bounded collection; invalid navigation paths return None.
+    pub fn row_content_indices(&self, path: &[usize]) -> Option<Vec<usize>> {
+        let (&root, path) = path.split_first()?;
+        let mut menu = self.menus.get(root)?;
+        let mut offset = self.menus[..root]
+            .iter()
+            .map(MenuDefinition::item_count)
+            .sum::<usize>();
+        let size = |item: &MenuItem| {
+            1 + match item {
+                MenuItem::Submenu(child) => child.item_count(),
+                MenuItem::Command(_) | MenuItem::Separator | MenuItem::Label(_) => 0,
+            }
+        };
+        for &index in path {
+            let MenuItem::Submenu(child) = menu.items.get(index)? else {
+                return None;
+            };
+            offset += menu.items[..index].iter().map(size).sum::<usize>() + 1;
+            menu = child;
+        }
+        Some(
+            menu.items
+                .iter()
+                .map(|item| {
+                    let index = offset;
+                    offset += size(item);
+                    index
+                })
+                .collect(),
+        )
+    }
+
     pub fn is_valid(&self) -> bool {
         let mut count = 0;
         let mut text = 0;

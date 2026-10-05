@@ -3,6 +3,7 @@
  (libraries core gpuio gpuio.protocol eio_main)
  (inline_tests
   (deps
+   menu-content-public.hex
    calendar-content-public.hex
    table-header-style.hex
    table-header-style-clear.hex
@@ -575,3 +576,5 @@
 (copy_files ../fixtures/animation-negative-delay.tsv)
 
 (copy_files ../fixtures/animation-repeat.tsv)
+
+(copy_files ../fixtures/menu-content-public.hex)

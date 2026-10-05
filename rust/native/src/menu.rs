@@ -150,8 +150,51 @@ struct Panel<'a> {
     state: Rc<RefCell<State>>,
     appearance: Arc<ChoiceAppearance>,
     pointer: bool,
+    content: Option<MenuContent>,
 }
+type MenuContent = Rc<dyn Fn(usize, bool, &mut Window, &mut App) -> Option<gpui::AnyElement>>;
 impl View {
+    fn menu_content(
+        &self,
+        node: &crate::tree::Node,
+        path: &[usize],
+        interaction: Interaction,
+        cx: &Context<Self>,
+    ) -> Option<MenuContent> {
+        let expected = node.menu.clone()?;
+        let skip = usize::from(expected.presentation.is_context());
+        if node.children.len() == skip {
+            return None;
+        }
+        let indices = expected.row_content_indices(path)?;
+        let slots = node.children.clone();
+        let path = path.to_vec();
+        let id = node.id;
+        let wid = self.id;
+        let session = self.session.clone();
+        let weak = cx.weak_entity();
+        Some(Rc::new(move |index, disabled, window, cx| {
+            weak.update(cx, |view, cx| {
+                let session = session.borrow();
+                let tree = session.tree(wid)?;
+                let current = tree.get(id)?;
+                if current
+                    .menu
+                    .as_ref()
+                    .is_none_or(|menu| !Arc::ptr_eq(menu, &expected))
+                    || !Arc::ptr_eq(&current.children, &slots)
+                    || view.menus.get(&id)?.borrow().path.get(..path.len()) != Some(path.as_slice())
+                {
+                    return None;
+                }
+                let slot = tree.get(*slots.get(skip + indices.get(index)?)?)?;
+                let content = *slot.children.first()?;
+                Some(view.control_label(tree, content, interaction, disabled, window, cx))
+            })
+            .ok()
+            .flatten()
+        }))
+    }
     fn editor_menu_target(
         &self,
         tree: &crate::tree::Tree,
@@ -944,6 +987,7 @@ impl View {
                     state: state.clone(),
                     appearance: appearance.clone(),
                     pointer: interaction.pointer,
+                    content: self.menu_content(node, &path[..=depth], interaction, cx),
                 },
                 window,
                 cx,
@@ -1006,6 +1050,7 @@ impl View {
             state,
             appearance,
             pointer,
+            content,
         } = render;
         let depth = path.len() - 1;
         let count = rows.len();
@@ -1051,10 +1096,25 @@ impl View {
         let row_state = state.clone();
         let row_appearance = appearance.clone();
         let scroll = state.borrow().scrolls[depth].clone();
-        let list = gpui::uniform_list(("menu-rows", depth), count, move |range, _, _| {
+        let list = gpui::uniform_list(("menu-rows", depth), count, move |range, window, cx| {
             range
                 .map(|index| {
                     let row = rows[index].clone();
+                    let label = content
+                        .as_ref()
+                        .and_then(|render| {
+                            render(
+                                index,
+                                !row.enabled && row.kind != RowKind::Label,
+                                window,
+                                cx,
+                            )
+                        })
+                        .unwrap_or_else(|| {
+                            div()
+                                .child(gpui::SharedString::from(row.label.clone()))
+                                .into_any_element()
+                        });
                     let selected = row_state.borrow().selected[depth] == Some(index);
                     let anchor = row_state
                         .borrow()
@@ -1065,6 +1125,7 @@ impl View {
                         .clone();
                     let mut element = div()
                         .id(index)
+                        .w_full()
                         .h(px(row_appearance.row_height as f32))
                         .px(px(8.))
                         .flex()
@@ -1085,7 +1146,7 @@ impl View {
                         element = element
                             .role(gpui::Role::Label)
                             .aria_label(row.label.clone())
-                            .child(gpui::SharedString::from(row.label.clone()));
+                            .child(label);
                     } else {
                         element = element
                             .role(if row.checked.is_some() {
@@ -1125,11 +1186,7 @@ impl View {
                             } else {
                                 ""
                             }))
-                            .child(
-                                div()
-                                    .flex_1()
-                                    .child(gpui::SharedString::from(row.label.clone())),
-                            )
+                            .child(div().flex_1().child(label))
                             .child(if row.kind == RowKind::Submenu {
                                 "›"
                             } else {

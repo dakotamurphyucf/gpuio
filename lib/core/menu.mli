@@ -2,6 +2,18 @@
     state and availability come from the enclosing command registry. *)
 type t [@@deriving equal, sexp_of]
 
+module Item_path : sig
+  type t [@@deriving equal, sexp_of]
+
+  (** Zero-based root menu index followed by one or more item indices. For
+      example, [0; 2; 1] addresses the second item of the third item's submenu
+      in the first menu. Construction checks structural bounds; the receiving
+      view checks that the path exists. Paths identify positions, not commands. *)
+  val of_list : int list -> t Core.Or_error.t
+
+  val to_list : t -> int list
+end
+
 module Item : sig
   type menu := t
 
@@ -38,6 +50,7 @@ module Expert : sig
   [@@deriving equal, sexp_of]
 
   val command_ids : t -> Command.Id.t list
+  val item_paths : t list -> (Item_path.t * Item.t) list
   val validate_collection : t list -> unit Core.Or_error.t
   val validate_platform_collection : t list -> unit Core.Or_error.t
   val to_wire : t -> Gpuio_protocol.Wire.Menu_definition.t

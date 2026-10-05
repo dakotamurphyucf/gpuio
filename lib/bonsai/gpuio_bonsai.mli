@@ -21,6 +21,11 @@ module View : sig
   val with_window_region : t -> Gpuio.Window_region.t option -> t Or_error.t
   val with_accessibility : t -> Gpuio.Accessibility.t -> t Or_error.t
 
+  val with_menu_item_content
+    :  t
+    -> items:(Gpuio.Menu.Item_path.t * t) list
+    -> t Or_error.t
+
   val link
     :  ?key:Gpuio.Key.t
     -> ?style:Gpuio.Style.t
@@ -372,6 +377,7 @@ module View : sig
     -> ?style:Gpuio.Style.t
     -> ?appearance:Gpuio.Menu.Appearance.t
     -> ?config:Gpuio.Editor_menu.t
+    -> ?item_content:(Gpuio.Menu.Item_path.t * t) list
     -> t
     -> t Core.Or_error.t
 

@@ -1,6 +1,23 @@
 module Ui_command = Command
 open Core
 
+module Item_path = struct
+  type t = int list [@@deriving equal, sexp_of]
+
+  let of_list indices =
+    match indices with
+    | menu :: (_ :: _ as items)
+      when menu >= 0
+           && menu < 32
+           && List.length items <= 8
+           && List.for_all items ~f:(fun index -> index >= 0 && index < 1024) ->
+      Ok indices
+    | _ -> Or_error.error_string "menu item path exceeds menu, item or depth bounds"
+  ;;
+
+  let to_list t = t
+end
+
 type t =
   { label : string
   ; disabled : bool
@@ -85,6 +102,20 @@ module Expert = struct
     | Platform_bar
     | Editor_context
   [@@deriving equal, sexp_of]
+
+  let item_paths menus =
+    let rec visit reversed_prefix menu =
+      List.concat_mapi menu.items ~f:(fun index item ->
+        let path = index :: reversed_prefix in
+        let descendants =
+          match item with
+          | Submenu child -> visit path child
+          | Command _ | Separator | Label _ -> []
+        in
+        (List.rev path, item) :: descendants)
+    in
+    List.concat_mapi menus ~f:(fun index menu -> visit [ index ] menu)
+  ;;
 
   let rec command_ids t =
     List.concat_map t.items ~f:(function

@@ -1391,7 +1391,7 @@ impl Tree {
                                 && menu.presentation != MenuPresentation::Button)
                             || node.control.is_some()
                             || node.choice.is_some()
-                            || node.children.len() != usize::from(menu.presentation.is_context())
+                            || node.children.len() < usize::from(menu.presentation.is_context())
                     })
                 {
                     return Err(ErrorCode::InvalidTree.into());
@@ -2073,6 +2073,7 @@ impl Plan<'_> {
                 .button_presentation
                 .is_some_and(|config| config.content == gpuio_protocol::button::Content::Rich);
         if !rich_button
+            && root.menu.is_none()
             && !root.choice_menu
             && root.calendar_content.is_none()
             && root.number_presentation.is_none()
@@ -2139,6 +2140,28 @@ impl Plan<'_> {
                 && node.reveal.is_none()
                 && node.choice_appearance.is_none()
         };
+        let menu_children = if let Some(menu) = &root.menu {
+            let slots = &root.children[usize::from(menu.presentation.is_context())..];
+            if !slots.is_empty() {
+                let items = menu.items_preorder();
+                if menu.presentation == MenuPresentation::PlatformBar || slots.len() != items.len()
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                for (slot, item) in slots.iter().zip(items) {
+                    let slot = self.node(*slot)?;
+                    if !structural(slot)
+                        || slot.children.len() > 1
+                        || (matches!(item, MenuItem::Separator) && !slot.children.is_empty())
+                    {
+                        return Err(ErrorCode::InvalidTree);
+                    }
+                }
+            }
+            Some(slots)
+        } else {
+            None
+        };
         if root.choice_menu && !root.children.is_empty() {
             let config = root.choice.as_ref().ok_or(ErrorCode::InvalidTree)?;
             if root.children.len() != config.items.len() {
@@ -2164,7 +2187,9 @@ impl Plan<'_> {
                 }
             }
         }
-        let logical_children = if root.tab_trailing {
+        let logical_children = if let Some(slots) = menu_children {
+            slots
+        } else if root.tab_trailing {
             let config = root.choice.as_ref().ok_or(ErrorCode::InvalidTree)?;
             if root.children.len() != config.items.len() + 1 {
                 return Err(ErrorCode::InvalidTree);

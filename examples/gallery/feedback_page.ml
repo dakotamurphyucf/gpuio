@@ -27,7 +27,31 @@ let menu =
   |> ok
 ;;
 
-let component window palette graph =
+let register_menu_icon app scope =
+  let source =
+    Asset.Source.of_bytes
+      ~format:Svg
+      {|<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16"><path d="M3 8l3 3 7-7" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>|}
+    |> ok
+  in
+  Bonsai.Effect.map (Gpuio_eio.Asset.register app ~scope source) ~f:(function
+    | Ok asset ->
+      Icon.Config.create
+        ~asset:(Gpuio_eio.Asset.handle asset)
+        ~description:Image.Description.decorative
+        ()
+    | Error error -> Error (Error.create_s [%sexp (error : Gpuio_eio.Asset.Error.t)]))
+;;
+
+let component app window palette graph =
+  let menu_icon =
+    Preview_scope.acquire
+      window
+      ~name:"gallery-feedback-menu-artwork"
+      ~create:(register_menu_icon app)
+      graph
+  in
+  let show_content, toggle_content = B.toggle ~default_model:true graph in
   let progress_preview = Progress_preview.component window palette graph in
   let model, inject =
     B.state_machine0
@@ -71,6 +95,9 @@ let component window palette graph =
        Bonsai.Effect.Many [ inject State.Action.Leave; set_chooser false ])
     graph;
   let%arr p = palette
+  and menu_icon = menu_icon
+  and show_content = show_content
+  and toggle_content = toggle_content
   and model = model
   and inject = inject
   and chooser = chooser
@@ -210,17 +237,43 @@ let component window palette graph =
           [ Palette.text p title; Palette.text p ~muted:true text ])
     else notifications
   in
+  let decorate view =
+    match menu_icon, show_content with
+    | Preview_scope.Ready icon, true ->
+      let item text =
+        V.row
+          ~style:(style [ Gap (px 8.); Align_items Center ])
+          [ V.icon
+              ~style:
+                (style [ Width (px 16.); Height (px 16.); Foreground (Palette.accent p) ])
+              icon
+          ; V.text text
+          ]
+      in
+      V.with_menu_item_content
+        view
+        ~items:
+          (List.map
+             [ [ 0; 1 ], "Advance preview"
+             ; [ 0; 2 ], "Save preview"
+             ; [ 0; 4 ], "Editing"
+             ; [ 0; 4; 1 ], "Copy preview selection"
+             ]
+             ~f:(fun (path, label) -> Menu.Item_path.of_list path |> ok, item label))
+      |> ok
+    | _ -> view
+  in
   V.command_scope
     ~commands
     ~style:(style [ Gap (px 20.) ])
     [ Palette.card
         p
         ~title:"One action, many ways to reach it"
-        [ V.menu_bar ~platform:false [ menu ] |> ok
+        [ V.menu_bar ~platform:false [ menu ] |> ok |> decorate
         ; V.row
             ~style:(style [ Gap (px 12.); Wrap Wrap ])
             [ V.command_button ~style:button_style ~command:advance ()
-            ; V.menu_button ~style:button_style ~menu ()
+            ; V.menu_button ~style:button_style ~menu () |> decorate
             ; V.command_button ~style:button_style ~command:choose ()
             ]
         ; Palette.text
@@ -228,7 +281,8 @@ let component window palette graph =
             ~muted:true
             "Use ⌘K on macOS or Ctrl+K on Linux to advance. Right-click the draft for \
              its menu."
-        ; V.context_menu ~menu (Gpuio_eio.Text_input.view input)
+        ; V.context_menu ~menu (Gpuio_eio.Text_input.view input) |> decorate
+        ; V.switch ~checked:show_content ~on_toggle:toggle_content "Detailed menu items"
         ; V.checkbox
             ~state:(if State.is_enabled model then Checked else Unchecked)
             ~on_toggle:(inject Toggle_enabled)
