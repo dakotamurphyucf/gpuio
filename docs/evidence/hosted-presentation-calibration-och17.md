@@ -30,3 +30,24 @@ receiver as passing. Next work is to determine a defensible hosted-capability an
 physical-Mac validation path while retaining the required release measurements.
 The local physical-Mac results retain their own recorded source/platform scope.
 VoiceOver remains on hold and was not involved in these probes.
+
+## Repeat on hosted run 37343201640
+
+[Run 37343201640](https://github.com/dakotamurphyucf/gpuio/actions/runs/37343201640)
+finished with failure on 2026-10-05 at branch checkpoint `470210a` (runner merge
+`04dcd08`). Linux passed; the fresh extracted-app job was skipped. Three additional
+macOS walkthrough failures have separate local corrections: [calendar and theme
+readiness](macos-ci-readiness-och17.md) and [sidebar sampling](sidebar-ci-sampling-och17.md).
+
+Both Metal probes again fail on the Apple Paravirtual device. The GPUI hook
+finishes both 90-frame sessions with all 180 timestamps zero, no missing/duplicate/
+saturated/truncated events, zero pending records and both windows closed. The
+standalone calibration records 120 active, visible, GPU-completed frames, all with
+zero presentation time. The display inventory is empty. These independently
+reproduce the earlier environment observation; they do not identify a functioning
+hosted presentation-clock configuration.
+
+[Raw reports and terminal job metadata](hosted-presentation-calibration-och17/run-37343201640/reports.tar.gz)
+are preserved with a [verified six-file manifest](hosted-presentation-calibration-och17/run-37343201640/manifest.json).
+No gate or timestamp criterion changed. The owner's separate VoiceOver hold has
+now been lifted; these probes still provide no VoiceOver evidence.

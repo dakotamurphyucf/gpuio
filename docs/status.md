@@ -34,11 +34,13 @@ is preserved; neither failure nor any gate has been waived.
 The owner lifted the VoiceOver hold on 2026-10-05; accessibility validation may
 resume. VoiceOver acceptance remains open.
 The subsequent [run 37343201640](https://github.com/dakotamurphyucf/gpuio/actions/runs/37343201640)
-at branch checkpoint `470210a` is still in progress as observed on 2026-10-05.
-Linux has passed; macOS has reported failures in scoped file/theme reads and
-calendar accessibility while later native checks continue. Failure logs and
-final job results still need investigation; this run does not qualify the newer
-local numeric-slot and popup-focus repairs or expanded walkthroughs.
+at branch checkpoint `470210a` finished with failure on 2026-10-05. Linux passed;
+macOS failed scoped file/theme reads, calendar accessibility, sidebar motion
+sampling and both Metal presentation probes. The fresh extracted-app job was
+skipped. [Terminal probe reports](evidence/hosted-presentation-calibration-och17.md#repeat-on-hosted-run-37343201640)
+again show all-zero timestamps in GPUI and standalone Metal on the paravirtual
+device. This run does not qualify the newer local numeric-slot and popup-focus
+repairs or expanded walkthroughs.
 The two available failure logs now have [local readiness corrections](evidence/macos-ci-readiness-och17.md):
 the calendar acknowledges focus before keys, and file-theme Reload waits for its
 page scope to become ready. The full calendar walkthrough and all 12 theme cases

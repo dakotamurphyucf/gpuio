@@ -1,0 +1,30 @@
+{
+  "archive": "reports.tar.gz",
+  "sha256": "bf1216977742979b0c32f9bee9fe30081f1fd7b119c12de1fc8e73b047ca386b",
+  "files": [
+    {
+      "path": "metal-presentation-calibration.json",
+      "sha256": "15a671c061792aa5cd94bc05a78c7973490b6a4b77f131d8897de92fca94009a"
+    },
+    {
+      "path": "metal-presentation-display.json",
+      "sha256": "0e2a2e10de1b28c2c98b9bf2faadb16610de1aad4b8308e92b54c13e74402c3c"
+    },
+    {
+      "path": "metal-presentation-hook/report.json",
+      "sha256": "2341d5f564edb3d79cbbfb158a8239b4ce4d0a61fd6aadd3fc6065b3110a76d7"
+    },
+    {
+      "path": "metal-presentation-hook/native.log",
+      "sha256": "c0b114dcec83a6744a1b14cf21a9af8597b2a09a9227847e74604c511b9f94ac"
+    },
+    {
+      "path": "platform.txt",
+      "sha256": "669227b268e7af62bb6cc93e633135b489c92aaa6cd0e9bc49b5f7d9285b7c36"
+    },
+    {
+      "path": "run.json",
+      "sha256": "f109ef2d1d5d4f3f9d5904d8f897c7576aa9773eebb438ae219879ec3502e727"
+    }
+  ]
+}
