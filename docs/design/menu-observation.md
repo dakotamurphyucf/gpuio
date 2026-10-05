@@ -1,5 +1,10 @@
 # Menu observations and split-button coordination
 
+Current follow-up: [installed physical paint/placement evidence](../evidence/installed-split-paint-menu-placement-och41.md)
+passes on 2026-10-05, including shared hover/menu-held surfaces and actual root
+scrolling. Earlier unrun statements below are historical checkpoints; the linked
+evidence states exact physical versus TestPlatform coverage and remaining limits.
+
 OCH-41 implementation contract, 2026-10-01. MenuButton observation and root
 placement are connected locally; full validation and desktop acceptance remain
 open. Checked split composition and native shared hover are now connected too;

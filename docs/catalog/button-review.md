@@ -130,3 +130,15 @@ fixes the tooltip anchor path and constant-configuration observer remount. A new
 installed gallery passes the combined button scenarios with the original
 identity assertion. Earlier split-failure status is superseded by that result;
 shared-hover/placement pixel and whole-family release requirements stay separate.
+
+## Installed paint and placement follow-up — 2026-10-05
+
+[Physical split/menu evidence](../evidence/installed-split-paint-menu-placement-och41.md)
+now covers 20 split surface pixel cases across Light/Dark, including menu-held
+paint after the pointer leaves, independent primary disabled/loading policy,
+whole-pair disable/recovery and joined geometry. Sixteen menu geometry samples
+cover the example's Bottom/Right and Start/End settings in both themes, before and
+after real root scrolling, with retained anchor and Escape focus return. These
+supersede the corresponding earlier unrun visual/scrolling statements. Exact
+corner/seam pixel dimensions at every scale, whole-family resource/performance
+and release acceptance remain separate. VoiceOver was untouched and stays on hold.

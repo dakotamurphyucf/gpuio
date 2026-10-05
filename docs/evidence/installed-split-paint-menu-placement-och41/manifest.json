@@ -1,0 +1,184 @@
+{
+  "application_revision": "e210d3e4a7b261e6bdf40023023937fbeb096e85",
+  "driver_base_revision": "eedfc65d84669409b76f7d514063fc3b9ba2bf57",
+  "executable_sha256": "5e96404a5df658b7dfa9af05b8d4ff8240737e8df0f751f05c58968a0e24d495",
+  "runs": [
+    {
+      "command": "python3 scripts/test_gallery.py --section split-paint --executable scratch/agents/root-20261004-resumed/gallery-installed-lifetime-e210d3e/consumer/_build/default/main.exe --images scratch/agents/root-20261004-resumed/split-paint-eedfc65/run-1-images",
+      "session": 40580,
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/test_gallery.py --section menu-placement --executable scratch/agents/root-20261004-resumed/gallery-installed-lifetime-e210d3e/consumer/_build/default/main.exe --images scratch/agents/root-20261004-resumed/menu-placement-eedfc65/run-1-images",
+      "session": 35744,
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/test_gallery.py --section buttons --executable scratch/agents/root-20261004-resumed/gallery-installed-lifetime-e210d3e/consumer/_build/default/main.exe --images scratch/agents/root-20261004-resumed/split-paint-eedfc65/combined-images",
+      "session": 17423,
+      "exit_code": 0
+    }
+  ],
+  "platform": "macOS 14.5 arm64 / M1 Max / built-in display",
+  "voiceover": "Owner hold; no tests, settings or automation",
+  "archive": "local-validation.tar.gz",
+  "sha256": "af192ea3918a1f6ab86b36efe7910e2f8fda8850001e1cc978a796841a27bb05",
+  "files": [
+    {
+      "path": "buttons/combined.log",
+      "sha256": "818aa9512cc97883068cce1cb2e28113686fdb6faad72bfd65afd77e6ef87a01"
+    },
+    {
+      "path": "buttons/menu-placement-samples.json",
+      "sha256": "80d3e5cf1bf35c0e2b607e598b749a0fbdd021d4074bc5028bd0f9de4dd60bb5"
+    },
+    {
+      "path": "buttons/split-paint-samples.json",
+      "sha256": "1ed09d5e0ecf02638a949b03e9458a794c002803525bbb52d509529bcc689591"
+    },
+    {
+      "path": "drivers/gallery_menu_placement.py",
+      "sha256": "252b986f03619f6a629c4687a859815a9fcdfa38d04f0303e3a2f91a6bc21a7c"
+    },
+    {
+      "path": "drivers/gallery_split_paint.py",
+      "sha256": "a7a40cb6529c3eb9135089001a74efb16ebbf2321bfe5b7091a07e826c8c0016"
+    },
+    {
+      "path": "drivers/selectors.patch",
+      "sha256": "dfd5010244a9b76a29b0081cfea6eb0e890a0e2c8f2efd41fcf64bd439c0f7ca"
+    },
+    {
+      "path": "menu-placement/Dark-bottom-end.png",
+      "sha256": "1ac836f2ffb0f93517ad932063732102e84aaf1b7806273909eb84be2fe6a2d5"
+    },
+    {
+      "path": "menu-placement/Dark-bottom-start.png",
+      "sha256": "d16dd58e9a2bb04313ef13b9fbe828fe16e7b3d52e30a6c14d76ce06c99b625e"
+    },
+    {
+      "path": "menu-placement/Dark-right-end.png",
+      "sha256": "5961fa38a5cbee86df888920009e8e9dd4169e0069437b728e659679ecf6982e"
+    },
+    {
+      "path": "menu-placement/Dark-right-start.png",
+      "sha256": "cff4c0284760aed66737d8d95671bb7f4c4a6724fd5da4e7517e2328dd2e78c0"
+    },
+    {
+      "path": "menu-placement/Light-bottom-end.png",
+      "sha256": "d9f6f36eaba6bd01227772df842002ce0e712fc7f46e7c292cff2896247b8bb3"
+    },
+    {
+      "path": "menu-placement/Light-bottom-start.png",
+      "sha256": "e72857256ab3bc934c736a641abeaef22931478efb6bf1bb5f53e61d411666f9"
+    },
+    {
+      "path": "menu-placement/Light-right-end.png",
+      "sha256": "9f349fa758154419187e7504a09e4b6ca612479c08dc28f95820389fb2353491"
+    },
+    {
+      "path": "menu-placement/Light-right-start.png",
+      "sha256": "d6f66f2e5d025f98baea697a6e40e746fcf5dc8000cc2ff2d38a684e03d7bb72"
+    },
+    {
+      "path": "menu-placement/menu-placement-samples.json",
+      "sha256": "80d3e5cf1bf35c0e2b607e598b749a0fbdd021d4074bc5028bd0f9de4dd60bb5"
+    },
+    {
+      "path": "menu-placement/run-1.log",
+      "sha256": "4ddd9159c31d9e90e86bda1f49cbf380d8367a77a6ee296fe131578ea70ff00c"
+    },
+    {
+      "path": "metadata.json",
+      "sha256": "35d83ced346e990a605a37d6588bb1a370386cef1c457801e43e1b4007fc9d6b"
+    },
+    {
+      "path": "split-paint/Dark-blank-outside-0.png",
+      "sha256": "4e9ad7ae129c3d5e7518e1355b2c38022c54006decc1615821ec67927a50f704"
+    },
+    {
+      "path": "split-paint/Dark-hover-menu-0.png",
+      "sha256": "1fc9770bbe669c75b21277e790fea6a411d7a33869501bff7edd0c7589789e54"
+    },
+    {
+      "path": "split-paint/Dark-hover-primary-0.png",
+      "sha256": "03770a5c8ea177e3b09048e6b795c7777575722f0d4ea6857720579e4706fc2e"
+    },
+    {
+      "path": "split-paint/Dark-menu-dismissed-0.png",
+      "sha256": "9813f9719dbe90bfc57c4648f9cd72088909e875a96fe53fd6101d5121d44b38"
+    },
+    {
+      "path": "split-paint/Dark-menu-held-0.png",
+      "sha256": "7b1f92ee703cec5599c9968aeb60537bc01e65bdf06088bb0b36647f6c6e9797"
+    },
+    {
+      "path": "split-paint/Dark-pair-disabled-0.png",
+      "sha256": "7adbe9f38400d926d2f591f9d87410b70f3dd2f6806a3771f3d6721509506184"
+    },
+    {
+      "path": "split-paint/Dark-primary-disabled-0.png",
+      "sha256": "155688ee7bb9f416a825da99adf12a66b08a377c0728fa1b7ed585ea3bff197b"
+    },
+    {
+      "path": "split-paint/Dark-primary-loading-0.png",
+      "sha256": "c2848ceee5debf21db8d24b0d166faee5db8fd98ca9f316f01424cf6ebaff077"
+    },
+    {
+      "path": "split-paint/Dark-recovered-0.png",
+      "sha256": "66f053afac2d5705bdc5be8f4825dc4f468a378329c8f35377c7feda5389dcc0"
+    },
+    {
+      "path": "split-paint/Dark-rest-0.png",
+      "sha256": "4e9ad7ae129c3d5e7518e1355b2c38022c54006decc1615821ec67927a50f704"
+    },
+    {
+      "path": "split-paint/Light-blank-outside-0.png",
+      "sha256": "eee45ea75f93add05a0285a445e7a43703973bed0e22f22cd82875c004e94217"
+    },
+    {
+      "path": "split-paint/Light-hover-menu-0.png",
+      "sha256": "7a77f2724665f04644f1d4a5dfdfe92e4c81683255ab7f082bd4ea1953a499dd"
+    },
+    {
+      "path": "split-paint/Light-hover-primary-0.png",
+      "sha256": "b2ccfa654f47f3c8dbc6c94f41a4ad41799f767901f6c4ed1b99baa7309fedf4"
+    },
+    {
+      "path": "split-paint/Light-menu-dismissed-0.png",
+      "sha256": "4fd99228459f394df6ff1e2abc37cca236a3955b798a322db12de8b89c96cee7"
+    },
+    {
+      "path": "split-paint/Light-menu-held-0.png",
+      "sha256": "fd1bfde517f592ca2bd5c591892be96a95df2388e5dc757654ca82abe3739ef5"
+    },
+    {
+      "path": "split-paint/Light-pair-disabled-0.png",
+      "sha256": "eda5f3a12ae90dc509480a0a1acfe291d58c0a1b32672b5d67e3bdeb00777acd"
+    },
+    {
+      "path": "split-paint/Light-primary-disabled-0.png",
+      "sha256": "e8d5c1767499bda393efeb9d9d47089d4411ad0d45a16b749e027ef45ec88713"
+    },
+    {
+      "path": "split-paint/Light-primary-loading-0.png",
+      "sha256": "3a235b8856c7a4cef4d2cad827ba932de74e19bed3f7156eb3a9896f7e8a9e8f"
+    },
+    {
+      "path": "split-paint/Light-recovered-0.png",
+      "sha256": "efedc73851a430d7c021b65578889a0249ea7547fd8fa134b1d04fe0cf4fd621"
+    },
+    {
+      "path": "split-paint/Light-rest-0.png",
+      "sha256": "eee45ea75f93add05a0285a445e7a43703973bed0e22f22cd82875c004e94217"
+    },
+    {
+      "path": "split-paint/run-1.log",
+      "sha256": "618accd443195cc4a503abc632ae7aa14d9c8d3b4314d4911be33688a062db35"
+    },
+    {
+      "path": "split-paint/split-paint-samples.json",
+      "sha256": "1ed09d5e0ecf02638a949b03e9458a794c002803525bbb52d509529bcc689591"
+    }
+  ]
+}

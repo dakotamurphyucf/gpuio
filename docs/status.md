@@ -65,6 +65,11 @@ whole-family acceptance. Start from [the catalog](catalog/README.md),
 
 Recent completed local checkpoints:
 
+- Installed split-button paint passes 20 Light/Dark GPU cases; menu placement
+  passes 16 geometry samples, including actual root scrolling while open and
+  Escape focus return. [Physical paint/placement evidence](evidence/installed-split-paint-menu-placement-och41.md)
+  distinguishes this scope from the broader TestPlatform matrix and release work.
+
 - Installed standalone radio/navigation checks pass real Tab/Shift-Tab, Space,
   Return, pointer selection of skipped stops, signed ordering, rich/plain labels,
   retained identity and page retirement/remount. The disabled AX selection

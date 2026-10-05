@@ -125,10 +125,11 @@
         "docs/design/button-content.md",
         "docs/evidence/gallery-och41.md",
         "docs/evidence/installed-actions-och41.md",
-        "docs/evidence/gallery-lifetime-repairs-och41.md"
+        "docs/evidence/gallery-lifetime-repairs-och41.md",
+        "docs/evidence/installed-split-paint-menu-placement-och41.md"
       ],
       "gallery_page": "controls",
-      "contract": "Native press/key/AX, icon slots and styles exist. Epoch2 connects checked rich content, per-owner loading and preserve/skipped/signed focus policy; Controls gallery exposes the public API. Physical/resource acceptance, group presentation and split-menu coordination remain open.",
+      "contract": "Native press/key/AX, icon slots and styles exist. Epoch2 connects checked rich content, per-owner loading and preserve/skipped/signed focus policy; Controls gallery exposes the public API. Installed macOS split shared-hover/menu-held pixels and live menu placement/root scrolling now pass; whole-family resource/performance and release acceptance remain separate.",
       "upstream_modules": [
         "base/button",
         "component/button"
