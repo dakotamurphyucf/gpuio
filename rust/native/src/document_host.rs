@@ -224,7 +224,7 @@ pub fn finish_before_quit(cx: &mut App) {
     }
 }
 
-#[cfg(feature = "native-tests")]
+#[cfg(any(feature = "native-tests", feature = "performance-diagnostics"))]
 pub fn measurements(cx: &App) -> Option<(jobs::Measurements, usize, usize, usize, usize)> {
     let state = cx.try_global::<Global>()?.0.borrow();
     Some((

@@ -361,6 +361,103 @@ fn preview(mode: Mode) {
             && e.state == PreviewState::Rich(false)),
         "{wide:?}"
     );
+    // Source fallback must expose the same page interval and reason that a
+    // sighted reader sees. Use the production tree and platform AX action path.
+    let large = "A native source line · λ 世界\n".repeat(5000);
+    for request in [
+        Request::Begin(Update {
+            id: source,
+            base: 2,
+            revision: 3,
+            generation: 3,
+            from_byte: 0,
+            suffix_bytes: large.len() as i64,
+            status: Status::Complete,
+        }),
+        Request::Chunk(
+            source,
+            3,
+            0,
+            gpuio_protocol::asset::Chunk::new(large.clone().into_bytes()).unwrap(),
+        ),
+        Request::Publish(source, 3),
+    ] {
+        assert_eq!(
+            session.borrow_mut().document_request(request),
+            Response::Ack
+        );
+    }
+    let mut config = presentation.read_with(cx, |p, _| (*p.config).clone());
+    config.layout = Layout::Viewport(180.);
+    apply(
+        &view,
+        cx,
+        vec![
+            Op::SetDocumentPreview(
+                node,
+                Preview {
+                    epoch: 7,
+                    max_lines: None,
+                    observe: false,
+                },
+            ),
+            Op::SetDocument(node, config),
+        ],
+    );
+    cx.simulate_a11y_active(true);
+    for _ in 0..1000 {
+        draw(cx);
+        if presentation.read_with(cx, |p, _| {
+            p.installed.as_ref().is_some_and(|s| s.revision == 3)
+        }) {
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    let assert_labels = |cx: &mut VisualTestContext| {
+        draw(cx);
+        let (label, error) = presentation.read_with(cx, |p, _| {
+            assert_eq!(p.installed.as_ref().unwrap().revision, 3);
+            assert!(p.source_mode);
+            (
+                format!(
+                    "Source bytes {}–{} of {}",
+                    p.page_start,
+                    p.page_end,
+                    large.len()
+                ),
+                p.error.clone().expect("explicit fallback reason"),
+            )
+        });
+        let tree = cx.a11y_tree().unwrap();
+        for expected in [label, error] {
+            assert!(
+                tree.nodes.iter().any(|(_, n)| n.role() == gpui::Role::Label
+                    && (n.label() == Some(expected.as_str())
+                        || n.value() == Some(expected.as_str()))),
+                "visible document metadata missing from accessibility: {expected}"
+            );
+        }
+    };
+    assert_labels(cx);
+    let next = cx
+        .a11y_tree()
+        .unwrap()
+        .nodes
+        .into_iter()
+        .find(|(_, n)| n.role() == gpui::Role::Button && n.label() == Some("Next source page"))
+        .unwrap()
+        .0;
+    let first_end = presentation.read_with(cx, |p, _| p.page_end);
+    cx.simulate_a11y_action(gpui::accesskit::ActionRequest {
+        action: gpui::accesskit::Action::Click,
+        target_node: next,
+        target_tree: gpui::accesskit::TreeId::ROOT,
+        data: None,
+    });
+    draw(cx);
+    assert_eq!(presentation.read_with(cx, |p, _| p.page_start), first_end);
+    assert_labels(cx);
     let weak = presentation.downgrade();
     drop(presentation);
     drop(markdown);

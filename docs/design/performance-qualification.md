@@ -33,7 +33,7 @@ must remain separate.
 | --- | --- | --- |
 | Loaded variable-height list | 10,000 loaded records; mixed 64/256/2048-byte UTF-8 bodies; repeated complete forward/backward traversal, row growth and anchor changes | Native draw p95 ≤16.7 ms, p99 ≤33.4 ms; process peak RSS ≤1 GiB |
 | Logical paged table | 100,000 logical records, 64 columns, bounded loading; cover every row range, both ends, selection and reveal | Same draw targets; process peak RSS ≤1 GiB; loaded/mounted counts stay within the declared window/cache bounds |
-| Growing document | Append deterministic Markdown/code through 20 MiB, while navigating/selecting/copying; exercise source reset and profile removal | Interactive draw targets as above; process peak RSS ≤1.5 GiB; report append→publication and preparation separately |
+| Growing document | Grow three deterministic Markdown/code sources to 8, 8 and 4 MiB (20 MiB retained in aggregate), while navigating/selecting/copying; verify the 8 MiB per-source limit, reset and profile removal | Interactive draw targets as above; process peak RSS ≤1.5 GiB; report append→publication and preparation separately |
 | Streaming and typing | Four independent streams, 20 updates/s each, 128 UTF-8 bytes/update for 120 s; native composer receives 10 keys/s while history grows | Input→submitted-frame p95 ≤50 ms, p99 ≤100 ms, no missing/duplicate text; draw targets above; process peak RSS ≤1 GiB |
 | Window/resource lifecycle | Three warm-up cycles then 30 open/exercise/close cycles, including documents/images/canvas/extensions | Exact owned registrations, pending operations and native entities retire; final ten-cycle RSS baseline growth ≤64 MiB, with all samples retained |
 | Settled idle | Stop streams/animations and blur caret; wait 2 s, then observe 60 s, both focused and unfocused | Zero newly drawn application frames; timers/measurement polling must not invalidate the window |
@@ -102,3 +102,16 @@ run the matrix and investigate failures. Retain platform/hardware/build metadata
 raw samples, phase markers, resource counters and cleanup status in each report.
 Current chart staged diagnostics help locate delays but do not satisfy this
 matrix or its predeclared targets. Linux desktop performance stays in OCH-47.
+
+## Document workload correction — 2026-10-04, before measurement
+
+The original single-source 20 MiB target contradicted the accepted 8 MiB
+per-document API/protocol limit in [documents](documents.md). Preserve that
+production limit and the 64 MiB aggregate source quota. The workload instead
+retains three growing sources of 8, 8 and 4 MiB together, exercises each native
+viewport, and verifies that an append past 8 MiB is rejected without mutation.
+This is aggregate large-document coverage, not support for a single 20 MiB
+document. No document run has been accepted against either formulation. Draw
+and RSS targets are unchanged. Preparation remains bounded: Markdown above
+64 KiB uses source fallback, so report that state explicitly rather than claiming
+20 MiB of rich Markdown parsing.

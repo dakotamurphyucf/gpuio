@@ -2446,6 +2446,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "gpuio-example-document"
+version = "0.0.0"
+dependencies = [
+ "gpuio-document-sdk",
+]
+
+[[package]]
 name = "gpuio-extension-sdk"
 version = "0.0.0"
 dependencies = [
@@ -2495,6 +2502,7 @@ dependencies = [
 name = "gpuio-performance-backend"
 version = "0.0.0"
 dependencies = [
+ "gpuio-example-document",
  "gpuio-native",
  "gpuio-performance-probe",
  "ocaml-interop",

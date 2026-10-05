@@ -3,6 +3,46 @@
 //! boundaries; keep OS input/presentation and OCaml scheduling evidence separate.
 use std::{collections::BTreeMap, time::Instant};
 
+/// Application-wide cumulative document-worker counters. Durations are elapsed
+/// worker stage times, not CPU time or physical presentation. Completed jobs
+/// include cancelled/stale work; retained-source fallback can report zero parse
+/// time. Reading these counters does not schedule jobs or request a redraw.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct DocumentPreparation {
+    pub queue_us: u128,
+    pub configure_us: u128,
+    pub parse_us: u128,
+    pub highlight_us: u128,
+    pub search_us: u128,
+    pub source_bytes: usize,
+    pub completed: usize,
+    pub discarded: usize,
+    pub peak_workers: usize,
+    pub peak_reserved_bytes: usize,
+}
+
+impl DocumentPreparation {
+    pub fn capture(cx: &gpui::App) -> Self {
+        let Some((m, completed, discarded, peak_workers, peak_reserved_bytes)) =
+            crate::document_host::measurements(cx)
+        else {
+            return Self::default();
+        };
+        Self {
+            queue_us: m.queue_us,
+            configure_us: m.configure_us,
+            parse_us: m.parse_us,
+            highlight_us: m.highlight_us,
+            search_us: m.search_us,
+            source_bytes: m.source_bytes,
+            completed,
+            discarded,
+            peak_workers,
+            peak_reserved_bytes,
+        }
+    }
+}
+
 /// Sparse cumulative histogram buckets. Values are the inclusive upper bounds
 /// reported by GPUI's three-significant-digit HDR histograms, not exact samples.
 /// Durations use nanoseconds; `inputs_per_frame` uses event counts.

@@ -1960,8 +1960,18 @@ impl Render for Presentation {
         if self.collapsed {
             return root.into_any_element();
         }
-        for error in [&self.error, &self.projection_error].into_iter().flatten() {
-            root = root.child(error.clone());
+        for (index, error) in [&self.error, &self.projection_error]
+            .into_iter()
+            .enumerate()
+            .filter_map(|(index, error)| error.as_ref().map(|error| (index, error)))
+        {
+            root = root.child(
+                div()
+                    .id(("document-fallback-notice", index))
+                    .role(gpui::Role::Label)
+                    .aria_label(error.clone())
+                    .child(error.clone()),
+            );
         }
         // Keep the last installed document geometrically stable while a newer
         // parse is pending. Before the first result, the toolbar carries the
@@ -2044,7 +2054,7 @@ impl Render for Presentation {
             if self.installed.is_some()
                 && (self.page_start > 0 || self.page_end < self.display_bytes())
             {
-                root = root.child(format!(
+                let label = format!(
                     "{} bytes {}–{} of {}",
                     if self.active_projection().is_some() {
                         "Visible diff"
@@ -2054,7 +2064,14 @@ impl Render for Presentation {
                     self.page_start,
                     self.page_end,
                     self.display_bytes()
-                ));
+                );
+                root = root.child(
+                    div()
+                        .id("document-source-range")
+                        .role(gpui::Role::Label)
+                        .aria_label(label.clone())
+                        .child(label),
+                );
             }
             root = root.child(
                 div()

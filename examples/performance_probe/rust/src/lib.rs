@@ -3,7 +3,7 @@ use gpuio_extension_sdk::{self as sdk, gpui, gpui::prelude::*};
 use gpuio_native::performance::{Distribution, Interval, Snapshot};
 use std::{cell::RefCell, fmt::Write, rc::Rc, sync::Arc, time::Instant};
 
-pub const FINGERPRINT: &str = "0a6b9804fd18e486172696a2e8a5e460427affd2b73892b2dc8fff24791a52fe";
+pub const FINGERPRINT: &str = "4af1fe7a3cc0e8d5ad9f52555fd37b5634e93a9a2b0050f739cdcd6626156889";
 pub fn factory() -> Arc<dyn sdk::Factory> {
     Arc::new(Factory)
 }
@@ -13,6 +13,7 @@ struct Factory;
 enum Command {
     Begin,
     Finish,
+    DocumentPreparation,
     Buckets { metric: usize, offset: usize },
 }
 impl Command {
@@ -20,6 +21,7 @@ impl Command {
         match bytes {
             [0] => Ok(Self::Begin),
             [1] => Ok(Self::Finish),
+            [3] => Ok(Self::DocumentPreparation),
             [2, metric @ 0..=4, digits @ ..]
                 if !digits.is_empty()
                     && digits.len() <= 10
@@ -55,7 +57,7 @@ impl sdk::Factory for Factory {
     fn descriptor(&self) -> sdk::Descriptor {
         sdk::Descriptor {
             name: "qualification.performance",
-            version: 1,
+            version: 2,
             fingerprint: FINGERPRINT,
             sdk_version: sdk::SDK_VERSION,
             gpui_revision: sdk::GPUI_REVISION,
@@ -180,6 +182,13 @@ impl sdk::Component for Probe {
                 *state = State::Finished(interval);
                 Ok(())
             }
+            Command::DocumentPreparation => {
+                let m = gpuio_native::performance::DocumentPreparation::capture(cx.app);
+                cx.events.emit(format!(
+                    "(Document_preparation (queue_us {}) (configure_us {}) (parse_us {}) (highlight_us {}) (search_us {}) (source_bytes {}) (completed {}) (discarded {}) (peak_workers {}) (peak_reserved_bytes {}))",
+                    m.queue_us, m.configure_us, m.parse_us, m.highlight_us, m.search_us, m.source_bytes, m.completed, m.discarded, m.peak_workers, m.peak_reserved_bytes
+                ).into_bytes())
+            }
             Command::Buckets { metric, offset } => {
                 let state = self.state.borrow();
                 let State::Finished(interval) = &*state else {
@@ -209,6 +218,7 @@ mod tests {
     fn command_decode_is_bounded_and_rejects_trailing_or_out_of_range_data() {
         assert_eq!(Command::decode(&[0]), Ok(Command::Begin));
         assert_eq!(Command::decode(&[1]), Ok(Command::Finish));
+        assert_eq!(Command::decode(&[3]), Ok(Command::DocumentPreparation));
         assert_eq!(
             Command::decode(
                 b"\x02\x04"
@@ -227,6 +237,7 @@ mod tests {
             b"".as_slice(),
             &[0, 0],
             &[1, 0],
+            &[3, 0],
             &[2, 5, b'0'],
             &[2, 0],
             b"\x02\x00-1",
