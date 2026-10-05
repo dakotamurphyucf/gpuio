@@ -5,11 +5,13 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
 Work is tracked on branch `milestone-07-gallery-release` and draft PR #16.
-The last completed hosted run used `b8d261c`: Linux passed; macOS exhausted
-disk during the independent consumer build, then skipped dependent GUI checks.
-All sixteen failed macOS steps now have passing local reruns; fresh hosted
-qualification remains required. Three full optimized loaded-list runs now pass their declared budgets;
-six ordinary/profiled comparison runs also pass; other workload acceptance remains open.
+The last completed hosted run used `1921ae3`: Linux passed; macOS reported four
+failures in native color-input idle rendering, public picker readiness, carousel
+direction interaction and small mixed-checkbox pixels. Local repairs and fresh
+hosted qualification remain required. The earlier consumer-build disk exhaustion
+did not recur. Three full optimized loaded-list runs pass their declared budgets;
+six ordinary/profiled comparisons, three full resource-lifecycle runs and the
+first full paged-table run also pass; other workload acceptance remains open.
 Earlier evidence identifies local worktree checkpoints based on `83eb87e`;
 their source snapshots must not be confused with that old HEAD alone.
 The preceding 2,834-line chronological status is

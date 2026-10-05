@@ -133,3 +133,39 @@ Artifacts: `table-performance-warmup-001/`, `table-performance-full-001/`,
 `lifecycle-build-002.log` alongside the separate lifecycle workload. That build's
 first attempt failed on an OCaml 5.3 reserved-word identifier in the new lifecycle
 example; it was renamed before the passing build. No compiler pin changed.
+
+## First passing full run — source b75ffa2
+
+After a fresh smoke warm-up, full002 passes with the normal visible window and
+an owned, temporary display/system-idle assertion, released when the batch exits.
+The executable SHA-256 is
+`84e85e810bdaf1ba4eb493e48a41adc1e7a3d6b4d9065b74d9b49b0fa0c438e3`.
+No simultaneous local compilation or second owned GUI ran; source editing and
+lightweight portable tests continued. The owner selected this desktop arrangement.
+
+Both directions visit all 100,000 rows, every row materializes, all 64 column
+bands are observed, selection survives eviction, and the middle-row/final-column
+reveal succeeds. Peak active rows/cells are 26/1,664, with at most 512 current
+application payload rows, 1,564 page loads and 1,560 evictions. All declared
+resource and queue counters return to zero.
+
+The 28,993 native draws have p95 13.844479 ms and p99 14.114815 ms. Peak process
+RSS is 606,683,136 bytes (578.578125 MiB); whole-process wall time is
+1,551.870371 seconds and CPU time 1,722.277686 seconds. The settled 60-second idle
+interval records zero native work; asynchronous activation snapshots remain true
+with zero observed changes. These are native work histograms, not physical
+presentation timing or a GPU/IOSurface allocation census.
+
+The complete report, including histograms, machine/display metadata and empty
+`budget_failures`, is [the full002 report](paged-table-run-002-och17.json). Command:
+
+```sh
+python3 scripts/measure_table_history.py \
+  --executable scratch/agents/root-20261004-resumed/performance_table-b75ffa2-release.exe \
+  --build-profile release --timeout 3600 \
+  --output scratch/agents/root-20261004-resumed/table-performance-full-002 \
+  --check-budgets
+```
+
+This is one successful full run; repeated-run acceptance remains open. The prior
+failed attempt is retained above and has not been relabeled.
