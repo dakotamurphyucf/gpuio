@@ -1,5 +1,13 @@
 # Numeric inputs, OTP and workflow-stepper review — OCH-41
 
+Current follow-up: [installed numeric/OTP evidence](../evidence/installed-numeric-otp-och41.md)
+records the numeric slot-duplication repair, before/after native regression and
+fresh installed macOS walkthroughs: 24 quantity presentation cases with retained
+history/application steps, and 16 OTP retention cases with native input/history,
+masking and read-only behavior. These supersede corresponding historical unrun
+statements below. Timing, resource/performance and release gates remain separate;
+workflow Stepper is not covered by those numeric walkthroughs. VoiceOver stays on hold.
+
 Source review, 2026-10-01. This distinguishes existing numeric behavior from
 remaining component coverage; it is not whole-family release acceptance.
 

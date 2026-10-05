@@ -4,6 +4,12 @@ Implemented local contract for OCH-41; [verification](../evidence/number-present
 covers Core, protocol, admission and TestPlatform behavior. This does not claim
 catalog or desktop acceptance.
 
+[Fresh installed macOS evidence](../evidence/installed-numeric-otp-och41.md) now
+passes scoped desktop checks after fixing duplicate generic rendering of the
+component-owned slots. Actual native paint counts cover Side/Stacked/Hidden,
+and public input/geometry/history checks cover 24 presentation combinations.
+Broader timing, resource and release acceptance remain separate.
+
 `View.number_frame` decorates a direct native `number_input` view and preserves
 its controller, draft, committed value, selection, composition, history and native
 step-repeat behavior. The Bonsai view module exposes the same helper; Eio users

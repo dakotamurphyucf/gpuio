@@ -65,6 +65,12 @@ whole-family acceptance. Start from [the catalog](catalog/README.md),
 
 Recent completed local checkpoints:
 
+- Numeric frame slots now render once: screenshot review found duplication
+  despite passing input checks, and a native regression reproduced it. The fix
+  passes 930 native tests (two existing skips), strict lint, formatting and a fresh
+  installed gallery: 24 numeric presentation/input/history cases and 16 OTP
+  retention/input/policy cases. [Before/after evidence](evidence/installed-numeric-otp-och41.md).
+
 - Installed sliders pass range-thumb keyboard/focus and bounds, linear and
   vertical logarithmic pointer preview/commit/cancel, policies, retained owners,
   remount and 32 static GPU cases. [Evidence](evidence/installed-sliders-och41.md)

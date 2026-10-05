@@ -235,12 +235,13 @@
       "id": "numbers",
       "owner": "OCH-34",
       "scope": "v1",
-      "audit_status": "Pinned base and styled numeric inputs reviewed. Draft/commit/history, side/stacked/hidden controls, integrated adornments/per-part appearance and application-selected steps have public APIs and gallery examples. Native request/repeat guards and managed Eio cancellation/failure cleanup have local deterministic coverage, including a saturated command lane. Latest physical macOS and resource acceptance remain open. Workflow Stepper is mapped separately under navigation. See numeric-review.md and the numeric request/presentation contracts.",
+      "audit_status": "Pinned base and styled numeric inputs reviewed. Draft/commit/history, side/stacked/hidden controls, integrated adornments/per-part appearance and application-selected steps have public APIs and gallery examples. Native request/repeat guards and managed Eio cancellation/failure cleanup have local deterministic coverage, including a saturated command lane. Duplicate slot painting is repaired with before/after native counts and full native regressions. Fresh installed macOS gallery passes 24 presentation/input/history cases and end-to-end OCaml application step requests; timing, resources and release acceptance remain separate. Workflow Stepper is mapped separately under navigation. See numeric-review.md and the numeric request/presentation contracts.",
       "public_interface": "lib/eio/number_input.mli",
       "example": "examples/numeric",
       "evidence": [
         "docs/evidence/numeric-inputs-och34.md",
-        "docs/catalog/numeric-review.md"
+        "docs/catalog/numeric-review.md",
+        "docs/evidence/installed-numeric-otp-och41.md"
       ],
       "gallery_page": "numeric-inputs",
       "contract": "Native draft versus committed value, stepping and bounded numeric domain.",
@@ -272,14 +273,15 @@
       "id": "otp",
       "owner": "OCH-34",
       "scope": "v1",
-      "audit_status": "Pinned base and styled OTP sources reviewed. Public Appearance now provides grouping, cell dimensions and theme colors while retaining one native draft/selection/composition/history owner. Paired fixtures, atomic admission and TestPlatform geometry/paint/retention checks pass; the numeric gallery has live grouping/size controls. Native caret blinking now has paint-only fake-clock and visibility/policy/close-lifecycle coverage with one cancellable task; latest physical macOS and measured resource acceptance remain open. See numeric-review.md and OTP presentation/caret evidence.",
+      "audit_status": "Pinned base and styled OTP sources reviewed. Public Appearance now provides grouping, cell dimensions and theme colors while retaining one native draft/selection/composition/history owner. Paired fixtures, atomic admission and TestPlatform geometry/paint/retention checks pass; the numeric gallery has live grouping/size controls. Native caret blinking now has paint-only fake-clock and visibility/policy/close-lifecycle coverage with one cancellable task; fresh installed macOS gallery passes 16 retained presentation cases, native typing/history, masking, normalization/rejection and read-only/remount behavior; physical caret timing and measured resource/release acceptance remain separate. See numeric-review.md and OTP presentation/caret evidence.",
       "public_interface": "lib/eio/otp_input.mli",
       "example": "examples/numeric",
       "evidence": [
         "docs/evidence/numeric-inputs-och34.md",
         "docs/catalog/numeric-review.md",
         "docs/evidence/otp-presentation-och41.md",
-        "docs/evidence/otp-caret-och41.md"
+        "docs/evidence/otp-caret-och41.md",
+        "docs/evidence/installed-numeric-otp-och41.md"
       ],
       "gallery_page": "numeric-inputs",
       "contract": "Canonical code policy, composition/paste validation, masking and explicit replacements.",
