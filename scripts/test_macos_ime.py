@@ -12,6 +12,8 @@ import json
 import os
 from pathlib import Path
 import plistlib
+import platform
+import re
 import signal
 import subprocess
 import sys
@@ -20,6 +22,7 @@ import time
 from mac_input_source import Sources, foreground_keys, japanese_source
 from test_agent_chat import Mac
 from test_gallery import TITLE, expect_field, focus_gallery_control
+from test_canvas import screenshot
 
 LABEL = 'Settings workspace name'
 COMPOSING = 'Finish composing text before resetting this field.'
@@ -63,12 +66,12 @@ def committed(mac, expected):
         raise RuntimeError('Committed field still reports active composition')
 
 
-def field_bounds(mac):
+def field_bounds(mac, *, label=LABEL, role="AXTextField"):
     class Pair(C.Structure):
         _fields_ = [('x', C.c_double), ('y', C.c_double)]
     get = mac.ax.AXValueGetValue
     get.restype, get.argtypes = C.c_bool, [C.c_void_p, C.c_int, C.c_void_p]
-    node = mac.wait_find(TITLE, LABEL, 'AXTextField')
+    node = mac.wait_find(TITLE, label, role)
     result = []
     try:
         for name, kind in [('AXPosition', 1), ('AXSize', 2)]:
@@ -86,7 +89,7 @@ def field_bounds(mac):
     return result
 
 
-def capture_candidates(mac, output, initial_ids):
+def capture_candidates(mac, output, initial_ids, *, label=LABEL, role="AXTextField"):
     deadline = time.monotonic() + 5
     while time.monotonic() < deadline:
         candidates = [w for w in windows(mac)
@@ -98,7 +101,7 @@ def capture_candidates(mac, output, initial_ids):
         time.sleep(.05)
     else:
         raise RuntimeError('No owned OS candidate window appeared after conversion')
-    editor = field_bounds(mac)
+    editor = field_bounds(mac, label=label, role=role)
     (output / 'candidate-windows.json').write_text(json.dumps(
         {'editor_bounds': editor, 'windows': candidates}, indent=2) + '\n')
     x, y, width, height = editor
@@ -166,10 +169,135 @@ def exercise(mac, output):
         sources.close()
 
 
+def multiline_composing(mac):
+    node = mac.find(TITLE, 'Composing text…', 'AXStaticText')
+    if node:
+        mac.release(node)
+        return True
+    return False
+
+
+def wait_multiline_ready(mac):
+    deadline = time.monotonic() + 5
+    while time.monotonic() < deadline:
+        if not multiline_composing(mac):
+            return
+        time.sleep(.05)
+    raise RuntimeError('Multiline editor still reports active composition')
+
+
+def exercise_multiline(mac, output):
+    label, role = 'Working notes', 'AXTextArea'
+    mac.press(TITLE, 'Text editing')
+    mac.press(TITLE, 'Multiline & search')
+    focus_gallery_control(mac, label, role)
+    # Enough lines to require a genuine inner editor scroll; multibyte prefix
+    # also exercises source offsets distinct from Unicode/UTF-16 indices.
+    prefix = 'Notes 世界 👨‍👩‍👧‍👦\n' + ''.join(f'Line {n:02}: retained context\n' for n in range(1,40))
+    seed = prefix + ('A long draft keeps its context while composing. ' * 18) + 'a'
+    mac.field(TITLE, label, role, seed)
+    expect_field(mac, TITLE, label, seed, role)
+    sources = Sources(mac)
+    observations = {'seed': seed, 'label': label, 'role': role}
+    try:
+        with japanese_source(sources, output):
+            time.sleep(.5)
+            foreground_keys(mac)
+            focus_gallery_control(mac, label, role)
+            mac.key(125, flags=1 << 20)  # Command-Down: last line, with native reveal.
+            time.sleep(.3)
+            mac.press(TITLE, 'Inspect view')  # Preserve-focus public viewport query.
+            node = mac.wait_find(TITLE, 'Layout covers lines ', 'AXStaticText', contains=True)
+            try:
+                values = [mac.text(node, name) for name in ('AXTitle','AXDescription','AXValue')]
+                viewport = next((value for value in values if value and value.startswith('Layout covers lines ')), '')
+            finally:
+                mac.release(node)
+            match = re.fullmatch(r'Layout covers lines (\d+)–(\d+) · scroll ([\d.-]+) px', viewport)
+            if not match or int(match[1]) <= 1 or int(match[2]) < 41 or float(match[3]) <= 0:
+                raise RuntimeError('The multiline editor did not scroll to its last line: ' + viewport)
+            observations['viewport'] = viewport
+            for stage in ('first', 'after-wrap-change'):
+                if stage == 'after-wrap-change':
+                    from test_gallery import activate
+                    activate(mac, mac.wait_find(TITLE, 'Wrap long lines', 'AXCheckBox'))
+                    focus_gallery_control(mac, label, role)
+                    mac.key(125, flags=1 << 20)
+                    time.sleep(.3)
+                baseline = mac.field(TITLE, label, role)
+                observations[stage] = {'baseline':baseline}
+                initial_ids = {w['kCGWindowNumber'] for w in windows(mac)
+                               if w.get('kCGWindowOwnerPID') == mac.pid and w.get('kCGWindowLayer') == 20}
+                for code in (45,34,4,31,45,5,31):
+                    mac.key(code)
+                    time.sleep(.15)
+                mac.wait_text(TITLE, 'Composing text…')
+                preedit = mac.field(TITLE, label, role)
+                if not preedit.startswith(baseline) or preedit == baseline:
+                    raise RuntimeError('Multiline preedit changed the preceding context')
+                observations[stage]['preedit'] = preedit
+                for _ in range(2):
+                    mac.key(49)
+                    time.sleep(.4)
+                mac.wait_text(TITLE, 'Composing text…')
+                stage_output = output / stage
+                stage_output.mkdir()
+                capture_candidates(mac, stage_output, initial_ids, label=label, role=role)
+                screenshot(mac, stage_output / 'editor.png', title=TITLE)
+                # Return commits IME text; another Return would insert a newline
+                # in a multiline editor. Observe the public composition snapshot
+                # after each key rather than assuming a fixed number of Returns.
+                returns = 0
+                while multiline_composing(mac) and returns < 3:
+                    mac.key(36)
+                    returns += 1
+                    time.sleep(.4)
+                wait_multiline_ready(mac)
+                value = mac.field(TITLE, label, role)
+                suffix = value[len(baseline):] if value.startswith(baseline) else ''
+                if not suffix or not all(ord(c) > 127 for c in suffix) or '\n' in suffix:
+                    raise RuntimeError('Expected only the committed Japanese suffix: ' + repr(value))
+                observations[stage].update(committed=value,commit_returns=returns)
+                mac.key(6, flags=1 << 20)
+                expect_field(mac, TITLE, label, baseline, role)
+                mac.key(6, flags=(1 << 20) | (1 << 17))
+                expect_field(mac, TITLE, label, value, role)
+                observations[stage]['undo_redo'] = True
+                for code in (45,34):
+                    mac.key(code)
+                    time.sleep(.15)
+                mac.wait_text(TITLE, 'Composing text…')
+                observations[stage]['cancel_preedit'] = mac.field(TITLE,label,role)
+                for _ in range(3):
+                    if not multiline_composing(mac):
+                        break
+                    mac.key(53)
+                    time.sleep(.2)
+                wait_multiline_ready(mac)
+                expect_field(mac, TITLE, label, value, role)
+                observations[stage]['cancel'] = True
+                print('MULTILINE_IME_PHASE_OK',stage,'commit_returns=',returns,flush=True)
+            # Outside composition, Return must retain multiline semantics.
+            final = mac.field(TITLE,label,role)
+            # Cancellation restores the prior selection, which redo may leave
+            # over the committed phrase. Collapse it explicitly for an append.
+            mac.key(125,flags=1 << 20)
+            time.sleep(.3)
+            mac.key(36)
+            expect_field(mac,TITLE,label,final+'\n',role)
+            mac.key(6,flags=1 << 20)
+            expect_field(mac,TITLE,label,final,role)
+            observations['ordinary_newline_and_undo'] = True
+    finally:
+        (output/'multiline-observations.json').write_text(json.dumps(observations,indent=2,ensure_ascii=False)+'\n')
+        sources.close()
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--executable', type=Path)
+    parser.add_argument('--editor', choices=('settings','multiline'), default='settings')
     parser.add_argument('--restore', type=Path, help='Recover input sources from a prior original.json; opens no app')
     args = parser.parse_args()
     if sys.platform != 'darwin':
@@ -190,13 +318,16 @@ def main():
     with executable.open('rb') as binary:
         digest = hashlib.file_digest(binary, 'sha256').hexdigest()
     (args.output / 'executable.json').write_text(json.dumps(
-        {'path': str(executable), 'sha256': digest}, indent=2) + '\n')
+        {'path': str(executable), 'sha256': digest, 'editor': args.editor,
+         'platform': platform.platform(),
+         'revision': subprocess.check_output(['git','rev-parse','HEAD'],cwd=repo,text=True).strip(),
+         'dirty': bool(subprocess.check_output(['git','status','--porcelain'],cwd=repo,text=True))}, indent=2) + '\n')
     with (args.output / 'application.log').open('w') as log:
         child = subprocess.Popen([str(executable)], cwd=repo, stdout=log, stderr=subprocess.STDOUT)
         mac = None
         try:
             mac = Mac(child.pid, child)
-            exercise(mac, args.output)
+            (exercise_multiline if args.editor == "multiline" else exercise)(mac, args.output)
             mac.close(TITLE)
             if child.wait(timeout=15):
                 raise RuntimeError('Gallery failed to exit successfully')
@@ -210,7 +341,7 @@ def main():
                 except subprocess.TimeoutExpired:
                     child.kill()
                     child.wait()
-    print('GPUIO_MACOS_JAPANESE_IME_OK: actual preedit/candidate/commit, undo/redo, cancel, source restoration, shutdown')
+    print(f'GPUIO_MACOS_JAPANESE_IME_OK: {args.editor}, actual preedit/candidate/commit, undo/redo, cancel, source restoration, shutdown')
 
 
 def interrupted(signum, frame):

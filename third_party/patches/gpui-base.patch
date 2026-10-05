@@ -1,6 +1,6 @@
 --- a/src/input/base/state.rs
 +++ b/src/input/base/state.rs
-@@ -125,6 +125,27 @@
+@@ -125,6 +125,57 @@
      Focus,
      Blur,
  }
@@ -13,6 +13,36 @@
 +    pub text: SharedString,
 +    pub selection: (usize, usize),
 +    pub focused: bool,
++}
++
++/// A native element occupying a fixed row-local slot. Called during prepaint;
++/// renderers must not mutate the input or perform I/O.
++pub type RowAdornmentRenderer =
++    Rc<dyn Fn(gpui::Size<Pixels>, &mut Window, &mut App) -> gpui::AnyElement>;
++
++/// Decorations beside original read-only code text, never replacing its bytes.
++/// The gutter shares (or reserves) the fold slot; the suffix follows the shaped text
++/// and contributes to horizontal scroll extent. Neither changes row height.
++#[derive(Clone)]
++pub struct RowAdornment {
++    pub gutter: Option<RowAdornmentRenderer>,
++    pub suffix: Option<RowAdornmentRenderer>,
++    pub suffix_width: Pixels,
++}
++
++#[derive(Clone, Copy, Debug, PartialEq, Eq)]
++pub struct InvalidRowAdornments;
++
++/// Rust-owned single-line formatting policy. The adapter validates configuration
++/// and bounds all returned text; no foreign-runtime callback is permitted here.
++/// Exact bridge replacements are checked with accepts before mutation. Interactive
++/// candidates may insert separators and return a caret in the resulting UTF-8 text.
++pub trait BridgeInputFormat {
++    fn accepts(&self, text: &str) -> bool;
++    fn format(&self, text: &str, caret: usize) -> Option<(String, usize)>;
++    fn normalize<'a>(&self, text: &'a str) -> Cow<'a, str> {
++        Cow::Borrowed(text)
++    }
 +}
 +
 +/// Native adapter hook on the actual focus-owning editor element. This avoids
@@ -28,7 +58,7 @@
  
  pub(super) const CONTEXT: &str = "Input";
  
-@@ -340,6 +361,10 @@
+@@ -340,8 +391,18 @@
      pub(super) focus_handle: FocusHandle,
      pub(super) mode: LayoutMode,
      pub(super) text: Rope,
@@ -36,10 +66,40 @@
 +    bridge_revision: i64,
 +    bridge_max_bytes: Option<usize>,
 +    bridge_decorator: Option<BridgeDecorator<M>>,
++    bridge_input_format: Option<Rc<dyn BridgeInputFormat>>,
++    bridge_composition_before: Option<(Rope, CursorSelection)>,
++    pub(super) row_adornments: Option<Rc<std::collections::BTreeMap<usize, RowAdornment>>>,
++    pub(super) row_adornment_begin: Option<Rc<dyn Fn()>>,
      pub(super) display_map: DisplayMap,
      pub(super) undo_manager: UndoManager,
++    // Replay recorded text exactly; ignoring history also covers set_value.
++    replaying_history: bool,
      pub(super) search_session: super::SearchSession,
-@@ -524,6 +549,7 @@
+     /// Advances every time search is explicitly invoked. See
+     /// [`InputBaseState::search_activation_revision`].
+@@ -369,11 +430,13 @@
+     /// The text bounds
+     pub(super) last_bounds: Option<Bounds<Pixels>>,
+     pub(super) last_selected_range: Option<CursorSelection>,
++    pub(super) last_layout_scroll_offset: Point<Pixels>,
+     pub(super) selecting: bool,
+     /// Anchor point of an in-progress columnar (block) selection.
+     pub(super) column_select_start: Option<ColumnarPoint>,
+     pub(crate) disabled: bool,
+     pub(crate) readonly: bool,
++    user_selectable: bool,
+     pub(crate) text_align: TextAlign,
+     pub(super) masked: bool,
+     pub(super) clean_on_escape: bool,
+@@ -402,6 +465,7 @@
+     /// is rebuilt at the top of every render, which is what keeps it current
+     /// when the palette changes after the state was built.
+     pub(super) editor_style: InputEditorStyle,
++    pub(super) line_number_offset: usize,
+     /// What a consumer projected, kept verbatim so that resolution never
+     /// consumes its own output: resolving in place would fill the unset
+     /// colours once and then never see them as unset again, which is the same
+@@ -524,6 +588,7 @@
  }
  
  impl<M: InputModeKind> EventEmitter<InputEvent> for InputBaseState<M> {}
@@ -47,21 +107,175 @@
  
  impl<M: InputModeKind> InputBaseState<M> {
      #[doc(hidden)]
-@@ -679,6 +705,9 @@
+@@ -591,11 +656,33 @@
+         M::CODE_EDITOR
+     }
+ 
++    /// Whether pointer and keyboard gestures may select text. Programmatic
++    /// bridge selection remains available for search and navigation.
++    pub fn is_user_selectable(&self) -> bool {
++        self.user_selectable
++    }
++
++    /// Enable user selection (the default). Disabling cancels an active drag,
++    /// collapses the current range at its head and disables selection Copy.
++    /// It preserves focus, navigation, scrolling and programmatic selection.
++    pub fn set_user_selectable(&mut self, selectable: bool, cx: &mut Context<Self>) {
++        if self.user_selectable == selectable {
++            return;
++        }
++        self.user_selectable = selectable;
++        if !selectable {
++            self.cancel_drag_selection();
++            self.selections.remove_all_but_active();
++            self.set_cursor_to(self.cursor());
++        }
++        cx.notify();
++    }
++
+     /// Whether the user is allowed to copy the selection out.
+     ///
+     /// A masked input keeps its value out of the clipboard.
+     pub fn is_copyable(&self) -> bool {
+-        self.selections.iter().any(|sel| !sel.is_empty()) && !self.masked
++        self.user_selectable && self.selections.iter().any(|sel| !sel.is_empty()) && !self.masked
+     }
+ 
+     pub fn context_menu_capabilities(&self) -> InputContextMenuCapabilities {
+@@ -604,7 +691,7 @@
+             .disabled(self.disabled)
+             .readonly(self.readonly)
+             .code_editor(self.is_code_editor())
+-            .selection(!self.active_selection().is_empty())
++            .selection(self.user_selectable && !self.active_selection().is_empty())
+             .masked(self.masked)
+             .go_to_definition(go_to_definition)
+             .code_actions(code_actions)
+@@ -667,6 +754,8 @@
+                             blink_cursor.start(cx);
+                         });
+                     }
++                } else {
++                    input.blink_cursor.update(cx, |cursor, cx| cursor.stop(cx));
+                 }
+             }),
+             cx.on_focus(&focus_handle, window, Self::on_focus),
+@@ -679,6 +768,13 @@
              extras: M::Extras::default(),
              focus_handle: focus_handle.clone(),
              text: "".into(),
 +            bridge_revision: 0,
 +            bridge_max_bytes: None,
 +            bridge_decorator: None,
++            bridge_input_format: None,
++            bridge_composition_before: None,
++            row_adornments: None,
++            row_adornment_begin: None,
              display_map: DisplayMap::new(text_style.font(), window.rem_size(), None),
              search_session: super::SearchSession::default(),
              search_activation_revision: 0,
-@@ -811,6 +840,11 @@
+@@ -690,11 +786,13 @@
+             cursor_surrounding_lines: None,
+             blink_cursor,
+             undo_manager,
++            replaying_history: false,
+             selections: Selections::default(),
+             selected_word_range: None,
+             ime_marked_range: None,
+             input_bounds: Bounds::default(),
+             selecting: false,
++            user_selectable: true,
+             disabled: false,
+             readonly: false,
+             text_align: TextAlign::Left,
+@@ -712,6 +810,7 @@
+             last_layout: None,
+             last_bounds: None,
+             last_selected_range: None,
++            last_layout_scroll_offset: Point::default(),
+             column_select_start: None,
+             last_cursor: None,
+             scroll_handle: ScrollHandle::new(),
+@@ -723,6 +822,7 @@
+             mask_pattern: MaskPattern::default(),
+             mask_pattern_set: false,
+             editor_style: InputEditorStyle::default(),
++            line_number_offset: 0,
+             projected_editor_style: InputEditorStyle::default(),
+             diagnostic_popover: None,
+             context_menu_handler: None,
+@@ -811,6 +911,78 @@
          self.mode.ensure_highlighter_factory(factory);
      }
  
++    /// Replace bounded row adornments on a read-only, nonwrapping code editor.
++    /// Row keys are zero-based buffer rows in the current input value. A map is
++    /// limited to 1024 rows and each suffix to 0..1024 finite logical pixels.
++    /// Call after replacing text; clear before reusing the editor for other text.
++    /// Scrolling and folding position the native elements in the current frame.
++    /// `begin_frame` runs once before visible row renderers; it can clear a
++    /// caller-owned geometry registry, but must not mutate this input or do I/O.
++    pub fn set_row_adornments(
++        &mut self,
++        adornments: Option<Rc<std::collections::BTreeMap<usize, RowAdornment>>>,
++        begin_frame: Option<Rc<dyn Fn()>>,
++        cx: &mut Context<Self>,
++    ) -> Result<(), InvalidRowAdornments> {
++        if let Some(entries) = &adornments {
++            if !M::CODE_EDITOR
++                || !self.readonly
++                || self.soft_wrap
++                || entries.len() > 1024
++                || entries.iter().any(|(row, item)| {
++                    *row >= self.text.lines_len()
++                        || !f32::from(item.suffix_width).is_finite()
++                        || item.suffix_width < px(0.)
++                        || item.suffix_width > px(1024.)
++                })
++            {
++                return Err(InvalidRowAdornments);
++            }
++        }
++        self.row_adornments = adornments;
++        self.row_adornment_begin = begin_frame;
++        cx.notify();
++        Ok(())
++    }
++
 +    /// Install native semantics on the element that owns keyboard focus.
++    /// Retain the draft, composition, selection and history when policy changes.
++    pub fn set_bridge_input_format(&mut self, format: Option<Rc<dyn BridgeInputFormat>>) {
++        self.bridge_input_format = format;
++    }
++
++    fn cancel_bridge_composition(&mut self, window: &mut Window, cx: &mut Context<Self>) {
++        let Some((text, selection)) = self.bridge_composition_before.take() else {
++            return;
++        };
++        self.undo_manager.discard_bridge_composition();
++        self.undo_manager.set_ignoring(true);
++        self.replaying_history = true;
++        let range = self.range_to_utf16(&(0..self.text.len()));
++        self.with_edits_allowed(|this| {
++            this.replace_text_in_range(Some(range), &text.to_string(), window, cx);
++        });
++        self.replaying_history = false;
++        self.undo_manager.set_ignoring(false);
++        let (anchor, head) = if selection.reversed {
++            (selection.end, selection.start)
++        } else {
++            (selection.start, selection.end)
++        };
++        self.bridge_select(anchor, head, cx);
++    }
++
++    /// Used by the native adapter before applying an exact replacement command.
++    pub fn bridge_accepts_exact_text(&self, text: &str) -> bool {
++        self.bridge_input_format
++            .as_ref()
++            .is_none_or(|format| format.accepts(text))
++    }
++
 +    pub fn set_bridge_decorator(&mut self, decorate: BridgeDecorator<M>) {
 +        self.bridge_decorator = Some(decorate);
 +    }
@@ -69,7 +283,38 @@
      pub fn set_editor_style(&mut self, style: InputEditorStyle) {
          self.editor_style = style.clone();
          self.projected_editor_style = style;
-@@ -1043,6 +1077,9 @@
+@@ -865,6 +1037,14 @@
+         &self,
+         offset: usize,
+     ) -> (usize, usize, Option<Point<Pixels>>) {
++        self.line_and_position_for_offset_with_affinity(offset, false)
++    }
++
++    fn line_and_position_for_offset_with_affinity(
++        &self,
++        offset: usize,
++        line_end_affinity: bool,
++    ) -> (usize, usize, Option<Point<Pixels>>) {
+         let Some(last_layout) = &self.last_layout else {
+             return (0, 0, None);
+         };
+@@ -873,8 +1053,13 @@
+         let mut y_offset = last_layout.visible_top;
+         for (vi, line) in last_layout.lines.iter().enumerate() {
+             let prev_lines_offset = last_layout.visible_line_byte_offsets[vi];
+-            let local_offset = offset.saturating_sub(prev_lines_offset);
+-            if let Some(pos) = line.position_for_index(local_offset, last_layout, false) {
++            // Visible source lines can skip folded or scrolled-out bytes. An
++            // earlier offset must not clamp to this later line's first glyph.
++            let Some(local_offset) = offset.checked_sub(prev_lines_offset) else {
++                break;
++            };
++            if let Some(pos) = line.position_for_index(local_offset, last_layout, line_end_affinity)
++            {
+                 let sub_line_index = (pos.y / line_height) as usize;
+                 let adjusted_pos = point(pos.x + last_layout.line_number_width, pos.y + y_offset);
+                 return (vi, sub_line_index, Some(adjusted_pos));
+@@ -1043,6 +1228,9 @@
          }
  
          self.disabled = disabled;
@@ -79,7 +324,16 @@
          cx.notify();
      }
  
-@@ -1076,7 +1113,95 @@
+@@ -1066,7 +1254,7 @@
+ 
+         self.readonly = readonly;
+         if readonly {
+-            self.search_session.replace_mode = false;
++            self.set_search_replace_mode(false, cx);
+         }
+         cx.notify();
+     }
+@@ -1076,7 +1264,144 @@
      /// This is false when the input is `disabled` or `readonly`, the programmatic
      /// APIs (e.g.: [`Self::set_value`], [`Self::insert`]) are not limited by this.
      pub fn is_editable(&self) -> bool {
@@ -173,10 +427,59 @@
 +
 +    fn bridge_accepts_size(&self, size: usize) -> bool {
 +        self.bridge_max_bytes.is_none_or(|limit| size <= limit)
++    }
++
++    /// GPUIO literal query bound. Oversized selection seeds retain the previous
++    /// query rather than compiling an unbounded matcher from a native shortcut.
++    pub(crate) fn bridge_accepts_search_query(&self, query: &str) -> bool {
++        self.bridge_max_bytes.is_none() || (query.len() <= 2048 && !query.contains('\0'))
++    }
++
++    /// Preflight search expansion before constructing any expanded document.
++    /// Ranges come from the current literal matcher, in ascending byte order.
++    pub(crate) fn prepare_search_replacement(
++        &self,
++        ranges: &[Range<usize>],
++        replacement: &str,
++    ) -> Option<String> {
++        if !self.is_replaceable()
++            || self.ime_marked_range.is_some()
++            || ranges.is_empty()
++            || (self.bridge_max_bytes.is_some() && replacement.contains('\0'))
++        {
++            return None;
++        }
++        let removed = ranges
++            .iter()
++            .try_fold(0usize, |total, range| total.checked_add(range.len()))?;
++        let size = self
++            .text
++            .len()
++            .checked_sub(removed)?
++            .checked_add(replacement.len().checked_mul(ranges.len())?)?;
++        if !self.bridge_accepts_size(size) {
++            return None;
++        }
++        // Build in source order, avoiding one Rope mutation per occurrence in
++        // dense documents. Both strings remain bounded by the bridge limit.
++        let source = self.text.to_string();
++        let mut text = String::with_capacity(size);
++        let mut previous_end = 0;
++        for range in ranges {
++            source.get(range.clone())?;
++            text.push_str(source.get(previous_end..range.start)?);
++            text.push_str(replacement);
++            previous_end = range.end;
++        }
++        text.push_str(source.get(previous_end..)?);
++        if !self.bridge_accepts_exact_text(&text) {
++            return None;
++        }
++        Some(text)
      }
  
      /// Set true to clear the input by pressing Escape key.
-@@ -1250,6 +1375,9 @@
+@@ -1250,6 +1575,9 @@
  
      /// Focus the input field.
      pub fn focus(&self, window: &mut Window, cx: &mut Context<Self>) {
@@ -186,7 +489,18 @@
          self.focus_handle.focus(window, cx);
          self.blink_cursor.update(cx, |cursor, cx| {
              cursor.start(cx);
-@@ -1882,6 +2010,9 @@
+@@ -1322,7 +1650,9 @@
+         window: &mut Window,
+         cx: &mut Context<Self>,
+     ) {
+-        self.select_all(window, cx);
++        if self.user_selectable {
++            self.select_all(window, cx);
++        }
+     }
+ 
+     pub(super) fn select_to_start(
+@@ -1882,6 +2212,9 @@
      }
  
      pub(super) fn enter(&mut self, action: &Enter, window: &mut Window, cx: &mut Context<Self>) {
@@ -196,7 +510,7 @@
          if M::handle_context_menu_action(self, Box::new(action.clone()), window, cx) {
              return;
          }
-@@ -1989,7 +2120,18 @@
+@@ -1989,7 +2322,18 @@
              // Single line input or submit-on-enter: just emit the event
              // (e.g.: in a dialog to confirm, or a chat textarea to send).
              self.undo_manager.break_transaction_coalescing();
@@ -216,7 +530,186 @@
          }
  
          cx.emit(InputEvent::PressEnter {
-@@ -3122,13 +3264,50 @@
+@@ -2088,7 +2432,7 @@
+     /// the first/last display row) or that would duplicate an existing cursor
+     /// are skipped.
+     fn add_cursor_vertical(&mut self, move_lines: isize, cx: &mut Context<Self>) {
+-        if !self.is_multi_line() {
++        if !self.is_multi_line() || !self.user_selectable {
+             return;
+         }
+ 
+@@ -2136,7 +2480,7 @@
+     /// Rejected when `offset` lands inside an existing selection or exactly on
+     /// an existing cursor.
+     pub(super) fn add_cursor_at(&mut self, offset: usize, cx: &mut Context<Self>) {
+-        if !self.is_multi_line() {
++        if !self.is_multi_line() || !self.user_selectable {
+             return;
+         }
+ 
+@@ -2233,11 +2577,21 @@
+             }
+         }
+ 
+-        self.selecting = true;
++        self.selecting = self.user_selectable;
+         let (offset, line_end_affinity, columns_past_line_end) =
+             self.resolve_mouse_position(event.position);
+ 
+         if M::on_click(self, event, offset, window, cx) {
++            return;
++        }
++
++        if !self.user_selectable {
++            if event.button == MouseButton::Left {
++                self.selections.remove_all_but_active();
++                self.move_to_with_affinity(offset, None, line_end_affinity, cx);
++            } else if event.button == MouseButton::Right && self.enable_context_menu {
++                self.pending_context_menu = Some((event.position, offset));
++            }
+             return;
+         }
+ 
+@@ -2379,7 +2733,23 @@
+         offset: Option<Point<Pixels>>,
+         cx: &mut Context<Self>,
+     ) {
+-        let mut offset = offset.unwrap_or(self.scroll_handle.offset());
++        let offset = self.clamp_scroll_offset(
++            offset.unwrap_or(self.scroll_handle.offset()),
++            self.scroll_size,
++            self.input_bounds.size,
++        );
++        if self.scroll_handle.offset() != offset {
++            self.scroll_handle.set_offset(offset);
++            cx.notify();
++        }
++    }
++
++    pub(super) fn clamp_scroll_offset(
++        &self,
++        mut offset: Point<Pixels>,
++        scroll_size: gpui::Size<Pixels>,
++        input_size: gpui::Size<Pixels>,
++    ) -> Point<Pixels> {
+         // In addition to left alignment, a cursor position will be reserved on the right side
+         let safe_x_offset = if self.text_align == TextAlign::Left {
+             px(0.)
+@@ -2387,10 +2757,9 @@
+             -CURSOR_WIDTH
+         };
+ 
+-        let safe_y_range =
+-            (-self.scroll_size.height + self.input_bounds.size.height).min(px(0.0))..px(0.);
+-        let safe_x_range = (-self.scroll_size.width + self.input_bounds.size.width + safe_x_offset)
+-            .min(safe_x_offset)..px(0.);
++        let safe_y_range = (-scroll_size.height + input_size.height).min(px(0.0))..px(0.);
++        let safe_x_range =
++            (-scroll_size.width + input_size.width + safe_x_offset).min(safe_x_offset)..px(0.);
+ 
+         offset.y = if self.is_single_line() {
+             px(0.)
+@@ -2398,10 +2767,7 @@
+             offset.y.clamp(safe_y_range.start, safe_y_range.end)
+         };
+         offset.x = offset.x.clamp(safe_x_range.start, safe_x_range.end);
+-        if self.scroll_handle.offset() != offset {
+-            self.scroll_handle.set_offset(offset);
+-            cx.notify();
+-        }
++        offset
+     }
+ 
+     /// Scroll to make the given offset visible.
+@@ -2481,17 +2847,18 @@
+         // `TextElement::layout_cursors` so both scroll-into-view paths agree
+         // (a mismatch flickered on `Down` at end-of-buffer with a small
+         // `cursor_surrounding_lines` override).
+-        let edge_height =
+-            if matches!(padding, ScrollPadding::SurroundingLines) && self.is_code_editor() {
+-                super::element::cursor_surrounding_padding(
+-                    self.mode.is_auto_grow(),
+-                    self.cursor_surrounding_lines,
+-                    super::element::viewport_visible_lines(bounds.size.height, line_height),
+-                    line_height,
+-                )
+-            } else {
+-                line_height
+-            };
++        let edge_height = if matches!(padding, ScrollPadding::SurroundingLines)
++            && (self.is_code_editor() || self.cursor_surrounding_lines.is_some())
++        {
++            super::element::cursor_surrounding_padding(
++                self.mode.is_auto_grow(),
++                self.cursor_surrounding_lines,
++                super::element::viewport_visible_lines(bounds.size.height, line_height),
++                line_height,
++            )
++        } else {
++            line_height
++        };
+         if row_offset_y - edge_height + line_height < -scroll_offset.y {
+             // Scroll up
+             scroll_offset.y = -row_offset_y + edge_height - line_height;
+@@ -2684,6 +3051,7 @@
+ 
+     pub(super) fn undo(&mut self, _: &Undo, window: &mut Window, cx: &mut Context<Self>) {
+         self.undo_manager.set_ignoring(true);
++        self.replaying_history = true;
+         // The manager hands the changes back in reverse application order.
+         if let Some(replay) = self.undo_manager.undo() {
+             for change in &replay.changes {
+@@ -2694,11 +3062,13 @@
+             self.mode
+                 .restore_auto_closed_pairs(replay.auto_closed_pairs.unwrap_or_default());
+         }
++        self.replaying_history = false;
+         self.undo_manager.set_ignoring(false);
+     }
+ 
+     pub(super) fn redo(&mut self, _: &Redo, window: &mut Window, cx: &mut Context<Self>) {
+         self.undo_manager.set_ignoring(true);
++        self.replaying_history = true;
+         // Redo replays in forward application order.
+         if let Some(replay) = self.undo_manager.redo() {
+             for change in &replay.changes {
+@@ -2709,6 +3079,7 @@
+             self.mode
+                 .restore_auto_closed_pairs(replay.auto_closed_pairs.unwrap_or_default());
+         }
++        self.replaying_history = false;
+         self.undo_manager.set_ignoring(false);
+     }
+ 
+@@ -2779,6 +3150,16 @@
+     /// Current scroll offset of the editor viewport.
+     pub fn scroll_offset(&self) -> gpui::Point<gpui::Pixels> {
+         self.scroll_handle.offset()
++    }
++
++    /// Scroll offset recorded by the most recent completed editor layout/paint.
++    /// Unlike `scroll_offset`, this does not advance when wheel input updates the
++    /// live handle before another layout. It shares the layout generation of
++    /// `visible_row_range`, `input_bounds` and `line_height`.
++    pub fn layout_scroll_offset(&self) -> Option<Point<Pixels>> {
++        self.last_layout
++            .as_ref()
++            .map(|_| self.last_layout_scroll_offset)
+     }
+ 
+     /// Set scroll offset of the editor viewport.
+@@ -3021,6 +3402,9 @@
+         f: impl Fn(&Self, &CursorSelection) -> usize,
+         cx: &mut Context<Self>,
+     ) {
++        if !self.user_selectable {
++            return;
++        }
+         self.pause_blink_cursor(cx);
+         self.undo_manager.break_transaction_coalescing();
+         M::clear_inline_completion(self, cx);
+@@ -3122,13 +3506,50 @@
      }
  
      pub(super) fn previous_boundary(&self, offset: usize) -> usize {
@@ -267,7 +760,166 @@
      }
  
      /// Returns the true to let InputElement to render cursor, when Input is focused and current BlinkCursor is visible.
-@@ -3432,7 +3611,18 @@
+@@ -3146,7 +3567,18 @@
+         cx.emit(InputEvent::Focus);
+     }
+ 
++    fn cancel_drag_selection(&mut self) {
++        self.auto_scroll.stop();
++        self.selecting = false;
++        self.column_select_start = None;
++        self.selected_word_range = None;
++    }
++
+     fn on_blur(&mut self, window: &mut Window, cx: &mut Context<Self>) {
++        // GPUIO: blur may hide or make a retained editor inert before a mouse-up
++        // arrives. Stop the drag timer and transient gesture state, preserving
++        // the actual selection range for menu Copy and later restoration.
++        self.cancel_drag_selection();
+         if M::is_context_menu_open(self, cx) {
+             return;
+         }
+@@ -3245,20 +3677,34 @@
+             let delta = AutoScroll::compute_delta(event.position.y, self.input_bounds);
+             // Input's ScrollHandle uses negative-y-is-down; negate the positive-towards-bottom delta.
+             let scroll_delta = delta.map(|d| -d);
+-            self.auto_scroll.set(scroll_delta, cx, |delta, state, cx| {
+-                let current = state.scroll_handle.offset();
+-                state.update_scroll_offset(Some(point(current.x, current.y + delta)), cx);
+-                if let Some(pos) = state.auto_scroll.last_drag_position {
+-                    let (offset, line_end_affinity, columns_past_line_end) =
+-                        state.resolve_mouse_position(pos);
+-                    if let Some(start) = state.column_select_start {
+-                        let end = ColumnarPoint::new(offset, columns_past_line_end);
+-                        state.build_columnar_selection(start, end, cx);
+-                    } else {
+-                        state.select_to_with_affinity(offset, line_end_affinity, cx);
++            let window_handle = window.window_handle();
++            self.auto_scroll
++                .set(scroll_delta, cx, move |delta, state, cx| {
++                    // GPUI delivers blur listeners after drawing. A ready timer can
++                    // run after Window::blur but before that notification; it must
++                    // not extend selection in the intervening frame.
++                    let focused = cx
++                        .update_window(window_handle, |_, window, _| {
++                            window.is_window_active() && state.focus_handle.is_focused(window)
++                        })
++                        .unwrap_or(false);
++                    if !focused {
++                        state.cancel_drag_selection();
++                        return;
+                     }
+-                }
+-            });
++                    let current = state.scroll_handle.offset();
++                    state.update_scroll_offset(Some(point(current.x, current.y + delta)), cx);
++                    if let Some(pos) = state.auto_scroll.last_drag_position {
++                        let (offset, line_end_affinity, columns_past_line_end) =
++                            state.resolve_mouse_position(pos);
++                        if let Some(start) = state.column_select_start {
++                            let end = ColumnarPoint::new(offset, columns_past_line_end);
++                            state.build_columnar_selection(start, end, cx);
++                        } else {
++                            state.select_to_with_affinity(offset, line_end_affinity, cx);
++                        }
++                    }
++                });
+         }
+     }
+ 
+@@ -3268,7 +3714,9 @@
+     /// full-width number characters into their ASCII equivalents,
+     /// e.g. `12。5` -> `12.5`.
+     fn normalize_input<'a>(&self, new_text: &'a str) -> Cow<'a, str> {
+-        let normalized = if matches!(self.mask_pattern, MaskPattern::Number { .. }) {
++        let normalized = if let Some(format) = &self.bridge_input_format {
++            format.normalize(new_text)
++        } else if matches!(self.mask_pattern, MaskPattern::Number { .. }) {
+             normalize_number_input(new_text)
+         } else {
+             Cow::Borrowed(new_text)
+@@ -3379,32 +3827,58 @@
+         self.text.slice(range)
+     }
+ 
+-    /// Return the rendered bounds for a UTF-8 byte range in the current input contents.
+-    ///
+-    /// Returns `None` when the requested range is not currently laid out or visible.
++    /// Union of rendered glyph spans and endpoint carets for a UTF-8 source range.
++    /// Coordinates come from one completed paint, in window logical pixels, and
++    /// are not clipped. Both endpoints must be laid out (including overscan).
++    /// Invalid ranges or a source/masking change since that paint return `None`.
+     pub fn range_to_bounds(&self, range: &Range<usize>) -> Option<Bounds<Pixels>> {
+-        let Some(last_layout) = self.last_layout.as_ref() else {
++        let layout = self.last_layout.as_ref()?;
++        if layout.source_revision != self.bridge_revision
++            || layout.masked != self.masked
++            || range.start > range.end
++            || range.end > self.text.len()
++            || !self.text.is_char_boundary(range.start)
++            || !self.text.is_char_boundary(range.end)
++        {
+             return None;
++        }
++        let range = if layout.masked {
++            super::element::masked_display_offset(&self.text, range.start)
++                ..super::element::masked_display_offset(&self.text, range.end)
++        } else {
++            range.clone()
+         };
+-
+-        let Some(last_bounds) = self.last_bounds else {
+-            return None;
++        let start = self.line_and_position_for_offset(range.start).2?;
++        let end = self
++            .line_and_position_for_offset_with_affinity(range.end, !range.is_empty())
++            .2?;
++        let caret = |position| {
++            Bounds::new(
++                layout.range_origin + position,
++                gpui::size(px(0.), layout.line_height),
++            )
+         };
+-
+-        let (_, _, start_pos) = self.line_and_position_for_offset(range.start);
+-        let (_, _, end_pos) = self.line_and_position_for_offset(range.end);
+-
+-        let Some(start_pos) = start_pos else {
+-            return None;
+-        };
+-        let Some(end_pos) = end_pos else {
+-            return None;
+-        };
+-
+-        Some(Bounds::from_corners(
+-            last_bounds.origin + start_pos,
+-            last_bounds.origin + end_pos + point(px(0.), last_layout.line_height),
+-        ))
++        let mut bounds = caret(start).union(&caret(end));
++        if range.is_empty() {
++            return Some(bounds);
++        }
++        let mut y = layout.visible_top;
++        for (line, &offset) in layout.lines.iter().zip(&layout.visible_line_byte_offsets) {
++            let start = range.start.max(offset);
++            let end = range.end.min(offset + line.len());
++            if start < end {
++                line.range_bounds(
++                    start - offset..end - offset,
++                    layout.range_origin + point(layout.line_number_width, y),
++                    layout.line_height,
++                    layout.text_align,
++                    layout.content_width,
++                    |fragment| bounds = bounds.union(&fragment),
++                );
++            }
++            y += line.size(layout.line_height).height;
++        }
++        Some(bounds)
+     }
+ 
+     /// Replace text in range in silent.
+@@ -3432,7 +3906,18 @@
          window: &mut Window,
          cx: &mut Context<Self>,
      ) {
@@ -287,7 +939,7 @@
              return;
          }
  
-@@ -3583,6 +3773,10 @@
+@@ -3583,6 +4068,10 @@
          if self.is_multi_line() {
              self.mode.update_auto_grow(&self.display_map);
          }
@@ -298,7 +950,28 @@
          if self.emit_events {
              cx.emit(InputEvent::Change);
          }
-@@ -3686,7 +3880,7 @@
+@@ -3669,7 +4158,19 @@
+             .map(|range| self.range_to_utf16(&range.into()))
+     }
+ 
+-    fn unmark_text(&mut self, _window: &mut Window, _cx: &mut Context<Self>) {
++    fn unmark_text(&mut self, window: &mut Window, cx: &mut Context<Self>) {
++        if self.bridge_input_format.is_some() {
++            if let Some(range) = self.ime_marked_range {
++                let text = self.text.slice(range.start..range.end).to_string();
++                // A policy transition to readonly/disabled must not strand the
++                // already active platform composition when it is unmarked.
++                self.with_edits_allowed(|this| {
++                    this.replace_text_in_range(None, &text, window, cx);
++                });
++                return;
++            }
++        }
++        self.bridge_composition_before = None;
+         self.ime_marked_range = None;
+         self.undo_manager.commit_transaction();
+     }
+@@ -3686,7 +4187,7 @@
          cx: &mut Context<Self>,
      ) {
          let requested_intent = self.undo_manager.take_pending_intent();
@@ -307,7 +980,20 @@
              return;
          }
          let selection_before = *self.active_selection();
-@@ -3710,6 +3904,14 @@
+@@ -3699,7 +4200,11 @@
+         // NOTE: The normalization keeps the UTF-16 length, but may change the
+         // UTF-8 byte length, so all the byte-offset calculations below must
+         // use the normalized text.
+-        let new_text = self.normalize_input(new_text);
++        let new_text = if self.replaying_history {
++            Cow::Borrowed(new_text)
++        } else {
++            self.normalize_input(new_text)
++        };
+         let new_text: &str = &new_text;
+ 
+         let range = range_utf16
+@@ -3710,6 +4215,14 @@
                  self.range_from_utf16(&range)
              }))
              .unwrap_or(self.selected_range());
@@ -322,19 +1008,87 @@
  
          // Skip-over as a pure cursor move: a typed closer that already follows
          // the cursor moves past it without touching text or history, so Undo
-@@ -3830,6 +4032,11 @@
-             }
-         }
+@@ -3806,21 +4319,54 @@
+         // separators or completing a leading dot.
+         let mut mask_changed = false;
  
+-        if self.is_single_line() {
++        if self.is_single_line() && !self.replaying_history && self.bridge_input_format.is_some() {
++            let format = self.bridge_input_format.as_ref().unwrap();
++            let pending_text = self.text.to_string();
++            match format.format(&pending_text, new_offset) {
++                Some((formatted, caret)) => {
++                    // Enforce the bridge boundary even if a policy implementation
++                    // returns an invalid offset or expands beyond the text budget.
++                    if !formatted.is_char_boundary(caret)
++                        || !self.bridge_accepts_size(formatted.len())
++                    {
++                        self.text = old_text;
++                        return;
++                    }
++                    mask_changed = formatted != pending_text;
++                    self.text = Rope::from(formatted.as_str());
++                    new_offset = caret;
++                }
++                None if format.accepts(
++                    &self
++                        .bridge_composition_before
++                        .as_ref()
++                        .map_or_else(|| old_text.to_string(), |(text, _)| text.to_string()),
++                ) =>
++                {
++                    self.text = old_text;
++                    if ends_composition {
++                        self.cancel_bridge_composition(window, cx);
++                    }
++                    return;
++                }
++                None => (), // Retain incompatible drafts while the user repairs them.
++            }
++        } else if self.is_single_line() && !self.replaying_history {
+             let pending_text = self.text.to_string();
+             // Check if the new text is valid.
+             //
+             // Only reject the edit if the old text was valid, to avoid
+             // trapping a pre-existing invalid text (e.g. a `default_value`
+             // that does not conform), the user can still edit to fix it.
+-            if !self.is_valid_input(&pending_text, cx)
+-                && self.is_valid_input(&old_text.to_string(), cx)
+-            {
++            let pending_is_valid = self.is_valid_input(&pending_text, cx);
++            if !pending_is_valid && self.is_valid_input(&old_text.to_string(), cx) {
+                 self.text = old_text;
+                 return;
+             }
+ 
+-            if !self.mask_pattern.is_none() {
++            // Preserve an invalid draft while the user repairs it. Applying a
++            // mask before its slots match could silently discard draft text.
++            if pending_is_valid && !self.mask_pattern.is_none() {
+                 let mask_text = self.mask_pattern.mask(&pending_text);
+                 mask_changed = mask_text.as_str() != pending_text;
+                 self.text = Rope::from(mask_text.as_str());
+@@ -3828,6 +4374,11 @@
+                     (new_text.len() + mask_text.len()).saturating_sub(pending_text.len());
+                 new_offset = (range.start + new_text_len).min(mask_text.len());
+             }
++        }
++
 +        if !self.bridge_accepts_size(self.text.len()) {
 +            self.text = old_text;
 +            return;
-+        }
-+
+         }
+ 
          if mask_changed {
-             // Masking rewrites the whole document, so ranges recorded against
-             // the old text no longer point at anything.
-@@ -3902,6 +4109,10 @@
+@@ -3890,6 +4441,7 @@
+         // edit into the same change, which then carries the text and selection
+         // of the first composition.
+         if ends_composition {
++            self.bridge_composition_before = None;
+             self.undo_manager
+                 .record_selections(vec![selection_before], vec![*self.active_selection()]);
+             self.undo_manager.commit_transaction();
+@@ -3902,6 +4454,10 @@
          if !self.silent_replace_text {
              M::on_text_typed(self, &range, &new_text, window, cx);
          }
@@ -345,19 +1099,24 @@
          if self.emit_events {
              cx.emit(InputEvent::Change);
          }
-@@ -3918,7 +4129,7 @@
+@@ -3918,7 +4474,11 @@
          cx: &mut Context<Self>,
      ) {
          let requested_intent = self.undo_manager.take_pending_intent();
 -        if !self.is_editable() {
 +        if !self.is_editable() || (self.bridge_max_bytes.is_some() && new_text.contains('\0')) {
++            return;
++        }
++        if new_text.is_empty() && self.bridge_composition_before.is_some() {
++            self.cancel_bridge_composition(window, cx);
              return;
          }
          let selection_before = *self.active_selection();
-@@ -3945,6 +4156,17 @@
+@@ -3945,7 +4505,25 @@
                  self.range_from_utf16(&range)
              }))
              .unwrap_or(self.selected_range());
+-
 +        if !self.bridge_accepts_size(
 +            self.text
 +                .len()
@@ -369,11 +1128,39 @@
 +            }
 +            return;
 +        }
- 
++
++        // Keep the bounded draft and selection for every bridge-owned mode.
++        // A native input method may reconvert existing text through an explicit
++        // replacement range; cancelling that provisional edit must restore it,
++        // including in an unformatted multiline editor.
++        if starts_composition && self.bridge_max_bytes.is_some() {
++            self.bridge_composition_before = Some((self.text.clone(), selection_before));
++        }
          let auto_closed_pairs_before = self.mode.auto_closed_pairs().clone();
          let old_text = self.text.clone();
-@@ -4026,6 +4248,10 @@
+         self.mode.adjust_auto_closed_pair(&range, new_text.len());
+@@ -3954,11 +4532,15 @@
+         if self.is_single_line() {
+             let pending_text = self.text.to_string();
+             // See the same NOTE in `replace_text_in_range`.
+-            if !self.is_valid_input(&pending_text, cx)
++            // Marked text is provisional: e.g. several Latin keystrokes may
++            // become one CJK scalar. Bridge policy applies on commit/unmark.
++            if self.bridge_input_format.is_none()
++                && !self.is_valid_input(&pending_text, cx)
+                 && self.is_valid_input(&old_text.to_string(), cx)
+             {
+                 self.text = old_text;
+                 if starts_composition {
++                    self.bridge_composition_before = None;
+                     self.undo_manager.commit_transaction();
+                 }
+                 return;
+@@ -4024,8 +4606,13 @@
+             );
+         }
          if new_text.is_empty() {
++            self.bridge_composition_before = None;
              self.undo_manager.commit_transaction();
          }
 +        self.bridge_revision = self
@@ -383,7 +1170,7 @@
          cx.notify();
      }
  
-@@ -4243,7 +4469,11 @@
+@@ -4243,7 +4830,11 @@
  
          // Actions only one mode handles are registered by that mode, where
          // `Self` is concrete enough to name its own entity type.
@@ -396,7 +1183,7 @@
      }
  }
  
-@@ -4352,6 +4582,157 @@
+@@ -4352,6 +4943,157 @@
                  f(crate::input::InputState::new(window, cx))
              })
          }
@@ -554,6 +1341,73 @@
      }
  
      #[gpui::test]
+@@ -6919,12 +7661,24 @@
+         let view = InputView::<EditorMode>::new(cx);
+         let mut cx = VisualTestContext::from_window(view.window_handle.into(), cx);
+         setup_cursors(&mut cx, &view.input, "ab\na|b\nab");
+-        cx.update(|window, cx| {
+-            view.input.update(cx, |state, cx| {
+-                // Start each action in the hidden phase without depending on a
+-                // key-down listener: actions and text input also arrive directly.
+-                for action in 0..6 {
+-                    state.blink_cursor = cx.new(|_| BlinkCursor::new());
++        for action in 0..6 {
++            cx.update(|_, cx| {
++                view.input.update(cx, |state, cx| {
++                    state.blink_cursor = cx.new(|cx| {
++                        let mut cursor = BlinkCursor::new();
++                        cursor.start(cx);
++                        cursor
++                    });
++                });
++            });
++            cx.run_until_parked();
++            cx.executor()
++                .advance_clock(std::time::Duration::from_millis(500));
++            cx.run_until_parked();
++            cx.update(|window, cx| {
++                view.input.update(cx, |state, cx| {
++                    // Begin with an active cursor in its hidden phase. An
++                    // unfocused cursor must no longer be started by an edit.
+                     assert!(!state.blink_cursor.read(cx).visible());
+                     match action {
+                         0 => state.add_cursor_above(&AddCursorAbove, window, cx),
+@@ -6935,9 +7689,9 @@
+                         _ => state.backspace(&Backspace, window, cx),
+                     }
+                     assert!(state.blink_cursor.read(cx).visible(), "action {action}");
+-                }
+-            });
+-        });
++                });
++            });
++        }
+     }
+ 
+     #[gpui::test]
+@@ -8965,6 +9719,9 @@
+     }
+ 
+     pub fn set_searchable(&mut self, searchable: bool, cx: &mut Context<Self>) {
++        if !searchable {
++            self.close_search(cx);
++        }
+         self.searchable = searchable;
+         cx.notify();
+     }
+@@ -9191,6 +9948,12 @@
+     }
+ 
+     /// Set line number.
++    /// Zero-based source line origin for a read-only document page.
++    pub fn set_line_number_offset(&mut self, offset: usize, cx: &mut Context<Self>) {
++        self.line_number_offset = offset.min(i32::MAX as usize);
++        cx.notify();
++    }
++
+     pub fn set_line_number(&mut self, line_number: bool, _: &mut Window, cx: &mut Context<Self>) {
+         if let LayoutMode::CodeEditor { line_number: l, .. } = &mut self.mode {
+             *l = line_number;
 --- a/src/input/base/undo_manager.rs
 +++ b/src/input/base/undo_manager.rs
 @@ -34,6 +34,7 @@
@@ -1140,37 +1994,6 @@
      fn link_handler_receives_button_and_modifiers(cx: &mut TestAppContext) {
          use std::sync::{Arc, Mutex};
  
---- a/src/input/base/state.rs
-+++ b/src/input/base/state.rs
-@@ -427,6 +427,7 @@
-     /// is rebuilt at the top of every render, which is what keeps it current
-     /// when the palette changes after the state was built.
-     pub(super) editor_style: InputEditorStyle,
-+    pub(super) line_number_offset: usize,
-     /// What a consumer projected, kept verbatim so that resolution never
-     /// consumes its own output: resolving in place would fill the unset
-     /// colours once and then never see them as unset again, which is the same
-@@ -752,6 +753,7 @@
-             mask_pattern: MaskPattern::default(),
-             mask_pattern_set: false,
-             editor_style: InputEditorStyle::default(),
-+            line_number_offset: 0,
-             projected_editor_style: InputEditorStyle::default(),
-             diagnostic_popover: None,
-             context_menu_handler: None,
-@@ -9572,6 +9574,12 @@
-     }
- 
-     /// Set line number.
-+    /// Zero-based source line origin for a read-only document page.
-+    pub fn set_line_number_offset(&mut self, offset: usize, cx: &mut Context<Self>) {
-+        self.line_number_offset = offset.min(i32::MAX as usize);
-+        cx.notify();
-+    }
-+
-     pub fn set_line_number(&mut self, line_number: bool, _: &mut Window, cx: &mut Context<Self>) {
-         if let LayoutMode::CodeEditor { line_number: l, .. } = &mut self.mode {
-             *l = line_number;
 --- a/src/resizable/mod.rs
 +++ b/src/resizable/mod.rs
 @@ -1,4 +1,4 @@
@@ -1456,76 +2279,6 @@
                      identifier: Some(def.identifier.clone().into()),
                      title: def.title.clone().map(Into::into),
                  },
---- a/src/input/base/state.rs
-+++ b/src/input/base/state.rs
-@@ -3330,2 +3330,9 @@
-     fn on_blur(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-+        // GPUIO: blur may hide or make a retained editor inert before a mouse-up
-+        // arrives. Stop the drag timer and transient gesture state, preserving
-+        // the actual selection range for menu Copy and later restoration.
-+        self.auto_scroll.stop();
-+        self.selecting = false;
-+        self.column_select_start = None;
-+        self.selected_word_range = None;
-         if M::is_context_menu_open(self, cx) {
---- a/src/input/base/state.rs
-+++ b/src/input/base/state.rs
-@@ -3329,0 +3330,7 @@
-+    fn cancel_drag_selection(&mut self) {
-+        self.auto_scroll.stop();
-+        self.selecting = false;
-+        self.column_select_start = None;
-+        self.selected_word_range = None;
-+    }
-+
-@@ -3334,4 +3341 @@
--        self.auto_scroll.stop();
--        self.selecting = false;
--        self.column_select_start = None;
--        self.selected_word_range = None;
-+        self.cancel_drag_selection();
-@@ -3436,11 +3440,14 @@
--            self.auto_scroll.set(scroll_delta, cx, |delta, state, cx| {
--                let current = state.scroll_handle.offset();
--                state.update_scroll_offset(Some(point(current.x, current.y + delta)), cx);
--                if let Some(pos) = state.auto_scroll.last_drag_position {
--                    let (offset, line_end_affinity, columns_past_line_end) =
--                        state.resolve_mouse_position(pos);
--                    if let Some(start) = state.column_select_start {
--                        let end = ColumnarPoint::new(offset, columns_past_line_end);
--                        state.build_columnar_selection(start, end, cx);
--                    } else {
--                        state.select_to_with_affinity(offset, line_end_affinity, cx);
-+            let window_handle = window.window_handle();
-+            self.auto_scroll
-+                .set(scroll_delta, cx, move |delta, state, cx| {
-+                    // GPUI delivers blur listeners after drawing. A ready timer can
-+                    // run after Window::blur but before that notification; it must
-+                    // not extend selection in the intervening frame.
-+                    let focused = cx
-+                        .update_window(window_handle, |_, window, _| {
-+                            window.is_window_active() && state.focus_handle.is_focused(window)
-+                        })
-+                        .unwrap_or(false);
-+                    if !focused {
-+                        state.cancel_drag_selection();
-+                        return;
-@@ -3448,2 +3455,13 @@
--                }
--            });
-+                    let current = state.scroll_handle.offset();
-+                    state.update_scroll_offset(Some(point(current.x, current.y + delta)), cx);
-+                    if let Some(pos) = state.auto_scroll.last_drag_position {
-+                        let (offset, line_end_affinity, columns_past_line_end) =
-+                            state.resolve_mouse_position(pos);
-+                        if let Some(start) = state.column_select_start {
-+                            let end = ColumnarPoint::new(offset, columns_past_line_end);
-+                            state.build_columnar_selection(start, end, cx);
-+                        } else {
-+                            state.select_to_with_affinity(offset, line_end_affinity, cx);
-+                        }
-+                    }
-+                });
 --- /dev/null
 +++ b/src/text/link_navigation.rs
 @@ -0,0 +1,247 @@
@@ -4586,105 +5339,6 @@
 +        }
 +    }
 +}
---- a/src/input/base/state.rs
-+++ b/src/input/base/state.rs
-@@ -910,5 +910,9 @@
-         for (vi, line) in last_layout.lines.iter().enumerate() {
-             let prev_lines_offset = last_layout.visible_line_byte_offsets[vi];
--            let local_offset = offset.saturating_sub(prev_lines_offset);
-+            // Visible source lines can skip folded or scrolled-out bytes. An
-+            // earlier offset must not clamp to this later line's first glyph.
-+            let Some(local_offset) = offset.checked_sub(prev_lines_offset) else {
-+                break;
-+            };
-             if let Some(pos) = line.position_for_index(local_offset, last_layout, false) {
-                 let sub_line_index = (pos.y / line_height) as usize;
---- a/src/input/base/state.rs
-+++ b/src/input/base/state.rs
-@@ -135,6 +135,24 @@
-     pub selection: (usize, usize),
-     pub focused: bool,
- }
-+
-+/// A native element occupying a fixed row-local slot. Called during prepaint;
-+/// renderers must not mutate the input or perform I/O.
-+pub type RowAdornmentRenderer =
-+    Rc<dyn Fn(gpui::Size<Pixels>, &mut Window, &mut App) -> gpui::AnyElement>;
-+
-+/// Decorations beside original read-only code text, never replacing its bytes.
-+/// The gutter shares (or reserves) the fold slot; the suffix follows the shaped text
-+/// and contributes to horizontal scroll extent. Neither changes row height.
-+#[derive(Clone)]
-+pub struct RowAdornment {
-+    pub gutter: Option<RowAdornmentRenderer>,
-+    pub suffix: Option<RowAdornmentRenderer>,
-+    pub suffix_width: Pixels,
-+}
-+
-+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-+pub struct InvalidRowAdornments;
- 
- /// Native adapter hook on the actual focus-owning editor element. This avoids
- /// registering the same focus handle again on an outer semantic wrapper.
-@@ -365,6 +383,8 @@
-     bridge_revision: i64,
-     bridge_max_bytes: Option<usize>,
-     bridge_decorator: Option<BridgeDecorator<M>>,
-+    pub(super) row_adornments: Option<Rc<std::collections::BTreeMap<usize, RowAdornment>>>,
-+    pub(super) row_adornment_begin: Option<Rc<dyn Fn()>>,
-     pub(super) display_map: DisplayMap,
-     pub(super) undo_manager: UndoManager,
-     pub(super) search_session: super::SearchSession,
-@@ -709,6 +729,8 @@
-             bridge_revision: 0,
-             bridge_max_bytes: None,
-             bridge_decorator: None,
-+            row_adornments: None,
-+            row_adornment_begin: None,
-             display_map: DisplayMap::new(text_style.font(), window.rem_size(), None),
-             search_session: super::SearchSession::default(),
-             search_activation_revision: 0,
-@@ -840,6 +862,40 @@
-     /// Install a default adapter without replacing an application-provided one.
-     pub fn ensure_highlighter_factory(&mut self, factory: InputHighlighterFactory) {
-         self.mode.ensure_highlighter_factory(factory);
-+    }
-+
-+    /// Replace bounded row adornments on a read-only, nonwrapping code editor.
-+    /// Row keys are zero-based buffer rows in the current input value. A map is
-+    /// limited to 1024 rows and each suffix to 0..1024 finite logical pixels.
-+    /// Call after replacing text; clear before reusing the editor for other text.
-+    /// Scrolling and folding position the native elements in the current frame.
-+    /// `begin_frame` runs once before visible row renderers; it can clear a
-+    /// caller-owned geometry registry, but must not mutate this input or do I/O.
-+    pub fn set_row_adornments(
-+        &mut self,
-+        adornments: Option<Rc<std::collections::BTreeMap<usize, RowAdornment>>>,
-+        begin_frame: Option<Rc<dyn Fn()>>,
-+        cx: &mut Context<Self>,
-+    ) -> Result<(), InvalidRowAdornments> {
-+        if let Some(entries) = &adornments {
-+            if !M::CODE_EDITOR
-+                || !self.readonly
-+                || self.soft_wrap
-+                || entries.len() > 1024
-+                || entries.iter().any(|(row, item)| {
-+                    *row >= self.text.lines_len()
-+                        || !f32::from(item.suffix_width).is_finite()
-+                        || item.suffix_width < px(0.)
-+                        || item.suffix_width > px(1024.)
-+                })
-+            {
-+                return Err(InvalidRowAdornments);
-+            }
-+        }
-+        self.row_adornments = adornments;
-+        self.row_adornment_begin = begin_frame;
-+        cx.notify();
-+        Ok(())
-     }
- 
-     /// Install native semantics on the element that owns keyboard focus.
 --- a/src/input/base/element.rs
 +++ b/src/input/base/element.rs
 @@ -1014,8 +1014,15 @@
@@ -4829,130 +5483,6 @@
          self.state.update(cx, |state, cx| {
              let geometry_changed = state.last_bounds != Some(bounds)
                  || state.input_bounds != input_bounds
---- a/src/input/base/state.rs
-+++ b/src/input/base/state.rs
-@@ -419,6 +419,7 @@
-     pub(super) column_select_start: Option<ColumnarPoint>,
-     pub(crate) disabled: bool,
-     pub(crate) readonly: bool,
-+    user_selectable: bool,
-     pub(crate) text_align: TextAlign,
-     pub(super) masked: bool,
-     pub(super) clean_on_escape: bool,
-@@ -638,11 +639,33 @@
-         M::CODE_EDITOR
-     }
- 
-+    /// Whether pointer and keyboard gestures may select text. Programmatic
-+    /// bridge selection remains available for search and navigation.
-+    pub fn is_user_selectable(&self) -> bool {
-+        self.user_selectable
-+    }
-+
-+    /// Enable user selection (the default). Disabling cancels an active drag,
-+    /// collapses the current range at its head and disables selection Copy.
-+    /// It preserves focus, navigation, scrolling and programmatic selection.
-+    pub fn set_user_selectable(&mut self, selectable: bool, cx: &mut Context<Self>) {
-+        if self.user_selectable == selectable {
-+            return;
-+        }
-+        self.user_selectable = selectable;
-+        if !selectable {
-+            self.cancel_drag_selection();
-+            self.selections.remove_all_but_active();
-+            self.set_cursor_to(self.cursor());
-+        }
-+        cx.notify();
-+    }
-+
-     /// Whether the user is allowed to copy the selection out.
-     ///
-     /// A masked input keeps its value out of the clipboard.
-     pub fn is_copyable(&self) -> bool {
--        self.selections.iter().any(|sel| !sel.is_empty()) && !self.masked
-+        self.user_selectable && self.selections.iter().any(|sel| !sel.is_empty()) && !self.masked
-     }
- 
-     pub fn context_menu_capabilities(&self) -> InputContextMenuCapabilities {
-@@ -651,7 +674,7 @@
-             .disabled(self.disabled)
-             .readonly(self.readonly)
-             .code_editor(self.is_code_editor())
--            .selection(!self.active_selection().is_empty())
-+            .selection(self.user_selectable && !self.active_selection().is_empty())
-             .masked(self.masked)
-             .go_to_definition(go_to_definition)
-             .code_actions(code_actions)
-@@ -747,6 +770,7 @@
-             ime_marked_range: None,
-             input_bounds: Bounds::default(),
-             selecting: false,
-+            user_selectable: true,
-             disabled: false,
-             readonly: false,
-             text_align: TextAlign::Left,
-@@ -1512,7 +1536,9 @@
-         window: &mut Window,
-         cx: &mut Context<Self>,
-     ) {
--        self.select_all(window, cx);
-+        if self.user_selectable {
-+            self.select_all(window, cx);
-+        }
-     }
- 
-     pub(super) fn select_to_start(
-@@ -2292,7 +2318,7 @@
-     /// the first/last display row) or that would duplicate an existing cursor
-     /// are skipped.
-     fn add_cursor_vertical(&mut self, move_lines: isize, cx: &mut Context<Self>) {
--        if !self.is_multi_line() {
-+        if !self.is_multi_line() || !self.user_selectable {
-             return;
-         }
- 
-@@ -2340,7 +2366,7 @@
-     /// Rejected when `offset` lands inside an existing selection or exactly on
-     /// an existing cursor.
-     pub(super) fn add_cursor_at(&mut self, offset: usize, cx: &mut Context<Self>) {
--        if !self.is_multi_line() {
-+        if !self.is_multi_line() || !self.user_selectable {
-             return;
-         }
- 
-@@ -2437,11 +2463,21 @@
-             }
-         }
- 
--        self.selecting = true;
-+        self.selecting = self.user_selectable;
-         let (offset, line_end_affinity, columns_past_line_end) =
-             self.resolve_mouse_position(event.position);
- 
-         if M::on_click(self, event, offset, window, cx) {
-+            return;
-+        }
-+
-+        if !self.user_selectable {
-+            if event.button == MouseButton::Left {
-+                self.selections.remove_all_but_active();
-+                self.move_to_with_affinity(offset, None, line_end_affinity, cx);
-+            } else if event.button == MouseButton::Right && self.enable_context_menu {
-+                self.pending_context_menu = Some((event.position, offset));
-+            }
-             return;
-         }
- 
-@@ -3225,6 +3261,9 @@
-         f: impl Fn(&Self, &CursorSelection) -> usize,
-         cx: &mut Context<Self>,
-     ) {
-+        if !self.user_selectable {
-+            return;
-+        }
-         self.pause_blink_cursor(cx);
-         self.undo_manager.break_transaction_coalescing();
-         M::clear_inline_completion(self, cx);
 --- a/src/lib.rs
 +++ b/src/lib.rs
 @@ -171,7 +171,7 @@
@@ -6165,59 +6695,6 @@
          } else {
              state.scroll_handle.offset().y
          };
---- a/src/input/base/state.rs
-+++ b/src/input/base/state.rs
-@@ -2619,7 +2619,23 @@
-         offset: Option<Point<Pixels>>,
-         cx: &mut Context<Self>,
-     ) {
--        let mut offset = offset.unwrap_or(self.scroll_handle.offset());
-+        let offset = self.clamp_scroll_offset(
-+            offset.unwrap_or(self.scroll_handle.offset()),
-+            self.scroll_size,
-+            self.input_bounds.size,
-+        );
-+        if self.scroll_handle.offset() != offset {
-+            self.scroll_handle.set_offset(offset);
-+            cx.notify();
-+        }
-+    }
-+
-+    pub(super) fn clamp_scroll_offset(
-+        &self,
-+        mut offset: Point<Pixels>,
-+        scroll_size: gpui::Size<Pixels>,
-+        input_size: gpui::Size<Pixels>,
-+    ) -> Point<Pixels> {
-         // In addition to left alignment, a cursor position will be reserved on the right side
-         let safe_x_offset = if self.text_align == TextAlign::Left {
-             px(0.)
-@@ -2627,10 +2643,9 @@
-             -CURSOR_WIDTH
-         };
- 
--        let safe_y_range =
--            (-self.scroll_size.height + self.input_bounds.size.height).min(px(0.0))..px(0.);
--        let safe_x_range = (-self.scroll_size.width + self.input_bounds.size.width + safe_x_offset)
--            .min(safe_x_offset)..px(0.);
-+        let safe_y_range = (-scroll_size.height + input_size.height).min(px(0.0))..px(0.);
-+        let safe_x_range =
-+            (-scroll_size.width + input_size.width + safe_x_offset).min(safe_x_offset)..px(0.);
- 
-         offset.y = if self.is_single_line() {
-             px(0.)
-@@ -2638,10 +2653,7 @@
-             offset.y.clamp(safe_y_range.start, safe_y_range.end)
-         };
-         offset.x = offset.x.clamp(safe_x_range.start, safe_x_range.end);
--        if self.scroll_handle.offset() != offset {
--            self.scroll_handle.set_offset(offset);
--            cx.notify();
--        }
-+        offset
-     }
- 
-     /// Scroll to make the given offset visible.
 --- a/src/input/base/mask_pattern.rs
 +++ b/src/input/base/mask_pattern.rs
 @@ -188,7 +188,8 @@
@@ -6244,292 +6721,6 @@
                      }
                  }
                  // The cursor counts Unicode scalars, not UTF-8 bytes.
---- a/src/input/base/state.rs
-+++ b/src/input/base/state.rs
-@@ -387,6 +387,8 @@
-     pub(super) row_adornment_begin: Option<Rc<dyn Fn()>>,
-     pub(super) display_map: DisplayMap,
-     pub(super) undo_manager: UndoManager,
-+    // Replay recorded text exactly; ignoring history also covers set_value.
-+    replaying_history: bool,
-     pub(super) search_session: super::SearchSession,
-     /// Advances every time search is explicitly invoked. See
-     /// [`InputBaseState::search_activation_revision`].
-@@ -765,6 +767,7 @@
-             cursor_surrounding_lines: None,
-             blink_cursor,
-             undo_manager,
-+            replaying_history: false,
-             selections: Selections::default(),
-             selected_word_range: None,
-             ime_marked_range: None,
-@@ -2936,6 +2939,7 @@
- 
-     pub(super) fn undo(&mut self, _: &Undo, window: &mut Window, cx: &mut Context<Self>) {
-         self.undo_manager.set_ignoring(true);
-+        self.replaying_history = true;
-         // The manager hands the changes back in reverse application order.
-         if let Some(replay) = self.undo_manager.undo() {
-             for change in &replay.changes {
-@@ -2946,11 +2950,13 @@
-             self.mode
-                 .restore_auto_closed_pairs(replay.auto_closed_pairs.unwrap_or_default());
-         }
-+        self.replaying_history = false;
-         self.undo_manager.set_ignoring(false);
-     }
- 
-     pub(super) fn redo(&mut self, _: &Redo, window: &mut Window, cx: &mut Context<Self>) {
-         self.undo_manager.set_ignoring(true);
-+        self.replaying_history = true;
-         // Redo replays in forward application order.
-         if let Some(replay) = self.undo_manager.redo() {
-             for change in &replay.changes {
-@@ -2961,6 +2967,7 @@
-             self.mode
-                 .restore_auto_closed_pairs(replay.auto_closed_pairs.unwrap_or_default());
-         }
-+        self.replaying_history = false;
-         self.undo_manager.set_ignoring(false);
-     }
- 
-@@ -4031,7 +4038,11 @@
-         // NOTE: The normalization keeps the UTF-16 length, but may change the
-         // UTF-8 byte length, so all the byte-offset calculations below must
-         // use the normalized text.
--        let new_text = self.normalize_input(new_text);
-+        let new_text = if self.replaying_history {
-+            Cow::Borrowed(new_text)
-+        } else {
-+            self.normalize_input(new_text)
-+        };
-         let new_text: &str = &new_text;
- 
-         let range = range_utf16
-@@ -4146,7 +4157,7 @@
-         // separators or completing a leading dot.
-         let mut mask_changed = false;
- 
--        if self.is_single_line() {
-+        if self.is_single_line() && !self.replaying_history {
-             let pending_text = self.text.to_string();
-             // Check if the new text is valid.
-             //
---- a/src/input/base/state.rs
-+++ b/src/input/base/state.rs
-@@ -4164,14 +4164,15 @@
-             // Only reject the edit if the old text was valid, to avoid
-             // trapping a pre-existing invalid text (e.g. a `default_value`
-             // that does not conform), the user can still edit to fix it.
--            if !self.is_valid_input(&pending_text, cx)
--                && self.is_valid_input(&old_text.to_string(), cx)
--            {
-+            let pending_is_valid = self.is_valid_input(&pending_text, cx);
-+            if !pending_is_valid && self.is_valid_input(&old_text.to_string(), cx) {
-                 self.text = old_text;
-                 return;
-             }
- 
--            if !self.mask_pattern.is_none() {
-+            // Preserve an invalid draft while the user repairs it. Applying a
-+            // mask before its slots match could silently discard draft text.
-+            if pending_is_valid && !self.mask_pattern.is_none() {
-                 let mask_text = self.mask_pattern.mask(&pending_text);
-                 mask_changed = mask_text.as_str() != pending_text;
-                 self.text = Rope::from(mask_text.as_str());
---- a/src/input/base/state.rs
-+++ b/src/input/base/state.rs
-@@ -153,6 +153,18 @@
- 
- #[derive(Clone, Copy, Debug, PartialEq, Eq)]
- pub struct InvalidRowAdornments;
-+
-+/// Rust-owned single-line formatting policy. The adapter validates configuration
-+/// and bounds all returned text; no foreign-runtime callback is permitted here.
-+/// Exact bridge replacements are checked with accepts before mutation. Interactive
-+/// candidates may insert separators and return a caret in the resulting UTF-8 text.
-+pub trait BridgeInputFormat {
-+    fn accepts(&self, text: &str) -> bool;
-+    fn format(&self, text: &str, caret: usize) -> Option<(String, usize)>;
-+    fn normalize<'a>(&self, text: &'a str) -> Cow<'a, str> {
-+        Cow::Borrowed(text)
-+    }
-+}
- 
- /// Native adapter hook on the actual focus-owning editor element. This avoids
- /// registering the same focus handle again on an outer semantic wrapper.
-@@ -383,6 +395,8 @@
-     bridge_revision: i64,
-     bridge_max_bytes: Option<usize>,
-     bridge_decorator: Option<BridgeDecorator<M>>,
-+    bridge_input_format: Option<Rc<dyn BridgeInputFormat>>,
-+    bridge_composition_before: Option<(Rope, CursorSelection)>,
-     pub(super) row_adornments: Option<Rc<std::collections::BTreeMap<usize, RowAdornment>>>,
-     pub(super) row_adornment_begin: Option<Rc<dyn Fn()>>,
-     pub(super) display_map: DisplayMap,
-@@ -754,6 +768,8 @@
-             bridge_revision: 0,
-             bridge_max_bytes: None,
-             bridge_decorator: None,
-+            bridge_input_format: None,
-+            bridge_composition_before: None,
-             row_adornments: None,
-             row_adornment_begin: None,
-             display_map: DisplayMap::new(text_style.font(), window.rem_size(), None),
-@@ -926,6 +942,39 @@
-     }
- 
-     /// Install native semantics on the element that owns keyboard focus.
-+    /// Retain the draft, composition, selection and history when policy changes.
-+    pub fn set_bridge_input_format(&mut self, format: Option<Rc<dyn BridgeInputFormat>>) {
-+        self.bridge_input_format = format;
-+    }
-+
-+    fn cancel_bridge_composition(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-+        let Some((text, selection)) = self.bridge_composition_before.take() else {
-+            return;
-+        };
-+        self.undo_manager.discard_bridge_composition();
-+        self.undo_manager.set_ignoring(true);
-+        self.replaying_history = true;
-+        let range = self.range_to_utf16(&(0..self.text.len()));
-+        self.with_edits_allowed(|this| {
-+            this.replace_text_in_range(Some(range), &text.to_string(), window, cx);
-+        });
-+        self.replaying_history = false;
-+        self.undo_manager.set_ignoring(false);
-+        let (anchor, head) = if selection.reversed {
-+            (selection.end, selection.start)
-+        } else {
-+            (selection.start, selection.end)
-+        };
-+        self.bridge_select(anchor, head, cx);
-+    }
-+
-+    /// Used by the native adapter before applying an exact replacement command.
-+    pub fn bridge_accepts_exact_text(&self, text: &str) -> bool {
-+        self.bridge_input_format
-+            .as_ref()
-+            .is_none_or(|format| format.accepts(text))
-+    }
-+
-     pub fn set_bridge_decorator(&mut self, decorate: BridgeDecorator<M>) {
-         self.bridge_decorator = Some(decorate);
-     }
-@@ -3592,7 +3641,9 @@
-     /// full-width number characters into their ASCII equivalents,
-     /// e.g. `12。5` -> `12.5`.
-     fn normalize_input<'a>(&self, new_text: &'a str) -> Cow<'a, str> {
--        let normalized = if matches!(self.mask_pattern, MaskPattern::Number { .. }) {
-+        let normalized = if let Some(format) = &self.bridge_input_format {
-+            format.normalize(new_text)
-+        } else if matches!(self.mask_pattern, MaskPattern::Number { .. }) {
-             normalize_number_input(new_text)
-         } else {
-             Cow::Borrowed(new_text)
-@@ -4008,7 +4059,19 @@
-             .map(|range| self.range_to_utf16(&range.into()))
-     }
- 
--    fn unmark_text(&mut self, _window: &mut Window, _cx: &mut Context<Self>) {
-+    fn unmark_text(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-+        if self.bridge_input_format.is_some() {
-+            if let Some(range) = self.ime_marked_range {
-+                let text = self.text.slice(range.start..range.end).to_string();
-+                // A policy transition to readonly/disabled must not strand the
-+                // already active platform composition when it is unmarked.
-+                self.with_edits_allowed(|this| {
-+                    this.replace_text_in_range(None, &text, window, cx);
-+                });
-+                return;
-+            }
-+        }
-+        self.bridge_composition_before = None;
-         self.ime_marked_range = None;
-         self.undo_manager.commit_transaction();
-     }
-@@ -4157,7 +4220,39 @@
-         // separators or completing a leading dot.
-         let mut mask_changed = false;
- 
--        if self.is_single_line() && !self.replaying_history {
-+        if self.is_single_line() && !self.replaying_history && self.bridge_input_format.is_some() {
-+            let format = self.bridge_input_format.as_ref().unwrap();
-+            let pending_text = self.text.to_string();
-+            match format.format(&pending_text, new_offset) {
-+                Some((formatted, caret)) => {
-+                    // Enforce the bridge boundary even if a policy implementation
-+                    // returns an invalid offset or expands beyond the text budget.
-+                    if !formatted.is_char_boundary(caret)
-+                        || !self.bridge_accepts_size(formatted.len())
-+                    {
-+                        self.text = old_text;
-+                        return;
-+                    }
-+                    mask_changed = formatted != pending_text;
-+                    self.text = Rope::from(formatted.as_str());
-+                    new_offset = caret;
-+                }
-+                None if format.accepts(
-+                    &self
-+                        .bridge_composition_before
-+                        .as_ref()
-+                        .map_or_else(|| old_text.to_string(), |(text, _)| text.to_string()),
-+                ) =>
-+                {
-+                    self.text = old_text;
-+                    if ends_composition {
-+                        self.cancel_bridge_composition(window, cx);
-+                    }
-+                    return;
-+                }
-+                None => (), // Retain incompatible drafts while the user repairs them.
-+            }
-+        } else if self.is_single_line() && !self.replaying_history {
-             let pending_text = self.text.to_string();
-             // Check if the new text is valid.
-             //
-@@ -4247,6 +4342,7 @@
-         // edit into the same change, which then carries the text and selection
-         // of the first composition.
-         if ends_composition {
-+            self.bridge_composition_before = None;
-             self.undo_manager
-                 .record_selections(vec![selection_before], vec![*self.active_selection()]);
-             self.undo_manager.commit_transaction();
-@@ -4280,6 +4376,10 @@
-     ) {
-         let requested_intent = self.undo_manager.take_pending_intent();
-         if !self.is_editable() || (self.bridge_max_bytes.is_some() && new_text.contains('\0')) {
-+            return;
-+        }
-+        if new_text.is_empty() && self.bridge_composition_before.is_some() {
-+            self.cancel_bridge_composition(window, cx);
-             return;
-         }
-         let selection_before = *self.active_selection();
-@@ -4318,6 +4418,9 @@
-             return;
-         }
- 
-+        if starts_composition && self.bridge_input_format.is_some() {
-+            self.bridge_composition_before = Some((self.text.clone(), selection_before));
-+        }
-         let auto_closed_pairs_before = self.mode.auto_closed_pairs().clone();
-         let old_text = self.text.clone();
-         self.mode.adjust_auto_closed_pair(&range, new_text.len());
-@@ -4326,7 +4429,10 @@
-         if self.is_single_line() {
-             let pending_text = self.text.to_string();
-             // See the same NOTE in `replace_text_in_range`.
--            if !self.is_valid_input(&pending_text, cx)
-+            // Marked text is provisional: e.g. several Latin keystrokes may
-+            // become one CJK scalar. Bridge policy applies on commit/unmark.
-+            if self.bridge_input_format.is_none()
-+                && !self.is_valid_input(&pending_text, cx)
-                 && self.is_valid_input(&old_text.to_string(), cx)
-             {
-                 self.text = old_text;
 --- a/src/input/base/undo_manager.rs
 +++ b/src/input/base/undo_manager.rs
 @@ -223,6 +223,16 @@
@@ -6549,79 +6740,6 @@
      pub(super) fn commit_transaction(&mut self) {
          if self.transaction_depth == 0 {
              return;
---- a/src/input/base/state.rs
-+++ b/src/input/base/state.rs
-@@ -4378,7 +4378,10 @@
-         if !self.is_editable() || (self.bridge_max_bytes.is_some() && new_text.contains('\0')) {
-             return;
-         }
--        if new_text.is_empty() && self.bridge_composition_before.is_some() {
-+        if new_text.is_empty()
-+            && self.bridge_input_format.is_some()
-+            && self.bridge_composition_before.is_some()
-+        {
-             self.cancel_bridge_composition(window, cx);
-             return;
-         }
-@@ -4418,7 +4421,9 @@
-             return;
-         }
- 
--        if starts_composition && self.bridge_input_format.is_some() {
-+        // Policy can first be enabled while a plain bridge input is already
-+        // composing. Keep its bounded baseline before any provisional edits.
-+        if starts_composition && self.is_single_line() && self.bridge_max_bytes.is_some() {
-             self.bridge_composition_before = Some((self.text.clone(), selection_before));
-         }
-         let auto_closed_pairs_before = self.mode.auto_closed_pairs().clone();
-@@ -4437,6 +4442,7 @@
-             {
-                 self.text = old_text;
-                 if starts_composition {
-+                    self.bridge_composition_before = None;
-                     self.undo_manager.commit_transaction();
-                 }
-                 return;
-@@ -4502,6 +4508,7 @@
-             );
-         }
-         if new_text.is_empty() {
-+            self.bridge_composition_before = None;
-             self.undo_manager.commit_transaction();
-         }
-         self.bridge_revision = self
---- a/src/input/base/state.rs
-+++ b/src/input/base/state.rs
-@@ -2785,17 +2785,18 @@
-         // `TextElement::layout_cursors` so both scroll-into-view paths agree
-         // (a mismatch flickered on `Down` at end-of-buffer with a small
-         // `cursor_surrounding_lines` override).
--        let edge_height =
--            if matches!(padding, ScrollPadding::SurroundingLines) && self.is_code_editor() {
--                super::element::cursor_surrounding_padding(
--                    self.mode.is_auto_grow(),
--                    self.cursor_surrounding_lines,
--                    super::element::viewport_visible_lines(bounds.size.height, line_height),
--                    line_height,
--                )
--            } else {
--                line_height
--            };
-+        let edge_height = if matches!(padding, ScrollPadding::SurroundingLines)
-+            && (self.is_code_editor() || self.cursor_surrounding_lines.is_some())
-+        {
-+            super::element::cursor_surrounding_padding(
-+                self.mode.is_auto_grow(),
-+                self.cursor_surrounding_lines,
-+                super::element::viewport_visible_lines(bounds.size.height, line_height),
-+                line_height,
-+            )
-+        } else {
-+            line_height
-+        };
-         if row_offset_y - edge_height + line_height < -scroll_offset.y {
-             // Scroll up
-             scroll_offset.y = -row_offset_y + edge_height - line_height;
 --- a/src/input/base/element.rs
 +++ b/src/input/base/element.rs
 @@ -338,7 +338,7 @@
@@ -6667,41 +6785,6 @@
                  );
              }
          }
---- a/src/input/base/state.rs
-+++ b/src/input/base/state.rs
-@@ -430,6 +430,7 @@
-     /// The text bounds
-     pub(super) last_bounds: Option<Bounds<Pixels>>,
-     pub(super) last_selected_range: Option<CursorSelection>,
-+    pub(super) last_layout_scroll_offset: Point<Pixels>,
-     pub(super) selecting: bool,
-     /// Anchor point of an in-progress columnar (block) selection.
-     pub(super) column_select_start: Option<ColumnarPoint>,
-@@ -807,6 +808,7 @@
-             last_layout: None,
-             last_bounds: None,
-             last_selected_range: None,
-+            last_layout_scroll_offset: Point::default(),
-             column_select_start: None,
-             last_cursor: None,
-             scroll_handle: ScrollHandle::new(),
-@@ -3088,6 +3090,16 @@
-     /// Current scroll offset of the editor viewport.
-     pub fn scroll_offset(&self) -> gpui::Point<gpui::Pixels> {
-         self.scroll_handle.offset()
-+    }
-+
-+    /// Scroll offset recorded by the most recent completed editor layout/paint.
-+    /// Unlike `scroll_offset`, this does not advance when wheel input updates the
-+    /// live handle before another layout. It shares the layout generation of
-+    /// `visible_row_range`, `input_bounds` and `line_height`.
-+    pub fn layout_scroll_offset(&self) -> Option<Point<Pixels>> {
-+        self.last_layout
-+            .as_ref()
-+            .map(|_| self.last_layout_scroll_offset)
-     }
- 
-     /// Set scroll offset of the editor viewport.
 --- a/src/input/base/element.rs
 +++ b/src/input/base/element.rs
 @@ -513,6 +513,9 @@
@@ -6743,58 +6826,6 @@
              state.last_bounds = Some(bounds);
              state.last_cursor = Some(state.cursor());
              state.set_input_bounds(input_bounds, cx);
---- a/src/input/base/state.rs
-+++ b/src/input/base/state.rs
-@@ -1344,6 +1344,49 @@
-         self.bridge_max_bytes.is_none_or(|limit| size <= limit)
-     }
- 
-+    /// Preflight search expansion before constructing any expanded document.
-+    /// Ranges come from the current literal matcher, in ascending byte order.
-+    pub(crate) fn prepare_search_replacement(
-+        &self,
-+        ranges: &[Range<usize>],
-+        replacement: &str,
-+    ) -> Option<String> {
-+        if !self.is_replaceable()
-+            || self.ime_marked_range.is_some()
-+            || ranges.is_empty()
-+            || (self.bridge_max_bytes.is_some() && replacement.contains('\0'))
-+        {
-+            return None;
-+        }
-+        let removed = ranges
-+            .iter()
-+            .try_fold(0usize, |total, range| total.checked_add(range.len()))?;
-+        let size = self
-+            .text
-+            .len()
-+            .checked_sub(removed)?
-+            .checked_add(replacement.len().checked_mul(ranges.len())?)?;
-+        if !self.bridge_accepts_size(size) {
-+            return None;
-+        }
-+        // Build in source order, avoiding one Rope mutation per occurrence in
-+        // dense documents. Both strings remain bounded by the bridge limit.
-+        let source = self.text.to_string();
-+        let mut text = String::with_capacity(size);
-+        let mut previous_end = 0;
-+        for range in ranges {
-+            source.get(range.clone())?;
-+            text.push_str(source.get(previous_end..range.start)?);
-+            text.push_str(replacement);
-+            previous_end = range.end;
-+        }
-+        text.push_str(source.get(previous_end..)?);
-+        if !self.bridge_accepts_exact_text(&text) {
-+            return None;
-+        }
-+        Some(text)
-+    }
-+
-     /// Set true to clear the input by pressing Escape key.
-     pub fn clean_on_escape(mut self) -> Self {
-         self.clean_on_escape = true;
 --- a/src/input/editor/search.rs
 +++ b/src/input/editor/search.rs
 @@ -4,9 +4,7 @@
@@ -6946,40 +6977,6 @@
              if let Some(path) = Self::layout_match_range(range.clone(), last_layout, bounds) {
                  paths.push((path, current_match_ix == index));
              }
---- a/src/input/base/state.rs
-+++ b/src/input/base/state.rs
-@@ -1243,7 +1243,7 @@
- 
-         self.readonly = readonly;
-         if readonly {
--            self.search_session.replace_mode = false;
-+            self.set_search_replace_mode(false, cx);
-         }
-         cx.notify();
-     }
-@@ -1342,6 +1342,12 @@
- 
-     fn bridge_accepts_size(&self, size: usize) -> bool {
-         self.bridge_max_bytes.is_none_or(|limit| size <= limit)
-+    }
-+
-+    /// GPUIO literal query bound. Oversized selection seeds retain the previous
-+    /// query rather than compiling an unbounded matcher from a native shortcut.
-+    pub(crate) fn bridge_accepts_search_query(&self, query: &str) -> bool {
-+        self.bridge_max_bytes.is_none() || (query.len() <= 2048 && !query.contains('\0'))
-     }
- 
-     /// Preflight search expansion before constructing any expanded document.
-@@ -9665,6 +9671,9 @@
-     }
- 
-     pub fn set_searchable(&mut self, searchable: bool, cx: &mut Context<Self>) {
-+        if !searchable {
-+            self.close_search(cx);
-+        }
-         self.searchable = searchable;
-         cx.notify();
-     }
 --- a/src/input/editor/search.rs
 +++ b/src/input/editor/search.rs
 @@ -18,6 +18,7 @@
@@ -9729,114 +9726,6 @@
      pub(super) visible_range: Range<usize>,
      pub(super) visible_buffer_lines: Vec<usize>,
      pub(super) visible_line_byte_offsets: Vec<usize>,
---- a/src/input/base/state.rs
-+++ b/src/input/base/state.rs
-@@ -1035,6 +1035,14 @@
-         &self,
-         offset: usize,
-     ) -> (usize, usize, Option<Point<Pixels>>) {
-+        self.line_and_position_for_offset_with_affinity(offset, false)
-+    }
-+
-+    fn line_and_position_for_offset_with_affinity(
-+        &self,
-+        offset: usize,
-+        line_end_affinity: bool,
-+    ) -> (usize, usize, Option<Point<Pixels>>) {
-         let Some(last_layout) = &self.last_layout else {
-             return (0, 0, None);
-         };
-@@ -1048,7 +1056,8 @@
-             let Some(local_offset) = offset.checked_sub(prev_lines_offset) else {
-                 break;
-             };
--            if let Some(pos) = line.position_for_index(local_offset, last_layout, false) {
-+            if let Some(pos) = line.position_for_index(local_offset, last_layout, line_end_affinity)
-+            {
-                 let sub_line_index = (pos.y / line_height) as usize;
-                 let adjusted_pos = point(pos.x + last_layout.line_number_width, pos.y + y_offset);
-                 return (vi, sub_line_index, Some(adjusted_pos));
-@@ -3816,32 +3825,58 @@
-         self.text.slice(range)
-     }
- 
--    /// Return the rendered bounds for a UTF-8 byte range in the current input contents.
--    ///
--    /// Returns `None` when the requested range is not currently laid out or visible.
-+    /// Union of rendered glyph spans and endpoint carets for a UTF-8 source range.
-+    /// Coordinates come from one completed paint, in window logical pixels, and
-+    /// are not clipped. Both endpoints must be laid out (including overscan).
-+    /// Invalid ranges or a source/masking change since that paint return `None`.
-     pub fn range_to_bounds(&self, range: &Range<usize>) -> Option<Bounds<Pixels>> {
--        let Some(last_layout) = self.last_layout.as_ref() else {
-+        let layout = self.last_layout.as_ref()?;
-+        if layout.source_revision != self.bridge_revision
-+            || layout.masked != self.masked
-+            || range.start > range.end
-+            || range.end > self.text.len()
-+            || !self.text.is_char_boundary(range.start)
-+            || !self.text.is_char_boundary(range.end)
-+        {
-             return None;
-+        }
-+        let range = if layout.masked {
-+            super::element::masked_display_offset(&self.text, range.start)
-+                ..super::element::masked_display_offset(&self.text, range.end)
-+        } else {
-+            range.clone()
-         };
--
--        let Some(last_bounds) = self.last_bounds else {
--            return None;
-+        let start = self.line_and_position_for_offset(range.start).2?;
-+        let end = self
-+            .line_and_position_for_offset_with_affinity(range.end, !range.is_empty())
-+            .2?;
-+        let caret = |position| {
-+            Bounds::new(
-+                layout.range_origin + position,
-+                gpui::size(px(0.), layout.line_height),
-+            )
-         };
--
--        let (_, _, start_pos) = self.line_and_position_for_offset(range.start);
--        let (_, _, end_pos) = self.line_and_position_for_offset(range.end);
--
--        let Some(start_pos) = start_pos else {
--            return None;
--        };
--        let Some(end_pos) = end_pos else {
--            return None;
--        };
--
--        Some(Bounds::from_corners(
--            last_bounds.origin + start_pos,
--            last_bounds.origin + end_pos + point(px(0.), last_layout.line_height),
--        ))
-+        let mut bounds = caret(start).union(&caret(end));
-+        if range.is_empty() {
-+            return Some(bounds);
-+        }
-+        let mut y = layout.visible_top;
-+        for (line, &offset) in layout.lines.iter().zip(&layout.visible_line_byte_offsets) {
-+            let start = range.start.max(offset);
-+            let end = range.end.min(offset + line.len());
-+            if start < end {
-+                line.range_bounds(
-+                    start - offset..end - offset,
-+                    layout.range_origin + point(layout.line_number_width, y),
-+                    layout.line_height,
-+                    layout.text_align,
-+                    layout.content_width,
-+                    |fragment| bounds = bounds.union(&fragment),
-+                );
-+            }
-+            y += line.size(layout.line_height).height;
-+        }
-+        Some(bounds)
-     }
- 
-     /// Replace text in range in silent.
 --- a/src/input/editor/display_map/text_wrapper.rs
 +++ b/src/input/editor/display_map/text_wrapper.rs
 @@ -636,9 +636,8 @@
@@ -10239,58 +10128,3 @@
              }
          });
  
---- a/src/input/base/state.rs
-+++ b/src/input/base/state.rs
-@@ -754,6 +754,8 @@
-                             blink_cursor.start(cx);
-                         });
-                     }
-+                } else {
-+                    input.blink_cursor.update(cx, |cursor, cx| cursor.stop(cx));
-                 }
-             }),
-             cx.on_focus(&focus_handle, window, Self::on_focus),
-@@ -7660,12 +7662,24 @@
-         let view = InputView::<EditorMode>::new(cx);
-         let mut cx = VisualTestContext::from_window(view.window_handle.into(), cx);
-         setup_cursors(&mut cx, &view.input, "ab\na|b\nab");
--        cx.update(|window, cx| {
--            view.input.update(cx, |state, cx| {
--                // Start each action in the hidden phase without depending on a
--                // key-down listener: actions and text input also arrive directly.
--                for action in 0..6 {
--                    state.blink_cursor = cx.new(|_| BlinkCursor::new());
-+        for action in 0..6 {
-+            cx.update(|_, cx| {
-+                view.input.update(cx, |state, cx| {
-+                    state.blink_cursor = cx.new(|cx| {
-+                        let mut cursor = BlinkCursor::new();
-+                        cursor.start(cx);
-+                        cursor
-+                    });
-+                });
-+            });
-+            cx.run_until_parked();
-+            cx.executor()
-+                .advance_clock(std::time::Duration::from_millis(500));
-+            cx.run_until_parked();
-+            cx.update(|window, cx| {
-+                view.input.update(cx, |state, cx| {
-+                    // Begin with an active cursor in its hidden phase. An
-+                    // unfocused cursor must no longer be started by an edit.
-                     assert!(!state.blink_cursor.read(cx).visible());
-                     match action {
-                         0 => state.add_cursor_above(&AddCursorAbove, window, cx),
-@@ -7676,9 +7690,9 @@
-                         _ => state.backspace(&Backspace, window, cx),
-                     }
-                     assert!(state.blink_cursor.read(cx).visible(), "action {action}");
--                }
--            });
--        });
-+                });
-+            });
-+        }
-     }
- 
-     #[gpui::test]

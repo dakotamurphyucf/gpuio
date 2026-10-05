@@ -4477,10 +4477,7 @@ impl<M: InputModeKind> EntityInputHandler for InputBaseState<M> {
         if !self.is_editable() || (self.bridge_max_bytes.is_some() && new_text.contains('\0')) {
             return;
         }
-        if new_text.is_empty()
-            && self.bridge_input_format.is_some()
-            && self.bridge_composition_before.is_some()
-        {
+        if new_text.is_empty() && self.bridge_composition_before.is_some() {
             self.cancel_bridge_composition(window, cx);
             return;
         }
@@ -4520,9 +4517,11 @@ impl<M: InputModeKind> EntityInputHandler for InputBaseState<M> {
             return;
         }
 
-        // Policy can first be enabled while a plain bridge input is already
-        // composing. Keep its bounded baseline before any provisional edits.
-        if starts_composition && self.is_single_line() && self.bridge_max_bytes.is_some() {
+        // Keep the bounded draft and selection for every bridge-owned mode.
+        // A native input method may reconvert existing text through an explicit
+        // replacement range; cancelling that provisional edit must restore it,
+        // including in an unformatted multiline editor.
+        if starts_composition && self.bridge_max_bytes.is_some() {
             self.bridge_composition_before = Some((self.text.clone(), selection_before));
         }
         let auto_closed_pairs_before = self.mode.auto_closed_pairs().clone();

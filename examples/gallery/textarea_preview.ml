@@ -30,6 +30,7 @@ let component window palette graph =
     in
     Text_input.Config.create
       ~mode:Multiline
+      ~submit_on_enter:false
       ~label:"Working notes"
       ~searchable:true
       ~min_rows:8
@@ -231,6 +232,12 @@ let component window palette graph =
             ~on_click:inspect_range
             (if range_busy then "Inspecting selection…" else "Inspect selection bounds")
         ]
-    ; Palette.text p ~muted:true notice
+    ; Palette.text
+        p
+        ~muted:true
+        (match Editor.snapshot editor with
+         | Some snapshot when Option.is_some (Text_input.Snapshot.composition snapshot) ->
+           "Composing text…"
+         | None | Some _ -> notice)
     ]
 ;;

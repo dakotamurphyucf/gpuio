@@ -1,7 +1,8 @@
 vendor/** linguist-vendored
 
-# Unified patches use a single space for an unchanged empty context line.
-third_party/patches/*.patch whitespace=-blank-at-eol
+# Unified patches use a single space for an unchanged empty context line,
+# including when that context is the final line of the patch.
+third_party/patches/*.patch whitespace=-blank-at-eol,-blank-at-eof
 vendor/accesskit-macos/*.patch whitespace=-blank-at-eol
 
 # Upstream license texts are retained byte-for-byte, including terminal blank lines.

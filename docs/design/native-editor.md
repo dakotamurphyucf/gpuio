@@ -71,8 +71,20 @@ text mutation, including composition and undo/redo; typing then deleting back to
 the same text must still invalidate a stale conditional clear. Revision counters
 never wrap.
 
+Bridge-owned single-line and multiline editors retain the bounded draft and
+active selection at the start of native composition. Cancelling marked text
+restores both, including when an input method explicitly reconverts preceding
+committed text. Provisional edits add no undo entry when cancelled; the previous
+commit's undo/redo history remains available. Restoration still advances the
+native revision, so old conditional commands cannot become valid again. This
+uses the existing text admission bound and does not change ordinary unbridged
+Base inputs. Native regression tests cover selected and explicit UTF-16
+replacement ranges with multibyte text.
+
 Native declared key rules decide whether Enter submits or inserts a newline;
-Shift+Enter inserts a newline in a chat composer. Composition suppresses submit.
+Shift+Enter inserts a newline in a chat composer. `Text_input.Config` defaults
+to submit-on-Enter; ordinary notes/document editors should explicitly pass
+`~submit_on_enter:false`. Composition suppresses submit.
 A submit event captures exact native text and revision. No late OCaml callback
 can cancel an already performed native default action.
 

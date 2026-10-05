@@ -300,3 +300,51 @@ fn textarea_layout_preserves_native_composition_selection_revision_focus_and_und
         draw(cx);
     });
 }
+
+#[test]
+fn textarea_cancelled_recomposition_restores_committed_text_selection_and_history() {
+    // Input methods may explicitly reconvert preceding text even when the
+    // editor's current selection is collapsed. Cancellation must restore the
+    // draft from before provisional replacement, not merely delete the mark.
+    for explicit_replacement in [false, true] {
+        let prefix = "prefix 🙂\n";
+        setup(prefix, |owner, cx| {
+            let field = state(&owner, cx);
+            cx.update(|window, cx| {
+                field.update(cx, |state, cx| {
+                    assert!(state.bridge_select(prefix.len(), prefix.len(), cx));
+                    state.replace_and_mark_text_in_range(None, "nihongo", Some(0..7), window, cx);
+                    state.replace_text_in_range(None, "日本語", window, cx);
+                    let committed = format!("{prefix}日本語");
+                    assert_eq!(state.value().as_str(), committed);
+                    state.bridge_undo(window, cx);
+                    assert_eq!(state.value().as_str(), prefix);
+                    state.bridge_redo(window, cx);
+                    assert_eq!(state.value().as_str(), committed);
+                    let (anchor, head, replacement) = if explicit_replacement {
+                        let start = prefix.encode_utf16().count();
+                        (committed.len(), committed.len(), Some(start..start + 3))
+                    } else {
+                        (committed.len(), prefix.len(), None)
+                    };
+                    assert!(state.bridge_select(anchor, head, cx));
+                    state.replace_and_mark_text_in_range(replacement, "に", Some(0..1), window, cx);
+                    assert_eq!(state.value().as_str(), format!("{prefix}に"));
+                    state.replace_and_mark_text_in_range(None, "", None, window, cx);
+                    assert_eq!(
+                        state.value().as_str(),
+                        committed,
+                        "cancelled composition erased committed text"
+                    );
+                    assert_eq!(state.bridge_selection(), (anchor, head));
+                    assert!(state.bridge_composition().is_none());
+                    // The cancelled provisional edit must add no undo entry.
+                    state.bridge_undo(window, cx);
+                    assert_eq!(state.value().as_str(), prefix);
+                    state.bridge_redo(window, cx);
+                    assert_eq!(state.value().as_str(), committed);
+                });
+            });
+        });
+    }
+}
