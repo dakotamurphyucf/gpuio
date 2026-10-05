@@ -538,6 +538,8 @@ at `84827c0db4dcaa33e431f458d2d96e5c3cb726d5` passes both complete jobs,
 including the growing-document workload and source-page accessibility labels.
 
 [Run 37274004477](https://github.com/dakotamurphyucf/gpuio/actions/runs/37274004477)
-at `1180cbb6e834882f138c91c1ed83667d187d1748` is in progress for streaming,
-physical-memory repair and explicit idle changes. No pass at this later source
-is claimed yet.
+at `1180cbb6e834882f138c91c1ed83667d187d1748` is terminal success for both
+complete jobs, with no failed steps. This validates the streaming,
+physical-memory repair and explicit idle sources in that checkpoint. Subsequent
+native-entity audit, multiline IME repair and editor AX-selection changes require
+their own hosted result. Linux desktop and other release gates remain separate.

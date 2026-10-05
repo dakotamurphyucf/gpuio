@@ -19,6 +19,10 @@ do not wait for CI alone to debug native behavior or ask permission for each run
 Avoid unnecessary activation and repeated runs. Background rendering/layout
 checks must not be reported as real foreground keyboard/IME validation.
 
+VoiceOver hold (owner, 2026-10-05): do not run, configure or automate VoiceOver
+until the owner explicitly reopens that work. Continue other milestone tasks;
+leave VoiceOver acceptance unqualified.
+
 OCH-11 delivery workflow (owner, 2026-09-13): complete the remaining ticket scope
 locally, validating incrementally with local builds/tests. Do not wait on hosted
 CI between component families. Submit the complete remaining change for CI and
