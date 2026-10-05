@@ -20,12 +20,13 @@ let assoc comparator input ~f graph =
       let pair, reset =
         B.with_model_resetter
           ~f:(fun graph ->
-            (* [assoc] creates a fresh constant key node for each active entry.
-               Data updates keep that node; removing and revisiting the key
-               creates a new subtree and token. Unlike [Expert.thunk], this
-               needs no model or after-display action to freeze the token.
-               Start valid so the child's earlier activation hooks may use it. *)
-            let lifetime = B.map key ~f:(fun _ -> { Lifetime.active = true }) in
+            (* Allocation must belong to this resettable computation. A mapped
+               constant key can be folded by Bonsai and reuse a retired token
+               after branch reactivation. Start valid so the child's earlier
+               activation hooks may use the guard. *)
+            let lifetime =
+              B.Expert.thunk ~f:(fun () -> { Lifetime.active = true }) graph
+            in
             let result = f key data lifetime graph in
             B.both result lifetime)
           graph

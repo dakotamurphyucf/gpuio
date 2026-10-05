@@ -89,6 +89,9 @@ let run ~optimize =
   assert (List.equal String.equal (status (cycle ())) [ "pending"; "1" ]);
   Bonsai_driver.schedule_event driver (fresh (sample here 7L));
   assert (List.equal String.equal (status (cycle ())) [ "pending"; "1" ]);
+  let reactivated = callback (cycle ()) in
+  Bonsai_driver.schedule_event driver (reactivated (sample here 8L));
+  assert (List.equal String.equal (status (cycle ())) [ "8"; "1" ]);
   Bonsai_driver.Expert.invalidate_observers driver;
   print_s
     [%sexp
@@ -103,5 +106,65 @@ let%expect_test "binding observation belongs to the active configuration visit" 
     {|
     (false "pending per visit; stale effects fenced; child state retained")
     (true "pending per visit; stale effects fenced; child state retained")
+    |}]
+;;
+
+let%expect_test "constant binding configuration accepts fresh samples after page remount" =
+  List.iter [ false; true ] ~f:(fun optimize ->
+    let shown = B.Expert.Var.create true in
+    let component graph =
+      let open B.Let_syntax in
+      match%sub B.Expert.Var.value shown with
+      | false -> B.return (View.text "hidden")
+      | true ->
+        Gpuio_bonsai.Command_binding.component
+          ~config:(B.return here)
+          ~f:(fun observation _ ->
+            let%arr observation = observation in
+            [ View.text
+                (Option.value_map observation ~default:"pending" ~f:(fun observation ->
+                   Binding.Observation.epoch observation |> Int64.to_string))
+            ])
+          graph
+    in
+    let driver =
+      Bonsai_driver.create
+        ~clock:(Bonsai.Time_source.create ~start:Time_ns.epoch)
+        ~optimize
+        component
+    in
+    let cycle () =
+      Bonsai_driver.flush driver;
+      Bonsai_driver.trigger_lifecycles driver;
+      Bonsai_driver.flush driver;
+      Bonsai_driver.result driver
+    in
+    let status view =
+      let child = List.hd_exn (Gpuio.View.Expert.describe view).children in
+      (Gpuio.View.Expert.describe child).text
+    in
+    for epoch = 1 to 3 do
+      let view = cycle () in
+      assert (String.equal (status view) "pending");
+      let scope =
+        (Gpuio.View.Expert.describe view).command_binding_scope |> Option.value_exn
+      in
+      let deliver = scope.on_update (sample here (Int64.of_int epoch)) in
+      Bonsai_driver.schedule_event driver deliver;
+      assert (String.equal (status (cycle ())) (Int.to_string epoch));
+      B.Expert.Var.set shown false;
+      ignore (cycle () : View.t);
+      B.Expert.Var.set shown true;
+      ignore (cycle () : View.t);
+      Bonsai_driver.schedule_event driver deliver;
+      assert (String.equal (status (cycle ())) "pending")
+    done;
+    Bonsai_driver.Expert.invalidate_observers driver;
+    print_s
+      [%sexp (optimize : bool), ("three visits; only fresh samples accepted" : string)]);
+  [%expect
+    {|
+    (false "three visits; only fresh samples accepted")
+    (true "three visits; only fresh samples accepted")
     |}]
 ;;

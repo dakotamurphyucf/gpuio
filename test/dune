@@ -1,0 +1,5 @@
+; Keep the first-party expect tests active when validating optimized builds.
+; Dune otherwise disables inline tests in the release profile.
+(env
+ (_
+  (inline_tests enabled)))
