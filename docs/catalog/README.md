@@ -7,8 +7,8 @@ that every source entry is implemented or validated.
 - `sources/manifest.json`: exact upstream revisions, source paths and SHA-256
   hashes. Snapshots are unmodified Git blobs; upstream licenses are alongside.
   The chart/plot, animation/motion and command/menu inputs now include 51 further
-  blobs verified against the pinned Git tree. Their detailed behavioral mapping
-  is still pending; adding source snapshots is not component acceptance.
+  blobs verified against the pinned Git tree. The motion review below now maps its nested surfaces; detailed chart and
+  command/menu reviews remain pending. Source snapshots are not component acceptance.
 - `inventory.json`: root modules from both Longbridge layers, GPUIX intrinsic
   elements, React export modules, style fields and all generic event properties.
   Private root modules are included deliberately so review must account for
@@ -264,3 +264,9 @@ compiled dependencies. Actual native dependency provenance stays in
 - [Diagnostics helpers](diagnostics-review.md): counters and native observation
   are mapped with their evidence limits. Window-level macOS AX hit-test forwarding
   needs separate physical qualification; focused-node checks do not prove it.
+
+- [Motion source review](motion-review.md): eight exact snapshots map transitions,
+  springs, timing/easing, keyframes, presence, reveal and stagger. Existing numeric
+  programs and component-specific motion are distinguished from unimplemented
+  timing/easing surfaces and the already accepted keyframe/object/presence exclusions.
+  Native ownership and evidence limits remain explicit; this is not blanket parity.

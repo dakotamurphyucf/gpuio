@@ -696,11 +696,12 @@
       "id": "motion",
       "owner": "OCH-25",
       "scope": "v1",
-      "audit_status": "mapping established; detailed behavioral review pending",
+      "audit_status": "Eight exact pinned animation/motion sources reviewed in motion-review.md. Native transitions, springs, staged programs, shared clocks, reduced motion and component-specific reveals map to public contracts and scoped existing evidence. Step/linear-stop easing, negative delays and finite/reversed timing differences remain explicit catalog gaps; arbitrary keyframes, object/color interpolation and general exit-presence retain the existing OCH-25 exclusions. Review is not family or release acceptance.",
       "public_interface": "lib/core/animation.mli",
       "example": "examples/animation_program",
       "evidence": [
-        "docs/evidence/animation-programs-och25.md"
+        "docs/evidence/animation-programs-och25.md",
+        "docs/catalog/motion-review.md"
       ],
       "gallery_page": "motion",
       "contract": "Native transitions/springs/sequences/repetition and interruption/reduced motion, without OCaml frame callbacks.",
