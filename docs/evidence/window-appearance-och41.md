@@ -85,11 +85,69 @@ versions did not change for this addition.
 
 ## Remaining acceptance
 
-Physically switch macOS appearance with Follow system selected, then with an
-explicit palette selected, across multiple windows while editing. Verify actual
-theme rendering, focus/selection and continued typing. Linux backend observations
+The physical macOS check below now covers Follow system and explicit palettes
+across two windows while editing. Linux backend observations
 remain part of deferred desktop qualification, with nongraphical builds still
 required. This is not high-contrast preference support or a global OS override.
 
 The nested style/theme audit, full gallery/input/accessibility/performance and
 distribution/review gates remain open. OCH-41/OCH-17 and milestone 07 remain active.
+
+## Physical macOS appearance — 2026-10-05
+
+The real macOS 14.5 arm64 walkthrough passed all eight cases. Its tested worktree,
+based on `3d1f64b`, was committed as
+`24445a08ee54dacc05420b9e039ad25a8d6c479f`; the unchanged report truthfully records
+the pre-commit revision and `dirty=true`. The optimized gallery executable has
+SHA-256 `1cb18f072468b16674aee7aaa3029a7ac0904554cd7067c5279e8302ea9f15af`.
+No native library or renderer fix was needed.
+
+The gallery's opt-in `--trace-window-appearance` records its existing public
+window observations through Eio. The runner waits for fresh observations from
+both windows after each OS switch, then independently checks actual window pixels
+and existing editor handles. It does not accept a changed preference/button label
+as proof of painting, or an assertion made before the native observation arrives.
+
+- Follow system initially resolves Dark, repaints Light when macOS changes, and
+  repaints Dark on the return change. Both windows publish the native changes.
+- The focused first-window editor retains `Retained λ🙂 appearance draft` and the
+  `λ🙂` selection through both changes. Without requesting focus again, native
+  Backspace, undo, typing `a`, and undo all reach that editor and restore the draft.
+- The second window's independent draft and explicit Light palette survive an OS
+  return to Dark. After it closes, an explicit Dark choice in the first window
+  survives OS Light. Selecting Follow system again adopts current OS Light.
+- The last window closes and the owned process returns zero and is reaped.
+
+[Light](system-appearance-och41/system-light.png),
+[Dark](system-appearance-och41/system-dark.png), and
+[explicit Dark under OS Light](system-appearance-och41/explicit-dark.png) captures
+were visually inspected. They show the retained Unicode selection and the expected
+content palettes; the last also shows light native chrome around dark application
+content, as the contract specifies. All seven captures, the
+[raw report](system-appearance-och41/report.json),
+[native observation log](system-appearance-och41/application.log), and
+[restoration record](system-appearance-och41/appearance-recovery.json) are retained.
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build --profile release examples/gallery/main.exe @fmt
+python3 scripts/test_mac_system_appearance.py
+python3 scripts/test_macos_system_appearance.py --output scratch/agents/root-20261004-resumed/system-appearance-runtime-001
+```
+
+The runner saves and fsyncs a recovery record before changing OS appearance, then
+restores and verifies the original effective Dark mode and automatic-switch
+preference, including absence. This run began and ended in Dark with the automatic
+preference absent. Success is recorded only after restoration. Four portable tests
+cover normal/error/interruption paths, absent/true/false automatic preferences,
+restoration ordering, failed readback, and refusal to overwrite a recovery record.
+An interrupted process that cannot execute cleanup can be recovered explicitly:
+
+```sh
+python3 scripts/mac_system_appearance.py --restore PATH/appearance-recovery.json
+```
+
+Build/format, portable tests, Python compilation and workflow actionlint pass.
+Both portable restoration checks and the physical walkthrough are wired into CI;
+their new hosted execution remains pending. This does not qualify automatic
+scheduling, high contrast, vibrant variants, Linux desktop appearance, or VoiceOver.
+VoiceOver, input-source and clipboard settings were neither changed nor exercised.

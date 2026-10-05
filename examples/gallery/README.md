@@ -124,7 +124,8 @@ Use the sidebar to switch previews, the light/dark button for explicit appearanc
 button for compact/comfortable/large logical sizing. Startup uses explicit Dark;
 choosing light/dark leaves Follow system. Native appearance changes do not override
 an explicit palette. See [the appearance contract](../../docs/design/window-appearance.md)
-for simulated-test coverage and remaining physical checks. This sizing is not OS
+and [physical macOS validation](../../docs/evidence/window-appearance-och41.md#physical-macos-appearance--2026-10-05)
+for two-window switching, retained native editing and preference restoration. This sizing is not OS
 DPI emulation. Each new window has independent navigation, appearance and editor
 state. Leaving a page unmounts its native editor leases; appearance/size changes
 on the current page preserve native text and selection. Preview model state is

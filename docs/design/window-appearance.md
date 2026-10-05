@@ -78,3 +78,5 @@ Bonsai graph and editor controller identities.
 The broader style/theme source audit remains open, including nested theme schema,
 registry, color/motion utilities and component-specific defaults. This focused
 addition must not be described as full theme or release acceptance.
+
+The [physical macOS walkthrough](../evidence/window-appearance-och41.md#physical-macos-appearance--2026-10-05) now passes on macOS 14.5: real OS transitions, independently rendered window palettes, retained selection/native editing, and verified restoration of the original preferences. Automatic scheduling, high contrast and Linux desktop reporting remain separate.
