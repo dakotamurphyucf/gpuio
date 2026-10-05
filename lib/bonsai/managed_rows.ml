@@ -20,11 +20,12 @@ let assoc comparator input ~f graph =
       let pair, reset =
         B.with_model_resetter
           ~f:(fun graph ->
-            (* The row's own activation hooks run before the wrapper's later
-               lifecycle path. Start valid so those hooks may use the guard. *)
-            let lifetime =
-              B.Expert.thunk ~f:(fun () -> { Lifetime.active = true }) graph
-            in
+            (* [assoc] creates a fresh constant key node for each active entry.
+               Data updates keep that node; removing and revisiting the key
+               creates a new subtree and token. Unlike [Expert.thunk], this
+               needs no model or after-display action to freeze the token.
+               Start valid so the child's earlier activation hooks may use it. *)
+            let lifetime = B.map key ~f:(fun _ -> { Lifetime.active = true }) in
             let result = f key data lifetime graph in
             B.both result lifetime)
           graph

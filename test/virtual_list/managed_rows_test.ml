@@ -141,3 +141,88 @@ let%expect_test "row activation and deactivation effects compose with the reset"
     (true 1 ())
     |}]
 ;;
+
+let%expect_test "nested lifetimes survive data updates but never revive after remount" =
+  List.iter [ false; true ] ~f:(fun optimize ->
+    let members = B.Expert.Var.create (Int.Map.of_alist_exn [ 1, 0; 2, 0 ]) in
+    let columns = B.Expert.Var.create (Int.Map.singleton 0 ()) in
+    let calls = ref [] in
+    let component graph =
+      Rows.assoc
+        (module Int)
+        (B.Expert.Var.value members)
+        ~f:(fun row data _ graph ->
+          Rows.assoc
+            (module Int)
+            (B.Expert.Var.value columns)
+            ~f:(fun _ _ lifetime _graph ->
+              let open B.Let_syntax in
+              let%arr row = row
+              and data = data
+              and lifetime = lifetime in
+              ( lifetime
+              , Rows.Lifetime.guard
+                  lifetime
+                  (E.of_thunk (fun () -> calls := (row, data) :: !calls)) ))
+            graph)
+        graph
+    in
+    let driver =
+      Bonsai_driver.create
+        ~optimize
+        ~clock:(Bonsai.Time_source.create ~start:Time_ns.epoch)
+        component
+    in
+    let cycle () =
+      Bonsai_driver.flush driver;
+      Bonsai_driver.trigger_lifecycles driver;
+      Bonsai_driver.flush driver;
+      Bonsai_driver.result driver
+    in
+    let cell rows row = Map.find_exn (Map.find_exn rows row) 0 in
+    let fire (_, action) =
+      Bonsai_driver.schedule_event driver action;
+      ignore (cycle () : _ Int.Map.t)
+    in
+    let initial = cycle () in
+    let first = cell initial 1
+    and second = cell initial 2 in
+    assert (not (phys_equal (fst first) (fst second)));
+    B.Expert.Var.set members (Int.Map.of_alist_exn [ 1, 10; 2, 0 ]);
+    let updated = cycle () in
+    assert (phys_equal (fst first) (fst (cell updated 1)));
+    assert (phys_equal (fst second) (fst (cell updated 2)));
+    fire (cell updated 1);
+    B.Expert.Var.set members (Int.Map.singleton 2 0);
+    let retained = cycle () in
+    assert (phys_equal (fst second) (fst (cell retained 2)));
+    fire first;
+    fire second;
+    B.Expert.Var.set members (Int.Map.of_alist_exn [ 1, 20; 2, 0 ]);
+    let revisited = cycle () in
+    let fresh = cell revisited 1 in
+    assert (not (phys_equal (fst first) (fst fresh)));
+    fire first;
+    fire fresh;
+    B.Expert.Var.set columns Int.Map.empty;
+    ignore (cycle () : _ Int.Map.t);
+    fire fresh;
+    fire second;
+    B.Expert.Var.set columns (Int.Map.singleton 0 ());
+    let reinserted = cycle () in
+    assert (not (phys_equal (fst fresh) (fst (cell reinserted 1))));
+    assert (not (phys_equal (fst second) (fst (cell reinserted 2))));
+    fire fresh;
+    fire second;
+    fire (cell reinserted 1);
+    fire (cell reinserted 2);
+    print_s [%sexp (optimize : bool), (List.rev !calls : (int * int) list)];
+    B.Expert.Var.set members Int.Map.empty;
+    ignore (cycle () : _ Int.Map.t);
+    Bonsai_driver.Expert.invalidate_observers driver);
+  [%expect
+    {|
+    (false ((1 10) (2 0) (1 20) (1 20) (2 0)))
+    (true ((1 10) (2 0) (1 20) (1 20) (2 0)))
+    |}]
+;;
