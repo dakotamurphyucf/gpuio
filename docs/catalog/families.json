@@ -116,14 +116,15 @@
       "id": "buttons",
       "owner": "OCH-11",
       "scope": "v1",
-      "audit_status": "seven pinned sources reviewed; rich content, loading/focus policy, appearance, split controls and independent hover observations implemented locally. Public child-policy and live command-tooltip compositions build against installed libraries. Core/codec/TestPlatform checks pass; complete lifecycle/resource and physical macOS/consumer runtime acceptance remain open.",
+      "audit_status": "Seven pinned sources reviewed; rich content, loading/focus policy, appearance, split controls and hover observations implemented. Installed macOS rich-button, appearance/busy-Link menu-observation and command-hint scenarios pass; combined run fails split identity after ancestor pair disabling, before mode changes. Failure is preserved and remains under investigation; complete family/resource/release acceptance stays open.",
       "public_interface": "lib/core/view.mli",
       "example": "examples/controls",
       "evidence": [
         "docs/evidence/button-icons-och11.md",
         "docs/catalog/button-review.md",
         "docs/design/button-content.md",
-        "docs/evidence/gallery-och41.md"
+        "docs/evidence/gallery-och41.md",
+        "docs/evidence/installed-actions-och41.md"
       ],
       "gallery_page": "controls",
       "contract": "Native press/key/AX, icon slots and styles exist. Epoch2 connects checked rich content, per-owner loading and preserve/skipped/signed focus policy; Controls gallery exposes the public API. Physical/resource acceptance, group presentation and split-menu coordination remain open.",
@@ -136,7 +137,7 @@
       "id": "selection",
       "owner": "OCH-11",
       "scope": "v1",
-      "audit_status": "nine pinned sources reviewed; toolbar, toggle gallery, checkable appearance/rich labels and standalone-radio/Tab-order extension implemented locally; Core/codec/native focus and transaction checks pass; native checkable GPU and fresh installed appearance/rich-label walkthrough pass; remaining toolbar/toggle/standalone-radio/navigation and release acceptance stay separate",
+      "audit_status": "Nine pinned sources reviewed; toolbar, toggle gallery, checkable appearance/rich labels and standalone-radio/Tab-order extension implemented locally. Core/codec/native checks pass; native checkable GPU and fresh installed appearance/rich-label/toolbar-toggle walkthroughs pass. Standalone-radio/navigation and release acceptance remain separate.",
       "public_interface": "lib/core/choice.mli",
       "example": "examples/controls",
       "evidence": [
@@ -144,7 +145,8 @@
         "docs/catalog/selection-review.md",
         "docs/design/control-appearance.md",
         "docs/design/control-labels.md",
-        "docs/design/checkable-navigation.md"
+        "docs/design/checkable-navigation.md",
+        "docs/evidence/installed-actions-och41.md"
       ],
       "gallery_page": "controls",
       "contract": "Checkbox/switch/radio and command-based toggle compositions. Native toolbar orientation is explicit metadata, with application-owned selection and current-policy reducer guards. Control_appearance supplies validated indicator/mark styles, size/gap/label order with retained identity. Checked passive rich labels preserve keyed owner/slot identity and one activation target. Standalone radio supplies checked no-op semantics and optional set position; Tab_order adds explicit signed order/stop policy; Radio_group semantic containers allow application-owned composition. Managed radio groups preserve rapid asynchronous requests. The Controls gallery demonstrates reset/skip/disable and rich/plain labels; actual macOS checkable appearance/rich-label and installed-consumer checks pass; whole-family navigation and release acceptance remain open.",

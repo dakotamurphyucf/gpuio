@@ -18,14 +18,17 @@ def exercise(mac, images=None):
     equal.restype, equal.argtypes = C.c_bool, [C.c_void_p, C.c_void_p]
 
     def toggle(name):
-        reveal_gallery_control(mac, name, 'AXCheckBox')
-        activate(mac, mac.wait_find(TITLE, name, 'AXCheckBox'))
+        # AXPress leaves focus on the hinted action. After Escape, focusing that
+        # already-focused action does not re-enter it or reopen its tooltip.
+        focus_gallery_control(mac, name, 'AXCheckBox')
+        mac.key(49)
 
     def hint(description, chord=None):
         focus_gallery_control(mac, label, 'AXButton')
         mac.wait_text(TITLE, 'Run a local preview action')
         mac.wait_text(TITLE, description)
         if chord:
+            # Kbd exposes its accessible label, independently of painted glyphs.
             mac.wait_text(TITLE, chord)
         current = mac.wait_find(TITLE, label, 'AXButton')
         try:
@@ -34,24 +37,24 @@ def exercise(mac, images=None):
             mac.release(current)
 
     try:
-        hint('Assigned shortcut', '⇧⌘H')
+        hint('Assigned shortcut', 'Shift + Command + H')
         mac.wait_text(TITLE, 'Hinted action requests: 0')
         mac.key(53)
         wait_absent(mac, 'Run a local preview action', None)
         mac.key(4, (1 << 20) | (1 << 17))  # Command-Shift-H.
         mac.wait_text(TITLE, 'Hinted action requests: 1')
         toggle('Alternate hinted shortcut')
-        hint('Assigned shortcut', '⇧⌘J')
+        hint('Assigned shortcut', 'Shift + Command + J')
         mac.key(4, (1 << 20) | (1 << 17))
         time.sleep(.1)
         mac.wait_text(TITLE, 'Hinted action requests: 1')
         mac.key(38, (1 << 20) | (1 << 17))  # Command-Shift-J.
         mac.wait_text(TITLE, 'Hinted action requests: 2')
         toggle('Linux hint labels')
-        hint('Assigned shortcut', 'Ctrl+Shift+J')
+        hint('Assigned shortcut', 'Control + Shift + J')
         toggle('Assign hinted shortcut')
         hint('No shortcut assigned')
-        wait_absent(mac, 'Ctrl+Shift+J', None)
+        wait_absent(mac, 'Control + Shift + J', None)
         mac.key(38, (1 << 20) | (1 << 17))
         time.sleep(.1)
         mac.wait_text(TITLE, 'Hinted action requests: 2')
@@ -69,7 +72,7 @@ def exercise(mac, images=None):
         mac.wait_text(TITLE, 'Hinted action requests: 3')
         toggle('Assign hinted shortcut')
         toggle('Enable hinted action')
-        hint('Assigned shortcut', 'Ctrl+Shift+J')
+        hint('Assigned shortcut', 'Control + Shift + J')
         if images:
             screenshot(mac, images / 'gallery-command-tooltip.png', title=TITLE)
         mac.press(TITLE, 'Presentation')

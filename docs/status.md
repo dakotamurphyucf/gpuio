@@ -65,6 +65,11 @@ whole-family acceptance. Start from [the catalog](catalog/README.md),
 
 Recent completed local checkpoints:
 
+- Fresh installed toolbar/toggle, rich-button, appearance/busy-Link and menu
+  checks pass. A split-button identity failure is isolated to ancestor pair
+  disabling and remains open; combined button acceptance is incomplete.
+  [Evidence and preserved failures](evidence/installed-actions-och41.md).
+
 - Fresh installed spinner, progress and checkable-control walkthroughs pass:
   actual animation/paint/input, retained editor undo through inert hiding, 24
   control part-bound cases, rich labels and lifecycle checks.

@@ -157,3 +157,12 @@ checks on macOS. It preserves the corrected harness assumptions and original
 failures. These scoped results supersede the corresponding unrun GPU/public
 walkthrough statements above; broader family, performance/resource, final-source
 hosted and release requirements remain separate. VoiceOver remains on hold.
+
+## Installed action-control follow-up — 2026-10-05
+
+[Scoped macOS installed-gallery evidence](../evidence/installed-actions-och41.md)
+now covers passing toolbar/toggle input and geometry, rich-button loading/focus,
+appearance/busy-Link and menu-observation checks. These supersede corresponding
+earlier unrun statements only. Split-button AX identity fails after ancestor
+pair disabling; its failure is preserved and acceptance remains open. Other
+family, resource/performance and release requirements remain separate.

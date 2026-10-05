@@ -2,7 +2,7 @@
 
 No headless acceptance is implied by importing or compiling this driver.
 Busy checks require both blocked activation and the native AXElementBusy Boolean.
-This authored external AX walkthrough still requires desktop execution.
+Local execution evidence is recorded in docs/evidence/installed-actions-och41.md.
 """
 import ctypes as C
 import time
@@ -45,10 +45,8 @@ def exercise(mac, images=None):
     equal.restype, equal.argtypes = C.c_bool, [C.c_void_p, C.c_void_p]
     boolean = mac.cf.CFBooleanGetValue
     boolean.restype, boolean.argtypes = C.c_bool, [C.c_void_p]
-    number = mac.cf.CFNumberGetValue
-    number.restype, number.argtypes = C.c_bool, [C.c_void_p, C.c_int, C.c_void_p]
-    number_type = mac.cf.CFNumberGetTypeID
-    number_type.restype, number_type.argtypes = C.c_ulong, []
+    boolean_type = mac.cf.CFBooleanGetTypeID
+    boolean_type.restype, boolean_type.argtypes = C.c_ulong, []
 
     def focused(node, wanted=True):
         deadline = time.monotonic() + 5
@@ -99,9 +97,8 @@ def exercise(mac, images=None):
             node = mac.wait_find(TITLE, label, 'AXCheckBox')
             raw = mac.attr(node, 'AXValue')
             try:
-                value = C.c_longlong()
-                if (raw and mac.type_id(raw) == number_type()
-                        and number(raw, 4, C.byref(value)) and value.value == expected):
+                if (raw and mac.type_id(raw) == boolean_type()
+                        and int(boolean(raw)) == expected):
                     identity()
                     return
             finally:
@@ -175,4 +172,4 @@ def exercise(mac, images=None):
         mac.release(peer)
     print('GALLERY_BUTTONS_OK: rich/plain identity, shared-command loading, real '
           'Return/Space/pointer, skipped Tab and preserved sibling focus; '
-          'AXElementBusy adapter/VoiceOver acceptance remains open', flush=True)
+          'external AXElementBusy checked; VoiceOver remains unqualified', flush=True)

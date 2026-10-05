@@ -24,6 +24,10 @@ def exercise(mac, images=None):
         number.restype, number.argtypes = C.c_bool, [C.c_void_p, C.c_int, C.c_void_p]
         number_type = mac.cf.CFNumberGetTypeID
         number_type.restype, number_type.argtypes = C.c_ulong, []
+        boolean = mac.cf.CFBooleanGetValue
+        boolean.restype, boolean.argtypes = C.c_bool, [C.c_void_p]
+        boolean_type = mac.cf.CFBooleanGetTypeID
+        boolean_type.restype, boolean_type.argtypes = C.c_ulong, []
         deadline = time.monotonic() + 5
         actual = None
         while time.monotonic() < deadline:
@@ -31,10 +35,14 @@ def exercise(mac, images=None):
             raw = mac.attr(node, 'AXValue')
             try:
                 result = C.c_longlong()
-                if raw and mac.type_id(raw) == number_type() and number(raw, 4, C.byref(result)):
+                # Ordinary toggles are Boolean; GPUIO normalizes Mixed to 2.
+                actual = None
+                if raw and mac.type_id(raw) == boolean_type():
+                    actual = int(boolean(raw))
+                elif raw and mac.type_id(raw) == number_type() and number(raw, 4, C.byref(result)):
                     actual = result.value
-                    if actual == expected:
-                        return
+                if actual == expected:
+                    return
             finally:
                 if raw:
                     mac.release(raw)

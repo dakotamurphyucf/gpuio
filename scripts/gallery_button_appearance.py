@@ -6,7 +6,7 @@ import time
 def exercise(mac, images=None):
     from test_gallery import (
         TITLE, GalleryMouse, activate, element_rect, expect_enabled, focus_gallery_control,
-        reveal_gallery_control, wait_absent,
+        reveal_gallery_control, select_gallery_appearance, wait_absent,
     )
     from test_canvas import screenshot
     from gallery_buttons import expect_busy
@@ -17,10 +17,10 @@ def exercise(mac, images=None):
     original = mac.wait_find(TITLE, primary, 'AXButton')
     equal = mac.cf.CFEqual
     equal.restype, equal.argtypes = C.c_bool, [C.c_void_p, C.c_void_p]
-    number = mac.cf.CFNumberGetValue
-    number.restype, number.argtypes = C.c_bool, [C.c_void_p, C.c_int, C.c_void_p]
-    number_type = mac.cf.CFNumberGetTypeID
-    number_type.restype, number_type.argtypes = C.c_ulong, []
+    boolean = mac.cf.CFBooleanGetValue
+    boolean.restype, boolean.argtypes = C.c_bool, [C.c_void_p]
+    boolean_type = mac.cf.CFBooleanGetTypeID
+    boolean_type.restype, boolean_type.argtypes = C.c_ulong, []
 
     def toggle(label, expected):
         reveal_gallery_control(mac, label, 'AXCheckBox')
@@ -30,9 +30,8 @@ def exercise(mac, images=None):
             node = mac.wait_find(TITLE, label, 'AXCheckBox')
             raw = mac.attr(node, 'AXValue')
             try:
-                value = C.c_longlong()
-                if (raw and mac.type_id(raw) == number_type()
-                        and number(raw, 4, C.byref(value)) and value.value == expected):
+                if (raw and mac.type_id(raw) == boolean_type()
+                        and int(boolean(raw)) == expected):
                     return
             finally:
                 if raw:
@@ -106,9 +105,18 @@ def exercise(mac, images=None):
         link = mac.wait_find(TITLE, link_label, 'AXLink')
         try:
             expect_busy(mac, link, False)
+            resting_width = element_rect(mac, link)[2]
             toggle('Load link preview', 1)
             expect_busy(mac, link, True)
-            mac.wait_text(TITLE, 'Loading guide…')
+            # Link.Config.label owns its semantic name; passive text is not a
+            # second AX leaf. Check changed layout and capture the visible text.
+            reveal_gallery_control(mac, link_label, 'AXLink')
+            deadline = time.monotonic() + 5
+            while element_rect(mac, link)[2] <= resting_width + 10:
+                assert time.monotonic() < deadline, 'Loading link content did not expand'
+                time.sleep(.025)
+            if images:
+                screenshot(mac, images / 'gallery-link-loading.png', title=TITLE)
             expect_enabled(mac, link_label, True, role='AXLink')
             focus_gallery_control(mac, link_label, 'AXLink')
             mac.key(36)
@@ -123,6 +131,10 @@ def exercise(mac, images=None):
             expect_enabled(mac, link_label, False, role='AXLink')
             toggle('Load link preview', 0)
             expect_busy(mac, link, False)
+            deadline = time.monotonic() + 5
+            while abs(element_rect(mac, link)[2] - resting_width) > 1:
+                assert time.monotonic() < deadline, 'Link content width did not recover'
+                time.sleep(.025)
             expect_enabled(mac, link_label, False, role='AXLink')
             toggle('Disable appearance actions', 0)
             current = mac.wait_find(TITLE, link_label, 'AXLink')
@@ -136,9 +148,7 @@ def exercise(mac, images=None):
         finally:
             mac.release(link)
         for theme in ('Light', 'Dark'):
-            control = mac.find(TITLE, theme, 'AXButton')
-            if control:
-                activate(mac, control)
+            select_gallery_appearance(mac, theme)
             reveal_gallery_control(mac, primary, 'AXButton')
             bounds()
             if images:
@@ -152,3 +162,6 @@ def exercise(mac, images=None):
           'tooltip/Escape, Return/Space, sizing, restyle identity, disabled action '
           'rejection, Link loading/focus/recovery, themes and page retirement; '
           'pixel styling still requires review', flush=True)
+    print('GALLERY_BUTTON_APPEARANCE_OK: eleven variants, hover, tooltip focus/Escape, '
+          'Return/Space, dimensions, disabled/loading policies, retained owners, '
+          'loading-content geometry and both themes; page retirement', flush=True)
