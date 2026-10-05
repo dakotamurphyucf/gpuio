@@ -43,6 +43,11 @@ The two available failure logs now have [local readiness corrections](evidence/m
 the calendar acknowledges focus before keys, and file-theme Reload waits for its
 page scope to become ready. The full calendar walkthrough and all 12 theme cases
 pass locally. Corrected hosted execution remains required; no failures are waived.
+The same run later failed the public sidebar motion sampler after its AX searches
+missed an intermediate width. The [sampling correction](evidence/sidebar-ci-sampling-och17.md)
+now passes locally on both left and right layouts; corrected hosted execution is
+still pending. The [motion catalog review](catalog/motion-review.md) maps all eight
+pinned source inputs and names remaining timing/easing gaps without claiming parity.
 Three full optimized loaded-list, paged-table and growing-document runs pass
 their declared budgets; six ordinary/profiled comparisons and three resource
 lifecycle runs also pass. Three full streaming/typing runs also pass after an optional profiler repair,
