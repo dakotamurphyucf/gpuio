@@ -4538,7 +4538,7 @@ class GalleryMouse:
         self.check_owner((bounds[0] + bounds[2]/2, bounds[1] + bounds[3]/2))
         return bounds
 
-    def check_owner(self, point):
+    def owner_at(self, point):
         mac = self.mac
         system = mac.ax.AXUIElementCreateSystemWide
         system.restype, system.argtypes = C.c_void_p, []
@@ -4550,18 +4550,24 @@ class GalleryMouse:
         try:
             hit_status = hit_test(root, *point, C.byref(hit))
             pid_status = get_pid(hit, C.byref(owner)) if not hit_status and hit.value else None
-            assert (not hit_status and hit.value and pid_status == 0
-                    and owner.value == mac.pid), (
-                        'Pointer target is occluded', point,
-                        {'expected_pid': mac.pid, 'actual_pid': owner.value,
-                         'hit_status': hit_status, 'pid_status': pid_status})
-            subrole = mac.text(hit, 'AXSubrole')
-            assert subrole not in ('AXCloseButton', 'AXMinimizeButton', 'AXZoomButton'), (
-                'Content pointer target hit a window control', point, subrole)
+            return {'expected_pid': mac.pid, 'actual_pid': owner.value,
+                    'hit_status': hit_status, 'pid_status': pid_status,
+                    'found': bool(hit.value),
+                    'role': mac.text(hit, 'AXRole') if hit.value else None,
+                    'subrole': mac.text(hit, 'AXSubrole') if hit.value else None}
         finally:
             if hit.value:
                 mac.release(hit)
             mac.release(root)
+
+    def check_owner(self, point):
+        target = self.owner_at(point)
+        assert (target['hit_status'] == 0 and target['found']
+                and target['pid_status'] == 0
+                and target['actual_pid'] == self.mac.pid), (
+                    'Pointer target is occluded', point, target)
+        assert target['subrole'] not in ('AXCloseButton', 'AXMinimizeButton', 'AXZoomButton'), (
+            'Content pointer target hit a window control', point, target)
 
     def transfer(self, *, cancel=False):
         sx, sy, sw, sh = self.bounds('Idea transfer source')

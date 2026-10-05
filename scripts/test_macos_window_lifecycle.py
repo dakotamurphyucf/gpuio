@@ -83,13 +83,65 @@ def drag(mouse, start, finish):
         mouse.send(2, finish)
 
 
-def point_for(mac, label, role):
-    node = mac.wait_find(TITLE, label, role)
+def point_for(mac, label, role, *, deadline=None):
+    node = (mac.wait_find(TITLE, label, role) if deadline is None
+            else mac.find(TITLE, label, role, deadline=deadline))
+    if not node:
+        return None
     try:
         x, y, w, h = element_rect(mac, node)
         return x+w/2, y+h/2
     finally:
         mac.release(node)
+
+
+def ready_pointer(mac, mouse, label, role, report, timeout=12):
+    """Wait for a current, stable, foreground target; never click an occluder.
+
+    Raising the app requests an asynchronous OS transition. Re-read the AX
+    position after it settles rather than trusting one post-drag observation.
+    Retain bounded ownership transitions, without logging other apps' UI text.
+    """
+    started = time.monotonic()
+    observation = {'label': label, 'ready': False, 'transitions': [], 'dropped': 0}
+    report.setdefault('pointer_readiness', []).append(observation)
+    names = {}
+    previous, stable_since = None, started
+    raise_gallery(mac)
+    while True:
+        point = point_for(mac, label, role, deadline=started+timeout)
+        target = (mouse.owner_at(point) if point is not None else
+                  {'expected_pid': mac.pid, 'actual_pid': 0, 'hit_status': None,
+                   'pid_status': None, 'found': False, 'role': None, 'subrole': None})
+        foreground = boolean(mac, mac.app, 'AXFrontmost')
+        state = {'point': point, 'foreground': foreground, **target}
+        now = time.monotonic()
+        if state != previous:
+            previous, stable_since = state, now
+            pid = target['actual_pid']
+            if pid and pid not in names:
+                try:
+                    process = subprocess.run(['ps', '-p', str(pid), '-o', 'comm='],
+                                             capture_output=True, text=True, timeout=1)
+                    names[pid] = Path(process.stdout.strip()).name or 'unavailable'
+                except subprocess.TimeoutExpired:
+                    names[pid] = 'lookup timed out'
+            if len(observation['transitions']) < 24:
+                observation['transitions'].append(
+                    {'elapsed_s': round(now-started, 4), 'process': names.get(pid), **state})
+            else:
+                observation['dropped'] += 1
+        valid = (foreground and target['hit_status'] == 0 and target['found']
+                 and target['pid_status'] == 0 and target['actual_pid'] == mac.pid
+                 and target['subrole'] not in ('AXCloseButton', 'AXMinimizeButton', 'AXZoomButton'))
+        if now-started >= timeout:
+            observation['elapsed_s'] = round(now-started, 4)
+            raise RuntimeError(f'Pointer target did not become ready: {label}: {state}')
+        if valid and now-stable_since >= .1:
+            mouse.check_owner(point)  # Recheck immediately before the caller posts input.
+            observation.update(ready=True, elapsed_s=round(now-started, 4), point=point)
+            return point
+        time.sleep(.025)
 
 
 def double_click(mouse, point):
@@ -184,8 +236,7 @@ def main():
 
                 # The child button must perform its action, without moving the
                 # outer window on an ordinary native pointer click.
-                point = point_for(mac, 'Fullscreen', 'AXButton')
-                mouse.check_owner(point)
+                point = ready_pointer(mac, mouse, 'Fullscreen', 'AXButton', report)
                 mouse.send(5, point)
                 mouse.send(1, point)
                 mouse.send(2, point)

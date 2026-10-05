@@ -37,6 +37,10 @@ both presentation probes; Linux was cancelled before receiving a runner, and the
 fresh receiver was skipped. [Exact reports](evidence/hosted-presentation-calibration-och17.md#repeat-on-hosted-run-37374125077)
 retain 180 GPUI and 120 standalone zero-time frames on Apple Paravirtual. The
 newer local palette/menu changes remain outside this run's coverage.
+The custom-window driver now has a [locally passing readiness follow-up](evidence/window-readiness-och17.md):
+foreground/stable physical ownership is required before the Fullscreen click,
+with bounded occluder diagnostics. Both complete local window walkthroughs pass;
+the hosted failure was not reproduced locally and still needs hosted confirmation.
 The owner lifted the VoiceOver hold on 2026-10-05; accessibility validation may
 resume. VoiceOver acceptance remains open.
 The subsequent [run 37343201640](https://github.com/dakotamurphyucf/gpuio/actions/runs/37343201640)

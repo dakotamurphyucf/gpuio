@@ -1,0 +1,129 @@
+#!/usr/bin/env python3
+"""Portable pointer readiness regressions; actual OS evidence is separate."""
+import unittest
+from types import SimpleNamespace
+from unittest.mock import patch
+
+import test_macos_window_lifecycle as lifecycle
+from test_gallery import GalleryMouse
+
+
+class Clock:
+    now = 0.
+
+    def sleep(self, seconds):
+        self.now += seconds
+
+
+class Pointer(GalleryMouse):
+    def __init__(self, owner):
+        self.mac = SimpleNamespace(pid=42, app=object())
+        self.owner = owner
+        self.checked = []
+        self.lose_on_check = False
+
+    def owner_at(self, point):
+        pid, subrole = self.owner()
+        return {'expected_pid': 42, 'actual_pid': pid, 'found': True,
+                'hit_status': 0, 'pid_status': 0, 'role': 'AXButton', 'subrole': subrole}
+
+    def check_owner(self, point):
+        self.checked.append(point)
+        if self.lose_on_check:
+            self.owner = lambda: (99, None)
+        super().check_owner(point)
+
+
+class ReadinessTests(unittest.TestCase):
+    def wait(self, clock, mouse, report, *, point=lambda: (10., 20.), timeout=.5, foreground=True):
+        deadlines = []
+
+        def position(mac, label, role, *, deadline):
+            deadlines.append(deadline)
+            return point()
+
+        with patch.object(lifecycle.time, 'monotonic', lambda: clock.now), \
+                patch.object(lifecycle.time, 'sleep', clock.sleep), \
+                patch.object(lifecycle, 'point_for', position), \
+                patch.object(lifecycle, 'raise_gallery'), \
+                patch.object(lifecycle, 'boolean', return_value=foreground), \
+                patch.object(lifecycle.subprocess, 'run',
+                             return_value=SimpleNamespace(stdout='/Applications/Occluder.app/Occluder\n')):
+            result = lifecycle.ready_pointer(mouse.mac, mouse, 'Fullscreen', 'AXButton', report, timeout)
+        self.assertTrue(all(value == timeout for value in deadlines))
+        return result
+
+    def test_occlusion_and_moving_coordinates_must_settle_before_admission(self):
+        clock, report = Clock(), {}
+        pointer = Pointer(lambda: (99 if clock.now < .05 else 42, None))
+        point = lambda: (1., 2.) if clock.now < .15 else (10., 20.)
+        self.assertEqual(self.wait(clock, pointer, report, point=point), (10., 20.))
+        self.assertGreaterEqual(clock.now, .25)
+        self.assertEqual(pointer.checked, [(10., 20.)])
+        samples = report['pointer_readiness'][0]
+        self.assertTrue(samples['ready'])
+        self.assertEqual(samples['transitions'][0]['actual_pid'], 99)
+        self.assertEqual(samples['transitions'][0]['process'], 'Occluder')
+
+    def test_persistent_occlusion_fails_without_admitting_pointer_input(self):
+        clock, report = Clock(), {}
+        pointer = Pointer(lambda: (99, None))
+        with self.assertRaisesRegex(RuntimeError, 'Pointer target did not become ready'):
+            self.wait(clock, pointer, report, timeout=.2)
+        self.assertLess(clock.now, .25)
+        self.assertEqual(pointer.checked, [])
+        self.assertFalse(report['pointer_readiness'][0]['ready'])
+
+    def test_window_controls_remain_rejected_even_when_the_pid_matches(self):
+        clock, report = Clock(), {}
+        pointer = Pointer(lambda: (42, 'AXCloseButton'))
+        with self.assertRaisesRegex(RuntimeError, 'Pointer target did not become ready'):
+            self.wait(clock, pointer, report, timeout=.2)
+        self.assertEqual(pointer.checked, [])
+        with self.assertRaisesRegex(AssertionError, 'window control'):
+            pointer.check_owner((10., 20.))
+
+    def test_last_moment_ownership_change_still_fails_the_original_guard(self):
+        clock, report = Clock(), {}
+        pointer = Pointer(lambda: (42, None))
+        pointer.lose_on_check = True
+        with self.assertRaisesRegex(AssertionError, 'Pointer target is occluded'):
+            self.wait(clock, pointer, report)
+        self.assertFalse(report['pointer_readiness'][0]['ready'])
+
+    def test_background_target_is_not_admitted(self):
+        clock, report = Clock(), {}
+        pointer = Pointer(lambda: (42, None))
+        with self.assertRaisesRegex(RuntimeError, 'Pointer target did not become ready'):
+            self.wait(clock, pointer, report, timeout=.2, foreground=False)
+        self.assertEqual(pointer.checked, [])
+
+    def test_continuously_moving_target_times_out_with_bounded_diagnostics(self):
+        clock, report = Clock(), {}
+        pointer = Pointer(lambda: (42, None))
+        with self.assertRaisesRegex(RuntimeError, 'Pointer target did not become ready'):
+            self.wait(clock, pointer, report, point=lambda: (clock.now, 20.), timeout=1.)
+        observation = report['pointer_readiness'][0]
+        self.assertEqual(len(observation['transitions']), 24)
+        self.assertGreater(observation['dropped'], 0)
+        self.assertEqual(pointer.checked, [])
+
+    def test_native_lookup_overrunning_deadline_does_not_admit_a_late_click(self):
+        clock, report = Clock(), {}
+        pointer = Pointer(lambda: (42, None))
+        calls = 0
+
+        def point():
+            nonlocal calls
+            calls += 1
+            if calls == 3:
+                clock.now += 1.  # An OS call itself is not preemptible here.
+            return (10., 20.)
+
+        with self.assertRaisesRegex(RuntimeError, 'Pointer target did not become ready'):
+            self.wait(clock, pointer, report, point=point)
+        self.assertEqual(pointer.checked, [])
+
+
+if __name__ == '__main__':
+    unittest.main()
