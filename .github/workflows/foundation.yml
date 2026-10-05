@@ -189,6 +189,8 @@ jobs:
         run: python3 scripts/test_measure_idle.py 2>&1 | tee .cache/ci/idle-report-diagnostics.log
       - name: Reference packaging input validation (no display)
         run: python3 scripts/test_package_macos_reference.py 2>&1 | tee .cache/ci/reference-package-inputs.log
+      - name: Extracted package runtime admission (no display)
+        run: python3 scripts/test_package_runtime_inputs.py 2>&1 | tee .cache/ci/package-runtime-inputs.log
       - name: Static backend composition tests (no display)
         run: python3 scripts/test_compose_backend.py 2>&1 | tee .cache/ci/backend-composition.log
       - name: Dependency notice collection tests (no display)

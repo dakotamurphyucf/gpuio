@@ -196,14 +196,24 @@ let component app window palette graph =
                   ~label:"Copy literal"
                   ~copied_label:"Copied literal"
                   ~style:
-                    (style [ Padding (px 12.); Radius 8.; Foreground (Palette.accent p) ])
+                    (style
+                       [ Padding (px 12.)
+                       ; Radius 8.
+                       ; Background (Background.solid (Palette.surface p))
+                       ; Foreground (Palette.accent p)
+                       ])
                   ()
               ; Copy.view
                   current
                   ~label:"Copy current approval"
                   ~copied_label:"Copied current approval"
                   ~style:
-                    (style [ Padding (px 12.); Radius 8.; Foreground (Palette.accent p) ])
+                    (style
+                       [ Padding (px 12.)
+                       ; Radius 8.
+                       ; Background (Background.solid (Palette.surface p))
+                       ; Foreground (Palette.accent p)
+                       ])
                   ()
               ; Palette.button p "Advance approval value" (approve ())
               ]
