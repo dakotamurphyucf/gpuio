@@ -97,6 +97,39 @@ python3 scripts/measure_document_growth.py --build-profile release --presentatio
 
 [Raw smoke reports and driver logs](managed-lifetime-performance-och17/smokes.tar.gz).
 
+## First full loaded-list repetition
+
+The first full optimized list run after the change passes all declared budgets.
+It launches at clean `562c44e`, using SHA-256
+`584e314701399e2850123e191f637d69a2225f2e2f15c506ada31d2de08f4149`.
+Only this evidence documentation changes while the binary runs; application
+source and executable remain unchanged. No other owned GUI or compiler runs.
+
+- All 10,000 rows are traversed in both directions, with at most 32 active rows;
+  row growth, anchor and acknowledged cleanup checks pass.
+- 27,655 positive presentations from 27,658 attempts; three initial input-free
+  zeros, startup 88.085 ms, no other loss or pending callbacks.
+- Submission-to-presentation p95/p99: 32.260/32.293 ms. Native CPU draw p95/p99:
+  3.166/4.108 ms. Raw trace retains 4,096 records and explicitly counts 23,562
+  truncated records; cumulative histograms include all outcomes.
+- History takes 231.041 seconds; total process wall time 297.737 seconds;
+  peak RSS 181,993,472 bytes.
+- All 232 history and 60 idle observations, plus interval ends, are active and
+  visible. The full 60-second settled idle records zero CPU draws and native
+  attempts. The collector and application exit zero and their processes retire.
+
+```sh
+caffeinate -di python3 scripts/measure_list_history.py \
+  --build-profile release --presentation --check-budgets \
+  --executable _build/default/examples/performance_presented/list/main.exe \
+  --output scratch/agents/root-20261004-resumed/key-token-list-full-001
+```
+
+`caffeinate` is scoped to the driver and exits with it; no persistent power
+settings change. [Raw report and logs](managed-lifetime-performance-och17/list-full-001.tar.gz).
+This is one passing repetition, not completion of the three-run requirement.
+The earlier full-list startup failure remains recorded separately.
+
 ## Diagnostic provenance and limits
 
 [Trace archive](managed-lifetime-performance-och17/ocaml-traces.tar.gz) contains
