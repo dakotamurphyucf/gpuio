@@ -1,7 +1,8 @@
 # Growing-document qualification driver
 
-OCH-17 workload under local validation. Native builds and the portable collector
-tests pass; full optimized performance qualification is still pending.
+OCH-17 workload with three passing optimized runs at a recorded checkpoint.
+See the [qualification evidence](../../docs/evidence/growing-document-och17.md)
+for exact sources, raw reports and remaining accessibility/presentation limits.
 
 The normal foreground 1200×800 window grows three retained Markdown sources to
 8, 8 and 4 MiB. Each append contributes exactly 128 KiB of deterministic UTF-8.

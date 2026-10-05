@@ -518,3 +518,22 @@ both macOS and Linux; the prior disk exhaustion does not recur in this run.
 macOS still reports four native/public behavior failures, documented with local
 repairs in [the macOS repair evidence](macos-validation-repairs-och17.md).
 No overall hosted pass or clean-machine packaged GUI acceptance is inferred.
+
+## Full hosted pass at 2fdf53b
+
+[Run 37260437591](https://github.com/dakotamurphyucf/gpuio/actions/runs/37260437591)
+is terminal **success for both complete macOS and Linux jobs**, with no failed
+steps. Its source is `2fdf53b97ffabbb9a861af1ee4a81d3d8cf791a8`. Required
+builds, OCaml/Rust unit checks, native lint, independent consumers and the hosted
+macOS native/public application checks pass at that checkpoint. The preceding
+storage and four behavior failures no longer reproduce in this hosted run.
+
+Linux real-desktop/OS-integration acceptance remains OCH-47; compilation, private
+bus and consumer success do not establish it. This run also does not complete
+physical VoiceOver/IME, performance/GPU/resource, notice or distribution gates
+that are outside its checks. Later source changes require their own hosted result.
+
+[Run 37266229651](https://github.com/dakotamurphyucf/gpuio/actions/runs/37266229651)
+at `84827c0db4dcaa33e431f458d2d96e5c3cb726d5` is in progress for the
+growing-document workload and source-page accessibility labels. No pass for
+that later revision is claimed here yet.
