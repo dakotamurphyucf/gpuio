@@ -141,8 +141,10 @@ def validate(result):
     return workloads
 
 
-def collect(executable, log_path, report, timeout, *, arguments=(), on_poll=None):
+def collect(executable, log_path, report, timeout, *, arguments=(), on_poll=None, poll_interval=.1):
     """Own one session, keep exact-child wait4 usage, and clean up on all exits."""
+    if not math.isfinite(poll_interval) or not 0 < poll_interval <= 1:
+        raise ValueError('Poll interval must be finite and in (0,1] seconds')
     started = time.monotonic()
     child = None
     usage = None
@@ -167,7 +169,7 @@ def collect(executable, log_path, report, timeout, *, arguments=(), on_poll=None
                 remaining = timeout - (time.monotonic() - started)
                 if remaining <= 0:
                     raise TimeoutError(f'GUI workload exceeded {timeout:g} seconds')
-                time.sleep(min(.1, remaining))
+                time.sleep(min(poll_interval, remaining))
             if child.returncode:
                 raise RuntimeError(f'GUI workload exited with {child.returncode}')
         finally:

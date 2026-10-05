@@ -3396,6 +3396,31 @@ impl Window {
         self.window_profiler.input_latency_snapshot()
     }
 
+    /// Time native text-service callbacks that bypass PlatformInput dispatch.
+    /// A nested callback belongs to its enclosing keyboard input. A no-op must
+    /// not leave a timestamp waiting for an unrelated later frame.
+    pub(crate) fn with_platform_text_input<R>(
+        &mut self,
+        cx: &mut App,
+        callback: impl FnOnce(&mut Self, &mut App) -> R,
+    ) -> R {
+        #[cfg(feature = "profiler")]
+        let measure = !self.window_profiler.has_active_input();
+        #[cfg(feature = "profiler")]
+        let before = self.invalidator.update_count();
+        #[cfg(feature = "profiler")]
+        if measure {
+            self.window_profiler.begin_input("TextInput");
+        }
+        let result = callback(self, cx);
+        #[cfg(feature = "profiler")]
+        if measure {
+            self.window_profiler
+                .end_input(self.invalidator.update_count() > before);
+        }
+        result
+    }
+
     /// Returns a snapshot of the current frame-duration histograms.
     #[cfg(feature = "profiler")]
     pub fn frame_duration_snapshot(&self) -> profiler::FrameDurationSnapshot {
@@ -7712,6 +7737,50 @@ mod tests {
         StatefulInteractiveElement as _, Styled, TestAppContext, TouchDragEvent, TouchEvent,
         TouchId, TouchPhase, Window, WindowAppearance, WindowOptions, canvas, div, point, px, size,
     };
+
+    #[cfg(feature = "profiler")]
+    #[test]
+    fn platform_text_input_profiles_changes_without_noops_or_nested_duplicates() {
+        let mut cx = TestAppContext::single();
+        let handle = cx.add_window(|_, _| EmptyView);
+        cx.update_window(handle.into(), |_, window, cx| {
+            window.present_if_needed();
+            let before = window.input_latency_snapshot().latency_histogram.len();
+            assert_eq!(window.with_platform_text_input(cx, |_, _| 42), 42);
+            window.draw(cx).clear(cx);
+            window.present_if_needed();
+            assert_eq!(
+                window.input_latency_snapshot().latency_histogram.len(),
+                before
+            );
+
+            // Distinct native text callbacks coalesce into the next submission,
+            // retaining both event counts and only one latency sample per frame.
+            for _ in 0..2 {
+                window.with_platform_text_input(cx, |window, _| window.refresh());
+            }
+            window.draw(cx).clear(cx);
+            window.present_if_needed();
+            let first = window.input_latency_snapshot();
+            assert_eq!(first.latency_histogram.len(), before + 1);
+            assert_eq!(first.events_per_frame_histogram.count_at(2), 1);
+
+            // Keyboard handling may invoke text services synchronously. Its
+            // enclosing input interval owns the event, not both callbacks.
+            window.window_profiler.begin_input("KeyDown");
+            window.with_platform_text_input(cx, |window, _| window.refresh());
+            window.window_profiler.end_input(true);
+            window.draw(cx).clear(cx);
+            window.present_if_needed();
+            let second = window.input_latency_snapshot();
+            assert_eq!(second.latency_histogram.len(), before + 2);
+            assert_eq!(second.events_per_frame_histogram.count_at(1), 1);
+            assert_eq!(second.events_per_frame_histogram.count_at(2), 1);
+            assert_eq!(second.mid_draw_events_dropped, 0);
+            assert!(!window.window_profiler.has_active_input());
+        })
+        .unwrap();
+    }
 
     #[gpui::test]
     fn test_fully_visible_bounds_preserve_layout_viewport(cx: &mut TestAppContext) {

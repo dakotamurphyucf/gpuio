@@ -61,7 +61,13 @@ counts. Aggregate histograms populate without enabling the global trace ring.
 An opt-in qualification collector should use histogram deltas at phase boundaries
 and retain the original histograms/counts; subtracting percentiles is invalid.
 Global `FrameTimingCollector` events can be overwritten and are insufficient
-alone for lossless acceptance. No upstream fork change is needed for these APIs.
+alone for lossless acceptance. The snapshot APIs need no adaptation. Native text
+services can bypass ordinary platform-key dispatch, however: the GPUIO profiler
+adaptation also brackets direct text replacement, composition, unmark and paste
+callbacks. Only callbacks that invalidate the window contribute a timestamp;
+nested callbacks use their enclosing input interval. This adds no redraws and is
+inactive without the optional profiler. See
+[the GPUI adaptation](gpui-core-adaptation.md).
 
 Collect on the Rust UI thread without notifying or refreshing views. Keep native
 sampling separate from OCaml UI-domain/reconciliation, serialization/upload,

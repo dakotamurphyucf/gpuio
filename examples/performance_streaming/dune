@@ -1,0 +1,23 @@
+(library
+ (name gpuio_performance_stream_model)
+ (modules stream_model)
+ (wrapped false)
+ (libraries core gpuio)
+ (inline_tests)
+ (preprocess
+  (pps ppx_jane)))
+
+(executable
+ (name main)
+ (modules main)
+ (libraries
+  core
+  mtime
+  gpuio
+  gpuio.bonsai
+  gpuio.eio
+  gpuio_performance_stream_model
+  gpuio_performance_probe
+  gpuio_performance_backend)
+ (preprocess
+  (pps ppx_jane bonsai.ppx_bonsai)))

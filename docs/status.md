@@ -1,18 +1,18 @@
 # Implementation status
 
-Current handoff: 2026-10-04. Milestone **07 — Expanded v1 macOS validation and
+Current handoff: 2026-10-05. Milestone **07 — Expanded v1 macOS validation and
 release** is in progress. **OCH-41 and OCH-17 remain open.** This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
 Work is tracked on branch `milestone-07-gallery-release` and draft PR #16.
-The last completed hosted run used `1921ae3`: Linux passed; macOS reported four
-failures in native color-input idle rendering, public picker readiness, carousel
-direction interaction and small mixed-checkbox pixels. All four now have passing
-local repairs/reruns, including an unfocused cursor-timer fix and Japanese IME
-revalidation; fresh hosted qualification remains required. The earlier consumer-build disk exhaustion
-did not recur. Three full optimized loaded-list runs pass their declared budgets;
-six ordinary/profiled comparisons, three full resource-lifecycle runs and the
-three full paged-table runs also pass; other workload acceptance remains open.
+Hosted run [37260437591](https://github.com/dakotamurphyucf/gpuio/actions/runs/37260437591)
+at `2fdf53b` passed both complete macOS and Linux jobs, including the repaired
+native idle/picker/carousel/checkbox checks. Run `37266229651` at `84827c0`
+is still in progress; newer local sources still require hosted qualification.
+Three full optimized loaded-list, paged-table and growing-document runs pass
+their declared budgets; six ordinary/profiled comparisons and three resource
+lifecycle runs also pass. The streaming/typing smoke now captures native text
+latency correctly after an optional profiler repair; full runs remain pending.
 Earlier evidence identifies local worktree checkpoints based on `83eb87e`;
 their source snapshots must not be confused with that old HEAD alone.
 The preceding 2,834-line chronological status is

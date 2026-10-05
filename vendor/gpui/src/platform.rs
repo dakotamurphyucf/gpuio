@@ -1559,8 +1559,10 @@ impl PlatformInputHandler {
     pub fn replace_text_in_range(&mut self, replacement_range: Option<Range<usize>>, text: &str) {
         self.cx
             .update(|window, cx| {
-                self.handler
-                    .replace_text_in_range(replacement_range, text, window, cx);
+                window.with_platform_text_input(cx, |window, cx| {
+                    self.handler
+                        .replace_text_in_range(replacement_range, text, window, cx);
+                });
             })
             .ok();
     }
@@ -1573,16 +1575,18 @@ impl PlatformInputHandler {
     ) {
         self.cx
             .update(|window, cx| {
-                // Remember a platform composition even if it starts and ends
-                // before the next paint (for example a rapid Escape).
-                window.note_text_input_composition();
-                self.handler.replace_and_mark_text_in_range(
-                    range_utf16,
-                    new_text,
-                    new_selected_range,
-                    window,
-                    cx,
-                )
+                window.with_platform_text_input(cx, |window, cx| {
+                    // Remember a platform composition even if it starts and ends
+                    // before the next paint (for example a rapid Escape).
+                    window.note_text_input_composition();
+                    self.handler.replace_and_mark_text_in_range(
+                        range_utf16,
+                        new_text,
+                        new_selected_range,
+                        window,
+                        cx,
+                    )
+                });
             })
             .ok();
     }
@@ -1590,13 +1594,19 @@ impl PlatformInputHandler {
     #[cfg_attr(target_os = "windows", allow(dead_code))]
     pub fn unmark_text(&mut self) {
         self.cx
-            .update(|window, cx| self.handler.unmark_text(window, cx))
+            .update(|window, cx| {
+                window
+                    .with_platform_text_input(cx, |window, cx| self.handler.unmark_text(window, cx))
+            })
             .ok();
     }
 
     pub fn paste(&mut self, item: ClipboardItem) {
         self.cx
-            .update(|window, cx| self.handler.paste(item, window, cx))
+            .update(|window, cx| {
+                window
+                    .with_platform_text_input(cx, |window, cx| self.handler.paste(item, window, cx))
+            })
             .ok();
     }
 
@@ -1613,7 +1623,9 @@ impl PlatformInputHandler {
     }
 
     pub fn dispatch_input(&mut self, input: &str, window: &mut Window, cx: &mut App) {
-        self.handler.replace_text_in_range(None, input, window, cx);
+        window.with_platform_text_input(cx, |window, cx| {
+            self.handler.replace_text_in_range(None, input, window, cx);
+        });
     }
 
     pub fn compute_ime_candidate_bounds(

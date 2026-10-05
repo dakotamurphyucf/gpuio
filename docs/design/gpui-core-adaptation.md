@@ -264,3 +264,33 @@ native list prepaint retries with accessibility active, physical bounds, focused
 children and prepend behavior run for both axes. This does not establish physical
 VoiceOver speech or macOS GPU acceptance. Reconstruct the entire recorded patch
 from the pinned archive when changing either adaptation.
+
+## Optional profiling of native text callbacks
+
+The ordinary platform-input profiler does not see all OS text service callbacks.
+The streaming qualification smoke received all 40 characters correctly but had
+only one input-latency sample before this adaptation. Direct
+`PlatformInputHandler` replacement, marked-text replacement, unmark, paste and
+text-dispatch callbacks now use a native timing scope. Only callbacks that
+increment the existing window invalidation counter leave a pending timestamp.
+An already-active keyboard input owns a nested text callback, preventing duplicate
+event counts. Multiple independent callbacks before one submission retain their
+event count and the earliest timestamp, matching the existing histogram model.
+
+This code neither edits the text nor requests a frame; handlers retain their
+existing behavior. Timing is compiled only with the optional `profiler` feature.
+It measures native callback entry through platform submission, excluding OS
+event-queue/hardware latency and physical presentation. No new OCaml API,
+protocol capability or dependency pin is introduced.
+
+The GPUI regression checks no-op exclusion, two callbacks coalescing into one
+frame, return-value forwarding and exclusion of nested duplicates. Twelve
+existing profiler unit tests also pass in an isolated copy of the pinned crate;
+the main locked native suite passes 928 tests with two existing platform skips.
+The complete patch at this checkpoint is SHA-256
+`a834035364acdd298810d0b4dc220232d880472515a7e6f5bfd5a7b224b2f43d`;
+all 156 reconstructed files match the vendored tree. The subsequent optimized
+macOS smoke receives all 40 characters and records 40 input-to-frame samples,
+with no dropped timestamps. Native callback→submission p95 is 8.438 ms and p99
+8.798 ms in that four-second preflight; it is not the required full workload.
+Default-feature compilation and strict native Clippy also pass.

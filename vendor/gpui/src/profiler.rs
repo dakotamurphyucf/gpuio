@@ -953,6 +953,14 @@ impl WindowProfiler {
         });
     }
 
+    /// Native text callbacks can occur inside a keyboard dispatch or directly
+    /// from an OS text service. The former already owns the timing interval.
+    pub(crate) fn has_active_input(&self) -> bool {
+        self.active_activities
+            .iter()
+            .any(|activity| matches!(activity, WindowActivity::Input { .. }))
+    }
+
     /// Records the end of an input dispatch.
     pub fn end_input(&mut self, caused_invalidation: bool) {
         let Some(WindowActivity::Input { started_at, kind }) = self.active_activities.pop() else {
