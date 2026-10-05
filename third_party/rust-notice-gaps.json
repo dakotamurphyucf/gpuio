@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "license_review_complete": false,
-  "scope": "Manual review of the original 28 zero-text package rows in the recorded macOS inventories. Resolved rows remain with explicit status; current inventories have 27 zero-text rows after exact Boxroot notice collection. Not an exemption list, legal approval or exact link inventory. Revalidate exact manifest/source identities for each graph.",
+  "scope": "Manual review of the original 28 zero-text package rows in the recorded macOS inventories. Resolved rows remain with explicit status; current inventories have 26 zero-text rows after exact Boxroot and source-equivalent Pathfinder notice collection. Not an exemption list, legal approval or exact link inventory. Revalidate exact manifest/source identities for each graph.",
   "packages": [
     {
       "name": "block2",

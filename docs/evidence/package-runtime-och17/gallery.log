@@ -1,0 +1,69 @@
+AX_PRESS Images & icons
+AX_WAIT Image ready:
+AX_PRESS Show raster gradient
+AX_WAIT Image ready: 96 × 48 pixels · 1 frame(s)
+AX_PRESS Cover
+AX_WAIT Image fit: Cover
+AX_WAIT Image ready: 96 × 48 pixels · 1 frame(s)
+AX_PRESS Fill
+AX_WAIT Image fit: Fill
+AX_WAIT Image ready: 96 × 48 pixels · 1 frame(s)
+AX_PRESS Scale down
+AX_WAIT Image fit: Scale down
+AX_WAIT Image ready: 96 × 48 pixels · 1 frame(s)
+AX_PRESS Intrinsic size
+AX_WAIT Image fit: Intrinsic size
+AX_WAIT Image ready: 96 × 48 pixels · 1 frame(s)
+AX_PRESS Contain
+AX_WAIT Image fit: Contain
+AX_WAIT Image ready: 96 × 48 pixels · 1 frame(s)
+AX_PRESS Dark
+AX_WAIT Image ready: 96 × 48 pixels · 1 frame(s)
+AX_PRESS Comfortable
+AX_WAIT Image ready: 96 × 48 pixels · 1 frame(s)
+AX_PRESS Large
+AX_WAIT Image ready: 96 × 48 pixels · 1 frame(s)
+AX_PRESS Compact
+AX_WAIT Image ready: 96 × 48 pixels · 1 frame(s)
+AX_PRESS Light
+AX_WAIT Image ready: 96 × 48 pixels · 1 frame(s)
+AX_PRESS Simulate decode failure
+AX_WAIT Image failed: Invalid_data
+AX_PRESS Restore image
+AX_WAIT Image ready: 96 × 48 pixels · 1 frame(s)
+AX_WAIT Sample approvals: 1
+AX_PRESS Approve sample
+AX_WAIT Sample approvals: 2
+AX_PRESS Show vector landscape
+AX_WAIT Image ready: 480 × 240 pixels · 1 frame(s)
+AX_PRESS Presentation
+AX_WAIT A little context goes a long way
+AX_PRESS Images & icons
+AX_WAIT Image ready:
+AX_WAIT Sample approvals: 2
+AX_PRESS Presentation
+AX_WAIT A little context goes a long way
+AX_PRESS Images & icons
+AX_WAIT Image ready:
+AX_WAIT Sample approvals: 2
+AX_PRESS Presentation
+AX_WAIT A little context goes a long way
+AX_PRESS Images & icons
+AX_WAIT Image ready:
+AX_WAIT Sample approvals: 2
+AX_PRESS Runtime & windows
+AX_PRESS Refresh resource counts
+AX_PRESS Refresh resource counts
+GALLERY_RESOURCE_SNAPSHOT Images: 0 · Charts: 0 · Canvases: 0
+AX_WAIT Registered source bytes: 0
+GALLERY_ASSETS_OK: SVG/raster readiness, fit controls, native decode failure/recovery, icon semantics, OS activation and scoped cleanup
+AX_PRESS Images & icons
+AX_PRESS Dark
+AX_PRESS Light
+AX_PRESS Markdown & code
+AX_PRESS Code
+GALLERY_FOCUS_READY Code preview requests= 1
+AX_PRESS Text editing
+AX_PRESS Multiline & search
+GALLERY_FOCUS_READY Working notes requests= 1
+GPUIO_PACKAGE_RUNTIME_OK: gallery, extracted archive, enforced path denial, native interactions, shutdown

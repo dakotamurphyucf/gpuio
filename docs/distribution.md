@@ -166,6 +166,42 @@ it does not mutate opam switches, dependency versions or a vendor tree.
 
 ## Acceptance still required
 
+### Local runtime dependency isolation
+
+After assembly, test an extracted archive rather than its build-tree executable:
+
+```sh
+python3 scripts/test_macos_package_runtime.py \
+  --package scratch/package-agent-chat-run-001 \
+  --output scratch/package-agent-chat-runtime-001
+```
+
+The command supports each of the three reference packages. It checks the archive
+identity/hash and safe entry paths, extracts into a temporary directory outside
+the checkout, verifies executable/metadata/notice hashes and the ad-hoc seal when
+present, and launches that extracted executable. The app receives a small
+environment without development loader overrides. Its `sandbox-exec` profile
+denies reads/writes to the checkout, `/opt/homebrew`, `/usr/local` and the user's
+`.cargo`, `.rustup` and `.opam` directories. Negative probes verify each existing
+denied root before launch. The parent harness retains access to its own code and
+reports; no checkout, switch, default, HOME or developer directory is moved.
+
+The real desktop walkthrough checks embedded images and editor selection in the
+gallery; chat submission/drafts/tabs/windows/file-picker attachment/theme/close;
+and Signal Studio extension/canvas/chart/stream/responsive/remount/close behavior.
+It observes the packaged Signal app's existing notification authorization, without
+enabling alerts or requesting permission. Runs are bounded, children are reaped
+on failure and the original pasteboard representations are restored and verified.
+Reports retain exact artifact hashes, deny probes, covered behaviors and errors.
+
+[All three applications have local runtime-isolation evidence](evidence/package-runtime-och17.md).
+This is an existing development Mac with specific paths denied. It does not
+replace a fresh-machine check, quarantine transfer, Developer ID/notarization,
+complete native acceptance or notice review. Test-only bundles with incomplete
+notices remain local qualification inputs.
+
+### Release artifact qualification
+
 Run extracted archives on clean supported macOS environments, with the build tree
 and development dependency paths unavailable. Check startup/rendering, assets,
 clipboard/focus/IME, accessibility, file/document/URL handling and notification

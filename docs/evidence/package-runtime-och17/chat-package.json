@@ -1,0 +1,62 @@
+{
+  "complete": true,
+  "app": "agent_chat",
+  "source_executable": "/Users/dakotamurphy/gpuio/_build/default/examples/agent_chat/main.exe",
+  "source_sha256": "c29e7b23778c7aca428a857d20332cc945a9a6cdde281e17a304f23bf286286d",
+  "metadata": {
+    "CFBundleExecutable": "gpuio-agent-chat",
+    "CFBundleIdentifier": "com.gpuio.agent-chat",
+    "CFBundleName": "GPUIO Agent Workspace",
+    "CFBundlePackageType": "APPL",
+    "CFBundleVersion": "1",
+    "CFBundleShortVersionString": "0.1.0",
+    "LSMinimumSystemVersion": "14.4",
+    "NSHighResolutionCapable": true
+  },
+  "binary_audit": {
+    "architectures": [
+      "arm64"
+    ],
+    "minimum_versions": [
+      "14.4"
+    ],
+    "system_dependencies": [
+      "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+      "/System/Library/Frameworks/ApplicationServices.framework/Versions/A/ApplicationServices",
+      "/System/Library/Frameworks/Carbon.framework/Versions/A/Carbon",
+      "/System/Library/Frameworks/CloudKit.framework/Versions/A/CloudKit",
+      "/System/Library/Frameworks/ColorSync.framework/Versions/A/ColorSync",
+      "/System/Library/Frameworks/CoreData.framework/Versions/A/CoreData",
+      "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation",
+      "/System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics",
+      "/System/Library/Frameworks/CoreImage.framework/Versions/A/CoreImage",
+      "/System/Library/Frameworks/CoreLocation.framework/Versions/A/CoreLocation",
+      "/System/Library/Frameworks/CoreServices.framework/Versions/A/CoreServices",
+      "/System/Library/Frameworks/CoreText.framework/Versions/A/CoreText",
+      "/System/Library/Frameworks/CoreVideo.framework/Versions/A/CoreVideo",
+      "/System/Library/Frameworks/Foundation.framework/Versions/C/Foundation",
+      "/System/Library/Frameworks/Metal.framework/Versions/A/Metal",
+      "/System/Library/Frameworks/OpenGL.framework/Versions/A/OpenGL",
+      "/System/Library/Frameworks/QuartzCore.framework/Versions/A/QuartzCore",
+      "/System/Library/Frameworks/Security.framework/Versions/A/Security",
+      "/System/Library/Frameworks/UserNotifications.framework/Versions/A/UserNotifications",
+      "/usr/lib/libSystem.B.dylib",
+      "/usr/lib/libiconv.2.dylib",
+      "/usr/lib/libobjc.A.dylib"
+    ]
+  },
+  "revision_scope": "packaging checkout; binary build revision is not attested",
+  "signing": "ad-hoc",
+  "license_review": "required; supplied notices are not a completeness attestation",
+  "qualification": "not launched; no clean-machine, notarization or Gatekeeper acceptance",
+  "revision": "d38087867200dded7d491d3e44b7be389780c6c3",
+  "dirty": true,
+  "notices": {
+    "LICENSE": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+    "QUALIFICATION-ONLY.txt": "aff146ccf4b3e0edc948b4d75d8e68eb4ac1e787c4dfbe9ee33f62c894d5de8d"
+  },
+  "packaged_executable_sha256": "dd145b3ba17cb8e8c3cbf5fbc03fe4253242dc1ce4e7466cebcb18606e20b4ed",
+  "bundle": "GPUIO Agent Workspace.app",
+  "archive": "GPUIO Agent Workspace.zip",
+  "archive_sha256": "b287f112c77d3eb35604a611f8f5c13fe67a0cd1140d6b2dada5732daefdd5ef"
+}

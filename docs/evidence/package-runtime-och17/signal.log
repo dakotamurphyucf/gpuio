@@ -1,0 +1,31 @@
+SIGNAL_ACTIVE_LAYOUT_ONLY compact=False labels=5 canvas_width=700.0
+AX_PRESS Alerts
+AX_WAIT Desktop alerts are available. Enable them to opt in.
+AX_PRESS Close alerts
+AX_PRESS Increment counter, current value 0
+AX_PRESS Swift
+AX_WAIT Swift · latency 200 ms · quality 25%
+AX_WAIT Swift · latency 202 ms · quality 25%
+DRAG_START 235.0 684.5
+AX_WAIT Swift · latency 243 ms · quality 28%
+AX_PRESS Reset view
+AX_PRESS Hide inspector
+AX_WAIT Show inspector
+AX_PRESS Show inspector
+AX_WAIT Swift · latency 243 ms · quality 28%
+AX_PRESS Lock control
+AX_WAIT Unlock control
+AX_PRESS Unlock control
+AX_PRESS Hide control
+AX_WAIT Show control
+AX_PRESS Show control
+AX_WAIT Increment counter, current value 2
+AX_PRESS Stream runs
+AX_WAIT Increment counter, current value 14
+SIGNAL_ACTIVE_LAYOUT_ONLY compact=True labels=5 canvas_width=490.0
+AX_WAIT Increment counter, current value 14
+SIGNAL_ACTIVE_LAYOUT_ONLY compact=False labels=5 canvas_width=700.0
+AX_WAIT Swift · latency 243 ms · quality 28%
+AX_PRESS Reset workspace
+AX_WAIT Increment counter, current value 0
+GPUIO_PACKAGE_RUNTIME_OK: signal_studio, extracted archive, enforced path denial, native interactions, shutdown
