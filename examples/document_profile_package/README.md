@@ -75,3 +75,12 @@ The consumer workspace must be new. Without `--run`, the last command builds an
 outside-checkout application against staged installed OCaml libraries, without
 modifying any opam switch. It does not claim native input/VoiceOver/GPU acceptance.
 The application-default API and full release/platform qualification remain open.
+
+
+The [real macOS gallery walkthrough](../../docs/evidence/document-profile-macos-och41.md)
+now exercises code/table keyboard actions, inline-to-block Tab navigation, pointer
+activation after property changes, profile removal/remount and page resource
+release. Run `python3 scripts/test_macos_document_profile.py --output scratch/profile-native-001`
+after building the gallery; it owns a foreground test window. The gallery's
+`--trace-document-profile` option logs typed signals and source revisions for this
+check. Arbitrary plugin-owned scroll areas and VoiceOver remain separately scoped.

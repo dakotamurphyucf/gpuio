@@ -78,6 +78,7 @@ Recent completed local checkpoints:
 
 - Resumed physical macOS gallery testing: [forms and editor admission](evidence/gallery-editor-admission-och41.md) and [shimmer with bounded AX traversal](evidence/ax-traversal-och41.md) pass locally. Additional physical presentation checks, including tags and managed chat scrolling, pass at this follow-up. The broader gallery run and final release acceptance remain open.
 
+- The [public document-profile macOS walkthrough](evidence/document-profile-macos-och41.md) now passes actual code/table keyboard actions, inline/block plugin navigation, pointer activation, property updates, remount and source release. Arbitrary plugin-owned scrolling and VoiceOver remain separately scoped.
 - Static document profiles: checked SDK/catalogs, worker preparation, renderer
   attachment, queued events, a public OCaml/Rust package and independent installed
   consumer. [Renderer evidence](evidence/document-profile-renderers-och41.md),
