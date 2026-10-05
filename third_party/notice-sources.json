@@ -238,7 +238,7 @@
         "version": "0.0.0",
         "source": null,
         "license_expression": "Apache-2.0",
-        "manifest_sha256": "0fbed476dcc552585176a19e0e6eadd6afce88d3c3fdd4bb3a49485c742b554d"
+        "manifest_sha256": "b8742b120d4e5741d6d7e1a4bd78a5468a84a85e73b335cef6fbcded4170d3a7"
       },
       "files": [
         {
@@ -247,7 +247,7 @@
           "provenance": "GPUIO repository LICENSE; paired with this package manifest hash."
         }
       ],
-      "rationale": "First-party GPUIO crate under the repository Apache-2.0 license. Reviewed the current local manifest and workspace license inheritance; attribution is pinned to this manifest and the retained root license bytes. This is notice collection, not distribution approval."
+      "rationale": "First-party GPUIO crate under the repository Apache-2.0 license. Reviewed the current local manifest and workspace license inheritance; attribution is pinned to this manifest and the retained root license bytes. This is notice collection, not distribution approval. Revalidated 2026-10-05 after the maintained macOS/Apple path patches and optional presentation diagnostics: package identity/license declarations and root LICENSE bytes are unchanged; exact manifest delta is retained in the release evidence."
     },
     {
       "package": {
@@ -323,7 +323,7 @@
         "version": "0.0.0",
         "source": null,
         "license_expression": "Apache-2.0",
-        "manifest_sha256": "894d216c09e08b6a4778067a34badf1c50205bf708eddc961abbe4d8873be4e5"
+        "manifest_sha256": "0febe981c5725d4e4350f6b13e191959e332ed118ffaee7f29bd166fca2b9e91"
       },
       "files": [
         {
@@ -332,7 +332,7 @@
           "provenance": "GPUIO repository LICENSE; paired with this package manifest hash."
         }
       ],
-      "rationale": "First-party GPUIO crate under the repository Apache-2.0 license. Reviewed the current local manifest and workspace license inheritance; attribution is pinned to this manifest and the retained root license bytes. This is notice collection, not distribution approval."
+      "rationale": "First-party GPUIO crate under the repository Apache-2.0 license. Reviewed the current local manifest and workspace license inheritance; attribution is pinned to this manifest and the retained root license bytes. This is notice collection, not distribution approval. Revalidated 2026-10-05 after the maintained macOS/Apple path patches and optional presentation diagnostics: package identity/license declarations and root LICENSE bytes are unchanged; exact manifest delta is retained in the release evidence."
     },
     {
       "package": {
@@ -374,7 +374,7 @@
         "version": "0.0.0",
         "source": null,
         "license_expression": "Apache-2.0",
-        "manifest_sha256": "58707b34c218a0a8a9f479a74438d8ce7b96f82b4e936c79a6b43897c6efbbde"
+        "manifest_sha256": "2540a5265bc2cbe8511697e9ca97fc764e5a81ccf991462cbe7423db28d68367"
       },
       "files": [
         {
@@ -383,7 +383,7 @@
           "provenance": "GPUIO repository LICENSE; paired with this package manifest hash."
         }
       ],
-      "rationale": "First-party crate declares license.workspace=true or an explicit Apache-2.0 license in the GPUIO source tree. This supplies the project license; separately attributed adaptations retain their own notices."
+      "rationale": "First-party crate declares license.workspace=true or an explicit Apache-2.0 license in the GPUIO source tree. This supplies the project license; separately attributed adaptations retain their own notices. Revalidated 2026-10-05 after the maintained macOS/Apple path patches and optional presentation diagnostics: package identity/license declarations and root LICENSE bytes are unchanged; exact manifest delta is retained in the release evidence."
     },
     {
       "package": {

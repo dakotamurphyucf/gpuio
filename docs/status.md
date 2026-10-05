@@ -62,7 +62,10 @@ Recent completed local checkpoints:
   all40 native input pairs and zero idle work. Original strict failures remain
   recorded. Optimized repetitions and overhead/resources remain open.
   [Integration](evidence/presentation-workloads-och17.md),
-  [idle isolation and revised smoke evidence](evidence/idle-presentation-och17.md).
+  [idle isolation and revised smoke evidence](evidence/idle-presentation-och17.md). The
+  [first full optimized list run](evidence/presentation-list-full-och17.md) completes
+  all content/cleanup/idle checks and records26,587 presentations, but fails the
+  startup bound at102.723 ms; it is not a passing repetition.
 
 - Default-off presentation collection now includes the maintained Metal hook.
   Two real GPUI windows each pass90 presented frames with complete callback

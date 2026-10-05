@@ -1,0 +1,41 @@
+[
+  {
+    "graph": "native",
+    "packages": 513,
+    "verified_texts": 868,
+    "counts": {
+      "notices": 802,
+      "supplemental_notices": 66
+    },
+    "without_text": 26,
+    "review_issues": 74,
+    "supplements": 50,
+    "inventory_sha256": "b5fc6c5d9c4c7ffd2885ab54c7e64184f12bdcfa02595471cb954033535256b8"
+  },
+  {
+    "graph": "signal",
+    "packages": 485,
+    "verified_texts": 826,
+    "counts": {
+      "notices": 760,
+      "supplemental_notices": 66
+    },
+    "without_text": 26,
+    "review_issues": 74,
+    "supplements": 50,
+    "inventory_sha256": "b0f7069430886359d56232a670ee10d5dca63c7f2f3464a54d7d1391b73a6f2f"
+  },
+  {
+    "graph": "gallery",
+    "packages": 486,
+    "verified_texts": 827,
+    "counts": {
+      "notices": 760,
+      "supplemental_notices": 67
+    },
+    "without_text": 26,
+    "review_issues": 75,
+    "supplements": 51,
+    "inventory_sha256": "8ad3d6fd066079e1530b8a8f003f8974c844989a8b4aa8c6be17402b1b1e2a42"
+  }
+]
