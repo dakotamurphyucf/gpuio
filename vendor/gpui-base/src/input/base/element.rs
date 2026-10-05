@@ -2648,7 +2648,9 @@ impl<M: InputModeKind> Element for TextElement<M> {
             // Layout consumers need changed geometry, not another notification
             // for every paint of an unchanged input.
             if geometry_changed {
-                cx.notify();
+                // Publish after paint so a cached layout consumer is invalidated
+                // for the next frame even when no cursor timer is running.
+                cx.defer_in(window, |_, _, cx| cx.notify());
             }
         });
 

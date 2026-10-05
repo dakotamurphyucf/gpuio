@@ -7,8 +7,9 @@ current work from historical checkpoints; it does not certify release readiness.
 Work is tracked on branch `milestone-07-gallery-release` and draft PR #16.
 The last completed hosted run used `1921ae3`: Linux passed; macOS reported four
 failures in native color-input idle rendering, public picker readiness, carousel
-direction interaction and small mixed-checkbox pixels. Local repairs and fresh
-hosted qualification remain required. The earlier consumer-build disk exhaustion
+direction interaction and small mixed-checkbox pixels. All four now have passing
+local repairs/reruns, including an unfocused cursor-timer fix and Japanese IME
+revalidation; fresh hosted qualification remains required. The earlier consumer-build disk exhaustion
 did not recur. Three full optimized loaded-list runs pass their declared budgets;
 six ordinary/profiled comparisons, three full resource-lifecycle runs and the
 first full paged-table run also pass; other workload acceptance remains open.
@@ -40,6 +41,11 @@ whole-family acceptance. Start from [the catalog](catalog/README.md),
 [family ledger](catalog/families.json) and [gallery evidence](evidence/gallery-och41.md).
 
 Recent completed local checkpoints:
+
+- Typed application clipboard writes and a Bonsai Copy composition now have
+  codec/state/clock and real macOS gallery evidence, including current Unicode
+  values, native keyboard/AX, timed feedback and original clipboard restoration.
+  [Clipboard evidence](evidence/clipboard-och41.md).
 
 - Real macOS Japanese IME now has a passing public gallery sequence: OS candidate
   window, preedit versus committed form state, commit, one-step undo/redo and

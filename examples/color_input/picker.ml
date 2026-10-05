@@ -85,12 +85,25 @@ let exercise
       ~completed
   =
   let current () = E.of_thunk (fun () -> Option.value_exn !latest) in
+  let rec ready remaining =
+    let open E.Let_syntax in
+    let%bind t = current () in
+    if P.is_open t && Option.is_some (P.draft t)
+    then E.return t
+    else if remaining = 0
+    then E.of_thunk (fun () -> failwith "Picker native draft did not become ready")
+    else (
+      let%bind () = frame window in
+      ready (remaining - 1))
+  in
   let reopen () =
     let open E.Let_syntax in
     let%bind t = current () in
     let%bind () = P.open_popup t in
     let%bind () = settle window in
-    current ()
+    (* Rendering the popup and delivering its Mounted observation are separate
+       asynchronous steps. Two frames alone do not establish command readiness. *)
+    ready 120
   in
   let replace t selection =
     E.bind (P.command t (Set { value = selection; if_revision = None })) ~f:native

@@ -754,6 +754,8 @@ impl<M: InputModeKind> InputBaseState<M> {
                             blink_cursor.start(cx);
                         });
                     }
+                } else {
+                    input.blink_cursor.update(cx, |cursor, cx| cursor.stop(cx));
                 }
             }),
             cx.on_focus(&focus_handle, window, Self::on_focus),
@@ -7660,12 +7662,24 @@ mod tests {
         let view = InputView::<EditorMode>::new(cx);
         let mut cx = VisualTestContext::from_window(view.window_handle.into(), cx);
         setup_cursors(&mut cx, &view.input, "ab\na|b\nab");
-        cx.update(|window, cx| {
-            view.input.update(cx, |state, cx| {
-                // Start each action in the hidden phase without depending on a
-                // key-down listener: actions and text input also arrive directly.
-                for action in 0..6 {
-                    state.blink_cursor = cx.new(|_| BlinkCursor::new());
+        for action in 0..6 {
+            cx.update(|_, cx| {
+                view.input.update(cx, |state, cx| {
+                    state.blink_cursor = cx.new(|cx| {
+                        let mut cursor = BlinkCursor::new();
+                        cursor.start(cx);
+                        cursor
+                    });
+                });
+            });
+            cx.run_until_parked();
+            cx.executor()
+                .advance_clock(std::time::Duration::from_millis(500));
+            cx.run_until_parked();
+            cx.update(|window, cx| {
+                view.input.update(cx, |state, cx| {
+                    // Begin with an active cursor in its hidden phase. An
+                    // unfocused cursor must no longer be started by an edit.
                     assert!(!state.blink_cursor.read(cx).visible());
                     match action {
                         0 => state.add_cursor_above(&AddCursorAbove, window, cx),
@@ -7676,9 +7690,9 @@ mod tests {
                         _ => state.backspace(&Backspace, window, cx),
                     }
                     assert!(state.blink_cursor.read(cx).visible(), "action {action}");
-                }
+                });
             });
-        });
+        }
     }
 
     #[gpui::test]

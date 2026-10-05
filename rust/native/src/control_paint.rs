@@ -114,7 +114,16 @@ fn paint(
                     window.paint_path(path, mark_color);
                 }
             }
-            Mark::Dash(rect) => window.paint_quad(gpui::fill(translate(rect), mark_color)),
+            Mark::Dash(rect) => {
+                // GPUI rounds quad edges independently. A subpixel-high dash
+                // can otherwise snap to zero height on a 1x display. Keep its
+                // center and ensure at least one physical pixel, like a stroke.
+                let mut dash = translate(rect);
+                let height = dash.size.height.max(px(1. / window.scale_factor()));
+                dash.origin.y -= (height - dash.size.height) / 2.;
+                dash.size.height = height;
+                window.paint_quad(gpui::fill(dash, mark_color));
+            }
             Mark::Dot(rect) | Mark::Thumb(rect) => {
                 let mut quad = gpui::fill(translate(rect), mark_color);
                 quad.corner_radii = px((rect.height / 2.) as f32).into();
@@ -136,6 +145,7 @@ mod tests {
         opacity: f32,
         clipped: bool,
         visible: bool,
+        mixed: bool,
     }
     impl Render for Fixture {
         fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
@@ -144,7 +154,7 @@ mod tests {
                 root = root.w(px(4.)).h(px(4.)).overflow_hidden();
             }
             if self.visible {
-                root = root.child(element(self.kind, &self.config, true, false, false));
+                root = root.child(element(self.kind, &self.config, true, self.mixed, false));
             }
             root
         }
@@ -160,6 +170,7 @@ mod tests {
                     opacity: 0.5,
                     clipped: false,
                     visible: true,
+                    mixed: false,
                     config: Config {
                         size,
                         switch_width: size * 2.,
@@ -218,6 +229,42 @@ mod tests {
                     assert_eq!(window.simulate_next_frame(cx), 0);
                 });
             }
+        }
+    }
+
+    #[test]
+    fn minimum_mixed_checkbox_keeps_a_visible_dash_at_each_display_scale() {
+        for scale in [1., 1.25, 1.5, 2., 3.] {
+            let mut app = TestAppContext::single();
+            let (_, cx) = app.add_window_view(|_, _| Fixture {
+                config: Config {
+                    size: 8.,
+                    indicator_style: vec![Style::Fields(vec![Field::Background(Fill::Solid(
+                        Color::Rgba(0xff0000ff),
+                    ))])],
+                    mark_style: vec![Style::Fields(vec![Field::Foreground(Color::Rgba(
+                        0x00ff00ff,
+                    ))])],
+                    ..Config::default()
+                },
+                kind: Kind::Checkbox,
+                opacity: 1.,
+                clipped: false,
+                visible: true,
+                mixed: true,
+            });
+            cx.update(|window, cx| {
+                window.set_scale_factor(scale);
+                window.draw(cx).clear(cx);
+                let quads = window.painted_quads();
+                assert_eq!(quads.len(), 2, "outline and dash at scale {scale}");
+                let dash = quads.last().expect("mixed checkbox dash");
+                assert!(dash.bounds.size.width.0 >= 1.);
+                assert!(
+                    dash.bounds.size.height.0 >= 1.,
+                    "invisible dash at scale {scale}"
+                );
+            });
         }
     }
 }

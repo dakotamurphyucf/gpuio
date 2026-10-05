@@ -508,3 +508,13 @@ that failed workspace. Workflow YAML and cache/env structure checks pass using
 Ruby's standard YAML parser; the explicit-workspace/cleanup CLI combination exits
 with an argument error before creating a workspace. This is local tooling evidence;
 only a fresh hosted job can qualify its actual disk budget and full GUI checks.
+
+## Completed follow-up at 1921ae3
+
+[Run37251380938](https://github.com/dakotamurphyucf/gpuio/actions/runs/37251380938)
+finishes with the complete Linux job passing. Storage preparation and all four
+independent consumers (starter, extension, gallery and Signal Studio) pass on
+both macOS and Linux; the prior disk exhaustion does not recur in this run.
+macOS still reports four native/public behavior failures, documented with local
+repairs in [the macOS repair evidence](macos-validation-repairs-och17.md).
+No overall hosted pass or clean-machine packaged GUI acceptance is inferred.
