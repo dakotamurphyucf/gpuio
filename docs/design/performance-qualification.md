@@ -160,3 +160,14 @@ intentional retained-entity fixture must fail and pass after release; malformed
 or missing audit records cannot satisfy completion. This coverage complements
 OS physical-memory accounting and cannot substitute for it. The smoke and [three full native audit runs](../evidence/native-entity-retention-och17.md)
 now pass locally.
+
+
+## Presentation follow-up — 2026-10-05
+
+The [Metal presentation design](metal-presentation-qualification.md) now specifies
+a separate default-off diagnostic, scoped window/frame attribution, bounded
+callback data and clock-correspondence requirements. The [standalone API probe](../evidence/metal-presentation-calibration-och17.md)
+passes120 actual drawable callbacks on the reference Mac. This establishes the
+platform mechanism only: GPUI integration, collector validation and actual workload
+presentation measurements are still required. Existing CPU/submission budgets
+are unchanged; no new threshold was chosen from calibration timings.

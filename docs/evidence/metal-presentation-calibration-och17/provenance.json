@@ -1,0 +1,106 @@
+{
+  "implementation_commit": "286ba88",
+  "tested_worktree_base": "841d889",
+  "swift_source_sha256": "6a4477b8e9b4eea718da01f78293ef2f2105ea6dad1a9c53d6327648ab7e8547",
+  "optimized_binary_sha256": "dff012ba2d4bce0d58cdec5b66d7d1a203a6f1cde415fabe7558f1b70ef41a9f",
+  "compiler_command": "swiftc -O scripts/qualify_metal_presentation.swift -o scratch/agents/root-20261004-resumed/qualify-metal-presentation",
+  "runs": [
+    {
+      "file": "run-001.json",
+      "complete": false,
+      "failures": [
+        "Probe window not visible at submission"
+      ],
+      "diagnostics": {
+        "submit_before_to_present_ms": {
+          "count": 120,
+          "min": 9.313416667282581,
+          "median": 9.408500045537949,
+          "max": 54.18354086577892
+        },
+        "callback_delay_ms": {
+          "count": 120,
+          "min": 0.23404136300086975,
+          "median": 0.3504585474729538,
+          "max": 5.982249975204468
+        },
+        "gpu_end_to_present_ms": {
+          "count": 120,
+          "min": 8.455292321741581,
+          "median": 9.004042483866215,
+          "max": 53.64025104790926
+        },
+        "present_intervals_ms": {
+          "count": 119,
+          "min": 8.333290927112103,
+          "median": 16.666708514094353,
+          "max": 37.50012442469597
+        }
+      }
+    },
+    {
+      "file": "run-002.json",
+      "complete": false,
+      "failures": [
+        "Missing or repeated drawable identities"
+      ],
+      "diagnostics": {
+        "submit_before_to_present_ms": {
+          "count": 120,
+          "min": 7.753124460577965,
+          "median": 10.216666385531425,
+          "max": 123.31762537360191
+        },
+        "callback_delay_ms": {
+          "count": 120,
+          "min": 0.25191716849803925,
+          "median": 0.3537498414516449,
+          "max": 1.3008750975131989
+        },
+        "gpu_end_to_present_ms": {
+          "count": 120,
+          "min": 7.4672093614935875,
+          "median": 9.772855322808027,
+          "max": 122.80050106346607
+        },
+        "present_intervals_ms": {
+          "count": 119,
+          "min": 8.32991674542427,
+          "median": 16.666708514094353,
+          "max": 62.500166706740856
+        }
+      }
+    },
+    {
+      "file": "run-003.json",
+      "complete": true,
+      "failures": [],
+      "diagnostics": {
+        "submit_before_to_present_ms": {
+          "count": 120,
+          "min": 8.702916093170643,
+          "median": 9.571208618581295,
+          "max": 89.5132077857852
+        },
+        "callback_delay_ms": {
+          "count": 120,
+          "min": 0.27070846408605576,
+          "median": 0.3596455790102482,
+          "max": 5.13533316552639
+        },
+        "gpu_end_to_present_ms": {
+          "count": 120,
+          "min": 8.205042220652103,
+          "median": 9.145918302237988,
+          "max": 89.13962543010712
+        },
+        "present_intervals_ms": {
+          "count": 119,
+          "min": 8.33333283662796,
+          "median": 16.666708514094353,
+          "max": 70.83349954336882
+        }
+      }
+    }
+  ]
+}
