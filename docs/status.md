@@ -50,6 +50,11 @@ missed an intermediate width. The [sampling correction](evidence/sidebar-ci-samp
 now passes locally on both left and right layouts; corrected hosted execution is
 still pending. The [motion catalog review](catalog/motion-review.md) maps all eight
 pinned source inputs and names remaining timing/easing gaps without claiming parity.
+[Command/menu](catalog/commands-menus-review.md) and [chart/plot](catalog/charts-review.md)
+reviews now cover the other previously pending detailed source mappings, with
+public-surface gaps and accepted-contract differences explicit. Exact cubic
+ease-in/out presets now have [local API/native/gallery and consumer-build evidence](evidence/cubic-easing-och41.md).
+This does not close component or release acceptance.
 Three full optimized loaded-list, paged-table and growing-document runs pass
 their declared budgets; six ordinary/profiled comparisons and three resource
 lifecycle runs also pass. Three full streaming/typing runs also pass after an optional profiler repair,

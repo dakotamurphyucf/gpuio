@@ -1,0 +1,42 @@
+{
+  "archive": "local-validation.tar.gz",
+  "sha256": "e999e666bb31d096e73adc5b2fe48124ef6509878cef7182d648c94b4296cad7",
+  "files": [
+    {
+      "path": "cubic-easing-build.log",
+      "sha256": "0ae5ac3133e91f695a0ddb4e0514cf58e3467735495118ef05bc927ffe541891"
+    },
+    {
+      "path": "cubic-easing-rust.log",
+      "sha256": "da52271770254d3907ac6b623e91e59a818603321550495757851843477b41ba"
+    },
+    {
+      "path": "cubic-easing-gallery.log",
+      "sha256": "fa9e7817b9664f62aff39d233474ba8c17545598f3d0db0cb8246213c74f3356"
+    },
+    {
+      "path": "cubic-easing-clippy.log",
+      "sha256": "f0b9a011c25f4ac38f6c5471b0d395533c6442008607746ca0b84c4accad0a44"
+    },
+    {
+      "path": "cubic-easing-consumer.log",
+      "sha256": "0e14b49648d556a9dbed1c66f6276229c4a89ff949253bc8846e2c4697b50889"
+    },
+    {
+      "path": "cubic-easing-catalog.log",
+      "sha256": "ec7f045757abb1d7e2907d8e645fbd6c7fa3e9b0e1e808e2fdc2dd20215b9a75"
+    },
+    {
+      "path": "cubic-easing-metadata.json",
+      "sha256": "3fd186a85c798d2a1ef31ce884e0354ea411ee4e839bb5bc2d025ae9ecf62269"
+    },
+    {
+      "path": "gallery-motion.png",
+      "sha256": "b53fe1a31a0f75bce0b8b79d194f3723970b5e7aad11f82e1191de0254d6c5f9"
+    },
+    {
+      "path": "animation-cubic-easing.tsv",
+      "sha256": "b6217a9d2f6f4252364dae696ec0b4fcc8bfc343ebd905319b061530db703080"
+    }
+  ]
+}

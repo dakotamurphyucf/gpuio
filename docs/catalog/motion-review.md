@@ -87,3 +87,7 @@ Linux build/unit/consumer results remain separate from deferred Linux desktop
 qualification (OCH-47). Current macOS performance, VoiceOver and hosted release
 acceptance remain OCH-17 work. This review does not close OCH-41 or OCH-25's
 catalog mapping by treating every nested helper as already implemented.
+
+The [cubic-preset follow-up](../evidence/cubic-easing-och41.md) records paired
+public/native fixtures, polynomial sampling, the real-window gallery walkthrough
+and independent consumer build for `ease_in_cubic` / `ease_out_cubic`.
