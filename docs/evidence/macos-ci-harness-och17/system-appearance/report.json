@@ -1,0 +1,18 @@
+{
+  "complete": false,
+  "platform": "macOS-15.7.9-arm64-arm-64bit-Mach-O",
+  "checks": [],
+  "executable_sha256": "135e78b7b586bfd3ef967d723956e9660a2a4be60124cc45fee643b1233b587a",
+  "revision": "7326b23f4f625d2ee1436dfd87c975a42ba4500a",
+  "dirty": false,
+  "error": "AssertionError: initial-dark: expected palette not painted (2675 samples)",
+  "child_reaped": true,
+  "appearance_recovery": {
+    "version": 1,
+    "original": {
+      "dark": false,
+      "automatic": null
+    },
+    "restored": true
+  }
+}

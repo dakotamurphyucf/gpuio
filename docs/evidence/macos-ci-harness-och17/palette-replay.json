@@ -1,0 +1,114 @@
+[
+  {
+    "path": "docs/evidence/system-appearance-och41/initial-dark.png",
+    "sha256": "bf83224ae97c6fbdb6cb3abbc61ebcc33d920300830868096c690d8b127493d2",
+    "width": 2240,
+    "height": 1698,
+    "expected": [
+      16,
+      21,
+      29
+    ],
+    "matches": 11496,
+    "total": 59640,
+    "fraction": 0.19275653923541247
+  },
+  {
+    "path": "docs/evidence/system-appearance-och41/second-light.png",
+    "sha256": "8bd6e4cfd5c6ccb9d622e45ec708381348609728ec27a1208f49ff03ee6dd267",
+    "width": 2240,
+    "height": 1698,
+    "expected": [
+      241,
+      244,
+      247
+    ],
+    "matches": 11515,
+    "total": 59640,
+    "fraction": 0.19307511737089203
+  },
+  {
+    "path": "docs/evidence/system-appearance-och41/system-light.png",
+    "sha256": "9dbb620b5e7a2ba01ff1a90eacb27edb69ab31708fc93bf5fdd97e34d3b6b99e",
+    "width": 2240,
+    "height": 1698,
+    "expected": [
+      241,
+      244,
+      247
+    ],
+    "matches": 11515,
+    "total": 59640,
+    "fraction": 0.19307511737089203
+  },
+  {
+    "path": "docs/evidence/system-appearance-och41/system-dark.png",
+    "sha256": "859dded26455c0bae395edd5028a7843cfe96da2522a7a2889d3c15cf8b9ea85",
+    "width": 2240,
+    "height": 1698,
+    "expected": [
+      16,
+      21,
+      29
+    ],
+    "matches": 11496,
+    "total": 59640,
+    "fraction": 0.19275653923541247
+  },
+  {
+    "path": "docs/evidence/system-appearance-och41/second-still-light.png",
+    "sha256": "8bd6e4cfd5c6ccb9d622e45ec708381348609728ec27a1208f49ff03ee6dd267",
+    "width": 2240,
+    "height": 1698,
+    "expected": [
+      241,
+      244,
+      247
+    ],
+    "matches": 11515,
+    "total": 59640,
+    "fraction": 0.19307511737089203
+  },
+  {
+    "path": "docs/evidence/system-appearance-och41/explicit-dark.png",
+    "sha256": "37b3d842e869b631b0a56fe0153a2f2ce4b834bdec9341a08f4b0363d9247f1b",
+    "width": 2240,
+    "height": 1698,
+    "expected": [
+      16,
+      21,
+      29
+    ],
+    "matches": 11496,
+    "total": 59640,
+    "fraction": 0.19275653923541247
+  },
+  {
+    "path": "docs/evidence/system-appearance-och41/follow-again-light.png",
+    "sha256": "9dbb620b5e7a2ba01ff1a90eacb27edb69ab31708fc93bf5fdd97e34d3b6b99e",
+    "width": 2240,
+    "height": 1698,
+    "expected": [
+      241,
+      244,
+      247
+    ],
+    "matches": 11515,
+    "total": 59640,
+    "fraction": 0.19307511737089203
+  },
+  {
+    "path": "scratch/agents/root-20261004-resumed/ci-37297058441-macos/system-appearance/initial-dark.png",
+    "sha256": "c0f0bebe60449ab6986a476d622a840783ef1a8f2ae269ae3f4e599de2a15c91",
+    "width": 1120,
+    "height": 848,
+    "expected": [
+      16,
+      21,
+      29
+    ],
+    "matches": 2675,
+    "total": 14840,
+    "fraction": 0.18025606469002695
+  }
+]

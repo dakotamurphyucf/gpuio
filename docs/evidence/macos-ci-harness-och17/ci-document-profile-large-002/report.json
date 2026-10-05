@@ -1,0 +1,83 @@
+{
+  "complete": true,
+  "platform": "macOS-14.5-arm64-arm-64bit-Mach-O",
+  "executable_sha256": "21e330ed211f84b7d72c7bf4ebb0dd177991ad1f8ca2b6d38d3620b8bdbef46d",
+  "large_density": true,
+  "checks": [
+    {
+      "case": "keyboard-action",
+      "label": "Inspect highlighted code"
+    },
+    {
+      "case": "keyboard-action",
+      "label": "Summarize native table"
+    },
+    {
+      "case": "inline-to-block-tab-and-keyboard"
+    },
+    {
+      "case": "changed-properties-native-pointer"
+    },
+    {
+      "case": "profile-remove-and-remount"
+    },
+    {
+      "case": "plugin-keyboard-scroll-reveal-and-activation"
+    },
+    {
+      "case": "plugin-clipped-control-does-not-trap-tab",
+      "exited_to": "GPUIO \u00b7 Component Studio 1"
+    },
+    {
+      "case": "plugin-native-wheel-and-retained-scroll"
+    },
+    {
+      "case": "plugin-property-update-retains-offset-and-current-event"
+    },
+    {
+      "case": "plugin-unmount-releases-scroll-state"
+    },
+    {
+      "case": "page-departure-source-release",
+      "events": [
+        [
+          "1",
+          "Inspect_code"
+        ],
+        [
+          "1",
+          "Summarize_table"
+        ],
+        [
+          "1",
+          "Open_badge"
+        ],
+        [
+          "1",
+          "Open_card"
+        ],
+        [
+          "1",
+          "Open_card"
+        ],
+        [
+          "1",
+          "Open_badge"
+        ],
+        [
+          "1",
+          "Open_card"
+        ],
+        [
+          "1",
+          "Open_card"
+        ],
+        [
+          "1",
+          "Open_card"
+        ]
+      ]
+    }
+  ],
+  "child_reaped": true
+}

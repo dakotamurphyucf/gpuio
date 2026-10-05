@@ -171,6 +171,8 @@ jobs:
         run: python3 scripts/test_mac_clipboard.py 2>&1 | tee .cache/ci/clipboard-preservation.log
       - name: System appearance restoration scope (no display)
         run: python3 scripts/test_mac_system_appearance.py 2>&1 | tee .cache/ci/appearance-restoration.log
+      - name: Appearance palette backing-scale validation (no display)
+        run: python3 scripts/test_appearance_palette.py 2>&1 | tee .cache/ci/appearance-palette.log
       - name: Loaded-history measurement diagnostics (no display)
         run: python3 scripts/test_measure_list_history.py 2>&1 | tee .cache/ci/list-measurement-diagnostics.log
       - name: Table performance report validation

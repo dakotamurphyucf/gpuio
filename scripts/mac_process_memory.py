@@ -37,19 +37,33 @@ def footprint_summary(document, pid):
 
 
 def require_released_surfaces(samples):
-    """Regression gate for this workload's destroyed native-window surfaces.
+    """Require zero IOSurface bytes and no growth in empty mapping counts.
 
-    This checks the macOS footprint IOSurface category, not all GPU allocations.
-    Other system versions must report unsupported taxonomy rather than infer
-    Metal resource release from this narrowly scoped check alone.
+    The macOS15 CI runner reports fixed zero-byte mappings after close.
+    Regions count address-space mappings, not resident/dirty/wired bytes.
+    Retain those counts and reject growth; neither result is a complete census
+    of GPU allocations or proof of native object retirement by itself.
     """
     if not samples:
         raise ValueError('No closed-window physical-memory samples')
+    fields = ('dirty', 'swapped', 'clean', 'reclaimable', 'wired')
+    baseline_regions = None
     for sample in samples:
-        categories = sample['physical_memory']['categories']
-        for name, values in categories.items():
-            if 'iosurface' in name.lower() and any(values.values()):
-                raise ValueError(f'IOSurface allocation remains after closing cycle {sample["cycle"]}')
+        regions = 0
+        for name, values in sample['physical_memory']['categories'].items():
+            if 'iosurface' not in name.lower():
+                continue
+            if set(values) != {*fields, 'regions'}:
+                raise ValueError('Unsupported IOSurface accounting fields')
+            if any(type(values[key]) is not int or values[key] < 0 for key in (*fields, 'regions')):
+                raise ValueError('Invalid IOSurface accounting values')
+            if any(values[key] for key in fields):
+                raise ValueError(f'IOSurface bytes remain after closing cycle {sample["cycle"]}')
+            regions += values['regions']
+        if baseline_regions is None:
+            baseline_regions = regions
+        elif regions > baseline_regions:
+            raise ValueError(f'Empty IOSurface mappings grew after closing cycle {sample["cycle"]}')
 
 
 def sample(pid, directory):

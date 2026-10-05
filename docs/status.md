@@ -14,6 +14,12 @@ requires its own hosted run. [Fresh-package evidence](evidence/package-runtime-o
 records exact hashes and native coverage; final notice/signing/release approval
 remains open. Required Linux checks pass; informational X11/Wayland smoke fails
 and remains deferred to OCH-47.
+The later hosted run [37297058441](https://github.com/dakotamurphyucf/gpuio/actions/runs/37297058441)
+passed Linux but failed three macOS harness checks at tree-equivalent `999e531`;
+the dependent fresh-package receiver was skipped. Local corrections now pass a
+larger-text native document walkthrough and offline palette/memory artifact
+replays. [Failure analysis and evidence](evidence/macos-ci-harness-och17.md)
+retain the original failures; the corrected hosted run remains pending.
 VoiceOver remains on the owner's explicit hold.
 Three full optimized loaded-list, paged-table and growing-document runs pass
 their declared budgets; six ordinary/profiled comparisons and three resource

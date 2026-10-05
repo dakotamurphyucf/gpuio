@@ -1,0 +1,15 @@
+AX_WAIT A little context goes a long way
+AX_PRESS Follow system
+AX_PRESS Styling details
+AX_WAIT A theme from your workspace
+GALLERY_FOCUS_READY Theme preview draft requests= 1
+Traceback (most recent call last):
+  File "/Users/runner/work/gpuio/gpuio/scripts/test_macos_system_appearance.py", line 205, in <module>
+    main()
+    ~~~~^^
+  File "/Users/runner/work/gpuio/gpuio/scripts/test_macos_system_appearance.py", line 109, in main
+    **palette(mac, output, 'initial-dark', TITLE, True)})
+      ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/runner/work/gpuio/gpuio/scripts/test_macos_system_appearance.py", line 69, in palette
+    raise AssertionError(f'{name}: expected palette not painted ({count} samples)')
+AssertionError: initial-dark: expected palette not painted (2675 samples)

@@ -1,0 +1,15 @@
+AX_WAIT A little context goes a long way
+AX_PRESS Markdown & code
+AX_WAIT Markdown preview
+DOCUMENT_SCROLL_TARGET [529.0, 833.0, 770.0, 350.0] point (914.0, 1008.0)
+DOCUMENT_SCROLL_FINAL_BODY [529.0, 833.0, 770.0, 350.0]
+Traceback (most recent call last):
+  File "/Users/runner/work/gpuio/gpuio/scripts/test_macos_document_profile.py", line 171, in <module>
+    main()
+    ~~~~^^
+  File "/Users/runner/work/gpuio/gpuio/scripts/test_macos_document_profile.py", line 84, in main
+    reveal_document_control(mac, label)
+    ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "/Users/runner/work/gpuio/gpuio/scripts/test_gallery.py", line 3614, in reveal_document_control
+    raise RuntimeError(f'{label!r} did not become accessible after native document scrolling')
+RuntimeError: 'Inspect highlighted code' did not become accessible after native document scrolling

@@ -51,6 +51,16 @@ def activate(mac, title):
         mac.release(window)
 
 
+def palette_samples(pixels, expected):
+    """Count a proportion of the image, independent of backing scale."""
+    total = matches = 0
+    for y in range(0, pixels.height, 8):
+        for x in range(0, pixels.width, 8):
+            total += 1
+            matches += all(abs(a-b) <= 2 for a, b in zip(pixels.rgb(x, y), expected))
+    return matches, total
+
+
 def palette(mac, output, name, title, dark):
     # The label acknowledges Bonsai's resolved preference; pixels independently
     # verify actual painting. Capturing never requests editor focus.
@@ -61,10 +71,13 @@ def palette(mac, output, name, title, dark):
     while True:
         screenshot(mac, path, title=title)
         pixels = read_png(mac, path)
-        count = sum(all(abs(a-b) <= 2 for a, b in zip(pixels.rgb(x, y), expected))
-                    for y in range(0, pixels.height, 8) for x in range(0, pixels.width, 8))
-        if count > 3000:
-            return {'capture': path.name, 'background_rgb': expected, 'matching_samples': count}
+        count, total = palette_samples(pixels, expected)
+        # Background occupies a substantial part of this page at either scale.
+        # An absolute pixel count misclassified the correctly painted 1x CI image.
+        if total > 0 and count / total >= .10:
+            return {'capture': path.name, 'background_rgb': expected,
+                    'matching_samples': count, 'total_samples': total,
+                    'matching_fraction': count / total}
         if time.monotonic() >= deadline:
             raise AssertionError(f'{name}: expected palette not painted ({count} samples)')
         time.sleep(.1)

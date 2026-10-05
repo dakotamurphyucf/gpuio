@@ -3576,6 +3576,20 @@ def document_structure(mac):
 
 
 def reveal_document_control(mac, label="Copy code", role="AXButton"):
+    # First reveal the nested viewport through its outer page. AX reports its
+    # full layout rectangle even when a parent clips it. Target the card padding
+    # just left of the document so the inner scroller cannot consume this wheel.
+    body = mac.wait_find(TITLE, 'Document content', 'AXGroup')
+    window = mac.window(TITLE)
+    try:
+        x, _, _, _ = element_rect(mac, body)
+        wx, _, ww, _ = element_rect(mac, window)
+    finally:
+        mac.release(body)
+        mac.release(window)
+    fraction = (x - wx - 10) / ww
+    assert 0 < fraction < 1, ('Document outer scroll target', fraction)
+    reveal_gallery_control(mac, 'Document content', 'AXGroup', scroll_fraction=fraction)
     # Scroll the actual native viewport until the requested block/control mounts.
     # A baseline code fence can exist before later appended content is visible.
     raise_gallery(mac)
@@ -3586,15 +3600,27 @@ def reveal_document_control(mac, label="Copy code", role="AXButton"):
     locate.restype, locate.argtypes = None, [C.c_void_p, GalleryMouse.Point]
     previous = None
     for _ in range(20):
-        control = mac.find(TITLE, label, role)
-        if control:
-            mac.release(control)
-            return
-        # A newly selected preview can expose its toolbar before preparation
-        # installs the body. Target the actual body, and follow any reflow.
+        # AX can include mounted overscan controls that are still clipped. A
+        # keyboard handler is usable only after its element actually paints.
         current = mouse.bounds('Document content')
         x, y, width, height = current
         assert width > 0 and height > 0, current
+        amount = -80
+        control = mac.find(TITLE, label, role)
+        if control:
+            try:
+                tx, ty, tw, th = element_rect(mac, control)
+            finally:
+                mac.release(control)
+            if tw <= 0 or th <= 0:
+                time.sleep(.1)
+                continue
+            if ty >= y - 1 and ty + th <= y + height + 1:
+                return
+            distance = y - ty if ty < y else ty + th - (y + height)
+            amount = round(min(200, max(40, distance + 8))) * (1 if ty < y else -1)
+            print('DOCUMENT_CONTROL_CLIPPED', label, (tx, ty, tw, th), current, flush=True)
+        # Target the actual body, following any outer-page or document reflow.
         point = (x + width / 2, y + height / 2)
         if current != previous:
             print('DOCUMENT_SCROLL_TARGET', current, 'point', point, flush=True)
@@ -3602,7 +3628,7 @@ def reveal_document_control(mac, label="Copy code", role="AXButton"):
             time.sleep(.1)
             previous = current
         mouse.check_owner(point)
-        event = create(None, 0, 1, C.c_int(-80))
+        event = create(None, 0, 1, C.c_int(amount))
         assert event
         try:
             locate(event, GalleryMouse.Point(*point))

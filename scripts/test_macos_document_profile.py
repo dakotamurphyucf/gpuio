@@ -24,12 +24,13 @@ def main():
     parser.add_argument('--executable', type=Path,
                         default=Path('_build/default/examples/gallery/main.exe'))
     parser.add_argument('--output', required=True, type=Path)
+    parser.add_argument('--large-density', action='store_true', help='Exercise clipped nested scrolling with larger gallery type')
     args = parser.parse_args()
     Mac.require_accessibility()
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=False)
     report = {'complete': False, 'platform': platform.platform(),
-              'executable_sha256': digest(args.executable), 'checks': []}
+              'executable_sha256': digest(args.executable), 'large_density': args.large_density, 'checks': []}
     child = mac = None
     expected = []
     def interrupted(signum, _frame):
@@ -45,6 +46,9 @@ def main():
             mac.wait_text(TITLE, 'A little context goes a long way')
             raise_gallery(mac)
             foreground_keys(mac)
+            if args.large_density:
+                mac.press(TITLE, 'Comfortable')
+                mac.release(mac.wait_find(TITLE, 'Large', 'AXButton'))
             mac.press(TITLE, 'Markdown & code')
             mac.wait_text(TITLE, 'Markdown preview')
             def toggle(label):

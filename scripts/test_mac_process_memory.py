@@ -22,7 +22,7 @@ def fixture():
 
 
 class PhysicalMemory(unittest.TestCase):
-    def test_closed_surface_check_detects_residual_regions_and_missing_samples(self):
+    def test_closed_surface_check_rejects_incomplete_accounting_and_missing_samples(self):
         rows = [dict(cycle=1, physical_memory=dict(categories={})),
                 dict(cycle=2, physical_memory=dict(categories={}))]
         require_released_surfaces(rows)
@@ -31,8 +31,22 @@ class PhysicalMemory(unittest.TestCase):
         for field in ('regions', 'dirty', 'swapped', 'wired', 'reclaimable', 'clean'):
             bad = copy.deepcopy(rows)
             bad[0]['physical_memory']['categories']['IOSurface'] = {field: 1}
-            with self.assertRaisesRegex(ValueError, 'cycle 1'):
+            with self.assertRaisesRegex(ValueError, 'Unsupported IOSurface accounting fields'):
                 require_released_surfaces(bad)
+
+    def test_empty_mappings_are_distinct_from_bytes_and_cannot_grow(self):
+        empty = dict(dirty=0, swapped=0, clean=0, reclaimable=0, wired=0, regions=4)
+        rows = [dict(cycle=i, physical_memory=dict(categories={'IOSurface': dict(empty)})) for i in range(1, 5)]
+        require_released_surfaces(rows)
+        for field in ('dirty', 'swapped', 'clean', 'reclaimable', 'wired'):
+            bad = copy.deepcopy(rows)
+            bad[-1]['physical_memory']['categories']['IOSurface'][field] = 1
+            with self.assertRaisesRegex(ValueError, 'bytes remain'):
+                require_released_surfaces(bad)
+        bad = copy.deepcopy(rows)
+        bad[-1]['physical_memory']['categories']['IOSurface']['regions'] = 5
+        with self.assertRaisesRegex(ValueError, 'mappings grew'):
+            require_released_surfaces(bad)
 
     def test_identity_units_diagnostics_and_categories_are_required(self):
         good = fixture()
