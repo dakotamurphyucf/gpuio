@@ -38,6 +38,13 @@ whole-family acceptance. Start from [the catalog](catalog/README.md),
 
 Recent completed local checkpoints:
 
+- Real macOS Japanese IME now has a passing public gallery sequence: OS candidate
+  window, preedit versus committed form state, commit, one-step undo/redo and
+  Escape cancellation. Input-source selection/enable states are restored and
+  checked after the run. This is one single-line editor/method qualification;
+  multiline geometry and other physical release checks remain.
+  [IME evidence and recovery](evidence/macos-ime-och17.md).
+
 - The first full optimized 10,000-row loaded-list run passes predeclared budgets:
   26,881 draws, p95 3.13 ms, p99 3.74 ms, peak RSS 184.5 MB, zero draws during
   60 seconds of settled idle, bounded active rows and full cleanup. Repeated runs,

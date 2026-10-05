@@ -137,6 +137,13 @@ during the short test. The feature enables paint probes only in this test build.
 Ordinary `test` remains headless. CI requires these graphical checks on macOS;
 Linux graphical results remain informational, while builds and pure tests are required.
 
+For real Japanese OS composition and candidate-window acceptance, build the
+gallery and run `python3 scripts/test_macos_ime.py --output scratch/ime-001`
+on an otherwise idle desktop. It temporarily selects the installed Japanese input
+method and restores the original keyboard settings. See [IME evidence and
+recovery](evidence/macos-ime-och17.md) for prerequisites, scope and recovery after
+an uncatchable interruption. This test captures only its own candidate window.
+
 The macOS GUI fixtures include 1360×820 window-resize cases. CI therefore checks
 for at least a 1440×1000-point desktop with 1400×900 usable points before building.
 `scripts/ci_macos_display.swift --apply` selects an available mode for the CI login

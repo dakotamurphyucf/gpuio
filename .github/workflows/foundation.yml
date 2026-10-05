@@ -156,6 +156,8 @@ jobs:
         run: python3 scripts/test_measure_chart_stream.py 2>&1 | tee .cache/ci/chart-measurement-diagnostics.log
       - name: Accessibility traversal diagnostics (no display)
         run: python3 scripts/test_mac_ax_helpers.py 2>&1 | tee .cache/ci/ax-traversal.log
+      - name: Input-source restoration scope (no display)
+        run: python3 scripts/test_mac_input_source.py 2>&1 | tee .cache/ci/input-source-scope.log
       - name: Loaded-history measurement diagnostics (no display)
         run: python3 scripts/test_measure_list_history.py 2>&1 | tee .cache/ci/list-measurement-diagnostics.log
       - name: Reference packaging input validation (no display)
