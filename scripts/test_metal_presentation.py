@@ -1,0 +1,60 @@
+#!/usr/bin/env python3
+"""Build/run the bounded two-window Metal hook qualification (macOS only).
+
+No VoiceOver, accessibility automation or preference changes. The native probe
+closes its windows. The parent also imposes a timeout and requires a fresh report;
+an NSApplication exit(0) without completed assertions cannot pass.
+"""
+import argparse
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+
+ROOT = Path(__file__).resolve().parent.parent
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--binary", type=Path, help="Use an already built probe")
+    args = parser.parse_args()
+    if sys.platform != "darwin":
+        raise SystemExit("This qualification requires a macOS Metal desktop")
+    output = args.output.resolve()
+    output.mkdir(parents=True, exist_ok=True)
+    report = output / "report.json"
+    if report.exists():
+        raise SystemExit("Refusing to reuse an existing report; choose a fresh output directory")
+    binary = args.binary
+    if binary is None:
+        command = [str(ROOT / "scripts/gpuio"), "exec", "cargo", "build", "-p", "gpuio-native",
+                   "--locked", "--features", "presentation-diagnostics", "--test",
+                   "native_metal_presentation", "--message-format=json", "-j", os.environ.get("GPUIO_JOBS", "2")]
+        with (output / "build.jsonl").open("w") as stdout, (output / "build.log").open("w") as stderr:
+            subprocess.run(command, cwd=ROOT, stdout=stdout, stderr=stderr, check=True)
+        artifacts = [json.loads(line) for line in (output / "build.jsonl").read_text().splitlines()]
+        candidates = [item["executable"] for item in artifacts
+                      if item.get("reason") == "compiler-artifact"
+                      and item.get("target", {}).get("name") == "native_metal_presentation"
+                      and item.get("executable")]
+        if len(candidates) != 1:
+            raise RuntimeError(f"Expected one current native probe artifact, got {candidates}")
+        binary = Path(candidates[0])
+    environment = {**os.environ, "GPUIO_PRESENTATION_REPORT": str(report)}
+    # subprocess.run kills and reaps the child on timeout; no detached process.
+    with (output / "native.log").open("w") as log:
+        result = subprocess.run([str(binary.resolve())], cwd=ROOT, env=environment,
+                                stdout=log, stderr=subprocess.STDOUT, timeout=25, check=True)
+    data = json.loads(report.read_text())
+    if data.get("schema") != 1 or data.get("kind") != "gpui_metal_hook_qualification" or data.get("passed") is not True:
+        raise RuntimeError(f"Native qualification did not pass; inspect {report}")
+    if len(data.get("sessions", [])) != 2:
+        raise RuntimeError("Missing independent window results")
+    print(json.dumps({"passed": True, "exit_code": result.returncode, "report": str(report),
+                      "presented": [s["counts"]["presented"] for s in data["sessions"]]}))
+
+
+if __name__ == "__main__":
+    main()

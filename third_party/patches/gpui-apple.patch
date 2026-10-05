@@ -1,0 +1,54 @@
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -14,6 +14,7 @@
+ bench-support = ["gpui/bench-support"]
+ test-support = ["gpui/test-support"]
+ runtime_shaders = []
++presentation-diagnostics = ["gpui/presentation-diagnostics"]
+ 
+ [dependencies]
+ gpui = { default-features = false, git = "https://github.com/zed-industries/zed.git", rev = "a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b" }
+--- a/src/metal_renderer.rs
++++ b/src/metal_renderer.rs
+@@ -476,6 +476,9 @@
+                 return;
+             }
+         };
++
++        #[cfg(feature = "presentation-diagnostics")]
++        track_presentation(drawable);
+ 
+         if self.presents_with_transaction {
+             command_buffer.commit();
+@@ -1624,3 +1627,31 @@
+         self.renderer.sprite_atlas().clone()
+     }
+ }
++
++/// Attach before either existing presentation path. The block captures only a
++/// diagnostic ticket with weak measurement state, never the drawable or renderer.
++#[cfg(feature = "presentation-diagnostics")]
++fn track_presentation(drawable: &metal::DrawableRef) {
++    use gpui::presentation::{ClockSample, attach};
++    let clock = ClockSample::capture(presentation_host_time);
++    let Some(frame) = attach(drawable.drawable_id(), clock) else {
++        return;
++    };
++    let callback = ConcreteBlock::new(move |presented: &metal::DrawableRef| {
++        frame.complete(presented.presented_time(), presentation_host_time());
++    })
++    .copy();
++    drawable.add_presented_handler(&callback);
++}
++
++#[cfg(feature = "presentation-diagnostics")]
++fn presentation_host_time() -> f64 {
++    #[link(name = "QuartzCore", kind = "framework")]
++    unsafe extern "C" {
++        fn CACurrentMediaTime() -> f64;
++    }
++    // SAFETY: this thread-safe QuartzCore function has no arguments or ownership
++    // requirements. It returns mach_absolute_time converted to host seconds, the
++    // same clock used by MTLDrawable.presentedTime.
++    unsafe { CACurrentMediaTime() }
++}

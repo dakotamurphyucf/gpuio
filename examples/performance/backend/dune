@@ -12,6 +12,7 @@
   (source_tree "../../../vendor/gpui-base")
   (source_tree "../../../vendor/gpui")
   (source_tree "../../../vendor/gpui-macos")
+  (source_tree "../../../vendor/gpui-apple")
   (source_tree "../../../vendor/accesskit-macos")
   (source_tree "../../../vendor/taffy")
   (source_tree "../../performance_probe/rust")

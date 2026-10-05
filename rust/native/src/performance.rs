@@ -1,6 +1,9 @@
 //! Opt-in native qualification measurements. No timers, file I/O, trace-ring
 //! activation or view invalidation. Capture on the GPUI thread at workload
 //! boundaries; keep OS input/presentation and OCaml scheduling evidence separate.
+#[cfg(feature = "presentation-diagnostics")]
+pub mod presentation;
+
 use std::{collections::BTreeMap, time::Instant};
 
 /// Read-only native window observations. `visible` is unavailable on backends
@@ -355,6 +358,11 @@ mod tests {
             // A TestPlatform window has no OS occlusion query. Unknown must not
             // masquerade as a visible native window in qualification reports.
             assert_eq!(observation.visible, None);
+            #[cfg(feature = "presentation-diagnostics")]
+            assert!(matches!(
+                presentation::Session::start(window, presentation::Limits::default()),
+                Err(presentation::StartError::Unsupported)
+            ));
             let unchanged = Snapshot::capture(window);
             assert_eq!(unchanged.since(&before).unwrap().draw.count(), 0);
             window.draw(cx).clear(cx);

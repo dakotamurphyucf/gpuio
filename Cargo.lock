@@ -2213,7 +2213,6 @@ dependencies = [
 [[package]]
 name = "gpui_apple"
 version = "0.1.0"
-source = "git+https://github.com/zed-industries/zed.git?rev=a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b#a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b"
 dependencies = [
  "anyhow",
  "block",
@@ -2505,6 +2504,7 @@ dependencies = [
  "futures-lite",
  "gpui",
  "gpui-base",
+ "gpui_apple",
  "gpui_platform",
  "gpuio-document-sdk",
  "gpuio-extension-sdk",
@@ -2527,6 +2527,7 @@ dependencies = [
  "resvg",
  "ropey",
  "roxmltree 0.21.1",
+ "serde_json",
  "syntect",
  "taffy",
  "two-face",

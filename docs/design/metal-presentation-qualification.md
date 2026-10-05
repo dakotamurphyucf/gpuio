@@ -1,9 +1,9 @@
 # Metal presentation qualification — OCH-17
 
-Status: bounded core collector and standalone API calibration, 2026-10-05.
-[Core attribution/ownership tests](../evidence/presentation-core-och17.md) pass.
-**The Metal renderer hook and measured GPUI presentation workloads are not
-implemented yet.**
+Status: bounded core collector and native Metal hook qualification, 2026-10-05.
+[Core attribution/ownership tests](../evidence/presentation-core-och17.md) and
+[the two-window Metal hook](../evidence/metal-presentation-hook-och17.md) pass locally.
+**Repeated optimized GPUI presentation workload acceptance remains open.**
 The existing [CPU/submission qualification](performance-qualification.md) remains
 valid within its stated scope; it is not evidence of physical frame presentation.
 
@@ -49,7 +49,7 @@ when registering its drawable callback. This avoids global FPS attribution,
 NSView-address reuse and extra window ownership. Multi-window and nested-context
 fixtures must prove attribution before native qualification.
 
-This requires a small maintained adaptation to the pinned `gpui_apple` renderer,
+This uses a [small maintained adaptation](gpui-apple-adaptation.md) to the pinned `gpui_apple` renderer,
 plus the existing core profiler adaptation. Do not edit shared Cargo git sources
 or swizzle Objective-C methods. Extend the existing reconstruction tool for
 `gpui_apple`, using the same verified Zed archive/revision, and record the new
@@ -91,19 +91,21 @@ their bounded admission sequence; interval computation must not assume callbacks
 arrive in presentation order. Closing a window cannot let old callbacks update a
 replacement session or retain native window resources.
 
-## Acceptance work still required
+## Qualification sequence
 
-1. Qualify the platform API with the small self-closing Metal probe. It requests
+1. Complete locally: qualify the platform API with the small self-closing Metal probe. It requests
    120 frames at 60Hz only after activation/visibility, retains every record, and
    rejects missing/invalid/zero/duplicate/unordered results. This is calibration,
    not a GPUI performance benchmark or proof of a 60Hz display rate.
-2. Implement/reconstruct the diagnostic adaptations and scoped Rust collector;
-   test callback ordering, missing/zero/saturated outcomes, clock bounds,
-   multi-window identity and close/stop behavior with controlled fixtures.
-3. Integrate the actual GPUI workload drivers. Preserve the accepted sizes,
+2. Complete locally: reconstruct the diagnostic adaptations and scoped Rust
+   collector; controlled tests cover ordering, missing/zero/saturated outcomes,
+   clock bounds, multi-window identity and close/stop behavior. The native
+   two-window probe qualifies the Metal hookup and retirement; it has no input
+   workload and establishes no performance budget. Hosted checks remain required.
+3. Open: integrate the actual GPUI workload drivers. Preserve the accepted sizes,
    content checks and existing CPU/resource budgets. Declare any new presentation
    thresholds before runs; do not choose thresholds from these calibration data.
-4. Compare diagnostic versus ordinary builds, then collect three independent
+4. Open: compare diagnostic versus ordinary builds, then collect three independent
    optimized runs with enough actual presented/input samples. Record display,
    visibility, power, thermal state, interference, missing/dropped counts and
    settlement. Keep startup, active animation, typing and idle phases separate.

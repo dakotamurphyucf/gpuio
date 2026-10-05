@@ -10,7 +10,7 @@ crate-type = ["staticlib", "rlib"]
 
 [features]
 performance-diagnostics = ["gpui/profiler"]
-presentation-diagnostics = ["performance-diagnostics", "gpui/presentation-diagnostics"]
+presentation-diagnostics = ["performance-diagnostics", "gpui/presentation-diagnostics", "dep:gpui_apple", "gpui_apple/presentation-diagnostics"]
 native-tests = []
 native-canvas-tests = ["native-tests", "gpui_platform/test-support"]
 native-image-tests = ["native-tests", "gpui_platform/test-support"]
@@ -46,6 +46,7 @@ roxmltree = "=0.21.1"
 flate2 = "=1.1.10"
 
 [target.'cfg(target_os = "macos")'.dependencies]
+gpui_apple = { git = "https://github.com/zed-industries/zed.git", rev = "a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b", optional = true }
 cocoa = "=0.26.0"
 objc2 = "0.6.4"
 objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "NSString", "NSRange", "NSURL", "NSArray", "NSDictionary", "NSBundle", "NSError", "NSNotification", "NSOperation", "NSProcessInfo", "NSUUID", "NSSet"] }
@@ -61,6 +62,7 @@ gpuio-wayland = { path = "../wayland", optional = true }
 accesskit_macos = "=0.26.3"
 
 [dev-dependencies]
+serde_json = "1"
 zbus = { version = "=5.19.0", default-features = false, features = ["async-io"] }
 async-io = "2"
 taffy = { version = "=0.13.0", default-features = false, features = ["std", "taffy_tree"] }
@@ -377,3 +379,8 @@ harness = false
 [[test]]
 name = "accessibility_structural_table"
 harness = false
+
+[[test]]
+name = "native_metal_presentation"
+harness = false
+required-features = ["presentation-diagnostics"]

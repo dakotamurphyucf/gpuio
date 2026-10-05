@@ -67,7 +67,7 @@ def standalone_manifest(original, workspace, source):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--archive", type=Path, help="Local upstream archive, still hash-verified")
-    parser.add_argument("--crate", choices=("gpui", "gpui_macos"), default="gpui")
+    parser.add_argument("--crate", choices=("gpui", "gpui_macos", "gpui_apple"), default="gpui")
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
     args.output = args.output or ROOT / "vendor" / args.crate.replace('_', '-')

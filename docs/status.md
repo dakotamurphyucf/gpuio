@@ -48,12 +48,14 @@ whole-family acceptance. Start from [the catalog](catalog/README.md),
 
 Recent completed local checkpoints:
 
-- Default-off presentation collection now has bounded storage, matching frame/input
-  attribution, clock-conversion and session/window retirement checks. Eighteen
-  presentation-filtered tests and thirteen profiler regressions pass locally;
-  default/enabled native compilation and exact reconstruction pass. The Metal
-  renderer hook and measured presentation workloads remain open.
-  [Core collector evidence](evidence/presentation-core-och17.md).
+- Default-off presentation collection now includes the maintained Metal hook.
+  Two real GPUI windows each pass90 presented frames with complete callback
+  accounting and retired sessions. Native932 tests, strict lint, default builds,
+  independent gallery consumer and exact reconstruction pass locally. Core
+  attribution/clock/lifetime tests also pass. Repeated optimized workloads,
+  physical input pairing, overhead/resource checks and new hosted checks remain
+  open. [Core evidence](evidence/presentation-core-och17.md),
+  [native hook evidence](evidence/metal-presentation-hook-och17.md).
 
 - Typed application clipboard writes and a Bonsai Copy composition now have
   codec/state/clock and real macOS gallery evidence, including current Unicode

@@ -13,3 +13,5 @@ __pycache__/
 
 /vendor/gpui-base/Cargo.lock
 /vendor/gpui/Cargo.lock
+
+/vendor/gpui-apple/Cargo.lock

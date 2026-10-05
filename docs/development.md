@@ -190,3 +190,10 @@ GPUI's macOS platform crate is also vendored at the same Zed revision to retire
 the accessibility adapter before native-window teardown. Reconstruct it with
 `python3 scripts/vendor_gpui.py --crate gpui_macos --output <new-directory>`;
 see [ownership and qualification](design/gpui-macos-adaptation.md).
+
+
+The shared Apple Metal renderer is pinned alongside it at `vendor/gpui-apple`.
+Its default-off presentation diagnostics use the existing renderer rather than
+swizzling OS classes. Reconstruct with
+`python3 scripts/vendor_gpui.py --crate gpui_apple --output <new-directory>`;
+see [the adaptation and ownership contract](design/gpui-apple-adaptation.md).

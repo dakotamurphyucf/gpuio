@@ -33,3 +33,4 @@ taffy = { path = "../../../vendor/taffy" }
 [patch."https://github.com/zed-industries/zed.git"]
 gpui = { path = "../../../vendor/gpui" }
 gpui_macos = { path = "../../../vendor/gpui-macos" }
+gpui_apple = { path = "../../../vendor/gpui-apple" }

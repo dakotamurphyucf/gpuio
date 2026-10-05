@@ -186,6 +186,9 @@ jobs:
         run: |
           xcrun swiftc scripts/qualify_metal_counter.swift -o .cache/ci/qualify-metal-counter
           .cache/ci/qualify-metal-counter | tee .cache/ci/metal-counter-calibration.json
+      - name: macOS GPUI Metal presentation hook
+        if: runner.os == 'macOS'
+        run: python3 scripts/test_metal_presentation.py --output .cache/ci/metal-presentation-hook
       - name: macOS Metal presentation API calibration
         if: runner.os == 'macOS'
         timeout-minutes: 2
@@ -228,8 +231,8 @@ jobs:
         run: ./scripts/gpuio lint 2>&1 | tee .cache/ci/lint.log
       - name: Performance collector checks (no display)
         run: |
-          ./scripts/gpuio exec cargo test --locked -p gpuio-native --features performance-diagnostics,native-image-tests,native-canvas-tests --lib performance::tests 2>&1 | tee .cache/ci/performance-collector.log
-          ./scripts/gpuio exec cargo clippy --locked -p gpuio-native --features performance-diagnostics,native-image-tests,native-canvas-tests --lib --tests -- -D warnings
+          ./scripts/gpuio exec cargo test --locked -p gpuio-native --features presentation-diagnostics,native-image-tests,native-canvas-tests --lib performance::tests 2>&1 | tee .cache/ci/performance-collector.log
+          ./scripts/gpuio exec cargo clippy --locked -p gpuio-native --features presentation-diagnostics,native-image-tests,native-canvas-tests --lib --tests -- -D warnings
       - name: Build and lint native UI tests
         id: native-ui-build
         run: |
