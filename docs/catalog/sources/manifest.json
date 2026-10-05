@@ -1832,5 +1832,21 @@
     "source": "crates/component/src/theme/default-theme.json",
     "snapshot": "component-theme-default-theme.json.txt",
     "sha256": "89752c09efea09f547c1ae154dac96b6c0a5767fa6d4128e6b857e00872114a3"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/clipboard.rs",
+    "snapshot": "component-clipboard.rs.txt",
+    "sha256": "d5ae0997595c1a29fe798b4ba8b5eb13b98c444cbb69de97fc18306154cb7a95"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/icon.rs",
+    "snapshot": "component-icon.rs.txt",
+    "sha256": "5a1f4076295d2b00b7ca48ee4bb2d15aaf5b5d6be19389a2d5a0ecf6f33e2995"
   }
 ]

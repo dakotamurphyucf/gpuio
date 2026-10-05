@@ -754,14 +754,15 @@
       "id": "clipboard",
       "owner": "OCH-11",
       "scope": "v1",
-      "audit_status": "mapping established; detailed behavioral review pending",
+      "audit_status": "Pinned standalone Clipboard source reviewed in assets-clipboard-review.md. Existing editor/document/table copy is not the source component: arbitrary application text, current-value copy and copied feedback remain a public API/gallery gap. No family acceptance is claimed.",
       "public_interface": "lib/core/text_input.mli",
       "example": "examples/text_input",
       "evidence": [
-        "docs/evidence/native-editor-och10.md"
+        "docs/evidence/native-editor-och10.md",
+        "docs/catalog/assets-clipboard-review.md"
       ],
       "gallery_page": "text-inputs",
-      "contract": "Native editor/selection clipboard actions; audit standalone application clipboard API requirements.",
+      "contract": "Native editor/document/table selection copy exists. Standalone application-text copy needs a typed asynchronous native write and public composition; no synchronous OCaml callback from a native click.",
       "upstream_modules": [
         "component/clipboard"
       ]
@@ -770,11 +771,12 @@
       "id": "assets",
       "owner": "OCH-11",
       "scope": "v1",
-      "audit_status": "mapping established; detailed behavioral review pending",
+      "audit_status": "Pinned Icon source reviewed in assets-clipboard-review.md. Explicit scoped SVG bytes, tint, sizes and decorative/control ownership map to public Asset/Icon/View APIs. Upstream path/name lookup is application composition. Arbitrary SVG transformation/rotation has no direct public Icon equivalent and remains explicit; geometry, native pixels and release acceptance are separate.",
       "public_interface": "lib/core/asset.mli",
       "example": "examples/images",
       "evidence": [
-        "docs/evidence/assets-och11.md"
+        "docs/evidence/assets-och11.md",
+        "docs/catalog/assets-clipboard-review.md"
       ],
       "gallery_page": "assets",
       "contract": "Explicit scoped image/SVG assets and tintable icons. No mandatory upstream icon macro or implicit network acquisition.",
