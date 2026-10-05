@@ -249,6 +249,9 @@ module Defaults_policy = struct
 end
 
 let component app window palette graph =
+  let trace_profile =
+    Array.exists (Sys.get_argv ()) ~f:(String.equal "--trace-document-profile")
+  in
   let resources =
     Preview_scope.acquire
       window
@@ -459,12 +462,24 @@ let component app window palette graph =
              ~generation:1L
            |> ok)
           ~on_event:(fun event ->
-            set_notice
-              (sprintf
-                 "Profile · revision %Ld · %s"
-                 event.source_revision
-                 (Sexp.to_string_hum
-                    ([%sexp_of: Profile.Event.t Document.Profile.Signal.t] event.signal))))
+            let signal =
+              [%sexp_of: Profile.Event.t Document.Profile.Signal.t] event.signal
+            in
+            E.Many
+              [ (if trace_profile
+                 then
+                   E.of_thunk (fun () ->
+                     Eio.traceln
+                       "GALLERY_DOCUMENT_PROFILE revision=%Ld signal=%s"
+                       event.source_revision
+                       (Sexp.to_string signal))
+                 else E.Ignore)
+              ; set_notice
+                  (sprintf
+                     "Profile · revision %Ld · %s"
+                     event.source_revision
+                     (Sexp.to_string_hum signal))
+              ])
         |> ok
     in
     V.column

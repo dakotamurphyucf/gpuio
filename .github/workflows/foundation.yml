@@ -272,6 +272,10 @@ jobs:
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
         timeout-minutes: 4
         run: python3 scripts/test_macos_theme_files.py --output .cache/ci/theme-files 2>&1 | tee .cache/ci/macos-theme-files.log
+      - name: macOS public native document profile
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 4
+        run: python3 scripts/test_macos_document_profile.py --output .cache/ci/document-profile 2>&1 | tee .cache/ci/macos-document-profile.log
       - name: Independent Signal Studio consumer
         id: signal-consumer
         run: |
