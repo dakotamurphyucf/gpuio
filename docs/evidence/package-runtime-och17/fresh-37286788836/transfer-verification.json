@@ -1,0 +1,21 @@
+{
+  "source_revision": "689b3fca50af5d0faad6629718cdc174a901243e",
+  "verified": {
+    "agent_chat": {
+      "package_sha256": "9f589b74d31bbad95bc919aff13ca36402c374ed832e9706b306d8b188de195d",
+      "archive_sha256": "0cac8f7afd2e50213e3c337dd63b1800aaef74ed2b74752f1eb37fe6ef6cbcbd",
+      "executable_sha256": "19c1c1ac5074fc97d74e3f074627d9dd5bc0034ac19025723bf6276c68136075"
+    },
+    "gallery": {
+      "package_sha256": "e8182eb56b95dcd356aaa6d89257c4ba0f4354207770b7224127915971df1d8d",
+      "archive_sha256": "42a342ded5e6718a50072008b93688723e7bd0bebd627cafd99b54d77434808f",
+      "executable_sha256": "d35a6a08c8ba7285b0b478c96f9fce451089bd2d5fc41179b8b99a11412af888"
+    },
+    "signal_studio": {
+      "package_sha256": "21d4de2916cfb3efc3d99ff95b378780be8f76783f79236b01ff931accfd0061",
+      "archive_sha256": "93fad7b98b5b43c9419561b5dcebcdfdac34fee765437f760bf1501733abbcd9",
+      "executable_sha256": "1e6c015a01aaf31139c509e59274ec4efe65d32a79cbbc93ada339f78d9250df"
+    }
+  },
+  "qualification": "internal ad-hoc runtime inputs; notices incomplete; not release artifacts"
+}

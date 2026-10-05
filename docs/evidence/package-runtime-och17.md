@@ -123,3 +123,55 @@ predates this job. No GUI walkthrough was repeated for the transfer-only change;
 the earlier runtime evidence above remains scoped to its stated artifacts.
 The new archives contain incomplete internal test notices and are not reviewed
 release artifacts. VoiceOver remains on hold and was not touched by this work.
+
+## Fresh macOS receiver qualification — 2026-10-05
+
+[Run 37286788836](https://github.com/dakotamurphyucf/gpuio/actions/runs/37286788836)
+passes the full macOS and Linux foundation jobs and the separate **macOS extracted
+apps (fresh runner)** job. The receiver runs macOS 15.7.9 arm64. Its checkout has
+no `_build`, `target` or `.opam-root`; those assertions, transfer verification and
+all three extracted-app walkthroughs passed. No project build, dependency install
+or dependency-cache restore occurred in that job.
+
+The source is GitHub's synthetic PR merge
+`689b3fca50af5d0faad6629718cdc174a901243e`, whose tree
+`c342985ef76eb8712afa4d34e9279d627c795215` is identical to branch head
+`56885cf843082b04a5332e8f4a6d002eb143bfa9`. Both Git objects were checked through
+GitHub's API. Package reports correctly name the merge checkout, not the later
+local work. The build job supplies source provenance; executable hashes alone
+are not independent build attestations. See
+[provenance and job steps](package-runtime-och17/fresh-37286788836/provenance.json),
+[producer/receiver log](package-runtime-och17/fresh-37286788836/producer-receiver.log),
+and [verified transfer hashes](package-runtime-och17/fresh-37286788836/transfer-verification.json).
+
+| Application | Fresh receiver result |
+| --- | --- |
+| [Component Studio](package-runtime-och17/fresh-37286788836/gallery-runtime.json) | Embedded assets, native actions, source/multiline Unicode selection and copy, ordinary shutdown |
+| [Agent Workspace](package-runtime-och17/fresh-37286788836/agent-chat-runtime.json) | Search/send, draft retention, error/retry, tabs/windows, native picker and Eio attachment, theme and close policy |
+| [Signal Studio](package-runtime-och17/fresh-37286788836/signal-studio-runtime.json) | Native extension, canvas, charts, inspector, streaming, responsive state, remount and ordinary close |
+
+All reports are complete, match the transferred archive/executable identities,
+and verify clipboard restoration. Each owned application returned zero and was
+reaped by the harness. Existing checkout/Homebrew/Cargo/Rustup paths were denied
+with negative probes; the receiver's `.opam` path was absent and still covered by
+the sandbox profile. HOME was preserved and loader overrides excluded. Signal
+reported `Not_determined` notification authorization with alerts disabled; the
+run neither requested authorization nor claims notification delivery.
+
+The [gallery Light](package-runtime-och17/fresh-37286788836/gallery-light.png) and
+[Signal wide](package-runtime-och17/fresh-37286788836/signal-wide.png) captures were
+visually inspected. They show decoded bundled artwork, readable copy actions,
+canvas/chart content and the independent native extension. The
+[raw artifact archive](package-runtime-och17/fresh-37286788836/raw-artifacts.tar.gz)
+preserves all receiver reports, screenshots, logs, sandbox profiles and display/
+notification setup output.
+
+The reusable runtime reports conservatively label their own scope as existing-Mac
+isolation; they do not infer machine freshness. The separate job's recorded setup
+and absent project build directories establish the additional fresh-runner scope.
+This is a standard hosted image with platform/developer tools, not a blank OS
+installation. Artifacts remain internal ad-hoc test packages with incomplete
+notices: final notices, optimized release artifacts, signing/notarization,
+quarantine/Gatekeeper transfer and other release requirements remain open.
+No VoiceOver operation occurred. Linux required checks passed, but informational
+X11/Wayland graphical smoke failed and remains explicitly deferred to OCH-47.

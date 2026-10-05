@@ -1,0 +1,147 @@
+{
+  "complete": true,
+  "platform": "macOS-15.7.9-arm64-arm-64bit-Mach-O",
+  "qualification": "existing Mac with denied development directories; not clean-machine or release approval",
+  "app": "gallery",
+  "archive_sha256": "42a342ded5e6718a50072008b93688723e7bd0bebd627cafd99b54d77434808f",
+  "executable_sha256": "d35a6a08c8ba7285b0b478c96f9fce451089bd2d5fc41179b8b99a11412af888",
+  "packaging_revision": "689b3fca50af5d0faad6629718cdc174a901243e",
+  "packaging_revision_scope": "packaging checkout; binary build revision is not attested",
+  "denied_paths": [
+    {
+      "path": "/Users/runner/work/gpuio/gpuio",
+      "exists": true,
+      "denied": true
+    },
+    {
+      "path": "/opt/homebrew",
+      "exists": true,
+      "denied": true
+    },
+    {
+      "path": "/usr/local",
+      "exists": true,
+      "denied": true
+    },
+    {
+      "path": "/Users/runner/.cargo",
+      "exists": true,
+      "denied": true
+    },
+    {
+      "path": "/Users/runner/.rustup",
+      "exists": true,
+      "denied": true
+    },
+    {
+      "path": "/Users/runner/.opam",
+      "exists": false
+    }
+  ],
+  "environment_keys": [
+    "HOME",
+    "LANG",
+    "LC_CTYPE",
+    "LOGNAME",
+    "PATH",
+    "TMPDIR",
+    "USER"
+  ],
+  "cwd": "/private/var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/gpuio-extracted-br7ow27f",
+  "checks": [
+    "embedded-images",
+    "native-actions",
+    "source-editor-selections"
+  ],
+  "selections": [
+    {
+      "case": "source-native-select-all",
+      "text": "open Core\n\nlet greeting name =\n  String.concat [ \"Hello, \"; name; \"!\" ]\n\nlet () = greeting \"世界\" |> print_endline\n",
+      "range_utf16": [
+        0,
+        113
+      ]
+    },
+    {
+      "case": "source-ax-unicode-selection",
+      "text": "世界",
+      "range_utf16": [
+        92,
+        2
+      ]
+    },
+    {
+      "case": "source-trailing-empty-line-caret",
+      "text": "",
+      "range_utf16": [
+        113,
+        0
+      ]
+    },
+    {
+      "case": "textarea-ax-unicode-selection",
+      "text": "🙂",
+      "range_utf16": [
+        8,
+        2
+      ]
+    },
+    {
+      "case": "textarea-ax-unicode-selection",
+      "text": "👨‍👩‍👧‍👦",
+      "range_utf16": [
+        18,
+        11
+      ]
+    },
+    {
+      "case": "textarea-ax-unicode-selection",
+      "text": "é",
+      "range_utf16": [
+        34,
+        2
+      ]
+    },
+    {
+      "case": "textarea-ax-unicode-selection",
+      "text": "日本語",
+      "range_utf16": [
+        37,
+        3
+      ]
+    },
+    {
+      "case": "textarea-ax-unicode-selection",
+      "text": "λ🙂\nFamily",
+      "range_utf16": [
+        7,
+        10
+      ]
+    },
+    {
+      "case": "textarea-native-select-all",
+      "text": "Prefix λ🙂\nFamily 👨‍👩‍👧‍👦 and é\n日本語\n",
+      "range_utf16": [
+        0,
+        41
+      ]
+    },
+    {
+      "case": "textarea-native-backward-selection",
+      "text": "\n",
+      "range_utf16": [
+        40,
+        1
+      ]
+    },
+    {
+      "case": "textarea-end-caret",
+      "text": "",
+      "range_utf16": [
+        41,
+        0
+      ]
+    }
+  ],
+  "clipboard_restored": true
+}

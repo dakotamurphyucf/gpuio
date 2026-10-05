@@ -561,3 +561,26 @@ locked metadata checks and both sensitivity tests pass afterward. See the
 [repair evidence](native-entity-retention-och17.md#standalone-probe-lockfile-repair--2026-10-05).
 The rendering backend's platform patches remain intact. Fresh hosted checks are
 required for this repair and the subsequent packaging/file-drop additions.
+
+## Complete hosted run and fresh macOS packages — 2026-10-05
+
+[Run 37286788836](https://github.com/dakotamurphyucf/gpuio/actions/runs/37286788836)
+is terminal success: both complete foundation jobs and the new fresh macOS
+receiver pass. Branch head is `56885cf843082b04a5332e8f4a6d002eb143bfa9`; the actual
+tested merge is `689b3fca50af5d0faad6629718cdc174a901243e`. Their identical tree is
+`c342985ef76eb8712afa4d34e9279d627c795215`. This covers the repaired standalone
+entity-audit lock resolution and the native IME/AX/file-drop/package additions at
+that checkpoint. Later local theme/profile/Metal/appearance/focus changes require
+their own run.
+
+The [fresh-package evidence](package-runtime-och17.md#fresh-macos-receiver-qualification--2026-10-05)
+retains all three successful extracted-app reports, exact hashes, workflow setup,
+native screenshots and the producer/receiver logs. The receiver installs no
+project dependencies and performs no project build; its initial build directories
+are absent. Final notice/signing/Gatekeeper release acceptance remains separate.
+
+Both informational Linux graphical smokes failed: X11 reaches
+`native_highlight_view` then fails because `render_to_image` is unimplemented for
+that platform; Wayland reaches `native_controls` then receives an empty clipboard
+instead of `De`. These do not invalidate required build/unit/private-bus/consumer
+checks, which pass. They are not Linux desktop acceptance; retain them in OCH-47.

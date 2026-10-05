@@ -233,6 +233,14 @@ internal qualification artifacts with explicitly incomplete notices and short
 artifact retention; this job does not qualify a signed/notarized release or
 Gatekeeper behavior after quarantined download. VoiceOver is not exercised.
 
+[Run 37286788836](https://github.com/dakotamurphyucf/gpuio/actions/runs/37286788836)
+now passes all three extracted-app walkthroughs on the separate macOS 15.7.9
+receiver. The [retained evidence](evidence/package-runtime-och17.md#fresh-macos-receiver-qualification--2026-10-05)
+records the actual PR merge revision, identical branch-head tree, transferred
+hashes, absent build directories, enforced denials and native behavior. This
+qualifies that fresh-runner test setup; the incomplete-notice ad-hoc packages
+remain unsuitable as final release artifacts.
+
 ### Release artifact qualification
 
 Run extracted archives on clean supported macOS environments, with the build tree

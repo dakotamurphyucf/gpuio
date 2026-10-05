@@ -61,8 +61,9 @@ and removal without retiring the node); final fixtures follow production admissi
 
 ## Remaining acceptance
 
-Window-wide selected-text/selection-clear/end helpers remain separate open work,
-including a bounded copy contract. Physical gallery/keyboard/accessibility,
+Window-wide selected-text/selection-clear/end helpers have separate
+[local implementation evidence](window-selection-och41.md); their physical
+walkthrough remains separate. Broader gallery/keyboard/accessibility,
 current required Linux checks, clean-machine distribution and reviewed publication
 remain milestone gates. OCH-41/OCH-17 and milestone 07 remain open.
 
