@@ -6,6 +6,7 @@ Uses the repository's isolated toolchain, never installs into an opam switch.
 or the gallery's macOS interaction driver, which closes and reaps its app.
 """
 import argparse
+import atexit
 import json
 import os
 from pathlib import Path
@@ -19,14 +20,20 @@ root = Path(__file__).resolve().parent.parent
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--run", action="store_true")
 parser.add_argument("--workspace", type=Path)
+parser.add_argument("--cleanup", action="store_true",
+                    help="Remove the generated workspace on interpreter exit, including build failures")
 parser.add_argument("--example", choices=["getting_started", "extension_consumer", "signal_studio", "gallery"], default="extension_consumer")
 parser.add_argument("--gallery-section", default="all", help="Section passed to the macOS gallery acceptance driver with --example gallery --run")
 args = parser.parse_args()
+if args.cleanup and args.workspace:
+    parser.error("--cleanup is limited to an automatically created temporary workspace")
 if args.example == "getting_started" and args.run:
     parser.error("getting_started is an interactive example without an automatic GUI driver; omit --run for its independent build check")
 if args.example == "gallery" and args.run and sys.platform != "darwin":
     parser.error("Gallery --run uses the macOS AX driver; omit --run for the required cross-platform consumer build")
 workspace = (args.workspace or Path(tempfile.mkdtemp(prefix="gpuio-extension-consumer-"))).resolve()
+if args.cleanup:
+    atexit.register(shutil.rmtree, workspace)
 workspace.mkdir(parents=True, exist_ok=True)
 consumer = workspace / "consumer"
 if consumer.exists():

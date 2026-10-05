@@ -37,6 +37,9 @@ jobs:
     env:
       GPUIO_JOBS: 3
       CARGO_TERM_COLOR: never
+      # A CI job does not edit sources between builds; incremental variants consume
+      # scarce hosted-runner disk across the native feature matrix.
+      CARGO_INCREMENTAL: "0"
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Linux system prerequisites
@@ -75,10 +78,17 @@ jobs:
             .opam-root
             ~/.cargo/registry
             ~/.cargo/git
-            target
-          key: foundation-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('gpuio.opam.locked', 'third_party/sources.json', 'rust-toolchain.toml', 'Cargo.lock') }}
+          key: foundation-v2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('gpuio.opam.locked', 'third_party/sources.json', 'rust-toolchain.toml', 'Cargo.lock') }}
           restore-keys: |
+            foundation-v2-${{ runner.os }}-${{ runner.arch }}-
             foundation-v1-${{ runner.os }}-${{ runner.arch }}-
+      - name: Prepare bounded CI build storage
+        run: |
+          mkdir -p .cache/ci
+          python3 scripts/test_ci_storage.py
+          # A legacy v1 fallback may contain target/. Keep package/switch caches,
+          # but start this job's native feature builds without stale outputs.
+          python3 scripts/ci_storage.py --discard-restored-target 2>&1 | tee .cache/ci/storage-start.log
       - name: Bootstrap isolated environment
         run: |
           mkdir -p .cache/ci
@@ -98,8 +108,7 @@ jobs:
             .opam-root
             ~/.cargo/registry
             ~/.cargo/git
-            target
-          key: foundation-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('gpuio.opam.locked', 'third_party/sources.json', 'rust-toolchain.toml', 'Cargo.lock') }}
+          key: foundation-v2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('gpuio.opam.locked', 'third_party/sources.json', 'rust-toolchain.toml', 'Cargo.lock') }}
       - name: OCaml and Rust tests
         id: unit_tests
         run: ./scripts/gpuio test 2>&1 | tee .cache/ci/tests.log
@@ -201,15 +210,18 @@ jobs:
           ./scripts/gpuio exec cargo clippy --locked -p gpuio-native --features native-image-tests --all-targets -- -D warnings
           ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-canvas-tests --test native_canvas --test native_canvas_view --test native_canvas_input --test native_chart_paint --test native_chart_view --test native_chart_input --no-run
           ./scripts/gpuio exec cargo clippy --locked -p gpuio-native --features native-canvas-tests --all-targets -- -D warnings
+      - name: Record storage before independent consumers
+        if: ${{ !cancelled() }}
+        run: python3 scripts/ci_storage.py 2>&1 | tee .cache/ci/storage-consumers.log
       - name: Independent default-backend starter consumer
         id: starter-consumer
-        run: python3 scripts/test_extension_consumer.py --example getting_started 2>&1 | tee .cache/ci/starter-consumer.log
+        run: python3 scripts/test_extension_consumer.py --cleanup --example getting_started 2>&1 | tee .cache/ci/starter-consumer.log
       - name: Independent native extension consumer
         id: extension-consumer
-        run: python3 scripts/test_extension_consumer.py 2>&1 | tee .cache/ci/extension-consumer.log
+        run: python3 scripts/test_extension_consumer.py --cleanup 2>&1 | tee .cache/ci/extension-consumer.log
       - name: Independent public gallery consumer
         id: gallery-consumer
-        run: python3 scripts/test_extension_consumer.py --example gallery 2>&1 | tee .cache/ci/gallery-consumer.log
+        run: python3 scripts/test_extension_consumer.py --cleanup --example gallery 2>&1 | tee .cache/ci/gallery-consumer.log
       - name: macOS Settings keyboard composition
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
         timeout-minutes: 3
@@ -229,7 +241,7 @@ jobs:
         run: |
           extra=()
           if [[ "$RUNNER_OS" == "macOS" ]]; then extra+=(--run); fi
-          python3 scripts/test_extension_consumer.py --example signal_studio "${extra[@]}" 2>&1 | tee .cache/ci/signal-consumer.log
+          python3 scripts/test_extension_consumer.py --cleanup --example signal_studio "${extra[@]}" 2>&1 | tee .cache/ci/signal-consumer.log
       - name: macOS Signal Studio input and responsive composition
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.signal-consumer.outcome == 'success'
         run: python3 scripts/test_signal_studio.py --output .cache/ci/signal-studio 2>&1 | tee .cache/ci/macos-signal-studio.log

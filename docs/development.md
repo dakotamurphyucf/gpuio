@@ -170,3 +170,18 @@ Component checks and agent-chat walkthroughs each have their own step so one
 failure does not hide later independent scenarios. Other multi-command families
 retain their existing fail-fast behavior. Inspect all
 failed steps and their uploaded logs before fixing the next batch of CI issues.
+
+## CI storage
+
+Hosted CI caches the isolated opam switch and downloaded Cargo sources, then
+builds Rust outputs within the job with incremental compilation disabled. The
+cache deliberately excludes `target/` to avoid carrying obsolete feature/source
+variants between runs. Migration from the old cache discards only the current
+GitHub workspace's restored `target/`, behind explicit CI/path/symlink guards.
+Local build caches and incremental settings are unchanged.
+
+Independent-consumer CI checks use `--cleanup` to remove their generated temporary
+workspaces on interpreter exit, including ordinary build failures. Local runs keep
+their workspace by default. For persistent investigation use `--workspace PATH`;
+combining it with `--cleanup` is rejected. An uncatchable process termination can
+leave a temporary workspace until the ephemeral CI machine is retired.

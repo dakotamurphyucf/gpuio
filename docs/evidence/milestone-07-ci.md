@@ -470,3 +470,41 @@ gallery has a dedicated `--section rating` driver. Neither was run on the deskto
 the consumer result is build-only (`run=False`). Actual colors, input, accessibility
 and gallery retirement remain unaccepted. Changes remain local/uncommitted on
 `83eb87e` plus earlier milestone work and are absent from the last hosted run.
+
+## Run 37248158426 — macOS storage exhaustion
+
+[Hosted run 37248158426](https://github.com/dakotamurphyucf/gpuio/actions/runs/37248158426)
+at `b8d261c` is terminal. **Linux passes the full required job. macOS fails.**
+The macOS main OCaml/Rust tests, collector checks and native build/lint pass;
+the independent extension consumer fails writing `gpuio-native` metadata with
+`No space left on device`. Notification and desktop-service packaging then fail
+copying their executables with the same OS error. These are three reported
+failed steps with one observed storage cause, not three proven runtime defects.
+
+Downstream GUI steps gated on the failed consumer are skipped, including the
+sixteen previously repaired checks. Their prior local passing results remain;
+this run does not supply hosted passes for them. The complete macOS job log is
+retained as `scratch/agents/root-20261004-resumed/ci-macos-005-job.log`.
+
+The follow-up bounds CI storage without removing acceptance tests:
+
+- Cache v2 retains the isolated opam environment and downloaded Cargo sources,
+  excluding `target/`. A legacy v1 fallback is allowed for migration; its restored
+  Rust output directory is discarded before any build. This avoids accumulating
+  old first-party/feature-variant artifacts across jobs, at the cost of rebuilding
+  Rust outputs in each job.
+- CI sets `CARGO_INCREMENTAL=0`; local developer compiler settings are unchanged.
+- Independent consumer checks opt into removing their automatically generated
+  temporary workspaces on interpreter exit. Explicit `--workspace` paths cannot
+  be combined with cleanup, and local default runs continue retaining evidence.
+- Storage diagnostics report free bytes at startup and before consumer builds.
+  The destructive operation refuses local use, a mismatched GitHub workspace,
+  absent project markers, or a symlink/non-directory target.
+
+Four portable tests pass, covering the CI-only deletion boundary, unrelated-file
+preservation, symlink rejection, idempotence, and actual interpreter-exit cleanup
+after an injected consumer build failure. The normal consumer path still retains
+that failed workspace. Workflow YAML and cache/env structure checks pass using
+Ruby's standard YAML parser; the explicit-workspace/cleanup CLI combination exits
+with an argument error before creating a workspace. This is local tooling evidence;
+only a fresh hosted job can qualify its actual disk budget and full GUI checks.
