@@ -1,0 +1,22 @@
+[
+  {
+    "file": "run-001-artifacts.tar.gz",
+    "bytes": 541674,
+    "sha256": "f388a30209efffbc6f879cbfdf25c69d5a1cd1b4103a295c39b5d632fab12d67"
+  },
+  {
+    "file": "run-002-artifacts.tar.gz",
+    "bytes": 546608,
+    "sha256": "bf8de4c590ede670971bb6349891bdf0eed9b120a8b1fd08d93b4aa00ec32b42"
+  },
+  {
+    "file": "run-003-artifacts.tar.gz",
+    "bytes": 537531,
+    "sha256": "ea48e1c3f8ee4676a20a7d573a785ef183f0a0f83da851e2b58e1f41aa54c758"
+  },
+  {
+    "file": "summary.json",
+    "bytes": 3705,
+    "sha256": "ca55afc26e91a4264a38d8b15bc0483bfef59830c68f8a737f312a4c92db0e41"
+  }
+]

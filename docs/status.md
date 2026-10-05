@@ -54,6 +54,13 @@ whole-family acceptance. Start from [the catalog](catalog/README.md),
 
 Recent completed local checkpoints:
 
+- Three full optimized streaming/typing runs now pass actual paired Metal
+  presentation checks: 1,200 OS keys per run while four streams update at 20 Hz,
+  worst input-to-presentation p99 33.178 ms, peak RSS 143,589,376 bytes, exact
+  content and cleanup. The initial input-free zero in each run remains recorded
+  under the declared startup policy. Other presentation workloads and collector
+  overhead/resources remain open. [Evidence](evidence/presentation-typing-full-och17.md).
+
 - Presentation workload integration builds four instrumented executables and
   validates native/CPU pairing. Controlled native-only and standalone Metal probes
   reproduce initial zero-time frames after idle, excluding OCaml/bridge dependence.

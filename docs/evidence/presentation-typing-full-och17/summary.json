@@ -1,0 +1,158 @@
+[
+  {
+    "run": 1,
+    "revision": "e2939be92cafbfac6a8e1a49727f9c8e1c83b601",
+    "executable_sha256": "9f178debf9b16df7b511c7d476a9f23b69e19c3a8ef5c0fe36b58a63656f06ba",
+    "wall_seconds": 124.45500016584992,
+    "peak_rss_bytes": 135544832,
+    "input_count": 1200,
+    "counts": {
+      "attempted": 3828,
+      "admitted": 3828,
+      "saturated": 0,
+      "presented": 3827,
+      "not_submitted": 0,
+      "missing": 0,
+      "zero": 1,
+      "invalid_clock": 0,
+      "duplicate_callbacks": 0,
+      "trace_truncated": 0,
+      "histogram_overflow": 0
+    },
+    "startup_transition": {
+      "skipped_frames": 1,
+      "first_presentation_ns": 77943587
+    },
+    "histograms": {
+      "submission_to_presentation": {
+        "count": 3827,
+        "p95": 23216127,
+        "p99": 27475967
+      },
+      "input_to_presentation": {
+        "count": 1200,
+        "p95": 30015487,
+        "p99": 32489471
+      },
+      "scheduled_presentation_interval": {
+        "count": 0,
+        "p95": null,
+        "p99": null
+      }
+    },
+    "observations": 121,
+    "all_observed_active_visible": true,
+    "pending": 0,
+    "stream_updates": [
+      2400,
+      2400,
+      2400,
+      2400
+    ],
+    "budget_failures": []
+  },
+  {
+    "run": 2,
+    "revision": "e2939be92cafbfac6a8e1a49727f9c8e1c83b601",
+    "executable_sha256": "9f178debf9b16df7b511c7d476a9f23b69e19c3a8ef5c0fe36b58a63656f06ba",
+    "wall_seconds": 123.77692191768438,
+    "peak_rss_bytes": 143589376,
+    "input_count": 1200,
+    "counts": {
+      "attempted": 3865,
+      "admitted": 3865,
+      "saturated": 0,
+      "presented": 3864,
+      "not_submitted": 0,
+      "missing": 0,
+      "zero": 1,
+      "invalid_clock": 0,
+      "duplicate_callbacks": 0,
+      "trace_truncated": 0,
+      "histogram_overflow": 0
+    },
+    "startup_transition": {
+      "skipped_frames": 1,
+      "first_presentation_ns": 61078170
+    },
+    "histograms": {
+      "submission_to_presentation": {
+        "count": 3864,
+        "p95": 23543807,
+        "p99": 27688959
+      },
+      "input_to_presentation": {
+        "count": 1200,
+        "p95": 30310399,
+        "p99": 32866303
+      },
+      "scheduled_presentation_interval": {
+        "count": 0,
+        "p95": null,
+        "p99": null
+      }
+    },
+    "observations": 121,
+    "all_observed_active_visible": true,
+    "pending": 0,
+    "stream_updates": [
+      2400,
+      2400,
+      2400,
+      2400
+    ],
+    "budget_failures": []
+  },
+  {
+    "run": 3,
+    "revision": "e2939be92cafbfac6a8e1a49727f9c8e1c83b601",
+    "executable_sha256": "9f178debf9b16df7b511c7d476a9f23b69e19c3a8ef5c0fe36b58a63656f06ba",
+    "wall_seconds": 123.58627320919186,
+    "peak_rss_bytes": 138428416,
+    "input_count": 1200,
+    "counts": {
+      "attempted": 3757,
+      "admitted": 3757,
+      "saturated": 0,
+      "presented": 3756,
+      "not_submitted": 0,
+      "missing": 0,
+      "zero": 1,
+      "invalid_clock": 0,
+      "duplicate_callbacks": 0,
+      "trace_truncated": 0,
+      "histogram_overflow": 0
+    },
+    "startup_transition": {
+      "skipped_frames": 1,
+      "first_presentation_ns": 77638587
+    },
+    "histograms": {
+      "submission_to_presentation": {
+        "count": 3756,
+        "p95": 23330815,
+        "p99": 27607039
+      },
+      "input_to_presentation": {
+        "count": 1200,
+        "p95": 29769727,
+        "p99": 33177599
+      },
+      "scheduled_presentation_interval": {
+        "count": 0,
+        "p95": null,
+        "p99": null
+      }
+    },
+    "observations": 121,
+    "all_observed_active_visible": true,
+    "pending": 0,
+    "stream_updates": [
+      2400,
+      2400,
+      2400,
+      2400
+    ],
+    "budget_failures": []
+  }
+]
