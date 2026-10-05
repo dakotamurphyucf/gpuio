@@ -77,3 +77,68 @@ paced source, build/driver logs, capture report, selected original PNGs and the
 unmodified failed smoke's raw report/application log.
 [Manifest](table-scroll-flicker-och17/manifest.json) hashes were verified against
 the archive. Other original sampled PNGs remain in the local scratch workspace.
+
+## Bounded command preparation — local correction
+
+Later on 2026-10-05, a correction based on `4ccd87f` prepares destination cell
+descriptions in the same Bonsai publication as a programmatic scroll command.
+It retains native layout ownership, row/cell caps and pins. Preparation stays
+until a current native observation arrives; delayed older effects cannot undo
+it. Superseding an undisplayed batch cancels its preparation. The public contract
+and remaining geometry limitations are in [data tables](../design/data-tables.md).
+No Rust synchronous callback, expanded budget or benchmark pacing change is
+required by the production correction.
+
+Both the existing dev virtual-list suite and the suite with the new regression
+pass. The final release build also passes `@test/virtual_list/runtest` and builds
+the normal and paced presentation executables. The regression inspects actual
+published rows alongside commands, pinned-row priority, retention after local
+acknowledgment, stale effects, native demand replacement, end jumps, superseding
+batches, final batch destination and query reset. Final `@fmt` passes. An extra
+direct invocation initially used the wrong working directory for ppx_expect;
+its failed log is retained. Repeating from `_build/default/test/virtual_list`
+passes with `-matching 'scroll prepares bounded destination cells' -strict
+-show-counts` (one test). This does not replace the full suites above.
+
+The same 12-second paced capture, using `table-paced-prepared.exe`, collects
+70 samples. Its initial loading image is blank; all 69 subsequent sampled
+first-column regions have text in every inspected row. Original images show the
+table advancing through rows 168–188 without the previous three-row-only state.
+The diagnostic executable SHA-256 is
+`b35d82ea578b313258dd3870035c293bb6718546bb55fac7284df10847fc69fa`.
+
+A second capture uses the **unpaced** production workload for 10 seconds, with
+`--max-frames 70 --interval 0.01 --smoke --wall-clock`. It retains 62 complete
+images; none after initial loading has the earlier blank-row pattern in the
+inspected region. Image 40 was visually reviewed and shows populated rows
+525–545. The final screenshot times out with only 96 ms left before the declared
+deadline, so the collector exits nonzero and marks the report incomplete. The
+partial captures are evidence of those sampled states, not a passing collector
+run or proof that every displayed frame is stable. Both captures terminate and
+reap their owned children. No GUI overlaps another or a compilation.
+
+Separately, the complete unpaced smoke passes:
+
+```sh
+caffeinate -di python3 scripts/measure_table_history.py \
+  --build-profile release --smoke --wall-clock \
+  --executable _build/default/examples/performance_presented/table/main.exe \
+  --output scratch/agents/root-20261004-resumed/table-prepared-history-smoke-001
+```
+
+It covers all 1,030 rows in both directions, all 64 columns, selection/reveal and
+cleanup. Observed settled peaks are 26 active rows / 1,664 cells and 512 cached
+payload rows; the regression and presenter also enforce budgets during command
+preparation. Peak process RSS is 363,462,656 bytes. All required post-close
+resource and queue checks pass. Executable SHA-256:
+`705a47bf2841afaf856ed17f385c933b56966e62e94ad3461563c3d54ae3da8c`.
+
+This functional wall-clock smoke **does not qualify presentation latency or idle
+draw counts**, and does not waive or replace the original startup failure.
+Ordinary wheel/trackpad scrolling, changed/clipped geometry, full performance
+repetitions and hosted execution of this correction remain unqualified here.
+
+[Correction archive](table-scroll-flicker-och17/prepared-scroll.tar.gz) retains
+source snapshots, logs, partial-capture failure, pixel-inspection script, capture
+reports, selected unmodified PNGs and the complete smoke report.
+[Verified manifest](table-scroll-flicker-och17/prepared-scroll-manifest.json).

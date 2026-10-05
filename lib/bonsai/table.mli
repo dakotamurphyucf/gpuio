@@ -40,7 +40,14 @@ module Controller : sig
 
   val select : t -> Row.t Selection.t -> unit Bonsai.Effect.t
   val reveal : t -> ?column:Gpuio.Table_column.Id.t -> Row.t -> unit Bonsai.Effect.t
+
+  (** Prepare a bounded destination row set together with the command, using
+      the latest compatible viewport when available. Pins retain priority and
+      native layout remains authoritative. This avoids a separate cell round
+      trip for ordinary jumps; unknown/resized geometry or an insufficient row
+      budget can still require further native demand. *)
   val scroll_to : t -> ?offset:float -> Row.t -> unit Bonsai.Effect.t Or_error.t
+
   val scroll_to_column : t -> Gpuio.Table_column.Id.t -> unit Bonsai.Effect.t
   val scroll_to_end : t -> unit Bonsai.Effect.t
   val reset_columns : t -> unit Bonsai.Effect.t
@@ -86,7 +93,8 @@ end
     do not cancel application I/O; reset the Eio pager to cancel its producers.
     Generations must be nonnegative and cannot decrease within a native mount.
 
-    Only requested/pinned rows allocate cells. All columns of each active row
+    Requested/pinned rows and bounded programmatic scroll preparation allocate
+    cells. All columns of each active row
     count against [config]'s cell limit. Cells use Managed_rows' default-reset
     lifecycle contract and receive their own lifetime guard. Preferences and
     application jobs belong outside transient cell computations. Source-order

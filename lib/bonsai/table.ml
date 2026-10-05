@@ -134,10 +134,21 @@ module Column_observation = struct
   [@@deriving sexp_of]
 end
 
+module Preparation = struct
+  type t =
+    { query : int64
+    ; order : (V.Order.t[@sexp.opaque])
+    ; config : Config.t
+    ; rows : Row.t list
+    }
+  [@@deriving sexp_of]
+end
+
 module Model = struct
   type t =
     { query : int64 option
     ; requested : Row.t list
+    ; preparation : Preparation.t option
     ; pins : Row.t list
     ; observation : Observation.t option
     ; column_observation : Column_observation.t option
@@ -152,6 +163,7 @@ module Model = struct
   let empty =
     { query = None
     ; requested = []
+    ; preparation = None
     ; pins = []
     ; observation = None
     ; column_observation = None
@@ -166,7 +178,7 @@ end
 
 module Action = struct
   type t =
-    | Observe of Observation.t * Row.t list * Row.t list
+    | Observe of int64 * Observation.t * Row.t list * Row.t list
     | Observe_columns of Column_observation.t
     | Retain of int64 * Row.t list
     | Input of int64 * Config.t * Row.t Request.t
@@ -200,6 +212,75 @@ let repaired_selection input selection =
   | Error _ -> Selection.Empty
 ;;
 
+(* Anticipation changes only bounded materialization. The native viewport and
+   its eventual observation still own actual geometry and scroll clamping. *)
+let prepare_scroll input (model : Model.t) targets =
+  let pins =
+    List.filter model.pins ~f:(D.contains_ref input.source) |> Set.of_list (module Row)
+  in
+  let capacity = Int.max 0 (Config.max_active_rows input.config - Set.length pins) in
+  let count = D.length input.source in
+  let observation =
+    Option.filter model.observation ~f:(fun observed ->
+      Int64.equal observed.query input.query
+      && same_order observed.order input.metadata.order
+      && Config.equal observed.config input.config
+      && observed.viewport.visible_last > observed.viewport.visible_first)
+  in
+  let span =
+    Option.value_map observation ~default:capacity ~f:(fun observed ->
+      observed.viewport.visible_last - observed.viewport.visible_first + 1)
+    |> Int.max 1
+    |> Int.min capacity
+  in
+  let initial =
+    Option.value_map observation ~default:0 ~f:(fun observed ->
+      observed.viewport.visible_first)
+  in
+  let clamp first = Int.clamp_exn first ~min:0 ~max:(Int.max 0 (count - span)) in
+  let position row = D.index input.source (Row.id row) |> Option.value_exn in
+  let destination =
+    List.fold targets ~init:None ~f:(fun destination target ->
+      match target with
+      | Target.Scroll_to (row, _) -> Some (clamp (position row))
+      | Scroll_to_end -> Some (clamp count)
+      | Reveal (row, _) ->
+        let row = position row in
+        let first = Option.value destination ~default:initial in
+        (* Keep the extra safety row out of the nearest-edge decision. *)
+        let visible = Int.max 1 (span - 1) in
+        if row < first
+        then Some (clamp row)
+        else if row >= first + visible
+        then Some (clamp (row - visible + 1))
+        else destination
+      | Set_selection _ | Scroll_to_column _ | Reset_columns -> destination)
+  in
+  Option.map destination ~f:(fun first ->
+    let overscan =
+      Float.iround_up_exn (Config.overscan input.config /. Config.row_height input.config)
+      |> Int.min capacity
+    in
+    let last = Int.min count (first + span) in
+    let positions =
+      List.range first last
+      @ List.range (Int.max 0 (first - overscan)) first
+      @ List.range last (Int.min count (last + overscan))
+    in
+    let rows =
+      List.filter_map positions ~f:(fun index ->
+        D.nth input.source index
+        |> Option.bind ~f:(fun (id, _) -> D.row_ref input.source id))
+      |> List.filter ~f:(fun row -> not (Set.mem pins row))
+      |> fun rows -> List.take rows capacity
+    in
+    { Preparation.query = input.query
+    ; order = input.metadata.order
+    ; config = input.config
+    ; rows
+    })
+;;
+
 let apply_action context input (model : Model.t) action =
   match input with
   | B.Computation_status.Inactive -> model
@@ -223,13 +304,15 @@ let apply_action context input (model : Model.t) action =
      | Observe_columns observation
        when current observation.query && Config.equal observation.config input.config ->
        { model with column_observation = Some observation }
-     | Observe (observation, requested, pins)
-       when current observation.query
+     | Observe (serial, observation, requested, pins)
+       when Int64.equal serial model.serial
+            && current observation.query
             && same_order observation.order input.metadata.order
             && Config.equal observation.config input.config ->
        { model with
          query = Some input.query
        ; requested
+       ; preparation = None
        ; pins
        ; observation = Some observation
        }
@@ -251,6 +334,8 @@ let apply_action context input (model : Model.t) action =
                selection = repaired_selection input selection
              ; selection_tick = Int64.succ model.selection_tick
              ; pending = None
+             ; preparation =
+                 (if Option.is_some model.pending then None else model.preparation)
              }
            | Activate _ | Context _ | Resize _ | Move _ | Sort _ | Copy _ -> model))
      | Commands (query, targets) when current query ->
@@ -273,7 +358,12 @@ let apply_action context input (model : Model.t) action =
         | Error _ -> model
         | Ok (serial, reversed) ->
           let commands = List.rev reversed in
-          { model with serial; pending = Some { query; commands } })
+          let preparation =
+            match prepare_scroll input model targets with
+            | Some _ as prepared -> prepared
+            | None -> if Option.is_some model.pending then None else model.preparation
+          in
+          { model with serial; pending = Some { query; commands }; preparation })
      | Observe _ | Observe_columns _ | Retain _ | Input _ | Commands _ -> model)
 ;;
 
@@ -292,9 +382,15 @@ let active_rows input model =
     |> List.dedup_and_sort ~compare:Row.compare
   in
   let requested =
-    if Option.exists model.query ~f:(Int64.equal input.query)
-    then List.filter model.requested ~f:(D.contains_ref input.source)
-    else []
+    match model.preparation with
+    | Some prepared
+      when Int64.equal prepared.query input.query
+           && same_order prepared.order input.metadata.order
+           && Config.equal prepared.config input.config -> prepared.rows
+    | None | Some _ ->
+      if Option.exists model.query ~f:(Int64.equal input.query)
+      then List.filter model.requested ~f:(D.contains_ref input.source)
+      else []
   in
   let max_active = Config.max_active_rows input.config in
   if List.length pins > max_active
@@ -524,7 +620,8 @@ let inner
         ~on_viewport:(fun viewport ->
           guarded
             (Observe
-               ( { query; order; config; viewport }
+               ( model.serial
+               , { query; order; config; viewport }
                , refs viewport.requested
                , refs viewport.pinned )))
         ~on_retain:(fun keys -> guarded (Retain (query, refs keys)))

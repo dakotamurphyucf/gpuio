@@ -65,6 +65,11 @@ at approximately 147.364 ms. A separate paced replay also reproduces the owner's
 reported table flicker: three overlapping rows remain populated while newly
 visible rows briefly have empty cells. [Failure and screen evidence](evidence/table-scroll-flicker-och17.md)
 preserve both open issues; successful traversal does not establish visual stability.
+The subsequent bounded programmatic-scroll correction passes dev/release
+virtual-list tests and a complete functional table smoke. Paced screen samples
+no longer show the blank-row pattern; a fast capture retains similar evidence
+but ends with a screenshot-deadline failure. [Correction and limits](evidence/table-scroll-flicker-och17.md#bounded-command-preparation--local-correction)
+leave ordinary wheel behavior and presentation/startup qualification open.
 Three full optimized loaded-list, paged-table and growing-document runs pass
 their declared budgets; six ordinary/profiled comparisons and three resource
 lifecycle runs also pass. Three full streaming/typing runs also pass after an optional profiler repair,

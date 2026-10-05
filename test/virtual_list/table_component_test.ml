@@ -846,3 +846,79 @@ let%expect_test "row presentation lives once per active row independently of its
   [%expect
     {| Presentation allocated for active rows only; theme and column changes retain row models; eviction/source reset release them |}]
 ;;
+
+let%expect_test "scroll prepares bounded destination cells before native movement" =
+  let data = source 100 in
+  let query = B.Expert.Var.create 0L in
+  let d =
+    create (fun graph ->
+      W.component
+        (B.return data)
+        ~config:(B.return (config ()))
+        ~query_generation:(B.Expert.Var.value query)
+        ~render_cell:text_cell
+        graph)
+  in
+  let active () =
+    let output = result d in
+    let keys =
+      List.filter_map (root output).children ~f:(fun child ->
+        (View.Expert.describe child).key)
+    in
+    List.range 0 100
+    |> List.filter ~f:(fun n -> List.mem keys (key output n) ~equal:Gpuio.Key.equal)
+  in
+  let show () = print_s [%sexp (active () : int list)] in
+  display d;
+  observe d ~pins:[ 0 ] [ 0; 1 ];
+  display d;
+  let before = result d in
+  let stale_observation =
+    Option.value_exn
+      (list before).on_viewport
+      (W.Output.viewport before |> Option.value_exn)
+  in
+  let controller = W.Output.controller before in
+  execute d (W.Controller.scroll_to controller (target before 50) |> ok);
+  assert (List.length (table (result d)).commands = 1);
+  show ();
+  display d;
+  assert (List.is_empty (table (result d)).commands);
+  execute d stale_observation;
+  show ();
+  observe d ~pins:[ 0 ] [ 50; 51 ];
+  show ();
+  execute d (W.Controller.scroll_to_end controller);
+  show ();
+  display d;
+  observe d ~pins:[ 0 ] [ 98; 99 ];
+  display d;
+  execute d (W.Controller.scroll_to controller (target (result d) 20) |> ok);
+  show ();
+  (* A newer undisplayed selection batch cancels the old scroll preparation. *)
+  execute d (W.Controller.select controller (Row (target (result d) 0)));
+  show ();
+  display d;
+  execute
+    d
+    (W.Controller.batch
+       controller
+       [ Scroll_to (target (result d) 30, 0.); Scroll_to (target (result d) 60, 0.) ]
+     |> ok);
+  show ();
+  B.Expert.Var.set query 1L;
+  show ();
+  assert (List.is_empty (table (result d)).commands);
+  Bonsai_driver.Expert.invalidate_observers d;
+  [%expect
+    {|
+    (0 50 51 52)
+    (0 50 51 52)
+    (0 50 51)
+    (0 97 98 99)
+    (0 20 21 22)
+    (0 98 99)
+    (0 60 61 62)
+    (0)
+    |}]
+;;

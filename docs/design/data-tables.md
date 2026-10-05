@@ -380,8 +380,9 @@ The Expert View constructor is not required for ordinary application code.
 `Table.Config`; `Table.paged` accepts a table-pager snapshot and generation-checked
 controls. Each active row has a keyed computation, and each column inside it has
 its own default-reset lifetime. `render_cell` returns a validated `Table.Cell`
-with independent copy text and an ordinary View. Only the requested/pinned rows
-create cells; all schema columns count against the cell budget, regardless of
+with independent copy text and an ordinary View. Requested/pinned rows and bounded
+programmatic scroll preparation create cells; all schema columns count against
+the cell budget, regardless of
 horizontal paint virtualization. Persistent preferences and I/O jobs belong
 outside these transient computations.
 
@@ -407,6 +408,25 @@ The model distinguishes displayed/native selection from a pending selection, so
 superseding a batch cannot report a selection that never reached native code.
 A newer native selection supersedes an older pending batch, and sequence checks
 prevent delayed display acknowledgment from overwriting that observation.
+
+Programmatic vertical scroll batches also prepare a bounded destination cell
+set in the same publication as the command. Fixed-height rows and the latest
+compatible observed span provide the estimate; one extra row covers a changed
+fractional offset. Pins keep priority and configured row/cell budgets still
+apply. Reveal uses the estimated nearest visible edge, explicit offsets start
+at their logical target, and end commands prepare the bounded tail. The final
+vertical destination in a batch determines the preparation. This is bounded
+anticipation, not an alternative layout engine or a claim that arbitrary native
+wheel movement has synchronous OCaml data.
+
+Preparation survives the local after-display command acknowledgment until a
+current native viewport replaces it. Superseding an undisplayed batch discards
+its preparation, as do incompatible query/order/config changes. Viewport effects
+capture the presenter command serial so an already-created older effect cannot
+undo a newer preparation. Wire delivery separately rejects obsolete tree
+revisions. Native geometry and requests remain authoritative: resize, clipping,
+unknown initial geometry or insufficient budgets may still require another row
+round trip. Missing application payloads remain the application's loading state.
 
 Viewport validity follows query, logical order and config, not row payload
 revision. This preserves useful geometry after a point update or empty
