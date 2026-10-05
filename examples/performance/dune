@@ -2,6 +2,7 @@
  (name main)
  (libraries
   core
+  mtime
   gpuio
   gpuio.bonsai
   gpuio.eio

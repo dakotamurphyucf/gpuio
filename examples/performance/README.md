@@ -39,3 +39,9 @@ collector overhead comparison, other workloads and physical/GPU evidence.
 Portable checks: `python3 scripts/test_measure_list_history.py`.
 OCaml codecs: `./scripts/gpuio exec dune runtest examples/performance_probe/ocaml`.
 Native probe: `./scripts/gpuio exec cargo test --locked --offline -j2 --manifest-path examples/performance/backend/Cargo.toml -p gpuio-performance-probe --lib`.
+
+The optional `--wall-clock` mode uses monotonic phase intervals without mounting
+the native snapshot probe. It retains traversal/growth/cleanup checks but makes no
+frame-time or zero-idle-redraw assertion. Use it with the profiled and ordinary
+backends for the [paired overhead comparison](../performance_plain/README.md);
+the runner refuses frame-budget acceptance in this mode.

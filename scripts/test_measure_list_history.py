@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Portable checks for incomplete, reordered and dishonest measurement reports."""
 import unittest
+import re
 
 from measure_list_history import ZERO_RESOURCES, check_budgets, percentile, sexp, validate
 
@@ -77,6 +78,32 @@ class MeasurementTests(unittest.TestCase):
         for text in ['(', ')', '(x))', 'x y', '"quoted"', '('*17 + ')'*17, 'x'*65537]:
             with self.subTest(text=text[:40]), self.assertRaises(ValueError):
                 sexp(text)
+
+    def test_wall_clock_mode_keeps_coverage_without_inventing_histograms(self):
+        lines = []
+        for line in fixture().splitlines():
+            if 'GPUIO_PERF buckets ' in line:
+                continue
+            line = re.sub(r'begin \((history|idle) 17\)', r'wall-begin \1', line)
+            line = re.sub(r'finish \((history|idle)\(Finished.*',
+                          r'wall-finish (\1 2000000000)', line)
+            lines.append(line)
+        text = '\n'.join(lines)
+        result = validate(text, smoke=True, background=False, wall_clock=True)
+        self.assertEqual(result['history'], {'elapsed_ns': 2000000000})
+        self.assertEqual(result['coverage']['forward'], 96)
+        self.assertNotIn('histograms', result['idle'])
+        for malformed in [text.replace('2000000000', '1'),
+                          text.replace('history (96 96 32)', 'history (96 95 32)'),
+                          text.replace('(windows 0)', '(windows 1)'),
+                          '\n'.join(lines[:-1])]:
+            with self.subTest(malformed=malformed), self.assertRaises(ValueError):
+                validate(malformed, smoke=True, background=False, wall_clock=True)
+        # Never silently reinterpret one measurement mode as the other.
+        with self.assertRaises(ValueError):
+            self.validate(text)
+        with self.assertRaises(ValueError):
+            validate(fixture(), smoke=True, background=False, wall_clock=True)
 
 
 if __name__ == '__main__':

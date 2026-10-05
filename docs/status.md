@@ -7,8 +7,8 @@ current work from historical checkpoints; it does not certify release readiness.
 Work is tracked on branch `milestone-07-gallery-release` and draft PR #16.
 The last completed hosted run used `6d6d96f`: Linux passed, macOS failed.
 All sixteen failed macOS steps now have passing local reruns; fresh hosted
-qualification remains required. The first full optimized loaded-list run also
-passes its declared budgets, with repeated/other workload acceptance still open.
+qualification remains required. Three full optimized loaded-list runs now pass their declared budgets;
+profiler-overhead and other workload acceptance remain open.
 Earlier evidence identifies local worktree checkpoints based on `83eb87e`;
 their source snapshots must not be confused with that old HEAD alone.
 The preceding 2,834-line chronological status is
@@ -45,10 +45,11 @@ Recent completed local checkpoints:
   multiline geometry and other physical release checks remain.
   [IME evidence and recovery](evidence/macos-ime-och17.md).
 
-- The first full optimized 10,000-row loaded-list run passes predeclared budgets:
-  26,881 draws, p95 3.13 ms, p99 3.74 ms, peak RSS 184.5 MB, zero draws during
-  60 seconds of settled idle, bounded active rows and full cleanup. Repeated runs,
-  profiler-overhead comparison and other workloads remain open.
+- Three full optimized 10,000-row loaded-list runs pass predeclared budgets:
+  each has over 26,000 draws, p95 below 3.13 ms, p99 below 3.76 ms, peak RSS
+  below 185 MB, zero draws during 60 seconds of settled idle, bounded active
+  rows and full cleanup. Profiler-overhead comparison, explicitly observed
+  focused/unfocused idle and other workloads remain open.
   [Workload evidence](evidence/performance-collector-och17.md).
 
 - An opt-in native histogram collector now has five focused tests, a full 925-test native suite (two existing skips), strict lint and default-feature compilation evidence. It adds no normal-app polling or redraws. Optimized workload measurements remain open. [Collector evidence](evidence/performance-collector-och17.md).
@@ -115,7 +116,7 @@ Actual OS operation remains open; see [minimize evidence](evidence/window-minimi
 | OCH-41: input/document contracts and lifecycle | Local implementations and tests exist. The [native range-helper repair](evidence/editor-range-geometry-och41.md) fixes reproduced multiline geometry and adds source/layout guards; its [public OCaml query](evidence/editor-range-api-och41.md), codecs/controller and gallery inspector are implemented with local Core/Eio/native coverage. Mounted document profiles now have [local Text/NonText/Opaque semantics evidence](evidence/document-profile-semantics-och41.md) for search paint, select-all copy and AX roles. Declared Text pointer selection and 96-passive-candidate focus traversal now have [local repair/stress evidence](evidence/document-profile-selection-och41.md). Independent plugin viewport clipping/exit/wheel reveal now has [local qualification](evidence/document-profile-scroll-och41.md); inner keyboard reveal remains plugin-owned and physical qualification remains open. Do not revive already completed parser/profile/defaults work from old checkpoints. |
 | OCH-41: runnable public gallery, themes/scales, keyboard and teardown | Public and installed-consumer builds have evidence at individual checkpoints. [Real macOS forms and editor-group checks](evidence/gallery-editor-admission-och41.md) now pass after fixing gallery editor-memory admission. The remaining expanded gallery physical walkthrough, visual review and native input/accessibility qualification remain. Keep production TestPlatform evidence separate from real desktop evidence. |
 | OCH-17: real macOS IME, clipboard, focus, file drop, accessibility/VoiceOver and GPU | Historical scoped results exist. Consolidated final-source physical acceptance remains open, including point-based AX coverage beyond the now-passing two-window editor regression; the original routing gap was identified in [the diagnostics review](catalog/diagnostics-review.md); [window accessibility](evidence/window-accessibility-och17.md) and [gallery evidence](evidence/gallery-och41.md) retain limitations. |
-| OCH-17: performance and resources | The [qualification plan](design/performance-qualification.md) now declares reference hardware, workload sizes and targets before optimized acceptance runs; the optional collector and first full optimized 10k loaded-list run now pass locally. Repeat/overhead checks remain required. Also cover 100k logical paged rows, growing documents, concurrent streams while typing, full-history traversal, repeated windows and idle redraws. Local ownership tests are only part of this gate. |
+| OCH-17: performance and resources | The [qualification plan](design/performance-qualification.md) now declares reference hardware, workload sizes and targets before optimized acceptance runs; the optional collector and three full optimized 10k loaded-list runs now pass locally. Overhead and observed focused/unfocused idle checks remain required. Also cover 100k logical paged rows, growing documents, concurrent streams while typing, full-history traversal, repeated windows and idle redraws. Local ownership tests are only part of this gate. |
 | OCH-17: chart delay investigation | The staged physical rerun now completes all 80 publications without the historical 63,050.99ms outlier. A controlled three-second minimize reproduces a 2.93-second publication→Ready wait, demonstrating visibility-sensitive readiness. The historical sample lacks evidence to prove that cause; optimized performance qualification remains. [Chart evidence](evidence/chart-streaming-och40.md). |
 | OCH-17: initial black window | Reproduced historical startup capture; source ordering reviewed, diagnostic added. A fresh foreground run captured twelve nonblack UI samples; this does not rule out earlier blank frames or qualify background presentation. No production startup fix is claimed. [Startup evidence](evidence/window-startup-och17.md). |
 | OCH-17: notices, source maintenance and distribution | All eight Bonsai-family packages now have [exact 2,348-entry reconstruction evidence](evidence/bonsai-reconstruction-och17.md). Complete remaining notice/asset/system review, clean-machine source and packaged GUI execution, final versions/platform minimums and the chosen signing/distribution workflow. Existing assembly/inventory success is insufficient. [Distribution](distribution.md), [maintenance](component-adapters.md). |

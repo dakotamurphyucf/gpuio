@@ -136,3 +136,85 @@ scratch/agents/root-20261004-resumed/performance-release-full-001 --build-profil
 release --check-budgets`. Raw buckets, process usage and cleanup counters remain
 in that directory. This is one passing workload run, not the required repeated
 matrix, unprofiled comparison, physical-presentation or full release acceptance.
+
+## Repeated loaded-list baseline — 2026-10-04
+
+All three independent full runs of the preserved optimized `c0d2eaf` executable
+pass the predeclared loaded-list budgets and functional/resource checks. The
+96-row smoke warm-up also passed before runs 002/003. No local GPUIO compilation
+or second GUI ran during these measurements; ordinary desktop activity was not
+experimentally controlled. Small source/documentation edits and portable tests
+continued outside the measured application.
+
+| Run | Draw samples | Draw p95 | Draw p99 | Peak RSS | History duration | Draws during ≥60s idle |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 001 | 26,881 | 3.125247 ms | 3.743743 ms | 184,483,840 B | 224.474568 s | 0 |
+| 002 | 27,256 | 2.848767 ms | 3.495935 ms | 177,602,560 B | 227.254535 s | 0 |
+| 003 | 26,313 | 2.949119 ms | 3.756031 ms | 177,127,424 B | 219.402511 s | 0 |
+
+Every run visits all 10,000 records in both directions, materializes every key,
+retains at most 32 active rows, preserves the first-row anchor during growth,
+reports no dropped input timestamps, and retires the specified window-owned
+resources and queued work. These runs do not generate typing. They requested a
+focused window; the protocol did not record native activation throughout the idle
+interval, so this does not complete the separate focused/unfocused idle matrix.
+
+The executable SHA-256 remains
+`2112317d1393bf4e2a520590d712d05c477222eb125d5ec9930728839aed87d3` and its
+source/build provenance remains clean `c0d2eaf321f3d07af0231278bf8ed42b56a8152f`.
+The runner's `revision`/`dirty` fields describe the checkout at launch, not an
+embedded build identity: runs 002/003 report `c28cb8e` with false/true dirty state
+respectively while using this exact preserved binary. Later benchmark harness
+edits did not alter the running executable. Keep that distinction when comparing
+reports. Raw reports/logs are `performance-release-full-00{1,2,3}/`; the binary is
+`performance-c0d2eaf-release.exe` in the session scratch directory.
+
+Repetition now establishes this baseline's consistency; it does not complete
+profiler-overhead, table/document/streaming/resource-cycle, physical presentation
+or release qualification. The [ordinary-backend comparison](../../examples/performance_plain/README.md)
+uses identical OCaml work in explicit wall-clock mode without fabricated frame
+histograms. Its implementation/build/measurement evidence is tracked separately.
+
+## Paired profiler comparison implementation
+
+The shared OCaml workload now supports explicit `--wall-clock` measurement. Both
+backends run identical list traversal/growth/frame acknowledgments and cleanup;
+Eio's monotonic clock records phase intervals. Native histogram mode remains
+separate. Wall-clock reports cannot pass frame-budget checks or claim zero idle
+draws, and seven portable report tests reject mixed modes, truncated phases,
+incomplete traversal, too-short idle and retained resources.
+
+A fresh paired release build and formatting check pass. The first combined build
+reported only a missing blank line in the new Dune file; after reviewing/fixing
+that whitespace, the exact command passes:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 --profile release \
+  examples/performance/main.exe examples/performance_plain/main.exe @fmt
+python3 scripts/test_measure_list_history.py
+```
+
+The profiled executable SHA-256 is
+`3bcbb83e85acf2a8884d54e6ba32129a12635f1ef6002037a4f47ced0f4adabc`;
+the ordinary-backend executable is
+`d0c56c8f6884458e15d46a1ac6206dcf1d3981008f15a3cda63455dfecb571b8`.
+Locked Cargo feature graphs show the optional `gpui/profiler` feature only in the
+composed backend. An independent symbol check finds 45 HDR histogram / 132 journal
+symbols in that executable and zero of either in the ordinary executable.
+A broader initial assertion that *all* symbols containing `profiler` disappear
+was incorrect: GPUI includes task-timing types/helpers in that module even with
+the optional feature disabled. This comparison concerns the optional feature.
+
+Both wall-clock smoke runs pass full 96-row coverage, growth and cleanup. The
+histogram smoke rerun also passes zero draws during its two-second idle. Its first
+attempt recorded one idle draw and correctly failed; the raw failed report remains
+retained. No source change preceded the passing rerun, and activation/desktop
+interference was not recorded, so the cause remains unproven. Neither run replaces
+the three full baseline runs or establishes the focused/unfocused idle matrix.
+
+Artifacts: `performance-paired-build-00{1,2}.log`,
+`performance-{default,profiled}-features-001.txt`,
+`performance-paired-symbols-00{1,2}.json`,
+`performance-paired-histogram-smoke-00{1,2}/`,
+`performance-{profiled,plain}-wall-smoke-001/` in the session scratch directory.
+Full alternating runs, and their overhead conclusions, remain pending.

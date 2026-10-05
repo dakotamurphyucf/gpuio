@@ -37,7 +37,7 @@ let perform scope ui_effect =
   Eio.Promise.await promise
 ;;
 
-let component ~source ~command ~events ~observed ~materialized _window graph =
+let component ~wall_clock ~source ~command ~events ~observed ~materialized _window graph =
   let open B.Let_syntax in
   let output =
     L.component
@@ -95,11 +95,13 @@ let component ~source ~command ~events ~observed ~materialized _window graph =
          ])
     [ V.text "GPUIO qualification · variable-height history"
     ; L.Output.view (ok output)
-    ; V.extension ~on_event instance
+    ; (if wall_clock
+       then V.row ~style:(style [ Width (px 1.); Height (px 1.) ]) []
+       else V.extension ~on_event instance)
     ]
 ;;
 
-let run ~smoke ~background =
+let run ~smoke ~background ~wall_clock =
   let rows = if smoke then 96 else 10_000 in
   let idle_seconds = if smoke then 2. else 60. in
   App.run ~exit_on_last_window:false (fun env app ->
@@ -120,7 +122,7 @@ let run ~smoke ~background =
         ~title:"GPUIO · Performance qualification"
         ~width:1200.
         ~height:800.
-        (component ~source ~command ~events ~observed ~materialized)
+        (component ~wall_clock ~source ~command ~events ~observed ~materialized)
       |> ok
     in
     let work () =
@@ -149,13 +151,13 @@ let run ~smoke ~background =
           scope
           (E.of_thunk (fun () -> B.Expert.Var.set command (!sequence, request)))
       in
-      let begin_phase name =
+      let begin_native_phase name =
         match next_event () with
         | Probe.Event.Begun capture_ns ->
           emit "begin" [%sexp (name : string), (capture_ns : int64)]
         | event -> failwith (Sexp.to_string_hum (Probe.Event.sexp_of_t event))
       in
-      let finish_phase name =
+      let finish_native_phase name =
         send Probe.Command.Finish;
         let finished = next_event () in
         let counts =
@@ -195,6 +197,29 @@ let run ~smoke ~background =
           done;
           assert (Int64.equal !count expected_count));
         finished
+      in
+      let phase_start = ref None in
+      let begin_phase name =
+        if wall_clock
+        then (
+          Eio.Time.sleep clock 2.;
+          phase_start := Some (Eio.Time.Mono.now (Eio.Stdenv.mono_clock env));
+          emit "wall-begin" [%sexp (name : string)])
+        else begin_native_phase name
+      in
+      let finish_phase name =
+        if wall_clock
+        then (
+          let elapsed =
+            Mtime.span
+              (Option.value_exn !phase_start)
+              (Eio.Time.Mono.now (Eio.Stdenv.mono_clock env))
+          in
+          let elapsed_ns = Mtime.Span.to_uint64_ns elapsed in
+          phase_start := None;
+          emit "wall-finish" [%sexp (name : string), (elapsed_ns : int64)];
+          None)
+        else Some (finish_native_phase name)
       in
       let output () = Option.value_exn !observed in
       let current_viewport () = L.Output.viewport (output ()) in
@@ -282,17 +307,19 @@ let run ~smoke ~background =
       assert ((viewport ()).visible_first = 0);
       assert ((viewport ()).visible_last = 1);
       emit "growth-complete" (Virtual_list.Viewport.sexp_of_t (viewport ()));
-      ignore (finish_phase "history" : Probe.Event.t);
+      ignore (finish_phase "history" : Probe.Event.t option);
       emit
         "history"
         [%sexp
           (Set.length !forward : int), (Set.length !backward : int), (!peak_active : int)];
-      send Probe.Command.Begin;
+      if not wall_clock then send Probe.Command.Begin;
       begin_phase "idle";
       Eio.Time.sleep clock idle_seconds;
       let idle = finish_phase "idle" in
       (match idle with
-       | Probe.Event.Finished { counts = draws :: _; _ } -> assert (Int64.equal draws 0L)
+       | Some (Probe.Event.Finished { counts = draws :: _; _ }) ->
+         assert (Int64.equal draws 0L)
+       | None -> assert wall_clock
        | _ -> assert false);
       App.Window.close window;
       wait (fun () -> (App.diagnostics app).windows = 0);
@@ -309,5 +336,8 @@ let run ~smoke ~background =
 
 let () =
   let flag name = Array.exists (Sys.get_argv ()) ~f:(String.equal name) in
-  run ~smoke:(flag "--smoke") ~background:(flag "--background")
+  run
+    ~smoke:(flag "--smoke")
+    ~background:(flag "--background")
+    ~wall_clock:(flag "--wall-clock")
 ;;

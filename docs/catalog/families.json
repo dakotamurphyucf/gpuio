@@ -6,13 +6,14 @@
       "id": "presentation",
       "owner": "OCH-33",
       "scope": "v1",
-      "audit_status": "local source-row functional equivalents reviewed: status bar, badge, label, group box, Empty, Separator, Link, Attachment, Marker, Alert, Tag, Bubble, Message, Description, Kbd and Settings; contracts and per-row Core/native/installed-consumer evidence are linked in presentation-review.md. Settings includes six field types, 24 appearance/layout retention cases, reset/lifetime guards, US dead-key composition, 48-group virtualization, Eio persistence and independent windows. Hosted gates and OCH-17 multilingual IME/VoiceOver/performance/distribution remain open.",
+      "audit_status": "local source-row functional equivalents reviewed: status bar, badge, label, group box, Empty, Separator, Link, Attachment, Marker, Alert, Tag, Bubble, Message, Description, Kbd and Settings; contracts and per-row Core/native/installed-consumer evidence are linked in presentation-review.md. Settings includes six field types, 24 appearance/layout retention cases, reset/lifetime guards, US dead-key composition, 48-group virtualization, Eio persistence and independent windows. A real macOS Japanese IME Settings sequence now passes OS candidate selection, committed-versus-preedit state, undo/redo and cancellation. Other methods/multiline geometry, hosted gates and OCH-17 VoiceOver/performance/distribution remain open.",
       "public_interface": "lib/core/presentation.mli",
       "example": "examples/presentation",
       "evidence": [
         "docs/evidence/presentation-components-och33.md",
         "docs/catalog/presentation-review.md",
-        "docs/design/settings-composition.md"
+        "docs/design/settings-composition.md",
+        "docs/evidence/macos-ime-och17.md"
       ],
       "gallery_page": "presentation",
       "contract": "Stateless compositions, explicit content slots, semantic roles and theme/style overrides.",
@@ -40,15 +41,16 @@
       "id": "forms",
       "owner": "OCH-33",
       "scope": "v1",
-      "audit_status": "pinned source reviewed; rich collection/slots/placement/footer implemented with passing Core checks; native gallery and installed-consumer behavior acceptance pending (Accessibility preflight unavailable)",
+      "audit_status": "pinned source reviewed; rich collection/slots/placement/footer implemented with passing Core checks. Real macOS gallery forms and editor-group runs pass: 52 geometry cases, OS keyboard actions, retained undo/redo through hide/show and fresh state after page retirement. Consolidated installed-consumer/hosted release acceptance remains open; the earlier Accessibility preflight restriction is resolved.",
       "public_interface": "lib/core/form.mli",
       "example": "examples/presentation",
       "evidence": [
         "docs/evidence/presentation-components-och33.md",
-        "docs/design/form-composition.md"
+        "docs/design/form-composition.md",
+        "docs/evidence/gallery-editor-admission-och41.md"
       ],
       "gallery_page": "text-inputs",
-      "contract": "Rich Form collections, independent grid/label orientation, field placement, rich slots and full-width footer are implemented in the public API. Native gallery and installed-consumer behavior acceptance remain pending. Validation and persistence are application-owned.",
+      "contract": "Rich Form collections, independent grid/label orientation, field placement, rich slots and full-width footer are implemented in the public API. Local macOS gallery behavior passes; consolidated installed-consumer/release acceptance remains pending. Validation and persistence are application-owned.",
       "upstream_modules": [
         "component/form"
       ]

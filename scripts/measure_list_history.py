@@ -72,7 +72,7 @@ def percentile(buckets, percent):
             return value
 
 
-def validate(output, *, smoke, background):
+def validate(output, *, smoke, background, wall_clock=False):
     records = []
     for line in output.splitlines():
         if line.startswith('GPUIO_PERF '):
@@ -93,65 +93,77 @@ def validate(output, *, smoke, background):
         raise ValueError('Workload configuration mismatch')
     result = {}
     for phase in ('history', 'idle'):
-        name, capture = take('begin')
-        if name != phase:
-            raise ValueError('Wrong begin phase')
-        before_capture = natural(capture)
+        if wall_clock:
+            if take('wall-begin') != phase:
+                raise ValueError('Wrong wall-clock begin phase')
+        else:
+            name, capture = take('begin')
+            if name != phase:
+                raise ValueError('Wrong begin phase')
+            before_capture = natural(capture)
         if phase == 'history':
             before = fields(take('growth-start'))
             after = fields(take('growth-complete'))
             if (natural(before['visible_last']) <= 1 or after['visible_first'] != '0'
                     or after['visible_last'] != '1' or after['anchor'] != [['0', '0']]):
                 raise ValueError('Growth failed to preserve the first-row anchor')
-        name, event = take('finish')
-        if name != phase or event[0] != 'Finished':
-            raise ValueError('Wrong finish phase/event')
-        summary = fields(event[1:])
-        if set(summary) != {'elapsed_ns', 'capture_ns', 'dropped_inputs', 'counts'}:
-            raise ValueError('Unexpected interval fields')
-        counts = list(map(natural, summary['counts']))
-        if len(counts) != 5:
-            raise ValueError('Expected five histogram counts')
-        interval = {k: natural(summary[k]) for k in ('elapsed_ns', 'capture_ns', 'dropped_inputs')}
-        interval['begin_capture_ns'] = before_capture
-        distributions = {}
-        for metric, expected in enumerate(counts):
-            buckets, total = [], None
-            while total is None or len(buckets) < total:
-                name, page = take('buckets')
-                if name != phase or page[0] != 'Buckets':
-                    raise ValueError('Wrong bucket phase/event')
-                page = fields(page[1:])
-                if set(page) != {'metric', 'offset', 'total', 'values'}:
-                    raise ValueError('Unexpected bucket fields')
-                if natural(page['metric']) != metric or natural(page['offset']) != len(buckets):
-                    raise ValueError('Missing, reordered or duplicate bucket page')
-                size = natural(page['total'])
-                if total is not None and size != total:
-                    raise ValueError('Bucket total changed')
-                total = size
-                values = [list(map(natural, pair)) for pair in page['values']]
-                if not 0 <= total <= 100000 or len(values) > 128 or (not values and total):
-                    raise ValueError('Invalid bucket page size')
-                for pair in values:
-                    if len(pair) != 2 or pair[1] == 0 or (buckets and pair[0] <= buckets[-1][0]):
-                        raise ValueError('Invalid or unordered histogram bucket')
-                    buckets.append(pair)
-                if len(buckets) > total:
-                    raise ValueError('Too many buckets')
-            if sum(n for _, n in buckets) != expected:
-                raise ValueError('Bucket counts differ from snapshot')
-            distributions[METRICS[metric]] = dict(count=expected, buckets=buckets,
-                                                  p95=percentile(buckets, 95),
-                                                  p99=percentile(buckets, 99))
-        interval['histograms'] = distributions
+        if wall_clock:
+            name, elapsed = take('wall-finish')
+            if name != phase:
+                raise ValueError('Wrong wall-clock finish phase')
+            interval = {'elapsed_ns': natural(elapsed)}
+            if interval['elapsed_ns'] == 0:
+                raise ValueError('Empty wall-clock interval')
+        else:
+            name, event = take('finish')
+            if name != phase or event[0] != 'Finished':
+                raise ValueError('Wrong finish phase/event')
+            summary = fields(event[1:])
+            if set(summary) != {'elapsed_ns', 'capture_ns', 'dropped_inputs', 'counts'}:
+                raise ValueError('Unexpected interval fields')
+            counts = list(map(natural, summary['counts']))
+            if len(counts) != 5:
+                raise ValueError('Expected five histogram counts')
+            interval = {k: natural(summary[k]) for k in ('elapsed_ns', 'capture_ns', 'dropped_inputs')}
+            interval['begin_capture_ns'] = before_capture
+            distributions = {}
+            for metric, expected in enumerate(counts):
+                buckets, total = [], None
+                while total is None or len(buckets) < total:
+                    name, page = take('buckets')
+                    if name != phase or page[0] != 'Buckets':
+                        raise ValueError('Wrong bucket phase/event')
+                    page = fields(page[1:])
+                    if set(page) != {'metric', 'offset', 'total', 'values'}:
+                        raise ValueError('Unexpected bucket fields')
+                    if natural(page['metric']) != metric or natural(page['offset']) != len(buckets):
+                        raise ValueError('Missing, reordered or duplicate bucket page')
+                    size = natural(page['total'])
+                    if total is not None and size != total:
+                        raise ValueError('Bucket total changed')
+                    total = size
+                    values = [list(map(natural, pair)) for pair in page['values']]
+                    if not 0 <= total <= 100000 or len(values) > 128 or (not values and total):
+                        raise ValueError('Invalid bucket page size')
+                    for pair in values:
+                        if len(pair) != 2 or pair[1] == 0 or (buckets and pair[0] <= buckets[-1][0]):
+                            raise ValueError('Invalid or unordered histogram bucket')
+                        buckets.append(pair)
+                    if len(buckets) > total:
+                        raise ValueError('Too many buckets')
+                if sum(n for _, n in buckets) != expected:
+                    raise ValueError('Bucket counts differ from snapshot')
+                distributions[METRICS[metric]] = dict(count=expected, buckets=buckets,
+                                                      p95=percentile(buckets, 95),
+                                                      p99=percentile(buckets, 99))
+            interval['histograms'] = distributions
         result[phase] = interval
         if phase == 'history':
             forward, backward, active = map(natural, take('history'))
             if forward != rows or backward != rows or not 0 < active <= 32:
                 raise ValueError('Incomplete traversal or active-row budget exceeded')
             result['coverage'] = dict(forward=forward, backward=backward, peak_active=active)
-        elif counts != [0] * 5 or interval['elapsed_ns'] < idle * 1_000_000_000:
+        elif (not wall_clock and counts != [0] * 5) or interval['elapsed_ns'] < idle * 1_000_000_000:
             raise ValueError('Idle interval was too short or contained native work')
     cleanup = fields(take('cleanup'))
     if any(natural(cleanup[k]) != 0 for k in ZERO_RESOURCES):
@@ -191,15 +203,18 @@ def main():
     parser.add_argument('--smoke', action='store_true')
     parser.add_argument('--background', action='store_true')
     parser.add_argument('--check-budgets', action='store_true')
+    parser.add_argument('--wall-clock', action='store_true',
+                        help='CPU/elapsed/RSS comparison only; no histograms or zero-redraw acceptance')
     args = parser.parse_args()
     if not math.isfinite(args.timeout) or not 0 < args.timeout <= 3600:
         parser.error('Timeout must be finite and in (0, 3600] seconds')
-    if args.check_budgets and (args.smoke or args.build_profile != 'release'):
-        parser.error('Budget checks require a full release-profile workload')
+    if args.check_budgets and (args.smoke or args.wall_clock or args.build_profile != 'release'):
+        parser.error('Budget checks require a full release-profile workload with native histograms')
     args.output.mkdir(parents=True, exist_ok=False)
     report = dict(complete=False, platform=platform.platform(), architecture=platform.machine(),
-                  build_profile=args.build_profile, smoke=args.smoke, background=args.background,
-                  measurement='Native histogram deltas; no physical presentation/GPU-time claim')
+                  build_profile=args.build_profile, smoke=args.smoke, background=args.background, wall_clock=args.wall_clock,
+                  measurement=('Monotonic phase time and process resources; no frame/idle-draw acceptance' if args.wall_clock
+                               else 'Native histogram deltas; no physical presentation/GPU-time claim'))
     log = args.output / 'application.log'
 
     def interrupted(signum, _frame):
@@ -217,9 +232,9 @@ def main():
                           memory_bytes=int(command('sysctl', '-n', 'hw.memsize')),
                           display=command('system_profiler', 'SPDisplaysDataType', '-json'),
                           power=command('pmset', '-g', 'batt'), thermal=command('pmset', '-g', 'therm'))
-        arguments = [flag for enabled, flag in ((args.smoke, '--smoke'), (args.background, '--background')) if enabled]
+        arguments = [flag for enabled, flag in ((args.smoke, '--smoke'), (args.background, '--background'), (args.wall_clock, '--wall-clock')) if enabled]
         collect(args.executable, log, report, args.timeout, arguments=arguments)
-        report['workload'] = validate(log.read_text(), smoke=args.smoke, background=args.background)
+        report['workload'] = validate(log.read_text(), smoke=args.smoke, background=args.background, wall_clock=args.wall_clock)
         if args.check_budgets:
             report['budget_failures'] = check_budgets(report['workload'], report['peak_rss_bytes'])
             if report['budget_failures']:
