@@ -5,6 +5,13 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
 Work is tracked on branch `milestone-07-gallery-release` and draft PR #16.
+Latest checkpoint: run 37282672995 at `d380878` failed on both platforms at the
+standalone entity-audit lock-resolution step. The [local repair](evidence/native-entity-retention-och17.md#standalone-probe-lockfile-repair--2026-10-05)
+removes unused patches without changing resolved dependencies; a hosted rerun is
+required. [Cross-application macOS file drops](evidence/external-file-drop-och17.md)
+now pass locally through the public gallery. A [fresh-runner package workflow](distribution.md#fresh-hosted-runner)
+is implemented and locally stages/verifies all three apps; remote execution is
+still pending. VoiceOver remains on the owner's explicit hold.
 Hosted run [37266229651](https://github.com/dakotamurphyucf/gpuio/actions/runs/37266229651)
 at `84827c0` passed both complete macOS and Linux jobs with no failed steps.
 The newer native-text profiler and macOS teardown changes pass scoped local

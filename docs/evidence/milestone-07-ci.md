@@ -543,3 +543,21 @@ complete jobs, with no failed steps. This validates the streaming,
 physical-memory repair and explicit idle sources in that checkpoint. Subsequent
 native-entity audit, multiline IME repair and editor AX-selection changes require
 their own hosted result. Linux desktop and other release gates remain separate.
+
+
+## Native entity audit resolution — 2026-10-05
+
+[Run 37282672995](https://github.com/dakotamurphyucf/gpuio/actions/runs/37282672995)
+at `d38087867200dded7d491d3e44b7be389780c6c3` is terminal failure on both macOS and
+Linux. Each job has one failed step: Native entity audit sensitivity, where Cargo
+refuses locked resolution before running the tests. The succeeding macOS/Linux
+OCaml and Rust test step does not make the overall jobs successful; later checks
+were skipped by workflow conditions.
+
+The failure reproduced intermittently on the local Mac. `e782739` removes three
+unused patch entries from the standalone audit manifest and lockfile; the actual
+resolved packages, features and dependency edges remain identical. Eight local
+locked metadata checks and both sensitivity tests pass afterward. See the
+[repair evidence](native-entity-retention-och17.md#standalone-probe-lockfile-repair--2026-10-05).
+The rendering backend's platform patches remain intact. Fresh hosted checks are
+required for this repair and the subsequent packaging/file-drop additions.
