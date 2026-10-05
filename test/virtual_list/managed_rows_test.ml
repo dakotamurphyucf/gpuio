@@ -299,3 +299,70 @@ let%expect_test "hiding the containing branch retires lifetimes even with unchan
     (true 2)
     |}]
 ;;
+
+let%expect_test "stateless activation can retire immediately without reviving its guard" =
+  List.iter [ false; true ] ~f:(fun optimize ->
+    let shown = B.Expert.Var.create true in
+    let calls = ref 0 in
+    let captured = ref [] in
+    let component graph =
+      let open B.Let_syntax in
+      match%sub B.Expert.Var.value shown with
+      | false -> B.return Int.Map.empty
+      | true ->
+        Rows.assoc
+          (module Int)
+          (B.return (Int.Map.singleton 1 ()))
+          ~f:(fun _ _ lifetime graph ->
+            let action =
+              B.map lifetime ~f:(fun lifetime ->
+                Rows.Lifetime.guard lifetime (E.of_thunk (fun () -> Int.incr calls)))
+            in
+            let on_activate =
+              let%arr lifetime = lifetime
+              and action = action in
+              E.Many
+                [ action
+                ; E.of_thunk (fun () ->
+                    captured := (lifetime, action) :: !captured;
+                    B.Expert.Var.set shown false)
+                ]
+            in
+            B.Edge.lifecycle ~on_activate graph;
+            B.return ())
+          graph
+    in
+    let driver =
+      Bonsai_driver.create
+        ~optimize
+        ~clock:(Bonsai.Time_source.create ~start:Time_ns.epoch)
+        component
+    in
+    let settle () =
+      Bonsai_driver.flush driver;
+      Bonsai_driver.trigger_lifecycles driver;
+      Bonsai_driver.flush driver
+    in
+    for visit = 1 to 4 do
+      B.Expert.Var.set shown true;
+      settle ();
+      (* Activation hid its own branch before the first model actions settled. *)
+      assert (Map.is_empty (Bonsai_driver.result driver));
+      settle ();
+      assert (!calls = visit && List.length !captured = visit);
+      let newest, _ = List.hd_exn !captured in
+      List.iter (List.tl_exn !captured) ~f:(fun (previous, _) ->
+        assert (not (phys_equal newest previous)));
+      List.iter !captured ~f:(fun (_, action) ->
+        Bonsai_driver.schedule_event driver action);
+      settle ();
+      assert (!calls = visit)
+    done;
+    print_s [%sexp (optimize : bool), (!calls : int)];
+    Bonsai_driver.Expert.invalidate_observers driver);
+  [%expect
+    {|
+    (false 4)
+    (true 4)
+    |}]
+;;

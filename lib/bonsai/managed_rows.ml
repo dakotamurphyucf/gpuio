@@ -20,12 +20,15 @@ let assoc comparator input ~f graph =
       let pair, reset =
         B.with_model_resetter
           ~f:(fun graph ->
-            (* Allocation must belong to this resettable computation. A mapped
-               constant key can be folded by Bonsai and reuse a retired token
-               after branch reactivation. Start valid so the child's earlier
-               activation hooks may use the guard. *)
+            (* The mapped input must stay nonconstant: mapping a constant key
+               can fold the allocation and reuse a retired token. Each evaluated
+               assoc/switch scope allocates its own Incremental map node. Unlike
+               a general thunk, our token must reset whenever that scope leaves,
+               so it does not need a second model/lifecycle to freeze its value.
+               This private seed is never mutated. *)
+            let seed = B.Expert.Var.create () in
             let lifetime =
-              B.Expert.thunk ~f:(fun () -> { Lifetime.active = true }) graph
+              B.map (B.Expert.Var.value seed) ~f:(fun () -> { Lifetime.active = true })
             in
             let result = f key data lifetime graph in
             B.both result lifetime)

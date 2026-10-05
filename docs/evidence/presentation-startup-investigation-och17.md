@@ -135,3 +135,60 @@ restores reset-scoped allocation and enables inline tests in the release profile
 The optimization's passing timings do not qualify that corrected implementation.
 Current optimized workloads must be rebuilt and measured; the original startup
 failures and the declared 100 ms bound remain unchanged.
+
+## Nonconstant lifetime seed — 2026-10-05 follow-up
+
+The table at `3ea0bfc` still spends 92.697 ms in its first Bonsai flush and
+46.144 ms in the subsequent flush, measured using the same temporary bounded
+driver trace. The instrumented startup is 150.539 ms. This confirms that the
+reset-scoped `Expert.thunk` correctness repair restores the previously identified
+initialization cost.
+
+The new candidate maps a private, never-mutated `Bonsai.Expert.Var` holding unit
+to allocate each managed lifetime. The input is deliberately nonconstant: the
+pinned Bonsai constant folder cannot precompute the token, and each evaluated
+association/switch scope constructs its own Incremental map node. The existing
+deactivation guard and subtree model reset remain. This removes the general
+thunk's extra freeze model and activation action without changing Bonsai or
+mapping the constant association key. That earlier, withdrawn optimization is
+not reinstated. The implementation still depends on the pinned evaluator's scope
+semantics and must be reviewed when upgrading Bonsai.
+
+Existing tests exercise optimized and unoptimized evaluation, data updates,
+1,000-key eviction, nested row/column identity, constant-configuration branch
+reactivation and stale effects. An additional regression activates a stateless
+child that immediately hides its own branch before initial model actions settle.
+Across four visits, each activation has a fresh token and every retired action
+stays inert, with optimization both enabled and disabled.
+
+The first uninstrumented candidate smoke **fails** the unchanged 100 ms startup
+budget at 104.322 ms. It records 399 attempts, 396 positive presentations and
+three initial input-free zero timestamps, without lost submissions. Its binary
+SHA-256 is `a8cce1cb12b91e970ac604dcc21b8af50e70453f753032833ed09dee7540ccb6`.
+This failure remains part of the evidence; the optimization does not yet establish
+startup or release-performance acceptance.
+
+A separate instrumented candidate run completes the table smoke with a 34.153 ms
+first flush and no later flush of comparable duration. Its first positive
+presentation is 75.066 ms, with 389 attempts, 387 positive presentations and two
+initial zeros. This run explains the removed work; instrumentation and single-run
+variation make it unsuitable for replacing the uninstrumented failure or the
+required repeated workload qualification. Both trace overlays were restored
+byte-for-byte before running the copied diagnostic executables. No production
+trace hooks, timing thresholds or native rendering contracts changed.
+
+The full root OCaml `@runtest` suite passes in both development and release
+profiles, with inline tests enabled; `@fmt` also passes. A fresh independently
+installed public gallery passes the complete `buttons` macOS walkthrough:
+rich/plain and disabled/loading controls, real keyboard/pointer actions, observer
+detach/reattach, menu geometry, split-button paint, shortcut/tooltip replacement
+and page retirement. This exercises the branch-remount path that exposed the
+earlier optimization's defect. Its SHA-256 is
+`6b3619d5c9eab742d4343babc733aa283c7a0204dc4f92b370afeec50ea073f9`.
+The harness closes and reaps its app; no VoiceOver acceptance is implied.
+
+[Source snapshots, exact commands and raw validation reports](presentation-startup-investigation-och17/nonconstant-lifetime-seed/validation.tar.gz)
+include the uninstrumented failure and both diagnostic traces, with a
+[verified manifest](presentation-startup-investigation-och17/nonconstant-lifetime-seed/manifest.json).
+Current-source repeated performance/resource qualification and hosted validation
+remain open.

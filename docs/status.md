@@ -80,6 +80,11 @@ skipped. [Terminal presentation reports](evidence/hosted-presentation-calibratio
 again retain all-zero timestamps on the paravirtual device. [Bounded readiness
 corrections](evidence/macos-ci-readiness-och17.md#settings-and-navigation-follow-up--run-37356882651)
 pass both complete local walkthroughs; corrected hosted execution remains pending.
+A subsequent [nonconstant lifetime-seed optimization](evidence/presentation-startup-investigation-och17.md#nonconstant-lifetime-seed--2026-10-05-follow-up)
+passes full development/release OCaml suites and a fresh installed button/menu
+walkthrough, including branch retirement and reattachment. It removes most of
+the traced Bonsai initialization cost, but its first uninstrumented table smoke
+still fails startup at 104.322 ms against 100 ms. Performance acceptance remains open.
 Three full optimized loaded-list, paged-table and growing-document runs pass
 their declared budgets; six ordinary/profiled comparisons and three resource
 lifecycle runs also pass. Three full streaming/typing runs also pass after an optional profiler repair,
