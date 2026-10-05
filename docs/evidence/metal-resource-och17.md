@@ -105,3 +105,13 @@ This closes the scoped renderer-device allocation workload check. Actual drawabl
 presentation, full GPU/driver/compositor attribution and other release acceptance
 remain separate. Hosted checks for this new source have not yet run; Linux GUI
 qualification remains deferred to OCH-47.
+
+The ordinary backend also rebuilt and passed a four-cycle optimized smoke at
+`a0b6f4c`, after the shared workload gained the explicit option. Its output contains
+neither entity-audit nor Metal-audit records; the child returned zero and was
+reaped. The new feature remains disabled for that backend.
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build --profile release examples/performance_lifecycle/main.exe
+python3 scripts/measure_resource_lifecycle.py --build-profile release --smoke --executable _build/default/examples/performance_lifecycle/main.exe --output scratch/agents/root-20261004-resumed/metal-audit-ordinary-smoke-001 --timeout 120
+```
