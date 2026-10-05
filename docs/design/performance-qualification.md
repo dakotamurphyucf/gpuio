@@ -121,3 +121,22 @@ document. No document run has been accepted against either formulation. Draw
 and RSS targets are unchanged. Preparation remains bounded: Markdown above
 64 KiB uses source fallback, so report that state explicitly rather than claiming
 20 MiB of rich Markdown parsing.
+
+## Explicit idle visibility sampling — 2026-10-05
+
+The idle driver measures an initially focused-then-blurred native editor in an
+active window and then an inactive window, with two-second settling and 60-second
+intervals. It checks native activation transitions, independently observed AX
+frontmost state, and all native histogram deltas. No nonzero draw/submission or
+input sample is allowed in either settled interval. See the
+[idle driver](../../examples/performance_idle/README.md).
+
+The opt-in `WindowObservation::capture` reads native activation and AppKit's
+occlusion state without invalidating a view. Other backends/TestPlatform report
+unknown visibility; collectors must not convert it to true. Qualification probe
+schema v3 adds Begin_idle with cancellable, bounded native sampling at absolute
+one-second deadlines. Ordinary Begin and production backends do not start that
+sampling. Finish returns observations after stopping the task. Sampled visibility
+is separate from physical presentation and cannot rule out transitions between
+samples. The exact rectangular opaque reference window and collected native/AX
+state must be reported; an occluded window cannot be accepted as settled idle.

@@ -4,6 +4,7 @@ module X = Gpuio.Extension
 module Command = struct
   type t =
     | Begin
+    | Begin_idle
     | Finish
     | Document_preparation
     | Buckets of
@@ -15,6 +16,7 @@ end
 module Event = struct
   type t =
     | Begun of int64
+    | Idle_observations of (int64 * bool * bool option) list
     | Document_preparation of
         { queue_us : int64
         ; configure_us : int64
@@ -47,8 +49,8 @@ let ok = Or_error.ok_exn
 let schema =
   X.Schema.create
     ~name:"qualification.performance"
-    ~version:2
-    ~fingerprint:"e5008fe376c44b30bf168ecd31b14cf23f18cd92006b59532b9b8a21053d8aa8"
+    ~version:3
+    ~fingerprint:"fe895f6b182f059b923915dc588ec7e7d09b453c063aa6da37cf8f6bfc77f784"
   |> ok
 ;;
 
@@ -65,6 +67,7 @@ let properties =
 
 let encode_command = function
   | Command.Begin -> Ok "\000"
+  | Begin_idle -> Ok "\004"
   | Finish -> Ok "\001"
   | Document_preparation -> Ok "\003"
   | Buckets { metric; offset } ->
@@ -76,6 +79,7 @@ let encode_command = function
 let decode_command s =
   match String.to_list s with
   | [ '\000' ] -> Ok Command.Begin
+  | [ '\004' ] -> Ok Command.Begin_idle
   | [ '\001' ] -> Ok Command.Finish
   | [ '\003' ] -> Ok Command.Document_preparation
   | '\002' :: metric :: (_ :: _ as digits) ->
@@ -123,7 +127,7 @@ let%expect_test "native event shapes and bounded commands" =
     ~f:(fun bytes ->
       let event = X.Codec.decode events bytes |> ok in
       print_s (Event.sexp_of_t event));
-  List.iter [ "\000"; "\001"; "\003"; "\002\0044294967295" ] ~f:(fun bytes ->
+  List.iter [ "\000"; "\001"; "\003"; "\004"; "\002\0044294967295" ] ~f:(fun bytes ->
     let command = X.Codec.decode commands bytes |> ok in
     assert (String.equal bytes (X.Codec.encode commands command |> ok)));
   List.iter
@@ -131,6 +135,7 @@ let%expect_test "native event shapes and bounded commands" =
     ; "\000\000"
     ; "\001\000"
     ; "\003\000"
+    ; "\004\000"
     ; "\002\0050"
     ; "\002\000"
     ; "\002\000-1"
@@ -175,4 +180,13 @@ let%expect_test "document preparation retains cumulative worker units and peaks"
           : int64 list)]
    | event -> raise_s [%sexp (event : Event.t)]);
   [%expect {| ((12 23 34 45 56) (8388608 7 2 4 67108864)) |}]
+;;
+
+let%expect_test "idle observations preserve native activation and unknown visibility" =
+  let event =
+    X.Codec.decode events "(Idle_observations ((0 true (true))(1000000000 false ())))"
+    |> ok
+  in
+  print_s (Event.sexp_of_t event);
+  [%expect {| (Idle_observations ((0 true (true)) (1000000000 false ()))) |}]
 ;;

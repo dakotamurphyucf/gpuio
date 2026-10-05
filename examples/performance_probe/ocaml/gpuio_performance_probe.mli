@@ -3,12 +3,17 @@ open Core
 (** Qualification-only native snapshots. Begin settles for two seconds before
     capturing; await Begun rather than Command_completed. Finish captures before
     its command redraw. Fetch bounded bucket pages only after Finished.
+    [Begin_idle] additionally samples native activation and OS visibility at
+    absolute one-second deadlines, without notifying or publishing UI updates.
+    Finish additionally emits [Idle_observations], capped at 128 samples; a
+    missing OS visibility query is [None], not an assumed visible window.
     [Document_preparation] reads application-wide cumulative worker elapsed
     microseconds, including discarded jobs. It is separate from frame snapshots;
     compare phase boundaries and retain peak fields as absolute maxima. *)
 module Command : sig
   type t =
     | Begin
+    | Begin_idle
     | Finish
     | Document_preparation
     | Buckets of
@@ -20,6 +25,7 @@ end
 module Event : sig
   type t =
     | Begun of int64
+    | Idle_observations of (int64 * bool * bool option) list
     | Document_preparation of
         { queue_us : int64
         ; configure_us : int64

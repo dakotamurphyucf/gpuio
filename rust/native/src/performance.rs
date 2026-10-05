@@ -3,6 +3,47 @@
 //! boundaries; keep OS input/presentation and OCaml scheduling evidence separate.
 use std::{collections::BTreeMap, time::Instant};
 
+/// Read-only native window observations. `visible` is unavailable on backends
+/// without a qualified OS occlusion query. No timer, event or redraw is created.
+#[derive(Clone, Copy, Debug)]
+pub struct WindowObservation {
+    pub active: bool,
+    pub visible: Option<bool>,
+}
+
+impl WindowObservation {
+    pub fn capture(window: &gpui::Window) -> Self {
+        Self {
+            active: window.is_window_active(),
+            visible: window_visibility(window),
+        }
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn window_visibility(window: &gpui::Window) -> Option<bool> {
+    use raw_window_handle::{HasWindowHandle, RawWindowHandle};
+    objc2::MainThreadMarker::new()?;
+    let handle = HasWindowHandle::window_handle(window).ok()?;
+    let RawWindowHandle::AppKit(handle) = handle.as_raw() else {
+        return None;
+    };
+    // SAFETY: the borrowed GPUI window owns this live NSView; the main-thread
+    // marker is checked above. The temporary NSWindow reference stays in scope.
+    let view = unsafe { handle.ns_view.cast::<objc2_app_kit::NSView>().as_ref() };
+    let native = view.window()?;
+    Some(
+        native
+            .occlusionState()
+            .contains(objc2_app_kit::NSWindowOcclusionState::Visible),
+    )
+}
+
+#[cfg(not(target_os = "macos"))]
+fn window_visibility(_: &gpui::Window) -> Option<bool> {
+    None
+}
+
 /// Application-wide cumulative document-worker counters. Durations are elapsed
 /// worker stage times, not CPU time or physical presentation. Completed jobs
 /// include cancelled/stale work; retained-source fallback can report zero parse
@@ -309,6 +350,11 @@ mod tests {
         cx.run_until_parked();
         cx.update(|window, cx| {
             let before = Snapshot::capture(window);
+            let observation = WindowObservation::capture(window);
+            assert_eq!(observation.active, window.is_window_active());
+            // A TestPlatform window has no OS occlusion query. Unknown must not
+            // masquerade as a visible native window in qualification reports.
+            assert_eq!(observation.visible, None);
             let unchanged = Snapshot::capture(window);
             assert_eq!(unchanged.since(&before).unwrap().draw.count(), 0);
             window.draw(cx).clear(cx);

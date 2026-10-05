@@ -5,10 +5,10 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
 Work is tracked on branch `milestone-07-gallery-release` and draft PR #16.
-Hosted run [37260437591](https://github.com/dakotamurphyucf/gpuio/actions/runs/37260437591)
-at `2fdf53b` passed both complete macOS and Linux jobs, including the repaired
-native idle/picker/carousel/checkbox checks. Run `37266229651` at `84827c0`
-is still in progress; newer local sources still require hosted qualification.
+Hosted run [37266229651](https://github.com/dakotamurphyucf/gpuio/actions/runs/37266229651)
+at `84827c0` passed both complete macOS and Linux jobs with no failed steps.
+The newer native-text profiler and macOS teardown changes pass scoped local
+checks but still require hosted qualification at their delivered revisions.
 Three full optimized loaded-list, paged-table and growing-document runs pass
 their declared budgets; six ordinary/profiled comparisons and three resource
 lifecycle runs also pass. Three full streaming/typing runs also pass after an optional profiler repair,

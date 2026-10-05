@@ -1,9 +1,9 @@
 //! Qualification-only component. The ordinary application backend never links it.
 use gpuio_extension_sdk::{self as sdk, gpui, gpui::prelude::*};
-use gpuio_native::performance::{Distribution, Interval, Snapshot};
+use gpuio_native::performance::{Distribution, Interval, Snapshot, WindowObservation};
 use std::{cell::RefCell, fmt::Write, rc::Rc, sync::Arc, time::Instant};
 
-pub const FINGERPRINT: &str = "e5008fe376c44b30bf168ecd31b14cf23f18cd92006b59532b9b8a21053d8aa8";
+pub const FINGERPRINT: &str = "fe895f6b182f059b923915dc588ec7e7d09b453c063aa6da37cf8f6bfc77f784";
 pub fn factory() -> Arc<dyn sdk::Factory> {
     Arc::new(Factory)
 }
@@ -12,6 +12,7 @@ struct Factory;
 #[derive(Debug, PartialEq, Eq)]
 enum Command {
     Begin,
+    BeginIdle,
     Finish,
     DocumentPreparation,
     Buckets { metric: usize, offset: usize },
@@ -20,6 +21,7 @@ impl Command {
     fn decode(bytes: &[u8]) -> Result<Self, sdk::Error> {
         match bytes {
             [0] => Ok(Self::Begin),
+            [4] => Ok(Self::BeginIdle),
             [1] => Ok(Self::Finish),
             [3] => Ok(Self::DocumentPreparation),
             [2, metric @ 0..=4, digits @ ..]
@@ -51,13 +53,15 @@ enum State {
 struct Probe {
     state: Rc<RefCell<State>>,
     pending: Option<gpui::Task<()>>,
+    observations: Rc<RefCell<Vec<(u128, WindowObservation)>>>,
+    idle_mode: bool,
 }
 
 impl sdk::Factory for Factory {
     fn descriptor(&self) -> sdk::Descriptor {
         sdk::Descriptor {
             name: "qualification.performance",
-            version: 2,
+            version: 3,
             fingerprint: FINGERPRINT,
             sdk_version: sdk::SDK_VERSION,
             gpui_revision: sdk::GPUI_REVISION,
@@ -85,6 +89,8 @@ impl sdk::Factory for Factory {
         Ok(Box::new(Probe {
             state: Rc::new(RefCell::new(State::Idle)),
             pending: None,
+            observations: Rc::new(RefCell::new(Vec::new())),
+            idle_mode: false,
         }))
     }
 }
@@ -126,10 +132,14 @@ impl sdk::Component for Probe {
     }
     fn command(&mut self, bytes: &[u8], cx: &mut sdk::Context<'_>) -> Result<(), sdk::Error> {
         match Command::decode(bytes)? {
-            Command::Begin => {
+            Command::Begin | Command::BeginIdle => {
                 if matches!(*self.state.borrow(), State::Settling | State::Running(_)) {
                     return Err(sdk::Error::InvalidCommand);
                 }
+                self.idle_mode = Command::decode(bytes)? == Command::BeginIdle;
+                self.observations.borrow_mut().clear();
+                let idle_mode = self.idle_mode;
+                let observations = self.observations.clone();
                 *self.state.borrow_mut() = State::Settling;
                 let state = self.state.clone();
                 let events = cx.events.clone();
@@ -138,7 +148,8 @@ impl sdk::Component for Probe {
                     cx.background_executor()
                         .timer(std::time::Duration::from_secs(2))
                         .await;
-                    let _ = window.update(cx, |_, window, _| {
+                    let epoch = Instant::now();
+                    let result = window.update(cx, |_, window, _| {
                         if let Err(error) = events.check() {
                             eprintln!("PERFORMANCE_PROBE_BEGIN_FAILED {error:?}");
                             return;
@@ -147,9 +158,40 @@ impl sdk::Component for Probe {
                         let snapshot = Snapshot::capture(window);
                         let capture_ns = started.elapsed().as_nanos();
                         *state.borrow_mut() = State::Running(snapshot);
+                        if idle_mode {
+                            observations.borrow_mut().push((
+                                epoch.elapsed().as_nanos(),
+                                WindowObservation::capture(window),
+                            ));
+                        }
                         // Delivery is asynchronous and does not request native redraw.
                         let _ = events.emit(format!("(Begun {capture_ns})").into_bytes());
                     });
+                    if result.is_err() || !idle_mode {
+                        return;
+                    }
+                    loop {
+                        let deadline =
+                            std::time::Duration::from_secs(observations.borrow().len() as u64);
+                        cx.background_executor()
+                            .timer(deadline.saturating_sub(epoch.elapsed()))
+                            .await;
+                        let result = window.update(cx, |_, window, _| {
+                            if !matches!(*state.borrow(), State::Running(_))
+                                || observations.borrow().len() >= 128
+                            {
+                                return false;
+                            }
+                            observations.borrow_mut().push((
+                                epoch.elapsed().as_nanos(),
+                                WindowObservation::capture(window),
+                            ));
+                            true
+                        });
+                        if !matches!(result, Ok(true)) {
+                            break;
+                        }
+                    }
                 }));
                 Ok(())
             }
@@ -179,6 +221,19 @@ impl sdk::Component for Probe {
                     counts.join(" ")
                 );
                 cx.events.emit(event.into_bytes())?;
+                if self.idle_mode {
+                    let observations = self.observations.borrow();
+                    let mut event = String::from("(Idle_observations (");
+                    for (elapsed, observation) in observations.iter() {
+                        let visible = observation
+                            .visible
+                            .map(|v| v.to_string())
+                            .unwrap_or_default();
+                        write!(event, "({elapsed} {} ({visible}))", observation.active).unwrap();
+                    }
+                    event.push_str("))");
+                    cx.events.emit(event.into_bytes())?;
+                }
                 *state = State::Finished(interval);
                 Ok(())
             }
@@ -219,6 +274,7 @@ mod tests {
         assert_eq!(Command::decode(&[0]), Ok(Command::Begin));
         assert_eq!(Command::decode(&[1]), Ok(Command::Finish));
         assert_eq!(Command::decode(&[3]), Ok(Command::DocumentPreparation));
+        assert_eq!(Command::decode(&[4]), Ok(Command::BeginIdle));
         assert_eq!(
             Command::decode(
                 b"\x02\x04"
@@ -238,6 +294,7 @@ mod tests {
             &[0, 0],
             &[1, 0],
             &[3, 0],
+            &[4, 0],
             &[2, 5, b'0'],
             &[2, 0],
             b"\x02\x00-1",

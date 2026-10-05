@@ -85,8 +85,9 @@ class DocumentQualificationTest(unittest.TestCase):
         rust = (root / 'rust/src/lib.rs').read_text()
         self.assertEqual(re.search(r'~fingerprint:"([a-f0-9]{64})"', ocaml)[1], digest)
         self.assertEqual(re.search(r'FINGERPRINT: &str = "([a-f0-9]{64})"', rust)[1], digest)
-        self.assertIn('~version:2', ocaml)
-        self.assertIn('version: 2,', rust)
+        version = re.fullmatch(r'GPUIO qualification probe v([1-9][0-9]*)', (root / 'schema.txt').read_text().splitlines()[0])[1]
+        self.assertIn(f'~version:{version}', ocaml)
+        self.assertIn(f'version: {version},', rust)
 
     def test_fixture_is_exact_utf8_and_varies_by_identity(self):
         a, b = m.chunk(0, 1), m.chunk(1, 1)
