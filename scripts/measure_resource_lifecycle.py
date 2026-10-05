@@ -81,8 +81,9 @@ def validate(output, samples, *, smoke, background):
 
 
 class Checkpoints:
-    def __init__(self, log, samples, *, cycles):
+    def __init__(self, log, samples, *, cycles, physical_memory=False):
         self.log, self.samples, self.cycles = log, samples, cycles
+        self.physical_memory = physical_memory
         self.offset, self.pending, self.started = 0, b'', time.monotonic()
 
     def __call__(self, child):
@@ -110,8 +111,13 @@ class Checkpoints:
             rss = natural(raw) * 1024
             if rss == 0:
                 raise ValueError('Missing resident-set measurement')
-            self.samples.append(dict(cycle=cycle, rss_bytes=rss,
-                                     elapsed_seconds=time.monotonic() - self.started))
+            sample = dict(cycle=cycle, rss_bytes=rss,
+                          elapsed_seconds=time.monotonic() - self.started)
+            self.samples.append(sample)
+            if self.physical_memory:
+                from mac_process_memory import sample as sample_memory
+                sample['physical_memory'] = sample_memory(
+                    child.pid, self.log.parent / 'physical-memory' / f'cycle-{cycle:03}')
             child.stdin.write(f'continue {cycle}\n'.encode())
             child.stdin.flush()
 
@@ -123,6 +129,8 @@ def main():
     parser.add_argument('--build-profile', choices=('dev', 'release'), required=True)
     parser.add_argument('--smoke', action='store_true')
     parser.add_argument('--background', action='store_true')
+    parser.add_argument('--physical-memory', action='store_true',
+                        help='macOS only: retain footprint/vmmap at each closed checkpoint; separate from responsiveness')
     parser.add_argument('--check-budgets', action='store_true')
     parser.add_argument('--timeout', type=float, default=600)
     args = parser.parse_args()
@@ -130,9 +138,12 @@ def main():
         parser.error('Timeout must be finite and in (0,3600] seconds')
     if args.check_budgets and (args.smoke or args.build_profile != 'release'):
         parser.error('Budget checks require full optimized cycles')
+    if args.physical_memory and platform.system() != 'Darwin':
+        parser.error('Physical-memory audit requires macOS')
     args.output.mkdir(parents=True, exist_ok=False)
     report = dict(complete=False, samples=[], platform=platform.platform(), architecture=platform.machine(),
                   build_profile=args.build_profile, smoke=args.smoke, background=args.background,
+                  physical_memory=args.physical_memory,
                   measurement='Settled process RSS and acknowledged application registrations; not GPU memory or native entity counts')
     log = args.output / 'application.log'
     def interrupted(signum, _frame):
@@ -149,8 +160,17 @@ def main():
                           power=command('pmset', '-g', 'batt'), thermal=command('pmset', '-g', 'therm'))
         arguments = [flag for enabled, flag in ((args.smoke, '--smoke'), (args.background, '--background')) if enabled]
         collect(args.executable, log, report, args.timeout, arguments=arguments,
-                on_poll=Checkpoints(log, report['samples'], cycles=4 if args.smoke else 33))
+                on_poll=Checkpoints(log, report['samples'], cycles=4 if args.smoke else 33,
+                                    physical_memory=args.physical_memory))
         report['workload'] = validate(log.read_text(), report['samples'], smoke=args.smoke, background=args.background)
+        if args.physical_memory:
+            values = [s['physical_memory']['footprint_bytes'] for s in report['samples']]
+            final = values[-min(10, len(values)):]
+            report['physical_memory_summary'] = dict(
+                sample_count=len(values), first_bytes=values[0], last_bytes=values[-1],
+                peak_checkpoint_bytes=max(values), final_range_bytes=max(final)-min(final),
+                final_baseline_growth_bytes=max(0, max(final)-final[0]),
+                scope='Closed-window settled OS footprint; no physical-footprint pass/fail threshold or complete GPU census')
         if args.check_budgets and not report['workload']['qualification']:
             raise ValueError('Last ten-cycle RSS baseline growth exceeds 64 MiB')
         report['complete'] = True

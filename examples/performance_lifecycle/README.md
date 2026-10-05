@@ -48,3 +48,22 @@ profiler; this is not the ordinary-backend overhead comparison.
 Reports preserve exact binary hash, checkout metadata, hardware/display/power
 information, failed logs and partial samples. Associate them with a preceding
 recorded source build; checkout metadata alone is not embedded binary provenance.
+
+## Separate macOS physical-memory audit
+
+Add `--physical-memory` to collect `/usr/bin/footprint` JSON and raw
+`/usr/bin/vmmap -summary` output at every closed-window checkpoint. The collector
+checks the exact owned PID, byte units, all category fields and tool diagnostics
+before acknowledging the next cycle. Errors, warnings, timeouts and partial
+output are retained; incomplete observations cannot pass. The two tools each
+have a six-second timeout within the application's 20-second checkpoint wait.
+No privilege escalation or machine-wide setting changes are performed.
+
+This audit intentionally runs separately from responsiveness measurements: OS
+inspection can suspend the child and perturb timing. Existing RSS qualification
+remains distinct. The report adds all settled physical-footprint values and
+final-ten growth/range as observations, with no retroactively chosen physical
+pass/fail threshold. Raw category names/accounting, including any GPU/IOSurface
+categories exposed by the OS, are retained without calling them a complete
+Metal allocation census. Closed-window samples do not establish peak live-window
+GPU memory or physical presentation.

@@ -175,6 +175,8 @@ jobs:
         run: python3 scripts/test_measure_table_history.py 2>&1 | tee .cache/ci/table-measurement-diagnostics.log
       - name: Resource lifecycle report validation (no display)
         run: python3 scripts/test_measure_resource_lifecycle.py 2>&1 | tee .cache/ci/lifecycle-measurement-diagnostics.log
+      - name: macOS physical-memory report validation (no display)
+        run: python3 scripts/test_mac_process_memory.py 2>&1 | tee .cache/ci/physical-memory-report-diagnostics.log
       - name: Document growth report validation (no display)
         run: python3 scripts/test_measure_document_growth.py 2>&1 | tee .cache/ci/document-measurement-diagnostics.log
       - name: Concurrent streaming and typing report validation (no display)
