@@ -3241,12 +3241,18 @@ def exercise_feedback(mac, images):
     def open_palette():
         mac.press(TITLE, 'Find a command')
         mac.release(mac.wait_find(TITLE, 'Preview commands', 'AXWindow'))
+        passive_menu_label('Preview actions')
+        passive_menu_label('Editing')
 
     activate(mac, mac.wait_find(TITLE, 'Clear command query before closing', 'AXCheckBox'))
     open_palette()
+    if images:
+        screenshot(mac, images / 'gallery-palette-groups.png', title=TITLE)
     mac.field(TITLE, 'Preview commands', 'AXComboBox', 'STEP next')
     expect_field(mac, TITLE, 'Preview commands', 'STEP next', 'AXComboBox')
     palette_rows(['Advance preview'])
+    passive_menu_label('Preview actions')
+    wait_absent(mac, 'Editing', 'AXStaticText')
     mac.key(53)
     expect_field(mac, TITLE, 'Preview commands', '', 'AXComboBox')
     palette_rows(['Advance preview', 'Save preview', 'Copy preview selection'])
@@ -3256,8 +3262,12 @@ def exercise_feedback(mac, images):
     open_palette()
     mac.field(TITLE, 'Preview commands', 'AXComboBox', 'STEP next')
     palette_rows([])
+    wait_absent(mac, 'Preview actions', 'AXStaticText')
+    wait_absent(mac, 'Editing', 'AXStaticText')
     mac.field(TITLE, 'Preview commands', 'AXComboBox', '  NEXT STEP  ')
     palette_rows(['Advance preview'])
+    passive_menu_label('Preview actions')
+    wait_absent(mac, 'Editing', 'AXStaticText')
     if images:
         screenshot(mac, images / 'gallery-palette-keywords.png', title=TITLE)
     mac.key(53)

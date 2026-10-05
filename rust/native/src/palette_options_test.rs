@@ -12,7 +12,7 @@ fn draw(cx: &mut VisualTestContext) {
     cx.update(|w, cx| w.draw(cx).clear(cx));
     cx.run_until_parked();
 }
-fn apply(owner: &Entity<View>, cx: &mut VisualTestContext, operations: Vec<Op>) {
+fn admit(owner: &Entity<View>, cx: &mut VisualTestContext, operations: Vec<Op>) {
     cx.update(|w, cx| {
         owner.update(cx, |view, cx| {
             let base = view.session.borrow().tree(view.id).unwrap().revision();
@@ -30,6 +30,9 @@ fn apply(owner: &Entity<View>, cx: &mut VisualTestContext, operations: Vec<Op>) 
             cx.notify();
         })
     });
+}
+fn apply(owner: &Entity<View>, cx: &mut VisualTestContext, operations: Vec<Op>) {
+    admit(owner, cx, operations);
     draw(cx);
 }
 fn commands() -> Vec<CommandConfig> {
@@ -347,4 +350,84 @@ fn options_on_a_hidden_retired_palette_do_not_require_a_focus_scope_or_reopen_it
             assert_eq!(input.read(cx).value().as_str(), "retained query");
         });
     }
+}
+
+#[test]
+fn grouped_layout_retains_query_filters_headings_and_skips_passive_rows() {
+    use gpuio_protocol::palette_layout::{Config, Entry};
+    let mut app = TestAppContext::single();
+    let (owner, mut cx, _reader) = mount(&mut app);
+    let input = owner.read_with(&cx, |view, _| view.palettes[&id(1)].query.clone());
+    let layout = Config(vec![
+        Entry::Separator,
+        Entry::Group("tasks".into(), Some("Tasks".into()), vec![0]),
+        Entry::Separator,
+        Entry::Separator,
+        Entry::Group("other".into(), Some("Other commands".into()), vec![1, 2]),
+        Entry::Separator,
+    ]);
+    apply(
+        &owner,
+        &mut cx,
+        vec![Op::SetPaletteLayout(id(1), Some(layout.clone()))],
+    );
+    owner.read_with(&cx, |view, _| {
+        let state = &view.palettes[&id(1)];
+        assert_eq!(state.query.entity_id(), input.entity_id());
+        assert_eq!(state.scroll.rows().len(), 6);
+        let bounds = |i| state.scroll.handle.bounds_for_item(i).unwrap();
+        assert!(
+            bounds(2).size.height < bounds(1).size.height,
+            "divider has measured short height"
+        );
+    });
+    cx.update(|w, cx| w.focus(&input.read(cx).focus_handle(cx), cx));
+    cx.simulate_event(gpui::KeyDownEvent {
+        keystroke: gpui::Keystroke::parse("down").unwrap(),
+        is_held: false,
+        prefer_character_input: false,
+    });
+    draw(&mut cx);
+    owner.read_with(&cx, |view, _| {
+        assert_eq!(view.palettes[&id(1)].selected.as_deref(), Some("other"))
+    });
+    query(&owner, &mut cx, "Run");
+    owner.read_with(&cx, |view, _| {
+        let rows = view.palettes[&id(1)].scroll.rows();
+        assert_eq!(rows.len(), 2);
+        assert!(matches!(&rows[0],list::Row::Heading {id,..} if id=="tasks"));
+    });
+    query(&owner, &mut cx, "missing");
+    owner.read_with(&cx, |view, _| {
+        assert!(view.palettes[&id(1)].scroll.rows().is_empty())
+    });
+    query(&owner, &mut cx, "Run");
+    // No paint: an occluded window must also retire the old group projection.
+    admit(&owner, &mut cx, vec![Op::SetPaletteLayout(id(1), None)]);
+    owner.read_with(&cx, |view, cx| {
+        let state = &view.palettes[&id(1)];
+        assert_eq!(state.query.entity_id(), input.entity_id());
+        assert_eq!(input.read(cx).value().as_str(), "Run");
+        assert_eq!(state.scroll.rows().len(), 1);
+    });
+    // A well-formed layout cannot silently omit configured registry commands.
+    cx.update(|_, cx| {
+        owner.update(cx, |view, _| {
+            let mut session = view.session.borrow_mut();
+            let revision = session.tree(view.id).unwrap().revision();
+            let result = session.apply(&Transaction {
+                window: view.id,
+                base: revision,
+                revision: revision + 1,
+                operations: vec![Op::SetPaletteLayout(
+                    id(1),
+                    Some(Config(vec![Entry::Command(0)])),
+                )],
+            });
+            assert!(result.is_err());
+            let tree = session.tree(view.id).unwrap();
+            assert_eq!(tree.revision(), revision);
+            assert!(tree.get(id(1)).unwrap().palette_layout.is_none());
+        })
+    });
 }

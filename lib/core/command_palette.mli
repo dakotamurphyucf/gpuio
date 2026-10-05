@@ -15,6 +15,41 @@ module Escape : sig
   [@@deriving equal, sexp_of]
 end
 
+module Group : sig
+  module Id : sig
+    type t [@@deriving equal, compare, sexp_of]
+
+    (** Nonblank UTF-8 without NUL, at most 256 bytes. *)
+    val of_string : string -> t Core.Or_error.t
+
+    val to_string : t -> string
+  end
+
+  type t [@@deriving equal, sexp_of]
+
+  (** A stable group with an optional passive heading. Empty groups are allowed;
+      a group with no matching commands has no visible heading. Labels are
+      nonblank UTF-8 without NUL, at most 4096 bytes. *)
+  val create
+    :  id:Id.t
+    -> ?label:string
+    -> commands:Command.Id.t list
+    -> unit
+    -> t Core.Or_error.t
+
+  val id : t -> Id.t
+  val label : t -> string option
+  val commands : t -> Command.Id.t list
+end
+
+module Entry : sig
+  type t =
+    | Command of Command.Id.t
+    | Group of Group.t
+    | Separator
+  [@@deriving equal, sexp_of]
+end
+
 module Config : sig
   type t [@@deriving equal, sexp_of]
 
@@ -54,6 +89,23 @@ module Config : sig
     -> unit
     -> t Core.Or_error.t
 
+  (** Grouped presentation over the same native command registry. Commands and
+      group IDs must be unique; at most 1024 top-level entries and 1024 commands.
+      Group IDs/labels share the 256-KiB metadata budget with search policies.
+      Leading, trailing and consecutive separators are suppressed after filtering.
+      Headings/separators never participate in keyboard selection. *)
+  val create_entries
+    :  label:string
+    -> entries:Entry.t list
+    -> ?placeholder:string
+    -> ?dismiss_on_outside_pointer:bool
+    -> ?search:Search.t
+    -> ?searchable:bool
+    -> ?escape:Escape.t
+    -> ?keywords:(Command.Id.t * string list) list
+    -> unit
+    -> t Core.Or_error.t
+
   val commands : t -> Command.Id.t list
 end
 
@@ -70,6 +122,7 @@ module Appearance = Choice.Appearance
 module Expert : sig
   val to_wire : Config.t -> Gpuio_protocol.Wire.Palette.t
   val options : Config.t -> Gpuio_protocol.Palette_options_wire.t option
+  val layout : Config.t -> Gpuio_protocol.Palette_layout_wire.t option
 
   val dismissal
     :  Config.t

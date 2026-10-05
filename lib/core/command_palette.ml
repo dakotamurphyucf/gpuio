@@ -4,6 +4,59 @@ module Wire = Gpuio_protocol.Wire
 module Options = Gpuio_protocol.Palette_options_wire
 module Search = Options.Search
 module Escape = Options.Escape
+module Layout = Gpuio_protocol.Palette_layout_wire
+
+let valid_text limit text =
+  String.length text <= limit
+  && (not (String.is_empty (String.strip text)))
+  && Stdlib.String.is_valid_utf_8 text
+  && not (String.contains text '\000')
+;;
+
+module Group = struct
+  module Id = struct
+    type t = string [@@deriving equal, compare, sexp_of]
+
+    let of_string text =
+      if valid_text 256 text
+      then Ok text
+      else
+        Or_error.error_string
+          "palette group ID must be nonblank bounded UTF-8 without NUL"
+    ;;
+
+    let to_string t = t
+  end
+
+  type t =
+    { id : Id.t
+    ; label : string option
+    ; commands : Ui_command.Id.t list
+    }
+  [@@deriving equal, sexp_of]
+
+  let create ~id ?label ~commands () =
+    if Option.exists label ~f:(fun label -> not (valid_text 4096 label))
+    then
+      Or_error.error_string
+        "palette group label must be nonblank bounded UTF-8 without NUL"
+    else if List.length commands > 1024
+    then Or_error.error_string "palette group exceeds 1024 commands"
+    else Ok { id; label; commands }
+  ;;
+
+  let id t = t.id
+  let label t = t.label
+  let commands t = t.commands
+end
+
+module Entry = struct
+  type t =
+    | Command of Ui_command.Id.t
+    | Group of Group.t
+    | Separator
+  [@@deriving equal, sexp_of]
+end
 
 module Config = struct
   type t =
@@ -12,6 +65,7 @@ module Config = struct
     ; commands : Ui_command.Id.t list
     ; dismiss_on_outside_pointer : bool
     ; options : Options.t option
+    ; layout : Layout.t option
     }
   [@@deriving equal, sexp_of]
 
@@ -70,7 +124,75 @@ module Config = struct
         ; commands
         ; dismiss_on_outside_pointer
         ; options = Option.some_if (not (Options.equal options Options.default)) options
+        ; layout = None
         }
+  ;;
+
+  let create_entries
+        ~label
+        ~entries
+        ?placeholder
+        ?dismiss_on_outside_pointer
+        ?search
+        ?searchable
+        ?escape
+        ?keywords
+        ()
+    =
+    let commands =
+      List.concat_map entries ~f:(function
+        | Entry.Command command -> [ command ]
+        | Group group -> Group.commands group
+        | Separator -> [])
+    in
+    let groups =
+      List.filter_map entries ~f:(function
+        | Entry.Group group -> Some (Group.Id.to_string (Group.id group))
+        | Command _ | Separator -> None)
+    in
+    if
+      List.length entries > 1024
+      || Set.length (String.Set.of_list groups) <> List.length groups
+    then
+      Or_error.error_string "palette requires at most 1024 entries and unique group IDs"
+    else (
+      let%bind.Or_error t =
+        create
+          ~label
+          ~commands
+          ?placeholder
+          ?dismiss_on_outside_pointer
+          ?search
+          ?searchable
+          ?escape
+          ?keywords
+          ()
+      in
+      let _, layout =
+        List.fold_map entries ~init:0 ~f:(fun index -> function
+          | Entry.Command _ -> index + 1, Layout.Entry.Command index
+          | Group group ->
+            let count = List.length (Group.commands group) in
+            ( index + count
+            , Layout.Entry.Group
+                ( Group.Id.to_string (Group.id group)
+                , Group.label group
+                , List.init count ~f:(fun offset -> index + offset) ) )
+          | Separator -> index, Layout.Entry.Separator)
+      in
+      let bytes =
+        String.length t.label
+        + String.length t.placeholder
+        + List.sum
+            (module Int)
+            commands
+            ~f:(fun id -> String.length (Ui_command.Id.to_string id))
+        + Option.value_map t.options ~default:0 ~f:Options.text_bytes
+        + Layout.text_bytes layout
+      in
+      if bytes > 262_144
+      then Or_error.error_string "palette metadata exceeds 256 KiB"
+      else Ok { t with layout = Some layout })
   ;;
 
   let commands t = t.commands
@@ -88,6 +210,7 @@ module Appearance = Choice.Appearance
 
 module Expert = struct
   let options (t : Config.t) = t.options
+  let layout (t : Config.t) = t.layout
 
   let to_wire (t : Config.t) : Wire.Palette.t =
     { label = t.label

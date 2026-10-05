@@ -2386,7 +2386,15 @@ let rec mount builder ~depth previous view =
              Gpuio_protocol.Palette_options_wire.equal
              (Option.bind old ~f:Command_palette.Expert.options)
              options)
-      then emit builder (Set_palette_options (id, options)));
+      then emit builder (Set_palette_options (id, options));
+      let layout = Command_palette.Expert.layout palette.config in
+      if
+        not
+          (Option.equal
+             Gpuio_protocol.Palette_layout_wire.equal
+             (Option.bind old ~f:Command_palette.Expert.layout)
+             layout)
+      then emit builder (Set_palette_layout (id, layout)));
     let editor_config (description : _ View.Expert.description) =
       match description.editor, description.combobox with
       | Some editor, None -> Some editor.config

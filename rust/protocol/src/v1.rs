@@ -843,6 +843,7 @@ pub enum Op {
     CreateTableText(NodeId, crate::table::Cell),
     SetTableText(NodeId, crate::table::Cell),
     SetPaletteOptions(NodeId, Option<crate::palette_options::Config>),
+    SetPaletteLayout(NodeId, Option<crate::palette_layout::Config>),
 }
 
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]

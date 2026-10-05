@@ -380,7 +380,7 @@ let component app window palette graph =
        then
          V.command_palette
            ~config:
-             (Command_palette.Config.create
+             (Command_palette.Config.create_entries
                 ~label:"Preview commands"
                 ~search
                 ~searchable:palette_searchable
@@ -390,7 +390,23 @@ let component app window palette graph =
                   ; notify, [ "store"; "persist" ]
                   ; copy, [ "clipboard" ]
                   ]
-                ~commands:[ advance; notify; copy ]
+                ~entries:
+                  [ Group
+                      (Command_palette.Group.create
+                         ~id:(Command_palette.Group.Id.of_string "preview" |> ok)
+                         ~label:"Preview actions"
+                         ~commands:[ advance; notify ]
+                         ()
+                       |> ok)
+                  ; Separator
+                  ; Group
+                      (Command_palette.Group.create
+                         ~id:(Command_palette.Group.Id.of_string "editing" |> ok)
+                         ~label:"Editing"
+                         ~commands:[ copy ]
+                         ()
+                       |> ok)
+                  ]
                 ~placeholder:"Find a preview action…"
                 ()
               |> ok)

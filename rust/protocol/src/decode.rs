@@ -806,6 +806,39 @@ impl Decoder<'_> {
         *bytes += value.len();
         Ok(value)
     }
+    fn palette_layout(&mut self) -> Result<crate::palette_layout::Config, DecodeError> {
+        use crate::palette_layout::{Config, Entry};
+        let size = self.count(1024)?;
+        let mut entries = Vec::with_capacity(size);
+        let mut remaining = 1024usize;
+        let mut bytes = 0;
+        for _ in 0..size {
+            entries.push(match self.tag()? {
+                0 => {
+                    remaining = remaining.checked_sub(1).ok_or(DecodeError::Malformed)?;
+                    Entry::Command(self.int()?)
+                }
+                1 => {
+                    let id = self.bounded_metadata_text(256, &mut bytes)?;
+                    let label = self.option(|this| this.bounded_metadata_text(4096, &mut bytes))?;
+                    let count = self.count(remaining)?;
+                    remaining -= count;
+                    let mut commands = Vec::with_capacity(count);
+                    for _ in 0..count {
+                        commands.push(self.int()?);
+                    }
+                    Entry::Group(id, label, commands)
+                }
+                2 => Entry::Separator,
+                _ => return Err(DecodeError::Malformed),
+            });
+        }
+        let config = Config(entries);
+        if !config.is_valid() {
+            return Err(DecodeError::Malformed);
+        }
+        Ok(config)
+    }
     fn palette_options(&mut self) -> Result<crate::palette_options::Config, DecodeError> {
         use crate::palette_options::{Config, Escape, Keywords, Search};
         let search = match self.tag()? {
@@ -1325,6 +1358,7 @@ impl Decoder<'_> {
             123 => Op::CreateTableText(self.node()?, self.table_cell()?),
             124 => Op::SetTableText(self.node()?, self.table_cell()?),
             125 => Op::SetPaletteOptions(self.node()?, self.option(Self::palette_options)?),
+            126 => Op::SetPaletteLayout(self.node()?, self.option(Self::palette_layout)?),
             122 => Op::SetWindowRegion(
                 self.node()?,
                 self.option(|d| {

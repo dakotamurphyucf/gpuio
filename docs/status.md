@@ -84,7 +84,7 @@ including passive accessibility text, keyboard navigation and context-menu focus
 restoration. Platform bars reject labels explicitly. [Passive rich menu content](evidence/menu-content-och41.md)
 now adds registered SVGs and composed labels, with paired transaction admission,
 paint/animation lifecycle checks and an installed macOS pixel/interaction walkthrough.
-Palette search/visibility/Escape policies now have [API, native lifecycle and installed macOS evidence](evidence/palette-policies-och41.md). Richer palette presentation/query controllers and OS popup menus remain open catalog work.
+Palette search/visibility/Escape policies now have [API, native lifecycle and installed macOS evidence](evidence/palette-policies-och41.md). [Grouped palette presentation](evidence/palette-layout-och41.md) now adds stable groups, filtered passive headings and separators with retained measured scrolling, paired codecs, native regressions and an installed macOS walkthrough. Rich row/header/footer/empty content, query controllers and OS popup menus remain open catalog work.
 The current unmodified table smoke at `5c3956d` fails the 100 ms startup gate
 at approximately 147.364 ms. A separate paced replay also reproduces the owner's
 reported table flicker: three overlapping rows remain populated while newly

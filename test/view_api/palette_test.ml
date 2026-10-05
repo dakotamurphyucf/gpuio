@@ -222,3 +222,80 @@ let%expect_test "palette option updates preserve mounted identity and reset sepa
   assert (Option.is_none options);
   [%expect {| |}]
 ;;
+
+let%expect_test "palette grouped presentation validates IDs, emits layout only and resets"
+  =
+  let module P = Command_palette in
+  let group_id = P.Group.Id.of_string "g" |> Or_error.ok_exn in
+  let group =
+    P.Group.create ~id:group_id ~label:"Group" ~commands:[ id "run" ] ()
+    |> Or_error.ok_exn
+  in
+  let entries = [ P.Entry.Group group; Separator; Command (id "copy") ] in
+  let grouped () =
+    P.Config.create_entries ~label:"Actions" ~entries () |> Or_error.ok_exn
+  in
+  assert (Result.is_error (P.Group.Id.of_string " "));
+  assert (Result.is_error (P.Group.create ~id:group_id ~label:"\000" ~commands:[] ()));
+  assert (
+    Result.is_error
+      (P.Config.create_entries ~label:"Actions" ~entries:[ Group group; Group group ] ()));
+  assert (
+    Result.is_error
+      (P.Config.create_entries
+         ~label:"Actions"
+         ~entries:[ Group group; Command (id "run") ]
+         ()));
+  assert (
+    Result.is_error
+      (P.Config.create_entries
+         ~label:"Actions"
+         ~entries:(List.init 1025 ~f:(Fn.const P.Entry.Separator))
+         ()));
+  assert (
+    List.equal Command.Id.equal (P.Config.commands (grouped ())) [ id "run"; id "copy" ]);
+  let layout = P.Expert.layout (grouped ()) in
+  let fixture =
+    Wire.Message.Apply
+      { window
+      ; base = 0L
+      ; revision = 1L
+      ; operations = [ Set_palette_layout (node 1L, layout) ]
+      }
+  in
+  assert (
+    String.equal
+      (Bin_prot.Utils.bin_dump Wire.Message.bin_writer_t fixture |> Bigstring.to_string)
+      "\003\000\001\000\001\001\126\001\001\001\003\001\001g\001\005Group\001\000\002\000\001");
+  let reconciler = Reconciler.create window in
+  let apply config =
+    let view =
+      View.command_scope
+        ~commands
+        [ View.command_palette ~config ~on_dismiss:(Fn.const "dismiss") () ]
+    in
+    let prepared =
+      Reconciler.prepare reconciler ~theme:Theme.default (Some view) |> Or_error.ok_exn
+    in
+    let message = Reconciler.message prepared in
+    Reconciler.accept reconciler prepared |> Or_error.ok_exn;
+    message
+  in
+  let flat =
+    P.Config.create ~label:"Actions" ~commands:[ id "run"; id "copy" ] ()
+    |> Or_error.ok_exn
+  in
+  ignore (apply flat : Wire.Message.t option);
+  let only_layout = function
+    | Some (Wire.Message.Apply { operations = [ Set_palette_layout (node, layout) ]; _ })
+      -> node, layout
+    | _ -> assert false
+  in
+  let mounted, layout = only_layout (apply (grouped ())) in
+  assert (Option.is_some layout);
+  assert (Option.is_none (apply (grouped ())));
+  let reset, layout = only_layout (apply flat) in
+  assert (Node_id.equal mounted reset);
+  assert (Option.is_none layout);
+  [%expect {| |}]
+;;

@@ -47,10 +47,11 @@ impl PaletteConfig {
         std::mem::size_of::<Self>()
             + self.label.len()
             + self.placeholder.len()
+            // Reserve command strings, visual keys and measured-list row state.
             + self
                 .commands
                 .iter()
-                .map(|id| std::mem::size_of::<String>() + id.len())
+                .map(|id| std::mem::size_of::<String>() + id.len() * 3 + 512)
                 .sum::<usize>()
             + PALETTE_QUERY_BYTES * 8
             + PALETTE_HISTORY_BYTES

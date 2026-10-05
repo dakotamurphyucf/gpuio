@@ -1,0 +1,110 @@
+{
+  "base": "e88f5241f9f3f4ac652b64a3e4a8a77b9b0324ea",
+  "files": [
+    {
+      "path": "layout-commands.txt",
+      "bytes": 2421,
+      "sha256": "fb87357f9f06d52cc08845c38ceb7e6ca14b572b3ff94e40c00cd9581c22ec30"
+    },
+    {
+      "path": "layout-source.patch",
+      "bytes": 58662,
+      "sha256": "cd3d27b2d7f53f5366526a663ca4a968f01b838e8e42f066c0d6618fb96083e7"
+    },
+    {
+      "path": "run_palette_native.py",
+      "bytes": 986,
+      "sha256": "ebce59a6fa762afbc3a68796f3f3d1962a2fa51447003c6038ae65e9ef92b064"
+    },
+    {
+      "path": "layout-protocol-build.log",
+      "bytes": 455,
+      "sha256": "0aa19236c86c116af0367f7c3ba298b01de8cc80412d890177b09099204f9ddc"
+    },
+    {
+      "path": "layout-native-build.log",
+      "bytes": 590227,
+      "sha256": "ca9eee9dd125a830b5e6a80c5ab1452a682730a1da28d2571f822ed0087ce5f0"
+    },
+    {
+      "path": "layout-ocaml.log",
+      "bytes": 101160,
+      "sha256": "38ea83ff5f4b6383ed3f029e3bd566701730dca3ee3b0957e74f55364559dc1c"
+    },
+    {
+      "path": "layout-codec.log",
+      "bytes": 465,
+      "sha256": "33b4b63555928cf0a4e1bf36686a23c6d5522fe8f6f9e9678009cd307eae84a6"
+    },
+    {
+      "path": "layout-rust-full.log",
+      "bytes": 754806,
+      "sha256": "aaf9197075d91f0c726118ce8ebbc07f5d300dd3d3c7ba08723915e35a3ef196"
+    },
+    {
+      "path": "layout-ocaml-final.log",
+      "bytes": 200508,
+      "sha256": "51b618b951bf41b371bcfb99182cf8ba100f9bfb4ef670d07c7487c1236cc322"
+    },
+    {
+      "path": "layout-ocaml-qualified.log",
+      "bytes": 100367,
+      "sha256": "c94472fb67309c5ed200f0eec108c72e55d09083e3191314ed04a28f4b465760"
+    },
+    {
+      "path": "layout-native-qualified.log",
+      "bytes": 589524,
+      "sha256": "6003f8cbbb3c2376cf18f80d809a7d946a791d0e76d25d41de5fafc8f3709209"
+    },
+    {
+      "path": "layout-os-build.log",
+      "bytes": 588419,
+      "sha256": "7f3c011e92d2d45232c4d61bcfdfd13d936e08efeade553555702cd07ce606da"
+    },
+    {
+      "path": "layout-os-native.log",
+      "bytes": 658,
+      "sha256": "bb5f337b5d6273d43026136c6058b7886098c6dfb9751dfce1514466448ab2c2"
+    },
+    {
+      "path": "layout-clippy-qualified.log",
+      "bytes": 588329,
+      "sha256": "2daef93fbfddc9930ee120d0bf9b4adb32c10db233c93959c593a72dec108425"
+    },
+    {
+      "path": "layout-rustfmt-qualified.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "layout-consumer.log",
+      "bytes": 100836,
+      "sha256": "193428f55a13846afaf1f0fb3f66f4de73e729d19b577ea43fea3e27b46fdc21"
+    },
+    {
+      "path": "layout-gallery.log",
+      "bytes": 1443,
+      "sha256": "56155aa43f81e73c854417d261ee7e8e712b39683bb2e7e712232600dc6cdb71"
+    },
+    {
+      "path": "layout-native-full-qualified.log",
+      "bytes": 649742,
+      "sha256": "dfb34ca10872c9a738ef5fc41f33fa2a9918778a9c5746d0f069a69df125d195"
+    },
+    {
+      "path": "layout-catalog.log",
+      "bytes": 640,
+      "sha256": "ec7f045757abb1d7e2907d8e645fbd6c7fa3e9b0e1e808e2fdc2dd20215b9a75"
+    },
+    {
+      "path": "gallery-palette-groups.png",
+      "bytes": 344245,
+      "sha256": "7bcdb2500e2209c46c71346d00d67e160be14f161b772658bdf709219533dd11"
+    },
+    {
+      "path": "gallery-palette-keywords.png",
+      "bytes": 358210,
+      "sha256": "c34555505644ac9cce5d78e818eb63ddc136b972ea7a31bd46d0a77f1456141a"
+    }
+  ]
+}

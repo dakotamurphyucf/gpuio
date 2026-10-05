@@ -3,10 +3,12 @@
 use super::{Interaction, View, command::Route};
 use gpui::{
     App, AppContext, Bounds, Context, Entity, EntityInputHandler, Focusable, Pixels, Subscription,
-    UniformListScrollHandle, Window, canvas, deferred, div, prelude::*, px, rgba,
+    Window, canvas, deferred, div, prelude::*, px, rgba,
 };
 use gpui_base::input::InputState;
 use gpuio_protocol::{NodeId, palette_options, v1::*};
+#[path = "palette_list.rs"]
+mod list;
 use std::{
     cell::{Cell, RefCell},
     collections::BTreeMap,
@@ -40,7 +42,7 @@ pub(super) struct State {
     rows: Vec<Row>,
     selected: Option<String>,
     revealed: Option<Reveal>,
-    scroll: UniformListScrollHandle,
+    scroll: list::State,
     bounds: Rc<Cell<Bounds<Pixels>>>,
     row_bounds: Rc<RefCell<BTreeMap<String, Bounds<Pixels>>>>,
     _subscription: Subscription,
@@ -61,7 +63,7 @@ impl State {
     pub(super) fn geometry(&self) -> (Bounds<Pixels>, gpui::Point<Pixels>, usize) {
         (
             self.bounds.get(),
-            self.scroll.0.borrow().base_handle.offset(),
+            self.scroll.handle.scroll_px_offset_for_scrollbar(),
             self.row_bounds.borrow().len(),
         )
     }
@@ -232,21 +234,30 @@ impl View {
                 },
             );
         }
+        // Retire old projected labels/keys at admission even when an occluded
+        // window will not render. Retained data must follow its budgeted tree.
+        let ids = self.palettes.keys().copied().collect::<Vec<_>>();
+        for id in ids {
+            self.refresh_palette(id, cx);
+        }
     }
     fn refresh_palette(&mut self, id: NodeId, cx: &App) -> String {
         let Some(state) = self.palettes.get(&id) else {
             return String::new();
         };
         let query = state.query.read(cx).value().to_lowercase();
-        let rows = {
+        let (rows, layout, row_height) = {
             let session = self.session.borrow();
             let Some(tree) = session.tree(self.id) else {
                 return query;
             };
-            let Some(config) = tree.get(id).and_then(|node| node.palette.as_ref()) else {
+            let Some(node) = tree.get(id) else {
                 return query;
             };
-            config
+            let Some(config) = node.palette.as_ref() else {
+                return query;
+            };
+            let rows = config
                 .commands
                 .iter()
                 .filter_map(|command| {
@@ -271,7 +282,14 @@ impl View {
                         enabled: self.palette_available(id, command, cx),
                     })
                 })
-                .collect::<Vec<_>>()
+                .collect::<Vec<_>>();
+            (
+                rows,
+                node.palette_layout.clone(),
+                node.choice_appearance
+                    .as_ref()
+                    .map_or(32., |appearance| appearance.row_height),
+            )
         };
         let state = self.palettes.get_mut(&id).unwrap();
         if !rows
@@ -283,6 +301,14 @@ impl View {
                 .find(|row| row.enabled)
                 .map(|row| row.route.config.id.clone());
         }
+        let matched = rows
+            .iter()
+            .map(|row| row.route.config.id.clone())
+            .collect::<Vec<_>>();
+        state.scroll.replace(
+            list::project(layout.as_deref(), &state.config.commands, &matched),
+            row_height as f32,
+        );
         state.rows = rows;
         query
     }
@@ -542,10 +568,7 @@ impl View {
         let state = self.palettes.get_mut(&id).unwrap();
         let rows = state.rows.clone();
         if let Some(selected) = &state.selected {
-            let index = rows
-                .iter()
-                .position(|row| row.route.config.id == *selected)
-                .unwrap();
+            let index = state.scroll.command_position(selected).unwrap();
             let reveal = Reveal {
                 command: selected.clone(),
                 query: query_text,
@@ -555,9 +578,7 @@ impl View {
                 viewport: crate::window_frame::content_bounds(window).size,
             };
             if state.revealed.as_ref() != Some(&reveal) {
-                state
-                    .scroll
-                    .scroll_to_item(index, gpui::ScrollStrategy::Nearest);
+                state.scroll.handle.scroll_to_reveal_item(index);
                 state.revealed = Some(reveal);
             }
         }
@@ -567,7 +588,8 @@ impl View {
         let query = state.query.clone();
         let searchable = state.searchable();
         let selected = state.selected.clone();
-        let scroll = state.scroll.clone();
+        let scroll = state.scroll.handle.clone();
+        let visual_rows = state.scroll.rows();
         let scope_focus = self
             .focus
             .borrow()
@@ -582,121 +604,138 @@ impl View {
         };
         let owner = cx.weak_entity();
         let style = appearance.clone();
-        let count = rows.len();
-        let list = gpui::uniform_list(("palette-results", id.slot()), count, move |range, _, _| {
-            range
-                .map(|index| {
-                    let row = rows[index].clone();
-                    let active = Some(&row.route.config.id) == selected.as_ref();
-                    let mut item = div()
-                        .id(gpui::SharedString::from(row.route.config.id.clone()))
+        let count = visual_rows.len();
+        let list = gpui::list(scroll, move |index, _, _| {
+            let row = match &visual_rows[index] {
+                list::Row::Command { index, .. } => rows[*index].clone(),
+                list::Row::Heading { id, label } => {
+                    return div()
+                        .id(gpui::SharedString::from(format!("palette-group:{id}")))
                         .w_full()
-                        .h(px(style.row_height as f32))
                         .px(px(8.))
-                        .flex()
-                        .items_center()
-                        .gap(px(8.))
-                        .overflow_hidden()
-                        .role(gpui::Role::ListBoxOption)
-                        .aria_label(row.route.config.label.clone());
+                        .py(px(5.))
+                        .text_size(px(12.))
+                        .role(gpui::Role::Label)
+                        .aria_label(label.clone())
+                        .child(gpui::SharedString::from(label.clone()))
+                        .into_any_element();
+                }
+                list::Row::Separator(index) => {
+                    return div()
+                        .id(("palette-divider", *index))
+                        .w_full()
+                        .py(px(4.))
+                        .child(div().w_full().h(px(1.)).bg(rgba(0x80808060)))
+                        .into_any_element();
+                }
+            };
+            let active = Some(&row.route.config.id) == selected.as_ref();
+            let mut item = div()
+                .id(gpui::SharedString::from(format!(
+                    "palette-command:{}",
+                    row.route.config.id
+                )))
+                .w_full()
+                .h(px(style.row_height as f32))
+                .px(px(8.))
+                .flex()
+                .items_center()
+                .gap(px(8.))
+                .overflow_hidden()
+                .role(gpui::Role::ListBoxOption)
+                .aria_label(row.route.config.label.clone());
+            gpui::Refineable::refine(
+                item.style(),
+                &crate::appearance::refinement(&style.option_style, 0),
+            );
+            if active && row.enabled {
+                item = item.bg(rgba(0x386ac880)).aria_active_descendant();
+                gpui::Refineable::refine(
+                    item.style(),
+                    &crate::appearance::refinement(&style.option_style, 1),
+                );
+            }
+            if let Some(checked) = row.route.config.checked {
+                item = item.aria_toggled(if checked {
+                    gpui::accesskit::Toggled::True
+                } else {
+                    gpui::accesskit::Toggled::False
+                });
+                if checked {
                     gpui::Refineable::refine(
                         item.style(),
-                        &crate::appearance::refinement(&style.option_style, 0),
+                        &crate::appearance::refinement(&style.option_style, 7),
                     );
-                    if active && row.enabled {
-                        item = item.bg(rgba(0x386ac880)).aria_active_descendant();
-                        gpui::Refineable::refine(
-                            item.style(),
-                            &crate::appearance::refinement(&style.option_style, 1),
-                        );
-                    }
-                    if let Some(checked) = row.route.config.checked {
-                        item = item.aria_toggled(if checked {
-                            gpui::accesskit::Toggled::True
-                        } else {
-                            gpui::accesskit::Toggled::False
-                        });
-                        if checked {
-                            gpui::Refineable::refine(
-                                item.style(),
-                                &crate::appearance::refinement(&style.option_style, 7),
-                            );
-                        }
-                    }
-                    item = item
-                        .child(if row.route.config.checked == Some(true) {
-                            "✓"
-                        } else {
-                            ""
-                        })
-                        .child(gpui::SharedString::from(row.route.config.label.clone()));
-                    if row.enabled {
-                        let ax_owner = owner.clone();
-                        let ax_route = row.route.clone();
-                        item = item.on_a11y_action(
-                            gpui::AccessibleAction::Click,
-                            move |_, window, cx| {
-                                let _ = ax_owner.update(cx, |view, cx| {
-                                    view.select_palette(id, &ax_route, window, cx)
-                                });
-                            },
-                        );
-                        if interaction.pointer {
-                            let click_owner = owner.clone();
-                            let click_route = row.route.clone();
-                            let hovered = crate::appearance::refinement(&style.option_style, 2);
-                            let pressed = crate::appearance::refinement(&style.option_style, 3);
-                            item = item
-                                .cursor_pointer()
-                                .hover(move |_| hovered)
-                                .active(move |_| pressed)
-                                .on_mouse_down(gpui::MouseButton::Left, |_, window, cx| {
-                                    window.prevent_default();
-                                    cx.stop_propagation();
-                                })
-                                .on_click(move |_, window, cx| {
-                                    let _ = click_owner.update(cx, |view, cx| {
-                                        view.select_palette(id, &click_route, window, cx)
-                                    });
-                                });
-                        }
-                    } else {
-                        item = item.opacity(0.5);
-                        gpui::Refineable::refine(
-                            item.style(),
-                            &crate::appearance::refinement(&style.option_style, 6),
-                        );
-                    }
-                    let rows = row_bounds.clone();
-                    let command = row.route.config.id.clone();
-                    item = item.child(
-                        canvas(
-                            move |bounds, _, _| {
-                                rows.borrow_mut().insert(command.clone(), bounds);
-                            },
-                            |_, _, _, _| {},
-                        )
-                        .absolute()
-                        .top_0()
-                        .left_0()
-                        .size_full(),
-                    );
-                    crate::semantics::State {
-                        identity: None,
-                        busy: false,
-                        hidden: false,
-                        metadata: None,
-                        live: None,
-                        element: item,
-                        disabled: !row.enabled,
-                        read_only: false,
-                        modal: false,
-                    }
-                    .into_any_element()
+                }
+            }
+            item = item
+                .child(if row.route.config.checked == Some(true) {
+                    "✓"
+                } else {
+                    ""
                 })
-                .collect()
+                .child(gpui::SharedString::from(row.route.config.label.clone()));
+            if row.enabled {
+                let ax_owner = owner.clone();
+                let ax_route = row.route.clone();
+                item = item.on_a11y_action(gpui::AccessibleAction::Click, move |_, window, cx| {
+                    let _ = ax_owner.update(cx, |view, cx| {
+                        view.select_palette(id, &ax_route, window, cx)
+                    });
+                });
+                if interaction.pointer {
+                    let click_owner = owner.clone();
+                    let click_route = row.route.clone();
+                    let hovered = crate::appearance::refinement(&style.option_style, 2);
+                    let pressed = crate::appearance::refinement(&style.option_style, 3);
+                    item = item
+                        .cursor_pointer()
+                        .hover(move |_| hovered)
+                        .active(move |_| pressed)
+                        .on_mouse_down(gpui::MouseButton::Left, |_, window, cx| {
+                            window.prevent_default();
+                            cx.stop_propagation();
+                        })
+                        .on_click(move |_, window, cx| {
+                            let _ = click_owner.update(cx, |view, cx| {
+                                view.select_palette(id, &click_route, window, cx)
+                            });
+                        });
+                }
+            } else {
+                item = item.opacity(0.5);
+                gpui::Refineable::refine(
+                    item.style(),
+                    &crate::appearance::refinement(&style.option_style, 6),
+                );
+            }
+            let rows = row_bounds.clone();
+            let command = row.route.config.id.clone();
+            item = item.child(
+                canvas(
+                    move |bounds, _, _| {
+                        rows.borrow_mut().insert(command.clone(), bounds);
+                    },
+                    |_, _, _, _| {},
+                )
+                .absolute()
+                .top_0()
+                .left_0()
+                .size_full(),
+            );
+            crate::semantics::State {
+                identity: None,
+                busy: false,
+                hidden: false,
+                metadata: None,
+                live: None,
+                element: item,
+                disabled: !row.enabled,
+                read_only: false,
+                modal: false,
+            }
+            .into_any_element()
         })
-        .track_scroll(&scroll)
         .h(px(
             (count.min(appearance.max_visible_rows as usize).max(1) as f64 * appearance.row_height)
                 as f32,

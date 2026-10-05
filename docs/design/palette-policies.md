@@ -44,3 +44,6 @@ sends policy-only changes separately, preserving the palette node and owner.
 
 This addition does not close the remaining richer palette presentation/query
 controller or native OS popup work in the command/menu catalog review.
+
+[Grouped presentation](palette-layout.md) shares these policies and the same
+metadata budget; native query ownership is retained when groups change.

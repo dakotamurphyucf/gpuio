@@ -991,6 +991,7 @@ module type S = sig
       | Create_table_text of Node_id.t * Table.Cell.t
       | Set_table_text of Node_id.t * Table.Cell.t
       | Set_palette_options of Node_id.t * Palette_options_wire.t option
+      | Set_palette_layout of Node_id.t * Palette_layout_wire.t option
     [@@deriving bin_io, equal, sexp_of]
   end
 
