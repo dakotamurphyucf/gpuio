@@ -8,6 +8,28 @@ use super::super::{
 };
 use super::*;
 use gpuio_protocol::{numeric::Domain, slider as s};
+async fn settle_interaction_frames(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>) {
+    // Focus/hover gestures start bounded thumb-ring springs. Observe settled
+    // rendering without requesting frames; fail if redraws continue indefinitely.
+    let mut previous = handle.update(cx, |v, _, _| v.render_count).unwrap();
+    let mut quiet = 0;
+    for _ in 0..60 {
+        cx.background_executor()
+            .timer(std::time::Duration::from_millis(50))
+            .await;
+        let current = handle.update(cx, |v, _, _| v.render_count).unwrap();
+        quiet = if current == previous { quiet + 1 } else { 0 };
+        previous = current;
+        if quiet == 3 {
+            break;
+        }
+    }
+    assert_eq!(
+        quiet, 3,
+        "slider interaction springs did not settle within 3 seconds"
+    );
+}
+
 fn config() -> s::Config {
     s::Config {
         domain: Domain::new(-2., 8., 0.5).unwrap(),
@@ -531,6 +553,7 @@ pub(super) async fn exercise(
     }
     decorated_geometry(cx, handle, transport).await;
     lifecycle::exercise(cx, handle, transport).await;
+    settle_interaction_frames(cx, handle).await;
     let idle_count = handle.update(cx, |v, _, _| v.render_count).unwrap();
     cx.background_executor()
         .timer(std::time::Duration::from_millis(150))

@@ -1,11 +1,22 @@
 # Milestone 07 hosted validation follow-up
 
 Current run [37241646017](https://github.com/dakotamurphyucf/gpuio/actions/runs/37241646017)
-at `6d6d96f` is in progress. Linux has passed the required OCaml/Rust tests
-and private-bus instance arbitration with unchanged stack settings, validating
-the renderer repair below. macOS unit tests and later hosted gates are still
-running; no whole-run pass is claimed. The optional collector added in local
-`10ac15e` is not included in this run.
+at `6d6d96f` is terminal. The entire Linux foundation job passes, including
+required OCaml/Rust tests, private-bus arbitration and independent consumers,
+with unchanged stack settings. This validates the renderer repair below and
+does not establish Linux desktop qualification. macOS has 16 failed steps; no
+whole-run pass is claimed. The optional collector and loaded-list workload in
+local `10ac15e` / `c0d2eaf` are not included in this run.
+
+Ten macOS chat walkthroughs failed on the same Python `find(deadline=...)`
+override incompatibility, repaired in `2c0e41c`; see
+[the AX helper evidence](ax-traversal-och41.md). All ten now pass locally. The
+remaining native/public failures also have passing local reruns after the
+[macOS repair batch](macos-validation-repairs-och17.md), including a production
+numeric hold regression and corrected fixture ownership/readiness/animation
+assumptions. The full 920-test native suite (two existing skips), full OCaml
+expect tests, strict native lint and formatting pass. Fresh hosted validation
+is still required.
 
 Prior run [37239659043](https://github.com/dakotamurphyucf/gpuio/actions/runs/37239659043)
 at `984210e` has a terminal Linux unit-test failure. Its diagnostic succeeds:

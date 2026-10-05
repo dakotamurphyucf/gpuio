@@ -183,8 +183,14 @@ let exercise
   let%bind () =
     selection (C.Snapshot.selection (draft "placement remount" remounted)) replacement
   in
-  let%bind obsolete = P.confirm third in
-  let%bind () = error obsolete (Native Stale_input) in
+  (* [confirm] resolves the current draft for this opening. A captured native
+     command, unlike confirmation, must reject the old calendar mount. *)
+  let%bind obsolete = P.command third Read_snapshot in
+  let%bind () =
+    E.of_thunk (fun () ->
+      assert (
+        Result.equal C.Snapshot.equal C.Command_error.equal obsolete (Error Stale_input)))
+  in
   let%bind cancelled = cancel_during_confirmation remounted in
   let%bind () = error cancelled Stale_session in
   let%bind () = settle window in
@@ -277,7 +283,13 @@ let exercise
   let%bind final = reopen () in
   let%bind () = E.of_thunk (fun () -> App.Window.close window) in
   let%bind closed = P.confirm final in
-  let%bind () = error closed (Native Closed) in
+  let%bind () = error closed Not_open in
+  let%bind native_closed = P.command final Read_snapshot in
+  let%bind () =
+    E.of_thunk (fun () ->
+      assert (
+        Result.equal C.Snapshot.equal C.Command_error.equal native_closed (Error Closed)))
+  in
   E.of_thunk (fun () -> completed := true)
 ;;
 

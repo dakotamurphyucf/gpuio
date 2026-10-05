@@ -155,7 +155,6 @@ pub(super) async fn exercise(
                     Field::BottomRightRadius(32.),
                 ])],
             ),
-            Op::Bind(id(1), Some(callback())),
             Op::Create(id(2), Kind::Container, "".into(), None),
             Op::SetStyle(id(2), fallback_style(96., 0.)),
             Op::SetAccessibility(
@@ -294,7 +293,10 @@ pub(super) async fn exercise(
         apply(
             cx,
             window,
-            vec![Op::SetAvatar(id(1), config(Some(primary)))],
+            vec![
+                Op::SetAvatar(id(1), config(Some(primary))),
+                Op::Bind(id(1), Some(callback())),
+            ],
         );
         session
             .borrow_mut()
@@ -313,7 +315,11 @@ pub(super) async fn exercise(
         );
         #[cfg(target_os = "macos")]
         semantics(cx, window, true).await;
-        apply(cx, window, vec![Op::SetAvatar(id(1), config(None))]);
+        apply(
+            cx,
+            window,
+            vec![Op::SetAvatar(id(1), config(None)), Op::Bind(id(1), None)],
+        );
         painted(cx).await;
         assert_eq!(
             samples(cx, window)[0],
@@ -323,7 +329,14 @@ pub(super) async fn exercise(
     }
 
     let broken = upload(&mut session.borrow_mut(), b"invalid PNM");
-    apply(cx, window, vec![Op::SetAvatar(id(1), config(Some(broken)))]);
+    apply(
+        cx,
+        window,
+        vec![
+            Op::SetAvatar(id(1), config(Some(broken))),
+            Op::Bind(id(1), Some(callback())),
+        ],
+    );
     session
         .borrow_mut()
         .assets()
@@ -338,6 +351,23 @@ pub(super) async fn exercise(
     );
 
     let gif = animated(&mut session.borrow_mut());
+    // GPUI Img intentionally pauses animation in inactive windows. Keep the
+    // static pixel/AX checks in the background, then activate only for playback.
+    cx.update(|cx| cx.activate(true));
+    window
+        .update(cx, |_, window, _| window.activate_window())
+        .unwrap();
+    let mut active = false;
+    for _ in 0..100 {
+        active = window
+            .update(cx, |_, window, _| window.is_window_active())
+            .unwrap();
+        if active {
+            break;
+        }
+        pause(cx).await;
+    }
+    assert!(active, "animated avatar window did not become active");
     apply(cx, window, vec![Op::SetAvatar(id(1), config(Some(gif)))]);
     session.borrow_mut().assets().unwrap().release(gif).unwrap();
     settled(

@@ -496,8 +496,20 @@ impl Instance {
         {
             let mut owner = self.owner.borrow_mut();
             let previous = owner.model.config();
-            let policy_changed = previous != config.as_ref();
-            if policy_changed || owner.route.handler != handler || owner.step_mode != step_mode {
+            let policy_changed = previous.domain != config.domain
+                || previous.step_controls != config.step_controls
+                || previous.allow_empty != config.allow_empty
+                || previous.disabled != config.disabled
+                || previous.read_only != config.read_only;
+            // Metadata edits preserve an ordinary held native step. A pending
+            // application request is revision-guarded, however: any editing
+            // config change invalidates it, so its waiting hold must also end.
+            let invalidated_request = previous != config.as_ref() && owner.model.has_step_request();
+            if policy_changed
+                || invalidated_request
+                || owner.route.handler != handler
+                || owner.step_mode != step_mode
+            {
                 owner.model.cancel_step_request();
                 owner.stop_repeat(window);
             }

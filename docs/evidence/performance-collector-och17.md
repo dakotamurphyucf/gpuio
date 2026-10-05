@@ -107,3 +107,32 @@ commands are in the workload README; raw local artifacts are under
 Full optimized runs, repeated-run/overhead comparison and the remaining workloads
 are still required. Snapshot timestamps are native submission measurements, not
 physical presentation or GPU execution timings.
+
+### First full optimized loaded-list run
+
+Run `performance-release-full-001` passes its predeclared workload budgets on
+Apple M1 Max, 32 GiB, macOS 14.5 arm64, AC power. Source at process launch was
+clean `c0d2eaf321f3d07af0231278bf8ed42b56a8152f`; executable SHA-256
+`2112317d1393bf4e2a520590d712d05c477222eb125d5ec9930728839aed87d3`.
+No other GPUIO GUI or compilation ran during measurement. The report retains
+display/power metadata; ordinary owner desktop activity was not controlled.
+
+| Observation | Result |
+| --- | --- |
+| Coverage | 10,000 rows forward and backward; growth/anchor checks pass |
+| Peak active row computations | 32 |
+| Native draw samples | 26,881 |
+| Native draw p95 / p99 | 3.125247 ms / 3.743743 ms |
+| Peak process RSS | 184,483,840 bytes |
+| History interval / whole process | 224.475 s / 290.102 s |
+| Settled idle | 60.006 s, zero native draws |
+| Dropped input timestamps | 0; this workload does not synthesize typing |
+| Window-owned resources / pending work at close | Zero |
+
+History snapshot capture took 0.130 ms before and 0.548 ms after. These capture
+costs are reported separately; they do not measure the profiler's per-frame
+overhead. Exact command: `python3 scripts/measure_list_history.py --output
+scratch/agents/root-20261004-resumed/performance-release-full-001 --build-profile
+release --check-budgets`. Raw buckets, process usage and cleanup counters remain
+in that directory. This is one passing workload run, not the required repeated
+matrix, unprofiled comparison, physical-presentation or full release acceptance.

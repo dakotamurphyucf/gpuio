@@ -225,4 +225,10 @@ The overrides now accept and preserve the shared deadline. Combined retains its
 eight-second default for independent lookups. Five portable helper tests pass,
 including inherited `wait_find` through each actual override with a simulated
 traversal longer than eight seconds. Command: `python3 scripts/test_mac_ax_helpers.py`.
-Physical reruns of the affected chat walkthroughs remain required.
+Physical reruns now pass for all ten affected walkthroughs: sources, dates/colors,
+feedback, tour, sidebar, presentation, motion, streaming layout, responsive layout
+and combined multiwindow workload. Logs are `ci-public-<name>-repair-001.log` and
+the process results are `ci-public-repair-results-001.json`, under the same local
+session directory. Every child is reaped. The combined run covers source/table
+budgets, typing while streaming, native animation without OCaml transactions,
+window recreation and teardown. Its development timings are not release budgets.

@@ -687,7 +687,7 @@ fn application_steps_use_native_events_and_pause_held_repeat_until_resolution() 
     );
     // Pending user work is retired by editing, policy, visibility and activation
     // changes; delayed replies never replace the resulting native draft.
-    for case in 0..4 {
+    for case in 0..5 {
         cx.update(|window, _| window.activate_window());
         apply(
             &owner,
@@ -718,7 +718,12 @@ fn application_steps_use_native_events_and_pause_held_repeat_until_resolution() 
         command(&owner, cx, n::Command::Focus);
         draw(cx);
         requests(&transport);
-        cx.simulate_keystrokes("up");
+        if case == 4 {
+            press(cx);
+            assert_eq!(repeat_status(&owner, cx), (true, false));
+        } else {
+            cx.simulate_keystrokes("up");
+        }
         draw(cx);
         let pending = requests(&transport);
         assert_eq!(pending.len(), 1);
@@ -752,6 +757,18 @@ fn application_steps_use_native_events_and_pause_held_repeat_until_resolution() 
                 cx.deactivate_window();
                 cx.run_until_parked();
                 draw(cx);
+            }
+            4 => {
+                let mut metadata = config();
+                metadata.label = "Updated amount".into();
+                apply(
+                    &owner,
+                    cx,
+                    vec![Op::SetNumberInput(id(0), metadata, n::Value::Number(12.))],
+                );
+                draw(cx);
+                assert_eq!(repeat_status(&owner, cx), (false, false));
+                release(cx);
             }
             _ => unreachable!(),
         }

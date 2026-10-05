@@ -1,4 +1,5 @@
-//! Real background window rendering through the production declarative View.
+//! Real window rendering through the production declarative View. Static checks
+//! stay in the background; animated-avatar playback explicitly activates it.
 use super::*;
 #[path = "avatar_test.rs"]
 mod avatars;
