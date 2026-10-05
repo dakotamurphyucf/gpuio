@@ -62,6 +62,7 @@ let component app ~motion palette graph =
   let trace = Array.exists (Sys.get_argv ()) ~f:(String.equal "--trace-motion") in
   let expanded, toggle_expanded = B.toggle ~default_model:false graph in
   let endpoint, set_endpoint = B.state "Ready to resize" graph in
+  let resize_easing, set_resize_easing = B.state A.Easing.ease_in_out graph in
   let program, set_program = B.state (A.Program.with_playback sequence Paused) graph in
   let observations, set_observations = B.state "Ready to play" graph in
   let repeating, set_repeating = B.state false graph in
@@ -85,6 +86,8 @@ let component app ~motion palette graph =
   and toggle_expanded = toggle_expanded
   and endpoint = endpoint
   and set_endpoint = set_endpoint
+  and resize_easing = resize_easing
+  and set_resize_easing = set_resize_easing
   and program = program
   and set_program = set_program
   and observations = observations
@@ -153,7 +156,7 @@ let component app ~motion palette graph =
                 (A.Config.create
                    ~target:(if expanded then target 310. 12. else target 96. 24.)
                    ~duration:(Time_ns.Span.of_ms 1000.)
-                   ~easing:A.Easing.ease_in_out
+                   ~easing:resize_easing
                    ()
                  |> ok)
                 [ sample "Resize sample" ]
@@ -169,6 +172,18 @@ let component app ~motion palette graph =
             p
             ~muted:true
             "Change direction mid-flight. The panel continues from its painted position."
+        ; controls
+            (List.map
+               [ "CSS ease-in-out", A.Easing.ease_in_out
+               ; "Cubic ease-in", A.Easing.ease_in_cubic
+               ; "Cubic ease-out", A.Easing.ease_out_cubic
+               ]
+               ~f:(fun (label, easing) ->
+                 Palette.button
+                   p
+                   ~selected:(A.Easing.equal resize_easing easing)
+                   label
+                   (set_resize_easing easing)))
         ]
     ; Palette.card
         p

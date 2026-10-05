@@ -3,6 +3,34 @@ open Gpuio
 
 let target values = Animation.Target.create values |> Or_error.ok_exn
 
+let%expect_test "polynomial easing presets use the independent native curve fixtures" =
+  let module A = Animation in
+  let module W = Gpuio_protocol.Wire.Animation in
+  let curves = [ "in", A.Easing.ease_in_cubic; "out", A.Easing.ease_out_cubic ] in
+  assert (not (A.Easing.equal A.Easing.ease_in_cubic A.Easing.ease_in));
+  assert (not (A.Easing.equal A.Easing.ease_out_cubic A.Easing.ease_out));
+  let encoded =
+    List.map curves ~f:(fun (name, easing) ->
+      let bytes =
+        Bin_prot.Utils.bin_dump [%bin_writer: W.Easing.t] (A.Expert.easing_to_wire easing)
+        |> Bigstring.to_string
+      in
+      let hex =
+        String.concat_map bytes ~f:(fun byte -> sprintf "%02x" (Char.to_int byte))
+      in
+      name ^ "\t" ^ hex)
+    |> String.concat ~sep:"\n"
+  in
+  Eio_main.run (fun env ->
+    let fixture =
+      Eio.Path.load Eio.Path.(Eio.Stdenv.cwd env / "animation-cubic-easing.tsv")
+      |> String.strip
+    in
+    assert (String.equal encoded fixture));
+  print_endline "polynomial in/out: shared native bytes; distinct from CSS presets";
+  [%expect {| polynomial in/out: shared native bytes; distinct from CSS presets |}]
+;;
+
 let%expect_test "animation targets validate geometry and expand radius canonically" =
   let rejected values = assert (Result.is_error (Animation.Target.create values)) in
   rejected [];

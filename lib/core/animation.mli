@@ -44,6 +44,14 @@ module Easing : sig
   val ease_out : t
   val ease_in_out : t
 
+  (** Polynomial curves [t^3] and [1 - (1 - t)^3], respectively. These differ
+      from the CSS [ease_in]/[ease_out] presets. They use the existing native
+      cubic-Bezier representation with linear x; no OCaml frame callback or
+      protocol extension is needed. *)
+  val ease_in_cubic : t
+
+  val ease_out_cubic : t
+
   (** X control points in [0,1]; Y control points may be any finite value. Overshoot is permitted,
       with each interpolated property clamped to its valid numeric range. *)
   val cubic_bezier : x1:float -> y1:float -> x2:float -> y2:float -> t Or_error.t

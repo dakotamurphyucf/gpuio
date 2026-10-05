@@ -4980,6 +4980,17 @@ def exercise_motion(mac, images, second_title=SECOND):
     assert 98 < early[-1] < 308, early
     assert abs(reopening[-1] - 310) < 1, reopening
     assert min(reopening) > 98, reopening  # No jump to the declared narrow endpoint.
+    for label in ['Cubic ease-in', 'Cubic ease-out']:
+        mac.press(TITLE, label)
+        closing = motion_samples(mac, 'Resize sample', 1.3, 'Contract preview')
+        opening = motion_samples(mac, 'Resize sample', 1.3, 'Expand preview')
+        assert abs(closing[-1] - 96) < 1, (label, closing)
+        assert abs(opening[-1] - 310) < 1, (label, opening)
+        assert any(98 < width < 308 for width in closing), (label, closing)
+        assert any(98 < width < 308 for width in opening), (label, opening)
+    mac.press(TITLE, 'CSS ease-in-out')
+    print('GALLERY_CUBIC_EASING_OK: both public presets animate in both directions; '
+          'polynomial values are checked separately by native numeric fixtures', flush=True)
     started = motion_samples(mac, 'Sequence sample', .2, 'Replay sequence')
     paused = motion_samples(mac, 'Sequence sample', .4, 'Pause sequence')
     # The first sample can precede application of the asynchronous pause intent.

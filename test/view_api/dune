@@ -157,6 +157,7 @@
    calendar-selected.hex
    calendar-replace.hex
    animation-v1-config.hex
+   animation-cubic-easing.tsv
    control-appearance-operation.hex
    control-appearance-default.hex
    control-appearance-states.hex
@@ -560,3 +561,5 @@
 (copy_files ../fixtures/table-row-style.hex)
 
 (copy_files ../fixtures/table-row-style-clear.hex)
+
+(copy_files ../fixtures/animation-cubic-easing.tsv)

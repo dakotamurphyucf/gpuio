@@ -89,6 +89,8 @@ module Easing = struct
   let ease_in = W.Easing.Ease_in
   let ease_out = W.Easing.Ease_out
   let ease_in_out = W.Easing.Ease_in_out
+  let ease_in_cubic = W.Easing.Cubic_bezier (1. /. 3., 0., 2. /. 3., 0.)
+  let ease_out_cubic = W.Easing.Cubic_bezier (1. /. 3., 1., 2. /. 3., 1.)
 
   let cubic_bezier ~x1 ~y1 ~x2 ~y2 =
     if

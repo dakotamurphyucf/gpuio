@@ -1,5 +1,38 @@
 use binprot::BinProtWrite;
 use gpuio_protocol::animation::*;
+
+#[test]
+fn polynomial_easing_fixtures_match_native_values_not_css_presets() {
+    let fixtures = include_str!("../../../test/fixtures/animation-cubic-easing.tsv");
+    let mut encoded = String::new();
+    for (name, y) in [("in", 0.), ("out", 1.)] {
+        let easing = Easing::CubicBezier(1. / 3., y, 2. / 3., y);
+        assert!(easing.is_valid());
+        let mut bytes = Vec::new();
+        easing.binprot_write(&mut bytes).unwrap();
+        let hex: String = bytes.iter().map(|byte| format!("{byte:02x}")).collect();
+        encoded.push_str(&format!("{name}\t{hex}\n"));
+        for index in 0..=1000 {
+            let t = f64::from(index) / 1000.;
+            let expected = if name == "in" {
+                t.powi(3)
+            } else {
+                1. - (1. - t).powi(3)
+            };
+            assert!((easing.sample(t) - expected).abs() < 2e-12);
+        }
+        assert_eq!(easing.sample(-1.), 0.);
+        assert_eq!(easing.sample(2.), 1.);
+        let css = if name == "in" {
+            Easing::EaseIn
+        } else {
+            Easing::EaseOut
+        };
+        assert!((easing.sample(0.5) - css.sample(0.5)).abs() > 0.1);
+    }
+    assert_eq!(encoded, fixtures);
+}
+
 #[test]
 fn animation_configuration_matches_independent_ocaml_fixture() {
     let config = Config {
