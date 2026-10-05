@@ -7,6 +7,11 @@ display. The executable SHA-256 is
 See [the original consumer build](avatar-native-consumer-och41.md) for its isolated
 installation. These runs change only Python test drivers, not the application.
 
+The later [lifetime repairs](gallery-lifetime-repairs-och41.md) fix the split
+identity defect and a separate command-hint remount defect. A fresh installed
+consumer now passes the combined sequence. The original failures below are
+retained as historical evidence.
+
 ## Passing scopes
 
 - **Selection:** toolbar roles, orientation and identity; checked/mixed values;
@@ -62,7 +67,7 @@ focus on the action, while Escape suppresses its tooltip until focus leaves.
 The final driver focuses the setting and presses Space, then re-enters the action.
 That actual keyboard sequence passes without changing production tooltip policy.
 
-## Unresolved split-button identity failure
+## Split-button identity failure at this checkpoint
 
 The second combined run fails `CFEqual` for the primary split action after
 switching to action-only mode. A separate instrumented run narrows the *first*

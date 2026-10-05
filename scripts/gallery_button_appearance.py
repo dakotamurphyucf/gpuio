@@ -162,6 +162,3 @@ def exercise(mac, images=None):
           'tooltip/Escape, Return/Space, sizing, restyle identity, disabled action '
           'rejection, Link loading/focus/recovery, themes and page retirement; '
           'pixel styling still requires review', flush=True)
-    print('GALLERY_BUTTON_APPEARANCE_OK: eleven variants, hover, tooltip focus/Escape, '
-          'Return/Space, dimensions, disabled/loading policies, retained owners, '
-          'loading-content geometry and both themes; page retirement', flush=True)

@@ -50,6 +50,12 @@ Use `./scripts/gpuio fmt` to format; it never promotes expect-test output. Revie
 expectation differences before deliberately running `./scripts/gpuio exec dune
 promote`. The development commands are also CI commands.
 
+The `test/dune` environment explicitly enables first-party inline/expect tests
+in every profile, including `dune runtest --profile release`. Keep that setting:
+Dune otherwise disables inline tests in release builds, so a successful command
+can leave those suites unexecuted. The override is scoped to `test/`, not the
+production libraries or vendored projects.
+
 `./scripts/gpuio exec COMMAND...` runs any editor/build tool with the selected
 environment. For example `./scripts/gpuio exec ocamllsp` and
 `./scripts/gpuio exec ocamlformat --version`. OCaml LSP 1.23.1 uses Dune's generated

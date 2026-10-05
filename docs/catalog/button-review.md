@@ -124,3 +124,9 @@ appearance/busy-Link and menu-observation checks. These supersede corresponding
 earlier unrun statements only. Split-button AX identity fails after ancestor
 pair disabling; its failure is preserved and acceptance remains open. Other
 family, resource/performance and release requirements remain separate.
+
+The subsequent [lifetime repair](../evidence/gallery-lifetime-repairs-och41.md)
+fixes the tooltip anchor path and constant-configuration observer remount. A new
+installed gallery passes the combined button scenarios with the original
+identity assertion. Earlier split-failure status is superseded by that result;
+shared-hover/placement pixel and whole-family release requirements stay separate.

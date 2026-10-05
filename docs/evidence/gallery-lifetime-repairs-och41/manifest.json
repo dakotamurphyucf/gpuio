@@ -1,0 +1,107 @@
+{
+  "archive": "local-validation.tar.gz",
+  "sha256": "a4f7db2f850aab7b1dbd3acd29ba55de89b637c977954453e15dbd07cc62f2c1",
+  "application_revision": "e210d3e4a7b261e6bdf40023023937fbeb096e85",
+  "native_repair_revision": "20923d588f4521509f53b81e95e2dbc0d8372b06",
+  "consumer_command": "GPUIO_JOBS=2 python3 scripts/test_extension_consumer.py --example gallery --run --gallery-section buttons --workspace scratch/agents/root-20261004-resumed/gallery-installed-lifetime-e210d3e",
+  "consumer_exit_code": 0,
+  "executable_sha256": "5e96404a5df658b7dfa9af05b8d4ff8240737e8df0f751f05c58968a0e24d495",
+  "tooltip_only_consumer_sha256": "44eea646d01ac0584be92165bc8b1002d9257d902cbdc24e7d021158d2cfb0cb",
+  "format_command": "GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 @fmt",
+  "format_exit_code": 0,
+  "scope": "Local macOS14.5 arm64/M1 Max. No VoiceOver; no final-source hosted or clean-machine claim.",
+  "files": [
+    {
+      "path": "split-tooltip-before.log",
+      "sha256": "30b8a70095fc8042ccc21c54876610fea358facaad2b675fe0044a2b957da758"
+    },
+    {
+      "path": "split-tooltip-after-full.log",
+      "sha256": "e36f581a0b447e430da13617a6f56c4dc9420617c208c8197e26b0b62907484b"
+    },
+    {
+      "path": "split-tooltip-clippy.log",
+      "sha256": "642d8c1023136723a55f978a3a5f1ba39b0e59d8bc2a4661f2199e0808a9ae00"
+    },
+    {
+      "path": "split-tooltip-installed.log",
+      "sha256": "084d842f343a5c8e0f060be70c2aaaf49726503c28980d8d4f81c4bef9261480"
+    },
+    {
+      "path": "tooltip-retention-commands.json",
+      "sha256": "e1a933b98c7d9ca199d38e808c63423cc2012e962807d49f74bf4e2ade4291d9"
+    },
+    {
+      "path": "binding-remount-before.log",
+      "sha256": "5257dae9c3cd95c59cbe81330b10192be6f09b7507d5679b587191c193c6e2ff"
+    },
+    {
+      "path": "binding-remount-before-release.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "binding-remount-before-release-enabled.log",
+      "sha256": "5a17926d8d1a07e5ed88df1caccd2749d2915f3fe1aa421ef0712b2f4ce37bfa"
+    },
+    {
+      "path": "binding-constant-before-002.log",
+      "sha256": "15fca1243a042773f5f8daad46d1e24e30b481abe1083731f7c71138af81d677"
+    },
+    {
+      "path": "binding-constant-regression.patch",
+      "sha256": "2add14e0dbb32c87d2d4acdbc8dac1698fe37c5a1a230f1ad4d06cbe88f28f66"
+    },
+    {
+      "path": "binding-remount-after-release.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "lifetime-full-release.log",
+      "sha256": "a3134d48a109e096ffd4f893f60456353f926015f4713004246d212d032efda3"
+    },
+    {
+      "path": "lifetime-full-dev.log",
+      "sha256": "2e9f6a902754c02cb22d2f3e3952ea1ff57ec2c8902b32f0b188bf9c141bcc63"
+    },
+    {
+      "path": "release-inline-execution.json",
+      "sha256": "f84be2da87ae7e8fa7fc223a7ee220884c6dd0b9a8f45b02089dd72a49e357f7"
+    },
+    {
+      "path": "dev-inline-execution.json",
+      "sha256": "c8d969506b45610e6ea3fd13442a84b2671ad1cb6b7f5ec1ad57c5205d8f4af2"
+    },
+    {
+      "path": "lifetime-format.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "lifetime-installed-final.log",
+      "sha256": "c0f51443173e3092a2ea7ec1b60542e70665c4e1c272ddde8cad3fe0d5150a7f"
+    },
+    {
+      "path": "lifetime-final-metadata.json",
+      "sha256": "b089ef46a31e348c136e64d440d2134a1912742a88a3dbef3dbd03635337b72a"
+    },
+    {
+      "path": "gallery-installed-buttons-retention-001/metadata.json",
+      "sha256": "c0d4b895ee9a142f72e330901649e3bd47d067b2bc600eb4b20eff5c8a9cc2cd"
+    },
+    {
+      "path": "gallery-installed-buttons-retention-001/exit.json",
+      "sha256": "8869ca5e7f3ae989b151917c32f706ea8b83fd8d2ab5fd425117c4860c4e595f"
+    },
+    {
+      "path": "gallery-installed-buttons-retention-001/run.log",
+      "sha256": "0946b43f63d8f566e54f9ea89853df3c5708acb649fc63026fb20bded5a35018"
+    },
+    {
+      "path": "gallery-installed-buttons-retention-001/images/gallery-failure.png",
+      "sha256": "5835785209c5ab590b6a8361644be544607bb588d04295bea05efe4fea447e9e"
+    },
+    {
+      "path": "gallery-installed-buttons-retention-001/images/gallery-split-restored.png",
+      "sha256": "493a53b9d78b8006bea4d5270deee56c8739cde97bb7619daa0a18f89fb7eb34"
+    }
+  ]
+}

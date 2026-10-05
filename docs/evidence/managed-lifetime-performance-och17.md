@@ -1,5 +1,13 @@
 # Managed lifetime allocation — OCH-17
 
+**Superseded correctness finding, 2026-10-05:** the token-allocation optimization
+below fails branch reactivation with constant configurations. Earlier release
+`runtest` commands did not execute inline tests, which Dune disables by default
+in that profile. Their suite-pass claims are withdrawn. See the
+[gallery lifetime investigation](gallery-lifetime-repairs-och41.md) for actual
+failing regressions and corrected test configuration. Recorded timing reports
+remain historical measurements; they do not qualify a corrected implementation.
+
 2026-10-05, macOS 14.5 arm64, M1 Max, 32 GiB, built-in 120 Hz display.
 Implementation: `562c44ee2f16955413a4167eae41d4b82545d578`.
 This follow-up identifies a concrete OCaml startup cost and removes it without

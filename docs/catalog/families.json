@@ -116,7 +116,7 @@
       "id": "buttons",
       "owner": "OCH-11",
       "scope": "v1",
-      "audit_status": "Seven pinned sources reviewed; rich content, loading/focus policy, appearance, split controls and hover observations implemented. Installed macOS rich-button, appearance/busy-Link menu-observation and command-hint scenarios pass; combined run fails split identity after ancestor pair disabling, before mode changes. Failure is preserved and remains under investigation; complete family/resource/release acceptance stays open.",
+      "audit_status": "Seven pinned sources reviewed; rich content, loading/focus policy, appearance, split controls and hover observations implemented. Fresh installed macOS combined rich-button, appearance/busy-Link, menu-observation, split-mode and command-hint scenarios pass after tooltip path and observation-lifetime repairs. Shared-hover/placement pixels, complete family/resource and release acceptance remain separate.",
       "public_interface": "lib/core/view.mli",
       "example": "examples/controls",
       "evidence": [
@@ -124,7 +124,8 @@
         "docs/catalog/button-review.md",
         "docs/design/button-content.md",
         "docs/evidence/gallery-och41.md",
-        "docs/evidence/installed-actions-och41.md"
+        "docs/evidence/installed-actions-och41.md",
+        "docs/evidence/gallery-lifetime-repairs-och41.md"
       ],
       "gallery_page": "controls",
       "contract": "Native press/key/AX, icon slots and styles exist. Epoch2 connects checked rich content, per-owner loading and preserve/skipped/signed focus policy; Controls gallery exposes the public API. Physical/resource acceptance, group presentation and split-menu coordination remain open.",
