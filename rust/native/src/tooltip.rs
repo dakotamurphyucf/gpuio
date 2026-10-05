@@ -481,7 +481,11 @@ impl View {
             // or a deferred surface. sync_tooltips cancels its outstanding timer.
             let anchor = self.element(tree, node.children[0], interaction, window, cx);
             let (wrapper, _) = super::apply_styles(
-                div().id(("gpuio-tooltip", identity)).child(anchor),
+                // Keep the same element path as the active branch: removing
+                // this anchor wrapper changes descendant semantic/state IDs.
+                div()
+                    .id(("gpuio-tooltip", identity))
+                    .child(div().id(("gpuio-tooltip-anchor", identity)).child(anchor)),
                 &node.style,
                 interaction,
                 false,

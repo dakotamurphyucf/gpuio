@@ -151,6 +151,7 @@ fn tooltip_parts_compact_hover_and_pair_lifecycle_keep_the_surviving_menu() {
         .unwrap();
     let (owner, cx) =
         app.add_window_view(|_, _| View::new(window_id, session.clone(), transport.clone()));
+    cx.simulate_a11y_active(true);
     cx.update(|window, cx| {
         let mut operations = vec![
             Op::Create(id(0), Kind::Container, "".into(), None),
@@ -192,6 +193,18 @@ fn tooltip_parts_compact_hover_and_pair_lifecycle_keep_the_surviving_menu() {
     });
     move_pointer(cx, 700., 36.);
     paint(cx, &[(0x444444ff, 2), (0x555555ff, 0)]);
+    let primary_semantic = |cx: &VisualTestContext| {
+        let tree = cx.a11y_tree().unwrap();
+        let (id, node) = tree
+            .nodes
+            .iter()
+            .find(|(_, node)| {
+                node.role() == gpui::accesskit::Role::Button && node.label() == Some("Run")
+            })
+            .expect("primary action remains exposed");
+        (*id, node.is_disabled())
+    };
+    let primary_ax = primary_semantic(cx).0;
     let primary_focus = owner.read_with(cx, |view, _| view.buttons[&id(3)].focus.clone());
     cx.update(|window, cx| window.focus(&primary_focus, cx));
     cx.simulate_event(gpui::KeyDownEvent {
@@ -226,6 +239,7 @@ fn tooltip_parts_compact_hover_and_pair_lifecycle_keep_the_surviving_menu() {
         (Field::Inert(true), 2, 0),
         (Field::Visibility(1), 0, 0),
     ] {
+        let disabling = matches!(field, Field::Disabled(true));
         click(cx, 120., 36.);
         move_pointer(cx, 700., 500.);
         paint(cx, &[(0x555555ff, 1), (0x0000ffff, 1)]);
@@ -243,12 +257,24 @@ fn tooltip_parts_compact_hover_and_pair_lifecycle_keep_the_surviving_menu() {
                 (0x0000ffff, 0),
             ],
         );
+        if disabling {
+            assert_eq!(
+                primary_semantic(cx),
+                (primary_ax, true),
+                "ancestor disabling preserves the tooltip anchor's semantic identity"
+            );
+        }
+        assert_eq!(
+            owner.read_with(cx, |view, _| view.buttons[&id(3)].focus.clone()),
+            primary_focus
+        );
         cx.update(|window, cx| {
             owner.update(cx, |view, cx| {
                 apply(view, window, cx, vec![compact_pair_style(vec![])])
             })
         });
         paint(cx, &[(0x444444ff, 2), (0x555555ff, 0), (0x0000ffff, 0)]);
+        assert_eq!(primary_semantic(cx), (primary_ax, false));
     }
     click(cx, 120., 36.);
     move_pointer(cx, 700., 500.);
