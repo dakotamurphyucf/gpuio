@@ -4,6 +4,12 @@ Partial release finding repair, 2026-09-28, macOS 14.5 (23F79), arm64.
 The [contract](../design/document-accessibility.md) describes the full intended
 behavior. This checkpoint does not complete document accessibility or OCH-17.
 
+Update, 2026-10-05: [source/editor selected text and ranges](text-selection-och17.md)
+now have a native adapter, regression checks and passing external macOS AX
+selection/copy evidence. Historical selected-range limitations below remain
+applicable to rendered Markdown and full assistive navigation; the source-editor
+gap itself is repaired. VoiceOver and visual character geometry remain open.
+
 ## Independent table appearance — 2026-09-29
 
 The dark table-body contrast finding is repaired. Base's wrapping and scroll

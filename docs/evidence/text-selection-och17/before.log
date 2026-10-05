@@ -1,0 +1,18 @@
+AX_PRESS Markdown & code
+AX_PRESS Code
+GALLERY_FOCUS_READY Code preview requests= 1
+Traceback (most recent call last):
+  File "/Users/dakotamurphy/gpuio/scripts/test_macos_text_selection.py", line 172, in <module>
+    main()
+    ~~~~^^
+  File "/Users/dakotamurphy/gpuio/scripts/test_macos_text_selection.py", line 152, in main
+    report['observations'] = exercise(mac, source_only=args.source_only)
+                             ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/dakotamurphy/gpuio/scripts/test_macos_text_selection.py", line 81, in exercise
+    **selection.expect(node, text, 0, utf16(text))})
+      ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/dakotamurphy/gpuio/scripts/test_macos_text_selection.py", line 61, in expect
+    selection = self.read(node)
+  File "/Users/dakotamurphy/gpuio/scripts/test_macos_text_selection.py", line 41, in read
+    raise AssertionError('Missing AXSelectedTextRange')
+AssertionError: Missing AXSelectedTextRange
