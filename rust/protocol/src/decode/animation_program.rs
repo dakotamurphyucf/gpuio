@@ -1,6 +1,6 @@
 use super::{DecodeError, Decoder};
 use crate::{
-    animation::{Easing, Repeat, Spring},
+    animation::{Easing, Repeat, Spring, StepPosition},
     animation_program::*,
 };
 use std::io::Cursor;
@@ -14,6 +14,17 @@ impl Decoder<'_> {
             3 => Easing::EaseOut,
             4 => Easing::EaseInOut,
             5 => Easing::CubicBezier(self.float()?, self.float()?, self.float()?, self.float()?),
+            6 => Easing::EaseInOutCubic,
+            7 => Easing::Steps(
+                self.int()?,
+                match self.tag()? {
+                    0 => StepPosition::JumpStart,
+                    1 => StepPosition::JumpEnd,
+                    2 => StepPosition::JumpNone,
+                    3 => StepPosition::JumpBoth,
+                    _ => return Err(DecodeError::Malformed),
+                },
+            ),
             _ => return Err(DecodeError::Malformed),
         })
     }

@@ -45,6 +45,14 @@ allowed; resulting properties clamp to their valid domain, such as nonnegative
 width and opacity no greater than one. Timing is evaluated once per sample,
 then applied to at most eleven properties.
 
+The polynomial presets `ease_in_cubic`, `ease_out_cubic` and
+`ease_in_out_cubic` are distinct from the CSS presets. The first two use Bezier
+control points with linear x. The third evaluates `4*t^3` for `t <= 0.5`, then
+`1 - 4*(1-t)^3`, entirely in Rust. All three clamp progress to the endpoints;
+they share existing timing, interruption, reduced-motion and ownership rules.
+`Easing.steps` adds the four [step-position policies](stepped-easing.md),
+including immediate zero-progress jumps for Jump_start and Jump_both.
+
 ## Timing and ownership
 
 `rust/native/src/motion.rs` owns a run's configuration, origin, last painted values,

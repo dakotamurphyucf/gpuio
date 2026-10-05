@@ -177,8 +177,23 @@ let component app ~motion palette graph =
                [ "CSS ease-in-out", A.Easing.ease_in_out
                ; "Cubic ease-in", A.Easing.ease_in_cubic
                ; "Cubic ease-out", A.Easing.ease_out_cubic
+               ; "Cubic ease-in-out", A.Easing.ease_in_out_cubic
                ]
                ~f:(fun (label, easing) ->
+                 Palette.button
+                   p
+                   ~selected:(A.Easing.equal resize_easing easing)
+                   label
+                   (set_resize_easing easing)))
+        ; controls
+            (List.map
+               [ "Steps start", A.Easing.Step_position.Jump_start
+               ; "Steps end", A.Easing.Step_position.Jump_end
+               ; "Steps none", A.Easing.Step_position.Jump_none
+               ; "Steps both", A.Easing.Step_position.Jump_both
+               ]
+               ~f:(fun (label, position) ->
+                 let easing = A.Easing.steps ~count:4 ~position |> ok in
                  Palette.button
                    p
                    ~selected:(A.Easing.equal resize_easing easing)

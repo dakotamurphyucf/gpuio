@@ -47,6 +47,18 @@ encoding family, not a frozen compatibility implementation. Both runtimes ship
 in one release. See [button content](button-content.md) for ownership and event
 fences; stored application data has a separate compatibility contract.
 
+The same unpublished epoch appends animation easing tag 6, `Ease_in_out_cubic`
+(`EaseInOutCubic` in Rust), without a payload. Tags 0–5 retain their encoding.
+This is the exact piecewise cubic polynomial, not the CSS tag-4 curve. All
+animation and component-motion consumers use the shared decoder and native
+sampler. Both runtimes must be rebuilt together; this does not promise
+compatibility with earlier unpublished epoch-3 builds. The independent paired
+fixture is `test/fixtures/animation-cubic-easing.tsv`.
+Stepped easing appends tag 7 with an int64 count and position tag 0/1/2/3
+(Jump_start/Jump_end/Jump_none/Jump_both). Counts retain the positive 32-bit
+range; Jump_none requires at least two. See [the step contract](stepped-easing.md)
+and `test/fixtures/animation-steps.tsv`.
+
 ## Ownership and identity
 
 One native runtime owns its windows. Each window owns a retained tree. Window,

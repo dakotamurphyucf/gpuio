@@ -151,7 +151,8 @@ module Motion = struct
     Int64.(t.duration_ms > 0L && t.duration_ms <= 10_000L)
     &&
     match t.easing with
-    | Linear | Ease | Ease_in | Ease_out | Ease_in_out -> true
+    | Linear | Ease | Ease_in | Ease_out | Ease_in_out | Ease_in_out_cubic -> true
+    | Steps (count, position) -> Animation_wire.Easing.valid_steps ~count ~position
     | Cubic_bezier (x1, y1, x2, y2) ->
       List.for_all [ x1; x2 ] ~f:(fun x ->
         Float.is_finite x && Float.(x >= 0. && x <= 1.))

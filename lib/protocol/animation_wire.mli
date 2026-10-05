@@ -25,6 +25,15 @@ module Target : sig
   [@@deriving bin_io, equal, sexp_of]
 end
 
+module Step_position : sig
+  type t =
+    | Jump_start
+    | Jump_end
+    | Jump_none
+    | Jump_both
+  [@@deriving bin_io, equal, sexp_of]
+end
+
 module Easing : sig
   type t =
     | Linear
@@ -33,7 +42,11 @@ module Easing : sig
     | Ease_out
     | Ease_in_out
     | Cubic_bezier of float * float * float * float
+    | Ease_in_out_cubic
+    | Steps of int64 * Step_position.t
   [@@deriving bin_io, equal, sexp_of]
+
+  val valid_steps : count:int64 -> position:Step_position.t -> bool
 end
 
 module Spring : sig

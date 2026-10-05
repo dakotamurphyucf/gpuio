@@ -55,6 +55,12 @@ reviews now cover the other previously pending detailed source mappings, with
 public-surface gaps and accepted-contract differences explicit. Exact cubic
 ease-in/out presets now have [local API/native/gallery and consumer-build evidence](evidence/cubic-easing-och41.md).
 This does not close component or release acceptance.
+The subsequent [piecewise cubic preset](evidence/piecewise-cubic-easing-och41.md)
+now passes local API/encoding/native-motion checks and the gallery build; its
+fresh installed-consumer build also passes, while its physical walkthrough remains open.
+All four stepped-easing policies now have [local API/codec/native-state evidence](evidence/stepped-easing-och41.md)
+and a successful gallery build; their physical walkthrough and installed-consumer
+follow-up remain open.
 Three full optimized loaded-list, paged-table and growing-document runs pass
 their declared budgets; six ordinary/profiled comparisons and three resource
 lifecycle runs also pass. Three full streaming/typing runs also pass after an optional profiler repair,

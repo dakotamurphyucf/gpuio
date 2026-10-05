@@ -82,6 +82,15 @@ module Target = struct
 end
 
 module Easing = struct
+  module Step_position = struct
+    type t = W.Step_position.t =
+      | Jump_start
+      | Jump_end
+      | Jump_none
+      | Jump_both
+    [@@deriving equal, sexp_of]
+  end
+
   type t = W.Easing.t [@@deriving equal, sexp_of]
 
   let linear = W.Easing.Linear
@@ -91,6 +100,16 @@ module Easing = struct
   let ease_in_out = W.Easing.Ease_in_out
   let ease_in_cubic = W.Easing.Cubic_bezier (1. /. 3., 0., 2. /. 3., 0.)
   let ease_out_cubic = W.Easing.Cubic_bezier (1. /. 3., 1., 2. /. 3., 1.)
+  let ease_in_out_cubic = W.Easing.Ease_in_out_cubic
+
+  let steps ~count ~position =
+    let count = Int64.of_int count in
+    if W.Easing.valid_steps ~count ~position
+    then Ok (W.Easing.Steps (count, position))
+    else
+      Or_error.error_string
+        "step count must be in [1,4294967295]; Jump_none requires at least 2"
+  ;;
 
   let cubic_bezier ~x1 ~y1 ~x2 ~y2 =
     if

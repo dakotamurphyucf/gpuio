@@ -25,6 +25,15 @@ module Target = struct
   [@@deriving bin_io, equal, sexp_of]
 end
 
+module Step_position = struct
+  type t =
+    | Jump_start
+    | Jump_end
+    | Jump_none
+    | Jump_both
+  [@@deriving bin_io, equal, sexp_of]
+end
+
 module Easing = struct
   type t =
     | Linear
@@ -33,7 +42,14 @@ module Easing = struct
     | Ease_out
     | Ease_in_out
     | Cubic_bezier of float * float * float * float
+    | Ease_in_out_cubic
+    | Steps of int64 * Step_position.t
   [@@deriving bin_io, equal, sexp_of]
+
+  let valid_steps ~count ~position =
+    Int64.(count >= 1L && count <= 4_294_967_295L)
+    && ((not (Step_position.equal position Jump_none)) || Int64.(count >= 2L))
+  ;;
 end
 
 module Spring = struct

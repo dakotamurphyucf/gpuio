@@ -41,6 +41,14 @@ pub struct Target {
     pub property: Property,
     pub value: f64,
 }
+#[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
+pub enum StepPosition {
+    JumpStart,
+    JumpEnd,
+    JumpNone,
+    JumpBoth,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, BinProtWrite)]
 pub enum Easing {
     Linear,
@@ -49,10 +57,16 @@ pub enum Easing {
     EaseOut,
     EaseInOut,
     CubicBezier(f64, f64, f64, f64),
+    EaseInOutCubic,
+    Steps(i64, StepPosition),
 }
 impl Easing {
     pub fn is_valid(self) -> bool {
         match self {
+            Self::Steps(count, position) => {
+                (1..=i64::from(u32::MAX)).contains(&count)
+                    && (position != StepPosition::JumpNone || count >= 2)
+            }
             Self::CubicBezier(x1, y1, x2, y2) => {
                 [x1, x2]
                     .iter()
@@ -63,6 +77,18 @@ impl Easing {
         }
     }
     pub fn sample(self, progress: f64) -> f64 {
+        // Stepped curves may jump at zero: do not apply the continuous-curve
+        // endpoint shortcut before evaluating their position policy.
+        if let Self::Steps(count, position) = self {
+            let count = count as f64;
+            let (jumps, offset) = match position {
+                StepPosition::JumpStart => (count, 1.),
+                StepPosition::JumpEnd => (count, 0.),
+                StepPosition::JumpNone => (count - 1., 0.),
+                StepPosition::JumpBoth => (count + 1., 1.),
+            };
+            return ((progress.clamp(0., 1.) * count).floor() + offset).clamp(0., jumps) / jumps;
+        }
         if progress <= 0. {
             return 0.;
         }
@@ -70,7 +96,15 @@ impl Easing {
             return 1.;
         }
         let (x1, y1, x2, y2) = match self {
+            Self::Steps(..) => unreachable!("stepped easing evaluated above"),
             Self::Linear => return progress,
+            Self::EaseInOutCubic => {
+                return if progress <= 0.5 {
+                    4. * progress.powi(3)
+                } else {
+                    1. - 4. * (1. - progress).powi(3)
+                };
+            }
             Self::Ease => (0.25, 0.1, 0.25, 1.),
             Self::EaseIn => (0.42, 0., 1., 1.),
             Self::EaseOut => (0., 0., 0.58, 1.),

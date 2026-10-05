@@ -1,0 +1,117 @@
+{
+  "archive": "local-validation.tar.gz",
+  "sha256": "161771b652154b9b10adf5e85888fca42ad8ad8a52ee2762aafd26039d4de52d",
+  "bytes": 126097,
+  "files": [
+    {
+      "path": "source/lib/core/animation.ml",
+      "sha256": "e5a1c2e386850d56e633ed94e39698025effa01927246bdb958264343a13b803",
+      "bytes": 13994
+    },
+    {
+      "path": "source/lib/core/animation.mli",
+      "sha256": "50f98f9c3925e1b01f5c7ccf33322eb843b9bed9efd4c75f66d643a93775d2ec",
+      "bytes": 8924
+    },
+    {
+      "path": "source/lib/protocol/animation_wire.ml",
+      "sha256": "7b14084f06f1d67bee41819c061a97cd7b42df8174d98e5b00212482cc55cade",
+      "bytes": 2117
+    },
+    {
+      "path": "source/lib/protocol/animation_wire.mli",
+      "sha256": "361c1835be8c3e05f125a31d7b2d08c3b4b2cb2d07c6a97fbe76b974e2cb9064",
+      "bytes": 1980
+    },
+    {
+      "path": "source/lib/protocol/carousel_track_wire.ml",
+      "sha256": "ee178874c4ceb9553ecd6bcf7fa2a154536227d0dbee917d970b3aeefb44c6e1",
+      "bytes": 4385
+    },
+    {
+      "path": "source/rust/protocol/src/animation.rs",
+      "sha256": "a1361b07b73a783634ea2d46236082a13f2b7d47790fd76dc6d2f1eb581f72b0",
+      "bytes": 7098
+    },
+    {
+      "path": "source/rust/protocol/src/decode/animation_program.rs",
+      "sha256": "6436a3987d6ccbc65951cf7cc50edc3b49d39e00b3e2aded51d4f67b747596ea",
+      "bytes": 3437
+    },
+    {
+      "path": "source/rust/protocol/tests/animation.rs",
+      "sha256": "0b7db86ea42545f99cc703ccac4ed72d7a6d7a60cc5e03600d8f176ea5c35093",
+      "bytes": 12174
+    },
+    {
+      "path": "source/rust/native/tests/motion.rs",
+      "sha256": "c8c765605c7b391bde93e16d5ed5d8b03df822bbf4474d5fe0f9dd4b25877a53",
+      "bytes": 10724
+    },
+    {
+      "path": "source/test/view_api/animation_test.ml",
+      "sha256": "3eea1b9259884e6b849ce881e7862d88f6aa50752f41a5b30cf120bfbd251016",
+      "bytes": 13298
+    },
+    {
+      "path": "source/test/view_api/dune",
+      "sha256": "7562f9cfe78b90b613d6c2205bd8c5b1a6ec88a08b6515f0c2b644e3a9c16bba",
+      "bytes": 14337
+    },
+    {
+      "path": "source/test/fixtures/animation-steps.tsv",
+      "sha256": "c034e76de98eeb70f18e4974f838c098bc71a93dd2b823ef0ef0c96e694929f0",
+      "bytes": 48
+    },
+    {
+      "path": "source/test/fixtures/animation-cubic-easing.tsv",
+      "sha256": "6762c1dca6e62489069068d5eb839099643c991abd82d141e1f8df73985c280a",
+      "bytes": 151
+    },
+    {
+      "path": "source/examples/gallery/motion_page.ml",
+      "sha256": "61154233f430dc34b24b82616e6e43df2d6be1ae263ff3add5374fe101570b0c",
+      "bytes": 10220
+    },
+    {
+      "path": "source/scripts/test_gallery.py",
+      "sha256": "001fa8a794de8153a99703e550aba592892a7b233edfafa9aeae1870014f8be5",
+      "bytes": 323341
+    },
+    {
+      "path": "validation/stepped-easing-validation.json",
+      "sha256": "a12d444e11ea3660c202eb0789e94bee721ed04fd746de3199f4d0bd1e6ce1c2",
+      "bytes": 1941
+    },
+    {
+      "path": "validation/stepped-easing-protocol.log",
+      "sha256": "42c0be8db6d3717b3592fe8d79881e165ee89d3138e2579053f3148c7869757c",
+      "bytes": 752
+    },
+    {
+      "path": "validation/stepped-easing-native.log",
+      "sha256": "eeddcb983f20bf68375a3ff4256b8dd538b57067ce17ff0807858b75af131e0a",
+      "bytes": 589384
+    },
+    {
+      "path": "validation/stepped-easing-clippy.log",
+      "sha256": "4c3e48a97f9a269c0e7f7df3900778e4c2bf4775f3557debaf735570b771d5b2",
+      "bytes": 137
+    },
+    {
+      "path": "validation/stepped-easing-gallery.log",
+      "sha256": "537b6671325464f8cb8e0a02275b6d71cc31a584b4bd86faee0fc7336ee13b0f",
+      "bytes": 100172
+    },
+    {
+      "path": "validation/stepped-easing-ocaml.log",
+      "sha256": "7ae5a30ed4fa365e4e033f10f358ac519f7559d709fb6e0735992417c8e477f0",
+      "bytes": 523
+    },
+    {
+      "path": "validation/stepped-easing-rustfmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    }
+  ]
+}

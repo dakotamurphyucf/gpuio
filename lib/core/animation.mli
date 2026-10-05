@@ -36,6 +36,15 @@ module Target : sig
 end
 
 module Easing : sig
+  module Step_position : sig
+    type t =
+      | Jump_start
+      | Jump_end
+      | Jump_none
+      | Jump_both
+    [@@deriving equal, sexp_of]
+  end
+
   type t [@@deriving equal, sexp_of]
 
   val linear : t
@@ -51,6 +60,18 @@ module Easing : sig
   val ease_in_cubic : t
 
   val ease_out_cubic : t
+
+  (** Piecewise polynomial: [4 * t^3] up to the midpoint, then
+      [1 - 4 * (1 - t)^3]. Native evaluation preserves the exact midpoint and
+      endpoints. This differs from the CSS [ease_in_out] preset. *)
+  val ease_in_out_cubic : t
+
+  (** Constant-time stepped motion. [count] is in [1,4294967295];
+      [Jump_none] requires at least 2. At progress zero, [Jump_start] produces
+      [1/count] and [Jump_both] produces [1/(count+1)]; the other modes produce
+      zero. Each jump boundary selects the following step. Progress outside
+      [0,1] clamps before evaluation; all modes produce 1 at progress 1. *)
+  val steps : count:int -> position:Step_position.t -> t Or_error.t
 
   (** X control points in [0,1]; Y control points may be any finite value. Overshoot is permitted,
       with each interpolated property clamped to its valid numeric range. *)

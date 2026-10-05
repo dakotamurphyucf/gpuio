@@ -4980,7 +4980,13 @@ def exercise_motion(mac, images, second_title=SECOND):
     assert 98 < early[-1] < 308, early
     assert abs(reopening[-1] - 310) < 1, reopening
     assert min(reopening) > 98, reopening  # No jump to the declared narrow endpoint.
-    for label in ['Cubic ease-in', 'Cubic ease-out']:
+    step_levels = {
+        'Steps start': [0., .25, .5, .75, 1.],
+        'Steps end': [0., .25, .5, .75, 1.],
+        'Steps none': [0., 1. / 3., 2. / 3., 1.],
+        'Steps both': [0., .2, .4, .6, .8, 1.],
+    }
+    for label in ['Cubic ease-in', 'Cubic ease-out', 'Cubic ease-in-out', *step_levels]:
         mac.press(TITLE, label)
         closing = motion_samples(mac, 'Resize sample', 1.3, 'Contract preview')
         opening = motion_samples(mac, 'Resize sample', 1.3, 'Expand preview')
@@ -4988,9 +4994,14 @@ def exercise_motion(mac, images, second_title=SECOND):
         assert abs(opening[-1] - 310) < 1, (label, opening)
         assert any(98 < width < 308 for width in closing), (label, closing)
         assert any(98 < width < 308 for width in opening), (label, opening)
+        if label in step_levels:
+            widths = [96 + 214 * level for level in step_levels[label]]
+            assert all(min(abs(value - expected) for expected in widths) < 1
+                       for value in closing + opening), (label, closing, opening)
     mac.press(TITLE, 'CSS ease-in-out')
-    print('GALLERY_CUBIC_EASING_OK: both public presets animate in both directions; '
+    print('GALLERY_CUBIC_EASING_OK: all three public presets animate in both directions; '
           'polynomial values are checked separately by native numeric fixtures', flush=True)
+    print('GALLERY_STEPPED_EASING_OK: four policies use discrete widths in both directions', flush=True)
     started = motion_samples(mac, 'Sequence sample', .2, 'Replay sequence')
     paused = motion_samples(mac, 'Sequence sample', .4, 'Pause sequence')
     # The first sample can precede application of the asynchronous pause intent.

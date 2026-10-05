@@ -173,6 +173,51 @@ fn loop_uses_integer_modulo_at_long_uptime_and_clock_never_reverses() {
     assert_eq!(value(&mut state, 1_000_000_000_001_000).0, 0.);
 }
 #[test]
+fn stepped_motion_holds_during_delay_then_jumps_and_completes_after_paint() {
+    let mut cfg = config(8, 120.);
+    cfg.delay_ms = 200;
+    cfg.easing = Easing::Steps(4, StepPosition::JumpStart);
+    let mut state = State::new(Arc::new(cfg), ms(0), false).unwrap();
+    assert_eq!(value(&mut state, 199), (0., Wake::At(ms(200)), None));
+    assert_eq!(value(&mut state, 200), (30., Wake::Frame, None));
+    assert_eq!(value(&mut state, 449), (30., Wake::Frame, None));
+    assert_eq!(value(&mut state, 450), (60., Wake::Frame, None));
+    assert_eq!(value(&mut state, 950), (120., Wake::Frame, None));
+    // Reaching the target on an early step is not terminal completion.
+    let sample = state.sample(ms(1200));
+    assert_eq!(sample.wake, Wake::Idle);
+    assert_eq!(
+        state.painted(sample),
+        Some(Endpoint {
+            generation: 8,
+            outcome: Outcome::Finished,
+        })
+    );
+    assert_eq!(value(&mut state, 1300), (120., Wake::Idle, None));
+}
+
+#[test]
+fn piecewise_cubic_motion_has_exact_quarter_points_and_painted_completion() {
+    let mut cfg = config(7, 160.);
+    cfg.easing = Easing::EaseInOutCubic;
+    let mut state = State::new(Arc::new(cfg), ms(0), false).unwrap();
+    for (time, expected) in [(0, 0.), (250, 10.), (500, 80.), (750, 150.)] {
+        assert_eq!(value(&mut state, time), (expected, Wake::Frame, None));
+    }
+    let sample = state.sample(ms(1000));
+    assert_eq!(sample.values.get(Property::Width), Some(160.));
+    assert_eq!(sample.wake, Wake::Idle);
+    assert_eq!(
+        state.painted(sample),
+        Some(Endpoint {
+            generation: 7,
+            outcome: Outcome::Finished,
+        })
+    );
+    assert_eq!(value(&mut state, 1100), (160., Wake::Idle, None));
+}
+
+#[test]
 fn bezier_inverts_x_and_clamps_property_overshoot() {
     assert!((Easing::CubicBezier(0., 0., 0., 1.).sample(0.125) - 0.5).abs() < 1e-10);
     for easing in [
@@ -181,6 +226,7 @@ fn bezier_inverts_x_and_clamps_property_overshoot() {
         Easing::EaseIn,
         Easing::EaseOut,
         Easing::EaseInOut,
+        Easing::EaseInOutCubic,
     ] {
         assert_eq!(easing.sample(0.), 0.);
         assert_eq!(easing.sample(1.), 1.);

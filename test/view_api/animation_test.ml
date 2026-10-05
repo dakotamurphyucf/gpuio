@@ -3,12 +3,55 @@ open Gpuio
 
 let target values = Animation.Target.create values |> Or_error.ok_exn
 
+let%expect_test "stepped easing validates counts and pins all position tags" =
+  let module A = Animation in
+  let module W = Gpuio_protocol.Wire.Animation in
+  let positions =
+    [ "start", A.Easing.Step_position.Jump_start
+    ; "end", A.Easing.Step_position.Jump_end
+    ; "none", A.Easing.Step_position.Jump_none
+    ; "both", A.Easing.Step_position.Jump_both
+    ]
+  in
+  let encoded =
+    List.map positions ~f:(fun (name, position) ->
+      List.iter [ Int.min_value; -1; 0; 4_294_967_296; Int.max_value ] ~f:(fun count ->
+        assert (Result.is_error (A.Easing.steps ~count ~position)));
+      assert (Result.is_ok (A.Easing.steps ~count:4_294_967_295 ~position));
+      let easing = A.Easing.steps ~count:4 ~position |> Or_error.ok_exn in
+      let bytes =
+        Bin_prot.Utils.bin_dump [%bin_writer: W.Easing.t] (A.Expert.easing_to_wire easing)
+        |> Bigstring.to_string
+      in
+      name
+      ^ "\t"
+      ^ String.concat_map bytes ~f:(fun byte -> sprintf "%02x" (Char.to_int byte)))
+    |> String.concat ~sep:"\n"
+  in
+  assert (Result.is_error (A.Easing.steps ~count:1 ~position:Jump_none));
+  List.iter [ A.Easing.Step_position.Jump_start; Jump_end; Jump_both ] ~f:(fun position ->
+    assert (Result.is_ok (A.Easing.steps ~count:1 ~position)));
+  Eio_main.run (fun env ->
+    let fixture =
+      Eio.Path.load Eio.Path.(Eio.Stdenv.cwd env / "animation-steps.tsv") |> String.strip
+    in
+    assert (String.equal encoded fixture));
+  print_endline "four step positions: validated counts; independent wire bytes";
+  [%expect {| four step positions: validated counts; independent wire bytes |}]
+;;
+
 let%expect_test "polynomial easing presets use the independent native curve fixtures" =
   let module A = Animation in
   let module W = Gpuio_protocol.Wire.Animation in
-  let curves = [ "in", A.Easing.ease_in_cubic; "out", A.Easing.ease_out_cubic ] in
+  let curves =
+    [ "in", A.Easing.ease_in_cubic
+    ; "out", A.Easing.ease_out_cubic
+    ; "in-out", A.Easing.ease_in_out_cubic
+    ]
+  in
   assert (not (A.Easing.equal A.Easing.ease_in_cubic A.Easing.ease_in));
   assert (not (A.Easing.equal A.Easing.ease_out_cubic A.Easing.ease_out));
+  assert (not (A.Easing.equal A.Easing.ease_in_out_cubic A.Easing.ease_in_out));
   let encoded =
     List.map curves ~f:(fun (name, easing) ->
       let bytes =
@@ -27,8 +70,8 @@ let%expect_test "polynomial easing presets use the independent native curve fixt
       |> String.strip
     in
     assert (String.equal encoded fixture));
-  print_endline "polynomial in/out: shared native bytes; distinct from CSS presets";
-  [%expect {| polynomial in/out: shared native bytes; distinct from CSS presets |}]
+  print_endline "three polynomial presets: shared native bytes; distinct from CSS presets";
+  [%expect {| three polynomial presets: shared native bytes; distinct from CSS presets |}]
 ;;
 
 let%expect_test "animation targets validate geometry and expand radius canonically" =
