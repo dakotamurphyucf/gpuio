@@ -60,6 +60,23 @@ fn draw(cx: &mut VisualTestContext) {
     cx.update(|window, cx| window.draw(cx).clear(cx));
     cx.run_until_parked();
 }
+fn assert_slot_paint(cx: &mut VisualTestContext, colors: [u32; 4], controls: n::StepControls) {
+    cx.update(|window, _| {
+        for (index, color) in colors.into_iter().enumerate() {
+            let expected = usize::from(index < 2 || controls != n::StepControls::Hidden);
+            let color: gpui::Background = rgba(color).into();
+            assert_eq!(
+                window
+                    .painted_quads()
+                    .iter()
+                    .filter(|quad| quad.background == color)
+                    .count(),
+                expected,
+                "numeric slot {index} must paint only at its component-owned location"
+            );
+        }
+    });
+}
 fn command(owner: &Entity<View>, cx: &mut VisualTestContext, command: n::Command) -> n::Snapshot {
     cx.update(|window, cx| {
         owner.update(cx, |view, cx| {
@@ -234,8 +251,18 @@ fn number_frame_retains_editor_composition_and_routes_auxiliary_actions_through_
         Op::Splice(id(4), 0, 0, vec![id(8)]),
         Op::Splice(id(0), 0, 0, (1..=4).map(id).collect()),
     ]);
+    let slot_colors: [u32; 4] = [0x123456ff, 0x234567ff, 0x345678ff, 0x456789ff];
+    for (index, color) in slot_colors.into_iter().enumerate() {
+        ops.push(Op::SetStyle(
+            id(5 + index as i64),
+            vec![WireStyle::Fields(vec![WireField::Background(
+                gpuio_protocol::v1::Fill::Solid(WireColor::Rgba(i64::from(color))),
+            )])],
+        ));
+    }
     apply(&owner, cx, ops);
     draw(cx);
+    assert_slot_paint(cx, slot_colors, n::StepControls::Sides);
     owner.read_with(cx, |view, _| {
         assert_eq!(view.numbers[&id(0)].state.entity_id(), state.entity_id());
         assert_eq!(
@@ -407,6 +434,7 @@ fn number_frame_retains_editor_composition_and_routes_auxiliary_actions_through_
             vec![Op::SetNumberInput(id(0), mode, n::Value::Number(12.))],
         );
         draw(cx);
+        assert_slot_paint(cx, slot_colors, controls);
         let mut after = command(&owner, cx, n::Command::ReadSnapshot);
         // Editing-policy updates advance the numeric revision even when the
         // retained draft, value, selection and focus do not change.

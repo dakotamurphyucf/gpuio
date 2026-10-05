@@ -1163,6 +1163,7 @@ impl View {
                                 // Structural slots are mounted by the picker in
                                 // their trigger/popup locations, never twice.
                                 | Kind::ChoicePicker
+                                | Kind::NumberInput
                                 | Kind::Select
                                 | Kind::Calendar
                                 | Kind::Avatar
