@@ -198,7 +198,40 @@ Reports retain exact artifact hashes, deny probes, covered behaviors and errors.
 This is an existing development Mac with specific paths denied. It does not
 replace a fresh-machine check, quarantine transfer, Developer ID/notarization,
 complete native acceptance or notice review. Test-only bundles with incomplete
-notices remain local qualification inputs.
+notices remain internal qualification inputs.
+
+### Fresh hosted runner
+
+The Foundation workflow stages three ad-hoc archives from its successful macOS
+build and transfers them to a separate `macos-15` job. The producer requires the
+expected clean checkout; `transfer.json` binds its full Git revision, CI run and
+attempt, package metadata hashes, archive hashes and packaged executable hashes.
+The build job is responsible for building those inputs at that revision: a hash
+alone cannot identify a binary's source. Failed staging or verification leaves
+an incomplete manifest.
+
+The receiver installs no project dependencies, restores no dependency cache and
+performs no project build. It checks that `_build`, `target` and `.opam-root` are
+absent, verifies the transferred identity and hashes, then uses the extracted-app
+walkthrough above for each reference application. The hosted image still supplies
+macOS, Python and developer/platform tools for the parent harness. Each tested
+application runs with the same development-path denials and minimal environment.
+The job retains reports and screenshots even when a walkthrough fails.
+
+The transfer scripts can also be checked locally, from a clean built checkout:
+
+```sh
+python3 scripts/ci_macos_package_transfer.py stage \
+  --directory scratch/runtime-transfer-001 --revision "$(git rev-parse HEAD)"
+python3 scripts/ci_macos_package_transfer.py verify \
+  --directory scratch/runtime-transfer-001 --revision "$(git rev-parse HEAD)"
+```
+
+Local staging does not prove fresh-host execution. Record a completed hosted job
+and its exact source/artifact hashes before claiming that coverage. These are
+internal qualification artifacts with explicitly incomplete notices and short
+artifact retention; this job does not qualify a signed/notarized release or
+Gatekeeper behavior after quarantined download. VoiceOver is not exercised.
 
 ### Release artifact qualification
 
