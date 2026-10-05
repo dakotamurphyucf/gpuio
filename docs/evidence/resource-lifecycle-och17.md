@@ -1,8 +1,7 @@
 # Repeated window/resource retirement — OCH-17
 
-Status: collector and public workload implemented; short macOS functional check
-passes. Full repeated memory measurements and native/physical qualification are
-not established by this initial checkpoint.
+Status: public workload, smoke and three full macOS process-memory runs pass.
+Separate native-entity, GPU/physical and release qualification remain open.
 
 The [workload and collector](../../examples/performance_lifecycle/README.md)
 run three warm-up then 30 measured cycles in one application process. Each window
@@ -45,3 +44,33 @@ Artifacts in `scratch/agents/root-20261004-resumed/`:
 a reserved OCaml 5.3 identifier and produced no accepted executable; the second
 passes after renaming it. Raw reports retain executable hash and checkout state.
 Associate full runs with their preserved source build before declaring acceptance.
+
+## Three full optimized runs
+
+All three runs pass 3 warm-up + 30 measured cycles, every resource/request/queue
+retirement check and the predeclared final-ten-cycle growth limit of 64 MiB.
+Preserved executable source is `b75ffa2`, SHA-256
+`307e4bf8591de2be1e5a931d93040fc21fe76a296db8a8b7e3199444ec539345`.
+They followed the smoke warm-up, sequentially with no other owned GUI or local
+compilation. Independent source editing continued. The owner chose ordinary
+visible windows while away. An owned `caffeinate -d -i -w` process prevents idle
+system/display sleep for the batch; system preferences are unchanged. It does
+not certify visibility, prevent a manual lock or prove keyboard/IME behavior.
+
+| Run | Elapsed | Process CPU | Peak process RSS | Maximum growth above cycle 24 baseline |
+| --- | ---: | ---: | ---: | ---: |
+| 1 | 104.318 s | 1.835071 s | 134,397,952 B | 65,536 B |
+| 2 | 103.392 s | 1.803740 s | 135,888,896 B | 6,225,920 B |
+| 3 | 103.478 s | 1.821709 s | 132,366,336 B | 2,244,608 B |
+
+[The retained measurement record](resource-lifecycle-runs-och17.json) contains
+all 99 checkpoint samples, exact binary/source and observed checkout metadata,
+per-run resource summaries and every baseline value. Raw full diagnostics are
+in session `lifecycle-full-00{1,2,3}/`, with sequential command/process log
+`acceptance-b75ffa2-001.log`.
+
+The measured interval passes its growth target; it does not establish zero
+allocation or an indefinitely stable plateau. Run 2 still grows about 5.94 MiB
+over its final ten samples. Process RSS includes allocator/native caches and is
+not explained completely by the application registration counts. No unbounded
+leak or general absence of leaks is inferred from these finite runs.
