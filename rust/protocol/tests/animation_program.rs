@@ -408,3 +408,83 @@ fn signed_initial_delay_keeps_wire_order_and_does_not_relax_stage_or_shared_rule
     config.program.stages[0].delay_ms = -1;
     assert!(!config.is_valid());
 }
+
+#[test]
+fn explicit_repeat_unsigned_limbs_and_direction_tags_match_independent_fixtures() {
+    use gpuio_protocol::animation::{Direction, IterationCount};
+    let mut encoded = String::new();
+    for count in [
+        Some(0),
+        Some(1),
+        Some(3),
+        Some(1 << 32),
+        Some(i64::MAX as u64),
+        Some(1 << 63),
+        Some(u64::MAX),
+        None,
+    ] {
+        for (index, direction) in [
+            Direction::Normal,
+            Direction::Reverse,
+            Direction::Alternate,
+            Direction::AlternateReverse,
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let repeat = count.map_or(Repeat::Infinite(direction), |count| {
+                Repeat::Finite(IterationCount::new(count), direction)
+            });
+            let mut bytes = vec![];
+            repeat.binprot_write(&mut bytes).unwrap();
+            encoded += &format!(
+                "{}/{index}\t{}\n",
+                count.map_or("infinite".into(), |n| n.to_string()),
+                bytes.iter().map(|b| format!("{b:02x}")).collect::<String>()
+            );
+            let mut config = example();
+            config.program.repeat = repeat;
+            let mut bytes = vec![];
+            config.binprot_write(&mut bytes).unwrap();
+            assert_eq!(decode_animation_program(&bytes), Ok(config));
+        }
+    }
+    assert_eq!(
+        encoded,
+        include_str!("../../../test/fixtures/animation-repeat.tsv")
+    );
+    for count in [
+        IterationCount { high: -1, low: 0 },
+        IterationCount { high: 0, low: -1 },
+        IterationCount {
+            high: 1 << 32,
+            low: 0,
+        },
+        IterationCount {
+            high: 0,
+            low: 1 << 32,
+        },
+    ] {
+        let mut config = example();
+        config.program.repeat = Repeat::Finite(count, Direction::Normal);
+        assert!(!config.is_valid());
+        let mut bytes = vec![];
+        config.binprot_write(&mut bytes).unwrap();
+        assert_eq!(
+            decode_animation_program(&bytes),
+            Err(DecodeError::Malformed)
+        );
+    }
+    let mut config = example();
+    config.program.repeat = Repeat::Finite(IterationCount::new(0), Direction::Reverse);
+    for stage in &mut config.program.stages {
+        stage.timing = Timing::Tween(0, Easing::Linear);
+        stage.delay_ms = 0;
+    }
+    assert!(config.is_valid());
+    config.program.clock = Clock::Application;
+    assert!(!config.is_valid());
+    config.program.clock = Clock::Independent;
+    config.program.repeat = Repeat::Infinite(Direction::Normal);
+    assert!(!config.is_valid());
+}

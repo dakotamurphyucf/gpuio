@@ -359,3 +359,43 @@ fn signed_delay_advances_legacy_motion_at_clock_zero_and_preserves_completion() 
         Outcome::Finished
     );
 }
+
+#[test]
+fn finite_repeat_direction_counts_and_reduced_endpoints_match_single_stage_programs() {
+    for direction in [
+        Direction::Normal,
+        Direction::Reverse,
+        Direction::Alternate,
+        Direction::AlternateReverse,
+    ] {
+        for count in [0, 1, 2, 3] {
+            let mut cfg = config(1, 100.);
+            cfg.duration_ms = 100;
+            cfg.easing = Easing::EaseIn;
+            cfg.repeat = Repeat::Finite(IterationCount::new(count), direction);
+            let mut state = State::new(Arc::new(cfg.clone()), ms(0), false).unwrap();
+            for time in (0..count * 100).step_by(25) {
+                let progress = (time % 100) as f64 / 100.;
+                let directed = if direction.reverses((time / 100) as u128) {
+                    1. - progress
+                } else {
+                    progress
+                };
+                let sample = value(&mut state, time);
+                assert!((sample.0 - Easing::EaseIn.sample(directed) * 100.).abs() < 1e-9);
+                assert!(sample.2.is_none());
+            }
+            let expected = if direction.reverses(count.saturating_sub(1) as u128) {
+                0.
+            } else {
+                100.
+            };
+            let end = value(&mut state, count * 100);
+            assert_eq!(end.0, expected);
+            assert_eq!(end.1, Wake::Idle);
+            assert_eq!(end.2.unwrap().outcome, Outcome::Finished);
+            let mut reduced = State::new(Arc::new(cfg), ms(0), true).unwrap();
+            assert_eq!(value(&mut reduced, 0).0, expected);
+        }
+    }
+}

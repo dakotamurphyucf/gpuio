@@ -64,8 +64,11 @@ Piecewise-linear easing now has a typed 2–256-stop API, native shared curves,
 bounded position inference/decoding and a [passing installed Motion walkthrough](evidence/stepped-easing-och41.md#piecewise-linear-stops--2026-10-05).
 Variable curve payloads count toward program limits and retained memory.
 Signed initial delays now have [public API, codec, native-state and installed macOS evidence](evidence/signed-delay-och41.md).
-The complete Motion walkthrough passes. Iteration/direction gaps remain explicit
-in the motion review.
+The complete Motion walkthrough passes. Explicit finite counts across the full
+unsigned 64-bit range and all four playback directions now have
+[API, codec, native-state and installed macOS evidence](evidence/animation-iterations-och41.md).
+Legacy policies keep their semantics; finite completion and bounded timer waits
+are documented. Broader catalog and release qualification remain open.
 The current unmodified table smoke at `5c3956d` fails the 100 ms startup gate
 at approximately 147.364 ms. A separate paced replay also reproduces the owner's
 reported table flicker: three overlapping rows remain populated while newly

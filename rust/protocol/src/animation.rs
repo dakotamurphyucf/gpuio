@@ -200,11 +200,71 @@ impl Spring {
             && (1..=60_000).contains(&self.max_duration_ms)
     }
 }
+/// Unsigned 64-bit count encoded as two independently validated 32-bit limbs.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
+pub struct IterationCount {
+    pub high: i64,
+    pub low: i64,
+}
+impl IterationCount {
+    pub fn new(value: u64) -> Self {
+        Self {
+            high: (value >> 32) as i64,
+            low: (value & 0xffff_ffff) as i64,
+        }
+    }
+    pub fn is_valid(self) -> bool {
+        (0..=u32::MAX as i64).contains(&self.high) && (0..=u32::MAX as i64).contains(&self.low)
+    }
+    pub fn value(self) -> u64 {
+        ((self.high as u64) << 32) | self.low as u64
+    }
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
+pub enum Direction {
+    Normal,
+    Reverse,
+    Alternate,
+    AlternateReverse,
+}
+impl Direction {
+    pub fn reverses(self, iteration: u128) -> bool {
+        match self {
+            Self::Normal => false,
+            Self::Reverse => true,
+            Self::Alternate => iteration % 2 == 1,
+            Self::AlternateReverse => iteration.is_multiple_of(2),
+        }
+    }
+}
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
 pub enum Repeat {
     Once,
     Loop,
     Alternate,
+    Finite(IterationCount, Direction),
+    Infinite(Direction),
+}
+impl Repeat {
+    pub fn is_valid(self) -> bool {
+        match self {
+            Self::Finite(count, _) => count.is_valid(),
+            _ => true,
+        }
+    }
+    pub fn is_infinite(self) -> bool {
+        matches!(self, Self::Loop | Self::Alternate | Self::Infinite(_))
+    }
+    pub fn is_explicit(self) -> bool {
+        matches!(self, Self::Finite(..) | Self::Infinite(_))
+    }
+    pub fn policy(self) -> Option<(Option<u64>, Direction)> {
+        match self {
+            Self::Finite(count, direction) => Some((Some(count.value()), direction)),
+            Self::Infinite(direction) => Some((None, direction)),
+            _ => None,
+        }
+    }
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
 pub enum Preference {
@@ -253,7 +313,9 @@ impl Config {
             && (0..=MAX_TIME_MS).contains(&self.duration_ms)
             && (-MAX_TIME_MS..=MAX_TIME_MS).contains(&self.delay_ms)
             && self.easing.is_valid()
-            && (self.repeat == Repeat::Once || (self.initial.is_some() && self.duration_ms > 0))
+            && self.repeat.is_valid()
+            && (self.repeat == Repeat::Once || self.initial.is_some())
+            && (!self.repeat.is_infinite() || self.duration_ms > 0)
     }
 }
 

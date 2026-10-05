@@ -472,3 +472,160 @@ let%expect_test "changing initial delay preserves playback and monotonic restart
   [%expect
     {| delay edits preserve playback/restart; restart advances; shared and time bounds enforced |}]
 ;;
+
+let%expect_test "iteration counts retain the entire unsigned range without floating point"
+  =
+  let module C = A.Iteration_count in
+  List.iter
+    [ "0"
+    ; "1"
+    ; "4294967295"
+    ; "4294967296"
+    ; "9223372036854775807"
+    ; "9223372036854775808"
+    ; "18446744073709551615"
+    ]
+    ~f:(fun text ->
+      let value = C.of_string text |> ok in
+      assert (String.equal text (C.to_string value));
+      assert (C.equal value (C.of_string ("000" ^ text) |> ok)));
+  List.iter [ ""; "-1"; "+1"; " 1"; "1.0"; "1x"; "18446744073709551616" ] ~f:(fun text ->
+    assert (Result.is_error (C.of_string text)));
+  assert (Result.is_error (C.of_int (-1)));
+  assert (Result.is_error (C.of_int64 Int64.min_value));
+  assert (C.equal C.zero (C.of_int 0 |> ok));
+  assert (C.equal C.one (C.of_int64 1L |> ok));
+  assert (
+    String.equal (C.to_string (C.of_int64 Int64.max_value |> ok)) "9223372036854775807");
+  print_endline
+    "unsigned 64-bit boundaries and canonical decimal; invalid counts rejected";
+  [%expect
+    {| unsigned 64-bit boundaries and canonical decimal; invalid counts rejected |}]
+;;
+
+let%expect_test
+    "explicit finite policies admit zero duration but shared clocks require infinity"
+  =
+  List.iter
+    [ A.Direction.Normal; Reverse; Alternate; Alternate_reverse ]
+    ~f:(fun direction ->
+      List.iter [ A.Iteration_count.zero; A.Iteration_count.one ] ~f:(fun count ->
+        let repeat = A.Repeat.Finite (count, direction) in
+        ignore
+          (A.Program.create ~initial ~repeat [ timed 0. (target 100. 1.) ] |> ok
+           : A.Program.t);
+        ignore
+          (A.Config.create
+             ~initial
+             ~repeat
+             ~duration:Time_ns.Span.zero
+             ~target:(target 100. 1.)
+             ()
+           |> ok
+           : A.Config.t);
+        assert (
+          Result.is_error
+            (A.Program.create
+               ~initial
+               ~repeat
+               ~clock:A.Clock.application
+               [ timed 100. (target 100. 1.) ])));
+      let repeat = A.Repeat.Infinite direction in
+      assert (
+        Result.is_error (A.Program.create ~initial ~repeat [ timed 0. (target 100. 1.) ]));
+      ignore
+        (A.Program.create
+           ~initial
+           ~repeat
+           ~clock:A.Clock.application
+           [ timed 100. (target 100. 1.) ]
+         |> ok
+         : A.Program.t));
+  print_endline
+    "finite zero duration valid; infinite positive cycles; finite shared clock rejected";
+  [%expect
+    {| finite zero duration valid; infinite positive cycles; finite shared clock rejected |}]
+;;
+
+let%expect_test
+    "explicit iteration and direction encodings match independent limbs fixture"
+  =
+  let policies =
+    List.concat_map
+      [ "0"
+      ; "1"
+      ; "3"
+      ; "4294967296"
+      ; "9223372036854775807"
+      ; "9223372036854775808"
+      ; "18446744073709551615"
+      ; "infinite"
+      ]
+      ~f:(fun text ->
+        List.mapi
+          [ A.Direction.Normal; Reverse; Alternate; Alternate_reverse ]
+          ~f:(fun index direction ->
+            let repeat =
+              if String.equal text "infinite"
+              then A.Repeat.Infinite direction
+              else A.Repeat.Finite (A.Iteration_count.of_string text |> ok, direction)
+            in
+            let config =
+              A.Config.create ~initial ~repeat ~target:(target 100. 1.) () |> ok
+            in
+            let config = A.Expert.to_wire config ~generation:42L |> ok in
+            let bytes =
+              Bin_prot.Utils.bin_dump
+                [%bin_writer: Gpuio_protocol.Wire.Animation.Repeat.t]
+                config.repeat
+              |> Bigstring.to_string
+            in
+            sprintf
+              "%s/%d\t%s"
+              text
+              index
+              (String.concat_map bytes ~f:(fun byte -> sprintf "%02x" (Char.to_int byte)))))
+    |> String.concat ~sep:"\n"
+  in
+  Eio_main.run (fun env ->
+    let fixture =
+      Eio.Path.load Eio.Path.(Eio.Stdenv.cwd env / "animation-repeat.tsv") |> String.strip
+    in
+    assert (String.equal policies fixture));
+  print_endline
+    "32 finite/infinite policies preserve full unsigned counts and all direction tags";
+  [%expect
+    {| 32 finite/infinite policies preserve full unsigned counts and all direction tags |}]
+;;
+
+let%expect_test "editing iteration policy preserves playback and restart identity" =
+  let original =
+    A.Program.create ~initial [ timed 100. (target 100. 1.) ]
+    |> ok
+    |> A.Program.restart
+    |> ok
+  in
+  let original = A.Program.with_playback original Paused in
+  let repeat = A.Repeat.Finite (A.Iteration_count.of_int 3 |> ok, Reverse) in
+  let changed = A.Program.with_repeat original repeat |> ok |> wire in
+  assert (Int64.equal changed.restart 1L);
+  assert (W.Playback.equal changed.playback Paused);
+  assert (
+    A.Program.equal
+      original
+      (A.Program.with_repeat (A.Program.with_repeat original repeat |> ok) Once |> ok));
+  let shared =
+    A.Program.create
+      ~initial
+      ~repeat:Loop
+      ~clock:A.Clock.application
+      [ timed 100. (target 100. 1.) ]
+    |> ok
+  in
+  assert (Result.is_error (A.Program.with_repeat shared repeat));
+  ignore (A.Program.with_repeat shared (Infinite Reverse) |> ok : A.Program.t);
+  print_endline
+    "policy edits retain paused state and restart token; shared policies remain infinite";
+  [%expect
+    {| policy edits retain paused state and restart token; shared policies remain infinite |}]
+;;

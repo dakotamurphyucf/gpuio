@@ -5063,6 +5063,28 @@ def exercise_motion(mac, images, second_title=SECOND):
     mac.wait_text(TITLE, 'Motion preference: Full')
     mac.close(second_title)
     raise_gallery(mac)
+    for label, endpoint in [('Three forward', 260), ('Three reverse', 64),
+                            ('Two alternating', 64), ('Three alternate reverse', 64)]:
+        values = motion_samples(mac, 'Counted sample', 1.8, label)
+        assert any(66 < width < 258 for width in values), (label, values)
+        assert abs(values[-1] - endpoint) < 1, (label, values)
+        mac.wait_text(TITLE, 'Counted motion finished')
+    zero = motion_samples(mac, 'Counted sample', .35, 'Zero cycles')
+    assert abs(zero[-1] - 260) < 1, zero
+    assert all(min(abs(width-64), abs(width-260)) < 1 for width in zero), zero
+    moving = motion_samples(mac, 'Counted sample', .8, 'Continuous reverse')
+    assert max(moving) - min(moving) > 40, moving
+    held = motion_samples(mac, 'Counted sample', .35, 'Pause counted motion')
+    assert max(held[-8:]) - min(held[-8:]) < 1, held
+    resumed = motion_samples(mac, 'Counted sample', .4, 'Resume counted motion')
+    assert max(resumed) - min(resumed) > 20, resumed
+    mac.press(TITLE, 'Use reduced motion')
+    reduced_counted = motion_samples(mac, 'Counted sample', .3)
+    assert all(abs(width-260) < 1 for width in reduced_counted[-8:]), reduced_counted
+    mac.press(TITLE, 'Cancel counted motion')
+    mac.press(TITLE, 'Use full motion')
+    mac.wait_text(TITLE, 'Motion preference: Full')
+    print('GALLERY_ITERATION_DIRECTION_OK: four finite directions, zero cycles, infinite reverse pause/resume/reduced motion', flush=True)
     mac.press(TITLE, 'Start shared motion')
     first = motion_samples(mac, 'Shared member 1', .35)
     assert max(first) - min(first) > 3, first
@@ -5084,6 +5106,7 @@ def exercise_motion(mac, images, second_title=SECOND):
     mac.wait_text(TITLE, 'A little context goes a long way')
     absent(mac, 'Shared member 1', 'AXGroup')
     absent(mac, 'Sequence sample', 'AXGroup')
+    absent(mac, 'Counted sample', 'AXGroup')
     mac.press(TITLE, 'Motion & rhythm')
     mac.wait_text(TITLE, 'Shared motion is stopped.')
     mac.wait_text(TITLE, 'Ready to play')

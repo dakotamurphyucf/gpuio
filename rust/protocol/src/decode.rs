@@ -260,7 +260,7 @@ impl Decoder<'_> {
             .collect()
     }
     fn animation_config(&mut self) -> Result<crate::animation::Config, DecodeError> {
-        use crate::animation::{Config, Repeat};
+        use crate::animation::Config;
         let generation = self.int()?;
         let targets = self.animation_targets()?;
         let initial = match self.tag()? {
@@ -271,12 +271,7 @@ impl Decoder<'_> {
         let duration_ms = self.int()?;
         let delay_ms = self.int()?;
         let easing = self.animation_easing()?;
-        let repeat = match self.tag()? {
-            0 => Repeat::Once,
-            1 => Repeat::Loop,
-            2 => Repeat::Alternate,
-            _ => return Err(DecodeError::Malformed),
-        };
+        let repeat = self.animation_repeat()?;
         let config = Config {
             generation,
             targets,

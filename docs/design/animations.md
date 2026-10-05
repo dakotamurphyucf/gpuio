@@ -21,6 +21,10 @@ Numeric targets deliberately exclude `auto` and percentage interpolation.
 delay, easing and repetition. Initial and target property sets must match.
 Duration defaults to 200 ms, delay to zero, easing to linear and repetition to once.
 
+[Explicit iteration policies](animation-iterations.md) add full unsigned finite
+counts and Normal/Reverse/Alternate/Alternate_reverse playback through
+`Repeat.Finite` and `Repeat.Infinite`. The legacy policies retain their behavior.
+
 Initial delay is signed, within ±one day, rounded away from zero to whole
 milliseconds. Positive values hold the starting value; negative values start that
 many milliseconds into the run, possibly beyond its endpoint or across repeat

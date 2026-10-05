@@ -28,8 +28,12 @@ pub enum Error {
 }
 impl Tracks {
     fn compile(program: &Program, painted: Option<Frame>) -> Result<Self, Error> {
+        let mut declaration = program.clone();
+        if program.repeat.is_explicit() {
+            declaration.delay_ms = 0;
+        }
         let first =
-            Arc::new(Timeline::compile(program, painted).map_err(|_| Error::InvalidConfig)?);
+            Arc::new(Timeline::compile(&declaration, painted).map_err(|_| Error::InvalidConfig)?);
         let mut result = Self {
             first,
             forward: None,
@@ -106,7 +110,96 @@ impl Tracks {
         sample.finished = false;
         sample
     }
-    fn sample(&self, elapsed: Duration, repeat: Repeat, shared: bool) -> motion_timeline::Sample {
+    fn terminal(&self, repeat: Repeat) -> Frame {
+        let (count, direction) = repeat.policy().expect("explicit policy");
+        let count = count.expect("finite policy");
+        let track = if count <= 1 {
+            &self.first
+        } else {
+            self.forward.as_ref().unwrap()
+        };
+        track.directed_endpoint(direction.reverses(count.saturating_sub(1) as u128), true)
+    }
+    fn directed(
+        &self,
+        elapsed: Duration,
+        repeat: Repeat,
+        delay: Duration,
+        shared: bool,
+    ) -> motion_timeline::Sample {
+        let first = if shared {
+            self.forward.as_ref().unwrap()
+        } else {
+            &self.first
+        };
+        let (count, direction) = repeat.policy().unwrap();
+        let hold = |frame, next, finished| motion_timeline::Sample {
+            frame,
+            next,
+            finished,
+            completed: 0,
+        };
+        if elapsed < delay {
+            return hold(
+                first.directed_endpoint(direction.reverses(0), false),
+                Next::Wait(delay - elapsed),
+                false,
+            );
+        }
+        let elapsed = elapsed - delay;
+        let forward = self.forward.as_ref().unwrap();
+        let total = count.map(|count| {
+            if count == 0 {
+                0
+            } else {
+                first.duration().as_nanos()
+                    + forward.duration().as_nanos() * count.saturating_sub(1) as u128
+            }
+        });
+        if total.is_some_and(|total| elapsed.as_nanos() >= total) {
+            return hold(self.terminal(repeat), Next::Idle, true);
+        }
+        let (track, phase, iteration) = if elapsed < first.duration() {
+            (first, elapsed, 0)
+        } else {
+            let remaining = elapsed.saturating_sub(first.duration());
+            if forward.duration().is_zero() {
+                return hold(
+                    forward.directed_endpoint(direction.reverses(1), false),
+                    Next::Idle,
+                    false,
+                );
+            }
+            (
+                forward,
+                Duration::from_nanos((remaining.as_nanos() % forward.duration().as_nanos()) as u64),
+                1 + remaining.as_nanos() / forward.duration().as_nanos(),
+            )
+        };
+        let mut sample = if direction.reverses(iteration) {
+            track.sample_reverse(phase)
+        } else {
+            track.sample(phase)
+        };
+        sample.completed = 0;
+        sample.finished = false;
+        if track.is_static() && forward.is_static() {
+            sample.next = total.map_or(Next::Idle, |total| {
+                Next::Wait(crate::motion::bounded_duration(total - elapsed.as_nanos()))
+            });
+        }
+        sample
+    }
+    fn sample(
+        &self,
+        elapsed: Duration,
+        repeat: Repeat,
+        shared: bool,
+        delay: Duration,
+    ) -> motion_timeline::Sample {
+        if repeat.is_explicit() {
+            return self.directed(elapsed, repeat, delay, shared);
+        }
         if shared
             || (repeat != Repeat::Once
                 && self.first.is_static()
@@ -210,7 +303,7 @@ impl State {
     pub fn reservation(config: &Config) -> usize {
         let tracks = match config.program.repeat {
             Repeat::Once => 1,
-            Repeat::Loop => 2,
+            Repeat::Loop | Repeat::Finite(..) | Repeat::Infinite(_) => 2,
             Repeat::Alternate => 3,
         };
         std::mem::size_of::<Self>()
@@ -298,7 +391,19 @@ impl State {
             return Ok(sample);
         }
         if self.reduced {
-            if self.config.program.repeat == Repeat::Once {
+            if let Some((count, direction)) = self.config.program.repeat.policy() {
+                sample.frame = if count.is_some() {
+                    self.tracks.terminal(self.config.program.repeat)
+                } else {
+                    self.tracks
+                        .forward
+                        .as_ref()
+                        .unwrap()
+                        .directed_endpoint(direction.reverses(0), false)
+                };
+                sample.finished = count.is_some();
+                sample.reduced = true;
+            } else if self.config.program.repeat == Repeat::Once {
                 sample.frame = self.tracks.first.final_frame();
                 sample.completed = self.config.program.stages.len();
                 sample.finished = true;
@@ -332,10 +437,13 @@ impl State {
             elapsed.saturating_add(advance),
             self.config.program.repeat,
             shared,
+            Duration::from_millis(self.config.program.delay_ms.max(0) as u64),
         );
         sample.frame = result.frame;
         if self.config.program.repeat == Repeat::Once {
             sample.completed = result.completed;
+            sample.finished = result.finished;
+        } else if self.config.program.repeat.is_explicit() {
             sample.finished = result.finished;
         }
         if !paused {

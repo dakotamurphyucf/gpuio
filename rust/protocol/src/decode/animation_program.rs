@@ -6,6 +6,36 @@ use crate::{
 use std::io::Cursor;
 
 impl Decoder<'_> {
+    pub(super) fn animation_repeat(&mut self) -> Result<Repeat, DecodeError> {
+        use crate::animation::{Direction, IterationCount};
+        let direction = |decoder: &mut Self| {
+            Ok(match decoder.tag()? {
+                0 => Direction::Normal,
+                1 => Direction::Reverse,
+                2 => Direction::Alternate,
+                3 => Direction::AlternateReverse,
+                _ => return Err(DecodeError::Malformed),
+            })
+        };
+        Ok(match self.tag()? {
+            0 => Repeat::Once,
+            1 => Repeat::Loop,
+            2 => Repeat::Alternate,
+            3 => {
+                let count = IterationCount {
+                    high: self.int()?,
+                    low: self.int()?,
+                };
+                if !count.is_valid() {
+                    return Err(DecodeError::Malformed);
+                }
+                Repeat::Finite(count, direction(self)?)
+            }
+            4 => Repeat::Infinite(direction(self)?),
+            _ => return Err(DecodeError::Malformed),
+        })
+    }
+
     pub(super) fn animation_easing(&mut self) -> Result<Easing, DecodeError> {
         Ok(match self.tag()? {
             0 => Easing::Linear,
@@ -53,12 +83,7 @@ impl Decoder<'_> {
             })
         })?;
         let delay_ms = self.int()?;
-        let repeat = match self.tag()? {
-            0 => Repeat::Once,
-            1 => Repeat::Loop,
-            2 => Repeat::Alternate,
-            _ => return Err(DecodeError::Malformed),
-        };
+        let repeat = self.animation_repeat()?;
         let clock = match self.tag()? {
             0 => Clock::Independent,
             1 => Clock::Application,

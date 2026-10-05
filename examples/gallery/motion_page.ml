@@ -43,6 +43,18 @@ let shared =
   |> ok
 ;;
 
+let counted =
+  A.Program.create
+    ~initial:(target 64. 24.)
+    ~repeat:(Finite (A.Iteration_count.of_int 3 |> ok, Normal))
+    [ stage
+        (A.Timing.tween ~easing:A.Easing.ease_in_cubic (Time_ns.Span.of_ms 500.) |> ok)
+        260.
+        12.
+    ]
+  |> ok
+;;
+
 let preference_label = function
   | A.Preference.System -> "System"
   | Reduce -> "Reduced"
@@ -68,15 +80,22 @@ let component app ~motion palette graph =
   let observations, set_observations = B.state "Ready to play" graph in
   let repeating, set_repeating = B.state false graph in
   let second, toggle_second = B.toggle ~default_model:false graph in
+  let counted_program, set_counted_program =
+    B.state (A.Program.with_playback counted Paused) graph
+  in
+  let counted_status, set_counted_status = B.state "Ready to count" graph in
   let open B.Let_syntax in
   B.Edge.lifecycle
     ~on_deactivate:
       (let%arr program = program
        and set_program = set_program
        and set_repeating = set_repeating
+       and counted_program = counted_program
+       and set_counted_program = set_counted_program
        and set_observations = set_observations in
        E.Many
          [ set_program (A.Program.with_playback program Paused)
+         ; set_counted_program (A.Program.with_playback counted_program Paused)
          ; set_repeating false
          ; set_observations "Ready to play"
          ])
@@ -98,7 +117,11 @@ let component app ~motion palette graph =
   and repeating = repeating
   and set_repeating = set_repeating
   and second = second
-  and toggle_second = toggle_second in
+  and toggle_second = toggle_second
+  and counted_program = counted_program
+  and set_counted_program = set_counted_program
+  and counted_status = counted_status
+  and set_counted_status = set_counted_status in
   let controls children =
     V.row ~style:(style [ Gap (px 8.); Wrap Wrap; Align_items Center ]) children
   in
@@ -293,6 +316,67 @@ let component app ~motion palette graph =
             p
             ~muted:true
             "A gentle reveal, a physical spring, then a soft landing."
+        ]
+    ; Palette.card
+        p
+        ~title:"Choose the journey"
+        [ track
+            [ V.animate_program
+                ~key:(Key.of_string_exn "counted-preview")
+                ~style:(bar (Palette.accent p))
+                ~on_event:(fun event ->
+                  if
+                    List.exists
+                      event.A.Program.Event.observations
+                      ~f:(A.Program.Observation.equal Finished)
+                  then set_counted_status "Counted motion finished"
+                  else E.Ignore)
+                counted_program
+                [ sample "Counted sample" ]
+            ]
+        ; controls
+            (List.map
+               [ ( "Three forward"
+                 , A.Repeat.Finite (A.Iteration_count.of_int 3 |> ok, Normal) )
+               ; "Three reverse", Finite (A.Iteration_count.of_int 3 |> ok, Reverse)
+               ; "Two alternating", Finite (A.Iteration_count.of_int 2 |> ok, Alternate)
+               ; ( "Three alternate reverse"
+                 , Finite (A.Iteration_count.of_int 3 |> ok, Alternate_reverse) )
+               ; "Zero cycles", Finite (A.Iteration_count.zero, Normal)
+               ; "Continuous reverse", Infinite Reverse
+               ]
+               ~f:(fun (label, repeat) ->
+                 Palette.button
+                   p
+                   label
+                   (E.Many
+                      [ set_counted_status ("Playing: " ^ label)
+                      ; set_counted_program
+                          (A.Program.with_repeat counted_program repeat
+                           |> ok
+                           |> A.Program.restart
+                           |> ok)
+                      ])))
+        ; controls
+            [ Palette.button
+                p
+                "Pause counted motion"
+                (set_counted_program (A.Program.with_playback counted_program Paused))
+            ; Palette.button
+                p
+                "Resume counted motion"
+                (set_counted_program (A.Program.with_playback counted_program Running))
+            ; Palette.button
+                p
+                "Cancel counted motion"
+                (set_counted_program (A.Program.with_playback counted_program Cancelled))
+            ]
+        ; Palette.text p counted_status
+        ; Palette.text
+            p
+            ~muted:true
+            "An asymmetric curve makes direction visible. Finite runs finish once; \
+             continuous motion stops when you leave."
         ]
     ; Palette.card
         p

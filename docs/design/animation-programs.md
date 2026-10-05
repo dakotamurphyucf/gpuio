@@ -40,6 +40,11 @@ A spring constructor expresses a single spring stage, and a sequence constructor
 expresses ordered stages. Sequences start at explicit initial values; a standalone
 spring may omit initial values and first mounts at its target, matching OCH-12.
 The mounted wrapper owns native state. OCaml publishes configurations, not frames.
+
+[Explicit iteration policies](animation-iterations.md) extend both the baseline
+and program APIs with unsigned finite counts and directed timeline playback.
+They define their own bounded completion semantics while retaining the existing
+Once/Loop/Alternate behavior described below.
 Keep existing baseline wire operation/fixture semantics; introduce a distinct
 advanced-program operation. The established duration-based path retains its
 existing native owner and record encoding.

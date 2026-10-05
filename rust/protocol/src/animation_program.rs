@@ -82,6 +82,7 @@ impl Program {
         if self.stages.len() > MAX_STAGES
             || !(-MAX_TIME_MS..=MAX_TIME_MS).contains(&self.delay_ms)
             || !self.clock.is_valid()
+            || !self.repeat.is_valid()
             || !self.stages.iter().all(|stage| {
                 valid_targets(&stage.targets)
                     && same_properties(&first.targets, &stage.targets)
@@ -103,9 +104,9 @@ impl Program {
             .sum();
         binprot::BinProtSize::binprot_size(self) + 19 <= MAX_CONFIG_BYTES
             && period <= MAX_TIME_MS
-            && (self.repeat == Repeat::Once || period > 0)
+            && (!self.repeat.is_infinite() || period > 0)
             && (!self.clock.is_shared()
-                || (self.repeat != Repeat::Once
+                || (self.repeat.is_infinite()
                     && self.delay_ms == 0
                     && self
                         .stages

@@ -114,12 +114,50 @@ module Spring : sig
     -> t Or_error.t
 end
 
+module Iteration_count : sig
+  (** An unsigned count in [0, 2^64-1]. Zero finishes without playing a cycle. *)
+  type t [@@deriving equal, sexp_of]
+
+  val zero : t
+  val one : t
+  val of_int : int -> t Or_error.t
+  val of_int64 : int64 -> t Or_error.t
+
+  (** Decimal digits only; accepts the full unsigned range, including values
+      larger than [Int64.max_value]. [to_string] returns canonical decimal. *)
+  val of_string : string -> t Or_error.t
+
+  val to_string : t -> string
+end
+
+module Direction : sig
+  type t =
+    | Normal
+    | Reverse
+    | Alternate
+    | Alternate_reverse
+  [@@deriving equal, sexp_of]
+end
+
 module Repeat : sig
   type t =
     | Once
     | Loop
     | Alternate
+    | Finite of Iteration_count.t * Direction.t
+    | Infinite of Direction.t
   [@@deriving equal, sexp_of]
+
+  (** [Finite] and [Infinite] apply direction to timeline progress before easing.
+      They require explicit initial values. Finite policies emit one [Finished]
+      after paint, without per-cycle or per-stage observations. Infinite policies
+      never finish. Zero-duration finite policies settle immediately after their
+      initial delay; infinite policies require a positive cycle.
+
+      [Once], [Loop] and [Alternate] preserve their established behavior. In an
+      advanced program, legacy [Alternate] reverses declared intervals, preserving
+      each interval's easing; explicit [Direction.Alternate] reverses elapsed
+      timeline progress, including asymmetric easing and stage pauses. *)
 end
 
 module Timing : sig
@@ -212,8 +250,8 @@ module Program : sig
       repeat boundaries. Its magnitude is at most one day and rounds away from
       zero to milliseconds. Nonnegative stage delays apply each cycle. The sum
       of stage maximum durations and delays is at most one day.
-      Repeats need positive cycle duration.
-      Shared clocks require repetition, timed stages, explicit initial values and
+      Infinite policies need positive cycle duration.
+      Shared clocks require infinite repetition, timed stages, explicit initial values and
       zero initial delay. [clock] defaults to independent, [repeat] to once.
 
       The complete encoding is bounded to 16,384 bytes, reserving the maximum
@@ -238,6 +276,10 @@ module Program : sig
       This replaces the mounted program when the delay changes. The same bounds,
       encoding limit and shared-clock restriction as [create] apply. *)
   val with_initial_delay : t -> Time_ns.Span.t -> t Or_error.t
+
+  (** Change the iteration policy while retaining playback and restart identity.
+      Revalidates cycle duration, initial values, shared clock and encoding bounds. *)
+  val with_repeat : t -> Repeat.t -> t Or_error.t
 
   (** Increment the restart token, resetting playback to Running. Retain the returned
       value for subsequent restarts. Exhaustion returns an error. *)
@@ -267,11 +309,12 @@ module Config : sig
       the first paint. Initial and target must
       name the same properties. With no initial values, the first mount is placed
       immediately; subsequent targets start at the last painted values. Repetition
-      requires initial values and a positive duration. Initial values define the
+      requires initial values; infinite policies also require a positive duration. Initial values define the
       repeating range; an interrupted first cycle starts at the painted values.
 
-      Explicitly hidden animations pause. Reduced motion settles one-shot runs and
-      renders repeated runs at their initial values without requesting frames. *)
+      Explicitly hidden animations pause. Reduced motion settles finite runs at
+      their directed terminal endpoint; infinite runs hold their directed start
+      without frame requests. Legacy Loop/Alternate retain their initial hold. *)
   val create
     :  ?initial:Target.t
     -> ?duration:Time_ns.Span.t

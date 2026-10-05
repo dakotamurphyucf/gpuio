@@ -62,11 +62,30 @@ module Spring : sig
   [@@deriving bin_io, equal, sexp_of]
 end
 
+module Iteration_count : sig
+  type t =
+    { high : int64
+    ; low : int64
+    }
+  [@@deriving bin_io, equal, sexp_of]
+end
+
+module Direction : sig
+  type t =
+    | Normal
+    | Reverse
+    | Alternate
+    | Alternate_reverse
+  [@@deriving bin_io, equal, sexp_of]
+end
+
 module Repeat : sig
   type t =
     | Once
     | Loop
     | Alternate
+    | Finite of Iteration_count.t * Direction.t
+    | Infinite of Direction.t
   [@@deriving bin_io, equal, sexp_of]
 end
 

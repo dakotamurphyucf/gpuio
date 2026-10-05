@@ -213,12 +213,78 @@ module Spring = struct
   ;;
 end
 
+module Iteration_count = struct
+  type t = W.Iteration_count.t [@@deriving equal, sexp_of]
+
+  let base = 4_294_967_296L
+  let zero : t = { high = 0L; low = 0L }
+  let one : t = { high = 0L; low = 1L }
+
+  let of_int64 value =
+    if Int64.(value < 0L)
+    then Or_error.error_string "animation iteration count must be unsigned"
+    else Ok W.Iteration_count.{ high = Int64.(value / base); low = Int64.(value % base) }
+  ;;
+
+  let of_int value = of_int64 (Int64.of_int value)
+
+  let of_string text =
+    let digits = String.lstrip text ~drop:(Char.equal '0') in
+    if
+      String.is_empty text
+      || (not (String.for_all text ~f:Char.is_digit))
+      || String.length digits > 20
+      || (String.length digits = 20 && String.compare digits "18446744073709551615" > 0)
+    then Or_error.error_string "animation iteration count must be decimal in [0, 2^64-1]"
+    else
+      Ok
+        (String.fold digits ~init:zero ~f:(fun { W.Iteration_count.high; low } digit ->
+           let digit = Int64.of_int (Char.to_int digit - Char.to_int '0') in
+           let low = Int64.((low * 10L) + digit) in
+           { W.Iteration_count.high = Int64.((high * 10L) + (low / base))
+           ; low = Int64.(low % base)
+           }))
+  ;;
+
+  let to_string t =
+    let rec loop { W.Iteration_count.high; low } digits =
+      if Int64.equal high 0L && Int64.equal low 0L
+      then digits
+      else (
+        let combined = Int64.((high % 10L * base) + low) in
+        let digit =
+          Char.of_int_exn (Char.to_int '0' + Int64.to_int_exn Int64.(combined % 10L))
+        in
+        loop
+          { W.Iteration_count.high = Int64.(high / 10L); low = Int64.(combined / 10L) }
+          (digit :: digits))
+    in
+    if equal t zero then "0" else String.of_char_list (loop t [])
+  ;;
+end
+
+module Direction = struct
+  type t = W.Direction.t =
+    | Normal
+    | Reverse
+    | Alternate
+    | Alternate_reverse
+  [@@deriving equal, sexp_of]
+end
+
 module Repeat = struct
   type t = W.Repeat.t =
     | Once
     | Loop
     | Alternate
+    | Finite of Iteration_count.t * Direction.t
+    | Infinite of Direction.t
   [@@deriving equal, sexp_of]
+
+  let is_infinite = function
+    | Loop | Alternate | Infinite _ -> true
+    | Once | Finite _ -> false
+  ;;
 end
 
 let milliseconds span =
@@ -372,11 +438,11 @@ module Program = struct
       then Or_error.error_string "sequences and repeats require initial values"
       else if Int64.(period > 86_400_000L)
       then Or_error.error_string "animation cycle exceeds one day"
-      else if (not (Repeat.equal repeat Once)) && Int64.(period <= 0L)
+      else if Repeat.is_infinite repeat && Int64.(period <= 0L)
       then Or_error.error_string "repeating animation needs a positive cycle duration"
       else if
         shared
-        && (Repeat.equal repeat Once
+        && ((not (Repeat.is_infinite repeat))
             || (not (Int64.equal delay_ms 0L))
             || List.exists stages ~f:(fun (stage : Stage.t) ->
               match stage.timing with
@@ -394,6 +460,19 @@ module Program = struct
   ;;
 
   let with_playback t playback = { t with playback }
+
+  let with_repeat t repeat =
+    let open Or_error.Let_syntax in
+    let%map next =
+      create
+        ?initial:t.program.initial
+        ~delay:(Time_ns.Span.of_ms (Int64.to_float t.program.delay_ms))
+        ~repeat
+        ~clock:t.program.clock
+        t.program.stages
+    in
+    { next with playback = t.playback; restart = t.restart }
+  ;;
 
   let with_initial_delay t delay =
     let open Or_error.Let_syntax in
@@ -477,7 +556,8 @@ module Config = struct
     then Or_error.error_string "initial and target properties must match"
     else if
       (not (Repeat.equal repeat Once))
-      && (Option.is_none initial || Int64.equal duration_ms 0L)
+      && (Option.is_none initial
+          || (Repeat.is_infinite repeat && Int64.equal duration_ms 0L))
     then
       Or_error.error_string "repetition requires initial values and a positive duration"
     else Ok { targets = target; initial; duration_ms; delay_ms; easing; repeat }

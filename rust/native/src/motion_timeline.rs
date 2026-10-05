@@ -214,6 +214,82 @@ impl Timeline {
     pub fn final_frame(&self) -> Frame {
         self.final_frame
     }
+    pub fn directed_endpoint(&self, reverse: bool, end: bool) -> Frame {
+        rest(if reverse == end {
+            self.initial.values
+        } else {
+            self.final_frame.values
+        })
+    }
+    /// Traverse the compiled trajectory backward, including stage pauses. The
+    /// same curve is sampled at reversed time; springs are not re-integrated.
+    pub fn sample_reverse(&self, elapsed: Duration) -> Sample {
+        let time = self.duration.saturating_sub(elapsed);
+        let mut sample = self.sample(time);
+        for property in PROPERTIES {
+            if let Some(velocity) = sample.frame.velocity.get(property) {
+                sample.frame.velocity.set(property, -velocity);
+            }
+        }
+        sample.completed = 0;
+        sample.finished = elapsed >= self.duration;
+        sample.next = if sample.finished {
+            Next::Idle
+        } else {
+            Next::Wait(time)
+        };
+        if sample.finished {
+            sample.frame = self.directed_endpoint(true, true);
+            return sample;
+        }
+        for segment in self.segments.iter().rev() {
+            if time > segment.end {
+                sample.next = Next::Wait(time - segment.end);
+                break;
+            }
+            if time > segment.begin {
+                // At the reverse start this may be exactly the interval's end.
+                // Evaluate the active curve there rather than taking forward
+                // completion's forced target (linear stops can end elsewhere).
+                let delta = time - segment.begin;
+                sample.frame = segment.from;
+                match &segment.curve {
+                    Curve::Tween(easing) => {
+                        let phase = easing.sample(
+                            delta.as_secs_f64() / (segment.end - segment.begin).as_secs_f64(),
+                        );
+                        for property in PROPERTIES {
+                            if let Some(target) = segment.target.values.get(property) {
+                                let from = segment.from.values.get(property).unwrap();
+                                sample
+                                    .frame
+                                    .values
+                                    .set(property, property.clamp(from + (target - from) * phase));
+                            }
+                        }
+                    }
+                    Curve::Spring(paths) => {
+                        for property in PROPERTIES {
+                            if let Some(path) = &paths[property as usize] {
+                                let value = path.sample(delta);
+                                sample.frame.values.set(property, value.position);
+                                sample.frame.velocity.set(property, -value.velocity);
+                            }
+                        }
+                    }
+                }
+                sample.next = if segment.from.values == segment.target.values
+                    && segment.from.velocity == rest(segment.from.values).velocity
+                {
+                    Next::Wait(time - segment.begin)
+                } else {
+                    Next::Frame
+                };
+                break;
+            }
+        }
+        sample
+    }
     pub fn sample(&self, elapsed: Duration) -> Sample {
         for (index, segment) in self.segments.iter().enumerate() {
             if elapsed < segment.begin {

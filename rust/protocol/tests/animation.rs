@@ -201,6 +201,27 @@ fn animation_messages_have_bounded_validated_decoding() {
             Err(DecodeError::Malformed)
         );
     }
+    for direction in [
+        Direction::Normal,
+        Direction::Reverse,
+        Direction::Alternate,
+        Direction::AlternateReverse,
+    ] {
+        for repeat in [
+            Repeat::Finite(IterationCount::new(0), direction),
+            Repeat::Finite(IterationCount::new(u64::MAX), direction),
+            Repeat::Infinite(direction),
+        ] {
+            let mut explicit = config.clone();
+            explicit.initial = Some(vec![Target {
+                property: Property::Width,
+                value: 0.,
+            }]);
+            explicit.repeat = repeat;
+            let valid = message(explicit);
+            assert_eq!(decode(&encode(&valid)), Ok(valid));
+        }
+    }
     let mut cubic = config.clone();
     cubic.easing = Easing::EaseInOutCubic;
     let valid = message(cubic);

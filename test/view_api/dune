@@ -160,6 +160,7 @@
    animation-cubic-easing.tsv
    animation-steps.tsv
    animation-linear-stops.tsv
+   animation-repeat.tsv
    animation-negative-delay.tsv
    control-appearance-operation.hex
    control-appearance-default.hex
@@ -572,3 +573,5 @@
 (copy_files ../fixtures/animation-linear-stops.tsv)
 
 (copy_files ../fixtures/animation-negative-delay.tsv)
+
+(copy_files ../fixtures/animation-repeat.tsv)

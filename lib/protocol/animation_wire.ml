@@ -75,11 +75,30 @@ module Spring = struct
   [@@deriving bin_io, equal, sexp_of]
 end
 
+module Iteration_count = struct
+  type t =
+    { high : int64
+    ; low : int64
+    }
+  [@@deriving bin_io, equal, sexp_of]
+end
+
+module Direction = struct
+  type t =
+    | Normal
+    | Reverse
+    | Alternate
+    | Alternate_reverse
+  [@@deriving bin_io, equal, sexp_of]
+end
+
 module Repeat = struct
   type t =
     | Once
     | Loop
     | Alternate
+    | Finite of Iteration_count.t * Direction.t
+    | Infinite of Direction.t
   [@@deriving bin_io, equal, sexp_of]
 end
 
