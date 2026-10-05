@@ -28,6 +28,20 @@ LABEL = 'Theme preview draft'
 DRAFT = 'Retained λ🙂 theme draft'
 
 
+def wait_for_reader(child, path):
+    # Loading status can precede the worker actually opening its flow. Observe
+    # the owned application's descriptor before releasing the delayed fixture.
+    deadline = time.monotonic() + 10
+    while time.monotonic() < deadline:
+        result = subprocess.run(['/usr/sbin/lsof', '-a', '-p', str(child.pid), '-Fn',
+                                 '--', str(path)], capture_output=True, text=True, timeout=5)
+        if result.returncode == 0 and 'n' + str(path) in result.stdout.splitlines():
+            return
+        assert child.poll() is None, 'Gallery exited before opening theme fixture'
+        time.sleep(.05)
+    raise RuntimeError('Gallery did not open the pending theme read')
+
+
 def painted_surface(mac, output, name, rgb):
     raise_gallery(mac)
     reveal_gallery_control(mac, 'Choose theme', 'AXButton')
@@ -145,6 +159,7 @@ def main():
             descriptor = os.open(path, os.O_RDWR | os.O_NONBLOCK)
             mac.press(TITLE, 'Reload file')
             mac.wait_text(TITLE, 'Loading theme…')
+            wait_for_reader(child, path)
             expect_enabled(mac, 'Reload file', False)
             mac.press(TITLE, 'Dark')  # Switch to explicit Light, leaving the file profile.
             mac.wait_text(TITLE, 'Using the built-in appearance')
@@ -156,10 +171,21 @@ def main():
             expect_field(mac, TITLE, LABEL, DRAFT)
             report['checks'].append({'case': 'newer-explicit-choice-during-eio-read'})
 
+            # Start from a file profile again so its disappearance acknowledges
+            # the System choice before the test releases EOF. AXPress itself
+            # only queues an action; it is not a Bonsai completion barrier.
+            path.unlink()
+            path.write_text(original)
+            mac.press(TITLE, 'Reload file')
+            mac.wait_text(TITLE, 'Current profile: Aurora')
+            path.unlink()
+            os.mkfifo(path)
             descriptor = os.open(path, os.O_RDWR | os.O_NONBLOCK)
             mac.press(TITLE, 'Reload file')
             mac.wait_text(TITLE, 'Loading theme…')
+            wait_for_reader(child, path)
             mac.press(TITLE, 'Follow system')
+            mac.wait_text(TITLE, 'Using the built-in appearance')
             os.write(descriptor, changed.encode())
             os.close(descriptor)
             descriptor = None
@@ -170,6 +196,7 @@ def main():
             descriptor = os.open(path, os.O_RDWR | os.O_NONBLOCK)
             mac.press(TITLE, 'Reload file')
             mac.wait_text(TITLE, 'Loading theme…')
+            wait_for_reader(child, path)
             mac.press(TITLE, 'Presentation')
             mac.wait_text(TITLE, 'A little context goes a long way')
             os.close(descriptor)
@@ -199,6 +226,7 @@ def main():
             descriptor = os.open(path, os.O_RDWR | os.O_NONBLOCK)
             mac.press(TITLE, 'Reload file')
             mac.wait_text(TITLE, 'Loading theme…')
+            wait_for_reader(child, path)
             mac.close(TITLE)
             assert child.wait(timeout=15) == 0
             # The writer stays open until the app has returned, so EOF cannot
