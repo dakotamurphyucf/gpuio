@@ -194,3 +194,21 @@ Complete review of the OCaml/runtime inventory and collect native/system inputs;
 consumer lockfiles and the shipped targets/features, then prepare reviewed bundle
 notices. Existing internal bundles remain unqualified for distribution. No new
 GUI, clean-machine, Linux, signing or publication acceptance is claimed.
+
+
+## Source-equivalent Pathfinder notices — latest 2026-10-04 checkpoint
+
+The [remaining-gap review](rust-notice-gaps-och17.md) now identifies complete
+source-equivalent snapshots for `leak` and `leaky-cow`, and collects complete
+MIT/Apache notices from Pathfinder's byte-equivalent source snapshot. Its recorded
+VCS identifier remains unavailable and is explicitly distinguished from the
+matching snapshot; the original manifest and all nine source files match.
+Fresh checksum-verified archives and upstream Git blob identities establish the
+comparison. No publishing-commit or license-approval inference is made.
+
+The supplemental manifest has 56 entries. Fresh native/Signal/gallery inventories
+contain 868/826/827 copied texts, all **2,521 hashes verified**, with **26 packages
+without collected text** in each graph. Ten collector tests pass. Eighteen upstream
+policy-only packages and eight source trees without full notices remain for review,
+alongside overall distribution completeness and applicability. The earlier
+27/28/29-row tables above are historical checkpoints.

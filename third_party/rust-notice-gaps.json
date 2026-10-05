@@ -51,9 +51,15 @@
       "manifest_sha256": "8800b6172da0ce015fdc69cbe3fdc48c22f4223babe254e207255c681c83e8dd",
       "license_expression": "Apache-2.0 OR MIT",
       "license_text_collected": false,
-      "classification": "source-or-notice-retrieval-unresolved",
-      "revision": null,
-      "limitation": "No sufficiently established complete notice text. See docs/evidence/rust-notice-gaps-och17.md for the remaining source/retrieval question."
+      "classification": "verified-source-no-notice-file",
+      "revision": "024bd1ccfa33aea1eff0026b0d8b676874b5e3d2",
+      "limitation": "Every regular file in the published archive matches an upstream Git blob at this revision, and the archive checksum matches Cargo.lock. This establishes source equivalence; the archive records no VCS identity, so the actual publishing commit is not asserted. No complete notice file was found in the untruncated source tree.",
+      "repository": "codyps/leak",
+      "crate_sha256": "bd100e01f1154f2908dfa7d02219aeab25d0b9c7fa955164192e3245255a0c73",
+      "verified_files": [
+        "Cargo.toml",
+        "src/lib.rs"
+      ]
     },
     {
       "name": "leaky-cow",
@@ -61,9 +67,18 @@
       "manifest_sha256": "cd5e595a4b4eede02b0c1b96bb86eb3860bf660fafd7ca6eb0f92b96d9e733f5",
       "license_expression": "MIT / Apache-2.0",
       "license_text_collected": false,
-      "classification": "source-or-notice-retrieval-unresolved",
-      "revision": null,
-      "limitation": "No sufficiently established complete notice text. See docs/evidence/rust-notice-gaps-och17.md for the remaining source/retrieval question."
+      "classification": "verified-source-no-notice-file",
+      "revision": "88f4a8cd01ffc634d9f7642b97eb764a8dcd3760",
+      "limitation": "Every regular file in the published archive matches an upstream Git blob at this revision, and the archive checksum matches Cargo.lock. This establishes source equivalence; the archive records no VCS identity, so the actual publishing commit is not asserted. No complete notice file was found in the untruncated source tree.",
+      "repository": "notriddle/rust-leaky-cow",
+      "crate_sha256": "40a8225d44241fd324a8af2806ba635fc7c8a7e9a7de4d5cf3ef54e71f5926fc",
+      "verified_files": [
+        ".gitignore",
+        ".travis.yml",
+        "Cargo.toml",
+        "README.md",
+        "src/lib.rs"
+      ]
     },
     {
       "name": "mac",
@@ -335,10 +350,25 @@
       "version": "0.5.1",
       "manifest_sha256": "141871f41ab4ac7af854e54f1f637fb168ffbc97fdb57c60608f11b8eb95f1d7",
       "license_expression": "MIT/Apache-2.0",
-      "license_text_collected": false,
-      "classification": "source-or-notice-retrieval-unresolved",
+      "license_text_collected": true,
+      "classification": "verified-equivalent-source-notice-collected",
       "revision": "a5e98fac00f433fe2ff4b2135383d82491b8bfc5",
-      "limitation": "No sufficiently established complete notice text. See docs/evidence/rust-notice-gaps-och17.md for the remaining source/retrieval question."
+      "limitation": "Recorded VCS revision remains unavailable. All ten original manifest/source files in the checksum-verified published archive match the geometry subtree at equivalent_revision. Full MIT/Apache root notices from that byte-equivalent source snapshot are collected with verified Git blob hashes; actual publishing commit and final license approval are not asserted.",
+      "repository": "servo/pathfinder",
+      "equivalent_revision": "1cd5966d3d7c3d395b6886d1ed63eb7b306f9be3",
+      "crate_sha256": "0b7b7e7b4ea703700ce73ebf128e1450eb69c3a8329199ffbfb9b2a0418e5ad3",
+      "verified_files": [
+        "Cargo.toml",
+        "src/angle.rs",
+        "src/lib.rs",
+        "src/line_segment.rs",
+        "src/rect.rs",
+        "src/transform2d.rs",
+        "src/transform3d.rs",
+        "src/unit_vector.rs",
+        "src/util.rs",
+        "src/vector.rs"
+      ]
     },
     {
       "name": "seahash",

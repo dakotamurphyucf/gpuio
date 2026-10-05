@@ -6,7 +6,9 @@ The original 28 zero-text package rows have a hash-bound
 identity from notice completeness. It does not remove a discovery gap, establish
 an exemption or approve redistribution. No package or application behavior changed.
 After network access was restored, the exact Boxroot notice was collected;
-**27 packages still lack collected text** in each refreshed macOS inventory.
+**27 packages lacked collected text** at that checkpoint. The later source-equivalent
+Pathfinder collection below reduces the missing-text count to **26**, confirmed
+by fresh native, Signal and gallery inventories.
 
 ## Eighteen Objective-C family packages
 
@@ -64,7 +66,7 @@ and `1c107b6f4780854c8b126e228ea8869f4d7b71260f962fefb57b996b8959ba6b`.
 Their archive VCS records match the installed records. The Boxroot notice gap is
 resolved; SeaHash's source retrieval is resolved but its notice gap remains.
 
-## Three remaining retrieval/source questions
+## Earlier three retrieval/source questions (superseded below)
 
 - `leak 0.1.2`: declared repository redirects from `jmesmon/leak` to
   `codyps/leak`; published archive has no VCS revision. Exact release source and
@@ -92,3 +94,51 @@ or identifier was counted as full notice text. Resolve the listed source questio
 applicable attributable texts, then complete review of the entire distribution,
 including already collected files and system/SDK inputs. This record must not be
 used as an automatic exclusion list or a completed release gate.
+
+
+## Historical source equivalence follow-up — 2026-10-04
+
+The two oldest archives do not record a VCS identity. Comparing every packaged
+file against all 35 available historical commit trees identifies byte-equivalent
+snapshots, without assuming a default branch or inventing a publishing commit:
+
+| Package | Matching source snapshot | Packaged files verified | Whole tree |
+| --- | --- | ---: | ---: |
+| `leak 0.1.2` | [024bd1ccfa33](https://github.com/codyps/leak/tree/024bd1ccfa33aea1eff0026b0d8b676874b5e3d2) | 2 | 16 entries, not truncated |
+| `leaky-cow 0.1.1` | [88f4a8cd01ff](https://github.com/notriddle/rust-leaky-cow/tree/88f4a8cd01ffc634d9f7642b97eb764a8dcd3760) | 5 | 6 entries, not truncated |
+
+Fresh published archive downloads match Cargo.lock checksums and every regular
+archive file matches the upstream Git blob at the linked snapshot. Both trees
+lack complete notice files; `leaky-cow`'s source says it uses Rust's terms, which
+is preserved as a declaration rather than fabricated copyright text. Their source
+questions are narrowed to equivalent verified snapshots; missing notices remain.
+
+For `pathfinder_geometry 0.5.1`, the recorded VCS identity still returns no matching
+GitHub commit. However, all ten original manifest/source files in its
+checksum-verified published archive match the `geometry` subtree at
+[1cd5966d3d7c](https://github.com/servo/pathfinder/tree/1cd5966d3d7c3d395b6886d1ed63eb7b306f9be3/geometry).
+Generated normalized Cargo metadata and `.cargo_vcs_info.json` are excluded from
+this source equivalence comparison. The linked snapshot's complete
+[MIT](https://github.com/servo/pathfinder/blob/1cd5966d3d7c3d395b6886d1ed63eb7b306f9be3/LICENSE-MIT)
+and [Apache](https://github.com/servo/pathfinder/blob/1cd5966d3d7c3d395b6886d1ed63eb7b306f9be3/LICENSE-APACHE)
+notices are retained unchanged, with both file SHA-256 and Git blob verification.
+The supplemental record explicitly distinguishes this equivalent snapshot from
+the unresolved recorded publishing revision; it does not silently substitute
+another crate's notices or select a license alternative.
+
+The review JSON records archive checksums, verified paths and this distinction.
+Raw commit/tree/source/archive comparisons are retained under
+`scratch/agents/root-20261004-resumed/` as `remaining-source-*`,
+`pathfinder-source-*`, the downloaded archives and corresponding tree responses.
+The ten existing collector tests, including retained notice/blob identity checks,
+pass after adding these bytes. This resolves source retrieval/equivalence work,
+not full distribution approval: eighteen policy-only and eight no-notice source
+packages still need notice/completeness review.
+
+Fresh locked/offline native, Signal and gallery collections confirm **26** missing-text
+packages each. They contain respectively 513/485/486 packages and 868/826/827 copied
+texts; all **2,521** copied hashes match. The supplemental manifest now has 56
+entries. Outputs are `native-pathfinder-macos-001`, `signal-pathfinder-macos-001`
+and `gallery-pathfinder-macos-001` in the session scratch directory; the verifier
+summary is `pathfinder-inventories-verified-001.json`. No dependency version,
+license declaration, compiler switch or native code changed.

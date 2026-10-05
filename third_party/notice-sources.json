@@ -737,6 +737,30 @@
     },
     {
       "package": {
+        "name": "pathfinder_geometry",
+        "version": "0.5.1",
+        "source": "registry+https://github.com/rust-lang/crates.io-index",
+        "license_expression": "MIT/Apache-2.0",
+        "manifest_sha256": "141871f41ab4ac7af854e54f1f637fb168ffbc97fdb57c60608f11b8eb95f1d7"
+      },
+      "files": [
+        {
+          "path": "third_party/licenses/registry/servo--pathfinder/16fe87b06e80-LICENSE-APACHE",
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+          "provenance": "https://github.com/servo/pathfinder/blob/1cd5966d3d7c3d395b6886d1ed63eb7b306f9be3/LICENSE-APACHE",
+          "git_blob_sha1": "16fe87b06e802f094b3fbb0894b137bca2b16ef1"
+        },
+        {
+          "path": "third_party/licenses/registry/servo--pathfinder/25597d5838fa-LICENSE-MIT",
+          "sha256": "0621878e61f0d0fda054bcbe02df75192c28bde1ecc8289cbd86aeba2dd72720",
+          "provenance": "https://github.com/servo/pathfinder/blob/1cd5966d3d7c3d395b6886d1ed63eb7b306f9be3/LICENSE-MIT",
+          "git_blob_sha1": "25597d5838fa4cd7ff5c3c2bb1d1b4c3731eda7f"
+        }
+      ],
+      "rationale": "The published archive checksum matches Cargo.lock. Every packaged original manifest/source file matches the geometry subtree at revision 1cd5966d3d7c3d395b6886d1ed63eb7b306f9be3. Its root MIT/Apache notices are retained unchanged with verified Git blob hashes. The recorded VCS identity a5e98fac00f433fe2ff4b2135383d82491b8bfc5 remains unavailable; this establishes source-equivalent notice provenance, not the actual publishing commit or final license approval."
+    },
+    {
+      "package": {
         "name": "pathfinder_simd",
         "version": "0.5.6",
         "source": "registry+https://github.com/rust-lang/crates.io-index",

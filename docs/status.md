@@ -78,7 +78,7 @@ Recent completed local checkpoints:
   private-bus skips, strict lint and formatting passed. This is TestPlatform
   ownership evidence, not process/GPU memory. [Resource evidence](evidence/document-resources-och17.md).
 - Dependency notice collection: 144 OCaml package/root records and 499 text files;
-  current native/Signal/gallery Rust graphs have 27 missing-text packages each.
+  current native/Signal/gallery Rust graphs have 26 missing-text packages each after source-equivalent Pathfinder notices were collected and all 2,521 copied hashes verified.
   Runtime license retained; asset/system and final distribution review remain.
   [OCaml evidence](evidence/ocaml-notices-och17.md),
   [Rust evidence](evidence/dependency-notices-och17.md).
