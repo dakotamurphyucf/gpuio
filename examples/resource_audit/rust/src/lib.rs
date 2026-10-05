@@ -2,9 +2,11 @@
 //! window/entity ownership. App-owned audit survives component retirement solely
 //! to inspect the settled closed window, then cancels its subscription at the end.
 use gpuio_extension_sdk::{self as sdk, gpui, gpui::prelude::*};
+mod metal;
+
 use std::{io::Write, sync::Arc, time::Duration};
 
-pub const FINGERPRINT: &str = "b3406256732852686166dd465bfbfa1ed3db612a4f05f0820919fcab4c6679e4";
+pub const FINGERPRINT: &str = "f243c615b4edcba209b0cf330328261d2744cfe36fd3a4cc3bca1f4aef5a0433";
 pub fn factory() -> Arc<dyn sdk::Factory> {
     Arc::new(Factory)
 }
@@ -14,19 +16,22 @@ struct Properties {
     warmups: u8,
     measurements: u8,
     cycle: u8,
+    metal_memory: bool,
 }
 impl Properties {
     fn decode(bytes: &[u8]) -> Result<Self, sdk::Error> {
         match bytes {
-            &[warmups @ 1..=3, measurements @ 1..=30, cycle]
-                if cycle > 0 && cycle <= warmups + measurements =>
-            {
-                Ok(Self {
-                    warmups,
-                    measurements,
-                    cycle,
-                })
-            }
+            &[
+                warmups @ 1..=3,
+                measurements @ 1..=30,
+                cycle,
+                metal_memory @ 0..=1,
+            ] if cycle > 0 && cycle <= warmups + measurements => Ok(Self {
+                warmups,
+                measurements,
+                cycle,
+                metal_memory: metal_memory == 1,
+            }),
             _ => Err(sdk::Error::InvalidProperties),
         }
     }
@@ -43,6 +48,7 @@ struct Audit {
     subscription: Option<gpui::Subscription>,
     pending: Option<gpui::Task<()>>,
     failed: bool,
+    metal: Option<metal::Probe>,
 }
 impl gpui::Global for Audit {}
 
@@ -83,6 +89,9 @@ fn check(app: &mut gpui::App, cycle: u8) -> Result<(), sdk::Error> {
                 "checked"
             };
             record(format_args!("checkpoint ({cycle} {phase})"))?;
+            if let Some(probe) = &state.metal {
+                probe.checkpoint(cycle)?;
+            }
             state.checked = cycle;
             if cycle == state.config.total() {
                 state.subscription.take();
@@ -121,6 +130,10 @@ fn closed(app: &mut gpui::App, id: gpui::WindowId) {
 }
 
 fn register(config: Properties, cx: &mut sdk::Context<'_>) -> Result<(), sdk::Error> {
+    let device = config
+        .metal_memory
+        .then(|| metal::Probe::capture(cx.window))
+        .transpose()?;
     if !cx.app.has_global::<Audit>() {
         if config.cycle != 1 {
             return Err(sdk::Error::InvalidProperties);
@@ -134,6 +147,7 @@ fn register(config: Properties, cx: &mut sdk::Context<'_>) -> Result<(), sdk::Er
             subscription: Some(subscription),
             pending: None,
             failed: false,
+            metal: None,
         });
     }
     let state = cx.app.global_mut::<Audit>();
@@ -141,10 +155,17 @@ fn register(config: Properties, cx: &mut sdk::Context<'_>) -> Result<(), sdk::Er
         || state.window.is_some()
         || state.config.warmups != config.warmups
         || state.config.measurements != config.measurements
+        || state.config.metal_memory != config.metal_memory
         || config.cycle != state.checked + 1
         || state.checked >= config.total()
     {
         return Err(sdk::Error::InvalidProperties);
+    }
+    if let Some(device) = device {
+        if let Some(previous) = &state.metal {
+            previous.require_same_device(&device)?;
+        }
+        state.metal = Some(device);
     }
     state.pending.take(); // prior completed audit; never retain historical tasks
     state.window = Some(cx.window.window_handle().window_id());
@@ -156,11 +177,11 @@ impl sdk::Factory for Factory {
     fn descriptor(&self) -> sdk::Descriptor {
         sdk::Descriptor {
             name: "qualification.resource_audit",
-            version: 1,
+            version: 2,
             fingerprint: FINGERPRINT,
             sdk_version: sdk::SDK_VERSION,
             gpui_revision: sdk::GPUI_REVISION,
-            max_properties: 3,
+            max_properties: 4,
             max_command: 1,
             max_event: 1,
         }
@@ -193,7 +214,10 @@ impl sdk::Component for Component {
     fn command(&mut self, _: &[u8], _: &mut sdk::Context<'_>) -> Result<(), sdk::Error> {
         Err(sdk::Error::InvalidCommand)
     }
-    fn render(&mut self, _: &mut sdk::Context<'_>) -> Result<gpui::AnyElement, sdk::Error> {
+    fn render(&mut self, cx: &mut sdk::Context<'_>) -> Result<gpui::AnyElement, sdk::Error> {
+        if let Some(probe) = &mut cx.app.global_mut::<Audit>().metal {
+            probe.sample()?;
+        }
         Ok(gpui::div().into_any_element())
     }
 }
@@ -205,18 +229,20 @@ mod tests {
     fn rejects_invalid_or_trailing_configuration() {
         for bytes in [
             &[][..],
-            &[0, 30, 1],
-            &[3, 31, 1],
-            &[3, 30, 0],
-            &[3, 30, 34],
-            &[3, 30, 1, 0],
+            &[0, 30, 1, 0],
+            &[3, 31, 1, 0],
+            &[3, 30, 0, 0],
+            &[3, 30, 34, 0],
+            &[3, 30, 1],
+            &[3, 30, 1, 2],
+            &[3, 30, 1, 0, 0],
         ] {
             assert_eq!(
                 Properties::decode(bytes),
                 Err(sdk::Error::InvalidProperties)
             );
         }
-        assert_eq!(Properties::decode(&[3, 30, 33]).unwrap().total(), 33);
+        assert_eq!(Properties::decode(&[3, 30, 33, 0]).unwrap().total(), 33);
     }
     #[test]
     fn retained_entity_fails_and_release_passes_with_contained_panic() {
@@ -228,6 +254,7 @@ mod tests {
                     warmups: 1,
                     measurements: 1,
                     cycle: 1,
+                    metal_memory: false,
                 },
                 window: None,
                 checked: 1,
@@ -235,6 +262,7 @@ mod tests {
                 subscription: None,
                 pending: None,
                 failed: false,
+                metal: None,
             });
         });
         let entity = app.update(|cx| cx.new(|_| 42usize));

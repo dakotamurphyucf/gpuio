@@ -2538,6 +2538,8 @@ version = "0.0.0"
 dependencies = [
  "gpui",
  "gpuio-extension-sdk",
+ "objc2 0.6.4",
+ "raw-window-handle",
 ]
 
 [[package]]

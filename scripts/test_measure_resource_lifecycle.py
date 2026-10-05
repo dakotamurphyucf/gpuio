@@ -14,7 +14,7 @@ from unittest.mock import patch
 
 from measure_chart_stream import collect
 from measure_list_history import ZERO_RESOURCES
-from measure_resource_lifecycle import Checkpoints, validate, entity_records
+from measure_resource_lifecycle import Checkpoints, validate, entity_records, metal_record, metal_records
 
 
 def snapshot(live=False):
@@ -35,6 +35,59 @@ def fixture(smoke=False):
 
 
 class LifecycleReport(unittest.TestCase):
+    def test_metal_records_boundaries_and_invalid_coverage(self):
+        rows = [f'GPUIO_METAL_AUDIT checkpoint ({n} 123 4 90000000 1024)' for n in range(1, 34)]
+        output = '\n'.join(rows)
+        result = metal_records(output, warmups=3, measurements=30, smoke=False)
+        self.assertTrue(result['qualification'])
+        self.assertEqual(result['last_minus_warmup_bytes'], 0)
+        for delta, passed in [(64 * 1024**2, True), (64 * 1024**2 + 1, False)]:
+            changed = rows.copy()
+            changed[-2] = f'GPUIO_METAL_AUDIT checkpoint (32 123 4 90000000 {1024 + delta})'
+            self.assertEqual(metal_records('\n'.join(changed), warmups=3, measurements=30,
+                                           smoke=False)['qualification'], passed)
+        for text in ['\n'.join(rows[:-1]), output+'\n'+rows[-1], '\n'.join(reversed(rows)),
+                     output.replace('(20 123 ', '(20 456 '), output.replace('(20 ', '(19 ')]:
+            with self.assertRaises(ValueError):
+                metal_records(text, warmups=3, measurements=30, smoke=False)
+        for payload in ['(1 123 0 4 5)', '(1 0 1 4 5)', '(1 123 1 -1 5)',
+                        f'(1 123 1 4 {2**64})', '(1 123 1 4)', '(1 123 1 4 5 6)']:
+            with self.assertRaises(ValueError):
+                metal_record('GPUIO_METAL_AUDIT checkpoint ' + payload)
+        self.assertFalse(metal_records('\n'.join(rows[:4]), warmups=1, measurements=3,
+                                       smoke=True)['qualification'])
+
+    def test_metal_checkpoint_required_before_ack_and_rejects_wrong_order(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            log = Path(tmp) / 'app.log'
+            samples = []
+            child = SimpleNamespace(pid=123, stdin=io.BytesIO())
+            checkpoint = Checkpoints(log, samples, cycles=4, native_entities=True, warmups=1, metal_memory=True)
+            text = (f'GPUIO_LIFECYCLE checkpoint (1 {snapshot()})\n'
+                    'GPUIO_ENTITY_AUDIT checkpoint (1 baseline)\n')
+            log.write_text(text)
+            checkpoint(child)
+            self.assertEqual(child.stdin.getvalue(), b'')
+            self.assertEqual(samples, [])
+            text += 'GPUIO_METAL_AUDIT checkpoint (1 123 4 2048 1024)\n'
+            log.write_text(text)
+            with patch('measure_resource_lifecycle.subprocess.check_output', return_value='12345'):
+                checkpoint(child)
+            self.assertEqual(child.stdin.getvalue(), b'continue 1\n')
+            # A later device change fails before the next acknowledgement.
+            log.write_text(text + f'GPUIO_LIFECYCLE checkpoint (2 {snapshot()})\n'
+                           'GPUIO_ENTITY_AUDIT checkpoint (2 checked)\n'
+                           'GPUIO_METAL_AUDIT checkpoint (2 456 4 2048 1024)\n')
+            with self.assertRaisesRegex(ValueError, 'order or device'):
+                checkpoint(child)
+            self.assertEqual(child.stdin.getvalue(), b'continue 1\n')
+            # Metal cannot precede its native entity audit or arrive unrequested.
+            log.write_text('GPUIO_METAL_AUDIT checkpoint (1 123 4 2048 1024)\n')
+            for enabled in (False, True):
+                reader = Checkpoints(log, [], cycles=4, native_entities=True, metal_memory=enabled)
+                with self.assertRaises(ValueError):
+                    reader(child)
+
     def test_paired_entity_schema_fingerprints(self):
         root = Path(__file__).resolve().parent.parent / 'examples/resource_audit'
         digest = hashlib.sha256((root/'schema.txt').read_bytes()).hexdigest()

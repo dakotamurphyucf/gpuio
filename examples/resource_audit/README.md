@@ -38,3 +38,21 @@ coverage does not establish real desktop acceptance. The claim is specifically
 **no new live GPUI entity handles relative to the closed warmup baseline**;
 it is not zero global entities, nor all Arc/Objective-C/GPU resource ownership.
 Keep the separate [physical-memory audit](../../docs/evidence/physical-memory-och17.md).
+
+## Optional macOS Metal allocations
+
+Pass `--metal-memory` to the collector alongside `--native-entities` to require
+the actual window renderer's Metal device counter. The schema-v2 component keeps
+only that device, checks its identity between windows, samples on render without
+requesting frames and records the settled counter after each close. The collector
+requires the matching Metal record before acknowledging the cycle. Missing or
+unsupported observations fail; they are never substituted with zero.
+
+```sh
+python3 scripts/measure_resource_lifecycle.py --build-profile release --native-entities --metal-memory --physical-memory --check-closed-surfaces --executable _build/default/examples/resource_audit/main.exe --smoke --output scratch/metal-smoke
+```
+
+The [design and guardrail](../../docs/design/metal-resource-qualification.md)
+distinguish sampled allocation counts from complete GPU memory and presentation.
+See [calibration and workload evidence](../../docs/evidence/metal-resource-och17.md)
+for actual coverage; a successful smoke does not qualify the full budget.

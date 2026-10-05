@@ -10,6 +10,10 @@ license = "Apache-2.0"
 gpuio-extension-sdk = { path = "../../../rust/extension-sdk" }
 gpui = { git = "https://github.com/zed-industries/zed.git", rev = "a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b", default-features = false, features = ["leak-detection"] }
 
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6.4"
+raw-window-handle = "0.6.2"
+
 [dev-dependencies]
 gpui = { git = "https://github.com/zed-industries/zed.git", rev = "a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b", default-features = false, features = ["test-support"] }
 

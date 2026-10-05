@@ -6,4 +6,5 @@ let () =
     ~smoke:(flag "--smoke")
     ~background:(flag "--background")
     ~native_entities:true
+    ~metal_memory:(flag "--metal-memory")
 ;;

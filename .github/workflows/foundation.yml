@@ -179,6 +179,11 @@ jobs:
         run: ./scripts/gpuio exec cargo test --manifest-path examples/resource_audit/rust/Cargo.toml --locked --lib 2>&1 | tee .cache/ci/native-entity-audit.log
       - name: macOS physical-memory report validation (no display)
         run: python3 scripts/test_mac_process_memory.py 2>&1 | tee .cache/ci/physical-memory-report-diagnostics.log
+      - name: macOS Metal counter calibration (no visible window)
+        if: runner.os == 'macOS'
+        run: |
+          xcrun swiftc scripts/qualify_metal_counter.swift -o .cache/ci/qualify-metal-counter
+          .cache/ci/qualify-metal-counter | tee .cache/ci/metal-counter-calibration.json
       - name: GPUI standalone manifest validation (no display)
         run: python3 scripts/test_vendor_gpui.py 2>&1 | tee .cache/ci/gpui-manifest-diagnostics.log
       - name: Document growth report validation (no display)
@@ -591,6 +596,11 @@ jobs:
         run: |
           python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-tests", "--test", "native_window"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-window-native.log
           python3 -c 'import subprocess; [subprocess.run(["_build/default/examples/window_lifecycle/main.exe"] + flags, check=True, timeout=90) for flags in [[], ["--last-window"]]]' 2>&1 | tee .cache/ci/macos-window-public.log
+      - name: macOS renderer allocation and entity lifecycle smoke
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          ./scripts/gpuio exec dune build examples/resource_audit/main.exe
+          python3 scripts/measure_resource_lifecycle.py --build-profile dev --native-entities --metal-memory --physical-memory --check-closed-surfaces --executable _build/default/examples/resource_audit/main.exe --smoke --output .cache/ci/metal-lifecycle --timeout 120
       - name: macOS streaming documents
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
         run: |
