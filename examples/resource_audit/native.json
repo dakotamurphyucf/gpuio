@@ -1,0 +1,20 @@
+{
+  "library": "gpuio_resource_audit_backend",
+  "gpuio": "../..",
+  "components": [
+    {
+      "path": "../performance_probe/rust",
+      "factory": "factory"
+    },
+    {
+      "path": "rust",
+      "factory": "factory"
+    }
+  ],
+  "document_profiles": [
+    {
+      "path": "../document_profile_package/rust",
+      "factory": "factory"
+    }
+  ]
+}

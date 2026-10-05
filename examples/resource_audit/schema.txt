@@ -1,0 +1,11 @@
+qualification.resource_audit version 1
+properties: exactly three unsigned bytes (warmups, measurements, cycle)
+warmups 1..=3; measurements 1..=30; cycle 1..=warmups+measurements
+properties are immutable per mount; exactly one mount per sequential window
+commands: none (all bytes rejected)
+events: none (the host Mounted/Failed events retain their ordinary meaning)
+qualification stdout: GPUIO_ENTITY_AUDIT checkpoint (cycle warmup|baseline|checked)
+qualification stdout: GPUIO_ENTITY_AUDIT complete total
+qualification stdout: GPUIO_ENTITY_AUDIT failed cycle
+baseline after final warmup window closes; later checkpoints assert no new live GPUI entity handles
+stdout is a qualification process record, never an event delivered to a retired component

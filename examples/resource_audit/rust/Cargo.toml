@@ -1,0 +1,24 @@
+[package]
+name = "gpuio-resource-audit"
+version = "0.0.0"
+edition = "2024"
+license = "Apache-2.0"
+
+[workspace]
+
+[dependencies]
+gpuio-extension-sdk = { path = "../../../rust/extension-sdk" }
+gpui = { git = "https://github.com/zed-industries/zed.git", rev = "a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b", default-features = false, features = ["leak-detection"] }
+
+[dev-dependencies]
+gpui = { git = "https://github.com/zed-industries/zed.git", rev = "a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b", default-features = false, features = ["test-support"] }
+
+[patch.crates-io]
+gpuio-extension-sdk = { path = "../../../rust/extension-sdk" }
+gpuio-document-sdk = { path = "../../../rust/document-sdk" }
+accesskit_macos = { path = "../../../vendor/accesskit-macos" }
+taffy = { path = "../../../vendor/taffy" }
+
+[patch."https://github.com/zed-industries/zed.git"]
+gpui = { path = "../../../vendor/gpui" }
+gpui_macos = { path = "../../../vendor/gpui-macos" }

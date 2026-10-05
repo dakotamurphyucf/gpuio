@@ -5,5 +5,5 @@ let () =
   Gpuio_lifecycle_workload.run
     ~smoke:(flag "--smoke")
     ~background:(flag "--background")
-    ~native_entities:false
+    ~native_entities:true
 ;;

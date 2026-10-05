@@ -144,3 +144,19 @@ state must be reported; an occluded window cannot be accepted as settled idle.
 
 Three full optimized focused/unfocused runs now pass the idle contract; see
 [raw reports and evidence](../evidence/idle-performance-och17.md).
+
+## Native entity audit isolation — 2026-10-05
+
+The dedicated [resource audit backend](../../examples/resource_audit/README.md)
+enables GPUI's existing leak detector separately from ordinary performance
+executables. It uses the same acknowledged lifecycle workload, captures live
+entity IDs after the final closed warmup, and requires no new live entity handles
+after each subsequent close. The collector waits for both native and application
+retirement records before the next window. This does not force GC/cache purges,
+retain windows in the audit, or extend retired component event delivery.
+
+Its own tracking overhead is excluded from responsiveness evidence. The
+intentional retained-entity fixture must fail and pass after release; malformed
+or missing audit records cannot satisfy completion. This coverage complements
+OS physical-memory accounting and cannot substitute for it. The four-close local smoke passes; full repeated audit
+results remain pending.

@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Verify lifecycle coverage, baseline limits, handshake sampling and child cleanup."""
 import copy
+import hashlib
+import re
 import io
 import os
 from pathlib import Path
@@ -12,7 +14,7 @@ from unittest.mock import patch
 
 from measure_chart_stream import collect
 from measure_list_history import ZERO_RESOURCES
-from measure_resource_lifecycle import Checkpoints, validate
+from measure_resource_lifecycle import Checkpoints, validate, entity_records
 
 
 def snapshot(live=False):
@@ -33,6 +35,12 @@ def fixture(smoke=False):
 
 
 class LifecycleReport(unittest.TestCase):
+    def test_paired_entity_schema_fingerprints(self):
+        root = Path(__file__).resolve().parent.parent / 'examples/resource_audit'
+        digest = hashlib.sha256((root/'schema.txt').read_bytes()).hexdigest()
+        for path in ['ocaml/gpuio_resource_audit.ml','rust/src/lib.rs']:
+            self.assertEqual(re.findall(r'[a-f0-9]{64}', (root/path).read_text()), [digest])
+
     def test_full_coverage_and_predeclared_growth(self):
         output, samples = fixture()
         result = validate(output, samples, smoke=False, background=False)
@@ -91,6 +99,62 @@ class LifecycleReport(unittest.TestCase):
             log.write_text(text + '\n' + text + '\n')
             with self.assertRaises(ValueError):
                 checkpoint(child)
+
+    def test_native_audit_requires_both_records_before_ack_in_either_order(self):
+        for audit_first in (False, True):
+            with tempfile.TemporaryDirectory() as tmp:
+                log = Path(tmp) / 'app.log'
+                samples = []
+                checkpoint = Checkpoints(log, samples, cycles=4, native_entities=True, warmups=1)
+                child = SimpleNamespace(pid=123, stdin=io.BytesIO())
+                lifecycle = f'GPUIO_LIFECYCLE checkpoint (1 {snapshot()})\n'
+                audit = 'GPUIO_ENTITY_AUDIT checkpoint (1 baseline)\n'
+                first, second = (audit, lifecycle) if audit_first else (lifecycle, audit)
+                log.write_text(first)
+                checkpoint(child)
+                self.assertEqual(samples, [])
+                self.assertEqual(child.stdin.getvalue(), b'')
+                log.write_text(first + second)
+                with patch('measure_resource_lifecycle.subprocess.check_output', return_value='12345'):
+                    checkpoint(child)
+                self.assertEqual(child.stdin.getvalue(), b'continue 1\n')
+                log.write_text(first + second + 'GPUIO_ENTITY_AUDIT failed 2\n')
+                with self.assertRaisesRegex(ValueError, 'audit failed'):
+                    checkpoint(child)
+                self.assertEqual(child.stdin.getvalue(), b'continue 1\n')
+
+    def test_entity_report_rejects_missing_duplicate_failure_and_wrong_baseline(self):
+        output = '\n'.join(['GPUIO_ENTITY_AUDIT checkpoint (1 baseline)',
+                            'GPUIO_ENTITY_AUDIT checkpoint (2 checked)',
+                            'GPUIO_ENTITY_AUDIT checkpoint (3 checked)',
+                            'GPUIO_ENTITY_AUDIT checkpoint (4 checked)',
+                            'GPUIO_ENTITY_AUDIT complete 4'])
+        self.assertEqual(entity_records(output, warmups=1, measurements=3)['measurements'], 3)
+        for text in [output.rsplit('\n',1)[0], output + '\nGPUIO_ENTITY_AUDIT complete 4',
+                     output.replace('(2 checked)','(2 baseline)'),
+                     output.replace('checkpoint (3 checked)','failed 3'),
+                     output.replace('(3 checked)','(2 checked)')]:
+            with self.assertRaises(ValueError):
+                entity_records(text, warmups=1, measurements=3)
+
+    def test_final_native_ack_waits_for_terminal_record(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            log = Path(tmp) / 'app.log'
+            samples = []
+            checkpoint = Checkpoints(log, samples, cycles=2, native_entities=True, warmups=1)
+            child = SimpleNamespace(pid=123, stdin=io.BytesIO())
+            text = ''
+            for cycle, phase in [(1, 'baseline'),(2, 'checked')]:
+                text += (f'GPUIO_ENTITY_AUDIT checkpoint ({cycle} {phase})\n'
+                         f'GPUIO_LIFECYCLE checkpoint ({cycle} {snapshot()})\n')
+                log.write_text(text)
+                with patch('measure_resource_lifecycle.subprocess.check_output', return_value='12345'):
+                    checkpoint(child)
+            self.assertEqual(child.stdin.getvalue(), b'continue 1\n')
+            log.write_text(text + 'GPUIO_ENTITY_AUDIT complete 2\n')
+            with patch('measure_resource_lifecycle.subprocess.check_output', return_value='12345'):
+                checkpoint(child)
+            self.assertEqual(child.stdin.getvalue(), b'continue 1\ncontinue 2\n')
 
     def test_collector_handshake_and_callback_failure_reap_exact_child(self):
         with tempfile.TemporaryDirectory() as tmp:

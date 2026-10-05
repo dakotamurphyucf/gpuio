@@ -175,6 +175,8 @@ jobs:
         run: python3 scripts/test_measure_table_history.py 2>&1 | tee .cache/ci/table-measurement-diagnostics.log
       - name: Resource lifecycle report validation (no display)
         run: python3 scripts/test_measure_resource_lifecycle.py 2>&1 | tee .cache/ci/lifecycle-measurement-diagnostics.log
+      - name: Native entity audit sensitivity (no display)
+        run: ./scripts/gpuio exec cargo test --manifest-path examples/resource_audit/rust/Cargo.toml --locked --lib 2>&1 | tee .cache/ci/native-entity-audit.log
       - name: macOS physical-memory report validation (no display)
         run: python3 scripts/test_mac_process_memory.py 2>&1 | tee .cache/ci/physical-memory-report-diagnostics.log
       - name: GPUI standalone manifest validation (no display)

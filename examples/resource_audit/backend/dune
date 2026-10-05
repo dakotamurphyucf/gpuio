@@ -1,0 +1,39 @@
+; Generated backend: explicitly add gpuio_resource_audit_backend to the executable's libraries.
+
+(rule
+ (targets
+  libgpuio_resource_audit_backend.a
+  link_flags.sexp
+  c_link_flags.sexp)
+ (deps
+  (sandbox none)
+  (env_var CARGO_TARGET_DIR)
+  Cargo.toml
+  Cargo.lock
+  registration.rs
+  (source_tree "../../../rust")
+  (source_tree "../../../vendor/gpui-base")
+  (source_tree "../../../vendor/gpui")
+  (source_tree "../../../vendor/gpui-macos")
+  (source_tree "../../../vendor/accesskit-macos")
+  (source_tree "../../../vendor/taffy")
+  (source_tree "../../performance_probe/rust")
+  (source_tree "../rust")
+  (source_tree "../../document_profile_package/rust")
+  "../../../scripts/build_native.py")
+ (action
+  (run
+   python3
+   "../../../scripts/build_native.py"
+   %{profile}
+   gpuio-resource-audit-backend
+   Cargo.toml)))
+
+(library
+ (name gpuio_resource_audit_backend)
+ (implements gpuio.native)
+ (modes native)
+ (no_dynlink)
+ (foreign_archives gpuio_resource_audit_backend)
+ (c_library_flags
+  (:include c_link_flags.sexp)))

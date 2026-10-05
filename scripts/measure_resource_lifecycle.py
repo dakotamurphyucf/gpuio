@@ -80,11 +80,34 @@ def validate(output, samples, *, smoke, background):
                 qualification=(not smoke and growth <= 64 * 1024**2))
 
 
+def entity_records(output, *, warmups, measurements):
+    records = []
+    for line in output.splitlines():
+        if line.startswith('GPUIO_ENTITY_AUDIT '):
+            name, payload = line[len('GPUIO_ENTITY_AUDIT '):].split(' ', 1)
+            records.append((name, sexp(payload)))
+    expected = [('checkpoint', [str(n), entity_phase(n, warmups)])
+                for n in range(1, warmups + measurements + 1)]
+    expected.append(('complete', str(warmups + measurements)))
+    if records != expected:
+        raise ValueError('Missing, failed, reordered or extra native entity audit records')
+    return dict(warmups=warmups, measurements=measurements,
+                scope='No new live GPUI entity handles versus closed final-warmup baseline; not all native/OS/GPU resources')
+
+
+def entity_phase(cycle, warmups):
+    return 'warmup' if cycle < warmups else 'baseline' if cycle == warmups else 'checked'
+
+
 class Checkpoints:
-    def __init__(self, log, samples, *, cycles, physical_memory=False):
+    def __init__(self, log, samples, *, cycles, physical_memory=False, native_entities=False, warmups=3):
         self.log, self.samples, self.cycles = log, samples, cycles
-        self.physical_memory = physical_memory
+        self.physical_memory, self.native_entities = physical_memory, native_entities
+        self.warmups = warmups
         self.offset, self.pending, self.started = 0, b'', time.monotonic()
+        self.waiting = None
+        self.audited = 0
+        self.audit_complete = False
 
     def __call__(self, child):
         with self.log.open('rb') as stream:
@@ -97,29 +120,54 @@ class Checkpoints:
             raise ValueError('Oversized lifecycle record')
         for line in lines:
             prefix = b'GPUIO_LIFECYCLE checkpoint '
-            if not line.startswith(prefix):
-                continue
-            number, snapshot = sexp(line[len(prefix):].decode())
-            cycle = natural(number)
-            if cycle != len(self.samples) + 1 or cycle > self.cycles:
-                raise ValueError('Unexpected lifecycle checkpoint')
-            retired(snapshot)
-            # ps reports resident KiB on both supported platforms. The owned
-            # child is blocked on stdin here, not allocating its next window.
-            raw = subprocess.check_output(['ps', '-o', 'rss=', '-p', str(child.pid)],
-                                          text=True, timeout=2).strip()
-            rss = natural(raw) * 1024
-            if rss == 0:
-                raise ValueError('Missing resident-set measurement')
-            sample = dict(cycle=cycle, rss_bytes=rss,
-                          elapsed_seconds=time.monotonic() - self.started)
-            self.samples.append(sample)
-            if self.physical_memory:
-                from mac_process_memory import sample as sample_memory
-                sample['physical_memory'] = sample_memory(
-                    child.pid, self.log.parent / 'physical-memory' / f'cycle-{cycle:03}')
-            child.stdin.write(f'continue {cycle}\n'.encode())
-            child.stdin.flush()
+            audit_prefix = b'GPUIO_ENTITY_AUDIT '
+            if line.startswith(audit_prefix):
+                if not self.native_entities:
+                    raise ValueError('Unexpected native entity audit without --native-entities')
+                name, payload = line[len(audit_prefix):].decode().split(' ', 1)
+                value = sexp(payload)
+                if name == 'checkpoint':
+                    number, phase = value
+                    cycle = natural(number)
+                    if (cycle != self.audited + 1 or cycle != len(self.samples) + 1
+                            or cycle > self.cycles or phase != entity_phase(cycle, self.warmups)):
+                        raise ValueError('Unexpected native entity audit checkpoint')
+                    self.audited = cycle
+                elif name == 'complete' and not self.audit_complete and natural(value) == self.cycles == self.audited:
+                    self.audit_complete = True
+                else:
+                    raise ValueError('Native entity audit failed or emitted an invalid record')
+            elif line.startswith(prefix):
+                number, snapshot = sexp(line[len(prefix):].decode())
+                cycle = natural(number)
+                if self.waiting is not None or cycle != len(self.samples) + 1 or cycle > self.cycles:
+                    raise ValueError('Unexpected lifecycle checkpoint')
+                retired(snapshot)
+                self.waiting = cycle
+            self.acknowledge(child)
+
+    def acknowledge(self, child):
+        cycle = self.waiting
+        if cycle is None or (self.native_entities and
+                (self.audited != cycle or (cycle == self.cycles and not self.audit_complete))):
+            return
+        # Both independent records must arrive before inspecting the owned child
+        # and permitting the next window. No callback is sent to a retired view.
+        raw = subprocess.check_output(['ps', '-o', 'rss=', '-p', str(child.pid)],
+                                      text=True, timeout=2).strip()
+        rss = natural(raw) * 1024
+        if rss == 0:
+            raise ValueError('Missing resident-set measurement')
+        sample = dict(cycle=cycle, rss_bytes=rss,
+                      elapsed_seconds=time.monotonic() - self.started)
+        self.samples.append(sample)
+        if self.physical_memory:
+            from mac_process_memory import sample as sample_memory
+            sample['physical_memory'] = sample_memory(
+                child.pid, self.log.parent / 'physical-memory' / f'cycle-{cycle:03}')
+        child.stdin.write(f'continue {cycle}\n'.encode())
+        child.stdin.flush()
+        self.waiting = None
 
 
 def main():
@@ -129,6 +177,8 @@ def main():
     parser.add_argument('--build-profile', choices=('dev', 'release'), required=True)
     parser.add_argument('--smoke', action='store_true')
     parser.add_argument('--background', action='store_true')
+    parser.add_argument('--native-entities', action='store_true',
+                        help='Require the separate native-entity audit backend and matching closed-window records')
     parser.add_argument('--physical-memory', action='store_true',
                         help='macOS only: retain footprint/vmmap at each closed checkpoint; separate from responsiveness')
     parser.add_argument('--check-closed-surfaces', action='store_true',
@@ -147,7 +197,7 @@ def main():
     args.output.mkdir(parents=True, exist_ok=False)
     report = dict(complete=False, samples=[], platform=platform.platform(), architecture=platform.machine(),
                   build_profile=args.build_profile, smoke=args.smoke, background=args.background,
-                  physical_memory=args.physical_memory,
+                  physical_memory=args.physical_memory, native_entities=args.native_entities,
                   check_closed_surfaces=args.check_closed_surfaces,
                   measurement='Settled process RSS and acknowledged application registrations; not GPU memory or native entity counts')
     log = args.output / 'application.log'
@@ -166,8 +216,12 @@ def main():
         arguments = [flag for enabled, flag in ((args.smoke, '--smoke'), (args.background, '--background')) if enabled]
         collect(args.executable, log, report, args.timeout, arguments=arguments,
                 on_poll=Checkpoints(log, report['samples'], cycles=4 if args.smoke else 33,
-                                    physical_memory=args.physical_memory))
+                                    physical_memory=args.physical_memory,
+                                    native_entities=args.native_entities, warmups=1 if args.smoke else 3))
         report['workload'] = validate(log.read_text(), report['samples'], smoke=args.smoke, background=args.background)
+        if args.native_entities:
+            report['native_entity_audit'] = entity_records(log.read_text(), warmups=1 if args.smoke else 3,
+                                                          measurements=3 if args.smoke else 30)
         if args.physical_memory:
             values = [s['physical_memory']['footprint_bytes'] for s in report['samples']]
             final = values[-min(10, len(values)):]

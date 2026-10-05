@@ -74,3 +74,8 @@ regions. This regression gate was declared before the full repaired runs, after
 the first audit exposed three retained surfaces per closed window. It checks OS
 category observations on the reference system, not all Metal resources. See the
 [teardown contract](../../docs/design/gpui-macos-adaptation.md).
+
+The shared OCaml workload now lives in `../lifecycle_workload`; this executable
+continues to select the ordinary performance backend. The separate
+[resource audit](../resource_audit/README.md) runs it with optional native entity
+tracking. Do not mix that backend's timings with ordinary performance results.

@@ -1,0 +1,11 @@
+(library
+ (name gpuio_lifecycle_workload)
+ (libraries
+  core
+  gpuio
+  gpuio.bonsai
+  gpuio.eio
+  gpuio_performance_probe
+  gpuio_resource_audit)
+ (preprocess
+  (pps ppx_jane bonsai.ppx_bonsai)))
