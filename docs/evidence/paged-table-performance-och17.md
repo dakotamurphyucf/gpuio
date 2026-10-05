@@ -97,7 +97,8 @@ The full native unit suite passes 921 tests with two existing macOS private-bus
 skips, and strict combined-feature all-target Clippy passes. The full protocol
 suite passes 393 tests; full `dune runtest -j2`, optimized table build and `@fmt`
 also pass. Exact commands and terminal outcomes are retained in the session
-validation log. The later explicit settling wait requires the subsequent rebuild.
+validation log. The later explicit settling wait passed the subsequent optimized rebuild and
+smoke warm-up.
 
 Session artifacts are under `scratch/agents/root-20261004-resumed/`:
 `table-performance-smoke-00{1,2,3,4,5,6}/`, `table-compact-{native,protocol}-001.log`,
@@ -105,3 +106,30 @@ Session artifacts are under `scratch/agents/root-20261004-resumed/`:
 and `table-final-validation-001.log`. The parent source checkpoint is `1921ae3`;
 these repairs and the workload are subsequent changes. Raw reports retain exact
 executable hashes; checkout state is not embedded build identity.
+
+## First full run and diagnostics follow-up
+
+The settled optimized source `5b29573` was preserved as executable SHA-256
+`111e9a17620137ab243382e3fd004b9be4db7a98b3ff9411f7347922bfc154e6`.
+Its fresh smoke warm-up passes. Full001 then fails with a native frame
+acknowledgement timeout after 727.693 seconds, whole-process CPU 827.876 seconds
+and peak RSS 548,536,320 bytes. It does not produce complete traversal histograms
+or accepted coverage, so these resource observations are not a performance pass.
+No simultaneous local compilation or second owned GUI ran. Independent source
+editing and portable Python process tests continued; desktop activity was not
+controlled. All owned processes were reaped.
+
+The full driver originally emitted frame-failure geometry only in smoke mode,
+leaving this failure's row/stage and activation unknown. It now emits bounded
+failure diagnostics in either mode and progress once per 10,000 visited rows in
+each direction. The timeout, workload and acceptance thresholds are unchanged.
+A read-only power-log inspection found no display-sleep event near the failure;
+that does not identify the cause or establish uninterrupted visible rendering.
+The owner has chosen ordinary visible benchmark windows while away for subsequent
+long runs. These require fresh reports, not reassignment of this failed attempt.
+
+Artifacts: `table-performance-warmup-001/`, `table-performance-full-001/`,
+`table-qualification-001.log`; the subsequent diagnostic build passes in
+`lifecycle-build-002.log` alongside the separate lifecycle workload. That build's
+first attempt failed on an OCaml 5.3 reserved-word identifier in the new lifecycle
+example; it was renamed before the passing build. No compiler pin changed.

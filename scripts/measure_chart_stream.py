@@ -141,7 +141,7 @@ def validate(result):
     return workloads
 
 
-def collect(executable, log_path, report, timeout, *, arguments=()):
+def collect(executable, log_path, report, timeout, *, arguments=(), on_poll=None):
     """Own one session, keep exact-child wait4 usage, and clean up on all exits."""
     started = time.monotonic()
     child = None
@@ -158,15 +158,18 @@ def collect(executable, log_path, report, timeout, *, arguments=()):
     with log_path.open('x') as log:
         try:
             child = subprocess.Popen([str(Path(executable).resolve()), *arguments], stdout=log,
-                                     stderr=subprocess.STDOUT, start_new_session=True)
+                                     stderr=subprocess.STDOUT, start_new_session=True,
+                                     stdin=subprocess.PIPE if on_poll else None)
             report['child_pid'] = child.pid
             while not reap():
+                if on_poll is not None:
+                    on_poll(child)
                 remaining = timeout - (time.monotonic() - started)
                 if remaining <= 0:
-                    raise TimeoutError(f'Chart workload exceeded {timeout:g} seconds')
+                    raise TimeoutError(f'GUI workload exceeded {timeout:g} seconds')
                 time.sleep(min(.1, remaining))
             if child.returncode:
-                raise RuntimeError(f'Chart workload exited with {child.returncode}')
+                raise RuntimeError(f'GUI workload exited with {child.returncode}')
         finally:
             if child is not None:
                 # Ignore additional interrupts only during bounded cleanup, then
@@ -188,6 +191,8 @@ def collect(executable, log_path, report, timeout, *, arguments=()):
                     if child.returncode is None:
                         reap(block=True)
                     report['returncode'] = child.returncode
+                    if child.stdin is not None:
+                        child.stdin.close()
                 finally:
                     for sig, handler in handlers.items():
                         signal.signal(sig, handler)

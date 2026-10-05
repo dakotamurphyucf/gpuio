@@ -253,8 +253,8 @@ let run ~smoke ~background ~wall_clock =
       let current_viewport () = W.Output.viewport (output ()) in
       let viewport () = Option.value_exn (current_viewport ()) in
       let stage = ref "startup" in
-      let trace name =
-        if smoke
+      let trace ?(always = false) name =
+        if smoke || always
         then
           Eio.Flow.copy_string
             ("GPUIO_TABLE_TRACE "
@@ -275,8 +275,9 @@ let run ~smoke ~background ~wall_clock =
         |> ok;
         try Eio.Time.with_timeout_exn clock 10. (fun () -> Eio.Promise.await promise) with
         | exn ->
-          trace "frame-failed";
-          raise exn
+          trace ~always:true "frame-failed";
+          raise_s
+            [%sexp "Native frame acknowledgement failed", (!stage : string), (exn : exn)]
       in
       let peak_rows = ref 0 in
       let peak_cells = ref 0 in
@@ -336,10 +337,17 @@ let run ~smoke ~background ~wall_clock =
       wait ~label:"initial table viewport" (fun () ->
         Option.exists !observed ~f:(fun o -> Option.is_some (W.Output.viewport o)));
       begin_phase "history";
-      trace "history-start";
+      trace ~always:true "history-start";
       let selected = target 0 in
       let selection = T.Selection.Cell (selected, column_id 0) in
       perform scope (W.Controller.select (W.Output.controller (output ())) selection);
+      let checkpoint = ref 10_000 in
+      let progress direction count =
+        if count >= !checkpoint
+        then (
+          trace ~always:true direction;
+          checkpoint := !checkpoint + 10_000)
+      in
       let forward = ref Int.Set.empty in
       let next = ref 0 in
       while !next < rows do
@@ -347,8 +355,10 @@ let run ~smoke ~background ~wall_clock =
         for i = v.visible_first to v.visible_last - 1 do
           forward := Set.add !forward i
         done;
+        progress "forward" (Set.length !forward);
         if v.at_end then next := rows else next := Int.max (!next + 1) (v.visible_last - 1)
       done;
+      checkpoint := 10_000;
       let backward = ref Int.Set.empty in
       next := rows - 1;
       while !next >= 0 do
@@ -356,6 +366,7 @@ let run ~smoke ~background ~wall_clock =
         for i = v.visible_first to v.visible_last - 1 do
           backward := Set.add !backward i
         done;
+        progress "backward" (Set.length !backward);
         if v.visible_first = 0
         then next := -1
         else
