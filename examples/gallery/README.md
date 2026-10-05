@@ -23,8 +23,10 @@ Primary+Shift+K clears selection; shortcuts avoid clicking away from the range.
 These read-only text/document queries do not inspect editor
 values or access the clipboard. The default result budget is 65,536 UTF-8 bytes;
 applications can choose 0..262,144 bytes. Oversize returns `Limit_exceeded` without
-partial text. The example uses public APIs; a physical walkthrough remains
-part of gallery acceptance.
+partial text. The [physical macOS walkthrough](../../docs/evidence/window-selection-och41.md#physical-public-gallery-walkthrough--2026-10-05)
+passes exact cross-node Unicode reads, end/clear, independent windows and native
+selection retirement on page unmount. Shortcuts resolve within the card's focused
+registry; focus a card button when querying an empty selection.
 
 A native public-API gallery under implementation for OCH-41. The first sections
 cover presentation, selection/actions, native text editing, numeric/range inputs,

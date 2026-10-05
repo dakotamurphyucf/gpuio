@@ -1,0 +1,27 @@
+{
+  "complete": true,
+  "platform": "macOS-14.5-arm64-arm-64bit-Mach-O",
+  "checks": [
+    {
+      "case": "cross-node-exact-unicode-read",
+      "utf8_bytes": 89
+    },
+    {
+      "case": "end-drag-retains-range-after-native-motion-and-up"
+    },
+    {
+      "case": "window-isolation-and-close"
+    },
+    {
+      "case": "clear-removes-selection"
+    },
+    {
+      "case": "page-remount-without-stale-selection"
+    }
+  ],
+  "executable_sha256": "506e27144b26dc0172f21548e20827643deaa7c67604dae41495959e5225fb0c",
+  "revision": "999e53195418e61d2b0e3e1ac794ecda7e1821eb",
+  "dirty": true,
+  "clipboard_change_count_unchanged": true,
+  "child_reaped": true
+}

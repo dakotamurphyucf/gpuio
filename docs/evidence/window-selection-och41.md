@@ -88,3 +88,63 @@ Logs and per-ticket notes are under
 installed-gallery acceptance, current required Linux nongraphical checks,
 performance/resources/distribution and reviewed publication remain separate.
 OCH-41, OCH-17 and the full milestone-07 goal remain open.
+
+
+## Physical public gallery walkthrough — 2026-10-05
+
+The actual macOS 14.5 arm64 gallery now passes all five native selection cases.
+Harness/CI source is `8f14222`; the run used a dirty worktree based on
+`999e53195418e61d2b0e3e1ac794ecda7e1821eb`, with only the new harness/workflow
+changing. No library or example implementation change was needed. The existing
+optimized gallery binary has SHA-256
+`506e27144b26dc0172f21548e20827643deaa7c67604dae41495959e5225fb0c`;
+its build and source provenance are also recorded in
+[the focused-input walkthrough](window-input-query-och41.md#physical-public-gallery-query--2026-10-05).
+Application source is unchanged since that build; subsequent example edits are
+README-only.
+
+1. A real pointer drag across two selectable text nodes returns exactly 89 UTF-8
+   bytes, including the joining newline, `café`, `京都`, and the joined `👩‍💻`
+   sequence. Native Command+Shift+U reads the public window helper and
+   Command+Shift+Y reports selection presence.
+2. While the pointer button is still held, Command+Shift+E ends selection.
+   A further native drag event over a third line and mouse-up preserve the
+   original range and exact returned text.
+3. A second window reports empty selection without changing the first window's
+   range. Closing the second leaves the original query functional.
+4. Command+Shift+K clears selection; presence and read helpers acknowledge empty.
+5. A new 39-byte selection is made before leaving the page. Returning mounts a
+   fresh native selection layer and reports empty, even though Bonsai retains
+   the example's prior notice model.
+
+The test alternates presence/read acknowledgements so a stale identical status
+message cannot stand in for a completed read. Empty-selection shortcuts are
+invoked with focus in the card's registry; pointer selection establishes that
+focus in the populated case. The first two exploratory runs incorrectly queried
+an unfocused sibling registry, and a third expected Bonsai to reset its notice on
+native unmount. Those harness assumptions were corrected; their failed reports
+remain in local scratch. No production routing or lifecycle fix is claimed.
+
+The clipboard's change counter remains identical across the entire run. The
+harness reads no clipboard payload and performs no clipboard writes. It changes
+no OS preferences, input sources or VoiceOver state. Both windows close, the
+application exits zero, and its process is reaped. The final screenshot was
+inspected: the first two lines are highlighted and the third is not.
+
+```sh
+python3 -m py_compile scripts/test_macos_window_selection.py
+python3 scripts/test_macos_window_selection.py --output scratch/agents/root-20261004-resumed/window-selection-runtime-004
+```
+
+Python compilation, actionlint 1.7.12 and `git diff --check` pass. A scoped macOS
+CI step is added; hosted execution of this new step remains pending. The ongoing
+run at `999e531` does not contain it.
+
+Retained evidence: [report](window-selection-och41/report.json),
+[walkthrough log](window-selection-och41/walkthrough.log),
+[application log](window-selection-och41/application.log), and
+[screenshot](window-selection-och41/selected-unicode.png).
+This qualifies the public read-only plain-text example; native tests above retain
+separate bounds/modal/editor-exclusion coverage. It is not rendered-Markdown,
+VoiceOver, arbitrary plugin, Linux GUI or whole-milestone acceptance. VoiceOver
+remains on the owner's explicit hold.
