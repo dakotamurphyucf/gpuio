@@ -142,3 +142,34 @@ repetitions and hosted execution of this correction remain unqualified here.
 source snapshots, logs, partial-capture failure, pixel-inspection script, capture
 reports, selected unmodified PNGs and the complete smoke report.
 [Verified manifest](table-scroll-flicker-och17/prepared-scroll-manifest.json).
+
+## Native pixel-wheel follow-up
+
+A further diagnostic at `b457e0c` holds the public table before its programmatic
+history loop, using Eio sleeps and viewport logging. The mouse harness sends
+12 events each of −32, −96, +32 and +96 pixels through macOS CoreGraphics,
+checking that the pointer target belongs to the owned app before each event.
+It captures the initial populated table and each subsequent transition, then
+terminates and reaps its child. The temporary diagnostic source directory is
+removed after building with the same isolated release profile.
+
+The first attempt posts events directly to the PID. Its collector succeeds,
+but the independent viewport log stays at row zero throughout: **no scrolling
+acceptance follows from that run**. The corrected harness uses the global event
+tap with the same ownership hit-test, matching the existing native pointer
+walkthroughs. Its 99 viewport observations establish movement from row 0 through
+48 and back to 0. All 49 sampled first-column regions remain populated; image 24
+was visually reviewed and shows rows 48–68. This provides actual OS pixel-wheel
+coverage in both directions, without using a Bonsai scroll controller or changing
+the production native table. It does not prove every frame, physical trackpad
+momentum, arbitrary velocities, clipping/resizing or presentation-latency budgets.
+
+Diagnostic executable SHA-256:
+`854693e6a3ae976d735859b199529cb319702a7ffc5bfc1d8a1342684675a278`.
+The source builds as `examples/performance_presented/table_wheel_diagnostic/main.exe`
+with the normal presented-table Dune stanza. Both harness versions, source,
+logs, reports and selected original screenshots are in the
+[18-file wheel archive](table-scroll-flicker-och17/wheel-diagnostic.tar.gz), with
+a [verified manifest](table-scroll-flicker-och17/wheel-manifest.json). No application
+or global input-source settings were changed. Neither this interrupted diagnostic
+nor the earlier functional smoke replaces the still-open startup/performance gate.
