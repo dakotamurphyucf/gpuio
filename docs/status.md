@@ -38,6 +38,10 @@ Linux has passed; macOS has reported failures in scoped file/theme reads and
 calendar accessibility while later native checks continue. Failure logs and
 final job results still need investigation; this run does not qualify the newer
 local numeric-slot and popup-focus repairs or expanded walkthroughs.
+The two available failure logs now have [local readiness corrections](evidence/macos-ci-readiness-och17.md):
+the calendar acknowledges focus before keys, and file-theme Reload waits for its
+page scope to become ready. The full calendar walkthrough and all 12 theme cases
+pass locally. Corrected hosted execution remains required; no failures are waived.
 Three full optimized loaded-list, paged-table and growing-document runs pass
 their declared budgets; six ordinary/profiled comparisons and three resource
 lifecycle runs also pass. Three full streaming/typing runs also pass after an optional profiler repair,
