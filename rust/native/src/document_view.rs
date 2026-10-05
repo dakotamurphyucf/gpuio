@@ -488,6 +488,7 @@ impl Presentation {
                 let click_action = diff_action.clone();
                 let key_action = diff_action.clone();
                 let presentation = presentation.clone();
+                let selection_owner = presentation.clone();
                 let key_focus = focus.clone();
                 let element = element
                     .on_click(move |event, _, cx| {
@@ -514,7 +515,6 @@ impl Presentation {
                     })
                     .role(gpui::Role::MultilineTextInput)
                     .aria_label(label.clone())
-                    .aria_value(state.value())
                     .on_a11y_action(gpui::AccessibleAction::Focus, move |_, window, cx| {
                         let _ = presentation.update(cx, |this, cx| {
                             if !this.collapsed
@@ -534,6 +534,23 @@ impl Presentation {
                             }
                         });
                     });
+                let element = crate::editor_accessibility::attach(element, state, cx, move |cx| {
+                    selection_owner.upgrade().is_some_and(|owner| {
+                        let this = owner.read(cx);
+                        !this.collapsed
+                            && this.installed.is_some()
+                            && (this.markdown.is_none() || this.source_mode)
+                            && this.root.upgrade().is_some_and(|root| {
+                                let root = root.read(cx);
+                                root.focus.borrow().allows(this.node)
+                                    && root
+                                        .documents
+                                        .get(&this.node)
+                                        .and_then(|state| state.presentation.as_ref())
+                                        .is_some_and(|current| current == &owner)
+                            })
+                    })
+                });
                 crate::semantics::State {
                     identity: None,
                     busy: false,

@@ -106,6 +106,123 @@ fn setup(text: &str, test: impl FnOnce(Entity<View>, &mut VisualTestContext)) {
 fn set_layout(owner: &Entity<View>, cx: &mut VisualTestContext, layout: Option<Config>) {
     apply(owner, cx, vec![Op::SetTextAreaLayout(id(1), layout)]);
 }
+
+#[test]
+fn textarea_accessible_selection_preserves_unicode_direction_and_rejects_stale_runs() {
+    use gpui::accesskit::{self, Action, ActionData, ActionRequest, TextPosition, TextSelection};
+    setup("λ🙂\n日本語\n", |owner, cx| {
+        cx.simulate_a11y_active(true);
+        draw(cx);
+        let tree = cx.a11y_tree().unwrap();
+        let (editor_id, node) = tree
+            .nodes
+            .iter()
+            .find(|(_, n)| n.label() == Some("Notes"))
+            .unwrap();
+        let editor_id = *editor_id;
+        assert!(node.supports_action(Action::SetTextSelection));
+        let start = node.text_selection().unwrap().anchor;
+        let (run_id, _) = tree
+            .nodes
+            .iter()
+            .find(|(_, n)| n.role() == accesskit::Role::TextRun && n.value() == Some("日本語\n"))
+            .unwrap();
+        let selection = TextSelection {
+            anchor: TextPosition {
+                node: *run_id,
+                character_index: 2,
+            },
+            focus: start,
+        };
+        let request = |selection: TextSelection| ActionRequest {
+            action: Action::SetTextSelection,
+            target_node: editor_id,
+            target_tree: accesskit::TreeId::ROOT,
+            data: Some(ActionData::SetTextSelection(selection)),
+        };
+        cx.simulate_a11y_action(request(selection));
+        cx.run_until_parked();
+        let editor = state(&owner, cx);
+        editor.read_with(cx, |editor, _| {
+            assert_eq!(editor.bridge_selection(), (13, 0))
+        });
+        draw(cx);
+        let tree = cx.a11y_tree().unwrap();
+        assert_eq!(
+            tree.nodes
+                .iter()
+                .find(|(id, _)| *id == editor_id)
+                .unwrap()
+                .1
+                .text_selection(),
+            Some(&selection)
+        );
+
+        // Read-only permits selection, but disabled rejects the same request.
+        let mut config = editor_config();
+        config.read_only = true;
+        apply(&owner, cx, vec![Op::SetEditor(id(1), config.clone())]);
+        let caret = TextSelection {
+            anchor: start,
+            focus: start,
+        };
+        cx.simulate_a11y_action(request(caret));
+        cx.run_until_parked();
+        editor.read_with(cx, |editor, _| {
+            assert_eq!(editor.bridge_selection(), (0, 0))
+        });
+        config.disabled = true;
+        apply(&owner, cx, vec![Op::SetEditor(id(1), config)]);
+        cx.simulate_a11y_action(request(selection));
+        cx.run_until_parked();
+        editor.read_with(cx, |editor, _| {
+            assert_eq!(editor.bridge_selection(), (0, 0))
+        });
+
+        apply(&owner, cx, vec![Op::SetEditor(id(1), editor_config())]);
+        cx.update(|window, cx| {
+            editor.update(cx, |state, cx| {
+                state.bridge_replace_all("replacement".into(), (3, 3), true, window, cx);
+            })
+        });
+        draw(cx);
+        cx.simulate_a11y_action(request(selection));
+        cx.run_until_parked();
+        editor.read_with(cx, |editor, _| {
+            assert_eq!(editor.bridge_selection(), (3, 3))
+        });
+
+        // Even a current-tree request must not move the IME's marked selection.
+        cx.update(|window, cx| {
+            editor.update(cx, |state, cx| {
+                state.replace_and_mark_text_in_range(None, "に", Some(0..1), window, cx);
+            })
+        });
+        draw(cx);
+        let before = editor.read_with(cx, |editor, _| {
+            (editor.bridge_selection(), editor.bridge_composition())
+        });
+        let tree = cx.a11y_tree().unwrap();
+        let mut composing = *tree
+            .nodes
+            .iter()
+            .find(|(id, _)| *id == editor_id)
+            .unwrap()
+            .1
+            .text_selection()
+            .unwrap();
+        composing.anchor.character_index = 0;
+        composing.focus = composing.anchor;
+        cx.simulate_a11y_action(request(composing));
+        cx.run_until_parked();
+        editor.read_with(cx, |editor, _| {
+            assert_eq!(
+                (editor.bridge_selection(), editor.bridge_composition()),
+                before
+            );
+        });
+    });
+}
 fn points(
     state: &Entity<TextareaState>,
     cx: &mut VisualTestContext,

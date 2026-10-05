@@ -135,6 +135,8 @@ fn password_reveal_preserves_editing_and_enforces_clipboard_and_ax_privacy() {
         } else {
             assert_eq!(input.role(), gpui::accesskit::Role::PasswordInput);
             assert_eq!(input.value(), None);
+            assert!(input.text_selection().is_none());
+            assert!(!input.supports_action(gpui::accesskit::Action::SetTextSelection));
             assert!(
                 tree.nodes
                     .iter()

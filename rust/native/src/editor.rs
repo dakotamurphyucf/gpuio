@@ -296,10 +296,6 @@ fn configure<M: InputModeKind>(
             })
             .aria_label(config.label.clone())
             .aria_placeholder(config.placeholder.clone());
-        // Revealing glyphs does not publish the password through accessibility.
-        if privacy == EditorPrivacy::Plain {
-            element = element.aria_value(state.value());
-        }
         if let Some(description) = route
             .session
             .borrow()
@@ -358,6 +354,21 @@ fn configure<M: InputModeKind>(
         });
         if let Some(combo) = &combobox {
             element = element.aria_expanded(combo.borrow().popup.borrow().open);
+        }
+        // Revealing glyphs does not publish password values or text runs.
+        if privacy == EditorPrivacy::Plain {
+            let selection_route = route.clone();
+            element = crate::editor_accessibility::attach(element, state, cx, move |_| {
+                selection_route.gate.borrow().allows(selection_route.node)
+                    && selection_route
+                        .session
+                        .borrow()
+                        .tree(selection_route.window)
+                        .and_then(|tree| tree.get(selection_route.node))
+                        .filter(|node| node.editor_privacy == EditorPrivacy::Plain)
+                        .and_then(|node| node.editor.as_ref())
+                        .is_some_and(|config| !config.disabled)
+            });
         }
         if !config.disabled {
             let focus = state.focus_handle(cx);

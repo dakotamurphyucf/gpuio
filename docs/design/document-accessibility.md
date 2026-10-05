@@ -12,6 +12,27 @@ pages changes the value rather than materializing the entire source in the
 accessibility tree. Source offsets remain UTF-8 bytes; OS text APIs use their own
 documented native units.
 
+The installed native page supplies logical-line TextRun children and its current
+selection. Each run uses selectable Unicode scalar boundaries, with CRLF treated
+as one line break, matching the editor's explicit selection operations. Keyboard
+movement/deletion retains the editor's separate grapheme policy. Empty text and
+a trailing newline have an empty final run for the caret. The native bridge
+preserves anchor/head direction; macOS reports an ordered UTF-16 range.
+
+Accessible selection changes target those current run identities. They reject
+foreign or stale runs, changed text/revisions, active IME composition, retired or
+hidden source presentations and a closed interaction gate. Selecting a read-only
+page does not grant permission to edit it. The same adapter supports ordinary
+plain-text inputs and textareas; hidden and revealed passwords publish neither
+text runs nor accessible selection actions. No synchronous OCaml callback or
+whole-source materialization is involved.
+
+These runs currently describe logical source lines. They do not supply visual
+wrapped-line geometry, character rectangles or editor word-navigation metadata.
+Selection text/range checks alone do not establish caret magnification, visual
+screen-reader tracking or complete VoiceOver behavior. Rendered Markdown has a
+separate selection projection and is not covered by this source-editor adapter.
+
 Rendered Markdown exposes text from the actual painted nodes in reading order,
 with headings, lists, table structure, image alternatives and links. Do not add a
 second hidden copy of the raw Markdown as a substitute for these semantics.

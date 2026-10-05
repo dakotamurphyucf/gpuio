@@ -95,6 +95,7 @@ mod carousel_track_layout_test;
 mod carousel_track_motion;
 pub mod carousel_track_state;
 mod carousel_track_wheel;
+mod editor_accessibility;
 pub mod image_host;
 pub mod list_index;
 pub mod list_state;
