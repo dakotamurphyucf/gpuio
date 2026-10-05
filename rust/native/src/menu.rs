@@ -120,14 +120,20 @@ impl State {
                 .any(|bounds| bounds.get().contains(&position))
     }
 }
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum RowKind {
+    Command,
+    Submenu,
+    Separator,
+    Label,
+}
 #[derive(Clone)]
 struct Row {
     label: String,
     enabled: bool,
     checked: Option<bool>,
     route: Option<Route>,
-    submenu: bool,
-    separator: bool,
+    kind: RowKind,
 }
 struct Hit<'a> {
     id: NodeId,
@@ -292,8 +298,7 @@ impl View {
                             }),
                         checked: route.as_ref().and_then(|route| route.config.checked),
                         route,
-                        submenu: false,
-                        separator: false,
+                        kind: RowKind::Command,
                     }
                 }
                 MenuItem::Submenu(menu) => Row {
@@ -301,16 +306,21 @@ impl View {
                     enabled: !menu.disabled,
                     checked: None,
                     route: None,
-                    submenu: true,
-                    separator: false,
+                    kind: RowKind::Submenu,
+                },
+                MenuItem::Label(label) => Row {
+                    label: label.clone(),
+                    enabled: false,
+                    checked: None,
+                    route: None,
+                    kind: RowKind::Label,
                 },
                 MenuItem::Separator => Row {
                     label: String::new(),
                     enabled: false,
                     checked: None,
                     route: None,
-                    submenu: false,
-                    separator: true,
+                    kind: RowKind::Separator,
                 },
             })
             .collect()
@@ -441,7 +451,7 @@ impl View {
             let depth = path.len() - 1;
             state.path.truncate(path.len());
             state.selected[depth] = Some(index);
-            if row.submenu {
+            if row.kind == RowKind::Submenu {
                 state.path.push(index);
                 state.prepare_levels();
                 state.selected[depth + 1] = None;
@@ -526,7 +536,7 @@ impl View {
             && !modifiers.modified()
             && let Some(index) = selected
             && let Some(row) = rows.get(index)
-            && (key != "right" || row.submenu)
+            && (key != "right" || row.kind == RowKind::Submenu)
         {
             self.activate_menu_row(
                 Hit {
@@ -1065,10 +1075,17 @@ impl View {
                         element.style(),
                         &crate::appearance::refinement(&row_appearance.option_style, 0),
                     );
-                    if row.separator {
+                    if row.kind == RowKind::Separator {
                         element = element
                             .role(gpui::Role::Splitter)
                             .child(div().h(px(1.)).w_full().bg(rgba(0x80808080)));
+                    } else if row.kind == RowKind::Label {
+                        // Ordinary text semantics, with no command action,
+                        // focus target or disabled-control announcement.
+                        element = element
+                            .role(gpui::Role::Label)
+                            .aria_label(row.label.clone())
+                            .child(gpui::SharedString::from(row.label.clone()));
                     } else {
                         element = element
                             .role(if row.checked.is_some() {
@@ -1084,7 +1101,7 @@ impl View {
                                 gpui::accesskit::Toggled::False
                             });
                         }
-                        if row.submenu {
+                        if row.kind == RowKind::Submenu {
                             element = element.aria_expanded(
                                 row_state.borrow().path.get(depth + 1) == Some(&index),
                             );
@@ -1113,7 +1130,11 @@ impl View {
                                     .flex_1()
                                     .child(gpui::SharedString::from(row.label.clone())),
                             )
-                            .child(if row.submenu { "›" } else { "" });
+                            .child(if row.kind == RowKind::Submenu {
+                                "›"
+                            } else {
+                                ""
+                            });
                         if row.enabled {
                             let accessible_owner = owner.clone();
                             let accessible_path = path.clone();
@@ -1173,7 +1194,7 @@ impl View {
                                     if !hovered {
                                         return;
                                     }
-                                    if hover_row.submenu {
+                                    if hover_row.kind == RowKind::Submenu {
                                         let _ = hover_owner.update(cx, |view, cx| {
                                             view.activate_menu_row(
                                                 Hit {
@@ -1221,7 +1242,8 @@ impl View {
                         metadata: None,
                         live: None,
                         element,
-                        disabled: !row.enabled && !row.separator,
+                        disabled: !row.enabled
+                            && matches!(row.kind, RowKind::Command | RowKind::Submenu),
                         read_only: false,
                         modal: false,
                     }

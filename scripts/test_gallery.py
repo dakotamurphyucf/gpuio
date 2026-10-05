@@ -3152,6 +3152,25 @@ def exercise_pagination(mac):
 
 
 def exercise_feedback(mac, images):
+    def passive_menu_label(text):
+        node = mac.wait_find(TITLE, text, 'AXStaticText')
+        actions = C.c_void_p()
+        copy = mac.ax.AXUIElementCopyActionNames
+        copy.restype, copy.argtypes = C.c_int, [C.c_void_p, C.POINTER(C.c_void_p)]
+        try:
+            assert copy(node, C.byref(actions)) == 0, 'Menu label action query failed'
+            names = []
+            if actions.value:
+                for index in range(mac.count(actions)):
+                    buffer = C.create_string_buffer(1024)
+                    assert mac.get_string(mac.item(actions, index), buffer, len(buffer), 0x08000100)
+                    names.append(buffer.value.decode())
+            assert 'AXPress' not in names, (text, names)
+        finally:
+            if actions.value:
+                mac.release(actions)
+            mac.release(node)
+
     mac.press(TITLE, 'Commands & feedback')
     mac.wait_text(TITLE, 'Ready to begin')
     mac.press(TITLE, 'Advance preview')
@@ -3174,13 +3193,28 @@ def exercise_feedback(mac, images):
     mac.key(36)  # Native chooser selects the first enabled command.
     mac.wait_text(TITLE, 'Everything is in place')
     mac.press(TITLE, 'Preview actions')
-    activate(mac, mac.wait_find(TITLE, 'Save preview', 'AXMenuItem'))
+    passive_menu_label('Preview workflow')
+    mac.key(125)  # Opening skipped the label; Down selects the second command.
+    mac.key(36)
     mac.wait_text(TITLE, 'Notification visible')
     mac.press(TITLE, 'Dismiss saved preview')
     mac.wait_text(TITLE, 'No pending notification')
     activate(mac, mac.wait_find(TITLE, 'Preview actions', 'AXMenuItem'))
-    mac.release(mac.wait_find(TITLE, 'Editing', 'AXMenuItem'))
+    passive_menu_label('Preview workflow')
+    activate(mac, mac.wait_find(TITLE, 'Editing', 'AXMenuItem'))
+    passive_menu_label('Selection actions')
     mac.key(53)
+    draft = mac.wait_find(TITLE, 'Command preview draft', 'AXTextField')
+    try:
+        mac.set(draft, 'AXFocused', mac.true)
+        expect_focus(mac, 'Command preview draft', 'AXTextField')
+        mac.key(109, 1 << 17)  # Shift-F10 on the retained editor context wrapper.
+    finally:
+        mac.release(draft)
+    passive_menu_label('Preview workflow')
+    mac.key(53)
+    expect_focus(mac, 'Command preview draft', 'AXTextField')
+    print('GALLERY_MENU_LABELS_OK: passive AX text in dropdown, nested drawn bar and editor context; OS keyboard skips labels and Escape restores focus', flush=True)
     mac.press(TITLE, 'Save preview')
     mac.wait_text(TITLE, 'Notification visible')
     mac.wait_text(TITLE, 'Your preview is ready to share.')

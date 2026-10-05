@@ -96,3 +96,32 @@ let%expect_test
     assert (String.equal bytes (Wire.Message.encode message |> Or_error.ok_exn)));
   [%expect {| |}]
 ;;
+
+let%expect_test
+    "section labels are bounded text, not command references or platform actions"
+  =
+  let labeled =
+    menu [ Label "Actions · α"; Command (id "run"); Submenu (menu [ Label "More" ]) ]
+  in
+  assert (List.equal Command.Id.equal (Menu.Expert.command_ids labeled) [ id "run" ]);
+  assert (Result.is_ok (View.menu_bar ~platform:false [ labeled ]));
+  assert (Result.is_error (View.menu_bar [ labeled ]));
+  List.iter
+    [ ""; " \t"; "nul\000"; "\255"; String.make 4097 'x' ]
+    ~f:(fun label ->
+      assert (Result.is_error (Menu.create ~label:"Actions" [ Label label ])));
+  assert (Result.is_ok (Menu.create ~label:"Actions" [ Label (String.make 4096 'x') ]));
+  assert (
+    Result.is_error
+      (Menu.create
+         ~label:"Actions"
+         (List.init 64 ~f:(fun _ -> Menu.Item.Label (String.make 4096 'x')))));
+  let wire = Menu.Expert.to_wire (menu [ Label "Section" ]) in
+  let bytes =
+    Bin_prot.Utils.bin_dump [%bin_writer: Wire.Menu_definition.t] wire
+    |> Bigstring.to_string
+  in
+  print_endline
+    (String.concat_map bytes ~f:(fun byte -> sprintf "%02x" (Char.to_int byte)));
+  [%expect {| 07416374696f6e730001030753656374696f6e |}]
+;;

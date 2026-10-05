@@ -618,3 +618,122 @@ fn menu_subscriptions_snapshot_transition_replace_and_retire_without_idle_duplic
             .is_none()
     );
 }
+
+#[test]
+fn section_labels_expose_text_without_actions_and_navigation_skips_them() {
+    let mut app = TestAppContext::single();
+    let (_reader, writer) = UnixStream::pair().unwrap();
+    let transport = Arc::new(Transport::new(writer.as_raw_fd()).unwrap());
+    let session = Rc::new(RefCell::new(Session::default()));
+    let window_id = WindowId::from_parts(0, 1).unwrap();
+    session.borrow_mut().hello(VERSION, CAPABILITIES).unwrap();
+    session
+        .borrow_mut()
+        .open(1, window_id, "Labels", 800., 600.)
+        .unwrap();
+    let (owner, cx) =
+        app.add_window_view(|_, _| View::new(window_id, session.clone(), transport.clone()));
+    cx.simulate_a11y_active(true);
+    let mut labeled = config("Sections", false);
+    labeled.menus[0].items = vec![
+        MenuItem::Label("Workflow".into()),
+        MenuItem::Command("run".into()),
+        MenuItem::Label("Review".into()),
+        MenuItem::Command("next".into()),
+    ];
+    cx.update(|window, cx| {
+        owner.update(cx, |view, cx| {
+            apply(
+                view,
+                window,
+                cx,
+                vec![
+                    Op::Create(id(0), Kind::CommandScope, "".into(), Some(handler(1))),
+                    Op::SetCommands(
+                        id(0),
+                        ["run", "next"]
+                            .into_iter()
+                            .map(|id| CommandConfig {
+                                id: id.into(),
+                                label: id.into(),
+                                generation: 1,
+                                enabled: true,
+                                checked: None,
+                                shortcuts: vec![],
+                                target: CommandTarget::Callback,
+                            })
+                            .collect(),
+                    ),
+                    Op::Create(id(1), Kind::Menu, "".into(), None),
+                    Op::SetMenu(id(1), labeled.clone()),
+                    Op::Splice(id(0), 0, 0, vec![id(1)]),
+                    Op::SetRoot(Some(id(0))),
+                ],
+            )
+        });
+        window.draw(cx).clear(cx);
+        owner.update(cx, |view, cx| view.open_menu(id(1), 0, None, window, cx));
+        window.draw(cx).clear(cx);
+    });
+    let ax = cx.a11y_tree().unwrap();
+    for text in ["Workflow", "Review"] {
+        let matching: Vec<_> = ax
+            .nodes
+            .iter()
+            .filter(|(_, node)| node.label() == Some(text))
+            .collect();
+        assert_eq!(matching.len(), 1);
+        let node = &matching[0].1;
+        assert_eq!(node.role(), gpui::accesskit::Role::Label);
+        assert!(!node.is_disabled());
+        assert!(!node.supports_action(gpui::accesskit::Action::Click));
+        assert!(!node.supports_action(gpui::accesskit::Action::Focus));
+    }
+    let selected = |cx: &mut gpui::VisualTestContext| {
+        owner.read_with(cx, |view, _| view.menus[&id(1)].borrow().selected[0])
+    };
+    assert_eq!(selected(cx), Some(1));
+    key(cx, "down");
+    assert_eq!(selected(cx), Some(3));
+    key(cx, "down");
+    assert_eq!(selected(cx), Some(1));
+    key(cx, "home");
+    assert_eq!(selected(cx), Some(1));
+    key(cx, "w");
+    assert_eq!(selected(cx), Some(1), "typeahead must not select Workflow");
+    key(cx, "end");
+    assert_eq!(selected(cx), Some(3));
+    key(cx, "enter");
+    let events = transport
+        .mailbox
+        .lock()
+        .unwrap()
+        .drain(256)
+        .into_iter()
+        .filter_map(|event| {
+            if let Event::CommandInvoked(_, _, _, _, id, _, _) = event {
+                Some(id)
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(events, vec!["next"]);
+    cx.update(|window, cx| {
+        owner.update(cx, |view, cx| {
+            let mut only_labels = labeled;
+            only_labels.menus[0].items = vec![MenuItem::Label("Only text".into())];
+            apply(view, window, cx, vec![Op::SetMenu(id(1), only_labels)]);
+        });
+        window.draw(cx).clear(cx);
+        owner.update(cx, |view, cx| view.open_menu(id(1), 0, None, window, cx));
+        window.draw(cx).clear(cx);
+    });
+    key(cx, "down");
+    key(cx, "enter");
+    assert_eq!(selected(cx), None);
+    key(cx, "escape");
+    owner.read_with(cx, |view, _| {
+        assert!(view.menus[&id(1)].borrow().path.is_empty())
+    });
+}

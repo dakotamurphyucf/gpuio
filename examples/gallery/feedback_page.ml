@@ -17,10 +17,12 @@ let shortcut key modifiers = Shortcut.create ~key ~modifiers () |> ok
 let menu =
   Menu.create
     ~label:"Preview actions"
-    [ Command advance
+    [ Label "Preview workflow"
+    ; Command advance
     ; Command notify
     ; Separator
-    ; Submenu (Menu.create ~label:"Editing" [ Command copy ] |> ok)
+    ; Submenu
+        (Menu.create ~label:"Editing" [ Label "Selection actions"; Command copy ] |> ok)
     ]
   |> ok
 ;;

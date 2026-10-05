@@ -797,24 +797,31 @@ impl Decoder<'_> {
             during_composition: self.boolean()?,
         })
     }
+    fn menu_text(&mut self, limit: usize, bytes: &mut usize) -> Result<String, DecodeError> {
+        let value = self.bounded_text(limit.min(262144usize.saturating_sub(*bytes)))?;
+        *bytes += value.len();
+        Ok(value)
+    }
     fn menu_definition(
         &mut self,
         depth: usize,
         count: &mut usize,
+        bytes: &mut usize,
     ) -> Result<MenuDefinition, DecodeError> {
         if depth > 8 {
             return Err(DecodeError::LimitExceeded);
         }
-        let label = self.text()?;
+        let label = self.menu_text(4096, bytes)?;
         let disabled = self.boolean()?;
         let size = self.count(1024usize.saturating_sub(*count))?;
         *count += size;
         let mut items = Vec::with_capacity(size);
         for _ in 0..size {
             items.push(match self.tag()? {
-                0 => MenuItem::Command(self.text()?),
+                0 => MenuItem::Command(self.menu_text(256, bytes)?),
                 1 => MenuItem::Separator,
-                2 => MenuItem::Submenu(self.menu_definition(depth + 1, count)?),
+                2 => MenuItem::Submenu(self.menu_definition(depth + 1, count, bytes)?),
+                3 => MenuItem::Label(self.menu_text(4096, bytes)?),
                 _ => return Err(DecodeError::Malformed),
             });
         }
@@ -835,9 +842,10 @@ impl Decoder<'_> {
         };
         let size = self.count(32)?;
         let mut count = 0;
+        let mut bytes = 0;
         let mut menus = Vec::with_capacity(size);
         for _ in 0..size {
-            menus.push(self.menu_definition(1, &mut count)?);
+            menus.push(self.menu_definition(1, &mut count, &mut bytes)?);
         }
         let config = MenuConfig {
             presentation,

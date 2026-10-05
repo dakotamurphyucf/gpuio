@@ -719,12 +719,13 @@
       "id": "commands-menus",
       "owner": "OCH-11",
       "scope": "v1",
-      "audit_status": "Pinned action, command/state/item, popup/context/dropdown/bar, native-menu and shared searchable-list sources reviewed in commands-menus-review.md. Existing native registry/menu/palette behavior and scoped evidence are mapped; rich menu rows, richer palette presentation/search policies and OS context-popup support remain explicit gaps, not newly deferred scope. General selectable-list composition is not automatic command-route equivalence. Current physical/release acceptance remains open.",
+      "audit_status": "Pinned action, command/state/item, popup/context/dropdown/bar, native-menu and shared searchable-list sources reviewed in commands-menus-review.md. Existing native registry/menu/palette behavior and scoped evidence are mapped. Passive menu section labels now have API/codec/native and installed macOS dropdown/nested-bar/editor-context evidence; platform bars reject labels explicitly. Icons/custom rich menu rows, richer palette presentation/search policies and OS context-popup support remain explicit gaps, not newly deferred scope. General selectable-list composition is not automatic command-route equivalence. Current physical/release acceptance remains open.",
       "public_interface": "lib/core/command.mli",
       "example": "examples/palette",
       "evidence": [
         "docs/evidence/native-palette-och11.md",
-        "docs/catalog/commands-menus-review.md"
+        "docs/catalog/commands-menus-review.md",
+        "docs/evidence/menu-labels-och41.md"
       ],
       "gallery_page": "feedback",
       "contract": "Shared typed commands/key bindings, native menus/palette search and queued invocations; audit searchable-list composition separately.",

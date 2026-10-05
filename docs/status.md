@@ -69,6 +69,10 @@ unsigned 64-bit range and all four playback directions now have
 [API, codec, native-state and installed macOS evidence](evidence/animation-iterations-och41.md).
 Legacy policies keep their semantics; finite completion and bounded timer waits
 are documented. Broader catalog and release qualification remain open.
+Drawn menu section labels now have [API, codec, native and installed macOS evidence](evidence/menu-labels-och41.md),
+including passive accessibility text, keyboard navigation and context-menu focus
+restoration. Platform bars reject labels explicitly. Menu icons/custom rows,
+palette expansion and OS popup menus remain open catalog work.
 The current unmodified table smoke at `5c3956d` fails the 100 ms startup gate
 at approximately 147.364 ms. A separate paced replay also reproduces the owner's
 reported table flicker: three overlapping rows remain populated while newly

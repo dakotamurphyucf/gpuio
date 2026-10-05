@@ -11,6 +11,7 @@ and item =
   | Command of Ui_command.Id.t
   | Separator
   | Submenu of t
+  | Label of string
 [@@deriving equal, sexp_of]
 
 module Item = struct
@@ -18,8 +19,21 @@ module Item = struct
     | Command of Ui_command.Id.t
     | Separator
     | Submenu of t
+    | Label of string
   [@@deriving equal, sexp_of]
 end
+
+let validate_label label =
+  if
+    String.is_empty (String.strip label)
+    || String.length label > 4096
+    || (not (Stdlib.String.is_valid_utf_8 label))
+    || String.contains label '\000'
+  then
+    Or_error.error_string
+      "menu label must be nonblank UTF-8 without NUL, at most 4096 bytes"
+  else Ok ()
+;;
 
 let rec measure t ~depth ~count ~bytes =
   let count = count + List.length t.items in
@@ -30,6 +44,12 @@ let rec measure t ~depth ~count ~bytes =
     List.fold_result t.items ~init:(count, bytes) ~f:(fun (count, bytes) -> function
       | Command id ->
         let bytes = bytes + String.length (Ui_command.Id.to_string id) in
+        if bytes > 262_144
+        then Or_error.error_string "menu exceeds 256 KiB of text"
+        else Ok (count, bytes)
+      | Label label ->
+        let%bind.Or_error () = validate_label label in
+        let bytes = bytes + String.length label in
         if bytes > 262_144
         then Or_error.error_string "menu exceeds 256 KiB of text"
         else Ok (count, bytes)
@@ -47,17 +67,7 @@ let validate_collection menus =
 ;;
 
 let create ~label ?(disabled = false) items =
-  let%bind.Or_error () =
-    if
-      String.is_empty (String.strip label)
-      || String.length label > 4096
-      || (not (Stdlib.String.is_valid_utf_8 label))
-      || String.contains label '\000'
-    then
-      Or_error.error_string
-        "menu label must be nonblank UTF-8 without NUL, at most 4096 bytes"
-    else Ok ()
-  in
+  let%bind.Or_error () = validate_label label in
   let t = { label; disabled; items } in
   let%map.Or_error () = validate_collection [ t ] in
   t
@@ -79,7 +89,7 @@ module Expert = struct
   let rec command_ids t =
     List.concat_map t.items ~f:(function
       | Command id -> [ id ]
-      | Separator -> []
+      | Separator | Label _ -> []
       | Submenu menu -> command_ids menu)
   ;;
 
@@ -91,9 +101,25 @@ module Expert = struct
           | Command id ->
             Gpuio_protocol.Wire.Menu_definition.Command (Ui_command.Id.to_string id)
           | Separator -> Separator
+          | Label label -> Label label
           | Submenu menu -> Submenu (to_wire menu))
     }
   ;;
 
   let validate_collection = validate_collection
+
+  let validate_platform_collection menus =
+    let rec contains_labels menu =
+      List.exists menu.items ~f:(function
+        | Label _ -> true
+        | Command _ | Separator -> false
+        | Submenu child -> contains_labels child)
+    in
+    let%bind.Or_error () = validate_collection menus in
+    if List.exists menus ~f:contains_labels
+    then
+      Or_error.error_string
+        "platform menu bars do not support section labels; use platform:false"
+    else Ok ()
+  ;;
 end

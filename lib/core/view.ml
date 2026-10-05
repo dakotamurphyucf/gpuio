@@ -1323,7 +1323,11 @@ let menu_bar
       ?(platform = true)
       menus
   =
-  let%map.Or_error () = Menu.Expert.validate_collection menus in
+  let%map.Or_error () =
+    if platform
+    then Menu.Expert.validate_platform_collection menus
+    else Menu.Expert.validate_collection menus
+  in
   { (text ?key ~style "") with
     kind = Menu
   ; menu =

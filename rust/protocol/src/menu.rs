@@ -12,6 +12,7 @@ pub enum MenuItem {
     Command(String),
     Separator,
     Submenu(MenuDefinition),
+    Label(String),
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
 pub enum MenuPresentation {
@@ -38,6 +39,12 @@ impl MenuDefinition {
         }
         for item in &self.items {
             match item {
+                MenuItem::Label(label) => {
+                    if !CommandConfig::valid_text(label, 4096) {
+                        return false;
+                    }
+                    *text += label.len();
+                }
                 MenuItem::Command(id) => {
                     if !CommandConfig::valid_text(id, 256) {
                         return false;
@@ -54,12 +61,19 @@ impl MenuDefinition {
         }
         *text <= 262144
     }
+    fn contains_labels(&self) -> bool {
+        self.items.iter().any(|item| match item {
+            MenuItem::Label(_) => true,
+            MenuItem::Submenu(menu) => menu.contains_labels(),
+            MenuItem::Command(_) | MenuItem::Separator => false,
+        })
+    }
     pub fn command_ids<'a>(&'a self, output: &mut Vec<&'a str>) {
         for item in &self.items {
             match item {
                 MenuItem::Command(id) => output.push(id),
                 MenuItem::Submenu(menu) => menu.command_ids(output),
-                MenuItem::Separator => (),
+                MenuItem::Separator | MenuItem::Label(_) => (),
             }
         }
     }
@@ -68,7 +82,7 @@ impl MenuDefinition {
             && self.items.iter().any(|item| match item {
                 MenuItem::Command(candidate) => candidate == id,
                 MenuItem::Submenu(menu) => menu.permits(id),
-                MenuItem::Separator => false,
+                MenuItem::Separator | MenuItem::Label(_) => false,
             })
     }
     fn retained_bytes(&self) -> usize {
@@ -80,7 +94,7 @@ impl MenuDefinition {
                 .map(|item| {
                     std::mem::size_of::<MenuItem>()
                         + match item {
-                            MenuItem::Command(id) => id.len(),
+                            MenuItem::Command(id) | MenuItem::Label(id) => id.len(),
                             MenuItem::Submenu(menu) => {
                                 menu.retained_bytes() - std::mem::size_of::<Self>()
                             }
@@ -105,6 +119,8 @@ impl MenuConfig {
                 .menus
                 .iter()
                 .all(|menu| menu.validate(1, &mut count, &mut text))
+            && (self.presentation != MenuPresentation::PlatformBar
+                || !self.menus.iter().any(MenuDefinition::contains_labels))
     }
     pub fn command_ids(&self) -> Vec<&str> {
         let mut ids = Vec::new();

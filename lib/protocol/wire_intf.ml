@@ -705,6 +705,7 @@ module type S = sig
       | Command of string
       | Separator
       | Submenu of t
+      | Label of string
     [@@deriving bin_io, equal, sexp_of]
   end
 

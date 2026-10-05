@@ -56,6 +56,7 @@ fn items(
         .filter_map(|item| {
             Some(match item {
                 MenuItem::Separator => gpui::MenuItem::separator(),
+                MenuItem::Label(_) => unreachable!("platform menu labels rejected at admission"),
                 MenuItem::Submenu(menu) => gpui::MenuItem::submenu(
                     gpui::Menu::new(menu.label.clone())
                         .items(items(menu, routes, disabled))

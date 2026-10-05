@@ -9,10 +9,16 @@ module Item : sig
     | Command of Command.Id.t
     | Separator
     | Submenu of menu
+    | Label of string
   [@@deriving equal, sexp_of]
 end
 
-(** Nonblank UTF-8 label without NUL, at most 4096 bytes. A menu is limited to
+(** Nonblank UTF-8 labels without NUL, at most 4096 bytes each, including
+    [Item.Label] section labels. Labels are noninteractive text rows: keyboard
+    navigation/typeahead skip them and they never resolve a command. They are
+    supported in drawn button/context menus and [View.menu_bar ~platform:false].
+    Platform menu bars reject labels rather than converting them into commands.
+    A menu is limited to
     eight nested levels, 1024 items and 256 KiB of labels/command IDs. Disabled
     submenus cannot open. Empty menus are permitted. *)
 val create : label:string -> ?disabled:bool -> Item.t list -> t Core.Or_error.t
@@ -33,5 +39,6 @@ module Expert : sig
 
   val command_ids : t -> Command.Id.t list
   val validate_collection : t list -> unit Core.Or_error.t
+  val validate_platform_collection : t list -> unit Core.Or_error.t
   val to_wire : t -> Gpuio_protocol.Wire.Menu_definition.t
 end

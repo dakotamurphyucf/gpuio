@@ -277,6 +277,8 @@ val command_palette
     native menu bar on macOS and an in-window bar on Linux; [platform=false]
     renders an in-window bar on either platform. At most one platform bar may be
     mounted per window. Menus are replaced with the active window's definitions.
+    [Menu.Item.Label] is supported in drawn menus; [menu_bar ~platform:true]
+    rejects section labels, including in nested submenus.
 
     [on_open_change] observes native visibility, with an initial snapshot when
     attached and subsequent root open/close transitions. Submenu movement and
