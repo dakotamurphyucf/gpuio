@@ -88,36 +88,31 @@ def sidebar_width(mac):
         mac.release(node)
 
 
-def sidebar_allocation(mac):
+def sidebar_allocation(mac, nodes):
     """Window width minus adjacent content: works with a left or right sidebar."""
     class Size(C.Structure):
         _fields_ = [('width', C.c_double), ('height', C.c_double)]
-    nodes = [mac.window(TITLE), mac.wait_find(TITLE, 'Navigation content', 'AXGroup')]
     widths = []
-    try:
-        for node in nodes:
-            value = mac.attr(node, 'AXSize')
-            try:
-                getter = mac.ax.AXValueGetValue
-                getter.restype, getter.argtypes = C.c_bool, [C.c_void_p, C.c_int, C.c_void_p]
-                result = Size()
-                if not value or not getter(value, 2, C.byref(result)):
-                    raise RuntimeError('Content lacks native geometry')
-                widths.append(result.width)
-            finally:
-                if value:
-                    mac.release(value)
-    finally:
-        for node in nodes:
-            mac.release(node)
+    for node in nodes:
+        value = mac.attr(node, 'AXSize')
+        try:
+            getter = mac.ax.AXValueGetValue
+            getter.restype, getter.argtypes = C.c_bool, [C.c_void_p, C.c_int, C.c_void_p]
+            result = Size()
+            if not value or not getter(value, 2, C.byref(result)):
+                raise RuntimeError('Content lacks finite native geometry')
+            widths.append(result.width)
+        finally:
+            if value:
+                mac.release(value)
     return widths[0] - widths[1]
 
 
-def await_allocation(mac, predicate, timeout=5):
+def await_allocation(mac, nodes, predicate, timeout=5):
     deadline = time.monotonic() + timeout
     values = []
     while time.monotonic() < deadline:
-        value = sidebar_allocation(mac)
+        value = sidebar_allocation(mac, nodes)
         values.append(round(value, 2))
         if predicate(value):
             print('SIDEBAR_MOTION_SAMPLES', values, flush=True)
@@ -129,39 +124,55 @@ def await_allocation(mac, predicate, timeout=5):
 def exercise_motion(mac, images):
     mac.wait_text(TITLE, 'Selected destination: Inbox')
     mac.set(mac.app, 'AXFrontmost', mac.true)
-    full = sidebar_allocation(mac)
+    # Retain the unchanged window/content owners before starting motion. A full
+    # AX-tree search on every sample can outlast the two-second transition on CI.
+    nodes = []
+    try:
+        nodes.append(mac.window(TITLE))
+        nodes.append(mac.wait_find(TITLE, 'Navigation content', 'AXGroup'))
+        exercise_motion_samples(mac, images, nodes)
+    finally:
+        for node in nodes:
+            if node:
+                mac.release(node)
+
+
+def exercise_motion_samples(mac, images, nodes):
+    full = sidebar_allocation(mac, nodes)
     assert 235 <= sidebar_width(mac) <= 245
     mac.press(TITLE, 'Collapse sidebar')
-    absent(mac, 'Inbox', 'AXLink')
     # Outer allocation animates, while the content immediately takes icon width.
-    await_allocation(mac, lambda x: full - 150 < x < full - 40)
+    await_allocation(mac, nodes, lambda x: full - 150 < x < full - 40)
     assert 51 <= sidebar_width(mac) <= 61
     mac.press(TITLE, 'Expand sidebar')
-    assert sidebar_allocation(mac) < full - 10, 'Interruption snapped to the target'
-    await_allocation(mac, lambda x: abs(x - full) < 1)
+    assert sidebar_allocation(mac, nodes) < full - 10, 'Interruption snapped to the target'
+    await_allocation(mac, nodes, lambda x: abs(x - full) < 1)
     mac.press(TITLE, 'Collapse sidebar')
     compact = full - 184
-    await_allocation(mac, lambda x: abs(x - compact) < 1)
+    await_allocation(mac, nodes, lambda x: abs(x - compact) < 1)
+    absent(mac, 'Inbox', 'AXLink')
     mac.press(TITLE, 'Offcanvas mode')
+    # Negative searches walk the entire tree; perform them after sampling motion,
+    # so a slow absence check cannot consume the interval being measured.
+    await_allocation(mac, nodes, lambda x: compact - 45 < x < compact - 10)
+    await_allocation(mac, nodes, lambda x: abs(x - (full - 240)) < 1)
     absent(mac, 'Sidebar', 'AXGroup')
-    await_allocation(mac, lambda x: compact - 45 < x < compact - 10)
-    await_allocation(mac, lambda x: abs(x - (full - 240)) < 1)
     mac.press(TITLE, 'Expand sidebar')
-    await_allocation(mac, lambda x: full - 180 < x < full - 40)
-    await_allocation(mac, lambda x: abs(x - full) < 1)
+    await_allocation(mac, nodes, lambda x: full - 180 < x < full - 40)
+    await_allocation(mac, nodes, lambda x: abs(x - full) < 1)
     mac.press(TITLE, 'Collapse sidebar')
-    absent(mac, 'Sidebar', 'AXGroup')
-    await_allocation(mac, lambda x: full - 75 < x < full - 35)
+    await_allocation(mac, nodes, lambda x: full - 75 < x < full - 35)
     if images:
         screenshot(mac, images / 'sidebar-exiting.png')
-    await_allocation(mac, lambda x: abs(x - (full - 240)) < 1)
+    await_allocation(mac, nodes, lambda x: abs(x - (full - 240)) < 1)
+    absent(mac, 'Sidebar', 'AXGroup')
     mac.press(TITLE, 'Expand sidebar')
-    await_allocation(mac, lambda x: abs(x - full) < 1)
+    await_allocation(mac, nodes, lambda x: abs(x - full) < 1)
     mac.press(TITLE, 'Icon mode')
     mac.press(TITLE, 'Reduce motion')
     mac.press(TITLE, 'Collapse sidebar')
     # Two-second full-motion runs settle under Reduce rather than playing out.
-    await_allocation(mac, lambda x: abs(x - compact) < 1, timeout=0.9)
+    await_allocation(mac, nodes, lambda x: abs(x - compact) < 1, timeout=0.9)
     mac.close(TITLE)
     print('GPUIO_SIDEBAR_MOTION_AX_OK: native allocation samples, fixed inner width, interruption, offcanvas hiding/reveal, reduced motion and close')
 
