@@ -296,3 +296,8 @@ The maintained Base adaptation gives each parsed occurrence retained selection
 state and connects it to the AST copy/clear traversal; partial Markdown copy
 falls back to selected display text when no source-character mapping exists.
 See [selection regression and reconstruction evidence](evidence/document-profile-selection-och41.md).
+
+The same reconstruction tool supports `--crate gpui_macos`. Its separate patch
+breaks a native view/accessibility-adapter retention cycle during window close;
+see [GPUI macOS retirement](design/gpui-macos-adaptation.md). Keep the root,
+generated backends and source-tree dependencies consistent when changing it.

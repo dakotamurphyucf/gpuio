@@ -32,12 +32,16 @@ def standalone_manifest(original, workspace, source):
     for line in original.splitlines():
         if line == "edition.workspace = true":
             line = f'edition = {json.dumps(workspace["package"]["edition"])}'
+        elif line == "publish.workspace = true":
+            line = f'publish = {json.dumps(workspace["package"]["publish"])}'
         elif line in ("[lints]", "workspace = true"):
             continue
         else:
             inherited = re.fullmatch(r"([\w-]+)(?:\.workspace = true| = (\{.*workspace = true.*\}))", line)
             if inherited:
                 name, extra = inherited.groups()
+                if name not in workspace["dependencies"]:
+                    raise ValueError(f"unsupported workspace inheritance: {name}")
                 base = workspace["dependencies"][name]
                 dependency = {"version": base} if isinstance(base, str) else dict(base)
                 if "path" in dependency:
@@ -63,12 +67,14 @@ def standalone_manifest(original, workspace, source):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--archive", type=Path, help="Local upstream archive, still hash-verified")
-    parser.add_argument("--output", type=Path, default=ROOT / "vendor/gpui")
+    parser.add_argument("--crate", choices=("gpui", "gpui_macos"), default="gpui")
+    parser.add_argument("--output", type=Path)
     args = parser.parse_args()
-    source = json.loads((ROOT / "third_party/sources.json").read_text())["gpui"]
+    args.output = args.output or ROOT / "vendor" / args.crate.replace('_', '-')
+    source = json.loads((ROOT / "third_party/sources.json").read_text())[args.crate]
     if args.output.exists():
         raise SystemExit("Output exists; choose a new destination for reconstruction")
-    patch = ROOT / "third_party/patches/gpui.patch"
+    patch = ROOT / "third_party/patches" / (args.crate.replace('_', '-') + ".patch")
     if digest(patch) != source["patch_sha256"]:
         raise SystemExit("GPUI patch checksum mismatch")
     with tempfile.TemporaryDirectory(prefix="gpuio-gpui-") as temporary:
@@ -82,10 +88,10 @@ def main():
         prefix = "zed-" + source["commit"]
         with tarfile.open(archive) as bundle:
             members = [m for m in bundle.getmembers() if m.name in
-                       (prefix + "/Cargo.toml", prefix + "/LICENSE-APACHE") or m.name.startswith(prefix + "/crates/gpui/")]
+                       (prefix + "/Cargo.toml", prefix + "/LICENSE-APACHE") or m.name.startswith(prefix + "/crates/" + args.crate + "/")]
             bundle.extractall(staging, members=members, filter="data")
         upstream = staging / prefix
-        crate = upstream / "crates/gpui"
+        crate = upstream / "crates" / args.crate
         workspace = tomllib.loads((upstream / "Cargo.toml").read_text())["workspace"]
         original = (crate / "Cargo.toml").read_text()
         (crate / "Cargo.toml.upstream").write_text(original)
@@ -95,7 +101,7 @@ def main():
         subprocess.run([shutil.which("gpatch") or "patch", "--batch", "--forward", "-p1", "-i", str(patch)], cwd=crate, check=True)
         args.output.parent.mkdir(parents=True, exist_ok=True)
         shutil.copytree(crate, args.output)
-    print(f"Reconstructed GPUI core at {source['commit']}")
+    print(f"Reconstructed {args.crate} at {source['commit']}")
 
 
 if __name__ == "__main__":

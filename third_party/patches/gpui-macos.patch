@@ -1,0 +1,16 @@
+--- a/src/window.rs
++++ b/src/window.rs
+@@ -1372,6 +1372,13 @@
+ 
+ impl Drop for MacWindow {
+     fn drop(&mut self) {
++        // The adapter retains the content view, which owns the GPUI view and
++        // its Arc<MacWindowState>. Break that cycle while the platform window
++        // still owns its native window. Release outside the state lock because
++        // Objective-C teardown may reenter view callbacks.
++        let adapter = self.0.lock().accesskit_adapter.take();
++        drop(adapter);
++
+         let mut this = self.0.lock();
+         this.renderer.destroy();
+         let window = this.native_window;

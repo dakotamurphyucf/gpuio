@@ -185,3 +185,8 @@ workspaces on interpreter exit, including ordinary build failures. Local runs ke
 their workspace by default. For persistent investigation use `--workspace PATH`;
 combining it with `--cleanup` is rejected. An uncatchable process termination can
 leave a temporary workspace until the ephemeral CI machine is retired.
+
+GPUI's macOS platform crate is also vendored at the same Zed revision to retire
+the accessibility adapter before native-window teardown. Reconstruct it with
+`python3 scripts/vendor_gpui.py --crate gpui_macos --output <new-directory>`;
+see [ownership and qualification](design/gpui-macos-adaptation.md).

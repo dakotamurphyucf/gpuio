@@ -74,7 +74,8 @@ def main():
         '[patch.crates-io]\n'
         f'accesskit_macos = {{ path = "{root / "vendor/accesskit-macos"}" }}\n\n'
         '[patch."https://github.com/zed-industries/zed.git"]\n'
-        f'gpui = {{ path = "{root / "vendor/gpui"}" }}\n\n'
+        f'gpui = {{ path = "{root / "vendor/gpui"}" }}\n'
+        f'gpui_macos = {{ path = "{root / "vendor/gpui-macos"}" }}\n\n'
         '[workspace.metadata.typos]',
     )
     manifest.write_text(text)

@@ -9,7 +9,7 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
-from mac_process_memory import footprint_summary, sample
+from mac_process_memory import footprint_summary, require_released_surfaces, sample
 from measure_resource_lifecycle import Checkpoints
 from test_measure_resource_lifecycle import snapshot
 
@@ -22,6 +22,18 @@ def fixture():
 
 
 class PhysicalMemory(unittest.TestCase):
+    def test_closed_surface_check_detects_residual_regions_and_missing_samples(self):
+        rows = [dict(cycle=1, physical_memory=dict(categories={})),
+                dict(cycle=2, physical_memory=dict(categories={}))]
+        require_released_surfaces(rows)
+        with self.assertRaises(ValueError):
+            require_released_surfaces([])
+        for field in ('regions', 'dirty', 'swapped', 'wired', 'reclaimable', 'clean'):
+            bad = copy.deepcopy(rows)
+            bad[0]['physical_memory']['categories']['IOSurface'] = {field: 1}
+            with self.assertRaisesRegex(ValueError, 'cycle 1'):
+                require_released_surfaces(bad)
+
     def test_identity_units_diagnostics_and_categories_are_required(self):
         good = fixture()
         result = footprint_summary(good, 123)

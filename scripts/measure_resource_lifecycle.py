@@ -131,6 +131,8 @@ def main():
     parser.add_argument('--background', action='store_true')
     parser.add_argument('--physical-memory', action='store_true',
                         help='macOS only: retain footprint/vmmap at each closed checkpoint; separate from responsiveness')
+    parser.add_argument('--check-closed-surfaces', action='store_true',
+                        help='Require no IOSurface regions/accounting at every closed checkpoint; needs --physical-memory')
     parser.add_argument('--check-budgets', action='store_true')
     parser.add_argument('--timeout', type=float, default=600)
     args = parser.parse_args()
@@ -140,10 +142,13 @@ def main():
         parser.error('Budget checks require full optimized cycles')
     if args.physical_memory and platform.system() != 'Darwin':
         parser.error('Physical-memory audit requires macOS')
+    if args.check_closed_surfaces and not args.physical_memory:
+        parser.error('Closed-surface checks require --physical-memory')
     args.output.mkdir(parents=True, exist_ok=False)
     report = dict(complete=False, samples=[], platform=platform.platform(), architecture=platform.machine(),
                   build_profile=args.build_profile, smoke=args.smoke, background=args.background,
                   physical_memory=args.physical_memory,
+                  check_closed_surfaces=args.check_closed_surfaces,
                   measurement='Settled process RSS and acknowledged application registrations; not GPU memory or native entity counts')
     log = args.output / 'application.log'
     def interrupted(signum, _frame):
@@ -171,6 +176,10 @@ def main():
                 peak_checkpoint_bytes=max(values), final_range_bytes=max(final)-min(final),
                 final_baseline_growth_bytes=max(0, max(final)-final[0]),
                 scope='Closed-window settled OS footprint; no physical-footprint pass/fail threshold or complete GPU census')
+        if args.check_closed_surfaces:
+            from mac_process_memory import require_released_surfaces
+            require_released_surfaces(report['samples'])
+            report['closed_surface_check'] = 'No IOSurface category with nonzero accounting in any closed checkpoint'
         if args.check_budgets and not report['workload']['qualification']:
             raise ValueError('Last ten-cycle RSS baseline growth exceeds 64 MiB')
         report['complete'] = True

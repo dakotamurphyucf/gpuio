@@ -36,6 +36,22 @@ def footprint_summary(document, pid):
     return dict(pid=pid, name=process.get('name'), footprint_bytes=value, categories=categories)
 
 
+def require_released_surfaces(samples):
+    """Regression gate for this workload's destroyed native-window surfaces.
+
+    This checks the macOS footprint IOSurface category, not all GPU allocations.
+    Other system versions must report unsupported taxonomy rather than infer
+    Metal resource release from this narrowly scoped check alone.
+    """
+    if not samples:
+        raise ValueError('No closed-window physical-memory samples')
+    for sample in samples:
+        categories = sample['physical_memory']['categories']
+        for name, values in categories.items():
+            if 'iosurface' in name.lower() and any(values.values()):
+                raise ValueError(f'IOSurface allocation remains after closing cycle {sample["cycle"]}')
+
+
 def sample(pid, directory):
     """Caller owns pid and holds the lifecycle checkpoint until this returns.
 

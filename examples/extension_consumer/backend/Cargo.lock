@@ -2270,7 +2270,6 @@ dependencies = [
 [[package]]
 name = "gpui_macos"
 version = "0.1.0"
-source = "git+https://github.com/zed-industries/zed.git?rev=a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b#a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b"
 dependencies = [
  "accesskit",
  "accesskit_macos",
@@ -2440,17 +2439,10 @@ dependencies = [
 name = "gpuio-counter-backend"
 version = "0.0.0"
 dependencies = [
- "gpuio-example-document",
  "gpuio-example-counter",
+ "gpuio-example-document",
  "gpuio-native",
  "ocaml-interop",
-]
-
-[[package]]
-name = "gpuio-example-counter"
-version = "0.0.0"
-dependencies = [
- "gpuio-extension-sdk",
 ]
 
 [[package]]
@@ -2458,6 +2450,13 @@ name = "gpuio-document-sdk"
 version = "0.0.0"
 dependencies = [
  "gpui-base",
+ "gpuio-extension-sdk",
+]
+
+[[package]]
+name = "gpuio-example-counter"
+version = "0.0.0"
+dependencies = [
  "gpuio-extension-sdk",
 ]
 

@@ -67,3 +67,10 @@ pass/fail threshold. Raw category names/accounting, including any GPU/IOSurface
 categories exposed by the OS, are retained without calling them a complete
 Metal allocation census. Closed-window samples do not establish peak live-window
 GPU memory or physical presentation.
+
+The additional `--check-closed-surfaces` flag requires `--physical-memory` and
+rejects any closed checkpoint whose IOSurface category retains nonzero bytes or
+regions. This regression gate was declared before the full repaired runs, after
+the first audit exposed three retained surfaces per closed window. It checks OS
+category observations on the reference system, not all Metal resources. See the
+[teardown contract](../../docs/design/gpui-macos-adaptation.md).
