@@ -71,7 +71,7 @@ skips remain the latest native checkpoint; they were not rerun for this OCaml
 example. Source presence, build success and these tests do not establish native
 picker or physical gallery acceptance.
 
-## Remaining acceptance
+## Remaining acceptance at the initial checkpoint
 
 Physically load/edit/reload the sample, type/select/undo in the draft, try an invalid
 file, switch built-in/system appearance while work is pending, leave/revisit Styles,
@@ -79,3 +79,70 @@ and compare independent windows. Verify the actual visual palette and native
 picker/focus behavior. Full gallery/accessibility, performance, distribution and
 current required Linux checks remain milestone07 gates; Linux desktop qualification
 remains OCH-47. No release ticket is completed by this checkpoint.
+
+
+## Physical macOS walkthrough and cancellation repair — 2026-10-05
+
+Final clean test checkpoint `197ea56292baea763bf4b13c889ae71118a00fa2`; gallery
+behavior repair `52d796e`. macOS 14.5 arm64, real foreground AppKit window and file
+picker. [Passing report and binary hash](gallery-theme-files-och41/report.json),
+[native walkthrough log](gallery-theme-files-och41/native-walkthrough.log),
+[Aurora capture](gallery-theme-files-och41/aurora.png),
+[same-mode Amber reload](gallery-theme-files-och41/amber.png),
+[invalid file retains Amber](gallery-theme-files-och41/invalid-kept.png).
+
+The actual public Core/Bonsai/Eio example now passes twelve checks:
+
+- Choose a Unicode/spaced profile path through NSOpenPanel, then load Aurora.
+  The native editor retains its Unicode selection and draft.
+- Edit the profile and explicitly reload changed colors with the same Dark
+  appearance. Screenshot samples verify the requested surface RGB changed from
+  `(28,32,51)` to `(48,48,28)`; over 168,000 sampled pixels match each expected
+  surface within two levels. The actual captures were also inspected.
+- Native Backspace followed by Command+Z after the reload restores the draft;
+  changing logical scale preserves the selection and draft.
+- Invalid profile data preserves the last good palette. Cancelling the native
+  picker also keeps the draft and theme. A second window starts with its own
+  built-in appearance and original draft.
+- Explicit appearance and Follow system choices made during a pending Eio read
+  each win over the delayed result. These checks wait for the file profile to
+  disappear before delivering data, acknowledging the actual Bonsai choice.
+- Page departure cancels a pending read. Returning acquires a fresh native draft,
+  shows cancellation rather than stale loading, and keeps the path available for
+  explicit retry. A subsequent successful retry and applied theme survive another
+  page departure.
+- Closing the final window while a read is pending returns from the app with
+  status zero **before** the fixture writer closes. EOF therefore cannot substitute
+  for scoped cancellation in that check. The child is reaped on all paths.
+
+Pending reads use a disposable named FIFO in place of the already selected file.
+The harness holds its writer, observes the owned app's open descriptor through
+`lsof`, and only then makes the competing UI choice or closes the window. This
+exercises the real Eio loader without application hooks or a mocked scheduler.
+No directory watcher, OS appearance change, general clipboard write, input-source
+change or VoiceOver operation is performed. Choosing the application's Follow
+system option is distinct from physically changing the OS appearance.
+
+The first native run found a real example bug: after cancelling the read on page
+departure, the return page still displayed `Loading theme…` even though its busy
+flag had cleared. The [bounded AX diagnostic](gallery-theme-files-och41/before-cancellation-status.log)
+records it. The scope cancellation callback now updates the status only when work
+was pending, retaining settled status and the selected path. A later harness run
+exposed a separate synchronization mistake: AXPress queues its action and does
+not prove the user choice has been applied. The final test waits for the resulting
+profile change. macOS lsof also requires querying the owned PID rather than its
+filename filter for FIFO observation; non-ASCII paths are matched in its C-locale
+escaped representation. The completed walkthrough passes after these corrections.
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build examples/gallery/main.exe @fmt
+python3 -m py_compile scripts/test_macos_theme_files.py scripts/test_gallery_desktop_macos.py
+python3 scripts/test_macos_theme_files.py --output scratch/theme-files-native-001
+```
+
+Build/format, Python syntax, Actionlint 1.7.12 and `git diff --check` pass. The shared
+picker helper keeps the represented-file test's original defaults and accepts the
+new theme labels as explicit arguments. The new walkthrough is wired into macOS
+CI; its hosted run is pending. Parser/schema/IO bounds are unchanged, with the
+previous unit evidence above retained. OCH-41 and OCH-17 remain open for the broader
+catalog, physical OS appearance, accessibility, GPU and distribution gates.

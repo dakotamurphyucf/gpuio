@@ -118,3 +118,11 @@ selection is implemented locally; clean-machine font qualification remains open.
 gallery review across themes/scales, focus/accessibility and final-source platform
 checks remain release gates. Existing specialized appearance limits stay in their
 family reviews rather than being hidden behind a global theme claim.
+
+
+Native file-theme follow-up (2026-10-05): the [public gallery walkthrough](../evidence/gallery-theme-files-och41.md#physical-macos-walkthrough-and-cancellation-repair--2026-10-05)
+now passes actual NSOpenPanel loading, same-appearance color reload, invalid-file
+retention, native selection/undo, scale/window isolation and scoped delayed-read
+cancellation. The app's Follow system choice wins over pending file work; actual
+OS appearance switching remains a separate physical check. No watcher or upstream
+JSON theme importer is implied.

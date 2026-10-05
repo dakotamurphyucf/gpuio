@@ -1,0 +1,140 @@
+AX_WAIT A little context goes a long way
+AX_PRESS Styling details
+AX_WAIT A theme from your workspace
+GALLERY_FOCUS_READY Theme preview draft requests= 1
+AX_PRESS Choose theme
+AX_PRESS Load theme
+AX_WAIT Loaded Aurora
+AX_WAIT Current profile: Aurora
+GALLERY_FOCUS_READY Theme preview draft requests= 1
+AX_PRESS Reload file
+AX_WAIT Loaded Amber
+AX_WAIT Current profile: Amber
+GALLERY_FOCUS_READY Theme preview draft requests= 1
+AX_PRESS Reload file
+AX_WAIT Theme kept.
+AX_WAIT Current profile: Amber
+AX_PRESS Choose theme
+AX_PRESS Cancel
+AX_WAIT Selection cancelled. Your theme was kept.
+AX_PRESS New window
+AX_WAIT A little context goes a long way
+AX_PRESS Styling details
+AX_WAIT Using the built-in appearance
+AX_WAIT Current profile: Amber
+AX_PRESS Reload file
+AX_WAIT Loading theme…
+AX_PRESS Dark
+AX_WAIT Using the built-in appearance
+AX_WAIT A newer appearance choice was kept.
+AX_PRESS Reload file
+AX_WAIT Loading theme…
+AX_PRESS Follow system
+AX_WAIT A newer appearance choice was kept.
+AX_WAIT Using the built-in appearance
+AX_PRESS Reload file
+AX_WAIT Loading theme…
+AX_PRESS Presentation
+AX_WAIT A little context goes a long way
+AX_PRESS Styling details
+AX_WAIT Using the built-in appearance
+AX_WAIT Choose a profile, then reload it after saving changes.
+ AXWindow ['GPUIO · Component Studio 1', '', '']
+  AXGroup ['', '', '']
+   AXStaticText ['GPUIO', '', '']
+   AXStaticText ['COMPONENT STUDIO', '', '']
+   AXSplitter ['', '', '']
+   AXButton ['Presentation', '', '']
+   AXButton ['Settings', '', '']
+   AXButton ['Styling details', '', '']
+   AXButton ['Selection & actions', '', '']
+   AXButton ['Text editing', '', '']
+   AXButton ['Numbers & codes', '', '']
+   AXButton ['Dates & colors', '', '']
+   AXButton ['Overlays & help', '', '']
+   AXButton ['Navigation & layout', '', '']
+   AXButton ['Commands & feedback', '', '']
+   AXButton ['Carousels & journeys', '', '']
+   AXButton ['Lists, trees & tables', '', '']
+   AXButton ['Markdown & code', '', '']
+   AXButton ['Find & highlight', '', '']
+   AXButton ['Canvas & drawing', '', '']
+   AXButton ['Images & icons', '', '']
+   AXButton ['Charts & data', '', '']
+   AXButton ['Motion & rhythm', '', '']
+   AXButton ['Native extensions', '', '']
+   AXButton ['Input & transfers', '', '']
+   AXButton ['Input observations', '', '']
+   AXButton ['Responsive layouts', '', '']
+   AXButton ['Desktop services', '', '']
+   AXButton ['Runtime & windows', '', '']
+   AXStaticText ['Built with OCaml.\nRendered natively.', '', '']
+   AXStaticText ['Styling details', '', '']
+   AXStaticText ['Small choices that make the interface feel considered.', '', '']
+   AXButton ['Dark', '', '']
+   AXButton ['Follow system', '', '']
+   AXButton ['Comfortable', '', '']
+   AXButton ['New window', '', '']
+   AXGroup ['Component preview', '', '']
+    AXStaticText ['A theme from your workspace', '', '']
+    AXStaticText ['Load a .sexp palette for this window. Reload is explicit; invalid files keep the last working theme.', '', '']
+    AXStaticText ['Using the built-in appearance', '', '']
+    AXButton ['Choose theme', '', '']
+    AXButton ['Reload file', '', '']
+    AXTextField ['Theme preview draft', '', 'This draft stays while the palette changes.']
+    AXStaticText ['Loading theme…', '', '']
+    AXStaticText ['Keep the part that matters', '', '']
+    AXStaticText ['Truncation changes the painted text. The full path remains available to assistive technology.', '', '']
+    AXButton ['Narrow text previews', '', '']
+    AXStaticText ['Text preview width: 250', '', '']
+    AXStaticText ['Clip', '', '']
+    AXStaticText ['/workspace/projects/native-studio/src/main.ml', '', '']
+    AXStaticText ['End ellipsis', '', '']
+    AXStaticText ['/workspace/projects/native-studio/src/main.ml', '', '']
+    AXStaticText ['Start ellipsis', '', '']
+    AXStaticText ['/workspace/projects/native-studio/src/main.ml', '', '']
+    AXStaticText ['A cursor for the task', '', '']
+    AXButton ['Next cursor', '', '']
+    AXStaticText ['Cursor 1 of 22: Arrow', '', '']
+    AXGroup ['Cursor preview surface', '', '']
+     AXStaticText ['Move your pointer over this surface', '', '']
+    AXStaticText ['Cursor artwork follows the platform. Column and horizontal resize share a shape on macOS, as do row and vertical resize.', '', '']
+    AXStaticText ['A boundary with character', '', '']
+    AXStaticText ['Solid or dashed. Subtle or bold. Borders keep their shape as your layout changes.', '', '']
+    AXButton ['Change border pattern', '', '']
+    AXButton ['Change border weight', '', '']
+    AXButton ['Change border corners', '', '']
+    AXStaticText ['Border: dashed · 1 px · rounded', '', '']
+    AXGroup ['Border preview surface', '', '']
+     AXStaticText ['A place for your next idea', '', '']
+    AXStaticText ['Color between the stops', '', '']
+    AXStaticText ['The same two colors, blended in different color spaces.', '', '']
+    AXButton ['Change gradient interpolation', '', '']
+    AXStaticText ['Interpolation: sRGB', '', '']
+    AXGroup ['Gradient preview surface', '', '']
+    AXStaticText ['Proportions that follow your layout', '', '']
+    AXStaticText ['Resize the frame. The preview keeps its proportions and its state.', '', '']
+    AXButton ['Ratio: Square', '', '']
+    AXButton ['Frame: compact', '', '']
+    AXButton ['Height: automatic', '', '']
+    AXGroup ['Aspect preview frame', '', '']
+     AXGroup ['Aspect preview surface', '', '']
+      AXButton ['Kept 0', '', '']
+  AXButton ['', '', '']
+  AXButton ['', '', '']
+   AXGroup ['', '', '']
+    AXGroup ['', '', '']
+  AXButton ['', '', '']
+  AXStaticText ['', '', 'GPUIO · Component Studio 1']
+Traceback (most recent call last):
+  File "/Users/dakotamurphy/gpuio/scripts/test_macos_theme_files.py", line 205, in <module>
+    main()
+    ~~~~^^
+  File "/Users/dakotamurphy/gpuio/scripts/test_macos_theme_files.py", line 173, in main
+    mac.wait_text(TITLE, 'Choose a profile, then reload it after saving changes.')
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/dakotamurphy/gpuio/scripts/test_agent_chat.py", line 215, in wait_text
+    node = self.wait_find(title, text, contains=True)
+  File "/Users/dakotamurphy/gpuio/scripts/test_agent_chat.py", line 182, in wait_find
+    raise RuntimeError(f'Timed out finding {label!r} ({role}) in {title}')
+RuntimeError: Timed out finding 'Choose a profile, then reload it after saving changes.' (None) in GPUIO · Component Studio 1

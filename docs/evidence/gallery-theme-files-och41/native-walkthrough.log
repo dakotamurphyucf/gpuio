@@ -1,0 +1,56 @@
+AX_WAIT A little context goes a long way
+AX_PRESS Styling details
+AX_WAIT A theme from your workspace
+GALLERY_FOCUS_READY Theme preview draft requests= 1
+AX_PRESS Choose theme
+AX_PRESS Load theme
+AX_WAIT Loaded Aurora
+AX_WAIT Current profile: Aurora
+GALLERY_FOCUS_READY Theme preview draft requests= 1
+AX_PRESS Reload file
+AX_WAIT Loaded Amber
+AX_WAIT Current profile: Amber
+GALLERY_FOCUS_READY Theme preview draft requests= 1
+AX_PRESS Comfortable
+AX_PRESS Large
+AX_PRESS Compact
+AX_PRESS Reload file
+AX_WAIT Theme kept.
+AX_WAIT Current profile: Amber
+AX_PRESS Choose theme
+AX_PRESS Cancel
+AX_WAIT Selection cancelled. Your theme was kept.
+AX_PRESS New window
+AX_WAIT A little context goes a long way
+AX_PRESS Styling details
+AX_WAIT Using the built-in appearance
+AX_WAIT Current profile: Amber
+AX_PRESS Reload file
+AX_WAIT Loading theme…
+AX_PRESS Dark
+AX_WAIT Using the built-in appearance
+AX_WAIT A newer appearance choice was kept.
+AX_PRESS Reload file
+AX_WAIT Current profile: Aurora
+AX_PRESS Reload file
+AX_WAIT Loading theme…
+AX_PRESS Follow system
+AX_WAIT Using the built-in appearance
+AX_WAIT A newer appearance choice was kept.
+AX_WAIT Using the built-in appearance
+AX_PRESS Reload file
+AX_WAIT Loading theme…
+AX_PRESS Presentation
+AX_WAIT A little context goes a long way
+AX_PRESS Styling details
+AX_WAIT Using the built-in appearance
+AX_WAIT Loading cancelled. Your theme was kept.
+AX_PRESS Reload file
+AX_WAIT Loaded Aurora
+AX_PRESS Presentation
+AX_PRESS Styling details
+AX_WAIT Current profile: Aurora
+AX_WAIT Loaded Aurora
+AX_PRESS Reload file
+AX_WAIT Loading theme…
+GPUIO_THEME_FILES_OK: native picker, palette/selection/undo, last good, scoped delayed reads

@@ -1,0 +1,65 @@
+{
+  "complete": true,
+  "platform": "macOS-14.5-arm64-arm-64bit-Mach-O",
+  "executable_sha256": "cef91b6cbda8cb3704be4f24bf8d3afc9f7a8fccf3a2dc0d43a69d1b65ed4421",
+  "checks": [
+    {
+      "case": "picker-load-selection",
+      "capture": "aurora.png",
+      "surface_rgb": [
+        28,
+        32,
+        51
+      ],
+      "matching_sampled_pixels": 169544
+    },
+    {
+      "case": "same-appearance-color-reload",
+      "capture": "amber.png",
+      "surface_rgb": [
+        48,
+        48,
+        28
+      ],
+      "matching_sampled_pixels": 169740
+    },
+    {
+      "case": "native-undo-after-reload"
+    },
+    {
+      "case": "scale-retains-selection-and-theme"
+    },
+    {
+      "case": "invalid-last-good",
+      "capture": "invalid-kept.png",
+      "surface_rgb": [
+        48,
+        48,
+        28
+      ],
+      "matching_sampled_pixels": 168638
+    },
+    {
+      "case": "picker-cancellation"
+    },
+    {
+      "case": "independent-window"
+    },
+    {
+      "case": "newer-explicit-choice-during-eio-read"
+    },
+    {
+      "case": "newer-system-choice-during-eio-read"
+    },
+    {
+      "case": "pending-read-page-cancellation-fresh-editor"
+    },
+    {
+      "case": "retry-and-applied-theme-survive-page-departure"
+    },
+    {
+      "case": "window-close-cancels-read-before-eof"
+    }
+  ],
+  "child_reaped": true
+}
