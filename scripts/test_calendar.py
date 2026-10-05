@@ -140,6 +140,10 @@ def exercise(mac):
     mac.value('2024-03-01')
     mac.state('March 1, 2024', 'AXValue', True)
     mac.button('March 5, 2024', focus=True)
+    # AX requests and CG keys use different queues. Acknowledge the starting
+    # cursor before sending ordered Right/Return keys; the resulting rejection
+    # proves activation reached the disabled March 6 date.
+    mac.state('March 5, 2024', 'AXFocused', True)
     mac.key(124)
     mac.state('March 6, 2024', 'AXEnabled', False)
     mac.key(36)

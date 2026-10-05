@@ -29,6 +29,13 @@ LABEL = 'Theme preview draft'
 DRAFT = 'Retained λ🙂 theme draft'
 
 
+def reload_theme(mac):
+    # A retained status/profile can already be present while this page's Eio
+    # scope is reacquiring. Enabled is the actual Ready/not-busy boundary.
+    expect_enabled(mac, 'Reload file', True)
+    mac.press(TITLE, 'Reload file')
+
+
 def wait_for_reader(child, path):
     # Loading status can precede the worker actually opening its flow. Observe
     # the owned application's descriptor before releasing the delayed fixture.
@@ -114,7 +121,7 @@ def main():
             mac.key(51)  # Native Backspace produces a real undo history entry.
             expect_field(mac, TITLE, LABEL, DRAFT[:-1])
             path.write_text(changed)
-            mac.press(TITLE, 'Reload file')
+            reload_theme(mac)
             mac.wait_text(TITLE, 'Loaded Amber')
             mac.wait_text(TITLE, 'Current profile: Amber')
             expect_field(mac, TITLE, LABEL, DRAFT[:-1])
@@ -135,7 +142,7 @@ def main():
             report['checks'].append({'case': 'scale-retains-selection-and-theme'})
 
             path.write_text('((version 999))')
-            mac.press(TITLE, 'Reload file')
+            reload_theme(mac)
             mac.wait_text(TITLE, 'Theme kept.')
             mac.wait_text(TITLE, 'Current profile: Amber')
             report['checks'].append({'case': 'invalid-last-good',
@@ -162,7 +169,7 @@ def main():
             path.unlink()
             os.mkfifo(path)
             descriptor = os.open(path, os.O_RDWR | os.O_NONBLOCK)
-            mac.press(TITLE, 'Reload file')
+            reload_theme(mac)
             mac.wait_text(TITLE, 'Loading theme…')
             wait_for_reader(child, path)
             expect_enabled(mac, 'Reload file', False)
@@ -181,12 +188,12 @@ def main():
             # only queues an action; it is not a Bonsai completion barrier.
             path.unlink()
             path.write_text(original)
-            mac.press(TITLE, 'Reload file')
+            reload_theme(mac)
             mac.wait_text(TITLE, 'Current profile: Aurora')
             path.unlink()
             os.mkfifo(path)
             descriptor = os.open(path, os.O_RDWR | os.O_NONBLOCK)
-            mac.press(TITLE, 'Reload file')
+            reload_theme(mac)
             mac.wait_text(TITLE, 'Loading theme…')
             wait_for_reader(child, path)
             mac.press(TITLE, 'Follow system')
@@ -199,7 +206,7 @@ def main():
             report['checks'].append({'case': 'newer-system-choice-during-eio-read'})
 
             descriptor = os.open(path, os.O_RDWR | os.O_NONBLOCK)
-            mac.press(TITLE, 'Reload file')
+            reload_theme(mac)
             mac.wait_text(TITLE, 'Loading theme…')
             wait_for_reader(child, path)
             mac.press(TITLE, 'Presentation')
@@ -218,9 +225,10 @@ def main():
 
             path.unlink()
             path.write_text(original)
-            mac.press(TITLE, 'Reload file')
+            reload_theme(mac)
             mac.wait_text(TITLE, 'Loaded Aurora')
             mac.press(TITLE, 'Presentation')
+            mac.wait_text(TITLE, 'A little context goes a long way')
             mac.press(TITLE, 'Styling details')
             mac.wait_text(TITLE, 'Current profile: Aurora')
             mac.wait_text(TITLE, 'Loaded Aurora')
@@ -229,7 +237,7 @@ def main():
             path.unlink()
             os.mkfifo(path)
             descriptor = os.open(path, os.O_RDWR | os.O_NONBLOCK)
-            mac.press(TITLE, 'Reload file')
+            reload_theme(mac)
             mac.wait_text(TITLE, 'Loading theme…')
             wait_for_reader(child, path)
             mac.close(TITLE)
