@@ -33,3 +33,8 @@ executed; the new physical walkthrough remains unperformed. Earlier two-preset s
 qualify this addition. No new Linux, VoiceOver or release acceptance is claimed.
 Step/linear-stop easing and the other differences in the
 [motion review](../catalog/motion-review.md) remain explicit.
+
+Follow-up: the [installed Motion walkthrough](stepped-easing-och41.md#installed-public-gallery-qualification--2026-10-05)
+at `6bc15d3` now passes the piecewise preset together with the four step modes.
+That newer physical evidence supersedes this checkpoint's unperformed walkthrough;
+broader catalog and release acceptance remain separate.

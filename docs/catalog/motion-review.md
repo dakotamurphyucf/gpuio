@@ -37,7 +37,7 @@ composition without replacing a widget's base/state opacity; see its
 | --- | --- |
 | `Easing::Steps` with JumpStart/End/None/Both | The [stepped-easing contract](../design/stepped-easing.md) adds all four typed positions with the same positive 32-bit count range, explicit zero-progress jumps and constant-time native evaluation. Local API/codec/state tests and the gallery example are separate from physical qualification. |
 | `LinearStops` with inferred positions and duplicate-stop jumps | **Missing typed easing surface.** The keyword/Bezier/step API cannot represent arbitrary piecewise linear curves exactly. This review does not defer it or certify easing parity. Resolve bounded encoding, validation, native evaluation and meaningful tests before claiming complete coverage of that surface. |
-| Polynomial `ease_in_cubic` / `ease_out_cubic` / piecewise `ease_in_out_cubic` | Public `ease_in_cubic` and `ease_out_cubic` express the exact cubic polynomials using the existing Bezier representation with linear x. `ease_in_out_cubic` adds the exact native piecewise polynomial through paired easing tag 6. The Motion gallery exposes all three; CSS `ease_in_out` remains distinct. The first two have physical gallery evidence; the third has API/encoding/native-state tests and still requires its physical walkthrough. |
+| Polynomial `ease_in_cubic` / `ease_out_cubic` / piecewise `ease_in_out_cubic` | Public `ease_in_cubic` and `ease_out_cubic` express the exact cubic polynomials using the existing Bezier representation with linear x. `ease_in_out_cubic` adds the exact native piecewise polynomial through paired easing tag 6. The Motion gallery exposes all three; CSS `ease_in_out` remains distinct. All three now have API/encoding/native-state tests and the installed macOS Motion walkthrough. |
 | Signed negative delays | **Not exposed:** public delays are nonnegative. Starting later stages or changing targets does not reproduce an arbitrary initial elapsed offset. Keep this difference visible; the source review itself does not authorize a deferral. |
 | `Timing` finite iteration counts, reverse and alternate-reverse directions | Once/Loop/Alternate are exposed. `Program.reverse` reverses declared intervals while retaining their timing/delay; it is not the source's `easing(1-progress)` direction rule. Small finite sequences can be expanded within 32 stages, but that is not support for arbitrary `u64` counts or every reverse-easing rule. |
 | Generic `Keyframes<T>` with normalized offsets, duplicate offsets, per-segment easing and stable-ID playback | Arbitrary keyframe timelines are explicitly outside the accepted OCH-25 program contract. Numeric stages cover a subset; do not label them complete keyframe compatibility. Changing a GPUIO program can replace a run; upstream stable-ID playback keeps its start time even when values/timing are reconstructed. |
@@ -94,7 +94,7 @@ public/native fixtures, polynomial sampling, the real-window gallery walkthrough
 and independent consumer build for `ease_in_cubic` / `ease_out_cubic`.
 The [piecewise follow-up](../evidence/piecewise-cubic-easing-och41.md) records
 `ease_in_out_cubic` API, decoder and native-state checks plus the gallery build;
-its physical walkthrough remains open.
+its installed physical walkthrough subsequently passes at `6bc15d3`.
 The [stepped-easing follow-up](../evidence/stepped-easing-och41.md) records all four
 step policies, boundary/decoder/native-state checks and the gallery build, with
-physical and installed-consumer follow-up still open.
+the installed public macOS walkthrough passing at `6bc15d3`.

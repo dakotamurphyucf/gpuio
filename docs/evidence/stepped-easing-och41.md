@@ -31,3 +31,27 @@ been executed. A fresh installed-consumer build for stepped easing also remains
 open: the preceding consumer build covers the piecewise-cubic checkpoint only.
 These results do not establish Linux desktop, VoiceOver, presentation timing or
 complete motion-family acceptance. Linear-stop easing remains unimplemented.
+
+## Installed public gallery qualification — 2026-10-05
+
+At clean implementation `6bc15d3`, a fresh staged-prefix installation builds the
+independent gallery and passes both extension catalog checks. Its actual executable
+then passes the full native macOS Motion walkthrough, including all three cubic
+presets and all four step positions in both directions. Step samples are checked
+against their declared discrete widths; exact polynomial and jump-boundary values
+remain established by the numeric tests above, not by wall-clock AX sampling.
+
+Existing interruption, sequence pause/resume/cancel/reverse, reduced-motion
+endpoints, cross-window policy, shared phase, native keyboard policy action,
+page departure/remount and shutdown checks also pass. All owned windows close
+and the child is reaped. The captured layout was visually reviewed: both new
+control rows fit without overlap; lower content is normally scroll-clipped.
+
+[Build log, walkthrough log, screenshot and exact provenance](stepped-easing-och41/installed-gallery.tar.gz),
+[verified checksums](stepped-easing-och41/installed-gallery-manifest.json).
+The executable SHA-256 is
+`ea5d0efabd6b3fbdb1515010466d799f10d6e06fd766765ccbec8fc809ce1aa2`.
+Build session 29309 and walkthrough session 83153 both exit zero. This closes
+the installed-consumer and physical walkthrough follow-ups for these easing
+additions, superseding the earlier pending statements above. It does not qualify
+VoiceOver, physical presentation latency, Linux GUI or the whole motion catalog.
