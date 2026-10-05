@@ -40,11 +40,12 @@ Native admission and native rendering are separate checks; neither can substitut
 for public Bonsai event delivery. No additional native Rating run was performed
 during this source review.
 
-The public gallery's Numeric inputs page now has size/maximum cycles, separate
+The public gallery's Numbers & codes page now has size/maximum cycles, separate
 colors, disabled state and an alternate step-down click policy. It still shares
 the read-only reducer with the page. The new `--section rating` native driver
 checks geometry, owner identity, keyboard/pointer requests, policies and page
-retirement; it has not yet run. The native presentation fixture also contains
+retirement; a real macOS run now passes 41 geometry/identity cases, both themes
+and native keyboard/pointer policies. See [the dated evidence](../evidence/numeric-disabled-rating-och41.md). The native presentation fixture also contains
 new GPU color/alpha/hover/opacity/inheritance/reset assertions, with execution
 pending. Neither driver's source presence is acceptance evidence.
 

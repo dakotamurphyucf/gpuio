@@ -60,6 +60,11 @@ whole-family acceptance. Start from [the catalog](catalog/README.md),
 
 Recent completed local checkpoints:
 
+- Numeric disabled part styles now admit and render the public Disabled tag;
+  24 focused native tests and the physical rating gallery walkthrough pass,
+  including 41 geometry/identity cases, themes and native input policies.
+  [Evidence](evidence/numeric-disabled-rating-och41.md).
+
 - Managed lifetime allocation now avoids one Bonsai state model/activation action
   per managed entry. Nested lifetime/remount tests and the full OCaml suite pass;
   traced initial table flush falls from 103.687 to 32.003 ms. Fresh untraced

@@ -580,7 +580,7 @@ impl Instance {
         let part_style = |styles: &[gpuio_protocol::v1::Style], disabled, focused| {
             let mut style = crate::appearance::refinement(styles, 0);
             if disabled {
-                style.refine(&crate::appearance::refinement(styles, 7));
+                style.refine(&crate::appearance::refinement(styles, 6));
             } else if focused {
                 style.refine(&crate::appearance::refinement(styles, 1));
             }

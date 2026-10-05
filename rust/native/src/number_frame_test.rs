@@ -71,6 +71,102 @@ fn command(owner: &Entity<View>, cx: &mut VisualTestContext, command: n::Command
     })
 }
 #[::core::prelude::v1::test]
+fn numeric_disabled_part_styles_follow_current_policy_without_replacing_editor() {
+    let mut app = TestAppContext::single();
+    app.update(gpui_base::init);
+    let (_reader, writer) = UnixStream::pair().unwrap();
+    let transport = Arc::new(Transport::new(writer.as_raw_fd()).unwrap());
+    let session = Rc::new(RefCell::new(Session::default()));
+    let wid = WindowId::from_parts(0, 1).unwrap();
+    session.borrow_mut().hello(VERSION, CAPABILITIES).unwrap();
+    session
+        .borrow_mut()
+        .open(1, wid, "Numeric states", 600., 200.)
+        .unwrap();
+    let (owner, cx) =
+        app.add_window_view(|_, _| View::new(wid, session.clone(), transport.clone()));
+    let colors = [0xa10000ff, 0x00a200ff, 0x0000a3ff, 0xa4a400ff];
+    let disabled_style = |color| {
+        vec![WireStyle::State(
+            6,
+            vec![WireField::Background(gpuio_protocol::v1::Fill::Solid(
+                WireColor::Rgba(color),
+            ))],
+        )]
+    };
+    let appearance = Appearance {
+        frame_style: disabled_style(colors[0]),
+        editor_style: disabled_style(colors[1]),
+        decrement_style: disabled_style(colors[2]),
+        increment_style: disabled_style(colors[3]),
+        ..Default::default()
+    };
+    apply(
+        &owner,
+        cx,
+        vec![
+            Op::Create(
+                id(0),
+                Kind::NumberInput,
+                "".into(),
+                Some(HandlerId::from_parts(0, 1).unwrap()),
+            ),
+            Op::SetNumberInput(id(0), config(), n::Value::Number(12.)),
+            Op::SetNumberPresentation(id(0), Some(appearance)),
+            Op::Create(id(1), Kind::Container, "".into(), None),
+            Op::Create(id(2), Kind::Container, "".into(), None),
+            Op::Create(id(3), Kind::Container, "".into(), None),
+            Op::Create(id(4), Kind::Container, "".into(), None),
+            Op::Splice(id(0), 0, 0, (1..=4).map(id).collect()),
+            Op::SetStyle(
+                id(0),
+                vec![
+                    WireStyle::Width(WireLength::Px(500.)),
+                    WireStyle::Height(WireLength::Px(44.)),
+                ],
+            ),
+            Op::SetRoot(Some(id(0))),
+        ],
+    );
+    let editor = owner.read_with(cx, |view, _| view.numbers[&id(0)].state.entity_id());
+    for (disabled, read_only, expected) in [
+        (false, false, [false; 4]),
+        (true, false, [true; 4]),
+        (false, true, [false, false, true, true]),
+        (false, false, [false; 4]),
+    ] {
+        let config = n::Config {
+            disabled,
+            read_only,
+            ..config()
+        };
+        apply(
+            &owner,
+            cx,
+            vec![Op::SetNumberInput(id(0), config, n::Value::Number(12.))],
+        );
+        draw(cx);
+        owner.read_with(cx, |view, _| {
+            assert_eq!(view.numbers[&id(0)].state.entity_id(), editor)
+        });
+        cx.update(|window, _| {
+            for (index, color) in colors.into_iter().enumerate() {
+                let background: gpui::Background = rgba(color as u32).into();
+                // The host dims an explicitly disabled control as a whole.
+                let background = background.opacity(if disabled { 0.5 } else { 1. });
+                let painted = window
+                    .painted_quads()
+                    .iter()
+                    .any(|quad| quad.background == background);
+                assert_eq!(
+                    painted, expected[index],
+                    "part={index}, disabled={disabled}, read_only={read_only}"
+                );
+            }
+        });
+    }
+}
+#[::core::prelude::v1::test]
 fn number_frame_retains_editor_composition_and_routes_auxiliary_actions_through_current_policy() {
     let mut app = TestAppContext::single();
     app.update(gpui_base::init);

@@ -71,8 +71,9 @@ and reset. Rust codec checks reject truncated/trailing/malformed colors and
 match the independently written `rating-appearance.hex` fixture.
 
 `rating_appearance_test.rs` is linked into `native_presentation` and the gallery
-driver is `scripts/test_gallery.py --section rating`. Both new desktop scenarios
-are **unrun**. Their assertions cover GPU colors/alpha, hover, inherited opacity
+driver is `scripts/test_gallery.py --section rating`. The public gallery scenario now passes on macOS; see the
+[dated evidence](../evidence/numeric-disabled-rating-och41.md). The dedicated GPU
+appearance scenario remains **unrun**. Their assertions cover GPU colors/alpha, hover, inherited opacity
 and foreground, reset, geometry, actual input and retirement; they do not become
 passing native evidence through compilation. No new Linux, hosted CI, VoiceOver
 or physical display-scale acceptance is claimed.

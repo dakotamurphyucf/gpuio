@@ -77,7 +77,7 @@
       "id": "rating",
       "owner": "OCH-33",
       "scope": "v1",
-      "audit_status": "pinned source reviewed; controlled requests and independent appearance implemented locally with Core/bridge checks; new native color and public-gallery/consumer acceptance pending",
+      "audit_status": "pinned source reviewed; controlled requests and independent appearance implemented; physical macOS public gallery passes 41 geometry/identity cases, both themes, keyboard/pointer policies and retirement; dedicated GPU color and fresh consumer acceptance pending",
       "public_interface": "lib/core/rating.mli",
       "example": "examples/presentation",
       "evidence": [

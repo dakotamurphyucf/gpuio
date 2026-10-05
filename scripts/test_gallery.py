@@ -4036,6 +4036,17 @@ def wait_absent(mac, label, role):
 
 
 
+def select_gallery_appearance(mac, desired):
+    assert desired in ('Light', 'Dark')
+    current = mac.find(TITLE, desired, 'AXButton')
+    if current:
+        mac.release(current)
+        return
+    # The shell labels its toggle with the current mode, not the destination.
+    mac.press(TITLE, 'Dark' if desired == 'Light' else 'Light')
+    mac.release(mac.wait_find(TITLE, desired, 'AXButton'))
+
+
 def cycle_preview_appearance(mac, expected):
     theme = mac.find(TITLE, 'Dark', 'AXButton')
     current, alternate = ('Dark', 'Light') if theme else ('Light', 'Dark')

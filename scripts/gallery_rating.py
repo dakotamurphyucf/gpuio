@@ -6,11 +6,11 @@ import time
 def exercise(mac, images=None):
     from test_gallery import (
         TITLE, GalleryMouse, activate, element_rect, focus_gallery_control,
-        reveal_gallery_control, wait_absent,
+        reveal_gallery_control, select_gallery_appearance, wait_absent,
     )
     from test_canvas import screenshot
 
-    mac.press(TITLE, 'Numeric inputs')
+    mac.press(TITLE, 'Numbers & codes')
     name = 'Preview rating'
     reveal_gallery_control(mac, name, 'AXSlider')
     original = mac.wait_find(TITLE, name, 'AXSlider')
@@ -49,7 +49,7 @@ def exercise(mac, images=None):
 
     try:
         for theme in ('Light', 'Dark'):
-            mac.press(TITLE, theme)
+            select_gallery_appearance(mac, theme)
             for _ in range(3):
                 for _ in range(3):
                     geometry()
