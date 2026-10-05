@@ -1,0 +1,37 @@
+[
+  {
+    "file": "document-first-run.tar.gz",
+    "bytes": 493930,
+    "sha256": "12cca0524285a3dbb8d9ae46d861e40683670acac6d8df18399f872e4eb6b236"
+  },
+  {
+    "file": "document-second-smoke-failure.tar.gz",
+    "bytes": 28106,
+    "sha256": "d080acfaa6fd60dc2f711f08782a5875e712de7757893b15546808dd22254c8e"
+  },
+  {
+    "file": "gpui-frame-traces.tar.gz",
+    "bytes": 126428,
+    "sha256": "32d1117c8686b2a214cad5ae2a71d3a6b0df2aeabfffe04672f14a83675652ed"
+  },
+  {
+    "file": "hosted-metal-failure.tar.gz",
+    "bytes": 130988,
+    "sha256": "d24612de8af399e089f0e1b62d44728e717c2fc3a69677ea8803db5259f4c2ee"
+  },
+  {
+    "file": "ocaml-sampling.tar.gz",
+    "bytes": 143425,
+    "sha256": "d481f5b5c22fd3045e4ad21e1f7c696dcc2f847fa5fdf9ca8989d1f86af6fb71"
+  },
+  {
+    "file": "standalone-timing.tar.gz",
+    "bytes": 25029,
+    "sha256": "3fac55fdb6201d6d307f67c8000720de46b1856ac398b490cee24d824bc390cf"
+  },
+  {
+    "file": "table-smoke-failure.tar.gz",
+    "bytes": 30040,
+    "sha256": "dacacb2d9e36b77ec1ba764ec97e465deb99bcbb0d3e9a28f003b484a452d316"
+  }
+]

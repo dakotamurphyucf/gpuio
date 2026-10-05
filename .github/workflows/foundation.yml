@@ -190,15 +190,6 @@ jobs:
         run: |
           xcrun swiftc scripts/qualify_metal_counter.swift -o .cache/ci/qualify-metal-counter
           .cache/ci/qualify-metal-counter | tee .cache/ci/metal-counter-calibration.json
-      - name: macOS GPUI Metal presentation hook
-        if: runner.os == 'macOS'
-        run: python3 scripts/test_metal_presentation.py --output .cache/ci/metal-presentation-hook
-      - name: macOS Metal presentation API calibration
-        if: runner.os == 'macOS'
-        timeout-minutes: 2
-        run: |
-          xcrun swiftc -O scripts/qualify_metal_presentation.swift -o .cache/ci/metal-presentation-probe
-          .cache/ci/metal-presentation-probe > .cache/ci/metal-presentation-calibration.json
       - name: GPUI standalone manifest validation (no display)
         run: python3 scripts/test_vendor_gpui.py 2>&1 | tee .cache/ci/gpui-manifest-diagnostics.log
       - name: Document growth report validation (no display)
@@ -757,6 +748,18 @@ jobs:
               summary.write("Linux GUI checks are informational; full acceptance is tracked in OCH-47.\n\n")
               summary.write(f"X11: {result['x11']}; Wayland: {result['wayland']}\n")
           PY
+      # Keep both independent presentation probes observable on failure, and do
+      # not let a presentation failure suppress unrelated native/consumer checks.
+      - name: macOS GPUI Metal presentation hook
+        if: runner.os == 'macOS' && !cancelled()
+        run: python3 scripts/test_metal_presentation.py --output .cache/ci/metal-presentation-hook
+      - name: macOS Metal presentation API calibration
+        if: runner.os == 'macOS' && !cancelled()
+        timeout-minutes: 2
+        run: |
+          system_profiler SPDisplaysDataType -json > .cache/ci/metal-presentation-display.json
+          xcrun swiftc -O scripts/qualify_metal_presentation.swift -o .cache/ci/metal-presentation-probe
+          .cache/ci/metal-presentation-probe > .cache/ci/metal-presentation-calibration.json
       - name: Record environment
         if: always()
         run: |
