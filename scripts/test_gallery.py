@@ -6426,7 +6426,7 @@ def main():
     parser.add_argument('--trace-canvas', action='store_true')
     parser.add_argument('--trace-motion', action='store_true')
     parser.add_argument('--trace-windows', action='store_true')
-    parser.add_argument('--section', choices=['all', 'core', 'settings', 'settings-windows', 'settings-composition', 'settings-fields', 'forms', 'editor-groups', 'avatar-groups', 'rating', 'spinners', 'progress', 'selection', 'buttons', 'button-appearance', 'menu-observation', 'split-buttons', 'command-tooltip', 'control-appearance', 'status-regions', 'badges', 'labels', 'shimmer', 'markers', 'alerts', 'tags', 'keyboard-labels', 'binding-observations', 'descriptions', 'chat-composition', 'chat-list', 'attachments', 'attachment-paint', 'groups', 'links', 'empty', 'separators', 'styles', 'borders', 'aspect-ratio', 'pickers', 'choice-pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'selectable-lists', 'structural-tables', 'documents', 'document-links', 'document-images', 'highlighting', 'canvas', 'assets', 'clipboard', 'charts', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
+    parser.add_argument('--section', choices=['all', 'core', 'settings', 'settings-windows', 'settings-composition', 'settings-fields', 'forms', 'editor-groups', 'avatar-groups', 'rating', 'spinners', 'progress', 'selection', 'buttons', 'button-appearance', 'menu-observation', 'split-buttons', 'command-tooltip', 'checkable-navigation', 'control-appearance', 'status-regions', 'badges', 'labels', 'shimmer', 'markers', 'alerts', 'tags', 'keyboard-labels', 'binding-observations', 'descriptions', 'chat-composition', 'chat-list', 'attachments', 'attachment-paint', 'groups', 'links', 'empty', 'separators', 'styles', 'borders', 'aspect-ratio', 'pickers', 'choice-pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'selectable-lists', 'structural-tables', 'documents', 'document-links', 'document-images', 'highlighting', 'canvas', 'assets', 'clipboard', 'charts', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
     args = parser.parse_args()
     Mac.require_accessibility()
     if args.images:
@@ -6516,6 +6516,9 @@ def main():
             if args.section in ('all', 'buttons', 'command-tooltip'):
                 from gallery_command_tooltip import exercise as exercise_command_tooltip
                 exercise_command_tooltip(mac, args.images)
+            if args.section in ('all', 'checkable-navigation'):
+                from gallery_checkable_navigation import exercise as exercise_checkable_navigation
+                exercise_checkable_navigation(mac, args.images)
             if args.section in ('all', 'control-appearance'):
                 from gallery_control_appearance import exercise as exercise_control_appearance
                 exercise_control_appearance(mac, args.images)

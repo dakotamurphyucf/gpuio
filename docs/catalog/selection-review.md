@@ -166,3 +166,15 @@ appearance/busy-Link and menu-observation checks. These supersede corresponding
 earlier unrun statements only. Split-button AX identity fails after ancestor
 pair disabling; its failure is preserved and acceptance remains open. Other
 family, resource/performance and release requirements remain separate.
+
+## Installed standalone-radio follow-up — 2026-10-05
+
+[Standalone radio/navigation evidence](../evidence/installed-radio-navigation-och41.md)
+now passes scoped native keyboard, pointer, ordinary AX, rich/plain geometry,
+identity, disabled policy and page retirement/remount checks from the installed
+gallery. The disabled `AXSelected` adapter projection and corrected harness
+expectation are preserved explicitly. The earlier split-button identity failure
+is also repaired in [the lifetime follow-up](../evidence/gallery-lifetime-repairs-och41.md).
+These supersede only the corresponding earlier open walkthrough statements;
+whole-family resource/performance and release acceptance remain open. VoiceOver
+remains on owner hold and was untouched.

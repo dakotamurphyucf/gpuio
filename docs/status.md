@@ -65,6 +65,12 @@ whole-family acceptance. Start from [the catalog](catalog/README.md),
 
 Recent completed local checkpoints:
 
+- Installed standalone radio/navigation checks pass real Tab/Shift-Tab, Space,
+  Return, pointer selection of skipped stops, signed ordering, rich/plain labels,
+  retained identity and page retirement/remount. The disabled AX selection
+  projection and corrected test expectation are documented without adapter changes.
+  [Evidence](evidence/installed-radio-navigation-och41.md). VoiceOver stays on hold.
+
 - Fresh installed toolbar/toggle checks pass. Tooltip anchor identity and
   constant-configuration binding lifetime are now repaired; a fresh installed
   gallery passes the combined rich-button, appearance/Link, menu, split and

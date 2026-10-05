@@ -138,7 +138,7 @@
       "id": "selection",
       "owner": "OCH-11",
       "scope": "v1",
-      "audit_status": "Nine pinned sources reviewed; toolbar, toggle gallery, checkable appearance/rich labels and standalone-radio/Tab-order extension implemented locally. Core/codec/native checks pass; native checkable GPU and fresh installed appearance/rich-label/toolbar-toggle walkthroughs pass. Standalone-radio/navigation and release acceptance remain separate.",
+      "audit_status": "Nine pinned sources reviewed; toolbar, toggle gallery, checkable appearance/rich labels and standalone-radio/Tab-order extension implemented locally. Core/codec/native checks pass; native checkable GPU and fresh installed appearance/rich-label/toolbar-toggle walkthroughs pass. Installed standalone-radio/Tab-order keyboard, pointer, AX and remount checks also pass; whole-family resource/performance and release acceptance remain separate.",
       "public_interface": "lib/core/choice.mli",
       "example": "examples/controls",
       "evidence": [
@@ -147,6 +147,7 @@
         "docs/design/control-appearance.md",
         "docs/design/control-labels.md",
         "docs/design/checkable-navigation.md",
+        "docs/evidence/installed-radio-navigation-och41.md",
         "docs/evidence/installed-actions-och41.md"
       ],
       "gallery_page": "controls",

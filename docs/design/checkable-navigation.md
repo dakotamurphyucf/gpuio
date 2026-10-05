@@ -1,5 +1,10 @@
 # Checkable composition and Tab order
 
+Current follow-up: [installed macOS radio/navigation checks](../evidence/installed-radio-navigation-och41.md)
+pass on 2026-10-05. They supersede the corresponding unrun runtime statements in
+the historical checkpoints below; VoiceOver and broader release acceptance remain
+separate. The evidence records the disabled `AXSelected` platform projection.
+
 OCH-41 implementation contract, 2026-10-01. Core/Bonsai constructors, paired
 protocol operations, native admission/rendering and the public gallery are wired.
 Local verification is in progress; real macOS keyboard/pointer/AX and installed
