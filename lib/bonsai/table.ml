@@ -23,7 +23,10 @@ module Cell = struct
     { metadata; view }
   ;;
 
-  let text ~column text = create ~column ~copy_text:text (Gpuio.View.text text)
+  let text ~column text =
+    let%map.Or_error metadata = T.Cell.create ~column ~copy_text:text in
+    { metadata; view = Gpuio.View.Expert.table_text metadata }
+  ;;
 end
 
 module Controller = struct

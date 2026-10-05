@@ -1278,6 +1278,8 @@ impl Decoder<'_> {
             118 => Op::SetDocumentTextStyle(self.node()?, self.option(Self::document_style)?),
             120 => Op::SetDocumentActions(self.node()?, self.document_actions()?),
             121 => Op::SetDocumentProfile(self.node()?, self.document_profile()?),
+            123 => Op::CreateTableText(self.node()?, self.table_cell()?),
+            124 => Op::SetTableText(self.node()?, self.table_cell()?),
             122 => Op::SetWindowRegion(
                 self.node()?,
                 self.option(|d| {

@@ -1006,3 +1006,125 @@ fn scoped_header_and_row_styles_are_owned_charged_and_reversible_without_schema_
     .unwrap();
     assert_eq!(tree.retained_bytes(), baseline);
 }
+
+fn compact_initial() -> Vec<Op> {
+    let mut operations = initial();
+    operations.retain(|op| {
+        !matches!(op,
+        Op::Create(id, ..) if *id == node(2) || *id == node(3))
+    });
+    operations.retain(|op| match op {
+        Op::SetTableCell(..) => false,
+        Op::Splice(id, ..) => *id != node(2),
+        _ => true,
+    });
+    operations.insert(
+        5,
+        Op::CreateTableText(
+            node(2),
+            Cell {
+                column: "value".into(),
+                copy_text: "日本語👨‍👩‍👧‍👦".into(),
+            },
+        ),
+    );
+    operations
+}
+
+#[test]
+fn compact_text_cells_preserve_ownership_atomicity_and_payload_limits() {
+    let mut tree = Tree::new(window());
+    tree.apply(&tx(0, compact_initial())).unwrap();
+    assert_eq!(tree.len(), 3);
+    let baseline = tree.retained_bytes();
+    let before = tree.get(node(2)).unwrap().text.clone();
+    let copy = "x".repeat(MAX_COPY_BYTES);
+    let update = tx(
+        1,
+        vec![Op::SetTableText(
+            node(2),
+            Cell {
+                column: "value".into(),
+                copy_text: copy.clone(),
+            },
+        )],
+    );
+    assert_eq!(
+        tree.apply_with_budget(&update, baseline),
+        Err(ErrorCode::LimitExceeded)
+    );
+    assert_eq!(tree.revision(), 1);
+    assert_eq!(tree.get(node(2)).unwrap().text, before);
+    assert_eq!(tree.retained_bytes(), baseline);
+    tree.apply(&update).unwrap();
+    assert_eq!(
+        tree.retained_bytes() - baseline,
+        2 * (copy.len() - before.len())
+    );
+    assert_eq!(&*tree.get(node(2)).unwrap().text, copy.as_str());
+    assert_eq!(
+        tree.get(node(2))
+            .unwrap()
+            .table_cell
+            .as_ref()
+            .unwrap()
+            .copy_text,
+        copy
+    );
+    for invalid in [
+        Op::SetTableText(
+            node(2),
+            Cell {
+                column: "other".into(),
+                copy_text: "wrong".into(),
+            },
+        ),
+        Op::SetTableText(
+            node(1),
+            Cell {
+                column: "value".into(),
+                copy_text: "row".into(),
+            },
+        ),
+        Op::SetTableText(
+            node(2),
+            Cell {
+                column: "value".into(),
+                copy_text: "\0".into(),
+            },
+        ),
+        Op::SetText(node(2), "display/copy mismatch".into()),
+        Op::Bind(node(2), Some(handler(2))),
+        Op::Splice(node(1), 0, 1, vec![]),
+        Op::CreateTableText(
+            node(2),
+            Cell {
+                column: "value".into(),
+                copy_text: "duplicate".into(),
+            },
+        ),
+    ] {
+        assert!(tree.apply(&tx(2, vec![invalid])).is_err());
+        assert_eq!(tree.revision(), 2);
+        assert_eq!(&*tree.get(node(2)).unwrap().text, copy.as_str());
+    }
+    let mut orphan = Tree::new(window());
+    assert!(
+        orphan
+            .apply(&tx(
+                0,
+                vec![
+                    Op::CreateTableText(
+                        node(0),
+                        Cell {
+                            column: "value".into(),
+                            copy_text: "orphan".into()
+                        }
+                    ),
+                    Op::SetRoot(Some(node(0))),
+                ]
+            ))
+            .is_err()
+    );
+    assert_eq!(orphan.len(), 0);
+}

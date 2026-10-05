@@ -35,7 +35,7 @@ def main():
             if marker not in output:
                 raise SystemExit(f"native table host exited without completing {marker}")
     for marker in ("GPUIO_TABLE_STYLE_OK", "GPUIO_TABLE_COMMAND_FOCUS_OK", "GPUIO_TABLE_INPUT_OK",
-                   "GPUIO_NATIVE_TABLE_HOST_OK"):
+                   "GPUIO_NATIVE_TABLE_HOST_OK", "GPUIO_COMPACT_TABLE_TEXT_OK"):
         if marker not in output:
             raise SystemExit(f"native table host exited without completing {marker}")
 

@@ -217,4 +217,41 @@ Artifacts: `performance-paired-build-00{1,2}.log`,
 `performance-paired-symbols-00{1,2}.json`,
 `performance-paired-histogram-smoke-00{1,2}/`,
 `performance-{profiled,plain}-wall-smoke-001/` in the session scratch directory.
-Full alternating runs, and their overhead conclusions, remain pending.
+## Completed ordinary-backend comparison — 2026-10-04
+
+All six full wall-clock runs pass traversal, growth, the 60-second idle duration
+and resource cleanup. Order was profiled1 / ordinary1 / ordinary2 / profiled2 /
+profiled3 / ordinary3 after the paired smoke warm-ups. Both preserved binaries
+come from `28d56ab5270a4411eebe06c0c13c4c7f896ab236`, with the hashes above.
+Checkout revision/dirty metadata varies as independent source/documentation work
+continued; no executable changed, local compilation or second owned GUI overlapped.
+The parser refactoring during the last run reproduces every preceding report
+exactly from its raw log. Ordinary desktop activity was not controlled.
+
+| Build / run | History elapsed | Whole-process CPU (user + system) | Peak RSS |
+| --- | ---: | ---: | ---: |
+| Profiled 1 | 216.453105 s | 102.313716 s | 188,530,688 B |
+| Ordinary 1 | 225.006434 s | 102.469383 s | 174,096,384 B |
+| Ordinary 2 | 228.260017 s | 107.712212 s | 181,469,184 B |
+| Profiled 2 | 225.086427 s | 105.469419 s | 184,369,152 B |
+| Profiled 3 | 229.105415 s | 105.135304 s | 178,536,448 B |
+| Ordinary 3 | 227.320620 s | 99.062042 s | 182,386,688 B |
+
+Profiled versus ordinary medians are: history 225.086427 versus 227.320620 seconds
+(−0.98%); whole-process CPU 105.135304 versus 102.469383 seconds (+2.60%); peak RSS
+184,369,152 versus 181,469,184 bytes (+1.60%, 2,899,968 bytes). CPU/RSS include
+startup, idle and teardown, while history elapsed excludes those phases.
+
+These observations suggest modest optional-profiler cost in this loaded-list
+workload. Overlapping ranges and three observations per build do not establish a
+statistical bound, a speedup, or a guarantee for other workloads. No retrospective
+pass threshold is imposed on this comparison. Wall-clock mode does not capture
+histograms or establish zero idle draws. The native snapshot capture costs above
+are separate from the optional feature's runtime overhead.
+
+Raw logs/reports: `performance-{profiled,plain}-wall-full-00{1,2,3}/`; aggregate
+`performance-overhead-summary-001.json`; exact order/process log
+`performance-overhead-runs-001.log`, all in the session scratch directory. Both
+preserved executable hashes were rechecked after completion. This completes the
+initial loaded-list feature comparison, not the remaining workload matrix or
+physical/GPU qualification.

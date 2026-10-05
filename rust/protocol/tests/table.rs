@@ -673,3 +673,59 @@ fn column_viewport_has_independent_event_bytes_and_bounded_schema_identity() {
         .matches_schema(&config())
     );
 }
+
+#[test]
+fn compact_text_operations_match_ocaml_and_reject_truncated_or_invalid_payloads() {
+    use gpuio_protocol::{NodeId, WindowId, v1::*};
+    let id = NodeId::from_parts(1, 1).unwrap();
+    for (operation, expected) in [
+        (
+            Op::CreateTableText(
+                id,
+                Cell {
+                    column: "v".into(),
+                    copy_text: "λ".into(),
+                },
+            ),
+            "7b0101017602cebb",
+        ),
+        (
+            Op::SetTableText(
+                id,
+                Cell {
+                    column: "v".into(),
+                    copy_text: "λ".into(),
+                },
+            ),
+            "7c0101017602cebb",
+        ),
+    ] {
+        fixture(&operation, expected);
+        let message = Message::Apply(Transaction {
+            window: WindowId::from_parts(0, 1).unwrap(),
+            base: 0,
+            revision: 1,
+            operations: vec![operation],
+        });
+        let encoded = bytes(&message);
+        assert_eq!(gpuio_protocol::decode(&encoded), Ok(message));
+        for end in 0..encoded.len() {
+            assert!(gpuio_protocol::decode(&encoded[..end]).is_err());
+        }
+    }
+    for text in ["\0".into(), "x".repeat(MAX_COPY_BYTES + 1)] {
+        let message = Message::Apply(Transaction {
+            window: WindowId::from_parts(0, 1).unwrap(),
+            base: 0,
+            revision: 1,
+            operations: vec![Op::CreateTableText(
+                id,
+                Cell {
+                    column: "v".into(),
+                    copy_text: text,
+                },
+            )],
+        });
+        assert!(gpuio_protocol::decode(&bytes(&message)).is_err());
+    }
+}

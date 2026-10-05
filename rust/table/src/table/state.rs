@@ -2260,9 +2260,15 @@ where
                     .on_prepaint({
                         let view = view.clone();
                         let epoch = self.layout_epoch.clone();
-                        move |bounds, _, cx| {
+                        move |mut bounds, _, cx| {
                             view.update(cx, |state, _| {
                                 if epoch.matches(&state.layout_epoch) {
+                                    // ElementExt observes a child canvas, which moves
+                                    // with this pane's contents. Recover the viewport
+                                    // origin before measuring column bands; otherwise
+                                    // horizontal scrolling is applied twice and long
+                                    // scrolls incorrectly clip the pane off-window.
+                                    bounds.origin -= state.horizontal_scroll_handle.offset();
                                     state.scrolling_head_cols_bounds = bounds;
                                 }
                             });

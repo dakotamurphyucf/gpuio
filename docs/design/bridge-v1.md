@@ -183,6 +183,12 @@ is not a claim of constant-time child insertion.
 
 ## Bounds and validation
 
+The unpublished paired operation set also includes compact table-text create and
+update (tags 123/124): one validated cell per operation, with shared display/copy
+content and full native row/schema ownership checks. This reduces plain-cell
+admission overhead without increasing the following bounds. Rich/custom cells
+retain ordinary View subtrees. See [tables](data-tables.md).
+
 Initial limits: 1 MiB encoded message, 256 KiB text field, 4096 operations,
 128 style refinements per node, 100,000 slots per tree, depth 128, and 32 windows.
 Decode rejects invalid tags, malformed UTF-8, trailing bytes and non-finite

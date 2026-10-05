@@ -1436,14 +1436,23 @@ let rec mount builder ~depth previous view =
       Option.map description.text_content ~f:(fun content ->
         Text_content.Expert.to_wire content ~theme:builder.theme |> value)
     in
+    let compact_table_text =
+      match description.kind with
+      | Text -> description.table_cell
+      | _ -> None
+    in
     (match previous with
      | None ->
        let text = if Option.is_some text_content then "" else description.text in
-       emit builder (Create (id, kind description.kind, text, handler))
+       (match compact_table_text with
+        | Some cell ->
+          emit builder (Create_table_text (id, Table.Expert.cell_to_wire cell))
+        | None -> emit builder (Create (id, kind description.kind, text, handler)))
      | Some mounted ->
        if
          Option.is_none description.editor
          && Option.is_none description.combobox
+         && Option.is_none compact_table_text
          && Option.is_none text_content
          && (Option.is_some mounted.text_content
              || not
@@ -1644,7 +1653,12 @@ let rec mount builder ~depth previous view =
         Option.bind previous ~f:(fun old -> (View.Expert.describe old.view).table_cell)
       in
       if not (Option.equal Table.Cell.equal old (Some cell))
-      then emit builder (Set_table_cell (id, Table.Expert.cell_to_wire cell)));
+      then (
+        let wire = Table.Expert.cell_to_wire cell in
+        match compact_table_text, previous with
+        | Some _, Some _ -> emit builder (Set_table_text (id, wire))
+        | Some _, None -> ()
+        | None, _ -> emit builder (Set_table_cell (id, wire))));
     Option.iter table_config ~f:(fun config ->
       if not (Option.equal TW.Config.equal old_table_config (Some config))
       then emit builder (Set_table (id, config)));

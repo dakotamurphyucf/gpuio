@@ -530,3 +530,21 @@ pub(super) async fn exercise(cx: &mut gpui::AsyncApp, window: gpui::WindowHandle
         "GPUIO_TABLE_AX_OK: logical counts/indexes, bounded rows/cells, desired selection, idempotent press and stale-frame gating"
     );
 }
+
+pub(super) fn assert_compact_value(
+    cx: &mut gpui::AsyncApp,
+    window: gpui::WindowHandle<View>,
+    expected: &str,
+) {
+    let cells = nodes(cx, window);
+    assert!(
+        cells
+            .iter()
+            .any(|cell| cell.role == "AXCell" && cell.value.as_deref() == Some(expected))
+    );
+    assert!(
+        cells
+            .iter()
+            .any(|cell| cell.role == "AXCell" && cell.value.as_deref() == Some("42"))
+    );
+}

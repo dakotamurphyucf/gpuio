@@ -975,6 +975,8 @@ module Op = struct
     | Set_document_actions of Node_id.t * Document_actions_wire.Config.t
     | Set_document_profile of Node_id.t * Document_profile_wire.Config.t
     | Set_window_region of Node_id.t * Window_region_wire.t option
+    | Create_table_text of Node_id.t * Table.Cell.t
+    | Set_table_text of Node_id.t * Table.Cell.t
   [@@deriving bin_io, equal, sexp_of]
 end
 

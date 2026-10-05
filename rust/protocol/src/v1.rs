@@ -840,6 +840,8 @@ pub enum Op {
     SetDocumentActions(NodeId, crate::document_actions::Config),
     SetDocumentProfile(NodeId, crate::document_profile::Config),
     SetWindowRegion(NodeId, Option<crate::window_region::Region>),
+    CreateTableText(NodeId, crate::table::Cell),
+    SetTableText(NodeId, crate::table::Cell),
 }
 
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]

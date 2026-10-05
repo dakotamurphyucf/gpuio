@@ -13,6 +13,19 @@ fn inert_container(node: &Node) -> bool {
         && node.text.is_empty()
         && node.table.is_none()
 }
+
+fn valid_cell_shape(node: &Node) -> bool {
+    (inert_container(node) && node.children.len() == 1)
+        || (node.kind == Kind::Text
+            && node.handler.is_none()
+            && node.children.is_empty()
+            && node.text_spans.is_empty()
+            && node.table.is_none()
+            && node
+                .table_cell
+                .as_ref()
+                .is_some_and(|cell| cell.copy_text == *node.text))
+}
 impl Plan<'_> {
     pub(super) fn validate_table(&self, node: &Node) -> Result<(), ErrorCode> {
         if !node.table_header_style.is_empty() && node.table.is_none() {
@@ -68,7 +81,7 @@ impl Plan<'_> {
         // cross-node relationships here: a streaming child update must not scan
         // every retained copy string again.
         if let Some(cell) = &node.table_cell {
-            if !inert_container(node) || node.table_header.is_some() || node.children.len() != 1 {
+            if !valid_cell_shape(node) || node.table_header.is_some() {
                 return Err(ErrorCode::InvalidTree);
             }
             let row = self.node(node.parent.ok_or(ErrorCode::InvalidTree)?)?;
@@ -179,8 +192,7 @@ impl Plan<'_> {
             }
             for (cell, column) in row.children.iter().zip(&config.schema.columns) {
                 let cell = self.node(*cell)?;
-                if !inert_container(cell)
-                    || cell.children.len() != 1
+                if !valid_cell_shape(cell)
                     || cell
                         .table_cell
                         .as_ref()

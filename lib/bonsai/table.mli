@@ -20,6 +20,9 @@ module Cell : sig
     -> unit Bonsai.Effect.t Gpuio.View.t
     -> t Or_error.t
 
+  (** Compact plain-text cell: display, clipboard and accessibility text are
+      identical. Uses one retained native leaf; [create] keeps arbitrary rich
+      content and its ordinary View resource/transaction costs. *)
   val text : column:Gpuio.Table_column.Id.t -> string -> t Or_error.t
 end
 

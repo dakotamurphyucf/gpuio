@@ -1484,6 +1484,11 @@ module Expert : sig
     -> (Key.t * (Table.Cell.t * 'action t) list) list
     -> 'action t Core.Or_error.t
 
+  (** Compact plain-text cell for [managed_table]. Display and copy text are
+      identical. This leaf is only valid as a cell in that table's row/schema;
+      ordinary rich cell content uses the existing wrapper representation. *)
+  val table_text : Table.Cell.t -> 'action t
+
   type 'action container_query =
     { config : Container_query.Config.t
     ; on_select : (Container_query.Selection.t -> 'action) option

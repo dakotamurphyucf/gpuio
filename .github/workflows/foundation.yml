@@ -169,6 +169,8 @@ jobs:
         run: python3 scripts/test_mac_input_source.py 2>&1 | tee .cache/ci/input-source-scope.log
       - name: Loaded-history measurement diagnostics (no display)
         run: python3 scripts/test_measure_list_history.py 2>&1 | tee .cache/ci/list-measurement-diagnostics.log
+      - name: Table performance report validation
+        run: python3 scripts/test_measure_table_history.py 2>&1 | tee .cache/ci/table-measurement-diagnostics.log
       - name: Reference packaging input validation (no display)
         run: python3 scripts/test_package_macos_reference.py 2>&1 | tee .cache/ci/reference-package-inputs.log
       - name: Static backend composition tests (no display)

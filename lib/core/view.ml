@@ -3659,6 +3659,10 @@ module Expert = struct
       rows
   ;;
 
+  let table_text metadata =
+    { (text (Table.Cell.copy_text metadata)) with table_cell = Some metadata }
+  ;;
+
   let managed_table
         ?key
         ?source_key
@@ -3732,14 +3736,14 @@ module Expert = struct
             column
               ~key
               (List.map cells ~f:(fun (metadata, child) ->
-                 { (column
-                      ~key:
-                        (Key.of_string_exn
-                           (Table_column.Id.to_string (Table.Cell.column metadata)))
-                      [ child ])
-                   with
-                   table_cell = Some metadata
-                 }))
+                 let key =
+                   Key.of_string_exn
+                     (Table_column.Id.to_string (Table.Cell.column metadata))
+                 in
+                 match child.kind, child.table_cell with
+                 | Text, Some compact when Table.Cell.equal compact metadata ->
+                   { child with key = Some key }
+                 | _ -> { (column ~key [ child ]) with table_cell = Some metadata }))
           in
           { row with table_row_style = Map.find row_presentations (Key.to_string key) })
       in

@@ -440,6 +440,7 @@ async fn exercise(cx: &mut gpui::AsyncApp, window: gpui::WindowHandle<View>) {
             let _ = cx;
         })
         .unwrap();
+    input::compact(cx, window).await;
     eprintln!(
         "GPUIO_NATIVE_TABLE_HOST_OK: retained Views, 100k sparse rows, actual viewport, keyed commands, row-height anchor, single/empty sources and release"
     );

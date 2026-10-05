@@ -150,3 +150,12 @@ The optional test observation wrapper is applied after `finish_row`, then receiv
 the final row accessibility decoration. Delegates keep the same concrete
 `Stateful<Div>` input/output contract with or without `gpui-base/test-support`;
 turning on observation must not change the delegate's row type.
+
+The horizontal column-visibility observer now converts its child-canvas bounds
+back to the unscrolled header-pane origin before applying the column offset.
+`ElementExt::on_prepaint` observes a child that moves with the pane's contents;
+using that translated rectangle as the viewport applied scrolling twice and
+reported columns as clipped/off-window on longer horizontal traversals. A real
+Host/TestPlatform regression covers all 64 column commands at the reference
+viewport width, including the previous column-17 failure, and drains the bounded
+observation queue as an actual client does.

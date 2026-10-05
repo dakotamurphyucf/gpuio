@@ -2389,6 +2389,8 @@ impl Plan<'_> {
         }
         let target = match op {
             Op::Create(id, ..)
+            | Op::CreateTableText(id, ..)
+            | Op::SetTableText(id, ..)
             | Op::Remove(id)
             | Op::SetText(id, ..)
             | Op::SetStyledText(id, ..)
@@ -2531,6 +2533,31 @@ impl Plan<'_> {
 
     fn operation_inner(&mut self, op: &Op) -> Result<(), ErrorCode> {
         match op {
+            Op::CreateTableText(id, cell) => {
+                if !cell.is_valid() {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                // A bounded single-cell operation, not an unbounded nested batch.
+                // Reuse ordinary allocation/generation checks; the outer operation
+                // accounts for both display and copy payloads before publication.
+                self.operation_inner(&Op::Create(*id, Kind::Text, cell.copy_text.clone(), None))?;
+                self.node_mut(*id)?.table_cell = Some(Arc::new(cell.clone()));
+            }
+            Op::SetTableText(id, cell) => {
+                let node = self.node(*id)?;
+                if node.kind != Kind::Text
+                    || !cell.is_valid()
+                    || node
+                        .table_cell
+                        .as_ref()
+                        .is_none_or(|old| old.column != cell.column)
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                let node = self.node_mut(*id)?;
+                node.text = Arc::from(cell.copy_text.as_str());
+                node.table_cell = Some(Arc::new(cell.clone()));
+            }
             Op::Create(id, kind, text, handler) => {
                 validate_text(text)?;
                 if id.slot() > self.slot_count || id.slot() >= MAX_NODES {

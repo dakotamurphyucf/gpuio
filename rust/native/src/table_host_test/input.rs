@@ -487,3 +487,117 @@ async fn complete_column_and_hidden(cx: &mut gpui::AsyncApp, window: gpui::Windo
     select(cx, window, Selection::Empty);
     frame(cx, window).await;
 }
+
+/// Compact leaves use the same renderer, clipboard route and native AX cells.
+/// Runs after the rich-cell fixture has retired all owners; reuses slots with a
+/// fresh generation, and leaves the window empty for the existing close check.
+pub(super) async fn compact(cx: &mut gpui::AsyncApp, window: gpui::WindowHandle<View>) {
+    let id = |slot| NodeId::from_parts(slot, 2).unwrap();
+    let value = "日本語 👨‍👩‍👧‍👦 e\u{301}";
+    apply(
+        cx,
+        window,
+        vec![
+            Op::Create(
+                id(0),
+                Kind::VirtualList,
+                String::new(),
+                Some(HandlerId::from_parts(0, 3).unwrap()),
+            ),
+            Op::SetTable(id(0), config()),
+            Op::SetListConfig(id(0), config().list_config()),
+            Op::SetListOrder(id(0), order(1, 1)),
+            Op::SetStyle(
+                id(0),
+                vec![
+                    Style::Width(Length::Px(520.)),
+                    Style::Height(Length::Px(300.)),
+                ],
+            ),
+            Op::Create(id(1), Kind::Container, String::new(), None),
+            Op::CreateTableText(
+                id(2),
+                wire::Cell {
+                    column: "name".into(),
+                    copy_text: value.into(),
+                },
+            ),
+            Op::CreateTableText(
+                id(3),
+                wire::Cell {
+                    column: "value".into(),
+                    copy_text: "42".into(),
+                },
+            ),
+            Op::Splice(id(1), 0, 0, vec![id(2), id(3)]),
+            Op::Splice(id(0), 0, 0, vec![id(1)]),
+            Op::SetListRows(id(0), vec![Row { id: 1, node: id(1) }]),
+            Op::SetRoot(Some(id(0))),
+        ],
+    );
+    frame(cx, window).await;
+    window
+        .update(cx, |view, window, cx| {
+            let native = view.tables[&id(0)].borrow().native.clone();
+            native.update(cx, |state, cx| {
+                assert!(state.delegate().rendered.contains(&(1, "name".into())));
+                assert!(state.replace_selection(
+                    Selection::Cell {
+                        row: RowKey(1),
+                        column: "name".into()
+                    },
+                    cx
+                ));
+            });
+            native.focus_handle(cx).focus(window, cx);
+        })
+        .unwrap();
+    frame(cx, window).await;
+    copy(cx, window);
+    assert_eq!(clipboard(cx), value);
+    #[cfg(target_os = "macos")]
+    super::accessibility::assert_compact_value(cx, window, value);
+    let next = "streamed λ 世界";
+    apply(
+        cx,
+        window,
+        vec![Op::SetTableText(
+            id(2),
+            wire::Cell {
+                column: "name".into(),
+                copy_text: next.into(),
+            },
+        )],
+    );
+    frame(cx, window).await;
+    copy(cx, window);
+    assert_eq!(clipboard(cx), next);
+    #[cfg(target_os = "macos")]
+    super::accessibility::assert_compact_value(cx, window, next);
+    apply(
+        cx,
+        window,
+        vec![
+            Op::SetRoot(None),
+            Op::Remove(id(3)),
+            Op::Remove(id(2)),
+            Op::Remove(id(1)),
+            Op::Remove(id(0)),
+        ],
+    );
+    frame(cx, window).await;
+    window
+        .update(cx, |view, _, _| {
+            assert!(view.tables.is_empty());
+            assert_eq!(
+                view.session
+                    .borrow()
+                    .tree(view.id)
+                    .unwrap()
+                    .retained_bytes(),
+                0
+            );
+        })
+        .unwrap();
+    eprintln!("GPUIO_COMPACT_TABLE_TEXT_OK: render, clipboard, native AX, update and cleanup");
+}

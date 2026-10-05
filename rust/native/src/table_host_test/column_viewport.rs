@@ -192,3 +192,116 @@ fn empty_tables_measure_pins_partial_columns_scroll_and_schema_replacement() {
         vec![("x".into(), wire::Pin::Left, false)]
     );
 }
+
+#[test]
+fn all_64_column_commands_reveal_complete_bands_at_reference_width() {
+    let mut app = TestAppContext::single();
+    app.update(|cx| {
+        gpui_base::init(cx);
+        gpuio_table_adapter::init(cx);
+    });
+    let (_reader, writer) = UnixStream::pair().unwrap();
+    let transport = Arc::new(Transport::new(writer.as_raw_fd()).unwrap());
+    let session = Rc::new(RefCell::new(Session::default()));
+    session.borrow_mut().hello(VERSION, CAPABILITIES).unwrap();
+    session
+        .borrow_mut()
+        .open(1, window_id(), "Wide table", 1200., 800.)
+        .unwrap();
+    let (view, cx) = app.add_window_view(|_, _| View::new(window_id(), session.clone(), transport));
+    cx.simulate_resize(gpui::size(px(1200.), px(800.)));
+    let mut config = config();
+    let template = config.schema.columns[1].clone();
+    config.schema.columns = (0..64)
+        .map(|i| wire::Column {
+            id: i.to_string(),
+            label: i.to_string(),
+            width: 128.,
+            pin: if i == 0 {
+                wire::Pin::Left
+            } else {
+                wire::Pin::Unpinned
+            },
+            ..template.clone()
+        })
+        .collect();
+    config.max_active_rows = 32;
+    config.max_active_cells = 2048;
+    let mut operations = vec![
+        Op::Create(
+            node(0),
+            Kind::VirtualList,
+            String::new(),
+            Some(HandlerId::from_parts(0, 1).unwrap()),
+        ),
+        Op::SetListConfig(node(0), config.list_config()),
+        Op::SetTable(node(0), config),
+        Op::SetListOrder(node(0), order(1, 100_000)),
+        Op::SetStyle(
+            node(0),
+            vec![
+                Style::Width(Length::Px(1168.)),
+                Style::Height(Length::Px(720.)),
+            ],
+        ),
+        Op::Create(node(1), Kind::Container, String::new(), None),
+    ];
+    for i in 0..64 {
+        operations.push(Op::CreateTableText(
+            node(i + 2),
+            wire::Cell {
+                column: i.to_string(),
+                copy_text: format!("Row 0 column {i} 世界"),
+            },
+        ));
+    }
+    operations.extend([
+        Op::Splice(node(1), 0, 0, (2..66).map(node).collect()),
+        Op::Splice(node(0), 0, 0, vec![node(1)]),
+        Op::SetListRows(
+            node(0),
+            vec![Row {
+                id: 1,
+                node: node(1),
+            }],
+        ),
+        Op::SetRoot(Some(node(0))),
+    ]);
+    apply(&view, cx, operations);
+    let native = view.read_with(cx, |v, _| v.tables[&node(0)].borrow().native.clone());
+    for i in 0..64 {
+        apply(
+            &view,
+            cx,
+            vec![command(
+                i + 1,
+                0,
+                wire::Target::ScrollToColumn(i.to_string()),
+            )],
+        );
+        let columns = snapshot(&native, cx);
+        let (bounds, offset) = native.read_with(cx, |t, _| {
+            (
+                t.horizontal_scroll_handle.bounds(),
+                t.horizontal_scroll_handle.offset(),
+            )
+        });
+        assert!(
+            columns
+                .iter()
+                .any(|(id, _, full)| id == &i.to_string() && *full),
+            "column {i}: {columns:?}; bounds={bounds:?}; offset={offset:?}"
+        );
+        // Model the real client's event drain; otherwise repeated observations
+        // intentionally overload the bounded transport after roughly 40 steps.
+        let observations = published(&view, cx);
+        if let Some(observation) = observations.last() {
+            assert!(
+                observation
+                    .columns
+                    .iter()
+                    .any(|(id, _, full)| id == &i.to_string() && *full)
+            );
+        }
+    }
+}
