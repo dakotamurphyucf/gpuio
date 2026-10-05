@@ -12,7 +12,7 @@ local repairs/reruns, including an unfocused cursor-timer fix and Japanese IME
 revalidation; fresh hosted qualification remains required. The earlier consumer-build disk exhaustion
 did not recur. Three full optimized loaded-list runs pass their declared budgets;
 six ordinary/profiled comparisons, three full resource-lifecycle runs and the
-first full paged-table run also pass; other workload acceptance remains open.
+first two full paged-table runs also pass; other workload acceptance remains open.
 Earlier evidence identifies local worktree checkpoints based on `83eb87e`;
 their source snapshots must not be confused with that old HEAD alone.
 The preceding 2,834-line chronological status is

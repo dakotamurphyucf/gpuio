@@ -169,3 +169,32 @@ python3 scripts/measure_table_history.py \
 
 This is one successful full run; repeated-run acceptance remains open. The prior
 failed attempt is retained above and has not been relabeled.
+
+
+## Second passing full run — preserved source b75ffa2
+
+Following its own successful smoke warm-up, full003 passes using the same
+preserved executable and SHA-256 as full002. The [unaltered full003 report](paged-table-run-003-och17.json)
+records observation checkout `2fdf53b97ffabbb9a861af1ee4a81d3d8cf791a8`
+and its clean state at launch; those fields do **not** identify the executable's
+source. The actual executable source remains
+`b75ffa29a2219513b2904a131e6d88f176cc7286`. Subsequent document-workload source
+editing, formatting, an offline manifest-only lock update and short portable
+collector tests continued while the preserved binary ran. No local compilation
+or second owned GUI ran. The normal visible window and temporary idle assertion
+were retained for this repeat batch.
+
+Coverage and retention match full002: 100,000 rows each direction and materialized,
+64 columns, peak 26 active rows/1,664 cells, 512 current payload rows,
+1,564 page loads and 1,560 evictions. All declared cleanup counters return to zero.
+The 29,049 draws have p95 **13.819903 ms**, p99 **14.032895 ms**. Peak RSS is
+**604,061,696 bytes** (576.078125 MiB). Whole-process wall time is 1,534.740790 s;
+CPU is 1,673.827151 s user plus 30.064030 s system. The 60.003985 s idle interval
+has zero native work, with observed activation true at both boundaries and zero
+observed changes. All declared budgets pass. Physical presentation and GPU memory
+remain separate requirements.
+
+Command matches full002 above with output `table-performance-full-003`; the
+preceding warm-up uses `--smoke` and omits `--check-budgets`. Two independent full
+passes are now complete; the third repeat remains pending. Full001 remains a
+retained failure with unproven cause.
