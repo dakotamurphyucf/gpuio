@@ -1,0 +1,21 @@
+AX_PRESS Settings
+GALLERY_FOCUS_READY Settings workspace name requests= 1
+AX_WAIT Stored name: a ·
+GALLERY_FOCUS_READY Settings workspace name requests= 1
+AX_WAIT Finish composing text before resetting this field.
+AX_WAIT Stored name: a ·
+IME_PREEDIT a日本語
+AX_WAIT Finish composing text before resetting this field.
+AX_WAIT Stored name: a ·
+IME_CANDIDATES_CAPTURED 1
+AX_WAIT Stored name: a日本ご ·
+IME_COMMITTED a日本ご
+AX_WAIT Stored name: a ·
+AX_WAIT Stored name: a日本ご ·
+IME_UNDO_REDO_OK
+AX_WAIT Finish composing text before resetting this field.
+AX_WAIT Stored name: a日本ご ·
+AX_WAIT Stored name: a日本ご ·
+IME_CANCEL_OK
+IME_SOURCE_RESTORED com.apple.keylayout.US
+GPUIO_MACOS_JAPANESE_IME_OK: settings, actual preedit/candidate/commit, undo/redo, cancel, source restoration, shutdown

@@ -80,3 +80,10 @@ one physical macOS desktop. The existing US dead-key Settings sequence separatel
 covers layout changes and native identity during composition. This does not
 qualify every input method, multiline/scrolled candidate geometry, VoiceOver,
 external file drag/drop, Linux IME or the complete OCH-17 release gate.
+
+## Multiline and single-line follow-up
+
+[The cancellation follow-up](multiline-ime-cancellation-och17.md) adds real
+scrolled/wrapped and nonwrapping multiline acceptance at `9bd6e7e`, repairs a
+reproduced cancellation data-loss bug, and repeats this single-line sequence on
+the same clean source. Other IMEs and VoiceOver remain outside that evidence.

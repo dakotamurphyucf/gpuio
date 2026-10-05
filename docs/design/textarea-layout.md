@@ -67,3 +67,8 @@ separate remaining ordinary-text-area work. Code-editor diagnostics, folding,
 multicursor editing and LSP remain post-v1. The pinned engine's
 `scroll_beyond_last_line` is code-editor-only at paint time; it is deliberately
 not exposed as an ineffective ordinary-text-area property.
+
+Real Japanese IME composition/candidate/commit/undo/cancel now has
+[wrapped and nonwrapping macOS evidence](../evidence/multiline-ime-cancellation-och17.md),
+including vertical and horizontal reveal. This does not replace the remaining
+whitespace/indentation/cursor-margin visual walkthrough.
