@@ -396,6 +396,25 @@ async fn workload(
         handle
             .update(cx, |_, w, _| w.resize(gpui::size(px(width), px(height))))
             .unwrap();
+        // A GPUI frame can precede AppKit's asynchronous resize notification.
+        // Wait for the actual viewport, then paint and test the child geometry.
+        let expected = gpui::size(px(width), px(height));
+        let mut resized = false;
+        for _ in 0..200 {
+            resized = handle
+                .update(cx, |_, window, _| window.viewport_size() == expected)
+                .unwrap();
+            if resized {
+                break;
+            }
+            cx.background_executor()
+                .timer(std::time::Duration::from_millis(10))
+                .await;
+        }
+        assert!(
+            resized,
+            "navigation native viewport did not resize to {expected:?}"
+        );
         frame(cx, handle).await;
         handle
             .update(cx, |v, w, _| {

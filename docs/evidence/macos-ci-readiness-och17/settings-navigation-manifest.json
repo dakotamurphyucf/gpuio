@@ -1,0 +1,42 @@
+{
+  "ci-37356882651-settings-failure.log": {
+    "bytes": 12143,
+    "sha256": "34e03e1678c43db11708666c4e2f0d7dd6912b9ef1bb984debd62df1d8522032"
+  },
+  "ci-37356882651-navigation-failure.log": {
+    "bytes": 861691,
+    "sha256": "1e2e3415c291ff850bcc9b7d73c1923698294362a835f0fe09233cc9dfa1a9c6"
+  },
+  "navigation-resize-build.log": {
+    "bytes": 588371,
+    "sha256": "47e369d360973c53dadb575194bbbcc83e1516f4ddc84b8bd9196673344ee99c"
+  },
+  "ci-readiness-gallery-build.log": {
+    "bytes": 100215,
+    "sha256": "a4310f29499fe9474f74b616da3c4c10779e97b68964b903d51dc0b1dfdbc389"
+  },
+  "ci-settings-composition-repaired.log": {
+    "bytes": 2105,
+    "sha256": "5048602f6cc73a09c8e23c674cf19b660fb58e62b96ed07cdf1e342da77107b9"
+  },
+  "navigation-resize-native.log": {
+    "bytes": 1336,
+    "sha256": "e07777d787ead727259bf7077de036423993f1f877766a22f3178c69d196a22d"
+  },
+  "navigation-resize-clippy.log": {
+    "bytes": 588820,
+    "sha256": "59775353d99fc0a2e97608d996f88337bc6dba350662521664eb5ac764aa0717"
+  },
+  "ci-readiness-followup.patch": {
+    "bytes": 1900,
+    "sha256": "6737993c7ca6b1db500df49b4e8d7d8c21a0cea512c779d2d7485343adaa2bf3"
+  },
+  "source/scripts/test_gallery.py": {
+    "bytes": 323505,
+    "sha256": "0ea4aea7b2b8d6290fb5f6ba22ceaa552110b5d24601d894fced33748ee1b664"
+  },
+  "source/rust/native/src/navigation_lifecycle_test.rs": {
+    "bytes": 17793,
+    "sha256": "2904eb828ad6edde42e85c99ea40e6cae84c6bd2c133b177ad33e6ae6b139c37"
+  }
+}

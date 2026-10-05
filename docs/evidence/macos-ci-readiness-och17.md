@@ -74,3 +74,61 @@ theme report/captures, driver patch and executable hashes.
 The corrected hosted run is still required; neither original CI failure is
 waived. These local passes do not qualify the rest of milestone 07, VoiceOver,
 Linux GUI or clean-machine distribution.
+
+## Settings and navigation follow-up — run 37356882651
+
+The later [hosted run](https://github.com/dakotamurphyucf/gpuio/actions/runs/37356882651)
+at branch `e96d27e` passes Linux but reports two further macOS failures while its
+long table-history step is still running. The job log was retrieved directly
+from GitHub's job-log endpoint for job `111921432650`; only the relevant step
+excerpts are archived here. This is not a terminal macOS result.
+
+Settings composition fails immediately after Escape cancels a numeric dead-key
+preedit. The native editor updates before its asynchronous Bonsai snapshot removes
+the explanatory composing row. The test previously called the one-shot `absent`
+helper at that point. It now uses the existing ten-second `wait_absent` helper
+before continuing with real keyboard replacement and the unchanged unaccented
+value check. No fixed sleep, product behavior or expected result changes.
+
+The navigation workload requests a 500-point-wide window but sees the preceding
+300-point child width. Waiting for GPUI frame callbacks alone does not establish
+that AppKit has delivered its asynchronous resize notification. The test now polls
+the actual `window.viewport_size()` for at most 200 ten-millisecond intervals,
+then requests the existing frame barrier and runs the original exact child-width,
+slide-offset and rendered-pixel checks. Failure to receive the requested viewport
+still fails explicitly; layout is not repeatedly retried until it passes.
+
+Local macOS 14.5 / M1 Max validation, based on `b457e0c` plus these two test edits:
+
+- The fresh release gallery passes the complete `settings-composition` walkthrough
+  and shutdown: real US-layout dead-key input, retained native owner/preedit across
+  layout/theme/size changes, reset rejection, committed values, undo/redo, page
+  retirement, Escape cancellation and subsequent ordinary input. No input source
+  or VoiceOver setting is changed. Executable SHA-256:
+  `2e09bd0fbc0aae3b31b9cfaa5fb9aa9be093f9cee4704dae17316457cace0440`.
+- The native navigation executable passes its full sequence, including nested
+  scopes, inert/disabled input, 128 retained page/button traversal, four editor
+  owners, all three real-window resizes with GPU pixel checks, unmount and teardown.
+  Executable SHA-256:
+  `25f773f4d69f34867dbb7a52d00393d0007ad497494e1aceb46e4d256812147e`.
+- Python compilation, Rust formatting, targeted strict Clippy and whitespace
+  checks pass. No owned window overlaps another or a local compilation; the
+  bounded native runner and gallery driver both exit zero and reap their children.
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -p gpuio-native \
+  --features native-image-tests --test native_navigation --no-run
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build --profile release -j 2 examples/gallery/main.exe
+python3 scripts/test_gallery.py --section settings-composition \
+  --images scratch/agents/root-20261004-resumed/ci-settings-composition-repaired
+python3 -c 'import subprocess; subprocess.run(["target/debug/deps/native_navigation-58ae141ed1687c77"], check=True, timeout=90)'
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy --locked -p gpuio-native \
+  --features native-image-tests --test native_navigation --no-deps -- -D warnings
+```
+
+[The follow-up archive](macos-ci-readiness-och17/settings-navigation.tar.gz) retains
+both hosted failures, build/check/native logs, exact patch and test-source snapshots;
+its [manifest](macos-ci-readiness-och17/settings-navigation-manifest.json) is verified
+against the archive. Corrected hosted execution remains required. These local
+results neither waive the earlier failures nor qualify the still-open startup,
+presentation, accessibility and release requirements.

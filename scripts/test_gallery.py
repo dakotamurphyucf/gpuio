@@ -5922,7 +5922,9 @@ def exercise_settings_composition(mac):
     mac.wait_text(TITLE, numeric_help)
     expect_field(mac, TITLE, numeric, '1´')
     mac.key(53)
-    absent(mac, numeric_help, 'AXStaticText')
+    # Escape updates the native editor first; the explanatory row follows its
+    # asynchronous Bonsai snapshot. Require that row to disappear before typing.
+    wait_absent(mac, numeric_help, 'AXStaticText')
     mac.key(0, flags=1 << 20)
     mac.key(19)
     expect_field(mac, TITLE, numeric, '2')

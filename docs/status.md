@@ -70,6 +70,13 @@ virtual-list tests and a complete functional table smoke. Paced screen samples
 no longer show the blank-row pattern; a fast capture retains similar evidence
 but ends with a screenshot-deadline failure. [Correction and limits](evidence/table-scroll-flicker-och17.md#bounded-command-preparation--local-correction)
 leave ordinary wheel behavior and presentation/startup qualification open.
+The subsequent native pixel-wheel diagnostic moves through rows 0–48 and back
+with 32/96-pixel inputs; its 49 samples remain populated. Physical trackpad
+momentum, changed geometry and complete frame coverage remain outside that evidence.
+Run `37356882651` now passes Linux and reports Settings composition and navigation
+resize failures while the macOS table-history step continues. [Bounded readiness
+corrections](evidence/macos-ci-readiness-och17.md#settings-and-navigation-follow-up--run-37356882651)
+pass both complete local walkthroughs; corrected hosted execution remains pending.
 Three full optimized loaded-list, paged-table and growing-document runs pass
 their declared budgets; six ordinary/profiled comparisons and three resource
 lifecycle runs also pass. Three full streaming/typing runs also pass after an optional profiler repair,
