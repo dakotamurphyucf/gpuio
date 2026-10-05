@@ -262,6 +262,12 @@ jobs:
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
         timeout-minutes: 3
         run: python3 scripts/test_gallery.py --section clipboard 2>&1 | tee .cache/ci/macos-clipboard.log
+      - name: macOS cross-application file drop
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 4
+        run: |
+          xcrun swiftc -module-cache-path .cache/macos-display-modules scripts/macos_file_drag_source.swift -o .cache/ci/file-drag-source
+          python3 scripts/test_macos_external_file_drop.py --source .cache/ci/file-drag-source --output .cache/ci/external-file-drop 2>&1 | tee .cache/ci/macos-external-file-drop.log
       - name: Independent Signal Studio consumer
         id: signal-consumer
         run: |

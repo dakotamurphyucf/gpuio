@@ -64,7 +64,26 @@ let trace_target enabled (event : D.Target_event.t) =
         Eio.traceln
           "GALLERY_TRANSFER_TARGET gesture=%s phase=%s"
           (Sexp.to_string [%sexp (event.gesture : D.Gesture_id.t)])
-          phase))
+          phase;
+        match event.phase with
+        | Entered offer ->
+          Eio.traceln
+            "GALLERY_TRANSFER_ORIGIN %s"
+            (Sexp.to_string [%sexp (offer.origin : D.Origin.t)])
+        | Dropped (Files files) ->
+          List.iteri files ~f:(fun index file ->
+            let path_hex =
+              File_path.to_string file.path
+              |> String.to_list
+              |> List.map ~f:(fun c -> sprintf "%02x" (Char.to_int c))
+              |> String.concat
+            in
+            Eio.traceln
+              "GALLERY_TRANSFER_FILE index=%d path_hex=%s directory=%s"
+              index
+              path_hex
+              (Sexp.to_string [%sexp (file.is_directory : bool option)]))
+        | Moved | Left | Dropped _ | Rejected _ -> ()))
 ;;
 
 let component palette graph =

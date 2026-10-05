@@ -432,8 +432,10 @@ alternatives, plus typed text/card drag sources and an inbox for text/custom/fil
 metadata. Native configuration decides acceptance. File paths are counted without
 opening files. The app retains only latest notices, width and a saturated receipt
 count; departure clears transient gesture feedback. `--trace-input` records bounded
-per-gesture source/target transitions (not every move). The native test enables it
-to verify matching gesture identities and exactly two accepted native drops.
+per-gesture source/target transitions (not every move), incoming origin and the
+hex-encoded path bytes of accepted file offers. Enable it only when those paths
+may be logged. The native tests use it to verify gesture identities, exactly-once
+delivery and unchanged file paths from a separate AppKit source process.
 This page does not imply passive hover or arbitrary key-event callback parity.
 
 The document AX repair now exposes actual Markdown body text, read-only source/code
