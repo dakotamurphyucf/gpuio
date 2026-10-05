@@ -1,6 +1,8 @@
 """Reject incomplete or misleading document qualification records without a GUI."""
 import copy
 import hashlib
+from pathlib import Path
+import re
 import unittest
 
 import measure_document_growth as m
@@ -76,6 +78,16 @@ def fixture():
 
 
 class DocumentQualificationTest(unittest.TestCase):
+    def test_paired_probe_fingerprint_matches_declared_wire_schema(self):
+        root = Path(__file__).resolve().parents[1] / 'examples/performance_probe'
+        digest = hashlib.sha256((root / 'schema.txt').read_bytes()).hexdigest()
+        ocaml = (root / 'ocaml/gpuio_performance_probe.ml').read_text()
+        rust = (root / 'rust/src/lib.rs').read_text()
+        self.assertEqual(re.search(r'~fingerprint:"([a-f0-9]{64})"', ocaml)[1], digest)
+        self.assertEqual(re.search(r'FINGERPRINT: &str = "([a-f0-9]{64})"', rust)[1], digest)
+        self.assertIn('~version:2', ocaml)
+        self.assertIn('version: 2,', rust)
+
     def test_fixture_is_exact_utf8_and_varies_by_identity(self):
         a, b = m.chunk(0, 1), m.chunk(1, 1)
         self.assertEqual(len(a.encode()), 128*1024)

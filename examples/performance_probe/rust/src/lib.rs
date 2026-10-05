@@ -3,7 +3,7 @@ use gpuio_extension_sdk::{self as sdk, gpui, gpui::prelude::*};
 use gpuio_native::performance::{Distribution, Interval, Snapshot};
 use std::{cell::RefCell, fmt::Write, rc::Rc, sync::Arc, time::Instant};
 
-pub const FINGERPRINT: &str = "4af1fe7a3cc0e8d5ad9f52555fd37b5634e93a9a2b0050f739cdcd6626156889";
+pub const FINGERPRINT: &str = "e5008fe376c44b30bf168ecd31b14cf23f18cd92006b59532b9b8a21053d8aa8";
 pub fn factory() -> Arc<dyn sdk::Factory> {
     Arc::new(Factory)
 }

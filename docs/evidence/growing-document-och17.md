@@ -56,7 +56,8 @@ At this repair checkpoint:
 - `GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --manifest-path examples/performance/backend/Cargo.toml --locked -p gpuio-performance-probe --lib -j2`:
   the Rust command-boundary test passes.
 - `python3 -m unittest discover -s scripts -p test_measure_document_growth.py`:
-  four pass, rejecting missing/reordered growth, stale source totals, incorrect
+  five pass, checking both language fingerprints against the declared schema and
+  rejecting missing/reordered growth, stale source totals, incorrect
   selection/page/full-source copies, incomplete traversal, missing fallback and
   regressed preparation counters.
 - `python3 scripts/measure_document_growth.py --build-profile dev --smoke --output scratch/agents/root-20261004-resumed/document-smoke-005`:
