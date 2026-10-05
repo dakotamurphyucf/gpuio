@@ -295,6 +295,12 @@ jobs:
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
         timeout-minutes: 4
         run: python3 scripts/test_macos_window_selection.py --output .cache/ci/window-selection 2>&1 | tee .cache/ci/macos-window-selection.log
+      - name: macOS window commands and custom chrome
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 6
+        run: |
+          python3 scripts/test_macos_window_lifecycle.py --output .cache/ci/window-standard 2>&1 | tee .cache/ci/macos-window-standard.log
+          python3 scripts/test_macos_window_lifecycle.py --custom-chrome --output .cache/ci/window-custom 2>&1 | tee .cache/ci/macos-window-custom.log
       - name: Independent Signal Studio consumer
         id: signal-consumer
         run: |
