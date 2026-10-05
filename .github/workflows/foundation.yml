@@ -186,6 +186,12 @@ jobs:
         run: |
           xcrun swiftc scripts/qualify_metal_counter.swift -o .cache/ci/qualify-metal-counter
           .cache/ci/qualify-metal-counter | tee .cache/ci/metal-counter-calibration.json
+      - name: macOS Metal presentation API calibration
+        if: runner.os == 'macOS'
+        timeout-minutes: 2
+        run: |
+          xcrun swiftc -O scripts/qualify_metal_presentation.swift -o .cache/ci/metal-presentation-probe
+          .cache/ci/metal-presentation-probe > .cache/ci/metal-presentation-calibration.json
       - name: GPUI standalone manifest validation (no display)
         run: python3 scripts/test_vendor_gpui.py 2>&1 | tee .cache/ci/gpui-manifest-diagnostics.log
       - name: Document growth report validation (no display)
