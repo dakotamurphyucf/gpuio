@@ -63,6 +63,7 @@ let component app ~motion palette graph =
   let expanded, toggle_expanded = B.toggle ~default_model:false graph in
   let endpoint, set_endpoint = B.state "Ready to resize" graph in
   let resize_easing, set_resize_easing = B.state A.Easing.ease_in_out graph in
+  let resize_delay, set_resize_delay = B.state Time_ns.Span.zero graph in
   let program, set_program = B.state (A.Program.with_playback sequence Paused) graph in
   let observations, set_observations = B.state "Ready to play" graph in
   let repeating, set_repeating = B.state false graph in
@@ -88,6 +89,8 @@ let component app ~motion palette graph =
   and set_endpoint = set_endpoint
   and resize_easing = resize_easing
   and set_resize_easing = set_resize_easing
+  and resize_delay = resize_delay
+  and set_resize_delay = set_resize_delay
   and program = program
   and set_program = set_program
   and observations = observations
@@ -157,6 +160,7 @@ let component app ~motion palette graph =
                    ~target:(if expanded then target 310. 12. else target 96. 24.)
                    ~duration:(Time_ns.Span.of_ms 1000.)
                    ~easing:resize_easing
+                   ~delay:resize_delay
                    ()
                  |> ok)
                 [ sample "Resize sample" ]
@@ -172,6 +176,22 @@ let component app ~motion palette graph =
             p
             ~muted:true
             "Change direction mid-flight. The panel continues from its painted position."
+        ; controls
+            (List.map
+               [ "Start at beginning", 0.
+               ; "Start 350ms in", -350.
+               ; "Start 1.5s in", -1500.
+               ]
+               ~f:(fun (label, milliseconds) ->
+                 let delay = Time_ns.Span.of_ms milliseconds in
+                 Palette.button
+                   p
+                   ~selected:(Time_ns.Span.equal resize_delay delay)
+                   label
+                   (set_resize_delay delay)))
+        ; Palette.text
+            p
+            (sprintf "Initial delay: %.0f ms" (Time_ns.Span.to_ms resize_delay))
         ; controls
             (List.map
                [ "CSS ease-in-out", A.Easing.ease_in_out
@@ -238,7 +258,19 @@ let component app ~motion palette graph =
             [ Palette.button
                 p
                 "Replay sequence"
-                (change_program (fun p -> A.Program.restart p |> ok))
+                (change_program (fun p ->
+                   A.Program.with_initial_delay p Time_ns.Span.zero
+                   |> ok
+                   |> A.Program.restart
+                   |> ok))
+            ; Palette.button
+                p
+                "Skip to sequence end"
+                (change_program (fun p ->
+                   A.Program.with_initial_delay p (Time_ns.Span.of_day (-1.))
+                   |> ok
+                   |> A.Program.restart
+                   |> ok))
             ; Palette.button
                 p
                 "Pause sequence"

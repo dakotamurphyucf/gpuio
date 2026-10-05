@@ -5006,6 +5006,21 @@ def exercise_motion(mac, images, second_title=SECOND):
             assert all(min(abs(value - expected) for expected in widths) < 1
                        for value in closing + opening), (label, closing, opening)
     mac.press(TITLE, 'CSS ease-in-out')
+    mac.press(TITLE, 'Start 350ms in')
+    mac.wait_text(TITLE, 'Initial delay: -350 ms')
+    for action, endpoint in [('Contract preview', 96), ('Expand preview', 310)]:
+        samples = motion_samples(mac, 'Resize sample', 1.0, action)
+        assert abs(samples[-1] - endpoint) < 1, samples
+        assert any(98 < width < 308 for width in samples), samples
+    mac.press(TITLE, 'Start 1.5s in')
+    mac.wait_text(TITLE, 'Initial delay: -1500 ms')
+    for action, endpoint in [('Contract preview', 96), ('Expand preview', 310)]:
+        samples = motion_samples(mac, 'Resize sample', .35, action)
+        assert abs(samples[-1] - endpoint) < 1, samples
+        assert all(min(abs(width-96), abs(width-310)) < 1 for width in samples), samples
+    mac.press(TITLE, 'Start at beginning')
+    mac.wait_text(TITLE, 'Initial delay: 0 ms')
+    print('GALLERY_SIGNED_DELAY_OK: partial initial advance and beyond-end settlement in both directions', flush=True)
     print('GALLERY_CUBIC_EASING_OK: all three public presets animate in both directions; '
           'polynomial values are checked separately by native numeric fixtures', flush=True)
     print('GALLERY_LINEAR_STOPS_OK: held ranges, duplicate-stop jump and final interpolation in both directions', flush=True)
@@ -5024,6 +5039,15 @@ def exercise_motion(mac, images, second_title=SECOND):
     assert abs(motion_samples(mac, 'Sequence sample', .1)[-1] - 120) < 1
     reverse = motion_samples(mac, 'Sequence sample', 3.5, 'Reverse sequence')
     assert abs(reverse[-1] - 64) < 1, reverse
+    # Reverse while paused holds the painted endpoint. Starting the advanced run
+    # must cross every stage without painting their intermediate target widths.
+    mac.press(TITLE, 'Pause sequence')
+    mac.press(TITLE, 'Reverse sequence')
+    skipped = motion_samples(mac, 'Sequence sample', .4, 'Skip to sequence end')
+    assert abs(skipped[-1] - 120) < 1, skipped
+    assert all(min(abs(width-64), abs(width-120)) < 1 for width in skipped), skipped
+    mac.wait_text(TITLE, 'Stage 1 played · Stage 2 played · Stage 3 played · Finished')
+    print('GALLERY_SIGNED_PROGRAM_DELAY_OK: skipped stages settle on paint with ordered completion observations', flush=True)
     mac.press(TITLE, 'Use reduced motion')
     mac.wait_text(TITLE, 'Motion preference: Reduced')
     reduced = motion_samples(mac, 'Resize sample', .4, 'Contract preview')

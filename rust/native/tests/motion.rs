@@ -333,3 +333,29 @@ fn linear_stop_motion_holds_jumps_clamps_and_confirms_completion() {
     );
     assert_eq!(value(&mut state, 1300), (100., Wake::Idle, None));
 }
+
+#[test]
+fn signed_delay_advances_legacy_motion_at_clock_zero_and_preserves_completion() {
+    let mut cfg = config(1, 100.);
+    cfg.delay_ms = -250;
+    let mut state = State::new(Arc::new(cfg.clone()), ms(0), false).unwrap();
+    assert_eq!(value(&mut state, 0), (25., Wake::Frame, None));
+    state.set_visible(false, ms(100));
+    assert_eq!(value(&mut state, 1000), (25., Wake::Idle, None));
+    state.set_visible(true, ms(1100));
+    assert_eq!(value(&mut state, 1100).0, 35.);
+    let endpoint = state.sample(ms(1750));
+    assert_eq!(endpoint.values.get(Property::Width), Some(100.));
+    assert_eq!(endpoint.wake, Wake::Idle);
+    assert_eq!(state.painted(endpoint).unwrap().outcome, Outcome::Finished);
+    cfg.delay_ms = -1250;
+    cfg.repeat = Repeat::Alternate;
+    let mut repeat = State::new(Arc::new(cfg.clone()), ms(0), false).unwrap();
+    assert_eq!(value(&mut repeat, 0), (75., Wake::Frame, None));
+    cfg.repeat = Repeat::Once;
+    let mut finished = State::new(Arc::new(cfg), ms(0), false).unwrap();
+    assert_eq!(
+        value(&mut finished, 0).2.unwrap().outcome,
+        Outcome::Finished
+    );
+}

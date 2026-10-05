@@ -80,7 +80,7 @@ impl Program {
             return false;
         };
         if self.stages.len() > MAX_STAGES
-            || !(0..=MAX_TIME_MS).contains(&self.delay_ms)
+            || !(-MAX_TIME_MS..=MAX_TIME_MS).contains(&self.delay_ms)
             || !self.clock.is_valid()
             || !self.stages.iter().all(|stage| {
                 valid_targets(&stage.targets)

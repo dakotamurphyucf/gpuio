@@ -207,15 +207,21 @@ module Program : sig
   type t [@@deriving equal, sexp_of]
 
   (** One to 32 stages with the same properties. Multi-stage programs and repeats
-      require initial values. The initial delay is applied once; stage delays apply
-      each cycle. The sum of stage maximum durations and delays is at most one day;
-      the separate initial delay is also at most one day. Repeats need positive cycle duration.
+      require initial values. The initial delay is signed and applied once:
+      negative values advance the initial timeline position, including across
+      repeat boundaries. Its magnitude is at most one day and rounds away from
+      zero to milliseconds. Nonnegative stage delays apply each cycle. The sum
+      of stage maximum durations and delays is at most one day.
+      Repeats need positive cycle duration.
       Shared clocks require repetition, timed stages, explicit initial values and
       zero initial delay. [clock] defaults to independent, [repeat] to once.
 
       The complete encoding is bounded to 16,384 bytes, reserving the maximum
       generation/restart encodings; large easing curves count toward that limit.
-      Use [View.animate_program] to mount a retained native program. *)
+      Boundaries skipped by a negative initial delay produce ordinary [Played]
+      observations on the first accepted paint, without claiming intermediate
+      frames. Paused/hidden runs apply the offset when they first run; reduced
+      motion retains its endpoint policy. Use [View.animate_program] to mount. *)
   val create
     :  ?initial:Target.t
     -> ?delay:Time_ns.Span.t
@@ -227,6 +233,11 @@ module Program : sig
   (** Playback changes preserve the run; cancellation holds its last painted value
       and is terminal until a new program or restart. *)
   val with_playback : t -> Playback.t -> t
+
+  (** Change the signed initial delay, retaining playback and the restart token.
+      This replaces the mounted program when the delay changes. The same bounds,
+      encoding limit and shared-clock restriction as [create] apply. *)
+  val with_initial_delay : t -> Time_ns.Span.t -> t Or_error.t
 
   (** Increment the restart token, resetting playback to Running. Retain the returned
       value for subsequent restarts. Exhaustion returns an error. *)
@@ -249,7 +260,11 @@ module Config : sig
   type t [@@deriving equal, sexp_of]
 
   (** Default duration 200 ms, no delay, linear timing, once. Durations are between
-      zero and one day, rounded up to whole milliseconds. Initial and target must
+      zero and one day, rounded up to whole milliseconds. The initial delay is
+      in [-one day, one day], rounded away from zero to milliseconds. A negative
+      delay starts at that much active elapsed time, including across repeat
+      boundaries; this can intentionally jump ahead on retarget or finish on
+      the first paint. Initial and target must
       name the same properties. With no initial values, the first mount is placed
       immediately; subsequent targets start at the last painted values. Repetition
       requires initial values and a positive duration. Initial values define the

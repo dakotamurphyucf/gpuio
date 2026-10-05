@@ -366,3 +366,45 @@ fn variable_easing_storage_obeys_program_size_and_retained_memory_bounds() {
         Err(DecodeError::LimitExceeded)
     );
 }
+
+#[test]
+fn signed_initial_delay_keeps_wire_order_and_does_not_relax_stage_or_shared_rules() {
+    let mut config = example();
+    config.program.delay_ms = -30;
+    let bytes = encode(&config);
+    assert!(config.is_valid());
+    let expected = include_str!("../../../test/fixtures/animation-negative-delay.tsv")
+        .lines()
+        .find_map(|line| line.strip_prefix("program\t"))
+        .unwrap();
+    assert_eq!(
+        bytes.iter().map(|b| format!("{b:02x}")).collect::<String>(),
+        expected
+    );
+    assert_eq!(decode_animation_program(&bytes), Ok(config.clone()));
+    for delay in [-86_400_000, -1, 0, 86_400_000] {
+        config.program.delay_ms = delay;
+        assert!(config.is_valid());
+        assert_eq!(
+            decode_animation_program(&encode(&config)),
+            Ok(config.clone())
+        );
+    }
+    for delay in [i64::MIN, -86_400_001, 86_400_001, i64::MAX] {
+        config.program.delay_ms = delay;
+        assert!(!config.is_valid());
+        assert_eq!(
+            decode_animation_program(&encode(&config)),
+            Err(DecodeError::Malformed)
+        );
+    }
+    config.program.delay_ms = -1;
+    config.program.stages.truncate(1);
+    config.program.repeat = Repeat::Loop;
+    config.program.clock = Clock::Application;
+    assert!(!config.is_valid());
+    config.program.clock = Clock::Independent;
+    assert!(config.is_valid());
+    config.program.stages[0].delay_ms = -1;
+    assert!(!config.is_valid());
+}

@@ -104,7 +104,7 @@ fn polynomial_easing_fixtures_match_native_values_not_css_presets() {
 
 #[test]
 fn animation_configuration_matches_independent_ocaml_fixture() {
-    let config = Config {
+    let mut config = Config {
         generation: 42,
         targets: vec![
             Target {
@@ -138,6 +138,17 @@ fn animation_configuration_matches_independent_ocaml_fixture() {
     assert_eq!(
         encoded,
         include_str!("../../../test/fixtures/animation-v1-config.hex").trim()
+    );
+    config.delay_ms = -10;
+    let mut bytes = Vec::new();
+    config.binprot_write(&mut bytes).unwrap();
+    let expected = include_str!("../../../test/fixtures/animation-negative-delay.tsv")
+        .lines()
+        .find_map(|line| line.strip_prefix("config\t"))
+        .unwrap();
+    assert_eq!(
+        bytes.iter().map(|b| format!("{b:02x}")).collect::<String>(),
+        expected
     );
 }
 
@@ -176,6 +187,20 @@ fn animation_messages_have_bounded_validated_decoding() {
     };
     let valid = message(config.clone());
     assert_eq!(decode(&encode(&valid)), Ok(valid));
+    for delay in [-MAX_TIME_MS, -1, 0, MAX_TIME_MS] {
+        let mut delayed = config.clone();
+        delayed.delay_ms = delay;
+        let valid = message(delayed);
+        assert_eq!(decode(&encode(&valid)), Ok(valid));
+    }
+    for delay in [i64::MIN, -MAX_TIME_MS - 1, MAX_TIME_MS + 1, i64::MAX] {
+        let mut delayed = config.clone();
+        delayed.delay_ms = delay;
+        assert_eq!(
+            decode(&encode(&message(delayed))),
+            Err(DecodeError::Malformed)
+        );
+    }
     let mut cubic = config.clone();
     cubic.easing = Easing::EaseInOutCubic;
     let valid = message(cubic);

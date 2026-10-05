@@ -251,7 +251,7 @@ impl Config {
                         .all(|(a, b)| a.property == b.property)
             })
             && (0..=MAX_TIME_MS).contains(&self.duration_ms)
-            && (0..=MAX_TIME_MS).contains(&self.delay_ms)
+            && (-MAX_TIME_MS..=MAX_TIME_MS).contains(&self.delay_ms)
             && self.easing.is_valid()
             && (self.repeat == Repeat::Once || (self.initial.is_some() && self.duration_ms > 0))
     }

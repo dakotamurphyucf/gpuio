@@ -228,6 +228,16 @@ let milliseconds span =
   else Ok (Float.iround_up_exn value |> Int64.of_int)
 ;;
 
+let initial_delay_milliseconds span =
+  let value = Time_ns.Span.to_ms span in
+  let magnitude = Float.abs value in
+  if Float.(magnitude > 86_400_000.)
+  then Or_error.error_string "animation initial delay magnitude must be at most one day"
+  else (
+    let magnitude = Float.iround_up_exn magnitude |> Int64.of_int in
+    Ok (if Float.(value < 0.) then Int64.neg magnitude else magnitude))
+;;
+
 module Timing = struct
   type t = P.Timing.t [@@deriving equal, sexp_of]
 
@@ -333,7 +343,7 @@ module Program = struct
         stages
     =
     let open Or_error.Let_syntax in
-    let%bind delay_ms = milliseconds delay in
+    let%bind delay_ms = initial_delay_milliseconds delay in
     let matches a b =
       List.equal
         W.Property.equal
@@ -384,6 +394,19 @@ module Program = struct
   ;;
 
   let with_playback t playback = { t with playback }
+
+  let with_initial_delay t delay =
+    let open Or_error.Let_syntax in
+    let%bind delay_ms = initial_delay_milliseconds delay in
+    if (not (P.Clock.equal t.program.clock Independent)) && not (Int64.equal delay_ms 0L)
+    then
+      Or_error.error_string "shared clocks require timed repetition without initial delay"
+    else (
+      let program = { t.program with delay_ms } in
+      if P.Program.bin_size_t program + 19 > 16_384
+      then Or_error.error_string "animation program exceeds 16384 encoded bytes"
+      else Ok { t with program })
+  ;;
 
   let restart t =
     if Int64.equal t.restart Int64.max_value
@@ -443,7 +466,7 @@ module Config = struct
     =
     let open Or_error.Let_syntax in
     let%bind duration_ms = milliseconds duration in
-    let%bind delay_ms = milliseconds delay in
+    let%bind delay_ms = initial_delay_milliseconds delay in
     if
       Option.exists initial ~f:(fun initial ->
         not

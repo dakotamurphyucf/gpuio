@@ -500,3 +500,104 @@ fn later_paints_preserve_a_live_deadline_but_visibility_invalidates_it() {
     assert_eq!(current.wake, Wake::At(ms(125)));
     assert!(state.accepts_wake(&current));
 }
+
+#[test]
+fn negative_delay_skips_initial_stages_but_delivery_requires_paint() {
+    let mut cfg = config(1, &[100., 200., 300.], 100);
+    cfg.program.delay_ms = -250;
+    let mut state = make_state(cfg.clone());
+    let advanced = sample(&mut state, 0);
+    assert_eq!(value(&advanced), 250.);
+    assert_eq!(state.completed, 0);
+    assert_eq!(advanced.wake, Wake::Frame);
+    let events = state.painted(advanced);
+    assert_eq!(events.iter().map(|e| e.index).collect::<Vec<_>>(), [1, 2]);
+    assert!(events.iter().all(|e| matches!(
+        e.observation,
+        Observation::StageCompleted(_, StageResult::Played)
+    )));
+    let (value, wake, events) = paint(&mut state, 50);
+    assert_eq!((value, wake), (300., Wake::Idle));
+    assert_eq!(events.iter().map(|e| e.index).collect::<Vec<_>>(), [3, 33]);
+    assert!(paint(&mut state, 1000).2.is_empty());
+    cfg.program.delay_ms = -86_400_000;
+    let mut finished = make_state(cfg);
+    let terminal = sample(&mut finished, 0);
+    assert!(!finished.is_finished());
+    assert_eq!(terminal.wake, Wake::Idle);
+    assert_eq!(finished.painted(terminal).len(), 4);
+    assert!(finished.is_finished());
+
+    let mut delayed = config(2, &[100.], 100);
+    delayed.program.delay_ms = -50;
+    delayed.program.stages[0].delay_ms = 100;
+    let mut delayed = make_state(delayed);
+    assert_eq!(paint(&mut delayed, 0), (0., Wake::At(ms(50)), vec![]));
+    assert_eq!(paint(&mut delayed, 100).0, 50.);
+}
+
+#[test]
+fn negative_delay_repetition_phase_uses_integer_cycles_without_cycle_events() {
+    for (repeat, boundary) in [(Repeat::Loop, 0.), (Repeat::Alternate, 100.)] {
+        let mut cfg = config(1, &[100.], 100);
+        cfg.program.repeat = repeat;
+        cfg.program.delay_ms = -1250;
+        let mut state = make_state(cfg);
+        assert_eq!(paint(&mut state, 0), (50., Wake::Frame, vec![]));
+        assert_eq!(paint(&mut state, 50), (boundary, Wake::Frame, vec![]));
+        assert_eq!(paint(&mut state, 100).0, 50.);
+    }
+}
+
+#[test]
+fn negative_delay_is_applied_once_across_hidden_paused_and_restarted_runs() {
+    let mut cfg = config(1, &[1000.], 1000);
+    cfg.program.delay_ms = -250;
+    let mut state = make_state(cfg.clone());
+    assert_eq!(paint(&mut state, 0).0, 250.);
+    state.set_visible(false, ms(100));
+    assert_eq!(paint(&mut state, 1000).0, 250.);
+    state.set_visible(true, ms(1100));
+    assert_eq!(paint(&mut state, 1100).0, 350.);
+    cfg.generation = 2;
+    cfg.playback = Playback::Paused;
+    state.update(Arc::new(cfg.clone()), ms(1100)).unwrap();
+    assert_eq!(paint(&mut state, 2000), (350., Wake::Idle, vec![]));
+    cfg.generation = 3;
+    cfg.playback = Playback::Running;
+    state.update(Arc::new(cfg.clone()), ms(2100)).unwrap();
+    assert_eq!(paint(&mut state, 2100).0, 350.);
+    assert_eq!(paint(&mut state, 2200).0, 450.);
+    cfg.generation = 4;
+    cfg.restart = 1;
+    state.update(Arc::new(cfg.clone()), ms(2200)).unwrap();
+    assert_eq!(paint(&mut state, 2200).0, 250.);
+    let mut reduced = State::new(Arc::new(cfg), ms(0), true).unwrap();
+    let (value, wake, events) = paint(&mut reduced, 0);
+    assert_eq!((value, wake), (1000., Wake::Idle));
+    assert_eq!(
+        events[0].observation,
+        Observation::StageCompleted(0, StageResult::ReducedMotion)
+    );
+}
+
+#[test]
+fn negative_spring_delay_samples_the_existing_analytic_trajectory() {
+    let mut cfg = config(1, &[100.], 1000);
+    cfg.program.stages[0].timing = Timing::Spring(Spring {
+        stiffness: 100.,
+        damping: 4.,
+        mass: 1.,
+        epsilon: 0.001,
+        max_duration_ms: 10000,
+    });
+    let mut original = make_state(cfg.clone());
+    cfg.program.delay_ms = -123;
+    let mut advanced = make_state(cfg);
+    for elapsed in [0, 10, 100, 500, 10000] {
+        let actual = sample(&mut advanced, elapsed);
+        let expected = sample(&mut original, elapsed + 123);
+        assert_eq!(actual.frame, expected.frame);
+        assert_eq!(actual.finished, expected.finished);
+    }
+}

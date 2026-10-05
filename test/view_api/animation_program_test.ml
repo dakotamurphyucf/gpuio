@@ -337,3 +337,138 @@ let%expect_test "advanced programs negotiate a capability above 32 bits" =
   |> print_endline;
   [%expect {| 0003fcffffffffffffff7f |}]
 ;;
+
+let%expect_test
+    "signed initial delays round away from zero and retain stage/shared bounds"
+  =
+  let stage = timed 100. (target 100. 1.) in
+  List.iter
+    [ -86_400_000., -86_400_000L
+    ; -10., -10L
+    ; -0.01, -1L
+    ; 0., 0L
+    ; 0.01, 1L
+    ; 86_400_000., 86_400_000L
+    ]
+    ~f:(fun (delay, expected) ->
+      let delay = Time_ns.Span.of_ms delay in
+      let program = A.Program.create ~initial ~delay [ stage ] |> ok |> wire in
+      assert (Int64.equal program.program.delay_ms expected);
+      let config = A.Config.create ~initial ~delay ~target:(target 100. 1.) () |> ok in
+      let config = A.Expert.to_wire config ~generation:42L |> ok in
+      assert (Int64.equal config.delay_ms expected));
+  List.iter [ -86_400_001.; 86_400_001. ] ~f:(fun delay ->
+    let delay = Time_ns.Span.of_ms delay in
+    assert (Result.is_error (A.Program.create ~initial ~delay [ stage ]));
+    assert (Result.is_error (A.Config.create ~initial ~delay ~target:(target 100. 1.) ())));
+  assert (
+    Result.is_error
+      (A.Stage.create
+         ~delay:(Time_ns.Span.of_ms (-1.))
+         ~timing:(A.Timing.tween (Time_ns.Span.of_ms 100.) |> ok)
+         ~target:(target 100. 1.)
+         ()));
+  assert (
+    Result.is_error
+      (A.Program.create
+         ~initial
+         ~repeat:Loop
+         ~clock:A.Clock.application
+         ~delay:(Time_ns.Span.of_ms (-1.))
+         [ stage ]));
+  print_endline
+    "signed one-day initial bounds; nonzero fractions round away; stage/shared \
+     constraints retained";
+  [%expect
+    {| signed one-day initial bounds; nonzero fractions round away; stage/shared constraints retained |}]
+;;
+
+let%expect_test "negative initial-delay configs match independent native wire fixtures" =
+  let easing = A.Easing.cubic_bezier ~x1:0.25 ~y1:0. ~x2:0.75 ~y2:1. |> ok in
+  let config =
+    A.Config.create
+      ~initial
+      ~target:(target 240. 0.5)
+      ~easing
+      ~duration:(Time_ns.Span.of_ms 100.)
+      ~delay:(Time_ns.Span.of_ms (-10.))
+      ~repeat:Alternate
+      ()
+    |> ok
+    |> fun config -> A.Expert.to_wire config ~generation:42L |> ok
+  in
+  let program =
+    A.Program.create
+      ~initial
+      ~delay:(Time_ns.Span.of_ms (-30.))
+      [ timed ~delay:10. 100. (target 120. 0.5)
+      ; A.Stage.create
+          ~delay:(Time_ns.Span.of_ms 20.)
+          ~timing:(A.Timing.spring spring)
+          ~target:(target 240. 1.)
+          ()
+        |> ok
+      ]
+    |> ok
+    |> A.Program.restart
+    |> ok
+    |> A.Program.restart
+    |> ok
+    |> fun program -> A.Program.with_playback program Paused |> wire
+  in
+  let hex writer value =
+    Bin_prot.Utils.bin_dump writer value
+    |> Bigstring.to_string
+    |> String.concat_map ~f:(fun byte -> sprintf "%02x" (Char.to_int byte))
+  in
+  let encoded =
+    "config\t"
+    ^ hex [%bin_writer: Gpuio_protocol.Wire.Animation.Config.t] config
+    ^ "\nprogram\t"
+    ^ hex [%bin_writer: W.Config.t] program
+  in
+  Eio_main.run (fun env ->
+    let fixture =
+      Eio.Path.load Eio.Path.(Eio.Stdenv.cwd env / "animation-negative-delay.tsv")
+      |> String.strip
+    in
+    assert (String.equal encoded fixture));
+  print_endline "negative int64 delays preserve baseline and program field order";
+  [%expect {| negative int64 delays preserve baseline and program field order |}]
+;;
+
+let%expect_test "changing initial delay preserves playback and monotonic restart identity"
+  =
+  let original =
+    A.Program.create ~initial [ timed 100. (target 100. 1.) ]
+    |> ok
+    |> A.Program.restart
+    |> ok
+    |> fun program -> A.Program.with_playback program Paused
+  in
+  let changed = A.Program.with_initial_delay original (Time_ns.Span.of_ms (-25.)) |> ok in
+  let encoded = wire changed in
+  assert (Int64.equal encoded.program.delay_ms (-25L));
+  assert (Int64.equal encoded.restart 1L);
+  assert (W.Playback.equal encoded.playback Paused);
+  let restarted = A.Program.restart changed |> ok |> wire in
+  assert (Int64.equal restarted.restart 2L);
+  assert (W.Playback.equal restarted.playback Running);
+  assert (
+    A.Program.equal original (A.Program.with_initial_delay changed Time_ns.Span.zero |> ok));
+  let shared =
+    A.Program.create
+      ~initial
+      ~repeat:Loop
+      ~clock:A.Clock.application
+      [ timed 100. (target 100. 1.) ]
+    |> ok
+  in
+  assert (Result.is_error (A.Program.with_initial_delay shared (Time_ns.Span.of_ms (-1.))));
+  assert (Result.is_error (A.Program.with_initial_delay original (Time_ns.Span.of_day 2.)));
+  print_endline
+    "delay edits preserve playback/restart; restart advances; shared and time bounds \
+     enforced";
+  [%expect
+    {| delay edits preserve playback/restart; restart advances; shared and time bounds enforced |}]
+;;

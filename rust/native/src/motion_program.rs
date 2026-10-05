@@ -323,9 +323,16 @@ impl State {
         } else {
             (now.saturating_sub(self.start), false)
         };
-        let result = self
-            .tracks
-            .sample(elapsed, self.config.program.repeat, shared);
+        let advance = if self.config.program.delay_ms < 0 {
+            Duration::from_millis(self.config.program.delay_ms.unsigned_abs())
+        } else {
+            Duration::ZERO
+        };
+        let result = self.tracks.sample(
+            elapsed.saturating_add(advance),
+            self.config.program.repeat,
+            shared,
+        );
         sample.frame = result.frame;
         if self.config.program.repeat == Repeat::Once {
             sample.completed = result.completed;

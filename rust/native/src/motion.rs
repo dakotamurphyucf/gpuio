@@ -192,7 +192,7 @@ impl State {
             result.done = true;
             return result;
         }
-        let delay = Duration::from_millis(self.config.delay_ms as u64);
+        let delay = Duration::from_millis(self.config.delay_ms.max(0) as u64);
         let begin = self.start.saturating_add(delay);
         if now < begin {
             result.values = self.from;
@@ -200,7 +200,14 @@ impl State {
             return result;
         }
         let duration = Duration::from_millis(self.config.duration_ms as u64);
-        let elapsed = now.saturating_sub(begin);
+        // Keep the clock origin intact: backdating would lose the advance at
+        // origin zero and would make suspension/restart arithmetic ambiguous.
+        let advance = if self.config.delay_ms < 0 {
+            Duration::from_millis(self.config.delay_ms.unsigned_abs())
+        } else {
+            Duration::ZERO
+        };
+        let elapsed = now.saturating_sub(begin).saturating_add(advance);
         let mut from = self.from;
         let phase = match self.config.repeat {
             Repeat::Once => {

@@ -20,6 +20,15 @@ Numeric targets deliberately exclude `auto` and percentage interpolation.
 `Animation.Config.create` accepts a target, optional initial values, duration,
 delay, easing and repetition. Initial and target property sets must match.
 Duration defaults to 200 ms, delay to zero, easing to linear and repetition to once.
+
+Initial delay is signed, within ±one day, rounded away from zero to whole
+milliseconds. Positive values hold the starting value; negative values start that
+many milliseconds into the run, possibly beyond its endpoint or across repeat
+cycles. The native owner adds this offset to active elapsed time rather than
+backdating the clock origin. Hidden time remains excluded. With no initial values,
+first placement remains immediate; reduced motion retains its existing policy.
+On retargeting, a negative delay advances from the last painted value and can
+therefore cause a deliberate jump. Completion still requires an accepted paint.
 Core `Time_ns.Span` arguments are bounded to one day and rounded up to milliseconds.
 The public type is abstract and does not expose the bridge's generation counter.
 
@@ -229,7 +238,7 @@ These are the pinned GPUI Kit `LinearStops` semantics, with an explicit bounded
 transport and double precision.
 
 Outputs need not start at zero, finish at one or stay within that range. Native
-property clamps still apply. Initial delay holds the declared initial value;
+property clamps still apply. Positive initial delay holds the declared initial value;
 at the start, the curve's zero-progress value applies. Finite completion settles
 at the declared target even when the last curve output differs from one. Reduced
 motion, retargeting and paint-confirmed completion retain their existing rules.

@@ -108,7 +108,9 @@ impl Timeline {
         let mut cursor = if immediate {
             Duration::ZERO
         } else {
-            Duration::from_millis(program.delay_ms as u64)
+            // The retained owner applies a negative initial delay as an elapsed
+            // offset, so repeat boundaries and suspension keep one clock origin.
+            Duration::from_millis(program.delay_ms.max(0) as u64)
         };
         let mut segments = Vec::with_capacity(program.stages.len());
         for (index, stage) in program.stages.iter().enumerate() {
