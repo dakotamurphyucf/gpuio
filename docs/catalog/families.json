@@ -164,14 +164,15 @@
       "id": "select",
       "owner": "OCH-11",
       "scope": "v1",
-      "audit_status": "Eleven pinned root/shared-list sources reviewed. Additive Choice_picker provides public Core/Bonsai/Eio APIs with grouped virtual rows and ordered query/selection/open events. The Pickers gallery now includes grouped multiple selection, controlled single selection, a 4096-item searchable catalog and an empty/create/reset example. Local Core/Bonsai/native TestPlatform checks cover current-model/generation fences, controller sequencing, clear keyboard traversal, clipping, actual AX group/query-focus structure and inherited text-cache invalidation. Gallery model tests and builds pass; the expanded desktop walkthrough is authored but unrun. Physical macOS input/IME/VoiceOver, wider geometry, visual review and installed-consumer runtime acceptance remain open; see choice-review.md.",
+      "audit_status": "Eleven pinned root/shared-list sources reviewed. Additive Choice_picker provides public Core/Bonsai/Eio APIs with grouped virtual rows and ordered query/selection/open events. The Pickers gallery now includes grouped multiple selection, controlled single selection, a 4096-item searchable catalog and an empty/create/reset example. Local Core/Bonsai/native TestPlatform checks cover current-model/generation fences, controller sequencing, clear keyboard traversal, clipping, actual AX group/query-focus structure and inherited text-cache invalidation. The actual macOS picker walkthrough now passes grouped/controlled selection, clearing, disabled policy, native Escape, 4096-option search retention and empty/create/reset behavior after an accessible-empty-slot repair. Search uses AXValue, not physical typing or IME. Wider geometry, VoiceOver and consolidated installed-consumer/release acceptance remain open; see choice-review.md.",
       "public_interface": "lib/core/choice.mli",
       "example": "examples/controls",
       "evidence": [
         "docs/evidence/milestones-01-02.md",
         "docs/catalog/choice-review.md",
         "docs/design/choice-picker.md",
-        "docs/evidence/gallery-och41.md"
+        "docs/evidence/gallery-och41.md",
+        "docs/evidence/choice-picker-macos-och41.md"
       ],
       "gallery_page": "controls",
       "contract": "Retained native popup/highlight; queued selected ID; validated options/appearance. Additive View.choice_picker (lib/core/choice_picker.mli) and Gpuio_eio.Choice_picker (lib/eio/choice_picker.mli) provide grouped single/multiple selection, native popup search, rich slots and explicit ordered requests/observations; native acceptance is incomplete.",
@@ -184,14 +185,15 @@
       "id": "combobox",
       "owner": "OCH-11",
       "scope": "v1",
-      "audit_status": "Eleven pinned root/shared-list sources reviewed. Additive Choice_picker provides public Core/Bonsai/Eio APIs with grouped virtual rows and ordered query/selection/open events. The Pickers gallery now includes grouped multiple selection, controlled single selection, a 4096-item searchable catalog and an empty/create/reset example. Local Core/Bonsai/native TestPlatform checks cover current-model/generation fences, controller sequencing, clear keyboard traversal, clipping, actual AX group/query-focus structure and inherited text-cache invalidation. Gallery model tests and builds pass; the expanded desktop walkthrough is authored but unrun. Physical macOS input/IME/VoiceOver, wider geometry, visual review and installed-consumer runtime acceptance remain open; see choice-review.md.",
+      "audit_status": "Eleven pinned root/shared-list sources reviewed. Additive Choice_picker provides public Core/Bonsai/Eio APIs with grouped virtual rows and ordered query/selection/open events. The Pickers gallery now includes grouped multiple selection, controlled single selection, a 4096-item searchable catalog and an empty/create/reset example. Local Core/Bonsai/native TestPlatform checks cover current-model/generation fences, controller sequencing, clear keyboard traversal, clipping, actual AX group/query-focus structure and inherited text-cache invalidation. The actual macOS picker walkthrough now passes grouped/controlled selection, clearing, disabled policy, native Escape, 4096-option search retention and empty/create/reset behavior after an accessible-empty-slot repair. Search uses AXValue, not physical typing or IME. Wider geometry, VoiceOver and consolidated installed-consumer/release acceptance remain open; see choice-review.md.",
       "public_interface": "lib/eio/combobox.mli",
       "example": "examples/combobox",
       "evidence": [
         "docs/evidence/milestones-01-02.md",
         "docs/catalog/choice-review.md",
         "docs/design/choice-picker.md",
-        "docs/evidence/gallery-och41.md"
+        "docs/evidence/gallery-och41.md",
+        "docs/evidence/choice-picker-macos-och41.md"
       ],
       "gallery_page": "controls",
       "contract": "Native query editing, queued semantic selection and explicit controller commands. Additive View.choice_picker (lib/core/choice_picker.mli) and Gpuio_eio.Choice_picker (lib/eio/choice_picker.mli) provide grouped single/multiple selection, native popup search, rich slots and explicit ordered requests/observations; native acceptance is incomplete.",
@@ -624,7 +626,7 @@
       "id": "documents",
       "owner": "OCH-14",
       "scope": "v1",
-      "audit_status": "Nine pinned Base/component sources reviewed at feature level. Markdown/HTML/code/diff, safe images, navigation with link input metadata, native selection/copy formats, preview budgets/observations, internal styling, Markdown parser switches, frontmatter descriptions and declarative code/table actions now have public APIs, gallery examples and local evidence. Required gaps remain: arbitrary static code/table renderer slots, offscreen virtual control traversal qualification, highlighter/defaults and static document plugin integration. These do not inherit the editor/LSP deferral. Physical macOS and full catalog/release acceptance remain open.",
+      "audit_status": "Nine pinned Base/component sources reviewed at feature level. Markdown/HTML/code/diff, safe images, navigation with link input metadata, native selection/copy formats, preview budgets/observations, internal styling, Markdown parser switches, frontmatter descriptions and declarative code/table actions now have public APIs, gallery examples and local evidence. Static code/table renderer slots, typed document profiles/plugins, application defaults and virtual control traversal now have implementation and scoped native/installed-consumer evidence. The public macOS profile walkthrough passes code/table keyboard actions, inline/block plugin navigation, property changes, remount, plugin-owned keyboard/wheel scrolling and source retirement; a larger-text rerun also verifies nested viewport clipping. General rich Markdown AX character geometry, VoiceOver and consolidated catalog/release acceptance remain open. These document capabilities do not inherit the editor/LSP deferral.",
       "public_interface": "lib/core/document.mli",
       "example": "examples/documents",
       "evidence": [
@@ -641,7 +643,13 @@
         "docs/evidence/document-frontmatter-och41.md",
         "docs/design/document-actions.md",
         "docs/evidence/document-actions-och41.md",
-        "docs/evidence/document-sdk-foundation-och41.md"
+        "docs/evidence/document-sdk-foundation-och41.md",
+        "docs/evidence/document-profile-package-och41.md",
+        "docs/evidence/document-defaults-och41.md",
+        "docs/evidence/document-virtual-focus-och41.md",
+        "docs/evidence/document-profile-macos-och41.md",
+        "docs/evidence/document-profile-scroll-och41.md",
+        "docs/evidence/macos-ci-harness-och17.md"
       ],
       "gallery_page": "documents",
       "contract": "Revisioned Markdown/HTML/code/diff, native selection/navigation, checked reader styling and Markdown parser options, preview observation and literal document search. The Find & highlight page demonstrates subtree query/range scopes, queued counts and selected matches. Custom document extension/rendering and physical acceptance remain open.",
@@ -790,7 +798,7 @@
       "id": "style-theme",
       "owner": "OCH-8",
       "scope": "v1",
-      "audit_status": "Pinned style/state/sizing/theme roots, all six nested theme modules and embedded palette data reviewed in style-theme-review.md. Typed colors/gradients, component appearances, metric/motion composition and runtime ownership are mapped with explicit differences; this is not upstream JSON-schema or pixel-preset compatibility. Native appearance and Follow system have local evidence. Default monospace selection is implemented with four local policy/ownership tests and full native regressions; full OCaml/gallery and strict lint checks pass. The gallery now has bounded file-backed profiles, explicit reload, last-good/error/cancellation policy and stale-choice rejection with parser/Eio/reconciliation expectations and full OCaml/gallery checks. Native scrollbar preference snapshots and an explicit gallery action now have paired codecs and local native dispatch/policy coverage; macOS settings and preview application still need physical qualification; file picker/editor/visual and release acceptance remain physical requirements.",
+      "audit_status": "Pinned style/state/sizing/theme roots, all six nested theme modules and embedded palette data reviewed in style-theme-review.md. Typed colors/gradients, component appearances, metric/motion composition and runtime ownership are mapped with explicit differences; this is not upstream JSON-schema or pixel-preset compatibility. Native appearance and Follow system have real two-window macOS Light/Dark switching evidence, independent overrides, retained native editing and exact OS preference restoration. Default monospace selection is implemented with four local policy/ownership tests and full native regressions; full OCaml/gallery and strict lint checks pass. The gallery now has bounded file-backed profiles, explicit reload, last-good/error/cancellation policy and stale-choice rejection with parser/Eio/reconciliation expectations and full OCaml/gallery checks. Native scrollbar preference snapshots and an explicit gallery action now have paired codecs and local native dispatch/policy coverage; macOS settings and preview application still need physical qualification; The real file-theme walkthrough now passes Unicode file picker/load/reload, actual palette pixels, retained selection/undo, invalid input, independent windows and Eio cancellation during page/window departure. Consolidated release acceptance remains open.",
       "public_interface": "lib/core/style.mli",
       "example": "examples/view_api",
       "evidence": [
@@ -856,7 +864,7 @@
       "id": "window",
       "owner": "OCH-15",
       "scope": "v1",
-      "audit_status": "Three pinned sources reviewed in window-review.md. Existing native window configuration/observations/close decisions are mapped. Programmatic minimize has paired wire fixtures, public gallery integration and passing local builds/regression checks; custom chrome/title-bar composition, guarded native move/double-click and explicit Linux resize regions are implemented with local tests. Live presentation snapshots and backend-supported control composition are implemented with local checks. Automatic client framing, stable platform inset, tiled/fullscreen geometry and content-aware overlays are implemented with local geometry/layout/regression checks. Metadata-only focused-input lookup is implemented with generation-aware controller matching and native/codec checks. Window-wide selection helpers implement bounded UTF-8 reads, presence, clear and end-drag operations; native/codec/OCaml/gallery/lint checks and exact vendor reconstruction pass. Physical platform and installed-gallery acceptance remain open.",
+      "audit_status": "Three pinned sources reviewed in window-review.md. Existing native window configuration/observations/close decisions are mapped. Programmatic minimize has paired wire fixtures, public gallery integration and passing local builds/regression checks; custom chrome/title-bar composition, guarded native move/double-click and explicit Linux resize regions are implemented with local tests. Live presentation snapshots and backend-supported control composition are implemented with local checks. Automatic client framing, stable platform inset, tiled/fullscreen geometry and content-aware overlays are implemented with local geometry/layout/regression checks. Metadata-only focused-input lookup is implemented with generation-aware controller matching and native/codec checks. Window-wide selection helpers implement bounded UTF-8 reads, presence, clear and end-drag operations; native/codec/OCaml/gallery/lint checks and exact vendor reconstruction pass. Real macOS standard/custom window lifecycle checks now pass minimize/restore with retained draft/selection/undo, custom native move, fullscreen restore, border resizing and default double-click zoom. Native focused-input queries cover ordinary/masked/read-only controls, independent windows and remount. Window-selection checks pass exact bounded Unicode reads, end/clear, independent windows and page-unmount retirement with the clipboard unchanged. Other OS gesture policies, Linux GUI, VoiceOver and consolidated release acceptance remain separate; no blanket platform claim is made.",
       "public_interface": "lib/core/window.mli",
       "example": "examples/window_lifecycle",
       "evidence": [
@@ -867,7 +875,8 @@
         "docs/evidence/window-presentation-och41.md",
         "docs/evidence/window-frame-och41.md",
         "docs/evidence/window-input-query-och41.md",
-        "docs/evidence/window-selection-och41.md"
+        "docs/evidence/window-selection-och41.md",
+        "docs/evidence/window-lifecycle-och41.md"
       ],
       "gallery_page": "runtime",
       "contract": "Native window configuration/chrome/commands; no general OS-owned titlebar object crosses FFI.",

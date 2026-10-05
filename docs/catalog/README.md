@@ -40,13 +40,15 @@ that every source entry is implemented or validated.
 - [Native appearance observation](../evidence/window-appearance-och41.md):
   snapshots preserve all four native variants through existing window events.
   The gallery offers per-window Follow system and explicit Light/Dark palettes.
-  Local codec, observer/editor/lifecycle and OCaml/gallery checks pass; physical
-  OS switching and remaining theme functionality remain open.
+  Local checks and a real two-window macOS Light/Dark walkthrough pass, including
+  independent overrides, retained editing and OS preference restoration. Other
+  appearance modes and consolidated release acceptance remain separate.
 - [Style/theme source review](style-theme-review.md): all nested theme helpers,
   semantic and legacy configuration, styling/sizing differences, embedded palette
   data, runtime registry behavior and font fallback boundaries. Default monospace
   selection now has [local evidence](../evidence/default-fonts-och41.md). The [file-backed gallery example](../evidence/gallery-theme-files-och41.md) now has
-  local parser/Eio/reconciliation evidence. The [native scrollbar snapshot](../evidence/scrollbar-preference-och41.md)
+  parser/Eio/reconciliation evidence plus a twelve-case native file-picker,
+  reload/palette, editor retention and cancellation walkthrough. The [native scrollbar snapshot](../evidence/scrollbar-preference-och41.md)
   supplies an explicit gallery action with Linux Unsupported handling. Physical
   gallery qualification remains open; no
   upstream JSON-schema or pixel-preset compatibility is implied.
@@ -70,8 +72,13 @@ that every source entry is implemented or validated.
 - [Display-document review](documents-review.md): nine exact Base/component
   sources map reader formats, selection format, clamping, internal styles,
   frontmatter/MDX and block/inline plugins. Existing Markdown/code/diff behavior
-  has local evidence; missing public document customization remains required
-  catalog work and does not inherit the code-editor/LSP deferral.
+  has local evidence. Static document profiles, renderer slots and application
+  defaults now have public APIs and installed-consumer evidence; the
+  [native profile walkthrough](../evidence/document-profile-macos-och41.md) and
+  [plugin-owned scrolling](../evidence/document-profile-scroll-och41.md) cover
+  keyboard/pointer navigation, updates, remount and source retirement. Rich
+  Markdown AX character geometry and VoiceOver remain separate release work;
+  document customization does not inherit the code-editor/LSP deferral.
 
 - [Presentation behavior review](presentation-review.md): exact status-bar,
   badge and label source snapshots. Three-region status composition now has
@@ -183,7 +190,10 @@ compiled dependencies. Actual native dependency provenance stays in
   `Choice_picker` now implements multi-selection, popup search, grouping and
   custom slots with local test and gallery-build evidence. Its
   [contract](../design/choice-picker.md) preserves native ownership and
-  asynchronous current-model decisions; desktop acceptance remains open.
+  asynchronous current-model decisions. The [physical picker follow-up](../evidence/choice-picker-macos-och41.md)
+  passes native selection, Escape, search retention and accessible empty/create
+  behavior. Search uses AXValue; physical typing/IME and full release acceptance
+  are not inferred from that check.
 
 - [Plain input/text-area review](editor-review.md): fourteen exact snapshots
   distinguish baseline editing from the required expanded plain-input surface.
@@ -232,7 +242,11 @@ compiled dependencies. Actual native dependency provenance stays in
   window-extension sources map standard native windows, custom chrome/gestures,
   presentation-aware controls, automatic client frames and metadata-only focused
   input discovery. Window-wide selection helpers now implement bounded text reads,
-  presence checks, clear and end-drag operations. Physical acceptance remains open.
+  presence checks, clear and end-drag operations. Scoped physical macOS evidence
+  now covers [standard/custom lifecycle](../evidence/window-lifecycle-och41.md),
+  [focused input](../evidence/window-input-query-och41.md) and
+  [window-wide selection](../evidence/window-selection-och41.md). Other platform
+  behavior and consolidated release acceptance remain explicitly unqualified.
 
 - [Geometry and element helpers](geometry-review.md): three pinned sources map
   placement/edges, native layout resolution, selection scopes and child construction.
