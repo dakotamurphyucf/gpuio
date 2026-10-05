@@ -26,6 +26,11 @@ GPU reports zero for all 180 presentation timestamps. The fresh-package receiver
 is skipped. Independent standalone calibration was suppressed by that failure;
 the workflow now preserves both probes' evidence without weakening either gate.
 [Investigation](evidence/presentation-startup-investigation-och17.md#hosted-failure-is-distinct).
+The later [run 37321333808](https://github.com/dakotamurphyucf/gpuio/actions/runs/37321333808)
+also passes Linux and the other macOS checks, but both the GPUI hook and independent
+Swift/Metal calibration return only zero presentation timestamps on the hosted
+Apple Paravirtual device. The fresh receiver is skipped. [Calibration evidence](evidence/hosted-presentation-calibration-och17.md)
+is preserved; neither failure nor any gate has been waived.
 VoiceOver remains on the owner's explicit hold.
 Three full optimized loaded-list, paged-table and growing-document runs pass
 their declared budgets; six ordinary/profiled comparisons and three resource
