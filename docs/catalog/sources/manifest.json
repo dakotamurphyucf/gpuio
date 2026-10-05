@@ -1848,5 +1848,413 @@
     "source": "crates/component/src/icon.rs",
     "snapshot": "component-icon.rs.txt",
     "sha256": "5a1f4076295d2b00b7ca48ee4bb2d15aaf5b5d6be19389a2d5a0ecf6f33e2995"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/base/src/actions.rs",
+    "snapshot": "base-actions.rs.txt",
+    "sha256": "66f57a6e5c8eb1e4a903880225efb48abd8eb885c8dd37ef2dc77071571d7659"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/base/src/animation.rs",
+    "snapshot": "base-animation.rs.txt",
+    "sha256": "b17a0e92d239c4f947373f6ebf699e3fde7c83f13e2f96e979ada8b823eef44d"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/base/src/motion.rs",
+    "snapshot": "base-motion.rs.txt",
+    "sha256": "679c4afac1c1f44a99a57c458fc3581a80bd6e5108d6928cc910b62543a94e04"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/base/src/motion/easing.rs",
+    "snapshot": "base-motion-easing.rs.txt",
+    "sha256": "e53dfc4d413ea8a51cf7437c5d0f14b98e891785c675effc1d9cd0a5651b56e4"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/base/src/motion/keyframes.rs",
+    "snapshot": "base-motion-keyframes.rs.txt",
+    "sha256": "49c5162ce6dd28904cf7d339677f30bc91b73a640d2291227e425a32623c9cee"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/base/src/motion/presence.rs",
+    "snapshot": "base-motion-presence.rs.txt",
+    "sha256": "4cf8b79b1753abce7ccd0755af09698484c272fa27b861c8602c2c8f2e2aeffd"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/base/src/motion/reveal.rs",
+    "snapshot": "base-motion-reveal.rs.txt",
+    "sha256": "20795e5eae575d1d778a9a3dc77930a28be35a9532fb9059a131a5616294457e"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/base/src/motion/stagger.rs",
+    "snapshot": "base-motion-stagger.rs.txt",
+    "sha256": "e5c877c3def8a34626d551e65f3b4291a7f5bcee92072ce0f619b7d0e4535221"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/base/src/motion/timing.rs",
+    "snapshot": "base-motion-timing.rs.txt",
+    "sha256": "81e652d374cfaeae2304a44e9d600a86ae2460fe54732577b6e9ecbe613bf047"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/chart/area_chart.rs",
+    "snapshot": "component-chart-area_chart.rs.txt",
+    "sha256": "ad18f417ce4843693da2088a697da764ad2de10fb4963c64e04dc19dca8db79b"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/chart/bar_chart.rs",
+    "snapshot": "component-chart-bar_chart.rs.txt",
+    "sha256": "3bd6e9d78c565078f5d54f290591603280009ee126517a6e0426b4d38b2e9dfc"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/chart/candlestick_chart.rs",
+    "snapshot": "component-chart-candlestick_chart.rs.txt",
+    "sha256": "b2cdde9dabd1e88e4e2635a4947f8adaef20d09622762b71f26410f7df4518d9"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/chart/line_chart.rs",
+    "snapshot": "component-chart-line_chart.rs.txt",
+    "sha256": "fadbd22ede75a2ecbbd99ae4dbc7b9a1bc4818d6bac19c8912e4f6201f15fddd"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/chart/mod.rs",
+    "snapshot": "component-chart-mod.rs.txt",
+    "sha256": "2dac366ce97443b55531b9967447acba93129399b0752903420ac696efe68833"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/chart/pie_chart.rs",
+    "snapshot": "component-chart-pie_chart.rs.txt",
+    "sha256": "3867703e57f25bf7d8edc8ff8df01248be2a52ecd641ff0ce58f61beb5dc014d"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/chart/radar_chart.rs",
+    "snapshot": "component-chart-radar_chart.rs.txt",
+    "sha256": "76e644de14cb5d1aa95b2de700ff60466f69ea5ae23880559505f9caf5f887dd"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/chart/sankey_chart.rs",
+    "snapshot": "component-chart-sankey_chart.rs.txt",
+    "sha256": "6bbd72c211944a7df8be9240533f3a618897d7802e7d75301ec3ce8667c1b3ad"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/command/command.rs",
+    "snapshot": "component-command-command.rs.txt",
+    "sha256": "d5ce40a20d4f880945c780848823977ad25d20893d4147d42cc082293935279a"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/command/item.rs",
+    "snapshot": "component-command-item.rs.txt",
+    "sha256": "2d9865e181a3b05b21084f365327435f63392e3283a3ee289b936645acdb970c"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/command/mod.rs",
+    "snapshot": "component-command-mod.rs.txt",
+    "sha256": "a3737f451803814f84f9f10cf1296494af8188a4d2d7889c31ce750254ce0549"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/command/state.rs",
+    "snapshot": "component-command-state.rs.txt",
+    "sha256": "80302b982d5a669c33e929444d1bd47680db24b2cacbebc64c0a4912435e1d93"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/menu/app_menu_bar.rs",
+    "snapshot": "component-menu-app_menu_bar.rs.txt",
+    "sha256": "bc2a1594fba4949e69ed8395e097657691510da10d2a920433f952e6a693ad31"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/menu/context_menu.rs",
+    "snapshot": "component-menu-context_menu.rs.txt",
+    "sha256": "6a64a6fa54a145d48b45e78c26ba3272bb5479093ede620263f37d959c9753bf"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/menu/dropdown_menu.rs",
+    "snapshot": "component-menu-dropdown_menu.rs.txt",
+    "sha256": "22d2a75c2a95801a087528a915047ce60b81ae53069d1b8f92da1557d986b569"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/menu/menu_item.rs",
+    "snapshot": "component-menu-menu_item.rs.txt",
+    "sha256": "89af93ea2e3fb98ae22dde121915f8ff76fa3a8294148c6ddfdaa1b045eb07db"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/menu/mod.rs",
+    "snapshot": "component-menu-mod.rs.txt",
+    "sha256": "519cc8114f636e5b5fba8a25b5d019dd180c6d4a011f0094017c3de2a7ad0bde"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/menu/popup_menu.rs",
+    "snapshot": "component-menu-popup_menu.rs.txt",
+    "sha256": "3f877fab972a88f8d90ae3044f174599a496ff0fc6bbaa844d317b61eb83b884"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/native_menu/fallback.rs",
+    "snapshot": "component-native_menu-fallback.rs.txt",
+    "sha256": "57f00e6cc642c2c081a401aa808bc8981ece71b497fa0ba4d01f3ec760c1c7e6"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/native_menu/macos.rs",
+    "snapshot": "component-native_menu-macos.rs.txt",
+    "sha256": "977e78fcba95b96abbaac58539a0cb92c4857a6495e82427ab69396bcf638876"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/native_menu/mod.rs",
+    "snapshot": "component-native_menu-mod.rs.txt",
+    "sha256": "6ae41a368e0d369d3a30d246ae778c30c56283fbc3766cde6e400d00ab974d75"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/native_menu/windows.rs",
+    "snapshot": "component-native_menu-windows.rs.txt",
+    "sha256": "b668e73c154da9eef4a2c9c3eefb7fa87e7cbf32621650e5fbfc3f66fc6abc9e"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/plot/axis.rs",
+    "snapshot": "component-plot-axis.rs.txt",
+    "sha256": "8a52e37970d0d9d1a3af2762bc88c474dc217320f46f2b11a404483d06167ef7"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/plot/grid.rs",
+    "snapshot": "component-plot-grid.rs.txt",
+    "sha256": "c6d1f81a19d12442d94a403a30ebdbe6ee2ab840884ff54711c03455873bf804"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/plot/label.rs",
+    "snapshot": "component-plot-label.rs.txt",
+    "sha256": "4a2aff4c5d0381f587df51fed4f319edce6c5a5e39ee4362c699098dd2a27a37"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/plot/mod.rs",
+    "snapshot": "component-plot-mod.rs.txt",
+    "sha256": "8cdc2c1079957b970e4ad7c0fcf064a4b37152603a3ac829d67e7f4e2e50e4b1"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/plot/scale.rs",
+    "snapshot": "component-plot-scale.rs.txt",
+    "sha256": "c6039d4168ba14c69bd402e70ce82515bc5fae617596f7ef5962435ca11523a5"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/plot/scale/band.rs",
+    "snapshot": "component-plot-scale-band.rs.txt",
+    "sha256": "b3ab49f9b300d34f9f1470f982ffb82bca0fda318dca3794ddcc998b9651326c"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/plot/scale/linear.rs",
+    "snapshot": "component-plot-scale-linear.rs.txt",
+    "sha256": "ebe985b863bf1ff1017a93032bd9c11f1902811ea04c693f13654181bfd3b0ac"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/plot/scale/ordinal.rs",
+    "snapshot": "component-plot-scale-ordinal.rs.txt",
+    "sha256": "113114dea7412d148f2d9815f45099c97174fce41f4dc1e56fe7c071e94b4a61"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/plot/scale/point.rs",
+    "snapshot": "component-plot-scale-point.rs.txt",
+    "sha256": "0d4db87f8c3476dfd2565869029bddc80763cad61178375ec2996c74c7392b0b"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/plot/scale/sealed.rs",
+    "snapshot": "component-plot-scale-sealed.rs.txt",
+    "sha256": "d040b66bf555804eb54b7fe643a4bd50599c91b82c30e79162db1356b00e6960"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/plot/shape.rs",
+    "snapshot": "component-plot-shape.rs.txt",
+    "sha256": "a29b15c87d38931a2cd4c12190b97ac2223e80519e53278246218da3ab7a76ba"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/plot/shape/arc.rs",
+    "snapshot": "component-plot-shape-arc.rs.txt",
+    "sha256": "faf48115a54bbe3dc17c7db516498342b580eff9b708fec6209be32df7505efc"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/plot/shape/area.rs",
+    "snapshot": "component-plot-shape-area.rs.txt",
+    "sha256": "8e9428d886b19888e081cdbb21ced2df50bc0738fb7262b0447a0ad6b486d9b7"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/plot/shape/bar.rs",
+    "snapshot": "component-plot-shape-bar.rs.txt",
+    "sha256": "2f42214b4733c2d05bbccbe2d97debcb7ec31682a1e2982a4beccb8ff4993b0a"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/plot/shape/line.rs",
+    "snapshot": "component-plot-shape-line.rs.txt",
+    "sha256": "28fbc1d201ced208fda61698a8829ca29939cdfa4e31c002eaad1b9dc519528a"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/plot/shape/pie.rs",
+    "snapshot": "component-plot-shape-pie.rs.txt",
+    "sha256": "43d0553aa0d72c4967bcad7e071c30c7e89228f2bad91094568583d5cba03fc4"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/plot/shape/radial_line.rs",
+    "snapshot": "component-plot-shape-radial_line.rs.txt",
+    "sha256": "2bc6acaa1bf8e221e12e48098d00e27e872209e762c6d578e9583fb5812b4a57"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/plot/shape/sankey.rs",
+    "snapshot": "component-plot-shape-sankey.rs.txt",
+    "sha256": "a89ad6f6af462e71e970c68e4f0044a6df1bc1eee0009734fd7c05e876b05a15"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/plot/shape/stack.rs",
+    "snapshot": "component-plot-shape-stack.rs.txt",
+    "sha256": "45bdf792637cf133b4ee5a0b51a8b1f3c1d6efa034c7a09e4d68cc4d242855fc"
+  },
+  {
+    "project": "gpui-kit",
+    "revision": "84f57fdfcb4910623fb0bb7f795b077e249f9271",
+    "repository": "https://github.com/longbridge/gpui-kit",
+    "source": "crates/component/src/plot/tooltip.rs",
+    "snapshot": "component-plot-tooltip.rs.txt",
+    "sha256": "dbda2e2b21a58d2f33b153cc19bbb6159fef55b5926a16bf2defe06a51f5db15"
   }
 ]

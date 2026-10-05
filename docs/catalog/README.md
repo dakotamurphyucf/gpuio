@@ -6,6 +6,9 @@ that every source entry is implemented or validated.
 
 - `sources/manifest.json`: exact upstream revisions, source paths and SHA-256
   hashes. Snapshots are unmodified Git blobs; upstream licenses are alongside.
+  The chart/plot, animation/motion and command/menu inputs now include 51 further
+  blobs verified against the pinned Git tree. Their detailed behavioral mapping
+  is still pending; adding source snapshots is not component acceptance.
 - `inventory.json`: root modules from both Longbridge layers, GPUIX intrinsic
   elements, React export modules, style fields and all generic event properties.
   Private root modules are included deliberately so review must account for
