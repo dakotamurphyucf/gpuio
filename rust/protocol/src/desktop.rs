@@ -10,6 +10,11 @@ pub const MAX_SCHEMES: usize = 16;
 pub const MAX_LINK_BYTES: usize = 16_384;
 pub const MAX_LINKS: usize = 64;
 pub const MAX_LINK_BATCH_BYTES: usize = 262_144;
+pub const MAX_CLIPBOARD_TEXT_BYTES: usize = 262_144;
+
+pub fn valid_clipboard_text(text: &str) -> bool {
+    text.len() <= MAX_CLIPBOARD_TEXT_BYTES && !text.contains('\0')
+}
 
 pub fn valid_scheme(s: &str) -> bool {
     !s.is_empty()
@@ -97,11 +102,13 @@ pub enum Request {
     OpenFile(FilePath),
     RegisterScheme(String),
     ScrollbarPreference,
+    WriteClipboardText(String),
 }
 impl Request {
     pub fn is_valid(&self) -> bool {
         match self {
             Self::Configure(identity) => identity.is_valid(),
+            Self::WriteClipboardText(text) => valid_clipboard_text(text),
             Self::RegisterScheme(scheme) => valid_scheme(scheme),
             Self::Capabilities
             | Self::ScrollbarPreference

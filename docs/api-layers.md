@@ -54,6 +54,7 @@ every source filename is a public module.
 | Batch streamed values | `Stream.create` / `push` | Single UI domain, capacity measured in values. A full batch or scheduler queue returns an error without admitting the value. Bound payload bytes separately. |
 | Keep work across scrolling | A conversation/application scope and application-owned collection | Row visibility does not determine durable task lifetime. Transient row state and guarded effects follow [managed-list rules](design/managed-lists.md). |
 | Edit native text | `Gpuio_eio.Text_input` | Observe the native editor and issue explicit commands against its lease/revision. A view's initial text is not a recurring controlled rewrite. |
+| Copy application text | `Gpuio_eio.Clipboard.write_text` / `Clipboard.Copy` | A bounded asynchronous native write; success means invocation, not OS persistence. The Bonsai composition fences stale feedback and uses the shared clock. See [the contract](design/clipboard.md). |
 | Publish a resource | `Asset`, `Document`, `Canvas`, `Chart` | Register under an owning scope. Submission, installed data, successful decoding/layout and physical presentation are distinct; inspect the specific result/event. |
 | Close a window | `App.Window.request_close` | Runs the application close decision. `close` force-closes and cancels its scope. |
 | Start an app | `App.run` or `run_desktop` | Owns GPUI on the OS main thread and creates the Eio UI domain. Do not wrap it in another `Eio_main.run`. |

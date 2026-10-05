@@ -37,27 +37,24 @@ An optional tooltip and keyed native feedback state complete the component.
 The source does not define rich clipboard formats, reading clipboard contents,
 a durable OS write acknowledgement or a synchronous foreign-runtime callback.
 
-Current GPUIO editor, document and table copy paths use their native selection
-owners. They do **not** provide the independent public operation needed for a
-button that copies arbitrary application text. Window `selected_text` explicitly
-reads registered read-only selection; it is neither clipboard access nor an
-editable-value read. The family remains incomplete rather than being classified
-as covered by those existing paths.
+The independent application operation is now `Gpuio_eio.Clipboard.write_text`,
+with validated `Gpuio.Clipboard.Text` and the public Bonsai `Clipboard.Copy`
+controller/view. Native editor/document/table selection copying remains owned by
+those components. Window `selected_text` still reads registered read-only
+selection; it is neither clipboard access nor an editable-value read.
 
-The intended minimal adapter is an explicit typed asynchronous native plain-text
-write, bounded and validated at both sides, with a result describing the actual
-platform guarantee. A public button composition can capture the current OCaml
-value when its activation effect runs, await native command processing, then
-apply copied feedback through a scoped Bonsai timer. That ordering differs from
-a Rust closure evaluated synchronously during native click dispatch and must be
-documented. No synchronous call into OCaml should be introduced. Feedback must
-retire on unmount/window close and reject stale completions after replacement.
-The timeout must not require a permanent per-component timer.
+The [clipboard contract](../design/clipboard.md) specifies the 256 KiB UTF-8
+limit, asynchronous native invocation result, current-value capture, shared
+Bonsai clock and stale-feedback handling. Busy and copied feedback suppress
+repeat activation. The default composition uses textual Copy/Copied labels;
+applications can combine its state/action with existing icon buttons and
+`View.tooltip`. It does not introduce synchronous foreign callbacks, upstream
+styling presets, clipboard reads or rich formats.
 
-Before acceptance: public literal/current-value examples; UTF-8/byte bounds and
-codec/rollback tests; command cancellation/backpressure and stale generation
-checks; real macOS clipboard readback with original contents restored; ordinary
-keyboard/AX activation; tooltip/feedback timing and independent-window cleanup.
-Linux compilation and pure/private-bus/consumer checks remain required; actual
-Wayland/X11 clipboard qualification belongs to OCH-47. This is an implementation
-plan and gap record, not shipped functionality or completion of OCH-41.
+The [local evidence](../evidence/clipboard-och41.md) records paired byte fixtures,
+Core validation, delayed/stale callback and clock tests, and actual macOS
+literal/current-value writes through keyboard/AX with original clipboard
+representations restored. Broader hosted/consumer qualification remains open;
+Linux compilation and pure/private-bus/consumer checks remain required while
+Wayland/X11 desktop clipboard qualification belongs to OCH-47. This scoped
+implementation evidence does not complete OCH-41 or the release.

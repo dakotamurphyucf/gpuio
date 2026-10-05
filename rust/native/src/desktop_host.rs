@@ -173,6 +173,11 @@ fn request_immediate(
     }
     match request {
         Request::Capabilities => Response::Capabilities(capabilities(transport)),
+        Request::WriteClipboardText(text) => {
+            cx.write_to_clipboard(gpui::ClipboardItem::new_string(text));
+            // GPUI returns no OS acknowledgement. This only records invocation.
+            Response::Requested
+        }
         Request::ScrollbarPreference => scrollbar_preference(cfg!(target_os = "macos"), || {
             cx.should_auto_hide_scrollbars()
         }),
@@ -262,6 +267,76 @@ fn scrollbar_preference(supported: bool, read: impl FnOnce() -> bool) -> wire::R
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(feature = "native-image-tests")]
+    #[test]
+    fn clipboard_dispatch_validates_without_identity_and_correlates_the_write() {
+        use gpuio_protocol::v1::Message;
+        use std::os::{fd::AsRawFd, unix::net::UnixStream};
+        use wire::{Error, Request, Response};
+        let (_reader, writer) = UnixStream::pair().unwrap();
+        let transport = Arc::new(Transport::new(writer.as_raw_fd()).unwrap());
+        let state = Rc::new(RefCell::new(HostState {
+            inbox: transport.desktop_inbox.clone(),
+            operations: Arc::new(Operations::default()),
+            #[cfg(target_os = "linux")]
+            services: crate::desktop_linux::Services::default(),
+        }));
+        let app = gpui::TestAppContext::single();
+        let send = |id, request: Request, cx: &mut App| {
+            // Follow the real request lane: dispatch consumes a request whose
+            // asynchronous response slot was reserved by mailbox admission.
+            {
+                let mut mailbox = transport.mailbox.lock().unwrap();
+                mailbox
+                    .submit(Message::Desktop(id, request.clone()), 3)
+                    .unwrap();
+                assert_eq!(mailbox.pop(), Some(Message::Desktop(id, request.clone())));
+            }
+            dispatch(&state, id, request, cx, &transport);
+        };
+        app.update(|cx| {
+            send(7, Request::WriteClipboardText("λ\n世界".into()), cx);
+            assert_eq!(
+                cx.read_from_clipboard()
+                    .and_then(|item| item.text())
+                    .as_deref(),
+                Some("λ\n世界")
+            );
+            for (index, text) in [
+                "bad\0text".into(),
+                "x".repeat(wire::MAX_CLIPBOARD_TEXT_BYTES + 1),
+            ]
+            .into_iter()
+            .enumerate()
+            {
+                send(8 + index as i64, Request::WriteClipboardText(text), cx);
+                assert_eq!(
+                    cx.read_from_clipboard()
+                        .and_then(|item| item.text())
+                        .as_deref(),
+                    Some("λ\n世界")
+                );
+            }
+            send(10, Request::WriteClipboardText(String::new()), cx);
+            // ClipboardItem::text intentionally returns None for empty text;
+            // compare the item to verify that the old value was replaced.
+            assert_eq!(
+                cx.read_from_clipboard(),
+                Some(gpui::ClipboardItem::new_string(String::new()))
+            );
+        });
+        assert!(state.borrow().inbox.lock().unwrap().identity().is_none());
+        assert_eq!(
+            transport.mailbox.lock().unwrap().drain(16),
+            vec![
+                Event::DesktopResponse(7, Response::Requested),
+                Event::DesktopResponse(8, Response::Failed(Error::InvalidRequest)),
+                Event::DesktopResponse(9, Response::Failed(Error::InvalidRequest)),
+                Event::DesktopResponse(10, Response::Requested),
+            ]
+        );
+    }
 
     #[cfg(feature = "native-image-tests")]
     #[test]

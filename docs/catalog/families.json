@@ -754,15 +754,17 @@
       "id": "clipboard",
       "owner": "OCH-11",
       "scope": "v1",
-      "audit_status": "Pinned standalone Clipboard source reviewed in assets-clipboard-review.md. Existing editor/document/table copy is not the source component: arbitrary application text, current-value copy and copied feedback remain a public API/gallery gap. No family acceptance is claimed.",
-      "public_interface": "lib/core/text_input.mli",
-      "example": "examples/text_input",
+      "audit_status": "Pinned standalone Clipboard source reviewed. Typed application-text writes and Bonsai Copy composition now have paired codec, lifecycle/clock and real macOS gallery evidence, including literal/current Unicode text, native keyboard/AX, feedback and restoration of original clipboard representations. Consolidated hosted/consumer qualification and full release acceptance remain open.",
+      "public_interface": "lib/eio/clipboard.mli",
+      "example": "examples/gallery",
       "evidence": [
         "docs/evidence/native-editor-och10.md",
-        "docs/catalog/assets-clipboard-review.md"
+        "docs/catalog/assets-clipboard-review.md",
+        "docs/design/clipboard.md",
+        "docs/evidence/clipboard-och41.md"
       ],
-      "gallery_page": "text-inputs",
-      "contract": "Native editor/document/table selection copy exists. Standalone application-text copy needs a typed asynchronous native write and public composition; no synchronous OCaml callback from a native click.",
+      "gallery_page": "assets",
+      "contract": "Core Clipboard.Text validates UTF-8/no NUL/256 KiB; Eio Clipboard.write_text queues an application-scoped native invocation with bounded correlated replies. Copy captures current reactive text, suppresses duplicates and fences obsolete feedback on value/disabled/deactivation changes; shared-clock copied feedback lasts two seconds. Success is invocation, not OS persistence. Icon/tooltip composition uses ordinary public views; Linux GUI qualification remains OCH-47.",
       "upstream_modules": [
         "component/clipboard"
       ]

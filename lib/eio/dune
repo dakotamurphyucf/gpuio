@@ -2,6 +2,8 @@
  (name gpuio_eio)
  (private_modules
   output_test
+  clipboard_component
+  clipboard_component_test
   color_picker_component
   color_picker_component_test
   date_picker_component

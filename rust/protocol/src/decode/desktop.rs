@@ -26,6 +26,7 @@ impl Decoder<'_> {
             5 => Request::OpenFile(self.file_path()?),
             6 => Request::RegisterScheme(self.desktop_text(MAX_SCHEME_BYTES)?),
             7 => Request::ScrollbarPreference,
+            8 => Request::WriteClipboardText(self.desktop_text(MAX_CLIPBOARD_TEXT_BYTES)?),
             _ => return Err(DecodeError::Malformed),
         };
         if value.is_valid() {

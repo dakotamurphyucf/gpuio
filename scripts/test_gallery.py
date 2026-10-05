@@ -6389,7 +6389,7 @@ def main():
     parser.add_argument('--trace-canvas', action='store_true')
     parser.add_argument('--trace-motion', action='store_true')
     parser.add_argument('--trace-windows', action='store_true')
-    parser.add_argument('--section', choices=['all', 'core', 'settings', 'settings-windows', 'settings-composition', 'settings-fields', 'forms', 'editor-groups', 'avatar-groups', 'rating', 'spinners', 'progress', 'selection', 'buttons', 'control-appearance', 'status-regions', 'badges', 'labels', 'shimmer', 'markers', 'alerts', 'tags', 'keyboard-labels', 'binding-observations', 'descriptions', 'chat-composition', 'chat-list', 'attachments', 'attachment-paint', 'groups', 'links', 'empty', 'separators', 'styles', 'borders', 'aspect-ratio', 'pickers', 'choice-pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'selectable-lists', 'structural-tables', 'documents', 'document-links', 'document-images', 'highlighting', 'canvas', 'assets', 'charts', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
+    parser.add_argument('--section', choices=['all', 'core', 'settings', 'settings-windows', 'settings-composition', 'settings-fields', 'forms', 'editor-groups', 'avatar-groups', 'rating', 'spinners', 'progress', 'selection', 'buttons', 'control-appearance', 'status-regions', 'badges', 'labels', 'shimmer', 'markers', 'alerts', 'tags', 'keyboard-labels', 'binding-observations', 'descriptions', 'chat-composition', 'chat-list', 'attachments', 'attachment-paint', 'groups', 'links', 'empty', 'separators', 'styles', 'borders', 'aspect-ratio', 'pickers', 'choice-pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'selectable-lists', 'structural-tables', 'documents', 'document-links', 'document-images', 'highlighting', 'canvas', 'assets', 'clipboard', 'charts', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
     args = parser.parse_args()
     Mac.require_accessibility()
     if args.images:
@@ -6530,6 +6530,9 @@ def main():
                 exercise_canvas(mac, args.images)
             if args.section in ('all', 'assets'):
                 exercise_assets(mac, args.images)
+            if args.section in ('all', 'clipboard'):
+                from gallery_clipboard import exercise as exercise_clipboard
+                exercise_clipboard(mac, args.images)
             if args.section in ('all', 'charts'):
                 exercise_charts(mac, args.images)
             if args.section in ('all', 'motion'):

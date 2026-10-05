@@ -4,6 +4,7 @@ module B = Bonsai.Cont
 module E = Bonsai.Effect
 module V = Gpuio_bonsai.View
 module Registered = Gpuio_eio.Asset
+module Copy = Gpuio_eio.Clipboard.Copy
 
 let ok = Or_error.ok_exn
 let style = Style.create_exn
@@ -85,6 +86,27 @@ let component app window palette graph =
       graph
   in
   let open B.Let_syntax in
+  let copied, set_copied = B.state "Nothing copied yet." graph in
+  let on_copied =
+    B.map set_copied ~f:(fun set_copied text ->
+      set_copied ("Copied: " ^ Gpuio.Clipboard.Text.to_string text))
+  in
+  let literal =
+    Copy.create
+      app
+      ~text:(B.return (Gpuio.Clipboard.Text.of_string "Hello from GPUIO · λ 世界\n" |> ok))
+      ~on_copied
+      graph
+  in
+  let current =
+    Copy.create
+      app
+      ~text:
+        (B.map approvals ~f:(fun count ->
+           Gpuio.Clipboard.Text.of_string (sprintf "Approval %d · λ 世界\n" count) |> ok))
+      ~on_copied
+      graph
+  in
   B.Edge.lifecycle
     ~on_deactivate:
       (let%arr set_state = set_state in
@@ -101,7 +123,10 @@ let component app window palette graph =
   and state = state
   and set_state = set_state
   and approvals = approvals
-  and approve = approve in
+  and approve = approve
+  and literal = literal
+  and current = current
+  and copied = copied in
   match resources with
   | Preview_scope.Loading -> Palette.text p "Registering image samples…"
   | Failed e -> Palette.text p ("Images unavailable: " ^ Error.to_string_hum e)
@@ -160,6 +185,42 @@ let component app window palette graph =
                  fit)
           ; Palette.text p (state_label state)
           ; Palette.text p ~muted:true ("Image fit: " ^ fit_label fit)
+          ]
+      ; Palette.card
+          p
+          ~title:"Copy from your application"
+          [ V.row
+              ~style:(style [ Gap (px 8.); Wrap Wrap ])
+              [ Copy.view
+                  literal
+                  ~label:"Copy literal"
+                  ~copied_label:"Copied literal"
+                  ~style:
+                    (style [ Padding (px 12.); Radius 8.; Foreground (Palette.accent p) ])
+                  ()
+              ; Copy.view
+                  current
+                  ~label:"Copy current approval"
+                  ~copied_label:"Copied current approval"
+                  ~style:
+                    (style [ Padding (px 12.); Radius 8.; Foreground (Palette.accent p) ])
+                  ()
+              ; Palette.button p "Advance approval value" (approve ())
+              ]
+          ; Palette.text p (sprintf "Current approval: %d" approvals)
+          ; Palette.text p copied
+          ; Palette.text
+              p
+              ~muted:true
+              "Plain text is copied by the native UI. Current-value actions use the \
+               latest application state; copied feedback clears after two seconds."
+          ; (match Copy.error literal, Copy.error current with
+             | None, None -> V.text ""
+             | Some error, _ | _, Some error ->
+               Palette.text
+                 p
+                 ("Copy request failed: "
+                  ^ Sexp.to_string ([%sexp_of: Gpuio.Clipboard.Error.t] error)))
           ]
       ; Palette.card
           p

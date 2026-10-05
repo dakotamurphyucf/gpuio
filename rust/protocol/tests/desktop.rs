@@ -39,6 +39,11 @@ fn requests_match_independent_ocaml_bytes() {
         ),
         (Request::Capabilities, vec![1]),
         (Request::ScrollbarPreference, vec![7]),
+        (
+            Request::WriteClipboardText("λ\n".into()),
+            vec![8, 3, 0xce, 0xbb, 10],
+        ),
+        (Request::WriteClipboardText(String::new()), vec![8, 0]),
         (Request::TakeLinks, vec![2]),
         (Request::Activate(true), vec![3, 1]),
         (
@@ -75,7 +80,7 @@ fn invalid_requests_are_rejected_before_native_work() {
         b"\x06\x03APP".to_vec(),   // non-normalized scheme
         b"\x06\x01\xff".to_vec(),  // invalid UTF-8
         vec![6, 0xfe, 0xff, 0x7f], // oversized allocation claim
-        vec![8],                   // unknown command
+        vec![9],                   // unknown command
     ] {
         assert!(decode_desktop_request(&bytes).is_err());
     }
@@ -229,4 +234,20 @@ fn scrollbar_snapshot_envelopes_match_independent_ocaml_bytes() {
             [1, 57, 7, 6, tag]
         );
     }
+}
+
+#[test]
+fn clipboard_text_is_bounded_and_validated_before_dispatch() {
+    let text = "x".repeat(MAX_CLIPBOARD_TEXT_BYTES);
+    let request = Request::WriteClipboardText(text);
+    assert!(request.is_valid());
+    assert_eq!(decode_desktop_request(&encode(&request)).unwrap(), request);
+    for text in ["a\0b".into(), "x".repeat(MAX_CLIPBOARD_TEXT_BYTES + 1)] {
+        let request = Request::WriteClipboardText(text);
+        assert!(!request.is_valid());
+        assert!(decode_desktop_request(&encode(&request)).is_err());
+    }
+    assert!(decode_desktop_request(&[8, 1, 255]).is_err());
+    // 256 KiB + 1 length, with no payload, cannot trigger an unbounded allocation.
+    assert!(decode_desktop_request(&[8, 0xfd, 1, 0, 4, 0]).is_err());
 }
