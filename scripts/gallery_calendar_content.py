@@ -1,4 +1,4 @@
-"""Authored macOS calendar-content check; requires a real accessible desktop."""
+"""macOS calendar-content check; requires a real accessible desktop."""
 import ctypes as C
 import time
 
@@ -12,7 +12,21 @@ def exercise(mac):
     original = within(mac, group, day, 'AXCheckBox')
     equal = mac.cf.CFEqual
     equal.restype, equal.argtypes = C.c_bool, [C.c_void_p, C.c_void_p]
-    selection = mac.text(original, 'AXValue')
+    boolean = mac.cf.CFBooleanGetValue
+    boolean.restype, boolean.argtypes = C.c_bool, [C.c_void_p]
+    boolean_type = mac.cf.CFBooleanGetTypeID
+    boolean_type.restype, boolean_type.argtypes = C.c_ulong, []
+
+    def selected(node):
+        raw = mac.attr(node, 'AXValue')
+        try:
+            assert raw and mac.type_id(raw) == boolean_type(), 'calendar checked value is not Boolean'
+            return bool(boolean(raw))
+        finally:
+            if raw:
+                mac.release(raw)
+
+    selection = selected(original)
 
     def check(description):
         deadline = time.monotonic() + 10
@@ -20,7 +34,7 @@ def exercise(mac):
             current = within(mac, group, day, 'AXCheckBox')
             try:
                 assert equal(original, current), 'Content update replaced calendar target'
-                assert mac.text(current, 'AXValue') == selection, 'Content changed selection'
+                assert selected(current) == selection, 'Content changed selection'
                 if (mac.text(current, 'AXHelp') or '') == description:
                     return
             finally:

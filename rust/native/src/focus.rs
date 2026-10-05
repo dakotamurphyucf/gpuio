@@ -1295,7 +1295,15 @@ impl Manager {
             .focused_entry(window, cx)
             .is_some_and(|entry| !self.eligible(entry.node));
         if hidden_focus {
-            window.blur(cx);
+            // A popup may temporarily disable its focused command while an
+            // asynchronous request is pending. Keep its focus context so a
+            // later dismissal can still return to the anchor. Do not reclaim
+            // focus that the user already moved outside the popup.
+            if let Some(handle) = self.focused_scope(window, cx) {
+                window.focus(&handle, cx);
+            } else {
+                window.blur(cx);
+            }
         }
         self.pending = had_scopes
             || !self.scopes.is_empty()
@@ -1476,6 +1484,13 @@ impl Manager {
     fn focused_entry(&self, window: &Window, cx: &App) -> Option<&Entry> {
         let handle = window.focused(cx)?;
         self.entry_for_handle(&handle, window)
+    }
+    fn focused_scope(&self, window: &Window, cx: &App) -> Option<FocusHandle> {
+        self.scopes
+            .iter()
+            .filter(|(id, scope)| self.eligible(**id) && scope.handle.contains_focused(window, cx))
+            .max_by_key(|(_, scope)| scope.order)
+            .map(|(_, scope)| scope.handle.clone())
     }
     pub(super) fn focused_node(&self, window: &Window, cx: &App) -> Option<NodeId> {
         self.focused_entry(window, cx).map(|entry| entry.node)
@@ -1714,8 +1729,8 @@ impl Manager {
             .is_some_and(|entry| self.eligible(entry.node))
         {
             let target = self
-                .active
-                .and_then(|id| self.handle(id))
+                .focused_scope(window, cx)
+                .or_else(|| self.active.and_then(|id| self.handle(id)))
                 .unwrap_or_else(|| fallback.clone());
             window.focus(&target, cx);
         }

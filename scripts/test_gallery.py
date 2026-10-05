@@ -2898,6 +2898,8 @@ def exercise_pickers(mac, images):
     from gallery_calendar_content import exercise as exercise_calendar_content
     exercise_calendar_content(mac)
     reveal_gallery_control(mac, 'Choose appointment', 'AXButton')
+    from gallery_picker_presets import exercise as exercise_picker_presets
+    exercise_picker_presets(mac, images)
     mac.wait_text(TITLE, 'Appointment: 2026-09-14')
     open_picker(mac, 'Choose appointment', 'Cancel appointment')
     expect_popup_expanded(mac, 'Choose appointment', True)

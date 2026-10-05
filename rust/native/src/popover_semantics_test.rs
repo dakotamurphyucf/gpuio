@@ -381,6 +381,62 @@ fn command_anchor_retains_registry_routing_and_disabled_gate() {
 }
 
 #[test]
+fn temporarily_unavailable_popup_controls_preserve_focus_return() {
+    for initially_disabled in [false, true] {
+        with_view(|owner, cx, _| {
+            let mut ops = vec![Op::SetPopover(id(0), true)];
+            ops.extend(panel(2));
+            ops.extend(button(3, "Pending preset"));
+            ops.extend([
+                Op::SetControl(id(3), Control::Button(initially_disabled)),
+                Op::Splice(id(2), 0, 0, vec![id(3)]),
+                Op::Splice(id(0), 1, 0, vec![id(2)]),
+            ]);
+            apply(owner, cx, ops);
+            if !initially_disabled {
+                apply(
+                    owner,
+                    cx,
+                    vec![Op::SetControl(id(3), Control::Button(true))],
+                );
+            }
+            for _ in 0..3 {
+                draw(cx);
+            }
+            cx.update(|w, cx| {
+                owner.read_with(cx, |v, cx| {
+                    assert!(
+                        v.focus
+                            .borrow()
+                            .handle(id(2))
+                            .unwrap()
+                            .contains_focused(w, cx),
+                        "pending popup lost focus: initially_disabled={initially_disabled}"
+                    );
+                });
+            });
+            apply(
+                owner,
+                cx,
+                vec![Op::SetControl(id(3), Control::Button(false))],
+            );
+            apply(
+                owner,
+                cx,
+                vec![
+                    Op::Splice(id(0), 1, 1, vec![]),
+                    Op::Remove(id(3)),
+                    Op::Remove(id(2)),
+                ],
+            );
+            cx.update(|w, cx| {
+                owner.read_with(cx, |v, _| assert!(v.buttons[&id(1)].focus.is_focused(w)));
+            });
+        });
+    }
+}
+
+#[test]
 fn direct_anchor_restoration_survives_semantic_open_without_stealing_external_focus() {
     for case in [
         "semantic", "disabled", "inert", "removed", "custom", "moved",
