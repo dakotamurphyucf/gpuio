@@ -76,8 +76,9 @@ def go_to_field(mac):
         mac.release(root)
 
 
-def choose_path(mac, path):
-    mac.press(TITLE, 'Choose represented file')
+def choose_path(mac, path, *, open_label='Choose represented file',
+                accept_label='Represent', expected='Represented file: selected'):
+    mac.press(TITLE, open_label)
     mac.release(mac.wait_find(TITLE, 'Cancel', 'AXButton'))
     # The panel can expose AX controls before its native sheet transition ends.
     time.sleep(.5)
@@ -109,8 +110,8 @@ def choose_path(mac, path):
     else:
         raise AssertionError('Go to Folder did not navigate to the fixture')
     mac.release(mac.wait_find(TITLE, path.name, contains=True, search_files=True))
-    mac.press(TITLE, 'Represent')
-    mac.wait_text(TITLE, 'Represented file: selected')
+    mac.press(TITLE, accept_label)
+    mac.wait_text(TITLE, expected)
 
 
 def exercise(binary, artifact):

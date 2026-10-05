@@ -19,6 +19,9 @@ Errors and picker cancellation keep the last good theme. Each window owns its
 selection; loading a file does not reset navigation, editor identity or scale.
 Both the explicit Light/Dark control and Follow system leave the file theme.
 A pending file result must not override such a newer user choice.
+A cancelled pending read reports cancellation instead of a stale loading status.
+The selected path and applied palette survive page departure, permitting an
+explicit retry when the page returns; its native draft editor is reacquired.
 
 Use one load per active preview and a child window scope. Page departure/window
 closure cancel work and suppress its queued results; reactivation gets a fresh

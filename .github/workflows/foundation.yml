@@ -268,6 +268,10 @@ jobs:
         run: |
           xcrun swiftc -module-cache-path .cache/macos-display-modules scripts/macos_file_drag_source.swift -o .cache/ci/file-drag-source
           python3 scripts/test_macos_external_file_drop.py --source .cache/ci/file-drag-source --output .cache/ci/external-file-drop 2>&1 | tee .cache/ci/macos-external-file-drop.log
+      - name: macOS file themes and scoped reads
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 4
+        run: python3 scripts/test_macos_theme_files.py --output .cache/ci/theme-files 2>&1 | tee .cache/ci/macos-theme-files.log
       - name: Independent Signal Studio consumer
         id: signal-consumer
         run: |

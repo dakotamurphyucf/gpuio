@@ -43,7 +43,10 @@ let component ~load ~selection window palette graph =
       ~name:"theme-file"
       ~create:(fun scope ->
         E.of_thunk (fun () ->
-          Scope.on_cancel scope (fun () -> B.Expert.Var.set busy false)
+          Scope.on_cancel scope (fun () ->
+            if B.Expert.Var.get busy
+            then B.Expert.Var.set status "Loading cancelled. Your theme was kept.";
+            B.Expert.Var.set busy false)
           |> Or_error.map ~f:(fun _ -> scope)))
       graph
   in
