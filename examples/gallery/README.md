@@ -116,8 +116,11 @@ establish physical macOS/Linux chrome acceptance.
 The Runtime page's **Which input owns focus?** card uses
 `App.Window.focused_input`. Focus its draft, masked or read-only field, then press
 Command+Shift+I (macOS) or Ctrl+Shift+I (Linux). A keyboard command preserves the
-field's focus while the asynchronous query reports its kind. No text or protected
-value is read by this query. This preview still needs physical desktop validation.
+field's focus while the asynchronous query matches its controller identity and
+reports the fixed field label and kind. No text or protected value is read by this
+query. The [physical macOS walkthrough](../../docs/evidence/window-input-query-och41.md#physical-public-gallery-query--2026-10-05)
+passes ordinary/masked/read-only owners, retained native editing, independent
+windows and fresh identity after remount.
 
 Use the sidebar to switch previews, the light/dark button for explicit appearance,
 **Follow system** for the palette matching native window appearance, and the size
