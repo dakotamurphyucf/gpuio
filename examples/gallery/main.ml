@@ -267,6 +267,9 @@ let main () =
   let trace_windows =
     Array.exists (Sys.get_argv ()) ~f:(String.equal "--trace-windows")
   in
+  let trace_appearance =
+    Array.exists (Sys.get_argv ()) ~f:(String.equal "--trace-window-appearance")
+  in
   let startup_links =
     Array.filter_map (Sys.get_argv ()) ~f:(String.chop_prefix ~prefix:"--open-uri=")
     |> Array.to_list
@@ -353,23 +356,38 @@ let main () =
                Scope.cancel search_scope;
                Error.raise error
            in
+           let window_number = !serial in
+           let last_observed_appearance = ref None in
            App.Window.on_change window (fun snapshot ->
-             E.of_thunk (fun () -> B.Expert.Var.set window_snapshot (Some snapshot)));
+             E.of_thunk (fun () ->
+               B.Expert.Var.set window_snapshot (Some snapshot);
+               if
+                 trace_appearance
+                 && not
+                      (Option.equal
+                         Window.Appearance.equal
+                         !last_observed_appearance
+                         (Some snapshot.appearance))
+               then (
+                 last_observed_appearance := Some snapshot.appearance;
+                 Eio.traceln
+                   "GALLERY_NATIVE_APPEARANCE window=%d dark=%b"
+                   window_number
+                   (Window.Appearance.is_dark snapshot.appearance))));
            ignore
              (Scope.on_cancel (App.Window.scope window) (fun () ->
                 Scope.cancel search_scope)
               |> ok
               : unit -> unit);
            if trace_windows
-           then (
-             let window_number = !serial in
+           then
              App.Window.set_close_handler window (fun reason ->
                E.of_thunk (fun () ->
                  Eio.traceln
                    "GALLERY_CLOSE_REQUEST window=%d reason=%s"
                    window_number
                    (Sexp.to_string (Window.Close_reason.sexp_of_t reason));
-                 Window.Close_decision.Allow)));
+                 Window.Close_decision.Allow));
            windows := window :: !windows)
        in
        App.on_reopen app (fun () -> E.of_thunk open_window);
