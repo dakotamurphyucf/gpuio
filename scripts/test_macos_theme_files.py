@@ -10,6 +10,7 @@ import json
 import os
 from pathlib import Path
 import platform
+import re
 import signal
 import subprocess
 import tempfile
@@ -31,11 +32,15 @@ DRAFT = 'Retained λ🙂 theme draft'
 def wait_for_reader(child, path):
     # Loading status can precede the worker actually opening its flow. Observe
     # the owned application's descriptor before releasing the delayed fixture.
+    # macOS lsof's filename filter omits FIFOs; query only the owned PID.
+    # In the C locale it hex-escapes non-ASCII pathname bytes.
+    expected = b'n' + re.sub(rb'[\x80-\xff]', lambda m: f'\\x{m[0][0]:02x}'.encode(),
+                            os.fsencode(path))
     deadline = time.monotonic() + 10
     while time.monotonic() < deadline:
-        result = subprocess.run(['/usr/sbin/lsof', '-a', '-p', str(child.pid), '-Fn',
-                                 '--', str(path)], capture_output=True, text=True, timeout=5)
-        if result.returncode == 0 and 'n' + str(path) in result.stdout.splitlines():
+        result = subprocess.run(['/usr/sbin/lsof', '-a', '-p', str(child.pid), '-Fn'],
+                                capture_output=True, timeout=5, env={**os.environ, 'LC_ALL': 'C'})
+        if result.returncode == 0 and expected in result.stdout.splitlines():
             return
         assert child.poll() is None, 'Gallery exited before opening theme fixture'
         time.sleep(.05)
