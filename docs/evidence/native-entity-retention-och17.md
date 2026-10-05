@@ -88,3 +88,34 @@ records were revalidated with the committed collector before copying them here.
 
 OCH-17 remains in progress. Other native interaction/accessibility, catalog/API,
 GPU/presentation and distribution gates remain tracked in [status](../status.md).
+
+
+## Standalone probe lockfile repair — 2026-10-05
+
+Hosted Linux job 111674143362 in run 37282672995 stopped before the audit's tests:
+Cargo refused `--locked` resolution. This also reproduced locally, intermittently:
+two of eight independent offline/locked metadata invocations failed. Their warnings
+listed unused patches in a different order; successful invocations retained the
+original order. An unlocked offline resolution rewrote no package records and did
+not consistently cure the rejection.
+
+The standalone core/entity probe does not use the document SDK, `gpui_macos` or
+`accesskit_macos`. Remove these three unused patch declarations from its manifest
+and regenerate its lockfile offline. The only lockfile changes remove those three
+`patch.unused` records. Its actual resolved package identities, dependency edges
+and features compare exactly equal before/after. The composed rendering backend
+retains all of its platform/document patches.
+
+After this change, eight independent offline/locked resolutions pass, and both
+probe unit tests pass (including deliberately retained entity failure followed by
+release). Commands:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo metadata --offline --locked --manifest-path examples/resource_audit/rust/Cargo.toml --format-version 1
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --manifest-path examples/resource_audit/rust/Cargo.toml --locked --lib
+```
+
+This is a reproduced resolution failure and local repair, not a new Linux pass.
+The required hosted Linux rerun remains outstanding. No toolchain default, version
+or unrelated switch changed. Local raw resolution logs are retained under
+`scratch/agents/root-20261004-resumed/resource-audit-*`; these are not build inputs.

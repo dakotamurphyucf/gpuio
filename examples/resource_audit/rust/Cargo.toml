@@ -15,10 +15,10 @@ gpui = { git = "https://github.com/zed-industries/zed.git", rev = "a57ba9b17c433
 
 [patch.crates-io]
 gpuio-extension-sdk = { path = "../../../rust/extension-sdk" }
-gpuio-document-sdk = { path = "../../../rust/document-sdk" }
-accesskit_macos = { path = "../../../vendor/accesskit-macos" }
 taffy = { path = "../../../vendor/taffy" }
 
+# This core/entity probe does not link the platform or document backends. Keep
+# their patches in backend/Cargo.toml; unused patches make locked resolution
+# order-sensitive in the pinned Cargo version.
 [patch."https://github.com/zed-industries/zed.git"]
 gpui = { path = "../../../vendor/gpui" }
-gpui_macos = { path = "../../../vendor/gpui-macos" }
