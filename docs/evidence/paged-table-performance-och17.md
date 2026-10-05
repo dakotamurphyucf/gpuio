@@ -198,3 +198,39 @@ Command matches full002 above with output `table-performance-full-003`; the
 preceding warm-up uses `--smoke` and omits `--check-budgets`. Two independent full
 passes are now complete; the third repeat remains pending. Full001 remains a
 retained failure with unproven cause.
+
+
+## Three full passes complete — preserved source b75ffa2
+
+Full004 passes after its own successful smoke warm-up. Its exact raw report is
+[retained here](paged-table-run-004-och17.json). All three successful full runs
+use the same executable/source/hash documented above, with the original failed
+full001 retained separately. The complete repeat batch exited successfully and
+released its owned display/system-idle assertion; no measured GUI remains alive.
+
+| Run | Native draws | p95 ms | p99 ms | Peak RSS MiB | Wall s | User + system CPU s |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 002 | 28,993 | 13.844479 | 14.114815 | 578.578125 | 1551.870371 | 1722.277686 |
+| 003 | 29,049 | 13.819903 | 14.032895 | 576.078125 | 1534.740790 | 1703.891181 |
+| 004 | 29,012 | 13.877247 | 14.098431 | 586.843750 | 1545.930177 | 1716.890300 |
+
+Every run covers 100,000 rows forward/backward/materialized and all 64 columns;
+peak retention is 26 active rows, 1,664 cells and 512 current payload rows.
+Each exercises selection retention and middle-row/final-column reveal, records
+zero native work through a settled 60-second idle interval and passes every
+owned resource/queue cleanup check. Full004's idle interval is 60.007766 s;
+activation observations are true before/after with zero observed changes.
+
+Full004 was launched from observation checkout `2fdf53b` with uncommitted document
+workload edits; that checkout advanced to the documentation-only `0085558` during
+the run. Neither change altered the preserved b75ffa2 executable. Source editing,
+formatting and brief portable tests continued. A short availability preflight
+ran `footprint` and `vmmap` against a separate owned idle Python child, which was
+reaped; it did not sample or suspend GPUIO. No compilation or second owned GUI
+ran during any table measurement. The document build started only after the
+repeat batch exited. These activities remain disclosed potential interference.
+
+The repeated paged-table workload passes its declared native draw/RSS/retention
+and idle budgets on the recorded M1 Max/macOS 14.5 environment. This does not
+establish physical presentation, GPU allocations, arbitrary application bounds,
+Linux GUI acceptance, or the remaining document/streaming/release requirements.
