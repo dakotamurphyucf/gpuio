@@ -60,6 +60,11 @@ The subsequent piecewise cubic preset and all four stepped-easing policies have
 At `6bc15d3`, the fresh public consumer builds and passes the full macOS sequence,
 including discrete widths, interruption, reduced motion, shared phase and cleanup.
 Broader motion/catalog and release qualification remain open.
+The current unmodified table smoke at `5c3956d` fails the 100 ms startup gate
+at approximately 147.364 ms. A separate paced replay also reproduces the owner's
+reported table flicker: three overlapping rows remain populated while newly
+visible rows briefly have empty cells. [Failure and screen evidence](evidence/table-scroll-flicker-och17.md)
+preserve both open issues; successful traversal does not establish visual stability.
 Three full optimized loaded-list, paged-table and growing-document runs pass
 their declared budgets; six ordinary/profiled comparisons and three resource
 lifecycle runs also pass. Three full streaming/typing runs also pass after an optional profiler repair,
