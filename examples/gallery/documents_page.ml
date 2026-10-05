@@ -123,6 +123,9 @@ module Resources = struct
             "Open `review` details, or inspect the card below.\n\n\
              ```review-card\n\
              Review the next step\n\
+             ```\n\n\
+             ```review-scroll\n\
+             An independent checklist\n\
              ```\n"
           |> ok))
       ~f:(fun profile_preview ->

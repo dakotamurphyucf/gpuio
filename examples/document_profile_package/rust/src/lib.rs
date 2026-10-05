@@ -2,6 +2,7 @@
 use gpuio_document_sdk as sdk;
 use sdk::gpui::{self, IntoElement, ParentElement, Styled, prelude::*};
 use std::sync::Arc;
+mod scroll_card;
 pub const NAME: &str = "example.document";
 pub const FINGERPRINT: &str = "985f53077246b78111f091454a0d6f07c770cab3c3cb9218c114e4936f52a26d";
 pub fn factory() -> Arc<dyn sdk::Factory> {
@@ -41,7 +42,9 @@ impl sdk::Factory for Factory {
             .with_actions(profile.clone())
             .with_highlighter(profile.clone())
             .with_plugin(profile)?;
-        configured.with_plugin(Arc::new(Card))
+        configured
+            .with_plugin(Arc::new(Card))?
+            .with_plugin(Arc::new(scroll_card::ScrollCard))
     }
 }
 struct Profile(u8);
@@ -235,13 +238,13 @@ mod tests {
     }
     #[test]
     fn real_preparation_installs_plugins_and_changes_highlight_palette() {
-        let source = "Before `review` after.\n\n```review-card\nCard\n```\n\n```ocaml\nlet answer = 42\n```\n";
+        let source = "Before `review` after.\n\n```review-card\nCard\n```\n\n```review-scroll\nChecklist\n```\n\n```ocaml\nlet answer = 42\n```\n";
         let mut colors = Vec::new();
         for accent in [0, 1] {
             let profile = Factory
                 .configure(&[accent], &sdk::PrepareContext::new(&|| false))
                 .unwrap();
-            assert_eq!(profile.plugins().len(), 2);
+            assert_eq!(profile.plugins().len(), 3);
             let prepared = sdk::prepare_markdown(
                 Arc::new(profile),
                 sdk::Preparation {

@@ -139,6 +139,112 @@ def main():
             mac.key(36)
             accepted('Open_badge')
             report['checks'].append({'case': 'profile-remove-and-remount'})
+
+            # Public plugin-owned viewport: always-visible native buttons offer
+            # keyboard alternatives to pointer scrolling. They emit no app event.
+            reveal_gallery_control(mac, 'Show review end', 'AXButton')
+            focus_gallery_control(mac, 'Show review end', 'AXButton')
+            time.sleep(.15)
+            mac.key(36)
+            # Obtain the clipped native bounds separately from focus. A clipped
+            # control must become painted before it is eligible for traversal.
+            def review_visible():
+                viewport = mac.wait_find(TITLE, 'Review checklist viewport', 'AXGroup')
+                button = mac.find(TITLE, 'Open scroll review', 'AXButton')
+                try:
+                    vx, vy, vw, vh = element_rect(mac, viewport)
+                    if not button:
+                        return False, (vx, vy, vw, vh)
+                    bx, by, bw, bh = element_rect(mac, button)
+                    return (bh > 0 and by >= vy and by+bh <= vy+vh, (vx, vy, vw, vh))
+                finally:
+                    mac.release(viewport)
+                    if button:
+                        mac.release(button)
+            deadline = time.monotonic()+8
+            while not review_visible()[0]:
+                assert time.monotonic() < deadline, 'Keyboard did not reveal inner review'
+                time.sleep(.05)
+            mac.key(48)
+            expect_focus(mac, 'Open scroll review', 'AXButton')
+            assert [entry[1] for entry in events()] == expected
+            time.sleep(.15)
+            mac.key(36)
+            accepted('Open_card')
+            screenshot(mac, output / 'profile-inner-scroll-end.png', title=TITLE)
+            report['checks'].append({'case': 'plugin-keyboard-scroll-reveal-and-activation'})
+
+            focus_gallery_control(mac, 'Show review start', 'AXButton')
+            time.sleep(.15)
+            mac.key(36)
+            deadline = time.monotonic()+8
+            while review_visible()[0]:
+                assert time.monotonic() < deadline, 'Keyboard did not return inner review to start'
+                time.sleep(.05)
+            # Starting at the end-button, Tab must escape rather than focus the
+            # now-clipped target. The next ordinary Tab can enter later content.
+            focus_gallery_control(mac, 'Show review end', 'AXButton')
+            time.sleep(.15)
+            mac.key(48)
+            node = mac.attr(mac.app, 'AXFocusedUIElement')
+            try:
+                exited_to = mac.text(node, 'AXTitle') if node else None
+                assert node and exited_to not in ('Open scroll review', 'Show review end'), exited_to
+            finally:
+                if node:
+                    mac.release(node)
+            assert [entry[1] for entry in events()] == expected
+            report['checks'].append({'case': 'plugin-clipped-control-does-not-trap-tab',
+                                     'exited_to': exited_to})
+
+            reveal_gallery_control(mac, 'Show review end', 'AXButton')
+            visible, (x, y, w, h) = review_visible()
+            assert not visible
+            point = (x+w/2, y+h/2)
+            mouse = GalleryMouse(mac)
+            mouse.check_owner(point)
+            mouse.send(5, point)
+            wheel = mac.cg.CGEventCreateScrollWheelEvent
+            wheel.restype, wheel.argtypes = C.c_void_p, [C.c_void_p, C.c_uint, C.c_uint, C.c_int]
+            locate = mac.cg.CGEventSetLocation
+            locate.restype, locate.argtypes = None, [C.c_void_p, GalleryMouse.Point]
+            event = wheel(None, 0, 1, C.c_int(-350))
+            assert event
+            try:
+                locate(event, GalleryMouse.Point(*point))
+                mouse.post(0, event)
+            finally:
+                mac.release(event)
+            deadline = time.monotonic()+8
+            while not review_visible()[0]:
+                assert time.monotonic() < deadline, 'Native wheel did not reveal inner review'
+                time.sleep(.05)
+            focus_gallery_control(mac, 'Show review end', 'AXButton')
+            time.sleep(.15)
+            mac.key(48)
+            expect_focus(mac, 'Open scroll review', 'AXButton')
+            time.sleep(.15)
+            mac.key(36)
+            accepted('Open_card')
+            report['checks'].append({'case': 'plugin-native-wheel-and-retained-scroll'})
+
+            toggle('Amber code highlights')
+            reveal_gallery_control(mac, 'Show review end', 'AXButton')
+            assert review_visible()[0], 'Property update reset mounted plugin scroll'
+            focus_gallery_control(mac, 'Show review end', 'AXButton')
+            time.sleep(.15)
+            mac.key(48)
+            expect_focus(mac, 'Open scroll review', 'AXButton')
+            time.sleep(.15)
+            mac.key(36)
+            accepted('Open_card')
+            report['checks'].append({'case': 'plugin-property-update-retains-offset-and-current-event'})
+            toggle('Native document profile')
+            wait_absent(mac, 'Show review end', 'AXButton')
+            toggle('Native document profile')
+            reveal_gallery_control(mac, 'Show review end', 'AXButton')
+            assert not review_visible()[0], 'Unmounted plugin retained scroll state'
+            report['checks'].append({'case': 'plugin-unmount-releases-scroll-state'})
             mac.press(TITLE, 'Runtime & windows')
             wait_for_resource_cleanup(mac)
             mac.wait_text(TITLE, 'Documents: 0')
