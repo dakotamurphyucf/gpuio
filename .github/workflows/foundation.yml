@@ -287,6 +287,10 @@ jobs:
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
         timeout-minutes: 4
         run: python3 scripts/test_macos_system_appearance.py --output .cache/ci/system-appearance 2>&1 | tee .cache/ci/macos-system-appearance.log
+      - name: macOS public focused-input query
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 3
+        run: python3 scripts/test_macos_focused_input.py --output .cache/ci/focused-input 2>&1 | tee .cache/ci/macos-focused-input.log
       - name: Independent Signal Studio consumer
         id: signal-consumer
         run: |

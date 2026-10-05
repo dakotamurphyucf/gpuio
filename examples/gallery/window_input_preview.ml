@@ -40,9 +40,22 @@ let component window palette graph =
     E.bind (App.Window.focused_input window) ~f:(function
       | Ok None -> set_notice "No eligible native text input has keyboard focus."
       | Ok (Some input) ->
+        let owner =
+          List.find_map
+            [ "Draft", draft; "Masked value", password; "Read-only value", read_only ]
+            ~f:(fun (label, editor) ->
+              if
+                Option.exists
+                  (Editor.snapshot editor)
+                  ~f:(Window.Input.same_text_input input)
+              then Some label
+              else None)
+          |> Option.value ~default:"Another native input"
+        in
         set_notice
           (sprintf
-             "Focused kind: %s · metadata only; no value read"
+             "Focused: %s · kind: %s · metadata only; no value read"
+             owner
              (Sexp.to_string_hum [%sexp (Window.Input.kind input : Window.Input.Kind.t)]))
       | Error error -> set_notice (Sexp.to_string_hum [%sexp (error : Window.Error.t)]))
   in
