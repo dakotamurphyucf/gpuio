@@ -235,7 +235,10 @@ impl Node {
             + self
                 .carousel_track
                 .as_ref()
-                .map_or(0, |config| config.retained_bytes())
+                .map_or(0, |config| config.retained_bytes()
+                // Current/previous native paint contexts may retain replaced curves.
+                + 2 * (gpuio_protocol::animation::MAX_LINEAR_STOPS * 16 + 2 * std::mem::size_of::<usize>()))
+            + self.carousel_track_motion.as_ref().map_or(0, |motion| motion.easing.heap_bytes())
             + self
                 .carousel
                 .as_ref()
@@ -3075,11 +3078,11 @@ impl Plan<'_> {
             }
             Op::SetCarouselTrackMotion(id, motion) => {
                 if self.node(*id)?.kind != Kind::CarouselTrack
-                    || motion.is_some_and(|motion| !motion.is_valid())
+                    || motion.as_ref().is_some_and(|motion| !motion.is_valid())
                 {
                     return Err(ErrorCode::InvalidTree);
                 }
-                self.node_mut(*id)?.carousel_track_motion = *motion;
+                self.node_mut(*id)?.carousel_track_motion = motion.clone();
             }
             Op::SetCarouselTrack(id, config) => {
                 let node = self.node(*id)?;

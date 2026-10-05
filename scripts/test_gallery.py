@@ -4986,7 +4986,7 @@ def exercise_motion(mac, images, second_title=SECOND):
         'Steps none': [0., 1. / 3., 2. / 3., 1.],
         'Steps both': [0., .2, .4, .6, .8, 1.],
     }
-    for label in ['Cubic ease-in', 'Cubic ease-out', 'Cubic ease-in-out', *step_levels]:
+    for label in ['Cubic ease-in', 'Cubic ease-out', 'Cubic ease-in-out', 'Linear hold and jump', *step_levels]:
         mac.press(TITLE, label)
         closing = motion_samples(mac, 'Resize sample', 1.3, 'Contract preview')
         opening = motion_samples(mac, 'Resize sample', 1.3, 'Expand preview')
@@ -4994,6 +4994,13 @@ def exercise_motion(mac, images, second_title=SECOND):
         assert abs(opening[-1] - 310) < 1, (label, opening)
         assert any(98 < width < 308 for width in closing), (label, closing)
         assert any(98 < width < 308 for width in opening), (label, opening)
+        if label == 'Linear hold and jump':
+            # The discontinuity skips normalized (0,.75); only the final quarter
+            # interpolates. Check both directions without guessing frame times.
+            for samples, start, end in [(opening, 96, 310), (closing, 310, 96)]:
+                phases = [(value-start)/(end-start) for value in samples]
+                assert all(abs(t) < .01 or .74 <= t <= 1.01 for t in phases), (label, phases)
+                assert sum(abs(t-.75) < .01 for t in phases) >= 3, (label, phases)
         if label in step_levels:
             widths = [96 + 214 * level for level in step_levels[label]]
             assert all(min(abs(value - expected) for expected in widths) < 1
@@ -5001,6 +5008,7 @@ def exercise_motion(mac, images, second_title=SECOND):
     mac.press(TITLE, 'CSS ease-in-out')
     print('GALLERY_CUBIC_EASING_OK: all three public presets animate in both directions; '
           'polynomial values are checked separately by native numeric fixtures', flush=True)
+    print('GALLERY_LINEAR_STOPS_OK: held ranges, duplicate-stop jump and final interpolation in both directions', flush=True)
     print('GALLERY_STEPPED_EASING_OK: four policies use discrete widths in both directions', flush=True)
     started = motion_samples(mac, 'Sequence sample', .2, 'Replay sequence')
     paused = motion_samples(mac, 'Sequence sample', .4, 'Pause sequence')

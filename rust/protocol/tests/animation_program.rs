@@ -170,7 +170,7 @@ fn shared_clocks_admit_only_fixed_positive_repeating_cycles() {
     config.program.initial = None;
     assert!(!config.is_valid());
     config.program.initial = Some(targets(0., 0.));
-    config.program.stages[0].timing = example().program.stages[1].timing;
+    config.program.stages[0].timing = example().program.stages[1].timing.clone();
     assert!(!config.is_valid());
     config.program.clock = Clock::Independent;
     assert!(config.is_valid());
@@ -339,4 +339,30 @@ fn advanced_capability_handshake_matches_ocaml_above_32_bits() {
     let hex: String = bytes.iter().map(|byte| format!("{byte:02x}")).collect();
     assert_eq!(hex, "0003fcffffffffffffff7f");
     assert_eq!(decode(&bytes), Ok(message));
+}
+
+#[test]
+fn variable_easing_storage_obeys_program_size_and_retained_memory_bounds() {
+    use gpuio_protocol::animation::LinearStops;
+    let mut config = example();
+    let easing = Easing::LinearStops(LinearStops::new(vec![(0., 0.); 256]).unwrap());
+    let curve_bytes = easing.heap_bytes();
+    let stage = Stage {
+        targets: targets(100., 1.),
+        timing: Timing::Tween(100, easing),
+        delay_ms: 0,
+    };
+    config.program.stages = vec![stage.clone(); 3];
+    assert!(config.is_valid());
+    assert_eq!(
+        decode_animation_program(&encode(&config)),
+        Ok(config.clone())
+    );
+    assert!(config.program.heap_bytes() >= 3 * curve_bytes);
+    config.program.stages.push(stage);
+    assert!(!config.is_valid());
+    assert_eq!(
+        decode_animation_program(&encode(&config)),
+        Err(DecodeError::LimitExceeded)
+    );
 }

@@ -165,7 +165,7 @@ fn decoder_rejects_tags_utf8_and_oversized_input_before_admission() {
         },
         ..config()
     });
-    *tween.last_mut().unwrap() = 6;
+    *tween.last_mut().unwrap() = 255; // Outside the appended easing variants.
     assert!(decode_progress_presentation(&tween).is_err());
     assert_eq!(
         decode_progress_presentation(&vec![0; MAX_CONFIG_BYTES + 1]),

@@ -1,0 +1,215 @@
+{
+  "archive": "validation.tar.gz",
+  "sha256": "caae7da363aa68de18c795e97823426623f88b965cb85aec016c8ad1242c1fd9",
+  "base_revision": "4529746",
+  "installed_gallery_sha256": "4ae09436a46e0e40ecad24c3f52574b7b1ce643b3aa019d25e7fb8fbcd27c94a",
+  "scope": "Physical Motion runtime source patch predates final spinner accounting/envelope and test follow-ups. Full protocol/native/default and OCaml regression results cover final source. No VoiceOver, presentation latency, Linux GUI or spinner physical qualification.",
+  "counts": [
+    {
+      "suite": "protocol",
+      "executables": 119,
+      "passed": 401,
+      "ignored": 0
+    },
+    {
+      "suite": "native",
+      "executables": 117,
+      "passed": 934,
+      "ignored": 2
+    }
+  ],
+  "files": [
+    {
+      "path": "validation/linear-stops-check-2.log",
+      "sha256": "52726a816109642d7a29d831552417e2cf900986f07b94723f0f9ac6e2bd154e"
+    },
+    {
+      "path": "validation/linear-stops-check.log",
+      "sha256": "3112c7898f717014f17995de28832d03b1620b1231b150d737535edc0f50854a"
+    },
+    {
+      "path": "validation/linear-stops-clippy-final.log",
+      "sha256": "048b4425d7f258b58edc37bad8618383b52de10a9f3784a7a8cf5c55951ccb90"
+    },
+    {
+      "path": "validation/linear-stops-clippy.log",
+      "sha256": "699b87e6496b95789654c738638f486ddf623fc4dec5a1fe6afe2dbc83c5c5dc"
+    },
+    {
+      "path": "validation/linear-stops-consumer.log",
+      "sha256": "4af3450a2c936a2c956dc8287c434de73d47f6d327b44deb080e9aed691a718a"
+    },
+    {
+      "path": "validation/linear-stops-format.log",
+      "sha256": "87d1fa0475436003588ffad82f12a7464018f944e8ac2bc9ca62b450ebe6b051"
+    },
+    {
+      "path": "validation/linear-stops-native-all-tests.log",
+      "sha256": "fa54afd101eb152da7e18b2875b182f4275c056bde5d38da0d33e2bd7ca35bc8"
+    },
+    {
+      "path": "validation/linear-stops-native-feature-tests.log",
+      "sha256": "7fb90d182c3307ba34a53856c83d6ddbbbb86775656c8ad2c32bf07fb9fca39d"
+    },
+    {
+      "path": "validation/linear-stops-native-tests.log",
+      "sha256": "50f77b5f0caf761cfc199e97f40f659b0c7eaa7ae9f928fb38ec61a4bd512548"
+    },
+    {
+      "path": "validation/linear-stops-ocaml-check.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "validation/linear-stops-ocaml-final.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "validation/linear-stops-ocaml-full.log",
+      "sha256": "b1d339053ad495f6a603c62a5ee556a5ce72052d642826b100eac7b6b9827503"
+    },
+    {
+      "path": "validation/linear-stops-ocaml-tests.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "validation/linear-stops-protocol-full-2.log",
+      "sha256": "bf95b355aa06f4247222e734cbb3ff1b22599d7bf831ba59bf9a65a968971ba4"
+    },
+    {
+      "path": "validation/linear-stops-protocol-full-3.log",
+      "sha256": "476cac62fd9f02d7f7677f6d3adf69cd83db05a27841a8bd6053f05ae4bde788"
+    },
+    {
+      "path": "validation/linear-stops-protocol-full.log",
+      "sha256": "79907b88e868c55eefaf24e90449f9050b92bc76f49f5579ae9d0de4a1a95d95"
+    },
+    {
+      "path": "validation/linear-stops-protocol-tests-2.log",
+      "sha256": "d07c07484881e6d5ff824fd315b81f6aa467ccb0571028bb4f3a648be6aac97f"
+    },
+    {
+      "path": "validation/linear-stops-protocol-tests.log",
+      "sha256": "8484e604a1b8622cd7ef288b722163879727ad5d672390d8e23a4b4aae429687"
+    },
+    {
+      "path": "validation/linear-stops-commands.txt",
+      "sha256": "a14905ede130d31e77a623fef318043dfcdb8ab5931491e9ab6d11f2e9eca304"
+    },
+    {
+      "path": "validation/linear-stops-physical-source.patch",
+      "sha256": "157c53b57fd432f777075f10474797e86e96ef21f2f19437c359a2589d5d09f8"
+    },
+    {
+      "path": "validation/linear-stops-final-source.patch",
+      "sha256": "e35c7370c01d6ac08d30031234ca3763c567a891381d3b26b1f34367f9ca2cbf"
+    },
+    {
+      "path": "source/examples/gallery/motion_page.ml",
+      "sha256": "a2b6e8d48fdd6e19922a7c8b052547cb5f70d7bb2152513d7ccd15052f8179ce"
+    },
+    {
+      "path": "source/lib/core/animation.ml",
+      "sha256": "8daeaf3dfba9bee5d25f71a7ebec1eb9231a7768b28e2915247e644e66bf29da"
+    },
+    {
+      "path": "source/lib/core/animation.mli",
+      "sha256": "ff921c19db4bf9c0016955bcd590782d0c523801c40befa0454a46b3a94c6ebc"
+    },
+    {
+      "path": "source/lib/protocol/animation_wire.ml",
+      "sha256": "8dd84fd104ae2d60d46151e6445703a12ec6b09b08b46310e50c8dc3802cb37e"
+    },
+    {
+      "path": "source/lib/protocol/animation_wire.mli",
+      "sha256": "6471745e69dc8207464cd41518ef19afca01b288c5c4555af5a7abb7d6674cc2"
+    },
+    {
+      "path": "source/lib/protocol/carousel_track_wire.ml",
+      "sha256": "d163cab12c791f2f87064b57c859faf55b045aa1a3b6cb75f853a627795fb577"
+    },
+    {
+      "path": "source/rust/native/src/carousel_track_motion.rs",
+      "sha256": "8292ca7c8d1444ca8580c80f48d1f7ed43e49d2c4610fc5f2f1bc3e5c059bbcf"
+    },
+    {
+      "path": "source/rust/native/src/carousel_track_view.rs",
+      "sha256": "78f69ff62b146e8cf9ed3290b20a76a0e9b4338d1adf89f61e0f81d1e3546405"
+    },
+    {
+      "path": "source/rust/native/src/motion_timeline.rs",
+      "sha256": "ad7d41279575b4198a25481714508ebf95d6d21f3712c231ce4eec7485b0b3d4"
+    },
+    {
+      "path": "source/rust/native/src/progress_clock.rs",
+      "sha256": "244eea2e614239cd0f297b274e7641a6bd51e997bafb2de754133f2d5689a023"
+    },
+    {
+      "path": "source/rust/native/src/tree.rs",
+      "sha256": "9c582f81ac3e3b6d64ea57c8f4b443d45c177c7893734e03e9474efdc3a2615e"
+    },
+    {
+      "path": "source/rust/native/tests/carousel_track.rs",
+      "sha256": "97a800518fca36c6381b1b3ee34519d9ec3636d4cc8a0d0b6d885819a9b839c4"
+    },
+    {
+      "path": "source/rust/native/tests/motion.rs",
+      "sha256": "2aa162ef3da663587ecf9e262b99969082cf78edd68d10cc585e5c378c34a5f4"
+    },
+    {
+      "path": "source/rust/protocol/src/animation.rs",
+      "sha256": "5dc46abc388da3cbfea8b457a1f31117ce667a56353624bddfdbea8b54cbaae8"
+    },
+    {
+      "path": "source/rust/protocol/src/animation_program.rs",
+      "sha256": "b0c5d14438aacdab78e2e1f12edf1f42d3bcd9b42719a95d3d11894849d4acc1"
+    },
+    {
+      "path": "source/rust/protocol/src/carousel_track.rs",
+      "sha256": "f23c0453f934d95ebdeecda227838d1fcf8cbeb013fbc0899fcaeb59533848fb"
+    },
+    {
+      "path": "source/rust/protocol/src/decode/animation_program.rs",
+      "sha256": "566835e43dd331bda2975a4d8fe274ae960dfcebb3ec049b1e5de7a59bbc2222"
+    },
+    {
+      "path": "source/rust/protocol/src/progress_presentation.rs",
+      "sha256": "0eacd69184398c6739a06009640f12193103a6e9afd2f4d97f5f1934c94a2222"
+    },
+    {
+      "path": "source/rust/protocol/src/spinner.rs",
+      "sha256": "bad3d35d7377804b8e0d75a4fd0b8fb4eec0d6550aea1e3b814e3a962af931ef"
+    },
+    {
+      "path": "source/rust/protocol/tests/animation.rs",
+      "sha256": "3fcd347e2e43282ad806f94981da8afe3335fbe45de1d71455014a09f9b6b103"
+    },
+    {
+      "path": "source/rust/protocol/tests/animation_program.rs",
+      "sha256": "05d15ccce62f38357828e96c9d6111915d977c9f659261ab254600b7ed0bc1d3"
+    },
+    {
+      "path": "source/rust/protocol/tests/progress_presentation.rs",
+      "sha256": "9aba010c48231238e8865009e1a1e947a655f2322d1c32e68d512a6c02082e6b"
+    },
+    {
+      "path": "source/rust/protocol/tests/spinner.rs",
+      "sha256": "e2db26bc85f5bad0cf6d605b2531b0c3f0a1d282773a455b2113b3c827864fb0"
+    },
+    {
+      "path": "source/scripts/test_gallery.py",
+      "sha256": "ff23ff3b8cc62f37528cd1b8ca824b1ba3efe2c2b1056d56c3556b80cd2999f2"
+    },
+    {
+      "path": "source/test/view_api/animation_test.ml",
+      "sha256": "b788e989092c340439f98b12e2aa958b00e7c968a8d8cd40550037ab0d6c0266"
+    },
+    {
+      "path": "source/test/view_api/dune",
+      "sha256": "c03fb9d3787d9bd3e54cd5c75e04d0550406a609144f6066936512cf92425e55"
+    },
+    {
+      "path": "source/test/fixtures/animation-linear-stops.tsv",
+      "sha256": "455fe8e034e7cf6114d9b75ffb59a9e589ca02a8bf6b6c55debb4824ae446b30"
+    }
+  ]
+}

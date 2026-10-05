@@ -60,6 +60,10 @@ The subsequent piecewise cubic preset and all four stepped-easing policies have
 At `6bc15d3`, the fresh public consumer builds and passes the full macOS sequence,
 including discrete widths, interruption, reduced motion, shared phase and cleanup.
 Broader motion/catalog and release qualification remain open.
+Piecewise-linear easing now has a typed 2–256-stop API, native shared curves,
+bounded position inference/decoding and a [passing installed Motion walkthrough](evidence/stepped-easing-och41.md#piecewise-linear-stops--2026-10-05).
+Variable curve payloads count toward program limits and retained memory. Remaining
+signed-delay and iteration/direction gaps are still explicit in the motion review.
 The current unmodified table smoke at `5c3956d` fails the 100 ms startup gate
 at approximately 147.364 ms. A separate paced replay also reproduces the owner's
 reported table flicker: three overlapping rows remain populated while newly

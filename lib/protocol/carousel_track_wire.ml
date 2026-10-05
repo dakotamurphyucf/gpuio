@@ -152,6 +152,7 @@ module Motion = struct
     &&
     match t.easing with
     | Linear | Ease | Ease_in | Ease_out | Ease_in_out | Ease_in_out_cubic -> true
+    | Linear_stops stops -> Animation_wire.Easing.valid_linear_stops stops
     | Steps (count, position) -> Animation_wire.Easing.valid_steps ~count ~position
     | Cubic_bezier (x1, y1, x2, y2) ->
       List.for_all [ x1; x2 ] ~f:(fun x ->

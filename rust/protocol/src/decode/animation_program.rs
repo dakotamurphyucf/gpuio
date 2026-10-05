@@ -1,6 +1,6 @@
 use super::{DecodeError, Decoder};
 use crate::{
-    animation::{Easing, Repeat, Spring, StepPosition},
+    animation::{Easing, LinearStops, MAX_LINEAR_STOPS, Repeat, Spring, StepPosition},
     animation_program::*,
 };
 use std::io::Cursor;
@@ -24,6 +24,10 @@ impl Decoder<'_> {
                     3 => StepPosition::JumpBoth,
                     _ => return Err(DecodeError::Malformed),
                 },
+            ),
+            8 => Easing::LinearStops(
+                LinearStops::new(self.list(MAX_LINEAR_STOPS, |d| Ok((d.float()?, d.float()?)))?)
+                    .ok_or(DecodeError::Malformed)?,
             ),
             _ => return Err(DecodeError::Malformed),
         })

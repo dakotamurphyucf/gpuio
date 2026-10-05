@@ -137,7 +137,8 @@ presentation appends shape (`Linear=0`, `Circle=1`) and transition (`Immediate=0
 fraction validation; there is no second numeric convention for circular progress.
 
 The Rust decoder bounds labels before allocation, checks complete configuration,
-rejects trailing data and caps standalone input at 8192 bytes. Independent linear
+rejects trailing data and caps standalone input at 16,384 bytes, allowing the
+maximum label alongside a 256-stop easing curve. Independent linear
 and circle fixtures are under `test/fixtures/progress-presentation-*.hex`; they
 were specified separately from either language's encoder. The live atomic operation uses this same configuration; standalone codec tests
 remain distinct from native rendering acceptance.

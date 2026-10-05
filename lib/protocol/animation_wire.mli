@@ -44,8 +44,10 @@ module Easing : sig
     | Cubic_bezier of float * float * float * float
     | Ease_in_out_cubic
     | Steps of int64 * Step_position.t
+    | Linear_stops of (float * float) list
   [@@deriving bin_io, equal, sexp_of]
 
+  val valid_linear_stops : (float * float) list -> bool
   val valid_steps : count:int64 -> position:Step_position.t -> bool
 end
 

@@ -308,3 +308,28 @@ fn extreme_finite_bezier_controls_still_produce_bounded_geometry() {
             .is_finite()
     );
 }
+
+#[test]
+fn linear_stop_motion_holds_jumps_clamps_and_confirms_completion() {
+    let mut cfg = config(9, 100.);
+    cfg.delay_ms = 200;
+    cfg.easing = Easing::LinearStops(
+        LinearStops::new(vec![(0., -0.25), (0.5, -0.25), (0.5, 1.25), (1., 1.25)]).unwrap(),
+    );
+    let mut state = State::new(Arc::new(cfg), ms(0), false).unwrap();
+    assert_eq!(value(&mut state, 199), (0., Wake::At(ms(200)), None));
+    assert_eq!(value(&mut state, 200), (0., Wake::Frame, None));
+    assert_eq!(value(&mut state, 699).0, 0.);
+    assert_eq!(value(&mut state, 700).0, 125.);
+    assert_eq!(value(&mut state, 1199).0, 125.);
+    let sample = state.sample(ms(1200));
+    assert_eq!(sample.values.get(Property::Width), Some(100.));
+    assert_eq!(
+        state.painted(sample),
+        Some(Endpoint {
+            generation: 9,
+            outcome: Outcome::Finished
+        })
+    );
+    assert_eq!(value(&mut state, 1300), (100., Wake::Idle, None));
+}

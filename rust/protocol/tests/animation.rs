@@ -388,3 +388,192 @@ fn physical_spring_parameters_match_ocaml_and_validate_limits() {
         .is_valid()
     );
 }
+
+#[test]
+fn linear_stops_preserve_jumps_holds_extremes_and_wire_fixtures() {
+    let fixtures = [
+        (
+            "inferred",
+            vec![(0., 0.), (1. / 3., 0.75), (2. / 3., 0.25), (1., 1.)],
+        ),
+        (
+            "jump",
+            vec![(0., 0.), (0.25, 0.), (0.25, 0.75), (0.75, 0.75), (1., 1.)],
+        ),
+        ("endpoints", vec![(0.25, -0.25), (0.75, 1.25)]),
+    ];
+    let mut encoded = String::new();
+    for (name, stops) in fixtures {
+        let easing = Easing::LinearStops(LinearStops::new(stops).unwrap());
+        let mut bytes = Vec::new();
+        easing.binprot_write(&mut bytes).unwrap();
+        encoded.push_str(&format!(
+            "{name}\t{}\n",
+            bytes
+                .iter()
+                .map(|byte| format!("{byte:02x}"))
+                .collect::<String>()
+        ));
+    }
+    assert_eq!(
+        encoded,
+        include_str!("../../../test/fixtures/animation-linear-stops.tsv")
+    );
+    let curve = |stops| Easing::LinearStops(LinearStops::new(stops).unwrap());
+    let jump = curve(vec![
+        (0., 0.),
+        (0.25, 0.),
+        (0.25, 0.75),
+        (0.75, 0.75),
+        (1., 1.),
+    ]);
+    assert_eq!(jump.sample(0.25_f64.next_down()), 0.);
+    assert_eq!(jump.sample(0.25), 0.75);
+    assert_eq!(jump.sample(0.25_f64.next_up()), 0.75);
+    assert_eq!(jump.sample(0.875), 0.875);
+    let ends = curve(vec![(0.25, -0.25), (0.75, 1.25)]);
+    assert_eq!(ends.sample(-10.), -0.25);
+    assert_eq!(ends.sample(0.5), 0.5);
+    assert_eq!(ends.sample(10.), 1.25);
+    assert_eq!(curve(vec![(0., 0.), (0., 2.)]).sample(0.), 2.);
+    assert_eq!(curve(vec![(1., 0.), (1., 2.)]).sample(1.), 2.);
+    for (from, to) in [
+        (f64::MAX, -f64::MAX),
+        (-f64::MAX, f64::MAX),
+        (f64::MAX, f64::MAX),
+    ] {
+        let extreme = curve(vec![(0., from), (1., to)]);
+        for index in 0..=1024 {
+            assert!(extreme.sample(f64::from(index) / 1024.).is_finite());
+        }
+    }
+    for stops in [
+        vec![],
+        vec![(0., 0.)],
+        vec![(0., 0.); 257],
+        vec![(0.5, 0.), (0.25, 1.)],
+    ] {
+        assert!(LinearStops::new(stops).is_none());
+    }
+    for invalid in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+        assert!(LinearStops::new(vec![(0., 0.), (1., invalid)]).is_none());
+        assert!(LinearStops::new(vec![(0., 0.), (invalid, 1.)]).is_none());
+    }
+    let bounded = curve(vec![(0., 0.); 256]);
+    assert_eq!(
+        bounded.heap_bytes(),
+        256 * 16 + 2 * std::mem::size_of::<usize>()
+    );
+    assert_eq!(bounded.clone(), bounded);
+}
+
+#[test]
+fn linear_stop_decoder_rejects_untrusted_positions_counts_and_truncation() {
+    use gpuio_protocol::{DecodeError, NodeId, WindowId, decode, v1::*};
+    let points = vec![(0., 0.), (1., 1.)];
+    let easing = Easing::LinearStops(LinearStops::new(points).unwrap());
+    let mut payload = Vec::new();
+    easing.binprot_write(&mut payload).unwrap();
+    let config = Config {
+        generation: 1,
+        targets: vec![Target {
+            property: Property::Width,
+            value: 100.,
+        }],
+        initial: None,
+        duration_ms: 100,
+        delay_ms: 0,
+        easing,
+        repeat: Repeat::Once,
+    };
+    let message = Message::Apply(Transaction {
+        window: WindowId::from_parts(0, 1).unwrap(),
+        base: 0,
+        revision: 1,
+        operations: vec![Op::SetAnimation(NodeId::from_parts(0, 1).unwrap(), config)],
+    });
+    let mut original = Vec::new();
+    message.binprot_write(&mut original).unwrap();
+    assert_eq!(decode(&original), Ok(message));
+    let offsets: Vec<_> = original
+        .windows(payload.len())
+        .enumerate()
+        .filter_map(|(i, bytes)| (bytes == payload).then_some(i))
+        .collect();
+    assert_eq!(offsets.len(), 1);
+    let offset = offsets[0];
+    let replace = |points: Vec<(f64, f64)>| {
+        let mut replacement = vec![8];
+        points.binprot_write(&mut replacement).unwrap();
+        let mut bytes = original.clone();
+        bytes.splice(offset..offset + payload.len(), replacement);
+        decode(&bytes)
+    };
+    for points in [
+        vec![],
+        vec![(0., 0.)],
+        vec![(0.5, 0.), (0.25, 1.)],
+        vec![(-0.1, 0.), (1., 1.)],
+        vec![(0., 0.), (1.1, 1.)],
+        vec![(0., 0.), (1., f64::NAN)],
+        vec![(f64::INFINITY, 0.), (1., 1.)],
+    ] {
+        assert_eq!(replace(points), Err(DecodeError::Malformed));
+    }
+    assert!(replace(vec![(0., 0.); 256]).is_ok());
+    assert_eq!(
+        replace(vec![(0., 0.); 257]),
+        Err(DecodeError::LimitExceeded)
+    );
+    for length in 0..payload.len() {
+        assert!(decode(&original[..offset + length]).is_err());
+    }
+}
+
+#[test]
+fn largest_progress_label_and_curve_fit_the_bounded_decoder() {
+    use gpuio_protocol::{
+        decode_progress_presentation,
+        progress::ProgressConfig,
+        progress_presentation::{Config as Progress, Shape, Transition},
+    };
+    let config = Progress {
+        progress: ProgressConfig {
+            label: "x".repeat(4096),
+            fraction: Some(0.5),
+        },
+        shape: Shape::Linear,
+        transition: Transition::Tween {
+            duration_ms: 60_000,
+            easing: Easing::LinearStops(LinearStops::new(vec![(0., 0.); 256]).unwrap()),
+        },
+    };
+    assert!(config.is_valid());
+    let mut bytes = Vec::new();
+    config.binprot_write(&mut bytes).unwrap();
+    assert!(bytes.len() > 8192);
+    assert_eq!(decode_progress_presentation(&bytes), Ok(config));
+}
+
+#[test]
+fn largest_spinner_label_and_curve_fit_and_charge_shared_storage() {
+    use gpuio_protocol::{decode_spinner_config, spinner};
+    let easing = Easing::LinearStops(LinearStops::new(vec![(0., 0.); 256]).unwrap());
+    let curve_bytes = easing.heap_bytes();
+    let config = spinner::Config {
+        label: "x".repeat(4096),
+        animated: true,
+        period_ms: 1000,
+        easing,
+        source: None,
+    };
+    assert!(config.is_valid());
+    assert_eq!(
+        config.retained_bytes(),
+        std::mem::size_of::<spinner::Config>() + config.label.capacity() + curve_bytes
+    );
+    let mut bytes = Vec::new();
+    config.binprot_write(&mut bytes).unwrap();
+    assert!(bytes.len() > 8192);
+    assert_eq!(decode_spinner_config(&bytes), Ok(config));
+}

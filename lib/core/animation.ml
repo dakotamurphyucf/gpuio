@@ -82,6 +82,23 @@ module Target = struct
 end
 
 module Easing = struct
+  module Linear_stop = struct
+    type t =
+      { input : float option
+      ; output : float
+      }
+    [@@deriving equal, sexp_of]
+
+    let create ?input ~output () =
+      if
+        Float.is_finite output
+        && Option.for_all input ~f:(fun value ->
+          Float.is_finite value && Float.(value >= 0. && value <= 1.))
+      then Ok { input; output }
+      else Or_error.error_string "linear stop requires a finite output and input in [0,1]"
+    ;;
+  end
+
   module Step_position = struct
     type t = W.Step_position.t =
       | Jump_start
@@ -109,6 +126,46 @@ module Easing = struct
     else
       Or_error.error_string
         "step count must be in [1,4294967295]; Jump_none requires at least 2"
+  ;;
+
+  let linear_stops stops =
+    let length = List.length stops in
+    if length < 2 || length > 256
+    then Or_error.error_string "linear easing requires 2..256 stops"
+    else (
+      let stops = Array.of_list stops in
+      let set_input index input =
+        stops.(index) <- { (stops.(index)) with Linear_stop.input = Some input }
+      in
+      if Option.is_none stops.(0).input then set_input 0 0.;
+      if Option.is_none stops.(length - 1).input then set_input (length - 1) 1.;
+      let rec resolve anchor =
+        if anchor = length - 1
+        then Ok ()
+        else (
+          let next = ref (anchor + 1) in
+          while Option.is_none stops.(!next).input do
+            Int.incr next
+          done;
+          let from = Option.value_exn stops.(anchor).input in
+          let until = Option.value_exn stops.(!next).input in
+          if Float.(until < from)
+          then Or_error.error_string "linear easing positions must be nondecreasing"
+          else (
+            for index = anchor + 1 to !next - 1 do
+              set_input
+                index
+                (from
+                 +. ((until -. from)
+                     *. Float.of_int (index - anchor)
+                     /. Float.of_int (!next - anchor)))
+            done;
+            resolve !next))
+      in
+      Or_error.map (resolve 0) ~f:(fun () ->
+        W.Easing.Linear_stops
+          (Array.to_list stops
+           |> List.map ~f:(fun stop -> Option.value_exn stop.input, stop.output))))
   ;;
 
   let cubic_bezier ~x1 ~y1 ~x2 ~y2 =
@@ -318,12 +375,12 @@ module Program = struct
       then
         Or_error.error_string
           "shared clocks require timed repetition without initial delay"
-      else
-        Ok
-          { program = { initial; stages; delay_ms; repeat; clock }
-          ; playback = Running
-          ; restart = 0L
-          }
+      else (
+        let program : P.Program.t = { initial; stages; delay_ms; repeat; clock } in
+        (* Reserve the maximum generation/restart encoding and playback tag. *)
+        if P.Program.bin_size_t program + 19 > 16_384
+        then Or_error.error_string "animation program exceeds 16384 encoded bytes"
+        else Ok { program; playback = Running; restart = 0L })
   ;;
 
   let with_playback t playback = { t with playback }

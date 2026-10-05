@@ -178,6 +178,13 @@ let component app ~motion palette graph =
                ; "Cubic ease-in", A.Easing.ease_in_cubic
                ; "Cubic ease-out", A.Easing.ease_out_cubic
                ; "Cubic ease-in-out", A.Easing.ease_in_out_cubic
+               ; ( "Linear hold and jump"
+                 , A.Easing.linear_stops
+                     (List.map
+                        [ 0., 0.; 0.25, 0.; 0.25, 0.75; 0.75, 0.75; 1., 1. ]
+                        ~f:(fun (input, output) ->
+                          A.Easing.Linear_stop.create ~input ~output () |> ok))
+                   |> ok )
                ]
                ~f:(fun (label, easing) ->
                  Palette.button

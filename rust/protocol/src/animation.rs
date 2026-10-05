@@ -1,5 +1,8 @@
 //! Bounded declarative motion data. Native frames never call an OCaml easing function.
 use binprot::macros::BinProtWrite;
+use std::sync::Arc;
+
+pub const MAX_LINEAR_STOPS: usize = 256;
 
 pub const PROPERTY_COUNT: usize = 12;
 // Absolute opacity and its factor are mutually exclusive.
@@ -49,7 +52,44 @@ pub enum StepPosition {
     JumpBoth,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, BinProtWrite)]
+/// Immutable resolved stops. Cloning a retained easing never copies its points.
+#[derive(Clone, Debug, PartialEq)]
+pub struct LinearStops(Arc<[(f64, f64)]>);
+impl LinearStops {
+    pub fn new(stops: Vec<(f64, f64)>) -> Option<Self> {
+        ((2..=MAX_LINEAR_STOPS).contains(&stops.len())
+            && stops
+                .iter()
+                .all(|(x, y)| x.is_finite() && (0. ..=1.).contains(x) && y.is_finite())
+            && stops.windows(2).all(|pair| pair[0].0 <= pair[1].0))
+        .then(|| Self(stops.into()))
+    }
+    fn sample(&self, progress: f64) -> f64 {
+        let progress = progress.clamp(0., 1.);
+        let upper = self.0.partition_point(|(input, _)| *input <= progress);
+        if upper == 0 {
+            return self.0[0].1;
+        }
+        if upper == self.0.len() {
+            return self.0[upper - 1].1;
+        }
+        let (x0, y0) = self.0[upper - 1];
+        let (x1, y1) = self.0[upper];
+        let fraction = (progress - x0) / (x1 - x0);
+        // Weighted interpolation avoids overflowing y1-y0 for finite extremes.
+        y0 * (1. - fraction) + y1 * fraction
+    }
+    pub fn heap_bytes(&self) -> usize {
+        std::mem::size_of_val(self.0.as_ref()) + 2 * std::mem::size_of::<usize>()
+    }
+}
+impl binprot::BinProtWrite for LinearStops {
+    fn binprot_write<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
+        self.0.as_ref().binprot_write(writer)
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, BinProtWrite)]
 pub enum Easing {
     Linear,
     Ease,
@@ -59,16 +99,17 @@ pub enum Easing {
     CubicBezier(f64, f64, f64, f64),
     EaseInOutCubic,
     Steps(i64, StepPosition),
+    LinearStops(LinearStops),
 }
 impl Easing {
-    pub fn is_valid(self) -> bool {
+    pub fn is_valid(&self) -> bool {
         match self {
             Self::Steps(count, position) => {
-                (1..=i64::from(u32::MAX)).contains(&count)
-                    && (position != StepPosition::JumpNone || count >= 2)
+                (1..=i64::from(u32::MAX)).contains(count)
+                    && (*position != StepPosition::JumpNone || *count >= 2)
             }
             Self::CubicBezier(x1, y1, x2, y2) => {
-                [x1, x2]
+                [*x1, *x2]
                     .iter()
                     .all(|x| x.is_finite() && (0. ..=1.).contains(x))
                     && [y1, y2].iter().all(|y| y.is_finite())
@@ -76,11 +117,20 @@ impl Easing {
             _ => true,
         }
     }
-    pub fn sample(self, progress: f64) -> f64 {
+    pub fn heap_bytes(&self) -> usize {
+        match self {
+            Self::LinearStops(stops) => stops.heap_bytes(),
+            _ => 0,
+        }
+    }
+    pub fn sample(&self, progress: f64) -> f64 {
+        if let Self::LinearStops(stops) = self {
+            return stops.sample(progress);
+        }
         // Stepped curves may jump at zero: do not apply the continuous-curve
         // endpoint shortcut before evaluating their position policy.
         if let Self::Steps(count, position) = self {
-            let count = count as f64;
+            let count = *count as f64;
             let (jumps, offset) = match position {
                 StepPosition::JumpStart => (count, 1.),
                 StepPosition::JumpEnd => (count, 0.),
@@ -96,7 +146,9 @@ impl Easing {
             return 1.;
         }
         let (x1, y1, x2, y2) = match self {
-            Self::Steps(..) => unreachable!("stepped easing evaluated above"),
+            Self::Steps(..) | Self::LinearStops(..) => {
+                unreachable!("discontinuous easing evaluated above")
+            }
             Self::Linear => return progress,
             Self::EaseInOutCubic => {
                 return if progress <= 0.5 {
@@ -109,7 +161,7 @@ impl Easing {
             Self::EaseIn => (0.42, 0., 1., 1.),
             Self::EaseOut => (0., 0., 0.58, 1.),
             Self::EaseInOut => (0.42, 0., 0.58, 1.),
-            Self::CubicBezier(x1, y1, x2, y2) => (x1, y1, x2, y2),
+            Self::CubicBezier(x1, y1, x2, y2) => (*x1, *y1, *x2, *y2),
         };
         let curve = |t: f64, a: f64, b: f64| {
             3. * (1. - t).powi(2) * t * a + 3. * (1. - t) * t.powi(2) * b + t.powi(3)

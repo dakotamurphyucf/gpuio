@@ -211,20 +211,20 @@ fn motion_presentation_is_atomic_typed_and_does_not_advance_selection_revision()
         easing: Easing::EaseOut,
     };
     for (node, value) in [
-        (n(1), Some(valid)),
+        (n(1), Some(valid.clone())),
         (n(1), None),
         (
             n(0),
             Some(Motion {
                 duration_ms: 0,
-                ..valid
+                ..valid.clone()
             }),
         ),
         (
             n(0),
             Some(Motion {
                 duration_ms: 10001,
-                ..valid
+                ..valid.clone()
             }),
         ),
     ] {
@@ -235,10 +235,13 @@ fn motion_presentation_is_atomic_typed_and_does_not_advance_selection_revision()
         assert_eq!(s.tree(w()).unwrap().revision(), 1);
         assert_eq!(s.retained_bytes(), initial);
     }
-    s.apply(&tx(1, vec![Op::SetCarouselTrackMotion(n(0), Some(valid))]))
-        .unwrap();
+    s.apply(&tx(
+        1,
+        vec![Op::SetCarouselTrackMotion(n(0), Some(valid.clone()))],
+    ))
+    .unwrap();
     let node = s.tree(w()).unwrap().get(n(0)).unwrap();
-    assert_eq!(node.carousel_track_motion, Some(valid));
+    assert_eq!(node.carousel_track_motion, Some(valid.clone()));
     assert_eq!(node.carousel_track.as_deref(), Some(&config()));
     s.apply(&tx(2, vec![Op::SetCarouselTrackMotion(n(0), None)]))
         .unwrap();

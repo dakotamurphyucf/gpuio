@@ -240,7 +240,7 @@ impl State {
             || config.transition != self.config.transition;
         match (config.progress.fraction, &mut self.motion) {
             (Some(target), Motion::Determinate { displayed, tween }) if retarget => {
-                *tween = match config.transition {
+                *tween = match &config.transition {
                     Transition::Tween {
                         duration_ms,
                         easing,
@@ -248,8 +248,8 @@ impl State {
                         from: *displayed,
                         target,
                         elapsed: Duration::ZERO,
-                        duration: Duration::from_millis(duration_ms as u64),
-                        easing,
+                        duration: Duration::from_millis(*duration_ms as u64),
+                        easing: easing.clone(),
                     }),
                     Transition::Immediate | Transition::Tween { .. } => {
                         *displayed = target;

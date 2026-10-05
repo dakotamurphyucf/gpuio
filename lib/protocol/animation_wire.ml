@@ -44,7 +44,19 @@ module Easing = struct
     | Cubic_bezier of float * float * float * float
     | Ease_in_out_cubic
     | Steps of int64 * Step_position.t
+    | Linear_stops of (float * float) list
   [@@deriving bin_io, equal, sexp_of]
+
+  let valid_linear_stops stops =
+    let length = List.length stops in
+    length >= 2
+    && length <= 256
+    && List.for_all stops ~f:(fun (input, output) ->
+      Float.is_finite input
+      && Float.(input >= 0. && input <= 1.)
+      && Float.is_finite output)
+    && List.is_sorted stops ~compare:(fun (a, _) (b, _) -> Float.compare a b)
+  ;;
 
   let valid_steps ~count ~position =
     Int64.(count >= 1L && count <= 4_294_967_295L)

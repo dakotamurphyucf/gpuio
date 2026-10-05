@@ -216,3 +216,36 @@ is released and no late endpoint is delivered. Startup markers help distinguish
 launch problems from a frame wait. The background stall was diagnosed by activating
 the exact running process, after which every assertion completed; the test now
 activates itself, as the existing control tests do.
+
+## Piecewise-linear easing
+
+`Animation.Easing.Linear_stop.create ?input ~output ()` validates a finite output
+and an optional input in `[0,1]`. `Easing.linear_stops` accepts 2–256 stops. Omitted
+first/last positions become 0/1; omitted interior positions are evenly distributed
+between their surrounding explicit anchors. Explicit positions must be
+nondecreasing. Equal positions encode a jump: the last stop at that position wins.
+Before the first position and after the last, the curve holds the endpoint output.
+These are the pinned GPUI Kit `LinearStops` semantics, with an explicit bounded
+transport and double precision.
+
+Outputs need not start at zero, finish at one or stay within that range. Native
+property clamps still apply. Initial delay holds the declared initial value;
+at the start, the curve's zero-progress value applies. Finite completion settles
+at the declared target even when the last curve output differs from one. Reduced
+motion, retargeting and paint-confirmed completion retain their existing rules.
+
+The paired unpublished epoch-3 representation appends easing tag 8 followed by
+a bin-prot list of resolved `(input, output)` double pairs. Rust bounds the count
+before allocating and independently validates positions and outputs. It owns an
+immutable shared array, uses binary search and weighted interpolation without
+per-frame allocation or an OCaml callback, and accounts for retained curve data
+in admission reservations. Weighted interpolation avoids overflowing a subtraction
+between finite opposite-sign extreme outputs.
+
+Variable-length curves count toward the existing 16,384-byte program limit.
+Both public program construction and native validation reserve the largest
+generation/restart encodings, so later playback/restart changes remain encodable.
+Progress and spinner presentation envelopes are now 16,384 bytes to accommodate
+their existing maximum 4,096-byte labels together with a 256-stop curve; individual
+label and curve limits are unchanged. Carousel, progress and spinner motion share the
+same easing contract. Native consumers must rebuild with the paired OCaml schema.

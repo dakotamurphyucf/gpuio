@@ -36,7 +36,7 @@ composition without replacing a widget's base/state opacity; see its
 | Source surface | Current disposition |
 | --- | --- |
 | `Easing::Steps` with JumpStart/End/None/Both | The [stepped-easing contract](../design/stepped-easing.md) adds all four typed positions with the same positive 32-bit count range, explicit zero-progress jumps and constant-time native evaluation. Local API/codec/state tests and the gallery example are separate from physical qualification. |
-| `LinearStops` with inferred positions and duplicate-stop jumps | **Missing typed easing surface.** The keyword/Bezier/step API cannot represent arbitrary piecewise linear curves exactly. This review does not defer it or certify easing parity. Resolve bounded encoding, validation, native evaluation and meaningful tests before claiming complete coverage of that surface. |
+| `LinearStops` with inferred positions and duplicate-stop jumps | `Easing.Linear_stop.create` and `linear_stops` implement 2–256 stops, inferred positions, endpoint holds and last-stop-wins jumps. The [contract](../design/animations.md#piecewise-linear-easing) specifies bounded resolved encoding, native sampling and program-size accounting. Local tests and physical walkthrough evidence remain separately required; this API mapping alone does not certify acceptance. |
 | Polynomial `ease_in_cubic` / `ease_out_cubic` / piecewise `ease_in_out_cubic` | Public `ease_in_cubic` and `ease_out_cubic` express the exact cubic polynomials using the existing Bezier representation with linear x. `ease_in_out_cubic` adds the exact native piecewise polynomial through paired easing tag 6. The Motion gallery exposes all three; CSS `ease_in_out` remains distinct. All three now have API/encoding/native-state tests and the installed macOS Motion walkthrough. |
 | Signed negative delays | **Not exposed:** public delays are nonnegative. Starting later stages or changing targets does not reproduce an arbitrary initial elapsed offset. Keep this difference visible; the source review itself does not authorize a deferral. |
 | `Timing` finite iteration counts, reverse and alternate-reverse directions | Once/Loop/Alternate are exposed. `Program.reverse` reverses declared intervals while retaining their timing/delay; it is not the source's `easing(1-progress)` direction rule. Small finite sequences can be expanded within 32 stages, but that is not support for arbitrary `u64` counts or every reverse-easing rule. |
@@ -95,6 +95,9 @@ and independent consumer build for `ease_in_cubic` / `ease_out_cubic`.
 The [piecewise follow-up](../evidence/piecewise-cubic-easing-och41.md) records
 `ease_in_out_cubic` API, decoder and native-state checks plus the gallery build;
 its installed physical walkthrough subsequently passes at `6bc15d3`.
+The [linear-stop follow-up](../evidence/stepped-easing-och41.md#piecewise-linear-stops--2026-10-05)
+records bounded position inference and decoding, native numeric behavior and a
+fresh installed Motion walkthrough with held widths and duplicate-stop jumps.
 The [stepped-easing follow-up](../evidence/stepped-easing-och41.md) records all four
 step policies, boundary/decoder/native-state checks and the gallery build, with
 the installed public macOS walkthrough passing at `6bc15d3`.

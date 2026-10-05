@@ -147,13 +147,13 @@ impl Request {
 
 /// Optional presentation policy. Absence means immediate; model revision is
 /// independent of motion style. Progress is bounded to the segment being traveled.
-#[derive(Clone, Copy, Debug, PartialEq, BinProtWrite)]
+#[derive(Clone, Debug, PartialEq, BinProtWrite)]
 pub struct Motion {
     pub duration_ms: i64,
     pub easing: crate::animation::Easing,
 }
 impl Motion {
-    pub fn is_valid(self) -> bool {
+    pub fn is_valid(&self) -> bool {
         (1..=10_000).contains(&self.duration_ms) && self.easing.is_valid()
     }
 }

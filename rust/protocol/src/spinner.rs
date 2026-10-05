@@ -6,7 +6,7 @@ use crate::{
 };
 use binprot::macros::BinProtWrite;
 
-pub const MAX_CONFIG_BYTES: usize = 8192;
+pub const MAX_CONFIG_BYTES: usize = 16_384;
 
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]
 pub struct Config {
@@ -38,6 +38,6 @@ impl Config {
         })
     }
     pub fn retained_bytes(&self) -> usize {
-        std::mem::size_of::<Self>() + self.label.capacity()
+        std::mem::size_of::<Self>() + self.label.capacity() + self.easing.heap_bytes()
     }
 }

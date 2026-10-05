@@ -175,7 +175,7 @@ impl Frame {
         let sample = motion.sample(
             model.config(),
             model.geometry(),
-            *settings,
+            settings.clone(),
             eligible,
             now.saturating_duration_since(origin),
         );
@@ -348,7 +348,7 @@ impl View {
                 if config.carousel.disabled && state.focus.is_focused(window) {
                     window.blur(cx);
                 }
-                state.settings = node.carousel_track_motion;
+                state.settings = node.carousel_track_motion.clone();
                 state
                     .model
                     .sync(config.as_ref().clone(), items)
@@ -364,7 +364,7 @@ impl View {
                             .expect("admitted track"),
                         scroll: ScrollHandle::new(),
                         motion: Default::default(),
-                        settings: node.carousel_track_motion,
+                        settings: node.carousel_track_motion.clone(),
                         origin: None,
                         painted: false,
                         settled: false,

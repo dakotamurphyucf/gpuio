@@ -36,6 +36,13 @@ module Target : sig
 end
 
 module Easing : sig
+  module Linear_stop : sig
+    type t [@@deriving equal, sexp_of]
+
+    (** A finite output with an optional input position in [0,1]. *)
+    val create : ?input:float -> output:float -> unit -> t Or_error.t
+  end
+
   module Step_position : sig
     type t =
       | Jump_start
@@ -72,6 +79,14 @@ module Easing : sig
       zero. Each jump boundary selects the following step. Progress outside
       [0,1] clamps before evaluation; all modes produce 1 at progress 1. *)
   val steps : count:int -> position:Step_position.t -> t Or_error.t
+
+  (** Piecewise-linear easing with 2..256 stops. Omitted endpoint positions
+      default to 0 and 1; omitted interior positions are spaced evenly between
+      anchors. Explicit positions must be nondecreasing. At a duplicate position,
+      the last stop wins. Outside the first/last positions, output holds constant.
+      Outputs may overshoot; native properties retain their own clamps. Finite
+      animation completion still settles at the declared target. *)
+  val linear_stops : Linear_stop.t list -> t Or_error.t
 
   (** X control points in [0,1]; Y control points may be any finite value. Overshoot is permitted,
       with each interpolated property clamped to its valid numeric range. *)
@@ -198,6 +213,8 @@ module Program : sig
       Shared clocks require repetition, timed stages, explicit initial values and
       zero initial delay. [clock] defaults to independent, [repeat] to once.
 
+      The complete encoding is bounded to 16,384 bytes, reserving the maximum
+      generation/restart encodings; large easing curves count toward that limit.
       Use [View.animate_program] to mount a retained native program. *)
   val create
     :  ?initial:Target.t

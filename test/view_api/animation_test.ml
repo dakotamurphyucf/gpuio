@@ -344,3 +344,96 @@ let%expect_test "spring parameters share an independent Rust wire fixture" =
   print_endline hex;
   [%expect {| 00000000000059400000000000002440000000000000f03ffca9f1d24d62503ffe1027 |}]
 ;;
+
+let%expect_test "linear easing resolves positions and shares independent native bytes" =
+  let module E = Animation.Easing in
+  let stop ?input output = E.Linear_stop.create ?input ~output () |> Or_error.ok_exn in
+  List.iter [ Float.nan; Float.infinity; Float.neg_infinity ] ~f:(fun output ->
+    assert (Result.is_error (E.Linear_stop.create ~output ())));
+  List.iter [ Float.nan; Float.infinity; -0.1; 1.1 ] ~f:(fun input ->
+    assert (Result.is_error (E.Linear_stop.create ~input ~output:0. ())));
+  List.iter
+    [ []
+    ; [ stop 0. ]
+    ; List.init 257 ~f:(fun _ -> stop 0.)
+    ; [ stop ~input:0.8 0.; stop ~input:0.2 1. ]
+    ]
+    ~f:(fun stops -> assert (Result.is_error (E.linear_stops stops)));
+  assert (Result.is_ok (E.linear_stops (List.init 256 ~f:(fun _ -> stop 0.))));
+  let resolved =
+    E.linear_stops [ stop 0.; stop ~input:0.25 1.; stop 2.; stop ~input:0.75 3.; stop 4. ]
+    |> Or_error.ok_exn
+    |> Animation.Expert.easing_to_wire
+  in
+  assert (
+    Gpuio_protocol.Wire.Animation.Easing.equal
+      resolved
+      (Linear_stops [ 0., 0.; 0.25, 1.; 0.5, 2.; 0.75, 3.; 1., 4. ]));
+  let collapsed =
+    E.linear_stops [ stop ~input:0.5 0.; stop 1.; stop ~input:0.5 2. ]
+    |> Or_error.ok_exn
+    |> Animation.Expert.easing_to_wire
+  in
+  assert (
+    Gpuio_protocol.Wire.Animation.Easing.equal
+      collapsed
+      (Linear_stops [ 0.5, 0.; 0.5, 1.; 0.5, 2. ]));
+  let fixtures =
+    [ "inferred", [ stop 0.; stop 0.75; stop 0.25; stop 1. ]
+    ; ( "jump"
+      , [ stop 0.
+        ; stop ~input:0.25 0.
+        ; stop ~input:0.25 0.75
+        ; stop ~input:0.75 0.75
+        ; stop 1.
+        ] )
+    ; "endpoints", [ stop ~input:0.25 (-0.25); stop ~input:0.75 1.25 ]
+    ]
+  in
+  let encoded =
+    List.map fixtures ~f:(fun (name, stops) ->
+      let easing = E.linear_stops stops |> Or_error.ok_exn in
+      let bytes =
+        Bin_prot.Utils.bin_dump
+          [%bin_writer: Gpuio_protocol.Wire.Animation.Easing.t]
+          (Animation.Expert.easing_to_wire easing)
+        |> Bigstring.to_string
+      in
+      name
+      ^ "\t"
+      ^ String.concat_map bytes ~f:(fun byte -> sprintf "%02x" (Char.to_int byte)))
+    |> String.concat ~sep:"\n"
+  in
+  Eio_main.run (fun env ->
+    let expected =
+      Eio.Path.load Eio.Path.(Eio.Stdenv.cwd env / "animation-linear-stops.tsv")
+      |> String.strip
+    in
+    assert (String.equal encoded expected));
+  print_endline
+    "inferred positions; duplicate jumps; held endpoints; invalid inputs and count bounds";
+  [%expect
+    {| inferred positions; duplicate jumps; held endpoints; invalid inputs and count bounds |}]
+;;
+
+let%expect_test "large easing curves respect the complete animation program byte budget" =
+  let module A = Animation in
+  let easing =
+    A.Easing.linear_stops
+      (List.init 256 ~f:(fun index ->
+         A.Easing.Linear_stop.create ~output:(Float.of_int index /. 255.) ()
+         |> Or_error.ok_exn))
+    |> Or_error.ok_exn
+  in
+  let timing = A.Timing.tween ~easing (Time_ns.Span.of_sec 1.) |> Or_error.ok_exn in
+  let initial = target [ Width, 0. ] in
+  let stage =
+    A.Stage.create ~target:(target [ Width, 100. ]) ~timing () |> Or_error.ok_exn
+  in
+  assert (Result.is_ok (A.Program.create ~initial [ stage; stage; stage ]));
+  assert (Result.is_error (A.Program.create ~initial [ stage; stage; stage; stage ]));
+  print_endline
+    "256-stop curves supported; oversized multi-stage programs rejected before transport";
+  [%expect
+    {| 256-stop curves supported; oversized multi-stage programs rejected before transport |}]
+;;

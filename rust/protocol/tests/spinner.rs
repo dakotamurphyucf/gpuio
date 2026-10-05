@@ -125,7 +125,7 @@ fn validation_is_bounded_and_rejects_invalid_easing_labels_and_periods() {
 fn decoder_rejects_invalid_tags_utf8_and_resource_generations() {
     let original = encode(&config());
     // Label bytes, animated Boolean, easing tag, source option tag.
-    for (offset, value) in [(1, 255), (8, 2), (12, 6), (13, 2)] {
+    for (offset, value) in [(1, 255), (8, 2), (12, 255), (13, 2)] {
         let mut bad = original.clone();
         bad[offset] = value;
         assert!(decode_spinner_config(&bad).is_err(), "offset {offset}");

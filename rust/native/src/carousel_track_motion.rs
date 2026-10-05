@@ -115,7 +115,7 @@ impl State {
                 ids: model.ids.clone(),
                 selected,
                 axis: model.axis,
-                motion,
+                motion: motion.clone(),
             });
             let from = self.painted.as_ref().and_then(|painted| {
                 let old = &painted.context;
@@ -450,10 +450,16 @@ mod tests {
             duration_ms: 200,
             easing: Easing::CubicBezier(0., f64::MAX, 1., -f64::MAX),
         });
-        state.sample(&c, Some(&g), settings, true, Duration::ZERO);
+        state.sample(&c, Some(&g), settings.clone(), true, Duration::ZERO);
         for time in 0..=200 {
             let s = state
-                .sample(&c, Some(&g), settings, true, Duration::from_millis(time))
+                .sample(
+                    &c,
+                    Some(&g),
+                    settings.clone(),
+                    true,
+                    Duration::from_millis(time),
+                )
                 .unwrap();
             assert!(s.offset.is_finite() && (-200. ..=0.).contains(&s.offset));
             state.painted(&s);

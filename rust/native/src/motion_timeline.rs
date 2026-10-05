@@ -119,16 +119,17 @@ impl Timeline {
                 } else {
                     Duration::from_millis(stage.delay_ms as u64)
                 };
-            let (curve, duration) = match stage.timing {
-                Timing::Tween(duration, easing) => {
-                    (Curve::Tween(easing), Duration::from_millis(duration as u64))
-                }
+            let (curve, duration) = match &stage.timing {
+                Timing::Tween(duration, easing) => (
+                    Curve::Tween(easing.clone()),
+                    Duration::from_millis(*duration as u64),
+                ),
                 Timing::Spring(parameters) => {
                     let mut paths = Box::new(std::array::from_fn(|_| None));
                     let mut duration = Duration::ZERO;
                     for item in &stage.targets {
                         let path = Trajectory::new(
-                            parameters,
+                            *parameters,
                             item.property,
                             from.values.get(item.property).unwrap(),
                             from.velocity.get(item.property).unwrap(),
@@ -185,9 +186,13 @@ impl Timeline {
             + program
                 .stages
                 .iter()
-                .filter(|s| matches!(s.timing, Timing::Spring(_)))
-                .count()
-                * std::mem::size_of::<[Option<Trajectory>; PROPERTY_COUNT]>()
+                .map(|s| match &s.timing {
+                    Timing::Spring(_) => {
+                        std::mem::size_of::<[Option<Trajectory>; PROPERTY_COUNT]>()
+                    }
+                    Timing::Tween(_, easing) => easing.heap_bytes(),
+                })
+                .sum::<usize>()
     }
     pub fn retained_bytes(&self) -> usize {
         std::mem::size_of::<Self>()
@@ -195,12 +200,9 @@ impl Timeline {
             + self
                 .segments
                 .iter()
-                .map(|s| {
-                    if matches!(s.curve, Curve::Spring(_)) {
-                        std::mem::size_of::<[Option<Trajectory>; PROPERTY_COUNT]>()
-                    } else {
-                        0
-                    }
+                .map(|s| match &s.curve {
+                    Curve::Spring(_) => std::mem::size_of::<[Option<Trajectory>; PROPERTY_COUNT]>(),
+                    Curve::Tween(easing) => easing.heap_bytes(),
                 })
                 .sum::<usize>()
     }
