@@ -6,7 +6,7 @@ use gpui::{
     UniformListScrollHandle, Window, canvas, deferred, div, prelude::*, px, rgba,
 };
 use gpui_base::input::InputState;
-use gpuio_protocol::{NodeId, v1::*};
+use gpuio_protocol::{NodeId, palette_options, v1::*};
 use std::{
     cell::{Cell, RefCell},
     collections::BTreeMap,
@@ -31,7 +31,10 @@ struct Reveal {
 pub(super) struct State {
     pub(super) query: Entity<InputState>,
     config: Arc<PaletteConfig>,
+    options: Option<Arc<palette_options::Config>>,
+    keywords: BTreeMap<String, Vec<String>>,
     semantic_config: Rc<RefCell<Arc<PaletteConfig>>>,
+    query_visible: Rc<Cell<bool>>,
     pub(super) closed: bool,
     editor: Option<NodeId>,
     rows: Vec<Row>,
@@ -66,16 +69,26 @@ impl State {
     pub(super) fn row_bounds(&self, command: &str) -> Bounds<Pixels> {
         self.row_bounds.borrow()[command]
     }
+    fn searchable(&self) -> bool {
+        self.options
+            .as_ref()
+            .is_none_or(|options| options.searchable)
+    }
     fn composing(&self, cx: &App) -> bool {
         self.query.read(cx).bridge_composition().is_some()
     }
 }
-fn matches_query(label: &str, id: &str, query: &str) -> bool {
-    let label = label.to_lowercase();
-    let id = id.to_lowercase();
-    query
-        .split_whitespace()
-        .all(|term| label.contains(term) || id.contains(term))
+fn keyword_index(options: Option<&palette_options::Config>) -> BTreeMap<String, Vec<String>> {
+    options
+        .into_iter()
+        .flat_map(|options| &options.keywords)
+        .map(|entry| {
+            (
+                entry.command.clone(),
+                entry.words.iter().map(|word| word.to_lowercase()).collect(),
+            )
+        })
+        .collect()
 }
 impl View {
     pub(super) fn sync_palettes(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -91,13 +104,13 @@ impl View {
             while let Some(id) = stack.pop() {
                 let node = tree.get(id).expect("validated node");
                 if let Some(config) = &node.palette {
-                    nodes.push((id, config.clone()));
+                    nodes.push((id, config.clone(), node.palette_options.clone()));
                 }
                 stack.extend(node.children.iter().copied());
             }
             nodes
         };
-        for (id, config) in nodes {
+        for (id, config, options) in nodes {
             if let Some(state) = self.palettes.get_mut(&id) {
                 if state.config != config {
                     state.query.update(cx, |query, cx| {
@@ -105,6 +118,32 @@ impl View {
                     });
                     *state.semantic_config.borrow_mut() = config.clone();
                     state.config = config;
+                }
+                if state.options != options {
+                    let was_searchable = state.searchable();
+                    state.keywords = keyword_index(options.as_deref());
+                    state.options = options;
+                    let searchable = state.searchable();
+                    state.query_visible.set(searchable);
+                    if was_searchable != searchable {
+                        let query_focus = state.query.read(cx).focus_handle(cx);
+                        let scope_focus = self.focus.borrow().handle(id);
+                        if !searchable && state.composing(cx) {
+                            state
+                                .query
+                                .update(cx, |query, cx| query.unmark_text(window, cx));
+                        }
+                        if !state.closed
+                            && self.focus.borrow().top_overlay(id)
+                            && let Some(scope_focus) = scope_focus
+                        {
+                            if !searchable && query_focus.is_focused(window) {
+                                window.focus(&scope_focus, cx);
+                            } else if searchable && scope_focus.is_focused(window) {
+                                window.focus(&query_focus, cx);
+                            }
+                        }
+                    }
                 }
                 continue;
             }
@@ -117,6 +156,10 @@ impl View {
             let gate = self.focus.clone();
             let semantic_config = Rc::new(RefCell::new(config.clone()));
             let semantic_labels = semantic_config.clone();
+            let query_visible = Rc::new(Cell::new(
+                options.as_ref().is_none_or(|options| options.searchable),
+            ));
+            let query_actions = query_visible.clone();
             let placeholder = config.placeholder.clone();
             query.update(cx, |state, cx| {
                 state.set_placeholder(placeholder, window, cx);
@@ -126,6 +169,8 @@ impl View {
                     let input = cx.weak_entity();
                     let gate = gate.clone();
                     let focus_gate = gate.clone();
+                    let focus_visible = query_actions.clone();
+                    let value_visible = query_actions.clone();
                     let focus = state.focus_handle(cx);
                     element
                         .role(gpui::Role::EditableComboBox)
@@ -134,14 +179,20 @@ impl View {
                         .aria_value(state.value())
                         .aria_expanded(true)
                         .on_a11y_action(gpui::AccessibleAction::Focus, move |_, window, cx| {
-                            if focus_gate.borrow().allows(id) && focus_gate.borrow().visible(id) {
+                            if focus_visible.get()
+                                && focus_gate.borrow().allows(id)
+                                && focus_gate.borrow().visible(id)
+                            {
                                 window.focus(&focus, cx);
                             }
                         })
                         .on_a11y_action(
                             gpui::AccessibleAction::SetValue,
                             move |data, window, cx| {
-                                if !gate.borrow().allows(id) || !gate.borrow().visible(id) {
+                                if !value_visible.get()
+                                    || !gate.borrow().allows(id)
+                                    || !gate.borrow().visible(id)
+                                {
                                     return;
                                 }
                                 if let Some(gpui::accesskit::ActionData::Value(value)) = data
@@ -165,7 +216,10 @@ impl View {
                 State {
                     query,
                     config,
+                    keywords: keyword_index(options.as_deref()),
+                    options,
                     semantic_config,
+                    query_visible,
                     closed: false,
                     editor,
                     rows: vec![],
@@ -197,7 +251,22 @@ impl View {
                 .iter()
                 .filter_map(|command| {
                     let (scope, command) = tree.command(id, command)?;
-                    matches_query(&command.label, &command.id, &query).then(|| Row {
+                    let search = state
+                        .options
+                        .as_ref()
+                        .map_or(palette_options::Search::AllTerms, |options| options.search);
+                    let keywords = state
+                        .keywords
+                        .get(&command.id)
+                        .map_or(&[][..], Vec::as_slice);
+                    (!state.searchable()
+                        || search.matches(
+                            &command.label.to_lowercase(),
+                            &command.id.to_lowercase(),
+                            keywords,
+                            &query,
+                        ))
+                    .then(|| Row {
                         route: Route::new(tree, scope, command, CommandSource::Palette(id)),
                         enabled: self.palette_available(id, command, cx),
                     })
@@ -385,6 +454,19 @@ impl View {
             return false;
         }
         if key == "escape" {
+            if state.searchable()
+                && state.options.as_ref().is_some_and(|options| {
+                    options.escape == palette_options::Escape::ClearQueryFirst
+                })
+                && !state.query.read(cx).value().is_empty()
+            {
+                state
+                    .query
+                    .update(cx, |query, cx| query.set_value("", window, cx));
+                self.refresh_palette(id, cx);
+                cx.notify();
+                return true;
+            }
             self.close_palette(id, PaletteDismissal::Escape, window, cx);
             return true;
         }
@@ -483,6 +565,7 @@ impl View {
         let bounds = state.bounds.clone();
         let row_bounds = state.row_bounds.clone();
         let query = state.query.clone();
+        let searchable = state.searchable();
         let selected = state.selected.clone();
         let scroll = state.scroll.clone();
         let scope_focus = self
@@ -492,7 +575,11 @@ impl View {
             .expect("mounted palette scope");
         let query_focus = query.read(cx).focus_handle(cx).tab_stop(true);
         let gate = self.focus.clone();
-        let record_focus = query_focus.clone();
+        let record_focus = if searchable {
+            query_focus.clone()
+        } else {
+            scope_focus.clone().tab_stop(true)
+        };
         let owner = cx.weak_entity();
         let style = appearance.clone();
         let count = rows.len();
@@ -658,8 +745,10 @@ impl View {
                 panel = panel.active(move |_| style);
             }
         }
+        if searchable {
+            panel = panel.child(query.clone());
+        }
         panel = panel
-            .child(query.clone())
             .capture_action(move |action: &gpui_base::input::Enter, window, cx| {
                 if action.secondary || action.shift {
                     return;
@@ -773,3 +862,7 @@ impl View {
         .into_any_element()
     }
 }
+
+#[cfg(all(test, feature = "native-image-tests"))]
+#[path = "palette_options_test.rs"]
+mod options_tests;

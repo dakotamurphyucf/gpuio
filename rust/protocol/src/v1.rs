@@ -842,6 +842,7 @@ pub enum Op {
     SetWindowRegion(NodeId, Option<crate::window_region::Region>),
     CreateTableText(NodeId, crate::table::Cell),
     SetTableText(NodeId, crate::table::Cell),
+    SetPaletteOptions(NodeId, Option<crate::palette_options::Config>),
 }
 
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]

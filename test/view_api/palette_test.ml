@@ -138,3 +138,87 @@ let%expect_test "palette bytes and event order match independent Rust fixture" =
         (Wire.Event.decode (fixture "palette-v1-events.hex") |> Or_error.ok_exn)));
   [%expect {| |}]
 ;;
+
+let%expect_test "palette policies validate keywords and keep default wire unchanged" =
+  let create keywords =
+    Command_palette.Config.create ~label:"Actions" ~commands:[ id "run" ] ~keywords ()
+  in
+  List.iter
+    [ [ id "missing", [ "execute" ] ]
+    ; [ id "run", [ "execute" ]; id "run", [ "launch" ] ]
+    ; [ id "run", [ " " ] ]
+    ; [ id "run", [ "a\000b" ] ]
+    ; [ id "run", [ String.make 4097 'x' ] ]
+    ; [ id "run", List.init 65 ~f:(Fn.const "x") ]
+    ; [ id "run", List.init 64 ~f:(Fn.const (String.make 4096 'x')) ]
+    ]
+    ~f:(fun keywords -> assert (Result.is_error (create keywords)));
+  assert (
+    Result.is_ok (Command_palette.Config.create ~label:"\227\128\128" ~commands:[] ()));
+  assert (
+    Result.is_ok
+      (create [ id "run", [ "\194\160\227\128\128"; "\194\160λ\227\128\128" ] ]));
+  assert (Option.is_none (Command_palette.Expert.options config));
+  let configured =
+    Command_palette.Config.create
+      ~label:"Actions"
+      ~commands:[ id "run" ]
+      ~search:Substring
+      ~searchable:false
+      ~escape:Clear_query_first
+      ~keywords:[ id "run", [ "execute λ" ] ]
+      ()
+    |> Or_error.ok_exn
+  in
+  let message =
+    Wire.Message.Apply
+      { window
+      ; base = 0L
+      ; revision = 1L
+      ; operations =
+          [ Set_palette_options (node 1L, Command_palette.Expert.options configured) ]
+      }
+  in
+  let bytes = Wire.Message.encode message |> Or_error.ok_exn in
+  assert (
+    String.equal
+      bytes
+      "\003\000\001\000\001\001\125\001\001\001\001\000\001\001\003run\001\010execute λ");
+  [%expect {| |}]
+;;
+
+let%expect_test "palette option updates preserve mounted identity and reset separately" =
+  let reconciler = Reconciler.create window in
+  let view search =
+    let config =
+      Command_palette.Config.create ~label:"Actions" ~commands:[ id "run" ] ~search ()
+      |> Or_error.ok_exn
+    in
+    View.command_scope
+      ~commands
+      [ View.command_palette ~config ~on_dismiss:(Fn.const "dismiss") () ]
+  in
+  let apply search =
+    let prepared =
+      Reconciler.prepare reconciler ~theme:Theme.default (Some (view search))
+      |> Or_error.ok_exn
+    in
+    let message = Reconciler.message prepared in
+    Reconciler.accept reconciler prepared |> Or_error.ok_exn;
+    message
+  in
+  ignore (apply All_terms : Wire.Message.t option);
+  let only_options = function
+    | Some
+        (Wire.Message.Apply { operations = [ Set_palette_options (node, options) ]; _ })
+      -> node, options
+    | _ -> assert false
+  in
+  let mounted, options = only_options (apply Substring) in
+  assert (Option.is_some options);
+  assert (Option.is_none (apply Substring));
+  let reset, options = only_options (apply All_terms) in
+  assert (Node_id.equal mounted reset);
+  assert (Option.is_none options);
+  [%expect {| |}]
+;;

@@ -1,6 +1,9 @@
 module Ui_command = Command
 open Core
 module Wire = Gpuio_protocol.Wire
+module Options = Gpuio_protocol.Palette_options_wire
+module Search = Options.Search
+module Escape = Options.Escape
 
 module Config = struct
   type t =
@@ -8,6 +11,7 @@ module Config = struct
     ; placeholder : string
     ; commands : Ui_command.Id.t list
     ; dismiss_on_outside_pointer : bool
+    ; options : Options.t option
     }
   [@@deriving equal, sexp_of]
 
@@ -16,6 +20,10 @@ module Config = struct
         ~commands
         ?(placeholder = "Search commands")
         ?(dismiss_on_outside_pointer = true)
+        ?(search = Search.All_terms)
+        ?(searchable = true)
+        ?(escape = Escape.Dismiss)
+        ?(keywords = [])
         ()
     =
     let text value =
@@ -24,6 +32,16 @@ module Config = struct
       && not (String.contains value '\000')
     in
     let ids = List.map commands ~f:Ui_command.Id.to_string in
+    let options : Options.t =
+      { search
+      ; searchable
+      ; escape
+      ; keywords =
+          List.map keywords ~f:(fun (command, words) ->
+            { Options.Keywords.command = Ui_command.Id.to_string command; words })
+      }
+    in
+    let known = String.Set.of_list ids in
     if (not (text label && text placeholder)) || String.is_empty (String.strip label)
     then
       Or_error.error_string
@@ -33,12 +51,26 @@ module Config = struct
       List.length ids > 1024 || Set.length (String.Set.of_list ids) <> List.length ids
     then Or_error.error_string "palette requires at most 1024 unique command IDs"
     else if
+      (not (Options.valid options))
+      || List.exists options.keywords ~f:(fun entry -> not (Set.mem known entry.command))
+    then
+      Or_error.error_string
+        "palette keywords require unique known IDs and bounded nonblank text"
+    else if
       String.length label
       + String.length placeholder
       + List.sum (module Int) ids ~f:String.length
+      + Options.text_bytes options
       > 262_144
     then Or_error.error_string "palette metadata exceeds 256 KiB"
-    else Ok { label; placeholder; commands; dismiss_on_outside_pointer }
+    else
+      Ok
+        { label
+        ; placeholder
+        ; commands
+        ; dismiss_on_outside_pointer
+        ; options = Option.some_if (not (Options.equal options Options.default)) options
+        }
   ;;
 
   let commands t = t.commands
@@ -55,6 +87,8 @@ end
 module Appearance = Choice.Appearance
 
 module Expert = struct
+  let options (t : Config.t) = t.options
+
   let to_wire (t : Config.t) : Wire.Palette.t =
     { label = t.label
     ; placeholder = t.placeholder

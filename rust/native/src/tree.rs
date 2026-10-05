@@ -127,6 +127,7 @@ pub struct Node {
     pub command_ref: Option<Arc<str>>,
     pub menu: Option<Arc<MenuConfig>>,
     pub palette: Option<Arc<PaletteConfig>>,
+    pub palette_options: Option<Arc<gpuio_protocol::palette_options::Config>>,
     pub progress: Option<Arc<ProgressConfig>>,
     pub progress_presentation: Option<Arc<gpuio_protocol::progress_presentation::Config>>,
     pub loading: Option<Arc<gpuio_protocol::loading::Config>>,
@@ -496,6 +497,7 @@ impl Node {
                 .palette
                 .as_ref()
                 .map_or(0, |palette| palette.retained_bytes())
+            + self.palette_options.as_ref().map_or(0, |options| options.retained_bytes())
             + self.tooltip.as_ref().map_or(0, |config| {
                 std::mem::size_of::<TooltipConfig>()
                     + config.label.len()
@@ -1370,6 +1372,13 @@ impl Tree {
                             || node.choice.is_some()
                     })
                 {
+                    return Err(ErrorCode::InvalidTree.into());
+                }
+                if node.palette_options.as_ref().is_some_and(|options| {
+                    node.palette
+                        .as_ref()
+                        .is_none_or(|config| !options.fits(config))
+                }) {
                     return Err(ErrorCode::InvalidTree.into());
                 }
                 if (node.kind == Kind::CommandPalette) != node.palette.is_some()
@@ -2458,6 +2467,7 @@ impl Plan<'_> {
             | Op::SetCommandRef(id, ..)
             | Op::SetMenu(id, ..)
             | Op::SetPalette(id, ..)
+            | Op::SetPaletteOptions(id, ..)
             | Op::SetAnimation(id, ..)
             | Op::SetAnimationProgram(id, ..)
             | Op::SetNavigationStack(id, ..)
@@ -2664,6 +2674,7 @@ impl Plan<'_> {
                             command_ref: None,
                             menu: None,
                             palette: None,
+                            palette_options: None,
                             progress: None,
                             progress_presentation: None,
                             loading: None,
@@ -3762,6 +3773,14 @@ impl Plan<'_> {
                         shape: gpuio_protocol::progress_presentation::Shape::Linear,
                         transition: gpuio_protocol::progress_presentation::Transition::Immediate,
                     }));
+            }
+            Op::SetPaletteOptions(id, config) => {
+                if self.node(*id)?.kind != Kind::CommandPalette
+                    || config.as_ref().is_some_and(|c| !c.is_valid())
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.palette_options = config.clone().map(Arc::new);
             }
             Op::SetPalette(id, config) => {
                 if self.node(*id)?.kind != Kind::CommandPalette || !config.is_valid() {

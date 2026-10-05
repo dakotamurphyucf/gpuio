@@ -3222,6 +3222,66 @@ def exercise_feedback(mac, images):
     mac.wait_text(TITLE, 'Preview commands')
     mac.key(36)  # Native chooser selects the first enabled command.
     mac.wait_text(TITLE, 'Everything is in place')
+    # Real native query/AX projection and OS Escape under each public policy.
+    def palette_rows(expected):
+        deadline = time.monotonic() + 10
+        labels = ('Advance preview', 'Save preview', 'Copy preview selection')
+        while True:
+            actual = []
+            for label in labels:
+                node = mac.find(TITLE, label, 'AXStaticText', deadline=deadline)
+                if node:
+                    actual.append(label)
+                    mac.release(node)
+            if actual == expected:
+                return
+            assert time.monotonic() < deadline, ('palette rows', expected, actual)
+            time.sleep(.025)
+
+    def open_palette():
+        mac.press(TITLE, 'Find a command')
+        mac.release(mac.wait_find(TITLE, 'Preview commands', 'AXWindow'))
+
+    activate(mac, mac.wait_find(TITLE, 'Clear command query before closing', 'AXCheckBox'))
+    open_palette()
+    mac.field(TITLE, 'Preview commands', 'AXComboBox', 'STEP next')
+    expect_field(mac, TITLE, 'Preview commands', 'STEP next', 'AXComboBox')
+    palette_rows(['Advance preview'])
+    mac.key(53)
+    expect_field(mac, TITLE, 'Preview commands', '', 'AXComboBox')
+    palette_rows(['Advance preview', 'Save preview', 'Copy preview selection'])
+    mac.key(53)
+    wait_absent(mac, 'Preview commands', 'AXWindow')
+    mac.press(TITLE, 'Palette search: All terms')
+    open_palette()
+    mac.field(TITLE, 'Preview commands', 'AXComboBox', 'STEP next')
+    palette_rows([])
+    mac.field(TITLE, 'Preview commands', 'AXComboBox', 'NEXT STEP')
+    palette_rows(['Advance preview'])
+    if images:
+        screenshot(mac, images / 'gallery-palette-keywords.png', title=TITLE)
+    mac.key(53)
+    expect_field(mac, TITLE, 'Preview commands', '', 'AXComboBox')
+    mac.key(53)
+    wait_absent(mac, 'Preview commands', 'AXWindow')
+    mac.press(TITLE, 'Palette search: Substring')
+    open_palette()
+    mac.field(TITLE, 'Preview commands', 'AXComboBox', 'no matching command')
+    palette_rows(['Advance preview', 'Save preview', 'Copy preview selection'])
+    mac.key(53)
+    expect_field(mac, TITLE, 'Preview commands', '', 'AXComboBox')
+    mac.key(53)
+    wait_absent(mac, 'Preview commands', 'AXWindow')
+    activate(mac, mac.wait_find(TITLE, 'Show command search', 'AXCheckBox'))
+    open_palette()
+    palette_rows(['Advance preview', 'Save preview', 'Copy preview selection'])
+    absent(mac, 'Preview commands', 'AXComboBox')
+    mac.key(53)
+    wait_absent(mac, 'Preview commands', 'AXWindow')
+    activate(mac, mac.wait_find(TITLE, 'Show command search', 'AXCheckBox'))
+    activate(mac, mac.wait_find(TITLE, 'Clear command query before closing', 'AXCheckBox'))
+    mac.press(TITLE, 'Palette search: Unfiltered')
+    print('GALLERY_PALETTE_POLICIES_OK: keyword terms/substring/unfiltered rows, query visibility and clear-first/dismiss Escape with real macOS input', flush=True)
     mac.press(TITLE, 'Preview actions')
     passive_menu_label('Preview workflow')
     menu_artwork('Save preview', 'dropdown-rich')

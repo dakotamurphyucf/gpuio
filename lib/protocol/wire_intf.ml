@@ -990,6 +990,7 @@ module type S = sig
       | Set_window_region of Node_id.t * Window_region_wire.t option
       | Create_table_text of Node_id.t * Table.Cell.t
       | Set_table_text of Node_id.t * Table.Cell.t
+      | Set_palette_options of Node_id.t * Palette_options_wire.t option
     [@@deriving bin_io, equal, sexp_of]
   end
 

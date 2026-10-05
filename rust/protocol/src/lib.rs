@@ -169,3 +169,5 @@ pub mod toast_motion;
 pub mod toast_placement;
 
 pub mod table_presentation;
+
+pub mod palette_options;

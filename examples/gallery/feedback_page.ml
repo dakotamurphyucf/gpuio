@@ -60,6 +60,16 @@ let component app window palette graph =
       graph
   in
   let chooser, set_chooser = B.state false graph in
+  let palette_search, next_palette_search =
+    B.state_machine0
+      ~default_model:0
+      ~apply_action:(fun _ index () -> (index + 1) mod 3)
+      graph
+  in
+  let palette_searchable, toggle_palette_searchable =
+    B.toggle ~default_model:true graph
+  in
+  let palette_clear, toggle_palette_clear = B.toggle ~default_model:false graph in
   let toast_anchor, next_toast_anchor =
     B.state_machine0
       ~default_model:0
@@ -102,6 +112,12 @@ let component app window palette graph =
   and inject = inject
   and chooser = chooser
   and set_chooser = set_chooser
+  and palette_search = palette_search
+  and next_palette_search = next_palette_search
+  and palette_searchable = palette_searchable
+  and toggle_palette_searchable = toggle_palette_searchable
+  and palette_clear = palette_clear
+  and toggle_palette_clear = toggle_palette_clear
   and input = input
   and progress_preview = progress_preview
   and toast_anchor = toast_anchor
@@ -137,6 +153,12 @@ let component app window palette graph =
       ?motion:(Option.some_if toast_motion Toast.Stack.Motion.default)
       ()
     |> ok
+  in
+  let search, search_label =
+    match palette_search with
+    | 0 -> Command_palette.Search.All_terms, "All terms"
+    | 1 -> Substring, "Substring"
+    | _ -> Unfiltered, "Unfiltered"
   in
   let button_style =
     style
@@ -282,6 +304,19 @@ let component app window palette graph =
             "Use ⌘K on macOS or Ctrl+K on Linux to advance. Right-click the draft for \
              its menu."
         ; V.context_menu ~menu (Gpuio_eio.Text_input.view input) |> decorate
+        ; Palette.button p ("Palette search: " ^ search_label) (next_palette_search ())
+        ; V.switch
+            ~checked:palette_searchable
+            ~on_toggle:toggle_palette_searchable
+            "Show command search"
+        ; V.switch
+            ~checked:palette_clear
+            ~on_toggle:toggle_palette_clear
+            "Clear command query before closing"
+        ; Palette.text
+            p
+            ~muted:true
+            "Try ‘next step’ to find Advance, or ‘store’ to find Save by keyword."
         ; V.switch ~checked:show_content ~on_toggle:toggle_content "Detailed menu items"
         ; V.checkbox
             ~state:(if State.is_enabled model then Checked else Unchecked)
@@ -347,6 +382,14 @@ let component app window palette graph =
            ~config:
              (Command_palette.Config.create
                 ~label:"Preview commands"
+                ~search
+                ~searchable:palette_searchable
+                ~escape:(if palette_clear then Clear_query_first else Dismiss)
+                ~keywords:
+                  [ advance, [ "next step" ]
+                  ; notify, [ "store"; "persist" ]
+                  ; copy, [ "clipboard" ]
+                  ]
                 ~commands:[ advance; notify; copy ]
                 ~placeholder:"Find a preview action…"
                 ()

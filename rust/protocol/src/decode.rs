@@ -797,10 +797,51 @@ impl Decoder<'_> {
             during_composition: self.boolean()?,
         })
     }
-    fn menu_text(&mut self, limit: usize, bytes: &mut usize) -> Result<String, DecodeError> {
+    fn bounded_metadata_text(
+        &mut self,
+        limit: usize,
+        bytes: &mut usize,
+    ) -> Result<String, DecodeError> {
         let value = self.bounded_text(limit.min(262144usize.saturating_sub(*bytes)))?;
         *bytes += value.len();
         Ok(value)
+    }
+    fn palette_options(&mut self) -> Result<crate::palette_options::Config, DecodeError> {
+        use crate::palette_options::{Config, Escape, Keywords, Search};
+        let search = match self.tag()? {
+            0 => Search::AllTerms,
+            1 => Search::Substring,
+            2 => Search::Unfiltered,
+            _ => return Err(DecodeError::Malformed),
+        };
+        let searchable = self.boolean()?;
+        let escape = match self.tag()? {
+            0 => Escape::Dismiss,
+            1 => Escape::ClearQueryFirst,
+            _ => return Err(DecodeError::Malformed),
+        };
+        let size = self.count(1024)?;
+        let mut bytes = 0;
+        let mut keywords = Vec::with_capacity(size);
+        for _ in 0..size {
+            let command = self.bounded_metadata_text(256, &mut bytes)?;
+            let size = self.count(64)?;
+            let mut words = Vec::with_capacity(size);
+            for _ in 0..size {
+                words.push(self.bounded_metadata_text(4096, &mut bytes)?);
+            }
+            keywords.push(Keywords { command, words });
+        }
+        let config = Config {
+            search,
+            searchable,
+            escape,
+            keywords,
+        };
+        if !config.is_valid() {
+            return Err(DecodeError::Malformed);
+        }
+        Ok(config)
     }
     fn menu_definition(
         &mut self,
@@ -811,17 +852,17 @@ impl Decoder<'_> {
         if depth > 8 {
             return Err(DecodeError::LimitExceeded);
         }
-        let label = self.menu_text(4096, bytes)?;
+        let label = self.bounded_metadata_text(4096, bytes)?;
         let disabled = self.boolean()?;
         let size = self.count(1024usize.saturating_sub(*count))?;
         *count += size;
         let mut items = Vec::with_capacity(size);
         for _ in 0..size {
             items.push(match self.tag()? {
-                0 => MenuItem::Command(self.menu_text(256, bytes)?),
+                0 => MenuItem::Command(self.bounded_metadata_text(256, bytes)?),
                 1 => MenuItem::Separator,
                 2 => MenuItem::Submenu(self.menu_definition(depth + 1, count, bytes)?),
-                3 => MenuItem::Label(self.menu_text(4096, bytes)?),
+                3 => MenuItem::Label(self.bounded_metadata_text(4096, bytes)?),
                 _ => return Err(DecodeError::Malformed),
             });
         }
@@ -1283,6 +1324,7 @@ impl Decoder<'_> {
             121 => Op::SetDocumentProfile(self.node()?, self.document_profile()?),
             123 => Op::CreateTableText(self.node()?, self.table_cell()?),
             124 => Op::SetTableText(self.node()?, self.table_cell()?),
+            125 => Op::SetPaletteOptions(self.node()?, self.option(Self::palette_options)?),
             122 => Op::SetWindowRegion(
                 self.node()?,
                 self.option(|d| {
