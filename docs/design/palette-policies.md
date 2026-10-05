@@ -9,7 +9,8 @@ availability, generation, focus scope and captured editor before invocation.
 
 The optional search policy defaults to `All_terms`: every whitespace-separated
 query term must occur in the Unicode-lowercased label, ID or a keyword. `Substring`
-compares the entire lowercased query with a label or individual keyword, matching
+trims surrounding Unicode whitespace and compares the entire remaining lowercase
+query with a label or individual keyword, matching
 the pinned catalog's basic substring policy; it does not search command IDs.
 `Unfiltered` keeps declared command order regardless of query. These are literal
 matches, without fuzzy ranking, case folding or Unicode normalization.

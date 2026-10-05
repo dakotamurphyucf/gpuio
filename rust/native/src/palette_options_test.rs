@@ -138,7 +138,7 @@ fn policies_preserve_query_owner_and_transfer_focus_when_query_is_hidden() {
     let (owner, mut cx, _reader) = mount(&mut app);
     let input = owner.read_with(&cx, |view, _| view.palettes[&id(1)].query.clone());
     cx.update(|w, cx| w.focus(&input.read(cx).focus_handle(cx), cx));
-    query(&owner, &mut cx, "EXECUTE λ");
+    query(&owner, &mut cx, "  EXECUTE λ  ");
     assert!(rows(&owner, &cx).is_empty());
     apply(
         &owner,
@@ -155,7 +155,7 @@ fn policies_preserve_query_owner_and_transfer_focus_when_query_is_hidden() {
     cx.update(|w, cx| {
         owner.update(cx, |view, cx| {
             assert_eq!(view.palettes[&id(1)].query.entity_id(), input.entity_id());
-            assert_eq!(input.read(cx).value().as_str(), "EXECUTE λ");
+            assert_eq!(input.read(cx).value().as_str(), "  EXECUTE λ  ");
             assert!(view.focus.borrow().handle(id(1)).unwrap().is_focused(w));
             assert!(!input.read(cx).focus_handle(cx).is_focused(w));
         })

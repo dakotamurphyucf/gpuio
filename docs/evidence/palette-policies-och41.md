@@ -69,3 +69,23 @@ existing contract. No test expectations or acceptance thresholds were weakened.
 
 [Commands, source snapshots, original failures, final logs and images](palette-policies-och41/validation.tar.gz)
 are retained with a [checksum manifest](palette-policies-och41/manifest.json).
+
+## Surrounding query whitespace — source-fidelity follow-up
+
+Further review of pinned `CommandState::update_matches` shows that it trims
+surrounding Unicode whitespace before calling `CommandItem::matches`. The native
+`Substring` policy now does the same for matching, while retaining the raw query
+entity value. Internal whitespace remains significant. This is separate from the
+unchanged Core-compatible metadata blankness policy described above.
+
+Based on `f6e34e2` plus the archived correction, two protocol tests and all four
+native palette lifecycle tests pass, including whitespace-only and padded queries
+and preservation of the raw query through visibility changes. Formatting and
+strict protocol Clippy pass. A fresh independently installed gallery passes the
+complete macOS Feedback walkthrough with the padded `  NEXT STEP  ` query.
+The child is closed/reaped. Its executable SHA-256 is
+`10f6b6124bd6d4cb68e6f08fcaa08dabd8954a0e499d0cd6de1d42f52cfb7ea1`.
+The existing claims/limits above otherwise remain unchanged.
+
+[Follow-up commands, patch, logs and keyword capture](palette-query-trim-och41/validation.tar.gz)
+are retained with [hashes](palette-query-trim-och41/manifest.json).

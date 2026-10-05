@@ -26,8 +26,9 @@ module Config : sig
       4096 bytes. It is independent of application document editors.
 
       [All_terms] matches every whitespace-separated term against label, ID or
-      keywords. [Substring] matches the whole query against the label or an
-      individual keyword, preserving the pinned source's substring semantics.
+      keywords. [Substring] trims surrounding Unicode whitespace and matches the remaining
+      whole query against the label or an individual keyword, preserving the
+      pinned source's substring semantics without changing the stored query.
       [Unfiltered] preserves declared rows regardless of query. Matching uses
       Unicode lowercase, without fuzzy ranking or Unicode normalization.
       Keywords reference known, unique command IDs; at most 64 nonblank UTF-8

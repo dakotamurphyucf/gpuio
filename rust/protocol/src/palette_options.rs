@@ -90,7 +90,12 @@ impl Search {
                     || id.contains(term)
                     || keywords.iter().any(|k| k.contains(term))
             }),
-            Self::Substring => label.contains(query) || keywords.iter().any(|k| k.contains(query)),
+            Self::Substring => {
+                // The pinned CommandState trims before CommandItem::matches.
+                // Keep the query entity unchanged; this affects matching only.
+                let query = query.trim();
+                label.contains(query) || keywords.iter().any(|k| k.contains(query))
+            }
             Self::Unfiltered => true,
         }
     }

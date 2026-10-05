@@ -83,6 +83,9 @@ fn palette_options_search_and_shared_metadata_budget() {
     assert!(Search::AllTerms.matches("run task", "action.run", &words, "λ action launch"));
     assert!(!Search::AllTerms.matches("run task", "action.run", &words, "λ missing"));
     assert!(Search::Substring.matches("run task", "action.run", &words, "execute λ"));
+    assert!(Search::Substring.matches("run task", "action.run", &words, "  \u{2003}execute λ\t"));
+    assert!(Search::Substring.matches("run task", "action.run", &[], " \u{2003}"));
+    assert!(!Search::Substring.matches("run task", "action.run", &words, "execute  λ"));
     assert!(!Search::Substring.matches("run task", "action.run", &words, "action.run"));
     assert!(!Search::Substring.matches("run task", "action.run", &words, "λ launch"));
     assert!(Search::Unfiltered.matches("", "", &[], "anything"));

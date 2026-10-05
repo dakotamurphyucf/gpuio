@@ -3256,7 +3256,7 @@ def exercise_feedback(mac, images):
     open_palette()
     mac.field(TITLE, 'Preview commands', 'AXComboBox', 'STEP next')
     palette_rows([])
-    mac.field(TITLE, 'Preview commands', 'AXComboBox', 'NEXT STEP')
+    mac.field(TITLE, 'Preview commands', 'AXComboBox', '  NEXT STEP  ')
     palette_rows(['Advance preview'])
     if images:
         screenshot(mac, images / 'gallery-palette-keywords.png', title=TITLE)
