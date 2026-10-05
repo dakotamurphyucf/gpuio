@@ -87,3 +87,39 @@ it is not a fresh OS installation or a complete filesystem trace. Full packaged
 IME/OS integration, clean-machine/transfer/signing checks, final notice review,
 API/release publication and other milestone gates remain open. VoiceOver work
 remains on the owner's explicit hold.
+
+
+## Fresh-runner transfer preparation — 2026-10-05
+
+Source `31668dddcf7ed3e319e29fe04fe6c1c50819b4e6` adds a separate Foundation
+macOS receiver job. It receives the three ad-hoc archives from the successful
+build, verifies revision/run/attempt and all metadata/archive hashes, then runs
+the existing extracted-app walkthroughs without project dependency installation,
+cache restoration or a project build. The platform image supplies the parent
+harness's tools. See [the transfer contract](../distribution.md#fresh-hosted-runner).
+
+Local validation on macOS 14.5 arm64 passes:
+
+- All three application targets build from the clean source checkpoint.
+- Actual staging and separate verification of all three archives succeed.
+  [The local manifest](package-runtime-och17/local-transfer-31668dd.json) records
+  exact hashes; null CI IDs correctly identify this as a local run.
+- Five portable tests cover the exact revision/application set, metadata/archive
+  tampering, cross-run reuse and incomplete reports after assembly or final
+  verification failure.
+- Actionlint 1.7.12 and `git diff --check` pass.
+
+Commands (the directories are ignored local outputs):
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build examples/agent_chat/main.exe examples/gallery/main.exe examples/signal_studio/main.exe
+python3 scripts/test_package_transfer.py
+python3 scripts/ci_macos_package_transfer.py stage --directory scratch/agents/root-20261004-resumed/package-transfer-001 --revision 31668dddcf7ed3e319e29fe04fe6c1c50819b4e6
+python3 scripts/ci_macos_package_transfer.py verify --directory scratch/agents/root-20261004-resumed/package-transfer-001 --revision 31668dddcf7ed3e319e29fe04fe6c1c50819b4e6
+```
+
+No fresh hosted execution is claimed yet. The live hosted run at `d380878`
+predates this job. No GUI walkthrough was repeated for the transfer-only change;
+the earlier runtime evidence above remains scoped to its stated artifacts.
+The new archives contain incomplete internal test notices and are not reviewed
+release artifacts. VoiceOver remains on hold and was not touched by this work.
