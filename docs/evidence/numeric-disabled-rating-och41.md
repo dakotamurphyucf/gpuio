@@ -59,3 +59,6 @@ GPU color/alpha/hover assertions, fresh installed consumer, broader native suite
 new-source hosted gates and release acceptance remain separate. Linux desktop
 qualification stays deferred to OCH-47. VoiceOver was untouched and remains on
 the owner's explicit hold. OCH-41/OCH-17 remain open.
+
+The dedicated native Rating paint suite subsequently [passed at the avatar-layout
+follow-up](rating-gpu-och41.md); its evidence retains that newer source scope.

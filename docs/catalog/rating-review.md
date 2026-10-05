@@ -46,17 +46,18 @@ the read-only reducer with the page. The new `--section rating` native driver
 checks geometry, owner identity, keyboard/pointer requests, policies and page
 retirement; a real macOS run now passes 41 geometry/identity cases, both themes
 and native keyboard/pointer policies. See [the dated evidence](../evidence/numeric-disabled-rating-och41.md). The native presentation fixture also contains
-new GPU color/alpha/hover/opacity/inheritance/reset assertions, with execution
-pending. Neither driver's source presence is acceptance evidence.
+GPU color/alpha/hover/opacity/inheritance/reset assertions, now passing in the
+[local native suite](../evidence/rating-gpu-och41.md). These are scoped results,
+not whole-release acceptance.
 
 ## Remaining implementation and acceptance
 
 Local paired-bridge, public API, reducer and installed-consumer build checks now
 pass; commands and scope are in the [appearance contract](../design/rating-appearance.md#local-verification--2026-10-01-utc).
 
-1. Verify actual GPU active/outline/hover colors, style-state refinements,
-   logical sizes and bounds in both themes. Verify committed AX values during
-   hover, real pointer/keyboard requests, policy updates and owner retirement.
+1. Scoped physical gallery and native GPU checks now pass; preserve the
+   [recorded coverage and limits](../evidence/rating-gpu-och41.md), including the
+   distinction between synthetic density and physical monitor transitions.
 2. Run the fresh installed-gallery consumer on the desktop and the required macOS/Linux gates.
    Preserve earlier evidence at its recorded revision and scope rather than
    relabelling it as validation of the new appearance API.

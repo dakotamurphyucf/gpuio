@@ -1,0 +1,8 @@
+{
+  "log": "native-presentation.log.gz",
+  "sha256": "4c2985ffe6dc5c7683d59849426f468af17f5be97a9b166189f0505ac5d7a2b8",
+  "source_revision": "883cb3c9ead7f17a0a85749f1ba1056850ed2c4f",
+  "source_note": "Run before commit; production source exactly matches committed tree; no later code changes.",
+  "executable_sha256": "8824fa638b108f50115f2952f2747ac5027c5bedda87843ab8853fc9041af3c5",
+  "exit_code": 0
+}

@@ -73,7 +73,7 @@ match the independently written `rating-appearance.hex` fixture.
 `rating_appearance_test.rs` is linked into `native_presentation` and the gallery
 driver is `scripts/test_gallery.py --section rating`. The public gallery scenario now passes on macOS; see the
 [dated evidence](../evidence/numeric-disabled-rating-och41.md). The dedicated GPU
-appearance scenario remains **unrun**. Their assertions cover GPU colors/alpha, hover, inherited opacity
+appearance scenario subsequently [passed locally](../evidence/rating-gpu-och41.md). Their assertions cover GPU colors/alpha, hover, inherited opacity
 and foreground, reset, geometry, actual input and retirement; they do not become
 passing native evidence through compilation. No new Linux, hosted CI, VoiceOver
 or physical display-scale acceptance is claimed.
