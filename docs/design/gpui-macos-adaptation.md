@@ -27,7 +27,9 @@ The original full lifecycle audit finished 33 closed-window checkpoints with
 empty application registries and only 135 MB peak RSS, but OS physical footprint
 reached 2.52 GB. IOSurface regions increased by three per window, ending at 99.
 A repaired four-cycle smoke has no IOSurface category at any closed checkpoint
-and physical footprint 55–77 MB. Full repeated repaired qualification is pending.
+and physical footprint 55–77 MB. Three full repaired runs now pass all 99
+closed checkpoints, with no IOSurface category and peak settled footprint below
+107 MB. See [before/after evidence](../evidence/physical-memory-och17.md).
 
 Before full repaired runs, add the explicit `--check-closed-surfaces` regression
 gate to the physical audit: every closed checkpoint must have no nonzero

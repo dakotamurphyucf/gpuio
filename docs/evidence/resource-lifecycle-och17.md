@@ -1,7 +1,10 @@
 # Repeated window/resource retirement — OCH-17
 
 Status: public workload, smoke and three full macOS process-memory runs pass.
-Separate native-entity, GPU/physical and release qualification remain open.
+The subsequent [physical-memory audit](physical-memory-och17.md) found and
+repaired native graphics retention missed by RSS: three repaired runs now pass
+the closed-surface regression. Native-entity, remaining GPU and release
+qualification remain open.
 
 The [workload and collector](../../examples/performance_lifecycle/README.md)
 run three warm-up then 30 measured cycles in one application process. Each window

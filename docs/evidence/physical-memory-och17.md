@@ -1,8 +1,8 @@
 # Closed-window macOS physical memory — OCH-17
 
-Status: a real native graphics retention problem is reproduced; candidate repair
-passes a four-cycle physical smoke and native checks. Full repaired repetitions
-are pending. Earlier RSS-only passes do not certify physical-memory acceptance.
+Status: the native graphics retention defect is reproduced and repaired. Three
+full repaired runs pass the explicit closed-surface regression and existing RSS
+budgets. Earlier RSS-only passes did not establish physical-memory acceptance.
 
 ## Before repair
 
@@ -59,3 +59,46 @@ regression targets the observed native-window retention, without inventing a
 physical-footprint growth threshold after the failure. Physical footprint,
 RSS, native entities and all GPU resources remain distinct. OS category absence
 alone is not a complete native-entity/Metal audit or a physical-presentation test.
+
+## Three full repaired runs — 2026-10-05
+
+All three full repaired attempts and their separate smoke warm-ups pass; none
+was discarded. Source `e0558dcfb2ea75b5e785ac4fdb7c35ff9ab1085a` was clean at
+each launch. The preserved optimized executable has the repaired smoke hash
+above. No simultaneous local compiler or second owned GUI ran. Read-only review,
+CI queries and scratch notes continued. The machine was on battery, with no
+recorded thermal/performance warning. Each full attempt includes three warm-up
+and 30 measured cycles; a separate four-cycle warm-up preceded each attempt.
+
+```sh
+python3 scripts/measure_resource_lifecycle.py --build-profile release --physical-memory --check-closed-surfaces --executable PRESERVED_EXECUTABLE --smoke --output FRESH_WARMUP_DIRECTORY
+python3 scripts/measure_resource_lifecycle.py --build-profile release --physical-memory --check-closed-surfaces --executable PRESERVED_EXECUTABLE --check-budgets --timeout 600 --output FRESH_FULL_DIRECTORY
+```
+
+| Run | Last settled physical bytes | Peak settled physical bytes | Final-ten physical growth bytes | Peak process RSS bytes | Final-ten RSS growth bytes |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| [002](physical-memory-run-002-och17.json) | 92,605,312 | 105,728,896 | 20,135,936 | 128,483,328 | 6,963,200 |
+| [003](physical-memory-run-003-och17.json) | 93,309,888 | 106,810,304 | 22,724,608 | 145,424,384 | 2,899,968 |
+| [004](physical-memory-run-004-och17.json) | 89,361,472 | 98,896,960 | 0 | 140,247,040 | 278,528 |
+
+The [002 raw artifacts](physical-memory-run-002-artifacts-och17.tar.gz),
+[003 raw artifacts](physical-memory-run-003-artifacts-och17.tar.gz) and
+[004 raw artifacts](physical-memory-run-004-artifacts-och17.tar.gz) contain all
+33 tool captures and application output per run. All recorded artifact hashes
+were checked before archiving. Wall times were 123.850, 123.732 and 123.812 s.
+
+All 99 full-run checkpoints have no IOSurface category. The explicit regression
+gate also rejects the saved unpatched report at cycle 1, establishing that it
+detects the actual observed defect. Application registrations, scope/task counts,
+queues and pending requests retire at every checkpoint; all RSS budgets pass.
+Physical-footprint growth above is an observation, not a new post hoc budget.
+Remaining graphics categories are preserved and are not called zero or wholly
+explained by this test. There is no claim that all allocator/cache memory must
+return to the initial cold-process value.
+
+All owned children/windows and the batch's keep-awake process retired. Local
+strict Clippy, default-feature compilation and Dune formatting also pass with
+the repair. Native entities, live-window GPU allocation/presentation and broader
+accessibility acceptance still require their separate evidence. These results
+close the reproduced macOS closed-window surface-retention defect, not the
+entire resource/release matrix.
