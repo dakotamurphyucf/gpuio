@@ -679,11 +679,12 @@
       "id": "charts",
       "owner": "OCH-40",
       "scope": "v1",
-      "audit_status": "mapping established; detailed behavioral review pending",
+      "audit_status": "All seven pinned chart families and nested plot/scale/shape/axis/tooltip sources reviewed in charts-review.md. Existing numeric data/resources, native preparation/rendering/input, explicit sampling and original-data accessibility are mapped. Categorical scales, stacking and richer per-datum/label/tooltip styling remain explicit surface differences/work; names alone do not imply full plotting parity. Existing staged outlier investigation is linked; current optimized/performance/VoiceOver/release qualification remains open.",
       "public_interface": "lib/core/chart.mli",
       "example": "examples/charts",
       "evidence": [
-        "docs/evidence/charts-och40.md"
+        "docs/evidence/charts-och40.md",
+        "docs/catalog/charts-review.md"
       ],
       "gallery_page": "charts",
       "contract": "Seven chart families/mixed layers, bounded source/preparation and original-data accessibility; preserve exact/reduced provenance.",
@@ -714,11 +715,12 @@
       "id": "commands-menus",
       "owner": "OCH-11",
       "scope": "v1",
-      "audit_status": "mapping established; detailed behavioral review pending",
+      "audit_status": "Pinned action, command/state/item, popup/context/dropdown/bar, native-menu and shared searchable-list sources reviewed in commands-menus-review.md. Existing native registry/menu/palette behavior and scoped evidence are mapped; rich menu rows, richer palette presentation/search policies and OS context-popup support remain explicit gaps, not newly deferred scope. General selectable-list composition is not automatic command-route equivalence. Current physical/release acceptance remains open.",
       "public_interface": "lib/core/command.mli",
       "example": "examples/palette",
       "evidence": [
-        "docs/evidence/native-palette-och11.md"
+        "docs/evidence/native-palette-och11.md",
+        "docs/catalog/commands-menus-review.md"
       ],
       "gallery_page": "feedback",
       "contract": "Shared typed commands/key bindings, native menus/palette search and queued invocations; audit searchable-list composition separately.",
