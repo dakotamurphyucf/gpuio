@@ -226,3 +226,76 @@ let%expect_test "nested lifetimes survive data updates but never revive after re
     (true ((1 10) (2 0) (1 20) (1 20) (2 0)))
     |}]
 ;;
+
+let%expect_test "hiding the containing branch retires lifetimes even with unchanged keys" =
+  List.iter [ false; true ] ~f:(fun optimize ->
+    let shown = B.Expert.Var.create true in
+    let calls = ref 0 in
+    let component graph =
+      let open B.Let_syntax in
+      match%sub B.Expert.Var.value shown with
+      | false -> B.return Int.Map.empty
+      | true ->
+        Rows.assoc
+          (module Int)
+          (B.return (Int.Map.singleton 1 ()))
+          ~f:(fun _ _ lifetime graph ->
+            let count, bump =
+              B.state_machine0
+                ~default_model:0
+                ~sexp_of_model:Int.sexp_of_t
+                ~apply_action:(fun _ count () -> count + 1)
+                graph
+            in
+            let%arr count = count
+            and bump = bump
+            and lifetime = lifetime in
+            ( count
+            , lifetime
+            , Rows.Lifetime.guard
+                lifetime
+                (E.Many [ E.of_thunk (fun () -> Int.incr calls); bump () ]) ))
+          graph
+    in
+    let driver =
+      Bonsai_driver.create
+        ~optimize
+        ~clock:(Bonsai.Time_source.create ~start:Time_ns.epoch)
+        component
+    in
+    let cycle () =
+      Bonsai_driver.flush driver;
+      Bonsai_driver.trigger_lifecycles driver;
+      Bonsai_driver.flush driver;
+      Bonsai_driver.result driver
+    in
+    let count, old_lifetime, old_action = Map.find_exn (cycle ()) 1 in
+    assert (count = 0);
+    Bonsai_driver.schedule_event driver old_action;
+    let count, _, _ = Map.find_exn (cycle ()) 1 in
+    assert (count = 1 && !calls = 1);
+    B.Expert.Var.set shown false;
+    assert (Map.is_empty (cycle ()));
+    Bonsai_driver.schedule_event driver old_action;
+    assert (Map.is_empty (cycle ()) && !calls = 1);
+    B.Expert.Var.set shown true;
+    let count, new_lifetime, new_action = Map.find_exn (cycle ()) 1 in
+    assert (count = 0 && not (phys_equal old_lifetime new_lifetime));
+    Bonsai_driver.schedule_event driver old_action;
+    let count, _, _ = Map.find_exn (cycle ()) 1 in
+    assert (count = 0 && !calls = 1);
+    Bonsai_driver.schedule_event driver new_action;
+    let count, _, _ = Map.find_exn (cycle ()) 1 in
+    assert (count = 1 && !calls = 2);
+    B.Expert.Var.set shown false;
+    assert (Map.is_empty (cycle ()));
+    Bonsai_driver.schedule_event driver new_action;
+    assert (Map.is_empty (cycle ()) && !calls = 2);
+    print_s [%sexp (optimize : bool), (!calls : int)];
+    Bonsai_driver.Expert.invalidate_observers driver);
+  [%expect
+    {|
+    (false 2)
+    (true 2)
+    |}]
+;;

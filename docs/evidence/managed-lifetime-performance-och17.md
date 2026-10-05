@@ -130,6 +130,50 @@ settings change. [Raw report and logs](managed-lifetime-performance-och17/list-f
 This is one passing repetition, not completion of the three-run requirement.
 The earlier full-list startup failure remains recorded separately.
 
+## First full paged-table repetition
+
+The first full table presentation run after the change passes all declared
+budgets. It launches at clean `0579ab8`, whose application sources are identical
+to `562c44e`, using the table hash recorded above. A test-only lifecycle regression
+is added during measurement; no compilation, application change or second owned
+GUI overlaps the run.
+
+| Measurement | Result |
+| --- | --- |
+| Coverage | All 100,000 rows, forward and backward; all 64 columns; selection and reveal |
+| Active/cache bounds | 26 rows / 1,664 cells; 512 cached rows; 1,564 page loads / 1,560 evictions |
+| Presentation accounting | 28,323 positive / 28,325 attempts; two initial input-free zeros; no other loss or pending callbacks |
+| Startup transition | 58.394 ms |
+| Submission-to-presentation p95 / p99 | 20.726 / 26.067 ms |
+| Native CPU draw p95 / p99 | 14.057 / 14.483 ms |
+| History / process wall time | 647.777 / 716.314 seconds |
+| Process peak RSS | 516,063,232 bytes |
+| Settled idle | Full 60 seconds; zero CPU draws and native attempts |
+
+All 648 history and 60 idle observations plus interval ends are active and
+visible. Raw trace retains 4,096 records and explicitly counts 24,229 truncated
+records; cumulative histograms include all outcomes. Application and collector
+exit zero, all cleanup counters pass, and the owned processes retire.
+
+```sh
+caffeinate -di python3 scripts/measure_table_history.py \
+  --build-profile release --presentation --check-budgets --timeout 3600 \
+  --executable _build/default/examples/performance_presented/table/main.exe \
+  --output scratch/agents/root-20261004-resumed/key-token-table-full-001
+```
+
+[Raw report, logs and preserved binary hashes](managed-lifetime-performance-och17/table-full-001.tar.gz).
+This is one passing table repetition; two more remain required.
+
+After the benchmark exits, the added regression verifies hiding and reopening a
+containing `match%sub` branch with an unchanged constant row map. Both optimizer
+modes preserve model reset, reject retired effects while hidden and after return,
+create a fresh lifetime, and accept its new effects. The entire virtual-list
+suite passes with `GPUIO_JOBS=2 ./scripts/gpuio exec dune runtest --profile release
+test/virtual_list`; the pinned formatter also passes. No runtime correction was
+needed. The pinned switch's Incremental bind recreates the branch scope, which
+is a second relevant invariant to retain when upgrading Bonsai.
+
 ## Diagnostic provenance and limits
 
 [Trace archive](managed-lifetime-performance-och17/ocaml-traces.tar.gz) contains
