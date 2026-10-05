@@ -38,6 +38,7 @@ screen-capture = [
 ]
 windows-manifest = ["dep:embed-resource"]
 profiler = ["dep:hdrhistogram"]
+presentation-diagnostics = ["profiler"]
 stacker = ["dep:stacksafe"]
 
 [lib]

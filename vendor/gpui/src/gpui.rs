@@ -36,6 +36,8 @@ mod platform;
 pub mod prelude;
 /// Profiling utilities for task, frame, and thread performance tracking.
 pub mod profiler;
+#[cfg(feature = "presentation-diagnostics")]
+pub mod presentation;
 #[cfg(any(
     test,
     target_os = "windows",

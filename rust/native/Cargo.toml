@@ -10,6 +10,7 @@ crate-type = ["staticlib", "rlib"]
 
 [features]
 performance-diagnostics = ["gpui/profiler"]
+presentation-diagnostics = ["performance-diagnostics", "gpui/presentation-diagnostics"]
 native-tests = []
 native-canvas-tests = ["native-tests", "gpui_platform/test-support"]
 native-image-tests = ["native-tests", "gpui_platform/test-support"]

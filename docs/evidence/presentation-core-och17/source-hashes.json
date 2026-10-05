@@ -1,0 +1,10 @@
+{
+  "rust/native/Cargo.toml": "d3118eb7ce0d38e122da0bc72e8527c1e798f3b9288cde5b3bc25bcae9deaa5d",
+  "vendor/gpui/Cargo.toml": "73b5cfb5c3495c9c257f27f457d838f9b45ee5684384805662a76a0f8f58b6e4",
+  "vendor/gpui/src/gpui.rs": "92d75ef79047920130bd565772567f1700f90c8b3a3e92b34610e8e214e0c85c",
+  "vendor/gpui/src/presentation.rs": "b0eed9ca7116ee203830c184cf3b0bdfd5622822478f0e839ff5e9d04cb89184",
+  "vendor/gpui/src/profiler.rs": "b2ac5fcf1eedb79d3349df9423ae263ff325a16f4c66997410593230f95bc369",
+  "vendor/gpui/src/window.rs": "ed886b6ea8a8728fbed24a0a2495c1275ef49b9e68a32e4672762bb9860efca0",
+  "third_party/patches/gpui.patch": "2e66c189a9ebb323229fcd48a0fc19b1e26ed06e0a3ad03491423a4a65912eb7",
+  "third_party/sources.json": "07afa58717b39072a0321e1156769d0da244edbc4ad2e2dad1ab330a3b4ac6c1"
+}

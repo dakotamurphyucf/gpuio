@@ -3366,7 +3366,14 @@ impl Window {
         let _foreground_turn = profiler::journal::foreground_turn();
         #[cfg(feature = "profiler")]
         let present_start = Instant::now();
+        #[cfg(feature = "presentation-diagnostics")]
+        let presentation = self.window_profiler.enter_presentation(
+            self.active.get(),
+            !self.next_frame_callbacks.borrow().is_empty(),
+        );
         self.platform_window.draw(&self.rendered_frame.scene);
+        #[cfg(feature = "presentation-diagnostics")]
+        drop(presentation);
         #[cfg(feature = "profiler")]
         self.window_profiler.record_present(
             present_start,
@@ -3425,6 +3432,17 @@ impl Window {
     #[cfg(feature = "profiler")]
     pub fn frame_duration_snapshot(&self) -> profiler::FrameDurationSnapshot {
         self.window_profiler.frame_duration_snapshot()
+    }
+
+    /// Begin bounded OS presentation diagnostics for this window. Only a platform
+    /// renderer with a presentation hook supplies timestamps; unsupported draws
+    /// are counted as `NotSubmitted`. The session never retains the window.
+    #[cfg(feature = "presentation-diagnostics")]
+    pub fn start_presentation(
+        &self,
+        limits: crate::presentation::Limits,
+    ) -> Result<crate::presentation::Session, crate::presentation::StartError> {
+        self.window_profiler.start_presentation(limits)
     }
 
     /// Returns the current mode of the debug frame overlay.
@@ -7737,6 +7755,40 @@ mod tests {
         StatefulInteractiveElement as _, Styled, TestAppContext, TouchDragEvent, TouchEvent,
         TouchId, TouchPhase, Window, WindowAppearance, WindowOptions, canvas, div, point, px, size,
     };
+
+    #[cfg(feature = "presentation-diagnostics")]
+    #[test]
+    fn presentation_session_tracks_actual_window_submission_without_native_hook() {
+        let mut cx = TestAppContext::single();
+        let handle = cx.add_window(|_, _| EmptyView);
+        let session = cx
+            .update_window(handle.into(), |_, window, cx| {
+                window.present_if_needed();
+                let session = window
+                    .start_presentation(crate::presentation::Limits::default())
+                    .unwrap();
+                assert_eq!(session.snapshot().counts.attempted, 0);
+                window.with_platform_text_input(cx, |window, _| window.refresh());
+                window.draw(cx).clear(cx);
+                window.present_if_needed();
+                let snapshot = session.snapshot();
+                assert_eq!(snapshot.counts.attempted, 1);
+                assert_eq!(snapshot.counts.not_submitted, 1);
+                assert_eq!(snapshot.trace[0].inputs, 1);
+                assert!(snapshot.trace[0].new_scene);
+                assert_eq!(snapshot.submission_latency.len(), 0);
+                assert_eq!(snapshot.pending, 0);
+                session.stop();
+                window.refresh();
+                window.draw(cx).clear(cx);
+                window.present_if_needed();
+                assert_eq!(session.snapshot().counts.attempted, 1);
+                session
+            })
+            .unwrap();
+        drop(cx);
+        assert!(session.snapshot().window_closed);
+    }
 
     #[cfg(feature = "profiler")]
     #[test]

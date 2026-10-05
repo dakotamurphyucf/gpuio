@@ -48,6 +48,13 @@ whole-family acceptance. Start from [the catalog](catalog/README.md),
 
 Recent completed local checkpoints:
 
+- Default-off presentation collection now has bounded storage, matching frame/input
+  attribution, clock-conversion and session/window retirement checks. Eighteen
+  presentation-filtered tests and thirteen profiler regressions pass locally;
+  default/enabled native compilation and exact reconstruction pass. The Metal
+  renderer hook and measured presentation workloads remain open.
+  [Core collector evidence](evidence/presentation-core-och17.md).
+
 - Typed application clipboard writes and a Bonsai Copy composition now have
   codec/state/clock and real macOS gallery evidence, including current Unicode
   values, native keyboard/AX, timed feedback and original clipboard restoration.

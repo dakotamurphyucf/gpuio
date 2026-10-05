@@ -894,6 +894,8 @@ enum WindowActivity {
 #[cfg(feature = "profiler")]
 pub struct WindowProfiler {
     window_id: WindowId,
+    #[cfg(feature = "presentation-diagnostics")]
+    presentation: crate::presentation::Controller,
     active_activities: SmallVec<[WindowActivity; 4]>,
     active_actions: SmallVec<[(&'static str, Instant); 2]>,
     dirty_to_present_histogram: Histogram<u64>,
@@ -915,6 +917,8 @@ impl WindowProfiler {
     pub fn new(window_id: WindowId) -> anyhow::Result<Self> {
         let profiler = Self {
             window_id,
+            #[cfg(feature = "presentation-diagnostics")]
+            presentation: crate::presentation::Controller::new(window_id),
             active_activities: SmallVec::new(),
             active_actions: SmallVec::new(),
             dirty_to_present_histogram: Histogram::new(3).map_err(|error| {
@@ -941,6 +945,29 @@ impl WindowProfiler {
         };
         journal::record_frame_pending(window_id, Instant::now());
         Ok(profiler)
+    }
+
+    #[cfg(feature = "presentation-diagnostics")]
+    pub(crate) fn start_presentation(
+        &self,
+        limits: crate::presentation::Limits,
+    ) -> Result<crate::presentation::Session, crate::presentation::StartError> {
+        self.presentation.start(limits)
+    }
+
+    #[cfg(feature = "presentation-diagnostics")]
+    pub(crate) fn enter_presentation(
+        &self,
+        active: bool,
+        animating: bool,
+    ) -> crate::presentation::ContextGuard {
+        self.presentation.enter(crate::presentation::Metadata {
+            input: self.first_input_at,
+            inputs: self.pending_input_count,
+            new_scene: self.pending_frame.is_some(),
+            active,
+            animating,
+        })
     }
 
     /// Records the beginning of an input dispatch. `kind` names the platform
@@ -1513,6 +1540,38 @@ mod tests {
         assert!(trace_enabled());
         drop(second_scope);
         assert!(!trace_enabled());
+    }
+
+    #[test]
+    #[cfg(feature = "presentation-diagnostics")]
+    fn presentation_copies_matching_input_and_scene_before_cpu_reset() {
+        use crate::presentation::{ClockSample, Limits, attach};
+        let mut profiler = WindowProfiler::new(WindowId::from(0xBEEF)).unwrap();
+        let session = profiler.start_presentation(Limits::default()).unwrap();
+        let input = Instant::now();
+        begin_input_at(&mut profiler, input);
+        profiler.end_input(true);
+        record_test_draw(&mut profiler, input + Duration::from_millis(5));
+        let native = {
+            let _context = profiler.enter_presentation(true, true);
+            attach(1, ClockSample::capture(|| 100.)).unwrap()
+        };
+        profiler.record_present_at(input, Instant::now(), true, true);
+        let resubmission = {
+            let _context = profiler.enter_presentation(true, false);
+            attach(2, ClockSample::capture(|| 101.)).unwrap()
+        };
+        resubmission.complete(101.02, 101.03);
+        native.complete(100.02, 100.03);
+        let snapshot = session.snapshot();
+        assert_eq!(snapshot.trace.len(), 2);
+        assert!(snapshot.trace[0].new_scene);
+        assert_eq!(snapshot.trace[0].inputs, 1);
+        assert!(snapshot.trace[0].input_latency.is_some());
+        assert!(!snapshot.trace[1].new_scene);
+        assert_eq!(snapshot.trace[1].inputs, 0);
+        assert!(snapshot.trace[1].input_latency.is_none());
+        assert_eq!(snapshot.animation_interval.len(), 0);
     }
 
     const FRAME: Duration = Duration::from_millis(16);

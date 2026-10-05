@@ -1,7 +1,9 @@
 # Metal presentation qualification — OCH-17
 
-Status: design and standalone API calibration, 2026-10-05. **The GPUI renderer
-integration and measured GPUI presentation workloads are not implemented yet.**
+Status: bounded core collector and standalone API calibration, 2026-10-05.
+[Core attribution/ownership tests](../evidence/presentation-core-och17.md) pass.
+**The Metal renderer hook and measured GPUI presentation workloads are not
+implemented yet.**
 The existing [CPU/submission qualification](performance-qualification.md) remains
 valid within its stated scope; it is not evidence of physical frame presentation.
 

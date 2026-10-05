@@ -294,3 +294,26 @@ macOS smoke receives all 40 characters and records 40 input-to-frame samples,
 with no dropped timestamps. Native callback→submission p95 is 8.438 ms and p99
 8.798 ms in that four-second preflight; it is not the required full workload.
 Default-feature compilation and strict native Clippy also pass.
+
+
+## Default-off native presentation collection
+
+The separate `presentation-diagnostics` feature implies `profiler` and adds a
+window-scoped bounded collector. `Window::present` installs a non-Send scoped
+thread-local context around the existing platform draw, restoring it on unwind.
+Matching input/scene metadata is copied before the CPU profiler clears it. The
+window owns only a weak collector controller; renderer callback tickets also hold
+weak state and cannot retain a window, entity or drawable. Session stop prevents
+admission while allowing admitted results to settle; dropping the window marks
+its retained session closed. Replacements have independent identities/state.
+
+Raw trace capacity is at most 4,096 and unfinished capacity at most 128. Ordered
+settlement, saturation, missing/zero/invalid outcomes, duplicate callbacks, trace
+truncation and explicit 60-second histogram overflow are accounted separately.
+Input conversion brackets a host-clock reading in the GPUI input clock. This
+feature changes no native render scheduling or OCaml protocol. Core tests include
+actual TestPlatform Window submission/close and confirm unsupported draws record
+`NotSubmitted`, never fabricated latency. The Metal renderer hook is still open.
+See [the contract](metal-presentation-qualification.md) and
+[local validation](../evidence/presentation-core-och17.md). The current patch hash
+is recorded in `third_party/sources.json`; its complete reconstruction matches.
