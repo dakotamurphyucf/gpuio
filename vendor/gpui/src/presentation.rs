@@ -176,6 +176,11 @@ pub struct Session {
     state: Arc<Mutex<State>>,
 }
 impl Session {
+    /// Read unfinished admission count without cloning trace or histograms.
+    pub fn pending(&self) -> usize {
+        lock(&self.state).pending.len()
+    }
+
     /// Copy bounded counters, raw results and cumulative histograms.
     pub fn snapshot(&self) -> Snapshot {
         let state = lock(&self.state);

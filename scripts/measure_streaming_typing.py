@@ -139,8 +139,9 @@ def budget_failures(workload, peak_rss):
 
 
 class Driver:
-    def __init__(self, log, evidence):
+    def __init__(self, log, evidence, *, foreground=False):
         self.log, self.evidence = log, evidence
+        self.foreground = foreground
         self.offset, self.pending = 0, b''
         self.mac, self.node, self.sources, self.original = None, None, None, None
         self.started, self.count, self.sent = None, 0, 0
@@ -184,6 +185,19 @@ class Driver:
         self.evidence['test_input_source'] = target
         if self.mac.text(self.node, 'AXValue') != '':
             raise RuntimeError('Composer is not initially empty')
+        if self.foreground:
+            from mac_input_source import foreground_keys
+            window = self.mac.window(TITLE)
+            if not window:
+                raise RuntimeError('Typing window disappeared before foreground qualification')
+            try:
+                self.mac.set(self.mac.app, 'AXFrontmost', self.mac.true)
+                self.mac.perform(window, 'AXRaise')
+                self.mac.set(self.node, 'AXFocused', self.mac.true)
+            finally:
+                self.mac.release(window)
+            foreground_keys(self.mac)
+            self.evidence['key_route'] = 'OS event route with per-event foreground ownership check'
         self.count = count
         self.started = time.monotonic_ns()
         child.stdin.write(b'go\n')
@@ -208,8 +222,8 @@ class Driver:
             self.offset += len(data)
         lines = (self.pending + data).split(b'\n')
         self.pending = lines.pop()
-        if len(self.pending) > 65536:
-            raise ValueError('Oversized streaming record')
+        from presentation_report import check_partial_line
+        check_partial_line(self.pending)
         for line in lines:
             if not line.startswith(PREFIX.encode()):
                 continue
@@ -256,7 +270,11 @@ def main():
     parser.add_argument('--smoke', action='store_true')
     parser.add_argument('--check-budgets', action='store_true')
     parser.add_argument('--timeout', type=float, default=300)
+    parser.add_argument('--presentation', action='store_true',
+                        help='Require paired native Metal reports; select the presentation-enabled executable')
     args = parser.parse_args()
+    import presentation_report
+
     if platform.system() != 'Darwin':
         parser.error('Native typing qualification currently requires macOS')
     if not math.isfinite(args.timeout) or not 0 < args.timeout <= 3600:
@@ -268,7 +286,7 @@ def main():
     report = dict(complete=False, smoke=args.smoke, build_profile=args.build_profile,
                   evidence=dict(keys=[], rows=[]), platform=platform.platform(), architecture=platform.machine(),
                   measurement='Native submitted frames and input dispatch; not physical presentation or hardware latency')
-    driver = Driver(log, report['evidence'])
+    driver = Driver(log, report['evidence'], foreground=args.presentation)
     def interrupted(signum, _frame):
         raise SystemExit(128 + signum)
     handlers = {sig: signal.signal(sig, interrupted) for sig in (signal.SIGINT, signal.SIGTERM)}
@@ -284,8 +302,15 @@ def main():
         finally:
             driver.close()
         report['workload'] = validate(log.read_text(), report['evidence'], smoke=args.smoke)
+        report['presentation'] = presentation_report.validate(
+            log.read_text(), [('streaming', report['workload']['interval'])], enabled=args.presentation)
+        if args.presentation:
+            report['measurement'] = 'Native CPU and paired Metal host-clock presentation; excludes hardware/photon latency'
         if args.check_budgets:
             report['budget_failures'] = budget_failures(report['workload'], report['peak_rss_bytes'])
+            if args.presentation:
+                report['budget_failures'] += presentation_report.budget_failures(
+                    report['presentation'], require_input=True)
             if report['budget_failures']:
                 raise RuntimeError('; '.join(report['budget_failures']))
         report['complete'] = True

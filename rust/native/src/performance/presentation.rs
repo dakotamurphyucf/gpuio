@@ -25,6 +25,11 @@ impl Session {
             .map_err(StartError::Collector)
     }
 
+    /// Lightweight settlement query; it does not clone histograms or raw records.
+    pub fn pending(&self) -> usize {
+        self.0.pending()
+    }
+
     pub fn snapshot(&self) -> Snapshot {
         self.0.snapshot()
     }

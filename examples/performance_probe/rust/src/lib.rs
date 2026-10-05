@@ -3,6 +3,9 @@ use gpuio_extension_sdk::{self as sdk, gpui, gpui::prelude::*};
 use gpuio_native::performance::{Distribution, Interval, Snapshot, WindowObservation};
 use std::{cell::RefCell, fmt::Write, rc::Rc, sync::Arc, time::Instant};
 
+#[cfg(feature = "presentation-diagnostics")]
+mod presentation;
+
 pub const FINGERPRINT: &str = "fe895f6b182f059b923915dc588ec7e7d09b453c063aa6da37cf8f6bfc77f784";
 pub fn factory() -> Arc<dyn sdk::Factory> {
     Arc::new(Factory)
@@ -49,8 +52,12 @@ enum State {
     Settling,
     Running(Snapshot),
     Finished(Interval),
+    #[cfg(feature = "presentation-diagnostics")]
+    Finishing,
 }
 struct Probe {
+    #[cfg(feature = "presentation-diagnostics")]
+    presentation: Rc<RefCell<Option<presentation::Active>>>,
     state: Rc<RefCell<State>>,
     pending: Option<gpui::Task<()>>,
     observations: Rc<RefCell<Vec<(u128, WindowObservation)>>>,
@@ -87,6 +94,8 @@ impl sdk::Factory for Factory {
     ) -> Result<Box<dyn sdk::Component>, sdk::Error> {
         self.validate_properties(bytes)?;
         Ok(Box::new(Probe {
+            #[cfg(feature = "presentation-diagnostics")]
+            presentation: Rc::new(RefCell::new(None)),
             state: Rc::new(RefCell::new(State::Idle)),
             pending: None,
             observations: Rc::new(RefCell::new(Vec::new())),
@@ -133,12 +142,16 @@ impl sdk::Component for Probe {
     fn command(&mut self, bytes: &[u8], cx: &mut sdk::Context<'_>) -> Result<(), sdk::Error> {
         match Command::decode(bytes)? {
             Command::Begin | Command::BeginIdle => {
-                if matches!(*self.state.borrow(), State::Settling | State::Running(_)) {
+                if !matches!(*self.state.borrow(), State::Idle | State::Finished(_)) {
                     return Err(sdk::Error::InvalidCommand);
                 }
                 self.idle_mode = Command::decode(bytes)? == Command::BeginIdle;
                 self.observations.borrow_mut().clear();
                 let idle_mode = self.idle_mode;
+                let observe = idle_mode || cfg!(feature = "presentation-diagnostics");
+                let observation_limit = if idle_mode { 128 } else { 2048 };
+                #[cfg(feature = "presentation-diagnostics")]
+                let presentation = self.presentation.clone();
                 let observations = self.observations.clone();
                 *self.state.borrow_mut() = State::Settling;
                 let state = self.state.clone();
@@ -154,11 +167,15 @@ impl sdk::Component for Probe {
                             eprintln!("PERFORMANCE_PROBE_BEGIN_FAILED {error:?}");
                             return;
                         }
+                        #[cfg(feature = "presentation-diagnostics")]
+                        {
+                            *presentation.borrow_mut() = Some(presentation::Active::start(window));
+                        }
                         let started = Instant::now();
                         let snapshot = Snapshot::capture(window);
                         let capture_ns = started.elapsed().as_nanos();
                         *state.borrow_mut() = State::Running(snapshot);
-                        if idle_mode {
+                        if observe {
                             observations.borrow_mut().push((
                                 epoch.elapsed().as_nanos(),
                                 WindowObservation::capture(window),
@@ -167,7 +184,7 @@ impl sdk::Component for Probe {
                         // Delivery is asynchronous and does not request native redraw.
                         let _ = events.emit(format!("(Begun {capture_ns})").into_bytes());
                     });
-                    if result.is_err() || !idle_mode {
+                    if result.is_err() || !observe {
                         return;
                     }
                     loop {
@@ -178,7 +195,7 @@ impl sdk::Component for Probe {
                             .await;
                         let result = window.update(cx, |_, window, _| {
                             if !matches!(*state.borrow(), State::Running(_))
-                                || observations.borrow().len() >= 128
+                                || observations.borrow().len() >= observation_limit
                             {
                                 return false;
                             }
@@ -200,6 +217,21 @@ impl sdk::Component for Probe {
                     return Err(sdk::Error::InvalidCommand);
                 }
                 self.pending.take();
+                #[cfg(feature = "presentation-diagnostics")]
+                let (presentation, stop_capture_ns, end_observation) = {
+                    let active = self
+                        .presentation
+                        .borrow_mut()
+                        .take()
+                        .ok_or(sdk::Error::InvalidCommand)?;
+                    let start = Instant::now();
+                    active.stop();
+                    (
+                        active,
+                        start.elapsed().as_nanos(),
+                        WindowObservation::capture(cx.window),
+                    )
+                };
                 let started = Instant::now();
                 let after = Snapshot::capture(cx.window);
                 let capture_ns = started.elapsed().as_nanos();
@@ -220,8 +252,7 @@ impl sdk::Component for Probe {
                     interval.mid_draw_inputs_dropped,
                     counts.join(" ")
                 );
-                cx.events.emit(event.into_bytes())?;
-                if self.idle_mode {
+                let idle_event = self.idle_mode.then(|| {
                     let observations = self.observations.borrow();
                     let mut event = String::from("(Idle_observations (");
                     for (elapsed, observation) in observations.iter() {
@@ -232,10 +263,57 @@ impl sdk::Component for Probe {
                         write!(event, "({elapsed} {} ({visible}))", observation.active).unwrap();
                     }
                     event.push_str("))");
-                    cx.events.emit(event.into_bytes())?;
+                    event.into_bytes()
+                });
+                #[cfg(feature = "presentation-diagnostics")]
+                {
+                    *state = State::Finishing;
+                    drop(state);
+                    let state = self.state.clone();
+                    let events = cx.events.clone();
+                    let observations = self.observations.borrow().clone();
+                    let idle = self.idle_mode;
+                    self.pending = Some(cx.app.spawn(async move |cx| {
+                        let started = Instant::now();
+                        while presentation.pending() != 0
+                            && started.elapsed() < std::time::Duration::from_secs(2)
+                        {
+                            cx.background_executor()
+                                .timer(std::time::Duration::from_millis(10))
+                                .await;
+                        }
+                        if events.check().is_err() {
+                            return;
+                        }
+                        let report = presentation.report(
+                            &interval,
+                            &observations,
+                            end_observation,
+                            stop_capture_ns,
+                            started.elapsed().as_nanos(),
+                            idle,
+                        );
+                        // Export after the measurement cutoff, never from Metal's
+                        // callback. Finish is acknowledged only after this report.
+                        eprintln!("GPUIO_PRESENTATION {report}");
+                        drop(presentation);
+                        *state.borrow_mut() = State::Finished(interval);
+                        let _ = events.emit(event.into_bytes());
+                        if let Some(idle_event) = idle_event {
+                            let _ = events.emit(idle_event);
+                        }
+                    }));
+                    Ok(())
                 }
-                *state = State::Finished(interval);
-                Ok(())
+                #[cfg(not(feature = "presentation-diagnostics"))]
+                {
+                    cx.events.emit(event.into_bytes())?;
+                    if let Some(idle_event) = idle_event {
+                        cx.events.emit(idle_event)?;
+                    }
+                    *state = State::Finished(interval);
+                    Ok(())
+                }
             }
             Command::DocumentPreparation => {
                 let m = gpuio_native::performance::DocumentPreparation::capture(cx.app);
@@ -262,6 +340,10 @@ impl sdk::Component for Probe {
     }
     fn unmount(&mut self) {
         self.pending.take();
+        #[cfg(feature = "presentation-diagnostics")]
+        {
+            self.presentation.borrow_mut().take();
+        }
         *self.state.borrow_mut() = State::Idle;
     }
 }

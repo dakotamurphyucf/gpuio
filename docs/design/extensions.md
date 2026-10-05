@@ -149,3 +149,14 @@ current name and action. This differs from invoking a captured obsolete native
 callback: that callback's revoked event lease must reject mutation/delivery. The
 gallery validates current accessible action resolution separately from hidden
 reference rejection and generation-fenced OCaml observations.
+
+
+### Explicit static package features
+
+A trusted `native.json` component or document-profile entry may include an
+optional `features` array of Cargo feature names. For example,
+`"features": ["presentation-diagnostics"]` opts the qualification probe into its
+native presentation report. The composer validates names, sorts/deduplicates
+features, and unions selections when factories share one package identity. Cargo
+resolves feature availability. Omitting the array preserves the previous manifest.
+This is build-time static composition, not runtime feature loading or a dynamic ABI.

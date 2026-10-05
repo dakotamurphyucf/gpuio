@@ -1,0 +1,1514 @@
+   Compiling gpui v0.2.2 (/Users/dakotamurphy/gpuio/_build/default/vendor/gpui)
+   Compiling gpui_apple v0.1.0 (/Users/dakotamurphy/gpuio/_build/default/vendor/gpui-apple)
+   Compiling gpui-base v0.6.1 (/Users/dakotamurphy/gpuio/_build/default/vendor/gpui-base)
+warning: unexpected `cfg` condition value: `cargo-clippy`
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-apple/src/metal_renderer.rs:167:25
+    |
+167 |             let _: () = msg_send![&*layer, setAllowsNextDrawableTimeout: NO];
+    |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `bench-support`, `default`, `presentation-diagnostics`, `runtime_shaders`, and `test-support`
+    = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+    = help: try referring to `sel_impl` crate for guidance on how handle this unexpected cfg
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: requested on the command line with `-W unexpected-cfgs`
+    = note: this warning originates in the macro `sel_impl` which comes from the expansion of the macro `msg_send` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-apple/src/metal_renderer.rs:168:25
+    |
+168 |             let _: () = msg_send![&*layer, setNeedsDisplayOnBoundsChange: YES];
+    |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `bench-support`, `default`, `presentation-diagnostics`, `runtime_shaders`, and `test-support`
+    = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+    = help: try referring to `sel_impl` crate for guidance on how handle this unexpected cfg
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `sel_impl` which comes from the expansion of the macro `msg_send` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-apple/src/metal_renderer.rs:169:25
+    |
+169 |               let _: () = msg_send![
+    |  _________________________^
+170 | |                 &*layer,
+171 | |                 setAutoresizingMask: AutoresizingMask::WIDTH_SIZABLE
+172 | |                     | AutoresizingMask::HEIGHT_SIZABLE
+173 | |             ];
+    | |_____________^
+    |
+    = note: expected values for `feature` are: `bench-support`, `default`, `presentation-diagnostics`, `runtime_shaders`, and `test-support`
+    = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+    = help: try referring to `sel_impl` crate for guidance on how handle this unexpected cfg
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `sel_impl` which comes from the expansion of the macro `msg_send` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-apple/src/metal_renderer.rs:389:29
+    |
+389 |                   let _: () = msg_send![
+    |  _____________________________^
+390 | |                     layer.as_ref(),
+391 | |                     setDrawableSize: ns_size
+392 | |                 ];
+    | |_________________^
+    |
+    = note: expected values for `feature` are: `bench-support`, `default`, `presentation-diagnostics`, `runtime_shaders`, and `test-support`
+    = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+    = help: try referring to `sel_impl` crate for guidance on how handle this unexpected cfg
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `sel_impl` which comes from the expansion of the macro `msg_send` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: use of deprecated struct `cocoa::foundation::NSSize`: use the objc2-foundation crate instead
+ --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-apple/src/metal_renderer.rs:6:18
+  |
+6 |     foundation::{NSSize, NSUInteger},
+  |                  ^^^^^^
+  |
+  = note: `#[warn(deprecated)]` on by default
+
+warning: use of deprecated type alias `cocoa::foundation::NSUInteger`: use the objc2-foundation crate instead
+ --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-apple/src/metal_renderer.rs:6:26
+  |
+6 |     foundation::{NSSize, NSUInteger},
+  |                          ^^^^^^^^^^
+
+warning: use of deprecated struct `cocoa::foundation::NSSize`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-apple/src/metal_renderer.rs:384:27
+    |
+384 |             let ns_size = NSSize {
+    |                           ^^^^^^
+
+warning: use of deprecated type alias `cocoa::foundation::NSUInteger`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-apple/src/metal_renderer.rs:1521:41
+     |
+1521 |                     length: *written as NSUInteger,
+     |                                         ^^^^^^^^^^
+
+warning: use of deprecated type alias `cocoa::foundation::NSUInteger`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-apple/src/metal_renderer.rs:1527:39
+     |
+1527 |                     length: offset as NSUInteger,
+     |                                       ^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSSize::width`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-apple/src/metal_renderer.rs:385:17
+    |
+385 |                 width: size.width.0 as f64,
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSSize::height`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-apple/src/metal_renderer.rs:386:17
+    |
+386 |                 height: size.height.0 as f64,
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `gpui_apple` (lib) generated 11 warnings
+   Compiling gpuio-extension-sdk v0.0.0 (/Users/dakotamurphy/gpuio/_build/default/rust/extension-sdk)
+   Compiling gpuio-document-sdk v0.0.0 (/Users/dakotamurphy/gpuio/_build/default/rust/document-sdk)
+   Compiling gpui_macos v0.1.0 (/Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos)
+warning: unexpected `cfg` condition value: `cargo-clippy`
+  --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/dispatcher.rs:35:45
+   |
+35 |         let is_main_thread: BOOL = unsafe { msg_send![class!(NSThread), isMainThread] };
+   |                                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: expected values for `feature` are: `bench-support`, `default`, `font-kit`, `runtime_shaders`, `screen-capture`, and `test-support`
+   = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+   = help: try referring to `sel_impl` crate for guidance on how handle this unexpected cfg
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+   = note: requested on the command line with `-W unexpected-cfgs`
+   = note: this warning originates in the macro `sel_impl` which comes from the expansion of the macro `msg_send` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+  --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/dispatcher.rs:35:55
+   |
+35 |         let is_main_thread: BOOL = unsafe { msg_send![class!(NSThread), isMainThread] };
+   |                                                       ^^^^^^^^^^^^^^^^
+   |
+   = note: expected values for `feature` are: `bench-support`, `default`, `font-kit`, `runtime_shaders`, `screen-capture`, and `test-support`
+   = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+   = help: try referring to `class` crate for guidance on how handle this unexpected cfg
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+   = note: this warning originates in the macro `class` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+  --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/display.rs:42:52
+   |
+42 |             let screen_number: CGDirectDisplayID = msg_send![screen_number, unsignedIntegerValue];
+   |                                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: expected values for `feature` are: `bench-support`, `default`, `font-kit`, `runtime_shaders`, `screen-capture`, and `test-support`
+   = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+   = help: try referring to `sel_impl` crate for guidance on how handle this unexpected cfg
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+   = note: this warning originates in the macro `sel_impl` which comes from the expansion of the macro `msg_send` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/display.rs:162:48
+    |
+162 |             let screen_id: CGDirectDisplayID = msg_send![screen_number, unsignedIntegerValue];
+    |                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `bench-support`, `default`, `font-kit`, `runtime_shaders`, `screen-capture`, and `test-support`
+    = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+    = help: try referring to `sel_impl` crate for guidance on how handle this unexpected cfg
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `sel_impl` which comes from the expansion of the macro `msg_send` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/display_link.rs:110:22
+    |
+110 |             unsafe { msg_send![class!(NSThread), isMainThread] };
+    |                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `bench-support`, `default`, `font-kit`, `runtime_shaders`, `screen-capture`, and `test-support`
+    = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+    = help: try referring to `sel_impl` crate for guidance on how handle this unexpected cfg
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `sel_impl` which comes from the expansion of the macro `msg_send` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/display_link.rs:110:32
+    |
+110 |             unsafe { msg_send![class!(NSThread), isMainThread] };
+    |                                ^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `bench-support`, `default`, `font-kit`, `runtime_shaders`, `screen-capture`, and `test-support`
+    = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+    = help: try referring to `class` crate for guidance on how handle this unexpected cfg
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `class` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/events.rs:538:25
+    |
+538 |             let _: () = msg_send![keyboard, release];
+    |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `bench-support`, `default`, `font-kit`, `runtime_shaders`, `screen-capture`, and `test-support`
+    = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+    = help: try referring to `sel_impl` crate for guidance on how handle this unexpected cfg
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `sel_impl` which comes from the expansion of the macro `msg_send` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/events.rs:571:21
+    |
+571 |         let _: () = msg_send![keyboard, release];
+    |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `bench-support`, `default`, `font-kit`, `runtime_shaders`, `screen-capture`, and `test-support`
+    = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+    = help: try referring to `sel_impl` crate for guidance on how handle this unexpected cfg
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `sel_impl` which comes from the expansion of the macro `msg_send` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+  --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/keyboard.rs:62:51
+   |
+62 |             let id: *const std::os::raw::c_char = msg_send![id, UTF8String];
+   |                                                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: expected values for `feature` are: `bench-support`, `default`, `font-kit`, `runtime_shaders`, `screen-capture`, and `test-support`
+   = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+   = help: try referring to `sel_impl` crate for guidance on how handle this unexpected cfg
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+   = note: this warning originates in the macro `sel_impl` which comes from the expansion of the macro `msg_send` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+  --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/keyboard.rs:69:53
+   |
+69 |             let name: *const std::os::raw::c_char = msg_send![name, UTF8String];
+   |                                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: expected values for `feature` are: `bench-support`, `default`, `font-kit`, `runtime_shaders`, `screen-capture`, and `test-support`
+   = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+   = help: try referring to `sel_impl` crate for guidance on how handle this unexpected cfg
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+   = note: this warning originates in the macro `sel_impl` which comes from the expansion of the macro `msg_send` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+  --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/keyboard.rs:72:25
+   |
+72 |             let _: () = msg_send![current_keyboard, release];
+   |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: expected values for `feature` are: `bench-support`, `default`, `font-kit`, `runtime_shaders`, `screen-capture`, and `test-support`
+   = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+   = help: try referring to `sel_impl` crate for guidance on how handle this unexpected cfg
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+   = note: this warning originates in the macro `sel_impl` which comes from the expansion of the macro `msg_send` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+  --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/pasteboard.rs:99:16
+   |
+99 |             if msg_send![types, containsObject: ut_type.inner()] {
+   |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: expected values for `feature` are: `bench-support`, `default`, `font-kit`, `runtime_shaders`, `screen-capture`, and `test-support`
+   = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+   = help: try referring to `sel_impl` crate for guidance on how handle this unexpected cfg
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+   = note: this warning originates in the macro `sel_impl` which comes from the expansion of the macro `msg_send` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/pasteboard.rs:119:17
+    |
+119 |             if !msg_send![pasteboard_types, containsObject: string_type] {
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `bench-support`, `default`, `font-kit`, `runtime_shaders`, `screen-capture`, and `test-support`
+    = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+    = help: try referring to `sel_impl` crate for guidance on how handle this unexpected cfg
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `sel_impl` which comes from the expansion of the macro `msg_send` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+  --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/platform.rs:78:62
+   |
+78 |             let mut decl = ClassDecl::new("GPUIApplication", class!(NSApplication)).unwrap();
+   |                                                              ^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: expected values for `feature` are: `bench-support`, `default`, `font-kit`, `runtime_shaders`, `screen-capture`, and `test-support`
+   = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+   = help: try referring to `class` crate for guidance on how handle this unexpected cfg
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+   = note: this warning originates in the macro `class` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+  --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/platform.rs:85:70
+   |
+85 |             let mut decl = ClassDecl::new("GPUIApplicationDelegate", class!(NSResponder)).unwrap();
+   |                                                                      ^^^^^^^^^^^^^^^^^^^
+   |
+   = note: expected values for `feature` are: `bench-support`, `default`, `font-kit`, `runtime_shaders`, `screen-capture`, and `test-support`
+   = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+   = help: try referring to `class` crate for guidance on how handle this unexpected cfg
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+   = note: this warning originates in the macro `class` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+  --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/platform.rs:88:17
+   |
+88 |                 sel!(applicationWillFinishLaunching:),
+   |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: expected values for `feature` are: `bench-support`, `default`, `font-kit`, `runtime_shaders`, `screen-capture`, and `test-support`
+   = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+   = help: try referring to `sel_impl` crate for guidance on how handle this unexpected cfg
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+   = note: this warning originates in the macro `sel_impl` which comes from the expansion of the macro `sel` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+  --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/platform.rs:92:17
+   |
+92 |                 sel!(applicationDidFinishLaunching:),
+   |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: expected values for `feature` are: `bench-support`, `default`, `font-kit`, `runtime_shaders`, `screen-capture`, and `test-support`
+   = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+   = help: try referring to `sel_impl` crate for guidance on how handle this unexpected cfg
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+   = note: this warning originates in the macro `sel_impl` which comes from the expansion of the macro `sel` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+  --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/platform.rs:96:17
+   |
+96 |                 sel!(applicationShouldHandleReopen:hasVisibleWindows:),
+   |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: expected values for `feature` are: `bench-support`, `default`, `font-kit`, `runtime_shaders`, `screen-capture`, and `test-support`
+   = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+   = help: try referring to `sel_impl` crate for guidance on how handle this unexpected cfg
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+   = note: this warning originates in the macro `sel_impl` which comes from the expansion of the macro `sel` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/platform.rs:100:17
+    |
+100 |                 sel!(applicationWillTerminate:),
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `bench-support`, `default`, `font-kit`, `runtime_shaders`, `screen-capture`, and `test-support`
+    = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+    = help: try referring to `sel_impl` crate for guidance on how handle this unexpected cfg
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `sel_impl` which comes from the expansion of the macro `sel` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/platform.rs:104:17
+    |
+104 |                 sel!(handleGPUIMenuItem:),
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `bench-support`, `default`, `font-kit`, `runtime_shaders`, `screen-capture`, and `test-support`
+    = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+    = help: try referring to `sel_impl` crate for guidance on how handle this unexpected cfg
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `sel_impl` which comes from the expansion of the macro `sel` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/platform.rs:109:17
+    |
+109 |                 sel!(cut:),
+    |                 ^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `bench-support`, `default`, `font-kit`, `runtime_shaders`, `screen-capture`, and `test-support`
+    = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+    = help: try referring to `sel_impl` crate for guidance on how handle this unexpected cfg
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `sel_impl` which comes from the expansion of the macro `sel` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/platform.rs:113:17
+    |
+113 |                 sel!(copy:),
+    |                 ^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `bench-support`, `default`, `font-kit`, `runtime_shaders`, `screen-capture`, and `test-support`
+    = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+    = help: try referring to `sel_impl` crate for guidance on how handle this unexpected cfg
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `sel_impl` which comes from the expansion of the macro `sel` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/platform.rs:117:17
+    |
+117 |                 sel!(paste:),
+    |                 ^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `bench-support`, `default`, `font-kit`, `runtime_shaders`, `screen-capture`, and `test-support`
+    = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+    = help: try referring to `sel_impl` crate for guidance on how handle this unexpected cfg
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `sel_impl` which comes from the expansion of the macro `sel` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/platform.rs:121:17
+    |
+121 |                 sel!(selectAll:),
+    |                 ^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `bench-support`, `default`, `font-kit`, `runtime_shaders`, `screen-capture`, and `test-support`
+    = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+    = help: try referring to `sel_impl` crate for guidance on how handle this unexpected cfg
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `sel_impl` which comes from the expansion of the macro `sel` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/platform.rs:125:17
+    |
+125 |                 sel!(undo:),
+    |                 ^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `bench-support`, `default`, `font-kit`, `runtime_shaders`, `screen-capture`, and `test-support`
+    = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+    = help: try referring to `sel_impl` crate for guidance on how handle this unexpected cfg
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `sel_impl` which comes from the expansion of the macro `sel` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/platform.rs:129:17
+    |
+129 |                 sel!(redo:),
+    |                 ^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `bench-support`, `default`, `font-kit`, `runtime_shaders`, `screen-capture`, and `test-support`
+    = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+    = help: try referring to `sel_impl` crate for guidance on how handle this unexpected cfg
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `sel_impl` which comes from the expansion of the macro `sel` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/platform.rs:133:17
+    |
+133 |                 sel!(validateMenuItem:),
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `bench-support`, `default`, `font-kit`, `runtime_shaders`, `screen-capture`, and `test-support`
+    = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+    = help: try referring to `sel_impl` crate for guidance on how handle this unexpected cfg
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `sel_impl` which comes from the expansion of the macro `sel` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/platform.rs:137:17
+    |
+137 |                 sel!(menuWillOpen:),
+    |                 ^^^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `bench-support`, `default`, `font-kit`, `runtime_shaders`, `screen-capture`, and `test-support`
+    = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+    = help: try referring to `sel_impl` crate for guidance on how handle this unexpected cfg
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `sel_impl` which comes from the expansion of the macro `sel` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/platform.rs:141:17
+    |
+141 |                 sel!(applicationDockMenu:),
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `bench-support`, `default`, `font-kit`, `runtime_shaders`, `screen-capture`, and `test-support`
+    = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+    = help: try referring to `sel_impl` crate for guidance on how handle this unexpected cfg
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `sel_impl` which comes from the expansion of the macro `sel` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/platform.rs:145:17
+    |
+145 |                 sel!(application:openURLs:),
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `bench-support`, `default`, `font-kit`, `runtime_shaders`, `screen-capture`, and `test-support`
+    = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+    = help: try referring to `sel_impl` crate for guidance on how handle this unexpected cfg
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `sel_impl` which comes from the expansion of the macro `sel` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/platform.rs:150:17
+    |
+150 |                 sel!(onKeyboardLayoutChange:),
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `bench-support`, `default`, `font-kit`, `runtime_shaders`, `screen-capture`, and `test-support`
+    = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+    = help: try referring to `sel_impl` crate for guidance on how handle this unexpected cfg
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `sel_impl` which comes from the expansion of the macro `sel` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/platform.rs:155:17
+    |
+155 |                 sel!(onThermalStateChange:),
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `bench-support`, `default`, `font-kit`, `runtime_shaders`, `screen-capture`, and `test-support`
+    = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+    = help: try referring to `sel_impl` crate for guidance on how handle this unexpected cfg
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `sel_impl` which comes from the expansion of the macro `sel` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/platform.rs:160:17
+    |
+160 |                 sel!(onSystemWake:),
+    |                 ^^^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `bench-support`, `default`, `font-kit`, `runtime_shaders`, `screen-capture`, and `test-support`
+    = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+    = help: try referring to `sel_impl` crate for guidance on how handle this unexpected cfg
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `sel_impl` which comes from the expansion of the macro `sel` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/platform.rs:281:35
+    |
+281 |                     let app: id = msg_send![APP_CLASS, sharedApplication];
+    |                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `bench-support`, `default`, `font-kit`, `runtime_shaders`, `screen-capture`, and `test-support`
+    = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+    = help: try referring to `sel_impl` crate for guidance on how handle this unexpected cfg
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `sel_impl` which comes from the expansion of the macro `msg_send` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/platform.rs:402:45
+    |
+402 | ...                   let _: () = msg_send![item, setAllowsAutomaticKeyEquivalentLocalization: NO];
+    |                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `bench-support`, `default`, `font-kit`, `runtime_shaders`, `screen-capture`, and `test-support`
+    = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+    = help: try referring to `sel_impl` crate for guidance on how handle this unexpected cfg
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `sel_impl` which comes from the expansion of the macro `msg_send` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/platform.rs:430:33
+    |
+430 |                     let _: () = msg_send![item, setTag: tag];
+    |                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `bench-support`, `default`, `font-kit`, `runtime_shaders`, `screen-capture`, and `test-support`
+    = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+    = help: try referring to `sel_impl` crate for guidance on how handle this unexpected cfg
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `sel_impl` which comes from the expansion of the macro `msg_send` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/platform.rs:459:43
+    |
+459 | ...                   let app: id = msg_send![APP_CLASS, sharedApplication];
+    |                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `bench-support`, `default`, `font-kit`, `runtime_shaders`, `screen-capture`, and `test-support`
+    = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+    = help: try referring to `sel_impl` crate for guidance on how handle this unexpected cfg
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `sel_impl` which comes from the expansion of the macro `msg_send` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/platform.rs:508:27
+    |
+508 |             let app: id = msg_send![APP_CLASS, sharedApplication];
+    |                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `bench-support`, `default`, `font-kit`, `runtime_shaders`, `screen-capture`, and `test-support`
+    = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+    = help: try referring to `sel_impl` crate for guidance on how handle this unexpected cfg
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `sel_impl` which comes from the expansion of the macro `msg_send` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/platform.rs:509:36
+    |
+509 |             let app_delegate: id = msg_send![APP_DELEGATE_CLASS, new];
+    |                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `bench-support`, `default`, `font-kit`, `runtime_shaders`, `screen-capture`, and `test-support`
+    = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+    = help: try referring to `sel_impl` crate for guidance on how handle this unexpected cfg
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `sel_impl` which comes from the expansion of the macro `msg_send` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/platform.rs:540:29
+    |
+540 |                 let _: () = msg_send![app, terminate: nil];
+    |                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `bench-support`, `default`, `font-kit`, `runtime_shaders`, `screen-capture`, and `test-support`
+    = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+    = help: try referring to `sel_impl` crate for guidance on how handle this unexpected cfg
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `sel_impl` which comes from the expansion of the macro `msg_send` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/platform.rs:603:25
+    |
+603 |             let _: () = msg_send![app, hide: nil];
+    |                         ^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `bench-support`, `default`, `font-kit`, `runtime_shaders`, `screen-capture`, and `test-support`
+    = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+    = help: try referring to `sel_impl` crate for guidance on how handle this unexpected cfg
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `sel_impl` which comes from the expansion of the macro `msg_send` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/platform.rs:610:25
+    |
+610 |             let _: () = msg_send![app, hideOtherApplications: nil];
+    |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `bench-support`, `default`, `font-kit`, `runtime_shaders`, `screen-capture`, and `test-support`
+    = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+    = help: try referring to `sel_impl` crate for guidance on how handle this unexpected cfg
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `sel_impl` which comes from the expansion of the macro `msg_send` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/platform.rs:617:25
+    |
+617 |             let _: () = msg_send![app, unhideAllApplications: nil];
+    |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `bench-support`, `default`, `font-kit`, `runtime_shaders`, `screen-capture`, and `test-support`
+    = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+    = help: try referring to `sel_impl` crate for guidance on how handle this unexpected cfg
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `sel_impl` which comes from the expansion of the macro `msg_send` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/platform.rs:689:34
+    |
+689 |             let appearance: id = msg_send![app, effectiveAppearance];
+    |                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `bench-support`, `default`, `font-kit`, `runtime_shaders`, `screen-capture`, and `test-support`
+    = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+    = help: try referring to `sel_impl` crate for guidance on how handle this unexpected cfg
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `sel_impl` which comes from the expansion of the macro `msg_send` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/platform.rs:696:27
+...TRUNCATED BY DUNE...
+    |
+157 | ...                   window_height - px(native_event.locationInWindow().y as f32),
+    |                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSPoint::x`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/events.rs:182:32
+    |
+182 | ...                   px(native_event.locationInWindow().x as f32),
+    |                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSPoint::y`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/events.rs:183:48
+    |
+183 | ...                   window_height - px(native_event.locationInWindow().y as f32),
+    |                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSPoint::x`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/events.rs:204:32
+    |
+204 | ...                   px(native_event.locationInWindow().x as f32),
+    |                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSPoint::y`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/events.rs:205:48
+    |
+205 | ...                   window_height - px(native_event.locationInWindow().y as f32),
+    |                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSPoint::x`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/events.rs:226:36
+    |
+226 | ...                   px(native_event.locationInWindow().x as f32),
+    |                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSPoint::y`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/events.rs:227:52
+    |
+227 | ...                   window_height - px(native_event.locationInWindow().y as f32),
+    |                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSPoint::x`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/events.rs:250:28
+    |
+250 |                         px(native_event.locationInWindow().x as f32),
+    |                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSPoint::y`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/events.rs:251:44
+    |
+251 |                         window_height - px(native_event.locationInWindow().y as f32),
+    |                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSPoint::x`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/events.rs:280:28
+    |
+280 |                         px(native_event.locationInWindow().x as f32),
+    |                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSPoint::y`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/events.rs:281:44
+    |
+281 |                         window_height - px(native_event.locationInWindow().y as f32),
+    |                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSPoint::x`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/events.rs:305:32
+    |
+305 | ...                   px(native_event.locationInWindow().x as f32),
+    |                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSPoint::y`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/events.rs:306:48
+    |
+306 | ...                   window_height - px(native_event.locationInWindow().y as f32),
+    |                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSPoint::x`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/events.rs:315:28
+    |
+315 |                         px(native_event.locationInWindow().x as f32),
+    |                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSPoint::y`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/events.rs:316:44
+    |
+316 |                         window_height - px(native_event.locationInWindow().y as f32),
+    |                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSPoint::x`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/events.rs:325:28
+    |
+325 |                         px(native_event.locationInWindow().x as f32),
+    |                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSPoint::y`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/events.rs:326:44
+    |
+326 |                         window_height - px(native_event.locationInWindow().y as f32),
+    |                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated method `cocoa::foundation::NSFastEnumeration::iter`: use the objc2-foundation crate instead
+  --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/pasteboard.rs:58:39
+   |
+58 |                 for file in filenames.iter() {
+   |                                       ^^^^
+
+warning: use of deprecated method `cocoa::foundation::NSData::bytes`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/pasteboard.rs:149:28
+    |
+149 |             } else if data.bytes().is_null() {
+    |                            ^^^^^
+
+warning: use of deprecated method `cocoa::foundation::NSData::bytes`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/pasteboard.rs:153:48
+    |
+153 |                     slice::from_raw_parts(data.bytes() as *mut u8, data.length() as usize).to_vec(),
+    |                                                ^^^^^
+
+warning: use of deprecated method `cocoa::foundation::NSData::length`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/pasteboard.rs:153:73
+    |
+153 |                     slice::from_raw_parts(data.bytes() as *mut u8, data.length() as usize).to_vec(),
+    |                                                                         ^^^^^^
+
+warning: use of deprecated method `cocoa::foundation::NSAutoreleasePool::autorelease`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/platform.rs:257:53
+    |
+257 |             let application_menu = NSMenu::new(nil).autorelease();
+    |                                                     ^^^^^^^^^^^
+
+warning: use of deprecated method `cocoa::foundation::NSAutoreleasePool::autorelease`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/platform.rs:261:45
+    |
+261 |                 let menu = NSMenu::new(nil).autorelease();
+    |                                             ^^^^^^^^^^^
+
+warning: use of deprecated method `cocoa::foundation::NSAutoreleasePool::autorelease`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/platform.rs:275:54
+    |
+275 |                 let menu_item = NSMenuItem::new(nil).autorelease();
+    |                                                      ^^^^^^^^^^^
+
+warning: use of deprecated method `cocoa::foundation::NSAutoreleasePool::autorelease`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/platform.rs:400:34
+    |
+400 | ...                   .autorelease();
+    |                        ^^^^^^^^^^^
+
+warning: use of deprecated method `cocoa::foundation::NSAutoreleasePool::autorelease`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/platform.rs:412:34
+    |
+412 | ...                   .autorelease();
+    |                        ^^^^^^^^^^^
+
+warning: use of deprecated method `cocoa::foundation::NSAutoreleasePool::autorelease`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/platform.rs:421:30
+    |
+421 | ...                   .autorelease();
+    |                        ^^^^^^^^^^^
+
+warning: use of deprecated method `cocoa::foundation::NSAutoreleasePool::autorelease`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/platform.rs:439:53
+    |
+439 |                     let item = NSMenuItem::new(nil).autorelease();
+    |                                                     ^^^^^^^^^^^
+
+warning: use of deprecated method `cocoa::foundation::NSAutoreleasePool::autorelease`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/platform.rs:440:52
+    |
+440 |                     let submenu = NSMenu::new(nil).autorelease();
+    |                                                    ^^^^^^^^^^^
+
+warning: use of deprecated method `cocoa::foundation::NSAutoreleasePool::autorelease`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/platform.rs:451:53
+    |
+451 |                     let item = NSMenuItem::new(nil).autorelease();
+    |                                                     ^^^^^^^^^^^
+
+warning: use of deprecated method `cocoa::foundation::NSAutoreleasePool::autorelease`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/platform.rs:452:52
+    |
+452 |                     let submenu = NSMenu::new(nil).autorelease();
+    |                                                    ^^^^^^^^^^^
+
+warning: use of deprecated method `cocoa::foundation::NSProcessInfo::operatingSystemVersion`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/platform.rs:473:26
+    |
+473 |             process_info.operatingSystemVersion()
+    |                          ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSOperatingSystemVersion::majorVersion`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/platform.rs:476:13
+    |
+476 |             version.majorVersion,
+    |             ^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSOperatingSystemVersion::minorVersion`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/platform.rs:477:13
+    |
+477 |             version.minorVersion,
+    |             ^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSOperatingSystemVersion::patchVersion`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/platform.rs:478:13
+    |
+478 |             version.patchVersion,
+    |             ^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated method `cocoa::foundation::NSAutoreleasePool::drain`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/platform.rs:518:18
+    |
+518 |             pool.drain();
+    |                  ^^^^^
+
+warning: use of deprecated method `cocoa::foundation::NSURL::initWithString_`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/platform.rs:719:44
+    |
+719 |             let ns_url = NSURL::alloc(nil).initWithString_(ns_string(url));
+    |                                            ^^^^^^^^^^^^^^^
+
+warning: use of deprecated method `cocoa::foundation::NSAutoreleasePool::autorelease`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/platform.rs:724:30
+    |
+724 |             let url = ns_url.autorelease();
+    |                              ^^^^^^^^^^^
+
+warning: use of deprecated method `cocoa::foundation::NSString::UTF8String`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/platform.rs:1264:31
+     |
+1264 |     let bytes = unsafe { path.UTF8String() as *const u8 };
+     |                               ^^^^^^^^^^
+
+warning: use of deprecated method `cocoa::foundation::NSArray::count`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/platform.rs:1432:18
+     |
+1432 |         (0..urls.count())
+     |                  ^^^^^
+
+warning: use of deprecated method `cocoa::foundation::NSArray::objectAtIndex`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/platform.rs:1434:32
+     |
+1434 |                 let url = urls.objectAtIndex(i);
+     |                                ^^^^^^^^^^^^^
+
+warning: use of deprecated method `cocoa::foundation::NSURL::absoluteString`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/platform.rs:1435:42
+     |
+1435 |                 match CStr::from_ptr(url.absoluteString().UTF8String() as *mut c_char).to_str() {
+     |                                          ^^^^^^^^^^^^^^
+
+warning: use of deprecated method `cocoa::foundation::NSString::UTF8String`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/platform.rs:1435:59
+     |
+1435 |                 match CStr::from_ptr(url.absoluteString().UTF8String() as *mut c_char).to_str() {
+     |                                                           ^^^^^^^^^^
+
+warning: use of deprecated method `cocoa::foundation::NSURL::absoluteString`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/platform.rs:1521:28
+     |
+1521 |         CStr::from_ptr(url.absoluteString().UTF8String()).to_string_lossy()
+     |                            ^^^^^^^^^^^^^^
+
+warning: use of deprecated method `cocoa::foundation::NSString::UTF8String`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/platform.rs:1521:45
+     |
+1521 |         CStr::from_ptr(url.absoluteString().UTF8String()).to_string_lossy()
+     |                                             ^^^^^^^^^^
+
+warning: use of deprecated associated function `cocoa::foundation::NSOperatingSystemVersion::new`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:372:61
+    |
+372 |     if !is_macos_version_at_least(NSOperatingSystemVersion::new(15, 0, 0)) {
+    |                                                             ^^^
+
+warning: use of deprecated field `cocoa::foundation::NSPoint::x`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:391:12
+    |
+391 |         px(position.x as f32),
+    |            ^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSPoint::y`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:393:28
+    |
+393 |         window_height - px(position.y as f32),
+    |                            ^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSRect::size`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:860:44
+    |
+860 |             let NSSize { width, height } = rect.size;
+    |                                            ^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSSize::width`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:860:26
+    |
+860 |             let NSSize { width, height } = rect.size;
+    |                          ^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSSize::height`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:860:33
+    |
+860 |             let NSSize { width, height } = rect.size;
+    |                                 ^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSRect::origin`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:914:9
+    |
+914 |         window_frame.origin.y =
+    |         ^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSPoint::y`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:914:9
+    |
+914 |         window_frame.origin.y =
+    |         ^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSRect::size`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:915:13
+    |
+915 |             screen_frame.size.height - window_frame.origin.y - window_frame.size.height;
+    |             ^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSSize::height`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:915:13
+    |
+915 |             screen_frame.size.height - window_frame.origin.y - window_frame.size.height;
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSRect::origin`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:915:40
+    |
+915 |             screen_frame.size.height - window_frame.origin.y - window_frame.size.height;
+    |                                        ^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSPoint::y`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:915:40
+    |
+915 |             screen_frame.size.height - window_frame.origin.y - window_frame.size.height;
+    |                                        ^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSRect::size`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:915:64
+    |
+915 |             screen_frame.size.height - window_frame.origin.y - window_frame.size.height;
+    |                                                                ^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSSize::height`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:915:64
+    |
+915 |             screen_frame.size.height - window_frame.origin.y - window_frame.size.height;
+    |                                                                ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSRect::origin`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:919:21
+    |
+919 |                 px((window_frame.origin.x - screen_frame.origin.x) as f32),
+    |                     ^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSPoint::x`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:919:21
+    |
+919 |                 px((window_frame.origin.x - screen_frame.origin.x) as f32),
+    |                     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSRect::origin`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:919:45
+    |
+919 |                 px((window_frame.origin.x - screen_frame.origin.x) as f32),
+    |                                             ^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSPoint::x`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:919:45
+    |
+919 |                 px((window_frame.origin.x - screen_frame.origin.x) as f32),
+    |                                             ^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSRect::origin`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:920:21
+    |
+920 |                 px((window_frame.origin.y + screen_frame.origin.y) as f32),
+    |                     ^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSPoint::y`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:920:21
+    |
+920 |                 px((window_frame.origin.y + screen_frame.origin.y) as f32),
+    |                     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSRect::origin`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:920:45
+    |
+920 |                 px((window_frame.origin.y + screen_frame.origin.y) as f32),
+    |                                             ^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSPoint::y`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:920:45
+    |
+920 |                 px((window_frame.origin.y + screen_frame.origin.y) as f32),
+    |                                             ^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSRect::size`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:923:20
+    |
+923 |                 px(window_frame.size.width as f32),
+    |                    ^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSSize::width`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:923:20
+    |
+923 |                 px(window_frame.size.width as f32),
+    |                    ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSRect::size`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:924:20
+    |
+924 |                 px(window_frame.size.height as f32),
+    |                    ^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSSize::height`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:924:20
+    |
+924 |                 px(window_frame.size.height as f32),
+    |                    ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSRect::size`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:931:13
+    |
+931 |             unsafe { NSView::frame(self.native_window.contentView()) }.size;
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSSize::width`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:930:22
+    |
+930 |         let NSSize { width, height, .. } =
+    |                      ^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSSize::height`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:930:29
+    |
+930 |         let NSSize { width, height, .. } =
+    |                             ^^^^^^
+
+warning: use of deprecated associated function `cocoa::foundation::NSRect::new`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:1051:39
+     |
+1051 |             let window_rect = NSRect::new(
+     |                                       ^^^
+
+warning: use of deprecated associated function `cocoa::foundation::NSPoint::new`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:1052:26
+     |
+1052 |                 NSPoint::new(
+     |                          ^^^
+
+warning: use of deprecated field `cocoa::foundation::NSRect::origin`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:1053:21
+     |
+1053 |                     screen_frame.origin.x + bounds.origin.x.as_f32() as f64,
+     |                     ^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSPoint::x`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:1053:21
+     |
+1053 |                     screen_frame.origin.x + bounds.origin.x.as_f32() as f64,
+     |                     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSRect::origin`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:1054:21
+     |
+1054 |                     screen_frame.origin.y
+     |                     ^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSPoint::y`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:1054:21
+     |
+1054 |                     screen_frame.origin.y
+     |                     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated associated function `cocoa::foundation::NSSize::new`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:1057:25
+     |
+1057 |                 NSSize::new(
+     |                         ^^^
+
+warning: use of deprecated field `cocoa::foundation::NSSize::width`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:1164:21
+     |
+1164 |                     width: window_min_size.width.to_f64(),
+     |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSSize::height`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:1165:21
+     |
+1165 |                     height: window_min_size.height.to_f64(),
+     |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated method `cocoa::foundation::NSAutoreleasePool::autorelease`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:1188:50
+     |
+1188 |             content_view.addSubview_(native_view.autorelease());
+     |                                                  ^^^^^^^^^^^
+
+warning: use of deprecated associated function `cocoa::foundation::NSRect::new`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:1221:47
+     |
+1221 |                         initWithRect: NSRect::new(NSPoint::new(0., 0.), NSSize::new(0., 0.))
+     |                                               ^^^
+
+warning: use of deprecated associated function `cocoa::foundation::NSPoint::new`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:1221:60
+     |
+1221 |                         initWithRect: NSRect::new(NSPoint::new(0., 0.), NSSize::new(0., 0.))
+     |                                                            ^^^
+
+warning: use of deprecated associated function `cocoa::foundation::NSSize::new`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:1221:81
+     |
+1221 |                         initWithRect: NSRect::new(NSPoint::new(0., 0.), NSSize::new(0., 0.))
+     |                                                                                 ^^^
+
+warning: use of deprecated method `cocoa::foundation::NSAutoreleasePool::autorelease`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:1227:79
+     |
+1227 |                         msg_send![native_view, addTrackingArea: tracking_area.autorelease()];
+     |                                                                               ^^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSRect::origin`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:1296:60
+     |
+1296 |             NSWindow::setFrameTopLeftPoint_(native_window, window_rect.origin);
+     |                                                            ^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated method `cocoa::foundation::NSAutoreleasePool::drain`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:1303:18
+     |
+1303 |             pool.drain();
+     |                  ^^^^^
+
+warning: use of deprecated method `cocoa::foundation::NSAutoreleasePool::autorelease`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:1398:28
+     |
+1398 |                     window.autorelease();
+     |                            ^^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSSize::width`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:1441:25
+     |
+1441 |                         width: size.width.as_f32() as f64,
+     |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSSize::height`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:1442:25
+     |
+1442 |                         height: size.height.as_f32() as f64,
+     |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated method `cocoa::foundation::NSData::bytes`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:1537:22
+     |
+1537 |                 data.bytes() as *const u8
+     |                      ^^^^^
+
+warning: use of deprecated method `cocoa::foundation::NSData::length`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:1543:61
+     |
+1543 |                 Some(std::slice::from_raw_parts(bytes, data.length() as usize).to_vec())
+     |                                                             ^^^^^^
+
+warning: use of deprecated associated function `cocoa::foundation::NSOperatingSystemVersion::new`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:1579:69
+     |
+1579 |             if !is_macos_version_at_least(NSOperatingSystemVersion::new(15, 0, 0)) {
+     |                                                                     ^^^
+
+warning: use of deprecated method `cocoa::foundation::NSAutoreleasePool::autorelease`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:1881:52
+     |
+1881 |                 this.blurred_view = Some(blur_view.autorelease());
+     |                                                    ^^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSPoint::x`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:2245:30
+     |
+2245 |                 NSPoint::new(location.x - 16., location.y - 16.),
+     |                              ^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSPoint::y`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:2245:48
+     |
+2245 |                 NSPoint::new(location.x - 16., location.y - 16.),
+     |                                                ^^^^^^^^^^
+
+warning: use of deprecated associated function `cocoa::foundation::NSOperatingSystemVersion::new`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:2925:49
+     |
+2925 |     let min_version = NSOperatingSystemVersion::new(15, 3, 0);
+     |                                                 ^^^
+
+warning: use of deprecated associated function `cocoa::foundation::NSOperatingSystemVersion::new`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:2938:49
+     |
+2938 |     let min_version = NSOperatingSystemVersion::new(15, 3, 0);
+     |                                                 ^^^
+
+warning: use of deprecated method `cocoa::foundation::NSProcessInfo::isOperatingSystemAtLeastVersion`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:2955:46
+     |
+2955 |     unsafe { NSProcessInfo::processInfo(nil).isOperatingSystemAtLeastVersion(version) }
+     |                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSRect::size`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:3156:17
+     |
+3156 |         convert(old_frame.size)
+     |                 ^^^^^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSSize::width`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:3145:23
+     |
+3145 |             width: px(value.width as f32),
+     |                       ^^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSSize::height`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:3146:24
+     |
+3146 |             height: px(value.height as f32),
+     |                        ^^^^^^^^^^^^
+
+warning: use of deprecated associated function `cocoa::foundation::NSRect::new`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:3247:17
+     |
+3247 |         NSRect::new(NSPoint::new(0., 0.), NSSize::new(0., 0.)),
+     |                 ^^^
+
+warning: use of deprecated associated function `cocoa::foundation::NSPoint::new`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:3247:30
+     |
+3247 |         NSRect::new(NSPoint::new(0., 0.), NSSize::new(0., 0.)),
+     |                              ^^^
+
+warning: use of deprecated associated function `cocoa::foundation::NSSize::new`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:3247:51
+     |
+3247 |         NSRect::new(NSPoint::new(0., 0.), NSSize::new(0., 0.)),
+     |                                                   ^^^
+
+warning: use of deprecated associated function `cocoa::foundation::NSRect::new`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:3249:21
+     |
+3249 |             NSRect::new(
+     |                     ^^^
+
+warning: use of deprecated associated function `cocoa::foundation::NSPoint::new`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:3250:26
+     |
+3250 |                 NSPoint::new(
+     |                          ^^^
+
+warning: use of deprecated field `cocoa::foundation::NSRect::origin`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:3251:21
+     |
+3251 |                     frame.origin.x + bounds.origin.x.as_f32() as f64,
+     |                     ^^^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSPoint::x`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:3251:21
+     |
+3251 |                     frame.origin.x + bounds.origin.x.as_f32() as f64,
+     |                     ^^^^^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSRect::origin`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:3252:21
+     |
+3252 |                     frame.origin.y + frame.size.height
+     |                     ^^^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSPoint::y`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:3252:21
+     |
+3252 |                     frame.origin.y + frame.size.height
+     |                     ^^^^^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSRect::size`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:3252:38
+     |
+3252 |                     frame.origin.y + frame.size.height
+     |                                      ^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSSize::height`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:3252:38
+     |
+3252 |                     frame.origin.y + frame.size.height
+     |                                      ^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated associated function `cocoa::foundation::NSSize::new`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:3256:25
+     |
+3256 |                 NSSize::new(
+     |                         ^^^
+
+warning: use of deprecated field `cocoa::foundation::NSRect::origin`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:3273:13
+     |
+3273 |             frame.origin.y -= frame.size.height - content_layout_rect.size.height;
+     |             ^^^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSPoint::y`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:3273:13
+     |
+3273 |             frame.origin.y -= frame.size.height - content_layout_rect.size.height;
+     |             ^^^^^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSRect::size`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:3273:31
+     |
+3273 |             frame.origin.y -= frame.size.height - content_layout_rect.size.height;
+     |                               ^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSSize::height`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:3273:31
+     |
+3273 |             frame.origin.y -= frame.size.height - content_layout_rect.size.height;
+     |                               ^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated associated function `cocoa::foundation::NSRect::new`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:3409:29
+     |
+3409 |     let zero_rect = NSRect::new(NSPoint::new(0., 0.), NSSize::new(0., 0.));
+     |                             ^^^
+
+warning: use of deprecated associated function `cocoa::foundation::NSPoint::new`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:3409:42
+     |
+3409 |     let zero_rect = NSRect::new(NSPoint::new(0., 0.), NSSize::new(0., 0.));
+     |                                          ^^^
+
+warning: use of deprecated associated function `cocoa::foundation::NSSize::new`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:3409:63
+     |
+3409 |     let zero_rect = NSRect::new(NSPoint::new(0., 0.), NSSize::new(0., 0.));
+     |                                                               ^^^
+
+warning: use of deprecated field `cocoa::foundation::NSPoint::x`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:3431:20
+     |
+3431 |     let window_x = position.x - frame.origin.x;
+     |                    ^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSRect::origin`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:3431:33
+     |
+3431 |     let window_x = position.x - frame.origin.x;
+     |                                 ^^^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSPoint::x`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:3431:33
+     |
+3431 |     let window_x = position.x - frame.origin.x;
+     |                                 ^^^^^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSRect::size`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:3432:20
+     |
+3432 |     let window_y = frame.size.height - (position.y - frame.origin.y);
+     |                    ^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSSize::height`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:3432:20
+     |
+3432 |     let window_y = frame.size.height - (position.y - frame.origin.y);
+     |                    ^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSPoint::y`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:3432:41
+     |
+3432 |     let window_y = frame.size.height - (position.y - frame.origin.y);
+     |                                         ^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSRect::origin`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:3432:54
+     |
+3432 |     let window_y = frame.size.height - (position.y - frame.origin.y);
+     |                                                      ^^^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSPoint::y`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:3432:54
+     |
+3432 |     let window_y = frame.size.height - (position.y - frame.origin.y);
+     |                                                      ^^^^^^^^^^^^^^
+
+warning: use of deprecated method `cocoa::foundation::NSFastEnumeration::iter`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:3491:36
+     |
+3491 |     for file in unsafe { filenames.iter() } {
+     |                                    ^^^^
+
+warning: use of deprecated method `cocoa::foundation::NSDictionary::objectForKey_`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:3623:48
+     |
+3623 |         let screen_number = device_description.objectForKey_(screen_number_key);
+     |                                                ^^^^^^^^^^^^^
+
+warning: use of deprecated method `cocoa::foundation::NSString::isEqualToString`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:3655:23
+     |
+3655 |         if class_name.isEqualToString("CAChameleonLayer") {
+     |                       ^^^^^^^^^^^^^^^
+
+warning: use of deprecated method `cocoa::foundation::NSArray::objectAtIndex`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:3671:57
+     |
+3671 |                 let description: id = msg_send![filters.objectAtIndex(i), description];
+     |                                                         ^^^^^^^^^^^^^
+
+warning: use of deprecated method `cocoa::foundation::NSArray::objectAtIndex`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:3694:42
+     |
+3694 |                 let sublayer = sublayers.objectAtIndex(i);
+     |                                          ^^^^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSRect::size`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:3709:9
+     |
+3709 |         frame.size.height = 0.0;
+     |         ^^^^^^^^^^
+
+warning: use of deprecated field `cocoa::foundation::NSSize::height`: use the objc2-foundation crate instead
+    --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window.rs:3709:9
+     |
+3709 |         frame.size.height = 0.0;
+     |         ^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated method `cocoa::foundation::NSString::UTF8String`: use the objc2-foundation crate instead
+  --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/window_appearance.rs:24:37
+   |
+24 |                 CStr::from_ptr(name.UTF8String())
+   |                                     ^^^^^^^^^^
+
+warning: use of deprecated method `cocoa::foundation::NSString::UTF8String`: use the objc2-foundation crate instead
+  --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/gpui_macos.rs:77:29
+   |
+77 |             let cstr = self.UTF8String();
+   |                             ^^^^^^^^^^
+
+warning: use of deprecated method `cocoa::foundation::NSString::init_str`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/gpui_macos.rs:140:35
+    |
+140 |     unsafe { NSString::alloc(nil).init_str(string).autorelease() }
+    |                                   ^^^^^^^^
+
+warning: use of deprecated method `cocoa::foundation::NSAutoreleasePool::autorelease`: use the objc2-foundation crate instead
+   --> /Users/dakotamurphy/gpuio/_build/default/vendor/gpui-macos/src/gpui_macos.rs:140:52
+    |
+140 |     unsafe { NSString::alloc(nil).init_str(string).autorelease() }
+    |                                                    ^^^^^^^^^^^
+
+warning: `gpui_macos` (lib) generated 1113 warnings (1 duplicate)
+   Compiling gpui_platform v0.1.0 (https://github.com/zed-industries/zed.git?rev=a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b#a57ba9b1)
+   Compiling gpuio-table-adapter v0.0.0 (/Users/dakotamurphy/gpuio/_build/default/rust/table)
+   Compiling gpuio-plot v0.0.0 (/Users/dakotamurphy/gpuio/_build/default/rust/plot)
+   Compiling gpuio-example-document v0.0.0 (/Users/dakotamurphy/gpuio/_build/default/examples/document_profile_package/rust)
+   Compiling gpuio-native v0.0.0 (/Users/dakotamurphy/gpuio/_build/default/rust/native)
+   Compiling gpuio-performance-probe v0.0.0 (/Users/dakotamurphy/gpuio/_build/default/examples/performance_probe/rust)
+   Compiling gpuio-presentation-backend v0.0.0 (/Users/dakotamurphy/gpuio/_build/default/examples/performance_presented/backend)
+note: link against the following native artifacts when linking against this static library. The order and any duplication can be significant on some platforms
+
+note: native-static-libs: -framework ApplicationServices -framework CoreFoundation -framework CoreVideo -framework AppKit -framework CoreText -framework Carbon -framework Security -framework AppKit -framework Foundation -lc -framework Foundation -lobjc -framework CoreText -framework QuartzCore -lSystem -framework UserNotifications -framework CoreLocation -framework AppKit -framework QuartzCore -framework Foundation -framework CoreGraphics -framework AppKit -framework CoreVideo -framework CoreData -framework CoreText -framework CoreImage -framework CoreGraphics -framework CloudKit -framework QuartzCore -framework Foundation -framework CoreFoundation -lobjc -framework Foundation -framework CoreVideo -framework OpenGL -framework Metal -lSystem -framework CoreGraphics -lobjc -lSystem -framework CoreGraphics -liconv -framework CoreFoundation -lSystem -lc -lm
+
+    Finished `dev` profile [unoptimized] target(s) in 2m 13s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+ld: warning: ignoring duplicate libraries: '-lSystem', '-lc', '-lobjc'
+ld: warning: ignoring duplicate libraries: '-lSystem', '-lc', '-lobjc'

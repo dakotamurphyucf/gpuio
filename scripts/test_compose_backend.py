@@ -56,6 +56,22 @@ class CompositionTests(unittest.TestCase):
         self.assertIn("registrations::install([component_0::component()], [component_0::profile(), document_profile_1::profile()])", files["registration.rs"])
         self.assertEqual(files["dune"].count('(source_tree "../shared")'), 1)
 
+    def test_shared_package_feature_union_is_explicit_and_deterministic(self):
+        self.config["components"] = [{"path": "shared", "factory": "component", "features": ["presentation-diagnostics", "tracing"]}]
+        self.config["document_profiles"] = [{"path": "shared", "factory": "profile", "features": ["tracing", "extra"]}]
+        files = self.generate()
+        shared = tomllib.loads(files["Cargo.toml"])["dependencies"]["component_0"]
+        self.assertEqual(shared["features"], ["extra", "presentation-diagnostics", "tracing"])
+        self.assertEqual(files, self.generate())
+
+    def test_invalid_feature_selectors_fail_before_writing_output(self):
+        for value in ["tracing", None, [1], [""], ["feature/other"], ["--all-features"], ["x" * 65], ["x"] * 65]:
+            with self.subTest(value=value):
+                self.config["components"] = [{"path": "shared", "factory": "component", "features": value}]
+                with self.assertRaises(ValueError):
+                    self.generate()
+                self.assertFalse(self.output.exists())
+
     def test_legacy_manifest_stays_on_component_api(self):
         self.config["components"] = [{"path": "shared", "factory": "component"}]
         files = self.generate()
@@ -65,7 +81,7 @@ class CompositionTests(unittest.TestCase):
         self.assertEqual(files, self.generate())
 
     def test_existing_application_outputs_are_unchanged_apart_from_dune_formatting(self):
-        for example in ("extension_consumer", "signal_studio"):
+        for example in ("extension_consumer", "signal_studio", "performance_presented"):
             base = ROOT / "examples" / example
             captured = {}
             def record(path, text):

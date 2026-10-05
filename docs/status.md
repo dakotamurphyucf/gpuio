@@ -54,6 +54,13 @@ whole-family acceptance. Start from [the catalog](catalog/README.md),
 
 Recent completed local checkpoints:
 
+- Presentation workload integration now builds four instrumented executables and
+  validates native/CPU pairing. Actual list and foreground typing smokes expose
+  zero-time startup frames and remain failed qualification runs. All40 typed input
+  frames pair correctly; settled list idle has zero presentations. The cause of
+  skipped startup frames, repeated optimized runs and overhead/resource checks
+  remain open. [Integration and failure evidence](evidence/presentation-workloads-och17.md).
+
 - Default-off presentation collection now includes the maintained Metal hook.
   Two real GPUI windows each pass90 presented frames with complete callback
   accounting and retired sessions. Native932 tests, strict lint, default builds,

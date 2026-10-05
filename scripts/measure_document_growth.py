@@ -385,8 +385,8 @@ class Checkpoints:
             self.offset += len(data)
         lines = (self.pending + data).split(b'\n')
         self.pending = lines.pop()
-        if len(self.pending) > 65536:
-            raise ValueError('Oversized document record')
+        from presentation_report import check_partial_line
+        check_partial_line(self.pending)
         for line in lines:
             prefix = (PREFIX + 'checkpoint ').encode()
             if not line.startswith(prefix):
@@ -425,7 +425,11 @@ def main():
     parser.add_argument('--smoke', action='store_true')
     parser.add_argument('--check-budgets', action='store_true')
     parser.add_argument('--timeout', type=float, default=1200)
+    parser.add_argument('--presentation', action='store_true',
+                        help='Require paired native Metal reports; select the presentation-enabled executable')
     args = parser.parse_args()
+    import presentation_report
+
     if platform.system() != 'Darwin':
         parser.error('Native keyboard/clipboard qualification currently requires macOS')
     if not math.isfinite(args.timeout) or not 0 < args.timeout <= 3600:
@@ -458,8 +462,15 @@ def main():
                 driver.close()
         report['clipboard_restored'] = True
         report['workload'] = validate(log.read_text(), report['interactions'], smoke=args.smoke)
+        report['presentation'] = presentation_report.validate(
+            log.read_text(), [('growth', report['workload']['interval'])], enabled=args.presentation)
+        if args.presentation:
+            report['measurement'] = 'Native CPU and paired Metal host-clock presentation; excludes hardware/photon latency'
         if args.check_budgets:
             report['budget_failures'] = budget_failures(report['workload'], report['peak_rss_bytes'])
+            if args.presentation:
+                report['budget_failures'] += presentation_report.budget_failures(
+                    report['presentation'], require_input=False)
             if report['budget_failures']:
                 raise RuntimeError('; '.join(report['budget_failures']))
         report['complete'] = True

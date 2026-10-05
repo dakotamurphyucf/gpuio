@@ -175,6 +175,8 @@ jobs:
         run: python3 scripts/test_appearance_palette.py 2>&1 | tee .cache/ci/appearance-palette.log
       - name: Loaded-history measurement diagnostics (no display)
         run: python3 scripts/test_measure_list_history.py 2>&1 | tee .cache/ci/list-measurement-diagnostics.log
+      - name: Presentation report pairing and failure sensitivity (no display)
+        run: python3 scripts/test_presentation_report.py 2>&1 | tee .cache/ci/presentation-report-diagnostics.log
       - name: Table performance report validation
         run: python3 scripts/test_measure_table_history.py 2>&1 | tee .cache/ci/table-measurement-diagnostics.log
       - name: Resource lifecycle report validation (no display)
@@ -235,6 +237,11 @@ jobs:
         run: |
           ./scripts/gpuio exec cargo test --locked -p gpuio-native --features presentation-diagnostics,native-image-tests,native-canvas-tests --lib performance::tests 2>&1 | tee .cache/ci/performance-collector.log
           ./scripts/gpuio exec cargo clippy --locked -p gpuio-native --features presentation-diagnostics,native-image-tests,native-canvas-tests --lib --tests -- -D warnings
+      - name: Presentation workload builds and probe contracts (no display)
+        run: |
+          ./scripts/gpuio build examples/performance_presented/list/main.exe examples/performance_presented/table/main.exe examples/performance_presented/document/main.exe examples/performance_presented/streaming/main.exe
+          ./scripts/gpuio exec cargo test --manifest-path examples/performance_presented/backend/Cargo.toml --locked -p gpuio-performance-probe --lib 2>&1 | tee .cache/ci/presentation-probe.log
+          ./scripts/gpuio exec cargo clippy --manifest-path examples/performance_presented/backend/Cargo.toml --locked -p gpuio-performance-probe --lib --tests -- -D warnings
       - name: Build and lint native UI tests
         id: native-ui-build
         run: |

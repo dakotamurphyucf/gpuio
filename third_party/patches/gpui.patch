@@ -2850,7 +2850,7 @@
      fn platform_text_input_profiles_changes_without_noops_or_nested_duplicates() {
 --- /dev/null
 +++ b/src/presentation.rs
-@@ -0,0 +1,799 @@
+@@ -0,0 +1,804 @@
 +//! Opt-in, bounded native presentation diagnostics. Callback data has no window,
 +//! entity, renderer or drawable ownership. Host-clock timestamps are converted
 +//! using bracketed samples, never by subtracting an unrelated Instant epoch.
@@ -3029,6 +3029,11 @@
 +    state: Arc<Mutex<State>>,
 +}
 +impl Session {
++    /// Read unfinished admission count without cloning trace or histograms.
++    pub fn pending(&self) -> usize {
++        lock(&self.state).pending.len()
++    }
++
 +    /// Copy bounded counters, raw results and cumulative histograms.
 +    pub fn snapshot(&self) -> Snapshot {
 +        let state = lock(&self.state);

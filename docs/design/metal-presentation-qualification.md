@@ -114,3 +114,39 @@ replacement session or retain native window resources.
    Linux desktop presentation remains OCH-47.
 
 VoiceOver is unrelated to this measurement and remains on the owner's hold.
+
+
+## Workload transport and predeclared budgets
+
+Declared before the first integrated workload run. The separate
+`examples/performance_presented` backend enables presentation diagnostics in the
+qualification extension; its four executables copy the existing OCaml workload
+sources unchanged. Normal applications and CPU-only qualification retain their
+feature selection. The extension retains the v3 command/event protocol: Begin
+starts collection alongside the CPU snapshot; Finish stops admission before its
+CPU cutoff, settles admitted callbacks for at most two seconds, emits one bounded
+`GPUIO_PRESENTATION` schema-1 JSON report, then acknowledges Finished. Settlement
+and export are outside the CPU interval. Unmount cancels the task/session.
+
+The Python driver pairs each native report with its CPU phase/counts, rejects
+missing/extra/reused sessions, invalid/lost samples, unfinished callbacks and
+truncated visibility observations. The 4,096-record raw trace may truncate only
+with explicit accounting; cumulative histograms still include all outcomes.
+Beginning, end and one-second observations qualify sampled visibility/activation,
+not continuous OS visibility. `idle_observation_mode` identifies Begin_idle's
+smaller observation buffer; the CPU phase name defines whether a workload is idle.
+
+For each of three full optimized non-idle runs, require at least 1,000 presented
+frames, submission-to-presentation p95 ≤33.4 ms and p99 ≤50 ms (two/three nominal
+60 Hz periods). The full streaming/typing run also requires at least 1,000 paired
+input frames, native input-to-presentation p95 ≤75 ms and p99 ≤125 ms (the existing
+CPU input budgets plus a 25 ms compositor allowance). Pair actual same-frame
+metadata; never add independently computed percentiles. Input timing begins at
+GPUI dispatch and excludes the preceding OS event queue, keyboard hardware and
+photon latency. Existing content, CPU, queue and resource budgets remain required.
+Scheduled animation intervals are diagnostic: a 20 Hz streaming producer does not
+justify a blanket 60 FPS limit. Idle must have zero admitted/presented frames.
+
+Smoke runs validate accounting and actual keyboard correspondence without applying
+full performance budgets. Ordinary versus instrumented overhead, three full runs,
+resource retirement and required hosted checks remain separate acceptance work.

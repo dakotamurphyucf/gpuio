@@ -92,7 +92,7 @@
     "commit": "a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b",
     "version": "0.2.2",
     "archive_sha256": "10c9f20251c4ed9427db19456c6f8987ffd00bf7ef82df11edc6c75b13ff9fa2",
-    "patch_sha256": "2e66c189a9ebb323229fcd48a0fc19b1e26ed06e0a3ad03491423a4a65912eb7"
+    "patch_sha256": "42acfccfdd227b8727fba735026754ce512d35c0d2ddb39f338907542b13c04c"
   },
   "gpui_macos": {
     "url": "https://github.com/zed-industries/zed.git",

@@ -1,0 +1,17 @@
+; The exact CPU workload source, with the presentation-enabled backend.
+
+(copy_files ../../performance_streaming/main.ml)
+
+(executable
+ (name main)
+ (libraries
+  core
+  mtime
+  gpuio
+  gpuio.bonsai
+  gpuio.eio
+  gpuio_performance_probe
+  gpuio_presentation_backend
+  gpuio_performance_stream_model)
+ (preprocess
+  (pps ppx_jane bonsai.ppx_bonsai)))

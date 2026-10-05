@@ -6,6 +6,10 @@ license = "Apache-2.0"
 
 [workspace]
 
+[features]
+presentation-diagnostics = ["gpuio-native/presentation-diagnostics", "dep:serde_json"]
+
 [dependencies]
+serde_json = { version = "1", optional = true }
 gpuio-native = { path = "../../../rust/native", features = ["performance-diagnostics"] }
 gpuio-extension-sdk = { path = "../../../rust/extension-sdk" }

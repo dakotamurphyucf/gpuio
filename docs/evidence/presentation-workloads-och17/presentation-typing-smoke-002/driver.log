@@ -1,0 +1,17 @@
+Traceback (most recent call last):
+  File "/Users/dakotamurphy/gpuio/scripts/measure_streaming_typing.py", line 328, in <module>
+    main()
+    ~~~~^^
+  File "/Users/dakotamurphy/gpuio/scripts/measure_streaming_typing.py", line 305, in main
+    report['presentation'] = presentation_report.validate(
+                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        log.read_text(), [('streaming', report['workload']['interval'])], enabled=args.presentation)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/dakotamurphy/gpuio/scripts/presentation_report.py", line 161, in validate
+    result = interval(data, cpu, background=background, idle=phase == 'idle')
+  File "/Users/dakotamurphy/gpuio/scripts/presentation_report.py", line 118, in interval
+    require(not any(counts[key] for key in LOSSES), 'Presentation samples were lost or invalid')
+    ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/dakotamurphy/gpuio/scripts/presentation_report.py", line 18, in require
+    raise ValueError(message)
+ValueError: Presentation samples were lost or invalid

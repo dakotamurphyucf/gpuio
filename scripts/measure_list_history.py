@@ -212,11 +212,17 @@ def main(*, validate_workload=validate, default_executable=Path('_build/default/
     parser.add_argument('--check-budgets', action='store_true')
     parser.add_argument('--wall-clock', action='store_true',
                         help='CPU/elapsed/RSS comparison only; no histograms or zero-redraw acceptance')
+    parser.add_argument('--presentation', action='store_true',
+                        help='Require paired native Metal reports; select the presentation-enabled executable')
     args = parser.parse_args()
+    import presentation_report
+
     if not math.isfinite(args.timeout) or not 0 < args.timeout <= 3600:
         parser.error('Timeout must be finite and in (0, 3600] seconds')
     if args.check_budgets and (args.smoke or args.wall_clock or args.build_profile != 'release'):
         parser.error('Budget checks require a full release-profile workload with native histograms')
+    if args.presentation and (args.wall_clock or (args.check_budgets and args.background)):
+        parser.error('Presentation qualification requires histograms and foreground budget runs')
     args.output.mkdir(parents=True, exist_ok=False)
     report = dict(complete=False, platform=platform.platform(), architecture=platform.machine(),
                   build_profile=args.build_profile, smoke=args.smoke, background=args.background, wall_clock=args.wall_clock,
@@ -242,8 +248,16 @@ def main(*, validate_workload=validate, default_executable=Path('_build/default/
         arguments = [flag for enabled, flag in ((args.smoke, '--smoke'), (args.background, '--background'), (args.wall_clock, '--wall-clock')) if enabled]
         collect(args.executable, log, report, args.timeout, arguments=arguments)
         report['workload'] = validate_workload(log.read_text(), smoke=args.smoke, background=args.background, wall_clock=args.wall_clock)
+        report['presentation'] = presentation_report.validate(
+            log.read_text(), [(phase, report['workload'][phase]) for phase in ('history', 'idle')],
+            enabled=args.presentation, background=args.background)
+        if args.presentation:
+            report['measurement'] = 'Native CPU and paired Metal host-clock presentation; excludes hardware/photon latency'
         if args.check_budgets:
             report['budget_failures'] = check_budgets(report['workload'], report['peak_rss_bytes'])
+            if args.presentation:
+                report['budget_failures'] += presentation_report.budget_failures(
+                    report['presentation'], require_input=False)
             if report['budget_failures']:
                 raise RuntimeError('; '.join(report['budget_failures']))
         report['complete'] = True
