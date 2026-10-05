@@ -144,11 +144,12 @@ class Combined(Responsive):
         assert all(after[k] == 0 for k in ('queued_jobs', 'queued_commands',
                    'pending_requests', 'asset_uploads')), after
 
-    def find(self, title, label, role=None, contains=False, search_files=False):
+    def find(self, title, label, role=None, contains=False, search_files=False, *, deadline=None):
         root = self.window(title)
         if not root:
             return None
-        deadline = time.monotonic() + 8
+        if deadline is None:
+            deadline = time.monotonic() + 8
 
         def visit(node, depth, in_conversation=False):
             if depth > 48 or time.monotonic() >= deadline:

@@ -15,11 +15,11 @@ from test_canvas import screenshot
 
 
 class Sources(Review):
-    def find(self, title, label, role=None, contains=False, search_files=False):
+    def find(self, title, label, role=None, contains=False, search_files=False, *, deadline=None):
         # This flow observes the trailing inspector/dialogs, not the transcript.
         # Search that end first: a full transcript AX walk can consume the query
         # deadline while the inspector already shows the requested value.
-        return super().find(title, label, role, contains, search_files=True)
+        return super().find(title, label, role, contains, search_files=True, deadline=deadline)
 
     def wait_inspector_closed(self):
         # Closing unmounts the native subtree asynchronously. Observe that

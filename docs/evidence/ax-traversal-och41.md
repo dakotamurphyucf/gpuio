@@ -214,3 +214,15 @@ desktop covers startup links and per-window metadata. Runtime verifies zero
 registered source bytes and native resource retirement plus file-picker cancel.
 None of these checks substitutes for real candidate IME, VoiceOver speech, external
 Finder-origin file drag, performance budgets or clean-machine distribution.
+
+## Specialized chat walkthrough deadlines — 2026-10-04
+
+Hosted run `37241646017` at `6d6d96f` exposed an incompatible Python override:
+`Mac.wait_find` forwards its overall deadline, but Sources, DatesColors and
+Combined did not accept that keyword. This prevented ten chat walkthroughs from
+running their intended checks; it is not evidence of ten component failures.
+The overrides now accept and preserve the shared deadline. Combined retains its
+eight-second default for independent lookups. Five portable helper tests pass,
+including inherited `wait_find` through each actual override with a simulated
+traversal longer than eight seconds. Command: `python3 scripts/test_mac_ax_helpers.py`.
+Physical reruns of the affected chat walkthroughs remain required.

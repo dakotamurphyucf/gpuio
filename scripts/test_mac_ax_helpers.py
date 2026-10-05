@@ -6,6 +6,9 @@ import unittest
 from unittest.mock import patch
 
 from test_agent_chat import Mac
+from test_agent_chat_sources import Sources
+from test_agent_chat_dates_colors import DatesColors
+from test_agent_chat_combined import Combined
 
 
 class Tree(Mac):
@@ -38,6 +41,18 @@ class Tree(Mac):
 
 
 class TraversalTests(unittest.TestCase):
+    def test_specialized_walkthroughs_preserve_the_wait_deadline(self):
+        # Exercise inherited wait_find through each actual override. This catches
+        # incompatible signatures as well as replacing its shared deadline.
+        for walkthrough in (Sources, DatesColors, Combined):
+            with self.subTest(walkthrough=walkthrough.__name__):
+                tree_type = type('WalkthroughTree', (Tree, walkthrough), {})
+                tree = tree_type(50, .2)
+                with patch('test_agent_chat.time.monotonic', lambda: tree.now):
+                    self.assertEqual(tree.wait_find('app', 'item 1', search_files=True), 1)
+                self.assertGreater(tree.now, 8)
+                self.assertLess(tree.now, 35)
+
     def test_wait_reaches_nodes_beyond_the_default_lookup_budget(self):
         tree = Tree(50, .1)
         with patch('test_agent_chat.time.monotonic', lambda: tree.now):

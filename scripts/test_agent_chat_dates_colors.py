@@ -45,8 +45,8 @@ class DatesColors(Settings):
             self.release(event)
         time.sleep(.2)  # Let native scrolling present before capturing.
 
-    def find(self, title, label, role=None, contains=False, search_files=False):
-        return super().find(title, label, role, contains, search_files=True)
+    def find(self, title, label, role=None, contains=False, search_files=False, *, deadline=None):
+        return super().find(title, label, role, contains, search_files=True, deadline=deadline)
 
     def within(self, group, label, role=None):
         root = self.find(TITLE, group, 'AXGroup')
