@@ -128,6 +128,10 @@ workloads and collector overhead/resources, and resolve the hosted observation
 failure. OCH-17 remains In Progress.
 
 Follow-up: [managed lifetime allocation](managed-lifetime-performance-och17.md)
-identifies and removes a substantial OCaml initialization cost, with semantic
-regression tests and fresh passing smokes. It does not retroactively change the
-failed measurements here; repeated full qualification remains open.
+identified a substantial OCaml initialization cost, but its optimization was
+subsequently withdrawn after constant-configuration branch reactivation reused
+retired lifetime tokens. The [correctness repair](gallery-lifetime-repairs-och41.md)
+restores reset-scoped allocation and enables inline tests in the release profile.
+The optimization's passing timings do not qualify that corrected implementation.
+Current optimized workloads must be rebuilt and measured; the original startup
+failures and the declared 100 ms bound remain unchanged.
