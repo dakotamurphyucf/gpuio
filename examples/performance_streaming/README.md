@@ -2,8 +2,9 @@
 
 OCH-17 qualification driver. The native four-second smoke passes content,
 typing, source restoration and teardown, with 40 input-to-submitted-frame samples
-for 40 dispatched keys after the optional native-text profiler repair. Full
-performance acceptance still requires the three measured runs below. The
+for 40 dispatched keys after the optional native-text profiler repair. All three full
+optimized runs now pass the declared budgets; see the
+[raw reports and scoped evidence](../../docs/evidence/streaming-typing-och17.md). The
 model's expect test and collector rejection fixtures pass. Use the existing
 optimized paired performance backend and stock Core/Bonsai/Eio environment.
 
