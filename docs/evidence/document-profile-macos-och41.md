@@ -65,3 +65,12 @@ walkthrough passes at the clean source checkpoint above. The added macOS CI step
 still needs its hosted result. Local prior failed-run diagnostics are retained in
 ignored `scratch/agents/root-20261004-resumed/document-profile-runtime-*`; they are
 not build dependencies. OCH-41 and OCH-17 remain open.
+
+
+## Independent-scroll follow-up
+
+The [public scroll-profile walkthrough](document-profile-scroll-och41.md#public-scroll-profile--2026-10-05)
+now adds native keyboard alternatives, wheel input, clipped Tab exit, mounted
+property retention and unmount retirement. Its expanded 11-case run preserves
+the checks above and records the newer source/binary identity. Arbitrary plugin
+policies, trackpad momentum and VoiceOver remain separately scoped.

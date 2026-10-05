@@ -1000,3 +1000,14 @@ title-bar drag/fullscreen, AppKit border resize and double-click behavior using
 the existing OS preference. The test does not change desktop preferences.
 [Physical results and boundaries](../../docs/evidence/window-lifecycle-och41.md)
 record both modes, native state acknowledgements and cleanup.
+
+
+### Independent document-profile scrolling
+
+On Markdown & code, enable **Native document profile**. The review checklist
+below the inline/block examples has its own viewport: use the wheel or focus
+**Show review start/end** and press Enter. Tab reaches **Open scroll review**
+when it is visible and leaves the reader when that control is clipped.
+The action uses the existing typed `Open_card` event; scrolling stays native.
+Property updates preserve the mounted offset; disabling/remounting the profile
+resets it. [Evidence](../../docs/evidence/document-profile-scroll-och41.md#public-scroll-profile--2026-10-05).

@@ -5,8 +5,9 @@ and the public OCaml `Gpuio.Document.Profile` API. The gallery Documents page
 links it alongside the separate counter component. Enable **Native document
 profile** for Markdown or HTML; **Amber code highlights** changes its properties.
 
-The example supplies whole-code coloring, native code/table action buttons and two
-Markdown plugins: inline `` `review` `` and fenced `review-card` blocks. HTML uses
+The example supplies whole-code coloring, native code/table action buttons and three
+Markdown plugins: inline `` `review` ``, fenced `review-card`, and fenced
+`review-scroll` blocks. HTML uses
 highlighting/action slots without Markdown AST plugins. The review controls are
 NonText objects; their labels are native accessibility labels, not selectable or
 searchable document glyphs. Ordinary surrounding text retains reader ownership.
@@ -83,4 +84,20 @@ activation after property changes, profile removal/remount and page resource
 release. Run `python3 scripts/test_macos_document_profile.py --output scratch/profile-native-001`
 after building the gallery; it owns a foreground test window. The gallery's
 `--trace-document-profile` option logs typed signals and source revisions for this
-check. Arbitrary plugin-owned scroll areas and VoiceOver remain separately scoped.
+check. The public `review-scroll` block now demonstrates a bounded independent
+viewport with ordinary native **Show review start/end** buttons outside it. Both
+buttons work with Tab/Enter; the inner action emits the existing `Open_card`
+event. Scrolling itself emits no application event. The outer document still owns
+only its own reveal; a clipped inner action is skipped until the plugin reveals it.
+
+The native scroll handle is keyed by parsed occurrence and source generation in
+the document's element namespace. It survives consecutive mounted frames and
+property updates; unmount releases that state. This is transient view state, not
+persistent application state across eviction/removal. Parser data stays immutable,
+and current revocable event guards protect both local scroll actions and emitted
+actions. No new OCaml/Rust wire schema or dependency is required.
+
+The physical walkthrough covers native wheel input, keyboard alternatives,
+clipped traversal, property changes and unmount; arbitrary plugin composites,
+trackpad momentum and VoiceOver remain separately scoped. See
+[the evidence](../../docs/evidence/document-profile-scroll-och41.md#public-scroll-profile--2026-10-05).

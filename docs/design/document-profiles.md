@@ -107,7 +107,11 @@ state in native keyed/entity state, preserve the renderer's source/event lease,
 and allow traversal to leave the composite. The [nested-scroll test](../evidence/document-profile-scroll-och41.md)
 qualifies clipping, exit, wheel reveal and queued activation for an independent
 viewport; it does not establish automatic inner reveal or physical accessibility
-for arbitrary plugin widgets.
+for arbitrary plugin widgets. The public [review profile](../../examples/document_profile_package/README.md)
+now supplies a bounded `review-scroll` example with Show start/end buttons outside
+its inner viewport. These native keyboard-accessible alternatives demonstrate the
+plugin-owned policy; they do not change the reader into a controller for arbitrary
+plugin scroll state. Its handle lasts only while the occurrence remains rendered.
 
 Backend manifests register document profiles separately from component factories
 through optional `document_profiles` entries (`path`/`factory`). `components: []`
