@@ -1,0 +1,11 @@
+[package]
+name = "gpuio-performance-probe"
+version = "0.0.0"
+edition = "2024"
+license = "Apache-2.0"
+
+[workspace]
+
+[dependencies]
+gpuio-native = { path = "../../../rust/native", features = ["performance-diagnostics"] }
+gpuio-extension-sdk = { path = "../../../rust/extension-sdk" }

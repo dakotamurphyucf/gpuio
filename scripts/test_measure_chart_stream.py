@@ -131,6 +131,15 @@ class ChildLifecycle(unittest.TestCase):
             self.assertEqual(report['returncode'], code)
             self.assert_reaped(report)
 
+    def test_arguments_are_forwarded_as_literal_values(self):
+        report = {}
+        executable = self.child('import sys, json\nprint(json.dumps(sys.argv[1:]))\n')
+        arguments = ['--smoke', 'value with spaces', '$(must not execute)']
+        log = self.root / 'arguments.log'
+        measure.collect(executable, log, report, 2, arguments=arguments)
+        self.assertEqual(json.loads(log.read_text()), arguments)
+        self.assert_reaped(report)
+
     def test_timeout_kills_and_reaps_term_ignoring_child(self):
         report = {}
         executable = self.child('import signal, time\nsignal.signal(signal.SIGTERM, signal.SIG_IGN)\n'

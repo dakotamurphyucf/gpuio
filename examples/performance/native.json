@@ -1,0 +1,7 @@
+{
+  "library": "gpuio_performance_backend",
+  "gpuio": "../..",
+  "components": [
+    {"path": "../performance_probe/rust", "factory": "factory"}
+  ]
+}

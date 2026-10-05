@@ -141,7 +141,7 @@ def validate(result):
     return workloads
 
 
-def collect(executable, log_path, report, timeout):
+def collect(executable, log_path, report, timeout, *, arguments=()):
     """Own one session, keep exact-child wait4 usage, and clean up on all exits."""
     started = time.monotonic()
     child = None
@@ -157,7 +157,7 @@ def collect(executable, log_path, report, timeout):
 
     with log_path.open('x') as log:
         try:
-            child = subprocess.Popen([str(Path(executable).resolve())], stdout=log,
+            child = subprocess.Popen([str(Path(executable).resolve()), *arguments], stdout=log,
                                      stderr=subprocess.STDOUT, start_new_session=True)
             report['child_pid'] = child.pid
             while not reap():
