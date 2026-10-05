@@ -126,3 +126,8 @@ the missing standalone evidence before deciding how to handle this environment.
 Open work: identify/fix the local startup delay, complete repeated presentation
 workloads and collector overhead/resources, and resolve the hosted observation
 failure. OCH-17 remains In Progress.
+
+Follow-up: [managed lifetime allocation](managed-lifetime-performance-och17.md)
+identifies and removes a substantial OCaml initialization cost, with semantic
+regression tests and fresh passing smokes. It does not retroactively change the
+failed measurements here; repeated full qualification remains open.

@@ -1,0 +1,17 @@
+[
+  {
+    "file": "ocaml-traces.tar.gz",
+    "bytes": 117439,
+    "sha256": "7658047641e858323b82a20d1ca8b70e6c960a82d31156d790268c033a6e1cbe"
+  },
+  {
+    "file": "smokes.tar.gz",
+    "bytes": 106173,
+    "sha256": "13b4155176780df0f920300eca372ebb7dce6eea0c8079819488d4eb60247931"
+  },
+  {
+    "file": "validation.tar.gz",
+    "bytes": 20782,
+    "sha256": "b2a9bdf7c85ba92e0eaf392516e07ec5e6ec765abe9211a1d2fb5bac225a2140"
+  }
+]

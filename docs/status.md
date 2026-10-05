@@ -60,6 +60,12 @@ whole-family acceptance. Start from [the catalog](catalog/README.md),
 
 Recent completed local checkpoints:
 
+- Managed lifetime allocation now avoids one Bonsai state model/activation action
+  per managed entry. Nested lifetime/remount tests and the full OCaml suite pass;
+  traced initial table flush falls from 103.687 to 32.003 ms. Fresh untraced
+  list/table/document smokes pass. Repeated full qualification remains open.
+  [Implementation and evidence](evidence/managed-lifetime-performance-och17.md).
+
 - The first full optimized document presentation run passes 20 MiB growth,
   traversal/copy/cleanup and timing budgets. The table smoke fails its startup
   bound; temporary frame/task traces locate a gap between frames, outside the
