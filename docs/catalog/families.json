@@ -293,7 +293,7 @@
       "id": "calendar",
       "owner": "OCH-35",
       "scope": "v1",
-      "audit_status": "Pinned calendar/date-picker/time sources reviewed. Bounded presets, explicit Apply, 1..12 shared-owner month panes and theme-aware geometry/colors are implemented with Core, paired codec, native layout/input/AX and atomic admission checks. Gallery shows 1/2/3/12 months. Rich triggers have driver/validation checks; shared popover expanded/dialog-popup metadata has native state, focus, gating and cleanup evidence. Checked per-date/header content now has Op89, atomic admission, native rendering/focus/animation-lifetime tests, a pending-confirmation driver test and gallery event badges. Exact logical calendar viewport observations now drive sparse date/header content, independently of selection revisions and without polling. Physical release qualification remains open; see calendar-color-review.md.",
+      "audit_status": "Pinned calendar/date-picker/time sources reviewed. Public presets, explicit Apply, bounded shared-owner panes, passive content and independent viewport observations have Core/codec/native/controller evidence. Fresh installed macOS walkthroughs now pass preset commit/cancel/read-only/focus, content target retention, keyboard cross-month range selection and 11 viewport cases against an independent date-grid oracle (1/2/3/12 panes, month/year modes, unique targets, retained owner/selection and remount). A native nonmodal focus-context defect is repaired. Full pixel geometry, broader locale/constraint coverage and release qualification remain separate; see calendar-color-review.md.",
       "public_interface": "lib/eio/date_picker.mli",
       "example": "examples/calendar",
       "evidence": [
@@ -308,7 +308,9 @@
         "docs/design/calendar-content.md",
         "docs/evidence/calendar-content-och41.md",
         "docs/design/calendar-viewport.md",
-        "docs/evidence/calendar-viewport-och41.md"
+        "docs/evidence/calendar-viewport-och41.md",
+        "docs/evidence/installed-picker-presets-och41.md",
+        "docs/evidence/installed-calendar-color-och41.md"
       ],
       "gallery_page": "pickers",
       "contract": "Civil date/range constraints; native calendar draft, explicit picker confirm/cancel and focus restoration.",
@@ -322,7 +324,7 @@
       "id": "color",
       "owner": "OCH-36",
       "scope": "v1",
-      "audit_status": "Pinned base and styled color-picker sources reviewed. Full-precision drafts, HSLA/hex, native hover, grouped/featured palettes, native Palette/HSLA tabs and bounded internal appearance have local model/codec/admission/driver/native-owner evidence. Checked rich triggers and adjacent clear composition have driver evidence. Shared popover expanded/dialog-popup metadata now has native state/focus/gating/cleanup evidence; no new physical acceptance. See calendar-color-review.md.",
+      "audit_status": "Pinned base/styled color-picker sources reviewed. Full-precision drafts, HSLA/hex, grouped/featured palettes, hover, native panels, appearance and rich popup triggers have model/codec/admission/native/controller evidence. Fresh installed macOS walkthroughs pass explicit popup Apply/Cancel/clear/focus, 27 preview pixel cases across Light/Dark and three sizes, invalid draft/insertion-point/history retention, read-only cancellation, actual roving panel keys and owner remount. Broader channel/IME/selection-range, resource/performance and release checks remain separate. VoiceOver stays on owner hold; see calendar-color-review.md.",
       "public_interface": "lib/eio/color_picker.mli",
       "example": "examples/color_input",
       "evidence": [
@@ -333,7 +335,9 @@
         "docs/evidence/color-presentation-och41.md",
         "docs/catalog/calendar-color-review.md",
         "docs/design/picker-triggers.md",
-        "docs/evidence/picker-triggers-och41.md"
+        "docs/evidence/picker-triggers-och41.md",
+        "docs/evidence/installed-picker-presets-och41.md",
+        "docs/evidence/installed-calendar-color-och41.md"
       ],
       "gallery_page": "pickers",
       "contract": "RGBA/HSLA, swatches/channels, native hex draft; confirmed application value separate from popup draft.",

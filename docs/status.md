@@ -32,6 +32,12 @@ Swift/Metal calibration return only zero presentation timestamps on the hosted
 Apple Paravirtual device. The fresh receiver is skipped. [Calibration evidence](evidence/hosted-presentation-calibration-och17.md)
 is preserved; neither failure nor any gate has been waived.
 VoiceOver remains on the owner's explicit hold.
+The subsequent [run 37343201640](https://github.com/dakotamurphyucf/gpuio/actions/runs/37343201640)
+at branch checkpoint `470210a` is still in progress as observed on 2026-10-05.
+Linux has passed; macOS has reported failures in scoped file/theme reads and
+calendar accessibility while later native checks continue. Failure logs and
+final job results still need investigation; this run does not qualify the newer
+local numeric-slot and popup-focus repairs or expanded walkthroughs.
 Three full optimized loaded-list, paged-table and growing-document runs pass
 their declared budgets; six ordinary/profiled comparisons and three resource
 lifecycle runs also pass. Three full streaming/typing runs also pass after an optional profiler repair,
@@ -64,6 +70,13 @@ whole-family acceptance. Start from [the catalog](catalog/README.md),
 [family ledger](catalog/families.json) and [gallery evidence](evidence/gallery-och41.md).
 
 Recent completed local checkpoints:
+
+- Installed color hover previews pass 27 GPU cases across two themes/three sizes,
+  retained keyboard draft/history, read-only cancellation and roving panel keys.
+  Multi-month calendars pass 11 independent date-grid cases, real cross-month
+  range keys, navigation and owner retention/remount.
+  [Evidence and harness corrections](evidence/installed-calendar-color-och41.md)
+  keep physical coverage limits explicit; no VoiceOver work was performed.
 
 - Installed date presets now pass draft/Apply/Cancel/Escape/read-only checks.
   The expanded walkthrough exposed a nonmodal popup focus-loss bug while controls

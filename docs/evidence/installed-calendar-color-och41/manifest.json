@@ -1,0 +1,590 @@
+{
+  "application_revision": "71bd02e44666a86945d642cb14a8f107db2869d7",
+  "driver_revision": "2a3282208560e4b310d1287c28ae4b4be1ffcae8",
+  "executable_sha256": "d4ad6a43bd258ea414f02891965de3a54c54f8a333b2b9fbdc0b8e39220a3402",
+  "platform": "macOS 14.5 arm64 / M1 Max / built-in display",
+  "voiceover": "Owner hold; untouched",
+  "runs": [
+    {
+      "family": "color-preview",
+      "run": 1,
+      "session": 97292,
+      "exit_code": 1,
+      "scope": "Unsupported AXSelectedTextRange",
+      "command": "python3 scripts/test_gallery.py --section color-preview --executable scratch/agents/root-20261004-resumed/gallery-installed-popup-focus/consumer/_build/default/main.exe --images scratch/agents/root-20261004-resumed/color-preview-installed-010dd1f/run-1-images"
+    },
+    {
+      "family": "color-preview",
+      "run": 2,
+      "session": 12526,
+      "exit_code": 1,
+      "scope": "Owner guard rejected offscreen swatch",
+      "command": "python3 scripts/test_gallery.py --section color-preview --executable scratch/agents/root-20261004-resumed/gallery-installed-popup-focus/consumer/_build/default/main.exe --images scratch/agents/root-20261004-resumed/color-preview-installed-010dd1f/run-2-images"
+    },
+    {
+      "family": "color-preview",
+      "run": 3,
+      "session": 78515,
+      "exit_code": 1,
+      "scope": "Compact scale clipped preview above viewport",
+      "command": "python3 scripts/test_gallery.py --section color-preview --executable scratch/agents/root-20261004-resumed/gallery-installed-popup-focus/consumer/_build/default/main.exe --images scratch/agents/root-20261004-resumed/color-preview-installed-010dd1f/run-3-images"
+    },
+    {
+      "family": "color-preview",
+      "run": 4,
+      "session": 24786,
+      "exit_code": 1,
+      "scope": "Incorrect draft assertion crossed read-only cancellation boundary",
+      "command": "python3 scripts/test_gallery.py --section color-preview --executable scratch/agents/root-20261004-resumed/gallery-installed-popup-focus/consumer/_build/default/main.exe --images scratch/agents/root-20261004-resumed/color-preview-installed-010dd1f/run-4-images"
+    },
+    {
+      "family": "color-preview",
+      "run": 5,
+      "session": 66132,
+      "exit_code": 0,
+      "scope": "27 pixel cases and full keyboard/policy/lifetime sequence passed",
+      "command": "python3 scripts/test_gallery.py --section color-preview --executable scratch/agents/root-20261004-resumed/gallery-installed-popup-focus/consumer/_build/default/main.exe --images scratch/agents/root-20261004-resumed/color-preview-installed-010dd1f/run-5-images"
+    },
+    {
+      "family": "color-preview",
+      "run": 6,
+      "session": 1437,
+      "exit_code": 0,
+      "scope": "Final driver setup; full sequence and 27 pixel cases passed",
+      "command": "python3 scripts/test_gallery.py --section color-preview --executable scratch/agents/root-20261004-resumed/gallery-installed-popup-focus/consumer/_build/default/main.exe --images scratch/agents/root-20261004-resumed/color-preview-installed-010dd1f/run-6-images"
+    },
+    {
+      "family": "calendar-viewport",
+      "run": 1,
+      "session": 53003,
+      "exit_code": 1,
+      "scope": "Incorrect day-target identity assertion crossed pane reparenting",
+      "command": "python3 scripts/test_gallery.py --section calendar-viewport --executable scratch/agents/root-20261004-resumed/gallery-installed-popup-focus/consumer/_build/default/main.exe --images scratch/agents/root-20261004-resumed/calendar-viewport-installed-010dd1f/run-1-images"
+    },
+    {
+      "family": "calendar-viewport",
+      "run": 2,
+      "session": 92825,
+      "exit_code": 0,
+      "scope": "11 viewport cases plus cross-month range, navigation and remount passed",
+      "command": "python3 scripts/test_gallery.py --section calendar-viewport --executable scratch/agents/root-20261004-resumed/gallery-installed-popup-focus/consumer/_build/default/main.exe --images scratch/agents/root-20261004-resumed/calendar-viewport-installed-010dd1f/run-2-images"
+    }
+  ],
+  "checks": {
+    "python_compilation": 0,
+    "catalog_audit": 0,
+    "git_diff_check": 0
+  },
+  "archive": "local-validation.tar.gz",
+  "sha256": "e1c1300056472f2634dfaac97352a9c55d49c755ded231d0934a290c443291e0",
+  "files": [
+    {
+      "path": "calendar-viewport/run-1-images/calendar-viewport-samples.json",
+      "sha256": "0eca189f1c78c0d05f6b083e0f2901ada5fbb96f9456f9b4dba7134ee2f18356"
+    },
+    {
+      "path": "calendar-viewport/run-1-images/gallery-calendar-Light-12.png",
+      "sha256": "1fde8849adcd4d0dd304b17f8085011bc3880a9fca344900bd5cf691f3562ae7"
+    },
+    {
+      "path": "calendar-viewport/run-1-images/gallery-calendar-Light-3.png",
+      "sha256": "244f529d663e1427ba7796b424c4bc3e90c2e006bb38ebfdeb2b38ee2beb7f06"
+    },
+    {
+      "path": "calendar-viewport/run-1-images/gallery-failure.png",
+      "sha256": "556cac9a55b1e6e7bba77952a8f030463a39e29327c1fb39226ae65f17e391eb"
+    },
+    {
+      "path": "calendar-viewport/run-1.log",
+      "sha256": "d076c67f1c8d8adc74152ecd20ceed724a0a597ce88941f65563e5540f850830"
+    },
+    {
+      "path": "calendar-viewport/run-2-images/calendar-viewport-samples.json",
+      "sha256": "86d1371e86ae5da7d7822933d7f73544166a70cc591d9984a7ab94eca8ffcbdd"
+    },
+    {
+      "path": "calendar-viewport/run-2-images/gallery-calendar-Dark-1.png",
+      "sha256": "576395a7c21cd1be8a785f48d6b675ed163e63586775e40a397aa7d5313ad5a2"
+    },
+    {
+      "path": "calendar-viewport/run-2-images/gallery-calendar-Dark-12.png",
+      "sha256": "e41a4264ff67d079a8b1bf7ca887d24d82120b4b4b10ffbb773f4eacd5108467"
+    },
+    {
+      "path": "calendar-viewport/run-2-images/gallery-calendar-Dark-2.png",
+      "sha256": "f9945085714252786a3d8cf9b2f49e0e22085b73d992bddb63d676327cc213be"
+    },
+    {
+      "path": "calendar-viewport/run-2-images/gallery-calendar-Dark-3.png",
+      "sha256": "b3687259f1efea9620de93a5fd4287a30abadd37946b54f7565064cbe6aeccec"
+    },
+    {
+      "path": "calendar-viewport/run-2-images/gallery-calendar-Light-1.png",
+      "sha256": "556cac9a55b1e6e7bba77952a8f030463a39e29327c1fb39226ae65f17e391eb"
+    },
+    {
+      "path": "calendar-viewport/run-2-images/gallery-calendar-Light-12.png",
+      "sha256": "1fde8849adcd4d0dd304b17f8085011bc3880a9fca344900bd5cf691f3562ae7"
+    },
+    {
+      "path": "calendar-viewport/run-2-images/gallery-calendar-Light-2.png",
+      "sha256": "aea4e31001a7fd73125670b2d1d4153762a4c09e4b3239eaa0e67a49480729e6"
+    },
+    {
+      "path": "calendar-viewport/run-2-images/gallery-calendar-Light-3.png",
+      "sha256": "244f529d663e1427ba7796b424c4bc3e90c2e006bb38ebfdeb2b38ee2beb7f06"
+    },
+    {
+      "path": "calendar-viewport/run-2.log",
+      "sha256": "07d8343a6393d8ff4471123e14b117451f1d2d899fe4b9aedaef8917daa7372e"
+    },
+    {
+      "path": "color-preview/catalog.log",
+      "sha256": "ec7f045757abb1d7e2907d8e645fbd6c7fa3e9b0e1e808e2fdc2dd20215b9a75"
+    },
+    {
+      "path": "color-preview/run-1-images/Light-Comfortable-rest-0.png",
+      "sha256": "63daf734f3ef62260f273d76b44edeac7911b268b5a62204711f5c4bdeb2b7dc"
+    },
+    {
+      "path": "color-preview/run-1-images/color-preview-samples.json",
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "color-preview/run-1-images/gallery-failure.png",
+      "sha256": "dee2b310ac1fdc22fcc0dc7140b545f6c79a001d936574260a999fce59fe971a"
+    },
+    {
+      "path": "color-preview/run-1.log",
+      "sha256": "295bece95843b247a5f4c6499fc9bb4ecbc8ff5b0ed3506246ebf656f1aaad1a"
+    },
+    {
+      "path": "color-preview/run-2-images/Light-Comfortable-rest-0.png",
+      "sha256": "63daf734f3ef62260f273d76b44edeac7911b268b5a62204711f5c4bdeb2b7dc"
+    },
+    {
+      "path": "color-preview/run-2-images/color-preview-samples.json",
+      "sha256": "bd1750ff273d33522a989ee9e433dd302c0e9544e494e0f057906f6f0ffab30e"
+    },
+    {
+      "path": "color-preview/run-2-images/gallery-failure.png",
+      "sha256": "dee2b310ac1fdc22fcc0dc7140b545f6c79a001d936574260a999fce59fe971a"
+    },
+    {
+      "path": "color-preview/run-2.log",
+      "sha256": "1420538d2e6003e9e377b2bbfadb9a68dbd27c47737e18089f8e69af54faaed8"
+    },
+    {
+      "path": "color-preview/run-3-images/Light-Comfortable-coral-0.png",
+      "sha256": "0f6f1bd30cfe95f27631a37702fac989c036e82c8767c3632674077fd31bf6cd"
+    },
+    {
+      "path": "color-preview/run-3-images/Light-Comfortable-iris-0.png",
+      "sha256": "0aef958da0f8acefeb7cb250e9b23cfc14c6d4ce04f715477b3f3d00b2d427d7"
+    },
+    {
+      "path": "color-preview/run-3-images/Light-Comfortable-leave-0.png",
+      "sha256": "853dab52fb2b071214bf11b9ac18025d67b728f3df3457cb801d22478f6b2dd7"
+    },
+    {
+      "path": "color-preview/run-3-images/Light-Comfortable-rest-0.png",
+      "sha256": "853dab52fb2b071214bf11b9ac18025d67b728f3df3457cb801d22478f6b2dd7"
+    },
+    {
+      "path": "color-preview/run-3-images/Light-Large-coral-0.png",
+      "sha256": "9888e8e394f66cef6d9996ea0e9ee5eb4a3cc588ea55d435b135c5f8265a7326"
+    },
+    {
+      "path": "color-preview/run-3-images/Light-Large-iris-0.png",
+      "sha256": "86cbdf9ffa1a518a4a79f0794911a17cbabd0b5225a5898a8363673b5d34e5e7"
+    },
+    {
+      "path": "color-preview/run-3-images/Light-Large-leave-0.png",
+      "sha256": "f1d5721e7c37e8b07a80ada210a1df148035c600f316638817c9b7c588941d26"
+    },
+    {
+      "path": "color-preview/run-3-images/Light-Large-rest-0.png",
+      "sha256": "f1d5721e7c37e8b07a80ada210a1df148035c600f316638817c9b7c588941d26"
+    },
+    {
+      "path": "color-preview/run-3-images/color-preview-samples.json",
+      "sha256": "805593a551fa6ac02c2e5d4c33ec7a3675323450dbdada1d18b1d724ababde86"
+    },
+    {
+      "path": "color-preview/run-3-images/gallery-failure.png",
+      "sha256": "bf43838ce1b6ea0bb9c2dc677eea608fe7521ed0c1667009ee6b82b36a68f0ee"
+    },
+    {
+      "path": "color-preview/run-3.log",
+      "sha256": "616f9888caf83b2ed1da9bb7cb955c89d3ae286295298bacad2b269e720099ec"
+    },
+    {
+      "path": "color-preview/run-4-images/Dark-Comfortable-coral-0.png",
+      "sha256": "9dbc00b8db65328d89889264abeb57bfad619ba3ebf7eba649e8d46bfb2fba06"
+    },
+    {
+      "path": "color-preview/run-4-images/Dark-Comfortable-iris-0.png",
+      "sha256": "fb01281cf775620c7857532278a592d3b8fb177ad43bc4fc7bfbcf2ed1274b85"
+    },
+    {
+      "path": "color-preview/run-4-images/Dark-Comfortable-leave-0.png",
+      "sha256": "0324a6163a736ffb0ac190e3eb1549cdf6559e49576b44ab88930cb3e92d6663"
+    },
+    {
+      "path": "color-preview/run-4-images/Dark-Comfortable-rest-0.png",
+      "sha256": "0324a6163a736ffb0ac190e3eb1549cdf6559e49576b44ab88930cb3e92d6663"
+    },
+    {
+      "path": "color-preview/run-4-images/Dark-Compact-coral-0.png",
+      "sha256": "bc8a3bf022a3a0875c96eed433052a72d434938f00fdf21dc2ae9e4857d1e83a"
+    },
+    {
+      "path": "color-preview/run-4-images/Dark-Compact-iris-0.png",
+      "sha256": "c2d621430f313e2658d685296cef4ce23acbd01a3e10151cac4357967b93cb84"
+    },
+    {
+      "path": "color-preview/run-4-images/Dark-Compact-leave-0.png",
+      "sha256": "674e6d555d06e72e75943037d00ae4509258f3c96bf6a9e8de38ec7afb8b1d77"
+    },
+    {
+      "path": "color-preview/run-4-images/Dark-Compact-rest-0.png",
+      "sha256": "674e6d555d06e72e75943037d00ae4509258f3c96bf6a9e8de38ec7afb8b1d77"
+    },
+    {
+      "path": "color-preview/run-4-images/Dark-Large-coral-0.png",
+      "sha256": "bc185118f67b0eb30aa7a11cd76f558fbe4eba6d138eed995929859f6494af52"
+    },
+    {
+      "path": "color-preview/run-4-images/Dark-Large-iris-0.png",
+      "sha256": "a56fcb6ff264692a90e4ce4c715caca58127f1327c27676b662c7efe58dc0e6b"
+    },
+    {
+      "path": "color-preview/run-4-images/Dark-Large-leave-0.png",
+      "sha256": "32ac5b999775a89f27c07797e756361fd1fa0dd28c173514a8f69694ab41516b"
+    },
+    {
+      "path": "color-preview/run-4-images/Dark-Large-rest-0.png",
+      "sha256": "32ac5b999775a89f27c07797e756361fd1fa0dd28c173514a8f69694ab41516b"
+    },
+    {
+      "path": "color-preview/run-4-images/Dark-read-only-before-0.png",
+      "sha256": "fb01281cf775620c7857532278a592d3b8fb177ad43bc4fc7bfbcf2ed1274b85"
+    },
+    {
+      "path": "color-preview/run-4-images/Dark-read-only-clears-0.png",
+      "sha256": "b437d73498b1026e5812f53d72c08c493b6c71f2279e54efe12d9383ca2c7776"
+    },
+    {
+      "path": "color-preview/run-4-images/Light-Comfortable-coral-0.png",
+      "sha256": "0f6f1bd30cfe95f27631a37702fac989c036e82c8767c3632674077fd31bf6cd"
+    },
+    {
+      "path": "color-preview/run-4-images/Light-Comfortable-iris-0.png",
+      "sha256": "0aef958da0f8acefeb7cb250e9b23cfc14c6d4ce04f715477b3f3d00b2d427d7"
+    },
+    {
+      "path": "color-preview/run-4-images/Light-Comfortable-leave-0.png",
+      "sha256": "853dab52fb2b071214bf11b9ac18025d67b728f3df3457cb801d22478f6b2dd7"
+    },
+    {
+      "path": "color-preview/run-4-images/Light-Comfortable-rest-0.png",
+      "sha256": "853dab52fb2b071214bf11b9ac18025d67b728f3df3457cb801d22478f6b2dd7"
+    },
+    {
+      "path": "color-preview/run-4-images/Light-Compact-coral-0.png",
+      "sha256": "68183f0222e1634dbcd1621559f7269028a2e5bdb0e39ab0ae3357eae00c4835"
+    },
+    {
+      "path": "color-preview/run-4-images/Light-Compact-iris-0.png",
+      "sha256": "1362a50f3a236ded95735b3437af064f53fa25cbcc149bb1f8af14509e4b92b2"
+    },
+    {
+      "path": "color-preview/run-4-images/Light-Compact-leave-0.png",
+      "sha256": "62d05b526239315dbbc29511cf7cf64d26b4fc20e3ea45ea362ce413f8d3f012"
+    },
+    {
+      "path": "color-preview/run-4-images/Light-Compact-rest-0.png",
+      "sha256": "0bb438cc3c539d2fc850f6fbcdc9ca0774768291d6defdda510f9c5bc9bf101e"
+    },
+    {
+      "path": "color-preview/run-4-images/Light-Large-coral-0.png",
+      "sha256": "827cd848cdb1e978ecc93d05bd898a09ed93e4043c7e30d4e98d765b3bfe7455"
+    },
+    {
+      "path": "color-preview/run-4-images/Light-Large-iris-0.png",
+      "sha256": "30646bb5aa954cff0118d43ead899fcd57ab665183e9d4d30522a2003462b070"
+    },
+    {
+      "path": "color-preview/run-4-images/Light-Large-leave-0.png",
+      "sha256": "f1d5721e7c37e8b07a80ada210a1df148035c600f316638817c9b7c588941d26"
+    },
+    {
+      "path": "color-preview/run-4-images/Light-Large-rest-0.png",
+      "sha256": "f1d5721e7c37e8b07a80ada210a1df148035c600f316638817c9b7c588941d26"
+    },
+    {
+      "path": "color-preview/run-4-images/color-preview-samples.json",
+      "sha256": "ab94ef05bc8fd4590bc4bc1edfa7bb4463523e178225e9c5aeb30fce9b24273d"
+    },
+    {
+      "path": "color-preview/run-4-images/gallery-failure.png",
+      "sha256": "9141210d0978b1be3018b04048b89e1915068b96f569b8ae5998217fa68bb8cc"
+    },
+    {
+      "path": "color-preview/run-4.log",
+      "sha256": "8f90cdcb0f3d4d0377cd41bf25b16b1f9f6f218003103877f55eabe582daad59"
+    },
+    {
+      "path": "color-preview/run-5-images/Dark-Comfortable-coral-0.png",
+      "sha256": "9dbc00b8db65328d89889264abeb57bfad619ba3ebf7eba649e8d46bfb2fba06"
+    },
+    {
+      "path": "color-preview/run-5-images/Dark-Comfortable-iris-0.png",
+      "sha256": "fb01281cf775620c7857532278a592d3b8fb177ad43bc4fc7bfbcf2ed1274b85"
+    },
+    {
+      "path": "color-preview/run-5-images/Dark-Comfortable-leave-0.png",
+      "sha256": "0324a6163a736ffb0ac190e3eb1549cdf6559e49576b44ab88930cb3e92d6663"
+    },
+    {
+      "path": "color-preview/run-5-images/Dark-Comfortable-rest-0.png",
+      "sha256": "61ea6de69aef143386c7f2cdc05f137b032e683865ceef41b210faf961ec29c6"
+    },
+    {
+      "path": "color-preview/run-5-images/Dark-Compact-coral-0.png",
+      "sha256": "bc8a3bf022a3a0875c96eed433052a72d434938f00fdf21dc2ae9e4857d1e83a"
+    },
+    {
+      "path": "color-preview/run-5-images/Dark-Compact-iris-0.png",
+      "sha256": "bf3fae9423e6e5e3e50719d2f6ed4eb9de3b4499fde1c646a36e87a432781cc8"
+    },
+    {
+      "path": "color-preview/run-5-images/Dark-Compact-leave-0.png",
+      "sha256": "674e6d555d06e72e75943037d00ae4509258f3c96bf6a9e8de38ec7afb8b1d77"
+    },
+    {
+      "path": "color-preview/run-5-images/Dark-Compact-rest-0.png",
+      "sha256": "674e6d555d06e72e75943037d00ae4509258f3c96bf6a9e8de38ec7afb8b1d77"
+    },
+    {
+      "path": "color-preview/run-5-images/Dark-Large-coral-0.png",
+      "sha256": "21e93a39a647f7db68471ef514ee394bd60ac95749e0a508a89645bd55f01831"
+    },
+    {
+      "path": "color-preview/run-5-images/Dark-Large-iris-0.png",
+      "sha256": "49d18c04dec1bd82109681bb60176980f30233c1ff0bce1026869ad85bcef3b7"
+    },
+    {
+      "path": "color-preview/run-5-images/Dark-Large-leave-0.png",
+      "sha256": "46316fc23e10b54b9e3ad78d36f96ebf6e22628acd9fe3787f5867737d86b7a4"
+    },
+    {
+      "path": "color-preview/run-5-images/Dark-Large-rest-0.png",
+      "sha256": "e95ea498193f5d82a9dbc7b956b941515224ba9d3cd9d38ac9e4a82a83057e43"
+    },
+    {
+      "path": "color-preview/run-5-images/Dark-read-only-before-0.png",
+      "sha256": "4bbfa446f03b41caf95153879d159a38a8eafcafd6520b3346b31048895191e9"
+    },
+    {
+      "path": "color-preview/run-5-images/Dark-read-only-clears-0.png",
+      "sha256": "b437d73498b1026e5812f53d72c08c493b6c71f2279e54efe12d9383ca2c7776"
+    },
+    {
+      "path": "color-preview/run-5-images/Dark-read-only-rejects-0.png",
+      "sha256": "9141210d0978b1be3018b04048b89e1915068b96f569b8ae5998217fa68bb8cc"
+    },
+    {
+      "path": "color-preview/run-5-images/Light-Comfortable-coral-0.png",
+      "sha256": "0f6f1bd30cfe95f27631a37702fac989c036e82c8767c3632674077fd31bf6cd"
+    },
+    {
+      "path": "color-preview/run-5-images/Light-Comfortable-iris-0.png",
+      "sha256": "0aef958da0f8acefeb7cb250e9b23cfc14c6d4ce04f715477b3f3d00b2d427d7"
+    },
+    {
+      "path": "color-preview/run-5-images/Light-Comfortable-leave-0.png",
+      "sha256": "853dab52fb2b071214bf11b9ac18025d67b728f3df3457cb801d22478f6b2dd7"
+    },
+    {
+      "path": "color-preview/run-5-images/Light-Comfortable-rest-0.png",
+      "sha256": "853dab52fb2b071214bf11b9ac18025d67b728f3df3457cb801d22478f6b2dd7"
+    },
+    {
+      "path": "color-preview/run-5-images/Light-Compact-coral-0.png",
+      "sha256": "68183f0222e1634dbcd1621559f7269028a2e5bdb0e39ab0ae3357eae00c4835"
+    },
+    {
+      "path": "color-preview/run-5-images/Light-Compact-iris-0.png",
+      "sha256": "1362a50f3a236ded95735b3437af064f53fa25cbcc149bb1f8af14509e4b92b2"
+    },
+    {
+      "path": "color-preview/run-5-images/Light-Compact-leave-0.png",
+      "sha256": "0bb438cc3c539d2fc850f6fbcdc9ca0774768291d6defdda510f9c5bc9bf101e"
+    },
+    {
+      "path": "color-preview/run-5-images/Light-Compact-rest-0.png",
+      "sha256": "62d05b526239315dbbc29511cf7cf64d26b4fc20e3ea45ea362ce413f8d3f012"
+    },
+    {
+      "path": "color-preview/run-5-images/Light-Large-coral-0.png",
+      "sha256": "827cd848cdb1e978ecc93d05bd898a09ed93e4043c7e30d4e98d765b3bfe7455"
+    },
+    {
+      "path": "color-preview/run-5-images/Light-Large-iris-0.png",
+      "sha256": "30646bb5aa954cff0118d43ead899fcd57ab665183e9d4d30522a2003462b070"
+    },
+    {
+      "path": "color-preview/run-5-images/Light-Large-leave-0.png",
+      "sha256": "f1d5721e7c37e8b07a80ada210a1df148035c600f316638817c9b7c588941d26"
+    },
+    {
+      "path": "color-preview/run-5-images/Light-Large-rest-0.png",
+      "sha256": "f1d5721e7c37e8b07a80ada210a1df148035c600f316638817c9b7c588941d26"
+    },
+    {
+      "path": "color-preview/run-5-images/color-preview-samples.json",
+      "sha256": "77a85ecf94ef3b27fd73025abb50dc9007b57748168d630cf71e1b2d4276849a"
+    },
+    {
+      "path": "color-preview/run-5.log",
+      "sha256": "4dea7525e68aa08cf02ac163b956b2dc0b553dc3c1c725e3baeb3e17721aaba2"
+    },
+    {
+      "path": "color-preview/run-6-images/Dark-Comfortable-coral-0.png",
+      "sha256": "9dbc00b8db65328d89889264abeb57bfad619ba3ebf7eba649e8d46bfb2fba06"
+    },
+    {
+      "path": "color-preview/run-6-images/Dark-Comfortable-iris-0.png",
+      "sha256": "fb01281cf775620c7857532278a592d3b8fb177ad43bc4fc7bfbcf2ed1274b85"
+    },
+    {
+      "path": "color-preview/run-6-images/Dark-Comfortable-leave-0.png",
+      "sha256": "0324a6163a736ffb0ac190e3eb1549cdf6559e49576b44ab88930cb3e92d6663"
+    },
+    {
+      "path": "color-preview/run-6-images/Dark-Comfortable-rest-0.png",
+      "sha256": "0324a6163a736ffb0ac190e3eb1549cdf6559e49576b44ab88930cb3e92d6663"
+    },
+    {
+      "path": "color-preview/run-6-images/Dark-Compact-coral-0.png",
+      "sha256": "bc8a3bf022a3a0875c96eed433052a72d434938f00fdf21dc2ae9e4857d1e83a"
+    },
+    {
+      "path": "color-preview/run-6-images/Dark-Compact-iris-0.png",
+      "sha256": "c2d621430f313e2658d685296cef4ce23acbd01a3e10151cac4357967b93cb84"
+    },
+    {
+      "path": "color-preview/run-6-images/Dark-Compact-leave-0.png",
+      "sha256": "674e6d555d06e72e75943037d00ae4509258f3c96bf6a9e8de38ec7afb8b1d77"
+    },
+    {
+      "path": "color-preview/run-6-images/Dark-Compact-rest-0.png",
+      "sha256": "793dadcb7f3c550fd2ec30c1df4ddbf958c4155717a00c46b8c8f1c4f8f5c554"
+    },
+    {
+      "path": "color-preview/run-6-images/Dark-Large-coral-0.png",
+      "sha256": "21e93a39a647f7db68471ef514ee394bd60ac95749e0a508a89645bd55f01831"
+    },
+    {
+      "path": "color-preview/run-6-images/Dark-Large-iris-0.png",
+      "sha256": "49d18c04dec1bd82109681bb60176980f30233c1ff0bce1026869ad85bcef3b7"
+    },
+    {
+      "path": "color-preview/run-6-images/Dark-Large-leave-0.png",
+      "sha256": "e95ea498193f5d82a9dbc7b956b941515224ba9d3cd9d38ac9e4a82a83057e43"
+    },
+    {
+      "path": "color-preview/run-6-images/Dark-Large-rest-0.png",
+      "sha256": "e95ea498193f5d82a9dbc7b956b941515224ba9d3cd9d38ac9e4a82a83057e43"
+    },
+    {
+      "path": "color-preview/run-6-images/Dark-read-only-before-0.png",
+      "sha256": "4bbfa446f03b41caf95153879d159a38a8eafcafd6520b3346b31048895191e9"
+    },
+    {
+      "path": "color-preview/run-6-images/Dark-read-only-clears-0.png",
+      "sha256": "b437d73498b1026e5812f53d72c08c493b6c71f2279e54efe12d9383ca2c7776"
+    },
+    {
+      "path": "color-preview/run-6-images/Dark-read-only-rejects-0.png",
+      "sha256": "9141210d0978b1be3018b04048b89e1915068b96f569b8ae5998217fa68bb8cc"
+    },
+    {
+      "path": "color-preview/run-6-images/Light-Comfortable-coral-0.png",
+      "sha256": "0f6f1bd30cfe95f27631a37702fac989c036e82c8767c3632674077fd31bf6cd"
+    },
+    {
+      "path": "color-preview/run-6-images/Light-Comfortable-iris-0.png",
+      "sha256": "0aef958da0f8acefeb7cb250e9b23cfc14c6d4ce04f715477b3f3d00b2d427d7"
+    },
+    {
+      "path": "color-preview/run-6-images/Light-Comfortable-leave-0.png",
+      "sha256": "853dab52fb2b071214bf11b9ac18025d67b728f3df3457cb801d22478f6b2dd7"
+    },
+    {
+      "path": "color-preview/run-6-images/Light-Comfortable-rest-0.png",
+      "sha256": "853dab52fb2b071214bf11b9ac18025d67b728f3df3457cb801d22478f6b2dd7"
+    },
+    {
+      "path": "color-preview/run-6-images/Light-Compact-coral-0.png",
+      "sha256": "68183f0222e1634dbcd1621559f7269028a2e5bdb0e39ab0ae3357eae00c4835"
+    },
+    {
+      "path": "color-preview/run-6-images/Light-Compact-iris-0.png",
+      "sha256": "1362a50f3a236ded95735b3437af064f53fa25cbcc149bb1f8af14509e4b92b2"
+    },
+    {
+      "path": "color-preview/run-6-images/Light-Compact-leave-0.png",
+      "sha256": "62d05b526239315dbbc29511cf7cf64d26b4fc20e3ea45ea362ce413f8d3f012"
+    },
+    {
+      "path": "color-preview/run-6-images/Light-Compact-rest-0.png",
+      "sha256": "0bb438cc3c539d2fc850f6fbcdc9ca0774768291d6defdda510f9c5bc9bf101e"
+    },
+    {
+      "path": "color-preview/run-6-images/Light-Large-coral-0.png",
+      "sha256": "827cd848cdb1e978ecc93d05bd898a09ed93e4043c7e30d4e98d765b3bfe7455"
+    },
+    {
+      "path": "color-preview/run-6-images/Light-Large-iris-0.png",
+      "sha256": "30646bb5aa954cff0118d43ead899fcd57ab665183e9d4d30522a2003462b070"
+    },
+    {
+      "path": "color-preview/run-6-images/Light-Large-leave-0.png",
+      "sha256": "f1d5721e7c37e8b07a80ada210a1df148035c600f316638817c9b7c588941d26"
+    },
+    {
+      "path": "color-preview/run-6-images/Light-Large-rest-0.png",
+      "sha256": "f1d5721e7c37e8b07a80ada210a1df148035c600f316638817c9b7c588941d26"
+    },
+    {
+      "path": "color-preview/run-6-images/color-preview-samples.json",
+      "sha256": "77a85ecf94ef3b27fd73025abb50dc9007b57748168d630cf71e1b2d4276849a"
+    },
+    {
+      "path": "color-preview/run-6.log",
+      "sha256": "941373db63cb1e24e2dddcf7f475fca2118bceddaeebe3f48359cfffe7ddc0ee"
+    },
+    {
+      "path": "driver.patch",
+      "sha256": "33ed035f3b1704020e94308c5c4b7efd180db1f50518bdcd25bacd49cc2b730b"
+    },
+    {
+      "path": "drivers/gallery_calendar_viewport.py",
+      "sha256": "4d9f8bc389a0c2a6a5b3f90e8a6ba26b28d7eea733527ffc68f593b314a0a60c"
+    },
+    {
+      "path": "drivers/gallery_color_preview.py",
+      "sha256": "46c52a1f8ce0d17ee1f83d8b019e548bbba8b5fb70318a826edc85fbf5e2688b"
+    },
+    {
+      "path": "drivers/test_gallery.py",
+      "sha256": "e86d387df0fdf710109b09d24bad6f32bdcf3634909a0de43196ea69f1f4a464"
+    },
+    {
+      "path": "metadata.json",
+      "sha256": "2002bafcffa9cb8d7175b155bbad6e8db795f1ea29621f7a2edfaa9593e8282a"
+    }
+  ]
+}

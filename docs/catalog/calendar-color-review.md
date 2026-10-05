@@ -55,3 +55,12 @@ It also reproduces and repairs a native nonmodal focus-context loss. This narrow
 the historical physical gaps above; it does not qualify multi-month layout,
 calendar/panel physical navigation, hover-preview pixels or the whole family.
 VoiceOver remains on hold.
+
+[A further installed walkthrough](../evidence/installed-calendar-color-och41.md)
+qualifies 1/2/3/12-pane logical viewports and unique date targets against an
+independent grid oracle, actual cross-month range keys, month/year navigation,
+selection/owner retention and remount. It also checks 27 palette-preview GPU
+cases, invalid draft/history retention, policy cancellation, two themes/three
+sizes and actual roving Palette/HSLA keyboard navigation. Full-pane pixel geometry,
+all native channel gestures, broader constraints/locales and release performance
+remain separate; earlier TestPlatform-only evidence is not reclassified as OS work.
