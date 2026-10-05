@@ -31,6 +31,12 @@ also passes Linux and the other macOS checks, but both the GPUI hook and indepen
 Swift/Metal calibration return only zero presentation timestamps on the hosted
 Apple Paravirtual device. The fresh receiver is skipped. [Calibration evidence](evidence/hosted-presentation-calibration-och17.md)
 is preserved; neither failure nor any gate has been waived.
+Run [37374125077](https://github.com/dakotamurphyucf/gpuio/actions/runs/37374125077)
+at `4c959f5` is now terminal: macOS failed custom-chrome pointer ownership and
+both presentation probes; Linux was cancelled before receiving a runner, and the
+fresh receiver was skipped. [Exact reports](evidence/hosted-presentation-calibration-och17.md#repeat-on-hosted-run-37374125077)
+retain 180 GPUI and 120 standalone zero-time frames on Apple Paravirtual. The
+newer local palette/menu changes remain outside this run's coverage.
 The owner lifted the VoiceOver hold on 2026-10-05; accessibility validation may
 resume. VoiceOver acceptance remains open.
 The subsequent [run 37343201640](https://github.com/dakotamurphyucf/gpuio/actions/runs/37343201640)

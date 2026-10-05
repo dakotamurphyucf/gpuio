@@ -1,0 +1,39 @@
+{
+  "complete": false,
+  "platform": "macOS-15.7.9-arm64-arm-64bit-Mach-O",
+  "checks": [
+    {
+      "case": "minimize-restore-retains-window-and-editor",
+      "cycle": 1
+    },
+    {
+      "case": "minimize-restore-retains-window-and-editor",
+      "cycle": 2
+    },
+    {
+      "case": "minimize-restore-retains-window-and-editor",
+      "cycle": 3
+    },
+    {
+      "case": "custom-title-bar-native-move",
+      "before": [
+        240.0,
+        190.0,
+        1120.0,
+        820.0
+      ],
+      "after": [
+        272.0,
+        212.0,
+        1120.0,
+        820.0
+      ]
+    }
+  ],
+  "custom_chrome": true,
+  "executable_sha256": "9541035309c642ff5c7dccc56790e24b36348f3f33a04497595589dce7a40fc6",
+  "revision": "6e4ccda72d5113a3913ab9082e644f798b3d5a42",
+  "dirty": false,
+  "error": "AssertionError: ('Pointer target is occluded', (1321.5, 235.5), {'expected_pid': 8587, 'actual_pid': 2330, 'hit_status': 0, 'pid_status': 0})",
+  "child_reaped": true
+}

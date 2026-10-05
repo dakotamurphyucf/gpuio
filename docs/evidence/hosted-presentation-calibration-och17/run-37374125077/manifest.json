@@ -1,0 +1,27 @@
+{
+  "run": 37374125077,
+  "head": "4c959f574890257ac9afb6c73e49e2f185814649",
+  "tested_merge": "6e4ccda72d5113a3913ab9082e644f798b3d5a42",
+  "files": [
+    {
+      "path": "gpui-report.json",
+      "bytes": 76201,
+      "sha256": "2bd101c5b502b7906686184a4238fc82fb90f6ed96779a34d488cb846027579e"
+    },
+    {
+      "path": "metal-calibration.json",
+      "bytes": 63560,
+      "sha256": "a0e15f8c56f93d812e63a1a8d3a6da02502996078af0015032e1d6be68813f3a"
+    },
+    {
+      "path": "displays.json",
+      "bytes": 35,
+      "sha256": "0e2a2e10de1b28c2c98b9bf2faadb16610de1aad4b8308e92b54c13e74402c3c"
+    },
+    {
+      "path": "window-custom.json",
+      "bytes": 968,
+      "sha256": "1d9bb34a0c6df7b8114768c0f3f98e755dc9314ec6f2e6d81a56ad9e4513a7c7"
+    }
+  ]
+}

@@ -72,3 +72,27 @@ presentation timing.
 [Six raw reports and terminal metadata](hosted-presentation-calibration-och17/run-37356882651/reports.tar.gz)
 are retained with a [verified manifest](hosted-presentation-calibration-och17/run-37356882651/manifest.json).
 No threshold or gate was changed.
+
+
+## Repeat on hosted run 37374125077
+
+[Run 37374125077](https://github.com/dakotamurphyucf/gpuio/actions/runs/37374125077)
+finished with failure on 2026-10-05 at branch `4c959f5`, tested merge `6e4ccda`.
+The GPUI probe again records 180 admitted callbacks, all with zero presentation
+timestamps, no missing callbacks, and retired sessions. Independent Metal on
+Apple Paravirtual / macOS 15.7.9 again records 120 active, visible, GPU-completed
+frames with zero presentation timestamps. Neither probe passes.
+
+The separate standard-window lifecycle test passes. Custom chrome passes three
+minimize/restore cycles and native title-bar movement, then fails its physical
+pointer ownership check before clicking Fullscreen: expected PID 8587, actual
+PID 2330 at (1321.5, 235.5). The report confirms the child was reaped. The owner
+of PID 2330 is not established by these artifacts; this does not prove a native
+fullscreen bug or a specific cause of occlusion. A bounded foreground/readiness
+check and better occluder diagnostics are the next investigation.
+
+Linux was cancelled before acquiring a hosted runner; no Linux checks ran in this
+job. The fresh extracted-app receiver was skipped. These are not passing release
+gates. [Reports](hosted-presentation-calibration-och17/run-37374125077/manifest.json)
+retain hashes, branch/merge revisions and exact counters. The newer palette/menu
+checkpoint `a8def93` is outside this run's coverage.
