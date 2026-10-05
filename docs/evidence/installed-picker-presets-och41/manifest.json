@@ -1,0 +1,190 @@
+{
+  "application_revision": "71bd02e44666a86945d642cb14a8f107db2869d7",
+  "executable_sha256": "d4ad6a43bd258ea414f02891965de3a54c54f8a333b2b9fbdc0b8e39220a3402",
+  "platform": "macOS 14.5 arm64 / M1 Max / built-in display",
+  "voiceover": "Owner hold; untouched; no adapter changes",
+  "commands": {
+    "native": "GPUIO_JOBS=2 ./scripts/gpuio exec cargo test -p gpuio-native --features native-image-tests,native-canvas-tests --lib --locked -j 2",
+    "clippy": "GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy -p gpuio-native --lib --tests --features native-image-tests,native-canvas-tests --locked -j 2 -- -D warnings",
+    "build": "GPUIO_JOBS=2 python3 scripts/test_extension_consumer.py --example gallery --workspace scratch/agents/root-20261004-resumed/gallery-installed-popup-focus",
+    "format": "GPUIO_JOBS=2 ./scripts/gpuio exec cargo fmt --all --check",
+    "catalog": "python3 scripts/audit_component_catalog.py"
+  },
+  "results": {
+    "native_before": {
+      "session": 75734,
+      "exit_code": 101,
+      "scope": "Focused regression actually failed"
+    },
+    "native_after": {
+      "session": 14230,
+      "exit_code": 0,
+      "passed": 931,
+      "ignored": 2
+    },
+    "clippy": {
+      "session": 51917,
+      "exit_code": 0
+    },
+    "format": {
+      "session": 86071,
+      "exit_code": 0
+    },
+    "build": {
+      "session": 72325,
+      "exit_code": 0
+    },
+    "catalog": {
+      "exit_code": 0
+    }
+  },
+  "runs": [
+    {
+      "run": 1,
+      "session": 46142,
+      "exit_code": 0,
+      "scope": "original baseline; no preset sequence",
+      "command": "python3 scripts/test_gallery.py --section pickers --executable scratch/agents/root-20261004-resumed/gallery-installed-number-slots/consumer/_build/default/main.exe --images scratch/agents/root-20261004-resumed/pickers-installed-09eebb3/run-1-images"
+    },
+    {
+      "run": 2,
+      "session": 60650,
+      "exit_code": 1,
+      "scope": "preset Cancel focus failure",
+      "command": "python3 scripts/test_gallery.py --section pickers --executable scratch/agents/root-20261004-resumed/gallery-installed-number-slots/consumer/_build/default/main.exe --images scratch/agents/root-20261004-resumed/pickers-installed-09eebb3/run-2-images"
+    },
+    {
+      "run": 3,
+      "session": 52894,
+      "exit_code": 1,
+      "scope": "same focus failure with diagnostic output",
+      "command": "python3 scripts/test_gallery.py --section pickers --executable scratch/agents/root-20261004-resumed/gallery-installed-number-slots/consumer/_build/default/main.exe --images scratch/agents/root-20261004-resumed/pickers-installed-09eebb3/run-3-images"
+    },
+    {
+      "run": 4,
+      "session": 58007,
+      "exit_code": 1,
+      "scope": "repaired focus passes; driver mistakes checkbox for button",
+      "command": "python3 scripts/test_gallery.py --section pickers --executable scratch/agents/root-20261004-resumed/gallery-installed-popup-focus/consumer/_build/default/main.exe --images scratch/agents/root-20261004-resumed/pickers-installed-09eebb3/run-4-images"
+    },
+    {
+      "run": 5,
+      "session": 5827,
+      "exit_code": 0,
+      "scope": "complete extended picker walkthrough passes",
+      "command": "python3 scripts/test_gallery.py --section pickers --executable scratch/agents/root-20261004-resumed/gallery-installed-popup-focus/consumer/_build/default/main.exe --images scratch/agents/root-20261004-resumed/pickers-installed-09eebb3/run-5-images"
+    }
+  ],
+  "archive": "local-validation.tar.gz",
+  "sha256": "df67f4aad2dbd705591738a2130a3d7de0b6abd51250a763ba535cbf7cbde45a",
+  "files": [
+    {
+      "path": "driver-role-correction.patch",
+      "sha256": "180dec25a31e97e83909ad839f359977509fa87d59297b19639b1382e6483aff"
+    },
+    {
+      "path": "drivers/gallery_calendar_content.py",
+      "sha256": "cb1c22b1219b37c03ea851debda58cdf4dd0f93868881d7ce3e05e017f035f03"
+    },
+    {
+      "path": "drivers/gallery_picker_presets.py",
+      "sha256": "4a6ff4d015045627c8abaf533019e346ae94800cba96394717ff4701b533009a"
+    },
+    {
+      "path": "drivers/test_gallery.py",
+      "sha256": "2e93cb55093a4c1baac3a71b4a0b2567c11949edd7c48b3c12df5f3fb631cbc9"
+    },
+    {
+      "path": "metadata.json",
+      "sha256": "4b4e0ca2208ad23f86d5ef38dd692f7fcfa9005001c917edb6ac398e1709d50b"
+    },
+    {
+      "path": "production-and-initial-driver.patch",
+      "sha256": "f3ce81ea80390c6eeee3db3ec6e99650f6b0209188091f78076be23f47652bc4"
+    },
+    {
+      "path": "validation/catalog.log",
+      "sha256": "ec7f045757abb1d7e2907d8e645fbd6c7fa3e9b0e1e808e2fdc2dd20215b9a75"
+    },
+    {
+      "path": "validation/clippy.log",
+      "sha256": "9ad22e0a2b4af0ec26b2d741f6da90aeb5b31267286557fff5cb57153072156d"
+    },
+    {
+      "path": "validation/consumer-build.log",
+      "sha256": "59533d85a0b818470dd08833d335240cb35e031ab3a910230447165f20a90372"
+    },
+    {
+      "path": "validation/native-after.log",
+      "sha256": "9b6453633786e8b761ce161d7aeb99f45e6d0c320e4feafd5701f740b5f24db1"
+    },
+    {
+      "path": "validation/native-before-corrected.log",
+      "sha256": "78629fc9f822f082475511d7b10fa9c13dc986be215c3a7b330dda82aba7d8d0"
+    },
+    {
+      "path": "validation/native-before.log",
+      "sha256": "2c01aea4b651fefab44497ce2115468554a792fc7401d7894200c3d0e0b284b1"
+    },
+    {
+      "path": "validation/run-1-images/gallery-pickers.png",
+      "sha256": "5d8fbc330db5118e82b519be616e1aa66ea7db1c34b0f49a2702635673838d02"
+    },
+    {
+      "path": "validation/run-1.log",
+      "sha256": "ee95c536bd6d27d9967c119e83d6367fe2a0310efd8f80966f920f9d228e28b0"
+    },
+    {
+      "path": "validation/run-2-images/gallery-date-preset-draft.png",
+      "sha256": "663870532dde2dc26367770216db6fe489c9839359d65004d67198d83e0f826a"
+    },
+    {
+      "path": "validation/run-2-images/gallery-failure.png",
+      "sha256": "eb22a128fcf5f53b2d7bd227e0035e305cc9da8cf9a49ad88aa6892caa892262"
+    },
+    {
+      "path": "validation/run-2.log",
+      "sha256": "ded889d8b7a93abac210fcb754b8b0f75ecca4cf4ae4d96b3a658d3c8ee47a41"
+    },
+    {
+      "path": "validation/run-3-images/gallery-date-preset-draft.png",
+      "sha256": "663870532dde2dc26367770216db6fe489c9839359d65004d67198d83e0f826a"
+    },
+    {
+      "path": "validation/run-3-images/gallery-failure.png",
+      "sha256": "120f491996ee8492c62387c46c088d56e5b9a94ca419697064ca7be951e56e4c"
+    },
+    {
+      "path": "validation/run-3.log",
+      "sha256": "a45c6585a7bb823ed40133b87990935f3248bdbe0a5349ce74af2698f53372c9"
+    },
+    {
+      "path": "validation/run-4-images/gallery-date-preset-draft.png",
+      "sha256": "617bbb5ffda623ab4d036f505c9712b7d9ffadc03d34bb26e635e3651a511fad"
+    },
+    {
+      "path": "validation/run-4-images/gallery-failure.png",
+      "sha256": "b8233f82fb2cd1b9d5cbe9b5e9039824c1f391b33d52049394c168f0acc0d5fb"
+    },
+    {
+      "path": "validation/run-4.log",
+      "sha256": "a5ff62414f5bc54d09fa4fb6202296d0c56f21c36829e5313794ae809e766d5e"
+    },
+    {
+      "path": "validation/run-5-images/gallery-date-preset-draft.png",
+      "sha256": "617bbb5ffda623ab4d036f505c9712b7d9ffadc03d34bb26e635e3651a511fad"
+    },
+    {
+      "path": "validation/run-5-images/gallery-date-preset-read-only.png",
+      "sha256": "144eb27cc1f794902e248dc00b1a294b7b93a7d3323276662e209eba3000a7c3"
+    },
+    {
+      "path": "validation/run-5-images/gallery-pickers.png",
+      "sha256": "5d8fbc330db5118e82b519be616e1aa66ea7db1c34b0f49a2702635673838d02"
+    },
+    {
+      "path": "validation/run-5.log",
+      "sha256": "0e7b0e5df2bb0f40c89e0bb625690c70a06f016a3cf40d7a52edce7e8a68fd1f"
+    }
+  ]
+}

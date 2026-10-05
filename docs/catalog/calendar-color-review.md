@@ -44,3 +44,14 @@ The ledger remains open for these gaps and gallery behavior. Source review and
 controller tests are not physical macOS input/VoiceOver/GPU evidence, and no new
 Linux desktop acceptance is implied. See the original
 [color input evidence](../evidence/color-inputs-och36.md).
+
+## Installed follow-up — 2026-10-05
+
+[The installed picker walkthrough](../evidence/installed-picker-presets-och41.md)
+now qualifies live event-content target retention, date draft presets and guarded
+Apply/Cancel/Escape/read-only behavior, direct date selection, popup color panel
+retention and explicit commit/cancel, clear actions and trigger expansion/focus.
+It also reproduces and repairs a native nonmodal focus-context loss. This narrows
+the historical physical gaps above; it does not qualify multi-month layout,
+calendar/panel physical navigation, hover-preview pixels or the whole family.
+VoiceOver remains on hold.

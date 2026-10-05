@@ -5,7 +5,7 @@ import time
 
 def exercise(mac, images=None):
     from test_gallery import (
-        TITLE, expect_enabled, expect_focus, expect_popup_expanded, open_picker,
+        TITLE, activate, expect_enabled, expect_focus, expect_popup_expanded, open_picker,
         within,
     )
     from test_canvas import screenshot
@@ -102,7 +102,7 @@ def exercise(mac, images=None):
 
     # Read-only still permits opening and inspection, while both preset commands
     # and Apply are fenced. Exercise an AX action too, not just disabled paint.
-    mac.press(TITLE, 'Read-only pickers')
+    activate(mac, mac.wait_find(TITLE, 'Read-only pickers', 'AXCheckBox'))
     expect_enabled(mac, 'Clear appointment', False)
     expect_enabled(mac, 'Clear accent', False)
     open_picker(mac, trigger, cancel)
@@ -118,7 +118,7 @@ def exercise(mac, images=None):
     if images:
         screenshot(mac, images / 'gallery-date-preset-read-only.png', title=TITLE)
     close(cancel)
-    mac.press(TITLE, 'Read-only pickers')
+    activate(mac, mac.wait_find(TITLE, 'Read-only pickers', 'AXCheckBox'))
     expect_enabled(mac, 'Clear appointment', True)
     expect_enabled(mac, 'Clear accent', True)
     print('GALLERY_DATE_PRESETS_OK: native drafts, explicit Apply, Cancel/Escape, '

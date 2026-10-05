@@ -65,6 +65,13 @@ whole-family acceptance. Start from [the catalog](catalog/README.md),
 
 Recent completed local checkpoints:
 
+- Installed date presets now pass draft/Apply/Cancel/Escape/read-only checks.
+  The expanded walkthrough exposed a nonmodal popup focus-loss bug while controls
+  were unavailable; a native regression and shared focus-manager repair pass
+  931 native tests (two existing skips) and a fresh installed picker walkthrough.
+  [Evidence and preserved failures](evidence/installed-picker-presets-och41.md).
+  VoiceOver remains untouched on owner hold; wider picker qualification stays open.
+
 - Numeric frame slots now render once: screenshot review found duplication
   despite passing input checks, and a native regression reproduced it. The fix
   passes 930 native tests (two existing skips), strict lint, formatting and a fresh
