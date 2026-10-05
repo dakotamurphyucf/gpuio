@@ -85,3 +85,12 @@ visual review remain required. Linux compilation/unit/private-bus/consumer check
 remain required separately; full Linux desktop qualification stays OCH-47.
 TestPlatform request recording is not OS execution, process/GPU memory or timing
 evidence. OCH-41/OCH-17 remain open.
+
+
+## Physical follow-up — 2026-10-05
+
+The [public macOS window walkthrough](window-lifecycle-och41.md) now passes
+standard/custom minimize and restoration, retained native selection/editing,
+custom title-bar movement, fullscreen, AppKit border resize and double-click zoom.
+It supersedes this checkpoint's unrun status for those specific operations; its
+source/platform scope and remaining boundaries are explicit.

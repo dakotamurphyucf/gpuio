@@ -1,0 +1,13 @@
+AX_WAIT A little context goes a long way
+AX_PRESS Runtime & windows
+AX_PRESS Minimize this window
+AX_WAIT Minimize requested
+AX_PRESS Minimize this window
+AX_WAIT Minimize requested
+AX_PRESS Minimize this window
+AX_WAIT Minimize requested
+AX_WAIT Leave fullscreen
+AX_PRESS Leave fullscreen
+AX_PRESS New window
+AX_WAIT A little context goes a long way
+GPUIO_WINDOW_LIFECYCLE_OK: actual window commands and retained native editing

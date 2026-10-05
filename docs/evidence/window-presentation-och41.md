@@ -72,3 +72,12 @@ consumer gates remain separate; Linux graphical qualification remains OCH-47.
 The automatic frame still needs stable native inset handling across tiling and
 content-bound integration for popups/sheets. A padded root alone is insufficient.
 OCH-41 and OCH-17 remain open.
+
+
+## Physical follow-up — 2026-10-05
+
+The [public macOS window walkthrough](window-lifecycle-och41.md) now passes
+standard/custom minimize and restoration, retained native selection/editing,
+custom title-bar movement, fullscreen, AppKit border resize and double-click zoom.
+It supersedes this checkpoint's unrun status for those specific operations; its
+source/platform scope and remaining boundaries are explicit.

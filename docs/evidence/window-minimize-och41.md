@@ -54,3 +54,12 @@ remain valid. Its SHA-256 is
 The catalog summary's obsolete Form/plain-input/custom-step implementation claims
 are corrected against current interfaces and feature evidence. No historical
 test result or open acceptance gate was converted into a completion claim.
+
+
+## Physical follow-up — 2026-10-05
+
+The [public macOS window walkthrough](window-lifecycle-och41.md) now passes
+standard/custom minimize and restoration, retained native selection/editing,
+custom title-bar movement, fullscreen, AppKit border resize and double-click zoom.
+It supersedes this checkpoint's unrun status for those specific operations; its
+source/platform scope and remaining boundaries are explicit.

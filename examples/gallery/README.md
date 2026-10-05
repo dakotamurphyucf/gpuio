@@ -990,3 +990,13 @@ outside the retained layout yields an unavailable result. Try wrapping, scrollin
 Unicode, and multiple gallery windows. Leaving the page suppresses a late reply.
 This walkthrough still needs physical macOS qualification; the build and automated
 checks are recorded in [the API evidence](../../docs/evidence/editor-range-api-och41.md).
+
+
+### Native window lifecycle
+
+`python3 scripts/test_macos_window_lifecycle.py --output <new-directory>` checks
+actual minimize/restore and retained native editing. Add `--custom-chrome` for
+title-bar drag/fullscreen, AppKit border resize and double-click behavior using
+the existing OS preference. The test does not change desktop preferences.
+[Physical results and boundaries](../../docs/evidence/window-lifecycle-och41.md)
+record both modes, native state acknowledgements and cleanup.
