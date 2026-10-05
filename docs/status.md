@@ -60,6 +60,11 @@ whole-family acceptance. Start from [the catalog](catalog/README.md),
 
 Recent completed local checkpoints:
 
+- Avatar overflow now lays out after overlapping members following a scoped
+  intrinsic-sizing repair in pinned Taffy. Engine regressions, 930 native tests,
+  5,715 upstream tests and the real macOS gallery walkthrough pass.
+  [Evidence](evidence/avatar-layout-och41.md).
+
 - Numeric disabled part styles now admit and render the public Disabled tag;
   24 focused native tests and the physical rating gallery walkthrough pass,
   including 41 geometry/identity cases, themes and native input policies.

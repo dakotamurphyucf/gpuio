@@ -64,6 +64,107 @@ enum Teardown {
     WindowClose,
 }
 
+#[test]
+fn avatar_group_members_contribute_their_intrinsic_width_before_overflow() {
+    let mut app = TestAppContext::single();
+    let (_reader, writer) = UnixStream::pair().unwrap();
+    let transport = Arc::new(Transport::new(writer.as_raw_fd()).unwrap());
+    let session = Rc::new(RefCell::new(Session::default()));
+    let window_id = WindowId::from_parts(0, 1).unwrap();
+    session.borrow_mut().hello(VERSION, CAPABILITIES).unwrap();
+    session
+        .borrow_mut()
+        .open(1, window_id, "Group", 400., 100.)
+        .unwrap();
+    let (owner, cx) =
+        app.add_window_view(|_, _| View::new(window_id, session.clone(), transport.clone()));
+    cx.update(|window, cx| {
+        owner.update(cx, |view, cx| {
+            let mut operations = vec![];
+            for slot in 0..7 {
+                let kind = if matches!(slot, 0 | 1 | 5) {
+                    Kind::Container
+                } else {
+                    Kind::Avatar
+                };
+                operations.push(Op::Create(id(slot), kind, "".into(), None));
+            }
+            for slot in [0, 1, 5] {
+                operations.push(Op::SetStyle(
+                    id(slot),
+                    vec![Style::Fields(vec![
+                        Field::Display(1),
+                        Field::Direction(0),
+                        Field::Shrink(0.),
+                        Field::AlignItems(1),
+                    ])],
+                ));
+            }
+            operations.push(Op::SetStyle(
+                id(5),
+                vec![Style::Fields(vec![
+                    Field::Display(1),
+                    Field::Direction(0),
+                    Field::Shrink(0.),
+                    Field::MarginLeft(Length::Px(4.)),
+                ])],
+            ));
+            for slot in [2, 3, 4, 6] {
+                operations.push(Op::SetAvatar(id(slot), config(None)));
+                operations.push(Op::SetStyle(
+                    id(slot),
+                    vec![Style::Fields(vec![
+                        Field::Width(Length::Px(48.)),
+                        Field::Height(Length::Px(48.)),
+                        Field::MinWidth(Length::Px(48.)),
+                        Field::MaxWidth(Length::Px(48.)),
+                        Field::MinHeight(Length::Px(48.)),
+                        Field::MaxHeight(Length::Px(48.)),
+                        Field::Grow(0.),
+                        Field::Shrink(0.),
+                        Field::MarginLeft(Length::Px(if slot == 3 || slot == 4 {
+                            -14.4
+                        } else {
+                            0.
+                        })),
+                        Field::Background(Fill::Solid(Color::Rgba(if slot == 6 {
+                            0x0000ffff
+                        } else {
+                            0xff0000ff
+                        }))),
+                    ])],
+                ));
+            }
+            operations.extend([
+                Op::Splice(id(1), 0, 0, vec![id(2), id(3), id(4)]),
+                Op::Splice(id(5), 0, 0, vec![id(6)]),
+                Op::Splice(id(0), 0, 0, vec![id(1), id(5)]),
+                Op::SetRoot(Some(id(0))),
+            ]);
+            apply(view, window, cx, operations);
+        });
+        window.draw(cx).clear(cx);
+        let quads = window.painted_quads();
+        let colored = |color| {
+            let expected: gpui::Background = rgba(color).into();
+            quads
+                .iter()
+                .filter(|quad| quad.background == expected)
+                .map(|quad| quad.bounds)
+                .collect::<Vec<_>>()
+        };
+        let members = colored(0xff0000ff);
+        let overflow = colored(0x0000ffff);
+        assert_eq!(members.len(), 3);
+        assert_eq!(overflow.len(), 1);
+        assert!(
+            ((overflow[0].left() - members[2].right()).as_f32() / window.scale_factor() - 4.).abs()
+                < 1.,
+            "members={members:?}, overflow={overflow:?}"
+        );
+    });
+}
+
 fn retained_slot(format: Format, teardown: Teardown) {
     let mut app = TestAppContext::single();
     app.update(crate::image_host::init);

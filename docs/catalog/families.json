@@ -59,7 +59,7 @@
       "id": "avatar",
       "owner": "OCH-33",
       "scope": "v1",
-      "audit_status": "pinned source reviewed; group, fixed identity palette and checked rich fallback implemented locally; TestPlatform selection/nested motion/window-close/resource checks pass; native group/palette/rich fallback GPU and AX acceptance pending",
+      "audit_status": "pinned source reviewed; group, fixed identity palette and checked rich fallback implemented; TestPlatform selection/nested motion/window-close/resource checks and physical macOS group geometry/identity/source/fallback/input/retirement pass; dedicated pixel palette/clipping and fresh consumer acceptance remain",
       "public_interface": "lib/core/avatar.mli",
       "example": "examples/gallery",
       "evidence": [

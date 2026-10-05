@@ -122,9 +122,10 @@ The public Presentation page now includes a team preview with five members,
 five sizes, three overlap values, limit zero through five, optional/actionable
 overflow, reorder, rounded-square styling and scoped valid/invalid image sources.
 `scripts/gallery_avatar_group.py` is wired to `test_gallery.py --section avatar-groups`.
-That native driver is **unverified** while the session's macOS Accessibility
-preflight is unavailable. Its planned geometry/input checks do not establish GPU
-paint, clipping or resource acceptance until executed and supplemented as needed.
+The real macOS driver now passes 48 geometry/identity cases, both themes,
+source/fallback transitions, reordering, limit retirement, overflow activation and
+page remount after an intrinsic-layout repair. See [the dated evidence](../evidence/avatar-layout-och41.md).
+This does not establish exhaustive GPU color/clipping or process-resource acceptance.
 
 ```ocaml
 let item =

@@ -4,7 +4,10 @@ import time
 
 
 def exercise(mac, images=None):
-    from test_gallery import TITLE, activate, element_rect, focus_gallery_control, reveal_gallery_control
+    from test_gallery import (
+        TITLE, activate, element_rect, focus_gallery_control, reveal_gallery_control,
+        select_gallery_appearance, wait_absent,
+    )
     from test_canvas import screenshot
 
     mac.press(TITLE, 'Presentation')
@@ -36,6 +39,7 @@ def exercise(mac, images=None):
 
     def geometry(order, preserve=True):
         nonlocal cases
+        group_bounds = reveal_gallery_control(mac, 'Team avatars', 'AXGroup')
         size = sizes[size_index][1]
         stride = size * (1 - overlaps[overlap_index])
         visible = order[:limit]
@@ -65,7 +69,7 @@ def exercise(mac, images=None):
                 bounds = rect(overflow)
                 assert abs(bounds[2] - size) < 1.1, ('overflow size', bounds, size)
                 if previous:
-                    assert abs(bounds[0] - previous[0] - previous[2] - 4) < 1.1, ('overflow gap', previous, bounds)
+                    assert abs(bounds[0] - previous[0] - previous[2] - 4) < 1.1, ('overflow gap', group_bounds, previous, bounds)
             finally:
                 mac.release(overflow)
         cases += 1
@@ -76,7 +80,7 @@ def exercise(mac, images=None):
             retained[name] = member(name)
         # Shared size and overlap update the native leaves, retaining image identity.
         for theme in ('Light', 'Dark'):
-            mac.press(TITLE, theme)
+            select_gallery_appearance(mac, theme)
             for _ in range(5):
                 for _ in range(3):
                     geometry(names)
@@ -154,10 +158,23 @@ def exercise(mac, images=None):
         if images:
             reveal_gallery_control(mac, 'Team avatars', 'AXGroup')
             screenshot(mac, images / 'gallery-avatar-group.png', title=TITLE)
-        mac.press(TITLE, 'Controls')
-        mac.press(TITLE, 'Presentation')
-        mac.wait_text(TITLE, 'Avatar image: No image source · Team opens: 0')
-        geometry(names, preserve=False)
+        before_page_exit = {name: member(name) for name in names[:limit]}
+        try:
+            mac.press(TITLE, 'Selection & actions')
+            wait_absent(mac, 'Team avatars', 'AXGroup')
+            mac.press(TITLE, 'Presentation')
+            # Bonsai retains this branch's model; the native subtree is retired.
+            mac.wait_text(TITLE, 'Avatar image: No image source · Team opens: 1')
+            geometry(names, preserve=False)
+            for name, previous in before_page_exit.items():
+                current = member(name)
+                try:
+                    assert not equal(current, previous), ('page avatar was not remounted', name)
+                finally:
+                    mac.release(current)
+        finally:
+            for node in before_page_exit.values():
+                mac.release(node)
     finally:
         for node in retained.values():
             mac.release(node)
