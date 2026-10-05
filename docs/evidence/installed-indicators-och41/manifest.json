@@ -1,0 +1,628 @@
+{
+  "archive": "local-validation.tar.gz",
+  "sha256": "172b27a026924654a6db82c7f8c74845d8a0f87d129986520326c62ca1446468",
+  "application_revision": "47924139e52c691182cfe6c9593501186f83fd30",
+  "installed_gallery_sha256": "b978ed554931821f88572e1fe283d2a03123ef636667d669208b369be187a115",
+  "captures": [
+    {
+      "path": "gallery-installed-components-001/progress/images/gallery-failure.png",
+      "sha256": "55aab9291ad7586108cb0c6302c32b934669286dcf245e07fbbd04ae0be1302e",
+      "archived": true
+    },
+    {
+      "path": "gallery-installed-components-001/progress/images/gallery-progress-000.png",
+      "sha256": "54cec4d100ce9b448a4dd350e3838253cbb61e6f61ce95281f3e7c2ba525d985",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-001/progress/images/gallery-progress-001.png",
+      "sha256": "54cec4d100ce9b448a4dd350e3838253cbb61e6f61ce95281f3e7c2ba525d985",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-001/progress/images/gallery-progress-002.png",
+      "sha256": "c2ffb2e9b1d07a4c34baa15198493a3de346d70e6a0b6779ccadedb67b9e009d",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-001/progress/images/gallery-progress-003.png",
+      "sha256": "c2ffb2e9b1d07a4c34baa15198493a3de346d70e6a0b6779ccadedb67b9e009d",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-001/progress/images/gallery-progress-004.png",
+      "sha256": "f7a76ab55150fe54c0edbf952b41b733f344013920ca23f67511fef523b95ef9",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-001/progress/images/gallery-progress-005.png",
+      "sha256": "bc294d45f7af67628c5c1a3aaa6e5544c2b4e1e6da4e54febb24874fac6e9a2a",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-001/progress/images/gallery-progress-006.png",
+      "sha256": "5eba1c8ae787638d9b0a5b7010510d5bd9f28862acc1c21c46d6dca098ee7089",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-001/progress/images/gallery-progress-007.png",
+      "sha256": "9b7d3a163cc3202db96956f442658d17f92214192deaa2f7c48e2631f2e2570a",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-001/progress/images/gallery-progress-008.png",
+      "sha256": "c4fbb8807477505eda6797ccf0e8bcb06570465df5789ad42d300ac73f8055e4",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-001/progress/images/gallery-progress-009.png",
+      "sha256": "ec435f378aa82380fdc608ddf2eb5f1a2a9c07e0e1c5e8c902095dd78e76d2af",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-001/progress/images/gallery-progress-010.png",
+      "sha256": "2e0b1d2851c200f5d654128dc25e611f4449247d0ec328521505ff661b380d69",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-001/progress/images/gallery-progress-011.png",
+      "sha256": "6a1e0ca145317f7fcfef2b8a021a099154a2648d949dc12989d6d38252abbca1",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-001/progress/images/gallery-progress-012.png",
+      "sha256": "7cc6143c5247cf217ed8105f12ed45b6c34cfd8b5088de3224f70b2f68bd89aa",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-001/progress/images/gallery-progress-013.png",
+      "sha256": "7cc6143c5247cf217ed8105f12ed45b6c34cfd8b5088de3224f70b2f68bd89aa",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-001/progress/images/gallery-progress-014.png",
+      "sha256": "cd64124a65e74d28de487d5e9a0f1c8f5192918e524ab170e4bc4b45c27cbd1c",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-001/progress/images/gallery-progress-015.png",
+      "sha256": "a6adb3cc508eebf1e79184a2729b48f94aecbeeb781a63e006fb43880f2b8099",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-001/progress/images/gallery-progress-016.png",
+      "sha256": "3082a12faf9559a9049d66087aa6e8929e16d0c728f448395e50bce60b82bbed",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-001/progress/images/gallery-progress-017.png",
+      "sha256": "8d4971d35121cb6e836a3f69e25d93da714b112200ce06d7ac098ddcb7d1a0b7",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-001/progress/images/gallery-progress-018.png",
+      "sha256": "5154676323561245e3a006429ee7ccfebc9a84c66454eebf2933e9d638bab16e",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-001/progress/images/gallery-progress-019.png",
+      "sha256": "63d9f6b0ec6483bb06590c90e3919aaf769b3500d083f042adb097ad7281c602",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-001/progress/images/gallery-progress-020.png",
+      "sha256": "c72ccefeae27364b226352d8358cd9b3870a120b7a6185d2f0561cf9940afe48",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-001/progress/images/gallery-progress-021.png",
+      "sha256": "020718ea00932fa40e5b068b5442b15841cf3b16e630f42f1842dd1aca8413e4",
+      "archived": true
+    },
+    {
+      "path": "gallery-installed-components-001/control-appearance/images/gallery-failure.png",
+      "sha256": "84ec2057ecde3108a6fb1ba3f417ea8b2f8a7e120c386d8e3a622a168acc81c0",
+      "archived": true
+    },
+    {
+      "path": "gallery-installed-components-001/spinners/images/gallery-spinner-000.png",
+      "sha256": "17bf90fee5c9a2fde1ad65e4b2b5545ab51258815a55d650f56f6c9c96e8d92b",
+      "archived": true
+    },
+    {
+      "path": "gallery-installed-components-001/spinners/images/gallery-spinner-001.png",
+      "sha256": "17bf90fee5c9a2fde1ad65e4b2b5545ab51258815a55d650f56f6c9c96e8d92b",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-001/spinners/images/gallery-spinner-002.png",
+      "sha256": "90a04df14c0a0c3d98bc9d32299572beb96ddd5710dcd53090f5ba50149399d5",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-001/spinners/images/gallery-spinner-003.png",
+      "sha256": "90a04df14c0a0c3d98bc9d32299572beb96ddd5710dcd53090f5ba50149399d5",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-001/spinners/images/gallery-spinner-004.png",
+      "sha256": "cfc061f0fcb196158c6e13a75e912806873425f3cdb39c52984d86baf25b94f4",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-001/spinners/images/gallery-spinner-005.png",
+      "sha256": "cfc061f0fcb196158c6e13a75e912806873425f3cdb39c52984d86baf25b94f4",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-001/spinners/images/gallery-spinner-006.png",
+      "sha256": "17bf90fee5c9a2fde1ad65e4b2b5545ab51258815a55d650f56f6c9c96e8d92b",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-001/spinners/images/gallery-spinner-007.png",
+      "sha256": "17bf90fee5c9a2fde1ad65e4b2b5545ab51258815a55d650f56f6c9c96e8d92b",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-001/spinners/images/gallery-spinner-008.png",
+      "sha256": "645f237995e8d7773ded1dc492d20ba62fb3928f3bf2e1c3c544e637ed089a87",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-001/spinners/images/gallery-spinner-009.png",
+      "sha256": "645f237995e8d7773ded1dc492d20ba62fb3928f3bf2e1c3c544e637ed089a87",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-001/spinners/images/gallery-spinner-010.png",
+      "sha256": "6e5681f2e49c90b56106ba40e97f8a22213d05519d93971b84dacf9daaaf1640",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-001/spinners/images/gallery-spinner-011.png",
+      "sha256": "6e5681f2e49c90b56106ba40e97f8a22213d05519d93971b84dacf9daaaf1640",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-001/spinners/images/gallery-spinner-012.png",
+      "sha256": "b4c0c9aff16151885710c2db6a2fb89cba18cf877797a56f205936d76930aba2",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-001/spinners/images/gallery-spinner-013.png",
+      "sha256": "b4c0c9aff16151885710c2db6a2fb89cba18cf877797a56f205936d76930aba2",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-001/spinners/images/gallery-spinner-014.png",
+      "sha256": "645f237995e8d7773ded1dc492d20ba62fb3928f3bf2e1c3c544e637ed089a87",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-001/spinners/images/gallery-spinner-015.png",
+      "sha256": "645f237995e8d7773ded1dc492d20ba62fb3928f3bf2e1c3c544e637ed089a87",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-001/spinners/images/gallery-spinner-016.png",
+      "sha256": "bb9751f9c51513a578606596e8bb6dd2d961461fed1db15075fa51cb6ee33c32",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-001/spinners/images/gallery-spinner-017.png",
+      "sha256": "a76a8e7ab10275a14e8eb0fd0742239f05bef3a0154fa70d5bd6cbbec912a49b",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-001/spinners/images/gallery-spinner-018.png",
+      "sha256": "f46ea1b1c89ff77af064f2bbe28b56e48ede6b18178be689a75496b14c54d3b9",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-001/spinners/images/gallery-spinner-019.png",
+      "sha256": "53de78dd4106a3be641f0978380a74b93041ee28198759693693dabffd9edbe0",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-001/spinners/images/gallery-spinner-020.png",
+      "sha256": "04cb12fb13271d76fe234ea81b84ef5c0b0c9417051ea17572232471eae63d5f",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-001/spinners/images/gallery-spinner-021.png",
+      "sha256": "b4b474728f821fcbb97e52e976940000b794d2384a4983ec46985873fc01d927",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-001/spinners/images/gallery-spinner-022.png",
+      "sha256": "3a1cdcf9a6ee3e410c93b0874857da923070fa1882a8938204ec14e6d2b74112",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-001/spinners/images/gallery-spinner-023.png",
+      "sha256": "3a1cdcf9a6ee3e410c93b0874857da923070fa1882a8938204ec14e6d2b74112",
+      "archived": true
+    },
+    {
+      "path": "gallery-installed-components-002/progress/images/gallery-progress-000.png",
+      "sha256": "54cec4d100ce9b448a4dd350e3838253cbb61e6f61ce95281f3e7c2ba525d985",
+      "archived": true
+    },
+    {
+      "path": "gallery-installed-components-002/progress/images/gallery-progress-001.png",
+      "sha256": "0dce6c283f8b1f7c37b306a54afca0957b30024532095861c8ecbc11bcaf5917",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-002/progress/images/gallery-progress-002.png",
+      "sha256": "6f716f8eed163807a4cbec2976631a6e117422956b31ddc6a3c06c5dd6c63d64",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-002/progress/images/gallery-progress-003.png",
+      "sha256": "6f716f8eed163807a4cbec2976631a6e117422956b31ddc6a3c06c5dd6c63d64",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-002/progress/images/gallery-progress-004.png",
+      "sha256": "bc294d45f7af67628c5c1a3aaa6e5544c2b4e1e6da4e54febb24874fac6e9a2a",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-002/progress/images/gallery-progress-005.png",
+      "sha256": "bc294d45f7af67628c5c1a3aaa6e5544c2b4e1e6da4e54febb24874fac6e9a2a",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-002/progress/images/gallery-progress-006.png",
+      "sha256": "9b7d3a163cc3202db96956f442658d17f92214192deaa2f7c48e2631f2e2570a",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-002/progress/images/gallery-progress-007.png",
+      "sha256": "5eba1c8ae787638d9b0a5b7010510d5bd9f28862acc1c21c46d6dca098ee7089",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-002/progress/images/gallery-progress-008.png",
+      "sha256": "ec435f378aa82380fdc608ddf2eb5f1a2a9c07e0e1c5e8c902095dd78e76d2af",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-002/progress/images/gallery-progress-009.png",
+      "sha256": "c4fbb8807477505eda6797ccf0e8bcb06570465df5789ad42d300ac73f8055e4",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-002/progress/images/gallery-progress-010.png",
+      "sha256": "6a1e0ca145317f7fcfef2b8a021a099154a2648d949dc12989d6d38252abbca1",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-002/progress/images/gallery-progress-011.png",
+      "sha256": "2e0b1d2851c200f5d654128dc25e611f4449247d0ec328521505ff661b380d69",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-002/progress/images/gallery-progress-012.png",
+      "sha256": "3810bc2bb6416f4116195a806a8068c5096fe07894cf1a00e5652cfbd6656367",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-002/progress/images/gallery-progress-013.png",
+      "sha256": "7cc6143c5247cf217ed8105f12ed45b6c34cfd8b5088de3224f70b2f68bd89aa",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-002/progress/images/gallery-progress-014.png",
+      "sha256": "a6adb3cc508eebf1e79184a2729b48f94aecbeeb781a63e006fb43880f2b8099",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-002/progress/images/gallery-progress-015.png",
+      "sha256": "cd64124a65e74d28de487d5e9a0f1c8f5192918e524ab170e4bc4b45c27cbd1c",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-002/progress/images/gallery-progress-016.png",
+      "sha256": "8d4971d35121cb6e836a3f69e25d93da714b112200ce06d7ac098ddcb7d1a0b7",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-002/progress/images/gallery-progress-017.png",
+      "sha256": "3082a12faf9559a9049d66087aa6e8929e16d0c728f448395e50bce60b82bbed",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-002/progress/images/gallery-progress-018.png",
+      "sha256": "63d9f6b0ec6483bb06590c90e3919aaf769b3500d083f042adb097ad7281c602",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-002/progress/images/gallery-progress-019.png",
+      "sha256": "5154676323561245e3a006429ee7ccfebc9a84c66454eebf2933e9d638bab16e",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-002/progress/images/gallery-progress-020.png",
+      "sha256": "206cc626ae08192dd5fbdd1e0fced00da8686b5391138a123a9d2dfa045b22cf",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-002/progress/images/gallery-progress-021.png",
+      "sha256": "f3b2cdee1289c9b4f341c68207f8fdf2a3d1f95baf5e52aab6d782de5aa4f4a1",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-002/progress/images/gallery-progress-022.png",
+      "sha256": "a824c66dca77010acff0fb2e6606eb65230f0548b1b2cb4df2e177632ec1949f",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-002/progress/images/gallery-progress-023.png",
+      "sha256": "841d1307a3b5cc446c64033f57fd9b462451cae459c7bf709b3d80451950c108",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-002/progress/images/gallery-progress-024.png",
+      "sha256": "bd51854e92a2d4204bd871a3a65293d620bcd669d50133a3d9186b73fe5c4b53",
+      "archived": true
+    },
+    {
+      "path": "gallery-installed-components-002/control-appearance/images/gallery-control-appearance-000.png",
+      "sha256": "8f2174a2a38cc0677c28b99207a5d7d0c459109be96083eee7631cdd1a0e8ad6",
+      "archived": true
+    },
+    {
+      "path": "gallery-installed-components-002/control-appearance/images/gallery-control-appearance-001.png",
+      "sha256": "8f2174a2a38cc0677c28b99207a5d7d0c459109be96083eee7631cdd1a0e8ad6",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-002/control-appearance/images/gallery-control-appearance-002.png",
+      "sha256": "8f2174a2a38cc0677c28b99207a5d7d0c459109be96083eee7631cdd1a0e8ad6",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-002/control-appearance/images/gallery-control-appearance-003.png",
+      "sha256": "a998b486393f241ff04349ef9d5c449f59037187ed20a629295c5e03270eb7cb",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-002/control-appearance/images/gallery-control-appearance-004.png",
+      "sha256": "a998b486393f241ff04349ef9d5c449f59037187ed20a629295c5e03270eb7cb",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-002/control-appearance/images/gallery-control-appearance-005.png",
+      "sha256": "a998b486393f241ff04349ef9d5c449f59037187ed20a629295c5e03270eb7cb",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-002/control-appearance/images/gallery-control-appearance-006.png",
+      "sha256": "13f43fb36dbf5b349a7fd7a0b227fde49b0f9a1f8355eed6db4fa61d42fd4693",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-002/control-appearance/images/gallery-control-appearance-007.png",
+      "sha256": "13f43fb36dbf5b349a7fd7a0b227fde49b0f9a1f8355eed6db4fa61d42fd4693",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-002/control-appearance/images/gallery-control-appearance-008.png",
+      "sha256": "af64a2a47349759231e48ff26b36d9eca04e725e3f228e6b3e12401546b9e4e7",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-002/control-appearance/images/gallery-control-appearance-009.png",
+      "sha256": "1d12e3e72482eee06c177e7dc9677e5292e17fb8bcf9b8bbaa5a405207306ac3",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-002/control-appearance/images/gallery-control-appearance-010.png",
+      "sha256": "1d12e3e72482eee06c177e7dc9677e5292e17fb8bcf9b8bbaa5a405207306ac3",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-002/control-appearance/images/gallery-control-appearance-011.png",
+      "sha256": "1d12e3e72482eee06c177e7dc9677e5292e17fb8bcf9b8bbaa5a405207306ac3",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-002/control-appearance/images/gallery-control-appearance-012.png",
+      "sha256": "5251308331b50051423f93822864bbcbd9a740de008dab1516c3ce845cb2f089",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-002/control-appearance/images/gallery-control-appearance-013.png",
+      "sha256": "5251308331b50051423f93822864bbcbd9a740de008dab1516c3ce845cb2f089",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-002/control-appearance/images/gallery-control-appearance-014.png",
+      "sha256": "5251308331b50051423f93822864bbcbd9a740de008dab1516c3ce845cb2f089",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-002/control-appearance/images/gallery-control-appearance-015.png",
+      "sha256": "b8f7cdd41a925a26634d738895a1ff59937a427f3ed5fe9a6c30073b31096f65",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-002/control-appearance/images/gallery-control-appearance-016.png",
+      "sha256": "b8f7cdd41a925a26634d738895a1ff59937a427f3ed5fe9a6c30073b31096f65",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-002/control-appearance/images/gallery-control-appearance-017.png",
+      "sha256": "b8f7cdd41a925a26634d738895a1ff59937a427f3ed5fe9a6c30073b31096f65",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-002/control-appearance/images/gallery-control-appearance-018.png",
+      "sha256": "cfce64e225537a26211391a7ab6cec427ff01845ad0b38ae807fd73eb851d2c8",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-002/control-appearance/images/gallery-control-appearance-019.png",
+      "sha256": "cfce64e225537a26211391a7ab6cec427ff01845ad0b38ae807fd73eb851d2c8",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-002/control-appearance/images/gallery-control-appearance-020.png",
+      "sha256": "cfce64e225537a26211391a7ab6cec427ff01845ad0b38ae807fd73eb851d2c8",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-002/control-appearance/images/gallery-control-appearance-021.png",
+      "sha256": "901ff210bee0e280cfb40bd70e215a03f4617e81b16bcca3931587310062065c",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-002/control-appearance/images/gallery-control-appearance-022.png",
+      "sha256": "901ff210bee0e280cfb40bd70e215a03f4617e81b16bcca3931587310062065c",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-002/control-appearance/images/gallery-control-appearance-023.png",
+      "sha256": "901ff210bee0e280cfb40bd70e215a03f4617e81b16bcca3931587310062065c",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-components-002/control-appearance/images/gallery-failure.png",
+      "sha256": "99ed587e591eee96eb9175bd70758377c06468c6d45aca5f076ad42b69511985",
+      "archived": true
+    },
+    {
+      "path": "gallery-installed-components-002/control-appearance/images/gallery-rich-control-labels.png",
+      "sha256": "99ed587e591eee96eb9175bd70758377c06468c6d45aca5f076ad42b69511985",
+      "archived": true
+    },
+    {
+      "path": "gallery-installed-controls-003/images/gallery-control-appearance-000.png",
+      "sha256": "8f2174a2a38cc0677c28b99207a5d7d0c459109be96083eee7631cdd1a0e8ad6",
+      "archived": true
+    },
+    {
+      "path": "gallery-installed-controls-003/images/gallery-control-appearance-001.png",
+      "sha256": "8f2174a2a38cc0677c28b99207a5d7d0c459109be96083eee7631cdd1a0e8ad6",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-controls-003/images/gallery-control-appearance-002.png",
+      "sha256": "8f2174a2a38cc0677c28b99207a5d7d0c459109be96083eee7631cdd1a0e8ad6",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-controls-003/images/gallery-control-appearance-003.png",
+      "sha256": "a998b486393f241ff04349ef9d5c449f59037187ed20a629295c5e03270eb7cb",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-controls-003/images/gallery-control-appearance-004.png",
+      "sha256": "a998b486393f241ff04349ef9d5c449f59037187ed20a629295c5e03270eb7cb",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-controls-003/images/gallery-control-appearance-005.png",
+      "sha256": "a998b486393f241ff04349ef9d5c449f59037187ed20a629295c5e03270eb7cb",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-controls-003/images/gallery-control-appearance-006.png",
+      "sha256": "13f43fb36dbf5b349a7fd7a0b227fde49b0f9a1f8355eed6db4fa61d42fd4693",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-controls-003/images/gallery-control-appearance-007.png",
+      "sha256": "13f43fb36dbf5b349a7fd7a0b227fde49b0f9a1f8355eed6db4fa61d42fd4693",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-controls-003/images/gallery-control-appearance-008.png",
+      "sha256": "af64a2a47349759231e48ff26b36d9eca04e725e3f228e6b3e12401546b9e4e7",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-controls-003/images/gallery-control-appearance-009.png",
+      "sha256": "1d12e3e72482eee06c177e7dc9677e5292e17fb8bcf9b8bbaa5a405207306ac3",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-controls-003/images/gallery-control-appearance-010.png",
+      "sha256": "1d12e3e72482eee06c177e7dc9677e5292e17fb8bcf9b8bbaa5a405207306ac3",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-controls-003/images/gallery-control-appearance-011.png",
+      "sha256": "1d12e3e72482eee06c177e7dc9677e5292e17fb8bcf9b8bbaa5a405207306ac3",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-controls-003/images/gallery-control-appearance-012.png",
+      "sha256": "5251308331b50051423f93822864bbcbd9a740de008dab1516c3ce845cb2f089",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-controls-003/images/gallery-control-appearance-013.png",
+      "sha256": "5251308331b50051423f93822864bbcbd9a740de008dab1516c3ce845cb2f089",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-controls-003/images/gallery-control-appearance-014.png",
+      "sha256": "5251308331b50051423f93822864bbcbd9a740de008dab1516c3ce845cb2f089",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-controls-003/images/gallery-control-appearance-015.png",
+      "sha256": "b8f7cdd41a925a26634d738895a1ff59937a427f3ed5fe9a6c30073b31096f65",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-controls-003/images/gallery-control-appearance-016.png",
+      "sha256": "b8f7cdd41a925a26634d738895a1ff59937a427f3ed5fe9a6c30073b31096f65",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-controls-003/images/gallery-control-appearance-017.png",
+      "sha256": "b8f7cdd41a925a26634d738895a1ff59937a427f3ed5fe9a6c30073b31096f65",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-controls-003/images/gallery-control-appearance-018.png",
+      "sha256": "cfce64e225537a26211391a7ab6cec427ff01845ad0b38ae807fd73eb851d2c8",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-controls-003/images/gallery-control-appearance-019.png",
+      "sha256": "cfce64e225537a26211391a7ab6cec427ff01845ad0b38ae807fd73eb851d2c8",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-controls-003/images/gallery-control-appearance-020.png",
+      "sha256": "cfce64e225537a26211391a7ab6cec427ff01845ad0b38ae807fd73eb851d2c8",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-controls-003/images/gallery-control-appearance-021.png",
+      "sha256": "a81038b2cfac365e700567d1c333cc0de1c4cb852cec15dbfdbfef34dfa8d584",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-controls-003/images/gallery-control-appearance-022.png",
+      "sha256": "a81038b2cfac365e700567d1c333cc0de1c4cb852cec15dbfdbfef34dfa8d584",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-controls-003/images/gallery-control-appearance-023.png",
+      "sha256": "a81038b2cfac365e700567d1c333cc0de1c4cb852cec15dbfdbfef34dfa8d584",
+      "archived": false
+    },
+    {
+      "path": "gallery-installed-controls-003/images/gallery-rich-control-labels.png",
+      "sha256": "99ed587e591eee96eb9175bd70758377c06468c6d45aca5f076ad42b69511985",
+      "archived": true
+    }
+  ]
+}

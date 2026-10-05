@@ -60,6 +60,11 @@ whole-family acceptance. Start from [the catalog](catalog/README.md),
 
 Recent completed local checkpoints:
 
+- Fresh installed spinner, progress and checkable-control walkthroughs pass:
+  actual animation/paint/input, retained editor undo through inert hiding, 24
+  control part-bound cases, rich labels and lifecycle checks.
+  [Evidence and corrected test assumptions](evidence/installed-indicators-och41.md).
+
 - Rich-avatar GPU clipping, source/fallback ownership and cleanup now pass, as
   do avatar and Rating walkthroughs from a fresh installed gallery. Representative
   Light/Dark avatar palette pixels are checked on screen.

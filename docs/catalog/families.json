@@ -95,7 +95,7 @@
       "id": "loading",
       "owner": "OCH-33",
       "scope": "v1",
-      "audit_status": "pinned source reviewed; custom spinner API/bridge/gallery implemented locally; expanded native acceptance pending",
+      "audit_status": "pinned source reviewed; custom spinner native GPU/AX and fresh installed public-gallery source/geometry/pixel/input/lifecycle checks pass locally; final-source hosted and measured release acceptance remain",
       "public_interface": "lib/core/loading.mli",
       "example": "examples/presentation",
       "evidence": [
@@ -105,7 +105,7 @@
         "docs/design/custom-spinner.md"
       ],
       "gallery_page": "presentation",
-      "contract": "Native skeleton/spinner/placeholder animation and reduced-motion/static policy; no invented completion value. Glyph shimmer has Core/Bonsai/live transport and mounted Host/selection/highlight integration, explicit application appearances and focused background GPU/lifecycle checks including retained tabs, native responsive branches and managed-row pause/eviction/remount. Shared per-window candidate/glyph budgets have native fallback/recovery evidence. Public gallery and fresh installed-consumer checks now pass theme/width/direction, keyboard Copy and effect toggling, identity, playback/reduced motion and page remount. A visible-layout clock defect has a failing-before regression and passing repair. Measured application-performance acceptance remains pending. Pinned spinner/skeleton configuration and visual differences are reviewed explicitly. View.spinner now provides scoped SVG icons and declarative easing through an atomic bridge update, with paint-driven native clocks and gallery controls. Core/protocol/native-admission and production-View TestPlatform tests pass; real GPU/AX and gallery/consumer runtime acceptance remain pending. An inert-artwork regression now has a failing-before production-View TestPlatform check and a passing repair for all three kinds; current native GPU/AX acceptance of that repair remains pending.",
+      "contract": "Native skeleton/spinner/placeholder animation and reduced-motion/static policy; no invented completion value. Glyph shimmer has Core/Bonsai/live transport and mounted Host/selection/highlight integration, explicit application appearances and focused background GPU/lifecycle checks including retained tabs, native responsive branches and managed-row pause/eviction/remount. Shared per-window candidate/glyph budgets have native fallback/recovery evidence. Public gallery and fresh installed-consumer checks now pass theme/width/direction, keyboard Copy and effect toggling, identity, playback/reduced motion and page remount. A visible-layout clock defect has a failing-before regression and passing repair. Measured application-performance acceptance remains pending. Pinned spinner/skeleton configuration and visual differences are reviewed explicitly. View.spinner now provides scoped SVG icons and declarative easing through an atomic bridge update, with paint-driven native clocks and gallery controls. Core/protocol/native-admission and production-View TestPlatform tests pass; real native GPU/AX and installed-gallery runtime checks now pass. An inert-artwork regression now has a failing-before production-View TestPlatform check and a passing repair for all three kinds; current native GPU/AX checks also pass; whole-application performance/resources remain separate.",
       "upstream_modules": [
         "component/shimmer",
         "component/skeleton",
@@ -136,7 +136,7 @@
       "id": "selection",
       "owner": "OCH-11",
       "scope": "v1",
-      "audit_status": "nine pinned sources reviewed; toolbar, toggle gallery, checkable appearance/rich labels and standalone-radio/Tab-order extension implemented locally; Core/codec/native focus and transaction checks pass; expanded real macOS acceptance remains open",
+      "audit_status": "nine pinned sources reviewed; toolbar, toggle gallery, checkable appearance/rich labels and standalone-radio/Tab-order extension implemented locally; Core/codec/native focus and transaction checks pass; native checkable GPU and fresh installed appearance/rich-label walkthrough pass; remaining toolbar/toggle/standalone-radio/navigation and release acceptance stay separate",
       "public_interface": "lib/core/choice.mli",
       "example": "examples/controls",
       "evidence": [
@@ -147,7 +147,7 @@
         "docs/design/checkable-navigation.md"
       ],
       "gallery_page": "controls",
-      "contract": "Checkbox/switch/radio and command-based toggle compositions. Native toolbar orientation is explicit metadata, with application-owned selection and current-policy reducer guards. Control_appearance supplies validated indicator/mark styles, size/gap/label order with retained identity. Checked passive rich labels preserve keyed owner/slot identity and one activation target. Standalone radio supplies checked no-op semantics and optional set position; Tab_order adds explicit signed order/stop policy; Radio_group semantic containers allow application-owned composition. Managed radio groups preserve rapid asynchronous requests. The Controls gallery demonstrates reset/skip/disable and rich/plain labels; actual desktop appearance/label acceptance and whole-family acceptance remain open.",
+      "contract": "Checkbox/switch/radio and command-based toggle compositions. Native toolbar orientation is explicit metadata, with application-owned selection and current-policy reducer guards. Control_appearance supplies validated indicator/mark styles, size/gap/label order with retained identity. Checked passive rich labels preserve keyed owner/slot identity and one activation target. Standalone radio supplies checked no-op semantics and optional set position; Tab_order adds explicit signed order/stop policy; Radio_group semantic containers allow application-owned composition. Managed radio groups preserve rapid asynchronous requests. The Controls gallery demonstrates reset/skip/disable and rich/plain labels; actual macOS checkable appearance/rich-label and installed-consumer checks pass; whole-family navigation and release acceptance remain open.",
       "upstream_modules": [
         "base/checkbox",
         "base/radio",
@@ -720,7 +720,7 @@
       "id": "progress",
       "owner": "OCH-11",
       "scope": "v1",
-      "audit_status": "pinned linear and circular source reviewed; Core/Bonsai circle, native value transitions, rounded fill, atomic bridge and Feedback gallery implemented locally; headless geometry/ownership/center-focus checks pass; actual GPU/AX/public-consumer acceptance remains open",
+      "audit_status": "pinned linear and circular source reviewed; Core/Bonsai circle, native value transitions, rounded fill, atomic bridge and Feedback gallery implemented locally; headless geometry/ownership/center-focus, native GPU/AX and fresh installed public-gallery checks pass, including retained center-editor undo across inert hiding; final-source hosted and measured release acceptance remain open",
       "public_interface": "lib/core/progress.mli",
       "example": "examples/progress",
       "evidence": [
@@ -729,7 +729,7 @@
         "docs/design/progress-presentation.md"
       ],
       "gallery_page": "feedback",
-      "contract": "Validated semantic fraction or indeterminate work; passive native progress semantics. Linear and circular rich-center presentation with native value transitions and rounded fill; current native GPU/AX, public-gallery and installed-consumer acceptance remains required.",
+      "contract": "Validated semantic fraction or indeterminate work; passive native progress semantics. Linear and circular rich-center presentation with native value transitions and rounded fill; native GPU/AX and installed public-gallery checks now pass; measured application performance/resource and final-source release acceptance remain required.",
       "upstream_modules": [
         "base/progress",
         "component/progress"

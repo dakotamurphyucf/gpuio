@@ -72,3 +72,12 @@ The complete feature-enabled native suite passes **450 tests with two existing
 ignores** after this repair. Strict native/protocol all-target Clippy, Rust
 formatting and the structural catalog audit also pass. These commands remain
 headless; no new desktop window was opened for this review.
+
+## Installed-gallery follow-up — 2026-10-05
+
+[Current native and installed-consumer evidence](../evidence/installed-indicators-och41.md)
+now records passing custom-spinner, progress and checkable-appearance/rich-label
+checks on macOS. It preserves the corrected harness assumptions and original
+failures. These scoped results supersede the corresponding unrun GPU/public
+walkthrough statements above; broader family, performance/resource, final-source
+hosted and release requirements remain separate. VoiceOver remains on hold.

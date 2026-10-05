@@ -8,7 +8,7 @@ import time
 def exercise(mac, images=None):
     from test_gallery import (
         TITLE, activate, element_rect, focus_gallery_control,
-        reveal_gallery_control, wait_absent,
+        reveal_gallery_control, select_gallery_appearance, wait_absent,
     )
     from test_canvas import screenshot
     from window_pixels import read_png
@@ -78,7 +78,7 @@ def exercise(mac, images=None):
         # Default static custom SVG. All source choices retain the same native
         # semantic node; the optional image callback reports real decode state.
         for theme in ('Light', 'Dark'):
-            mac.press(TITLE, theme)
+            select_gallery_appearance(mac, theme)
             static()
             mac.press(TITLE, 'Circular arrow')
             mac.wait_text(TITLE, 'Icon unavailable · showing fallback')
@@ -100,8 +100,8 @@ def exercise(mac, images=None):
         animated()
         activate(mac, mac.wait_find(TITLE, 'Animate custom spinner', 'AXCheckBox'))
         static()
-        # Departure removes the semantic owner. A new page scope registers fresh
-        # sources and resets the preview's model without accepting old events.
+        # Departure removes the native owner and scoped sources. Bonsai retains
+        # the preview's model while the page scope acquires fresh native sources.
         mac.press(TITLE, 'Runtime & windows')
         wait_absent(mac, label, role)
         mac.press(TITLE, 'Presentation')
@@ -111,8 +111,8 @@ def exercise(mac, images=None):
             assert not equal(original, node), 'Unmounted spinner reused its AX object'
         finally:
             mac.release(node)
-        mac.release(mac.wait_find(TITLE, 'Cycle: 800 ms', 'AXButton'))
-        mac.release(mac.wait_find(TITLE, 'Ease in and out', 'AXButton'))
+        mac.release(mac.wait_find(TITLE, 'Cycle: 2 seconds', 'AXButton'))
+        mac.release(mac.wait_find(TITLE, 'Linear easing', 'AXButton'))
         mac.press(TITLE, 'Runtime & windows')
         wait_absent(mac, label, role)
     finally:

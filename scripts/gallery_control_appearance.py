@@ -33,7 +33,7 @@ def color_bounds(pixels, control, window, color):
 def exercise(mac, images=None):
     from test_gallery import (
         TITLE, GalleryMouse, activate, element_rect, expect_focus, focus_gallery_control,
-        reveal_gallery_control, wait_absent, within,
+        reveal_gallery_control, select_gallery_appearance, wait_absent, within,
     )
     from test_canvas import screenshot
     from window_pixels import read_png
@@ -52,6 +52,8 @@ def exercise(mac, images=None):
     number_type.restype, number_type.argtypes = C.c_ulong, []
     get_bool = mac.cf.CFBooleanGetValue
     get_bool.restype, get_bool.argtypes = C.c_bool, [C.c_void_p]
+    bool_type = mac.cf.CFBooleanGetTypeID
+    bool_type.restype, bool_type.argtypes = C.c_ulong, []
     temporary = tempfile.TemporaryDirectory(prefix='gpuio-control-captures-')
     directory = Path(images) if images is not None else Path(temporary.name)
     directory.mkdir(parents=True, exist_ok=True)
@@ -64,10 +66,12 @@ def exercise(mac, images=None):
             raw = mac.attr(node, 'AXValue')
             try:
                 value = C.c_longlong()
-                if raw and mac.type_id(raw) == number_type() and number(raw, 4, C.byref(value)):
+                if raw and mac.type_id(raw) == bool_type():
+                    actual = int(get_bool(raw))
+                elif raw and mac.type_id(raw) == number_type() and number(raw, 4, C.byref(value)):
                     actual = value.value
-                    if actual == expected:
-                        return
+                if actual == expected:
+                    return
             finally:
                 if raw:
                     mac.release(raw)
@@ -133,12 +137,7 @@ def exercise(mac, images=None):
         checked('Custom indicators', 1)
         mac.wait_text(TITLE, 'Indicator mode: balanced')
         for theme, accent in [('Light', (9, 110, 91)), ('Dark', (137, 221, 201))]:
-            # Gallery theme action labels name the destination appearance.
-            button = mac.find(TITLE, theme, 'AXButton')
-            if button:
-                activate(mac, button)
-            opposite = 'Dark' if theme == 'Light' else 'Light'
-            mac.release(mac.wait_find(TITLE, opposite, 'AXButton'))
+            select_gallery_appearance(mac, theme)
             for large, size in [(False, 18), (True, 32)]:
                 if large:
                     toggle('Large indicators', 1)
@@ -235,6 +234,12 @@ def exercise(mac, images=None):
             wait_absent(mac, name, role)
         rejected(originals[0], retired=True)
         toggle('Make indicator examples inert', 0)
+        # Removal from the AX tree retires AppKit wrappers. After exposure is
+        # restored, check current state and resume identity checks with new refs.
+        for index, (name, role) in enumerate(zip(names, roles)):
+            node = mac.wait_find(TITLE, name, role)
+            mac.release(originals[index])
+            originals[index] = node
         identities()
         checked('Include context', 1)
         mac.wait_text(TITLE, 'Indicator mode: fast')

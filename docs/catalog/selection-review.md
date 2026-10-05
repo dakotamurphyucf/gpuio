@@ -148,3 +148,12 @@ and current-model reducers. Connected/separated group presentation, both
 orientations and singleton groups now have gallery examples, and rich button
 content has a public constructor/preview. Their physical geometry/AX/input
 acceptance and the remaining button-family gaps are explicit in that review.
+
+## Installed-gallery follow-up — 2026-10-05
+
+[Current native and installed-consumer evidence](../evidence/installed-indicators-och41.md)
+now records passing custom-spinner, progress and checkable-appearance/rich-label
+checks on macOS. It preserves the corrected harness assumptions and original
+failures. These scoped results supersede the corresponding unrun GPU/public
+walkthrough statements above; broader family, performance/resource, final-source
+hosted and release requirements remain separate. VoiceOver remains on hold.

@@ -120,3 +120,12 @@ policy through the native/public gallery and independent consumer, and measure
 application-level idle/frame/resource behavior. Preserve macOS/Linux required
 build gates and distinct platform evidence. Full Linux desktop qualification is
 OCH-47; no current source review or headless check establishes Linux GUI acceptance.
+
+## Installed-gallery follow-up — 2026-10-05
+
+[Current native and installed-consumer evidence](../evidence/installed-indicators-och41.md)
+now records passing custom-spinner, progress and checkable-appearance/rich-label
+checks on macOS. It preserves the corrected harness assumptions and original
+failures. These scoped results supersede the corresponding unrun GPU/public
+walkthrough statements above; broader family, performance/resource, final-source
+hosted and release requirements remain separate. VoiceOver remains on hold.

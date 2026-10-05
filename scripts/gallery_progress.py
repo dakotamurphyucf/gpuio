@@ -156,7 +156,20 @@ def exercise(mac, images=None):
         wait_absent(mac, label, role)
         wait_absent(mac, draft, field_role)
         activate(mac, mac.wait_find(TITLE, 'Inert progress preview', 'AXCheckBox'))
+        # Inert removes AX nodes. Restoring exposure may allocate new AppKit
+        # wrappers even though the native editor and its history are retained.
+        node = mac.wait_find(TITLE, label, role)
+        mac.release(original)
+        original = node
+        node = mac.wait_find(TITLE, draft, field_role)
+        mac.release(editor)
+        editor = node
         identity()
+        expect_field(mac, TITLE, draft, 'a')
+        focus_gallery_control(mac, draft, field_role)
+        mac.key(6, flags=1 << 20)  # Cmd-Z proves the retained native history.
+        expect_field(mac, TITLE, draft, 'Keep typing')
+        mac.key(6, flags=(1 << 20) | (1 << 17))
         expect_field(mac, TITLE, draft, 'a')
         target('Quarter', 25)
         focus_gallery_control(mac, 'Animate value changes', 'AXCheckBox')
