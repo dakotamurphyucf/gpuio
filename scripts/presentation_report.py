@@ -8,9 +8,10 @@ import math
 
 PREFIX = 'GPUIO_PRESENTATION '
 METRICS = ('submission_to_presentation', 'input_to_presentation', 'scheduled_presentation_interval')
-LOSSES = ('saturated', 'not_submitted', 'missing', 'zero', 'invalid_clock',
+LOSSES = ('saturated', 'not_submitted', 'missing', 'invalid_clock',
           'duplicate_callbacks', 'histogram_overflow')
-COUNTS = ('attempted', 'admitted', 'presented', 'trace_truncated', *LOSSES)
+COUNTS = ('attempted', 'admitted', 'presented', 'zero', 'trace_truncated', *LOSSES)
+STARTUP_RESPONSE_NS = 100_000_000
 
 
 def require(condition, message):
@@ -122,9 +123,9 @@ def interval(data, cpu, *, background, idle):
     require(set(counts) == set(COUNTS), 'Unknown presentation counters')
     for value in counts.values():
         natural(value)
-    require(counts['zero'] == 0, 'Metal reported skipped/unpresented frames')
     require(not any(counts[key] for key in LOSSES), 'Presentation samples were lost or invalid')
-    require(counts['attempted'] == counts['admitted'] == counts['presented'], 'Presentation accounting mismatch')
+    require(counts['attempted'] == counts['admitted'] == counts['presented'] + counts['zero'],
+            'Presentation accounting mismatch')
     distributions = native['histograms']
     require(set(distributions) == set(METRICS), 'Unknown presentation histograms')
     distributions = {key: histogram(value) for key, value in distributions.items()}
@@ -135,13 +136,39 @@ def interval(data, cpu, *, background, idle):
     require(distributions['scheduled_presentation_interval']['count'] <= max(0, counts['presented'] - 1),
             'Too many animation intervals')
     trace = native['trace']
-    require(isinstance(trace, list) and len(trace) == min(4096, counts['presented']), 'Invalid bounded trace length')
-    require(len(trace) + counts['trace_truncated'] == counts['presented'], 'Trace truncation accounting mismatch')
-    previous, input_frames = 0, 0
+    require(isinstance(trace, list) and len(trace) == min(4096, counts['admitted']), 'Invalid bounded trace length')
+    require(len(trace) + counts['trace_truncated'] == counts['admitted'], 'Trace truncation accounting mismatch')
+    previous, input_frames, skipped = 0, 0, 0
+    initial_submit, recovery_ns = None, None
     for i, record in enumerate(trace):
+        if record['outcome'] == 'Zero':
+            require(previous == 0 and natural(record['inputs']) == 0,
+                    'Skipped frame after presentation or containing input')
+            require(natural(record['sequence']) == i, 'Missing/reordered startup trace')
+            natural(record['drawable'])
+            submit, callback = record['submit_host_s'], record['callback_host_s']
+            require(all(type(t) in (int, float) and math.isfinite(t) and t > 0
+                        for t in (submit, callback)) and callback >= submit,
+                    'Invalid skipped-frame clock')
+            require(type(record['presented_host_s']) in (int, float)
+                    and record['presented_host_s'] == 0, 'Invalid zero-time outcome')
+            require(all(record[key] is None for key in ('submission_lower_ns', 'submission_upper_ns',
+                                                       'input_lower_ns', 'input_upper_ns')),
+                    'Skipped frame contains latency sample')
+            for key in ('active', 'animating', 'new_scene'):
+                require(type(record[key]) is bool, 'Invalid skipped-frame metadata')
+            initial_submit = submit if initial_submit is None else initial_submit
+            skipped += 1
+            continue
         timestamp, has_input = trace_record(record, i)
         require(timestamp > previous, 'Presentation timestamps not increasing')
+        if previous == 0 and initial_submit is not None:
+            slack = (abs(timestamp) + abs(initial_submit)) * 2**-52
+            recovery_ns = math.ceil((timestamp - initial_submit + slack) * 1e9)
+            require(0 <= recovery_ns <= STARTUP_RESPONSE_NS, 'Startup presentation exceeds 100 ms')
         previous, input_frames = timestamp, input_frames + has_input
+    require(skipped == counts['zero'], 'Unaccounted skipped frames beyond startup prefix')
+    require(not skipped or recovery_ns is not None, 'Startup never reached a presented frame')
     paired = distributions['input_to_presentation']['count']
     require(input_frames <= paired, 'Trace input accounting mismatch')
     if not counts['trace_truncated']:
@@ -151,6 +178,7 @@ def interval(data, cpu, *, background, idle):
                 'Native work occurred during idle')
     result = dict(data)
     result['native'] = dict(native, histograms=distributions)
+    result['startup_transition'] = dict(skipped_frames=skipped, first_presentation_ns=recovery_ns)
     return result
 
 

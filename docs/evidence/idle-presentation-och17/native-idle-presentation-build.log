@@ -1,0 +1,13 @@
+   Compiling gpui v0.2.2 (/Users/dakotamurphy/gpuio/vendor/gpui)
+   Compiling gpui_apple v0.1.0 (/Users/dakotamurphy/gpuio/vendor/gpui-apple)
+   Compiling gpui-base v0.6.1 (/Users/dakotamurphy/gpuio/vendor/gpui-base)
+   Compiling gpui_macos v0.1.0 (/Users/dakotamurphy/gpuio/vendor/gpui-macos)
+   Compiling gpuio-extension-sdk v0.0.0 (/Users/dakotamurphy/gpuio/rust/extension-sdk)
+   Compiling gpuio-document-sdk v0.0.0 (/Users/dakotamurphy/gpuio/rust/document-sdk)
+   Compiling gpui_platform v0.1.0 (https://github.com/zed-industries/zed.git?rev=a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b#a57ba9b1)
+   Compiling gpuio-table-adapter v0.0.0 (/Users/dakotamurphy/gpuio/rust/table)
+   Compiling gpuio-plot v0.0.0 (/Users/dakotamurphy/gpuio/rust/plot)
+   Compiling gpuio-native v0.0.0 (/Users/dakotamurphy/gpuio/rust/native)
+    Finished `dev` profile [unoptimized] target(s) in 16.32s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`

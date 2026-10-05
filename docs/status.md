@@ -54,12 +54,15 @@ whole-family acceptance. Start from [the catalog](catalog/README.md),
 
 Recent completed local checkpoints:
 
-- Presentation workload integration now builds four instrumented executables and
-  validates native/CPU pairing. Actual list and foreground typing smokes expose
-  zero-time startup frames and remain failed qualification runs. All40 typed input
-  frames pair correctly; settled list idle has zero presentations. The cause of
-  skipped startup frames, repeated optimized runs and overhead/resource checks
-  remain open. [Integration and failure evidence](evidence/presentation-workloads-och17.md).
+- Presentation workload integration builds four instrumented executables and
+  validates native/CPU pairing. Controlled native-only and standalone Metal probes
+  reproduce initial zero-time frames after idle, excluding OCaml/bridge dependence.
+  A dated startup-transition correction retains every skipped frame and adds a
+  hard100 ms first-presentation bound; fresh list/typing smokes pass, including
+  all40 native input pairs and zero idle work. Original strict failures remain
+  recorded. Optimized repetitions and overhead/resources remain open.
+  [Integration](evidence/presentation-workloads-och17.md),
+  [idle isolation and revised smoke evidence](evidence/idle-presentation-och17.md).
 
 - Default-off presentation collection now includes the maintained Metal hook.
   Two real GPUI windows each pass90 presented frames with complete callback

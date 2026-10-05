@@ -113,6 +113,66 @@ class Reports(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'Duplicate'):
             validate(PREFIX+json.dumps(r)[:-1]+',"schema":1}', [('history',cpu)],enabled=True)
 
+    def startup_fixture(self):
+        report, cpu = fixture()
+        trace = report['native']['trace']
+        for i, record in enumerate(trace):
+            record.update(submit_host_s=10 + i * .02, presented_host_s=10.01 + i * .02,
+                          callback_host_s=10.02 + i * .02)
+        trace[0].update(outcome='Zero', presented_host_s=0.,
+                        submission_lower_ns=None, submission_upper_ns=None)
+        native = report['native']
+        native['counts'].update(presented=2, zero=1)
+        native['histograms'][METRICS[0]] = dict(count=2, buckets=[[10_002_431, 2]])
+        native['histograms'][METRICS[2]] = dict(count=1, buckets=[[20_004_863, 1]])
+        return report, cpu
+
+    def test_known_startup_skip_is_retained_and_response_bounded(self):
+        result = run(*self.startup_fixture())['history']
+        self.assertEqual(result['startup_transition']['skipped_frames'], 1)
+        self.assertLess(result['startup_transition']['first_presentation_ns'], 30_000_010)
+        self.assertEqual(result['native']['histograms'][METRICS[0]]['count'], 2)
+        self.assertEqual(len(result['native']['trace']), 3)
+        report, cpu = self.startup_fixture()
+        report['native']['trace'][0]['submit_host_s'] = 9.
+        with self.assertRaisesRegex(ValueError, 'exceeds 100 ms'):
+            run(report, cpu)
+
+    def test_skipped_input_later_skip_and_fake_latency_still_fail(self):
+        for key, value in [('inputs', 1), ('submission_upper_ns', 1), ('presented_host_s', -1.)]:
+            report, cpu = self.startup_fixture()
+            report['native']['trace'][0][key] = value
+            with self.subTest(key=key), self.assertRaises(ValueError):
+                run(report, cpu)
+        report, cpu = self.startup_fixture()
+        first, last = report['native']['trace'][0], report['native']['trace'][-1]
+        first['outcome'], last['outcome'] = last['outcome'], first['outcome']
+        for key in ('presented_host_s','submission_lower_ns','submission_upper_ns'):
+            first[key], last[key] = last[key], first[key]
+        # Retain valid increasing host times for the now-presented first record.
+        first.update(presented_host_s=10.01, callback_host_s=10.02)
+        with self.assertRaisesRegex(ValueError, 'after presentation'):
+            run(report, cpu)
+
+    def test_truncated_tail_cannot_hide_skips_and_all_zero_is_not_recovery(self):
+        report, cpu = fixture(4100)
+        native = report['native']
+        native['counts'].update(presented=4099, zero=1)
+        native['histograms'][METRICS[0]] = dict(count=4099, buckets=[[10_002_431, 4099]])
+        native['histograms'][METRICS[2]] = dict(count=0, buckets=[])
+        with self.assertRaisesRegex(ValueError, 'Unaccounted skipped'):
+            run(report, cpu)
+        report, cpu = self.startup_fixture()
+        native = report['native']
+        for record in native['trace']:
+            record.update(inputs=0, outcome='Zero', presented_host_s=0., submission_lower_ns=None,
+                          submission_upper_ns=None, input_lower_ns=None, input_upper_ns=None)
+        native['counts'].update(presented=0, zero=3)
+        native['histograms'] = {key: dict(count=0, buckets=[]) for key in METRICS}
+        report['cpu_input_samples'] = cpu['histograms']['input_to_frame']['count'] = 0
+        with self.assertRaisesRegex(ValueError, 'never reached'):
+            run(report, cpu)
+
     def test_trace_capacity_is_not_histogram_sample_loss(self):
         result=run(*fixture(4100))
         self.assertEqual(result['history']['native']['counts']['trace_truncated'],4)

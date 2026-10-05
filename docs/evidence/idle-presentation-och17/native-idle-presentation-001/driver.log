@@ -1,0 +1,7 @@
+Traceback (most recent call last):
+  File "/Users/dakotamurphy/gpuio/scripts/test_metal_presentation.py", line 67, in <module>
+    main()
+    ~~~~^^
+  File "/Users/dakotamurphy/gpuio/scripts/test_metal_presentation.py", line 57, in main
+    raise RuntimeError(f"Native qualification did not pass; inspect {report}")
+RuntimeError: Native qualification did not pass; inspect /Users/dakotamurphy/gpuio/scratch/agents/root-20261004-resumed/native-idle-presentation-001/report.json

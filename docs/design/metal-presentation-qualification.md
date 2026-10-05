@@ -150,3 +150,35 @@ justify a blanket 60 FPS limit. Idle must have zero admitted/presented frames.
 Smoke runs validate accounting and actual keyboard correspondence without applying
 full performance budgets. Ordinary versus instrumented overhead, three full runs,
 resource retirement and required hosted checks remain separate acceptance work.
+
+
+## Idle-to-active correction — 2026-10-05
+
+The initial blanket zero-skipped-frame gate was too strong for the available
+Metal backend: a controlled native-only GPUI probe skips its first few frames
+after two seconds of idle, while the identical binary without the delay presents
+all180 frames. A standalone AppKit/Metal clear-pass probe, with no GPUI, OCaml or
+collector, reproduces two zero-time frames after idle despite successful GPU
+completion. The exact OS/display cause is unknown. This is evidence about known
+native outcomes, not permission to drop records or treat zero as presentation.
+The original runs remain failed against their original gate.
+
+For new workload runs only, report a separate initial idle-to-active transition.
+Allow a contiguous prefix of zero-time callbacks **only when none contains input**
+and the first positive presentation occurs within **100 ms** of the first
+submission. This reuses the existing UI input p99 responsiveness ceiling as a
+hard transition bound, rather than fitting a skip percentage to the observed
+counts. Retain every raw prefix record and report the conservative transition
+latency. All zero outcomes must be accounted for in that prefix, including when
+the remaining raw trace truncates. A zero after a positive presentation, any
+input-bearing zero, no eventual positive presentation, or a transition exceeding
+100 ms still fails. Missing callbacks, invalid clocks, dropped attribution,
+saturation, pending frames and histogram overflow remain failures.
+
+Presented-only p95/p99 thresholds and sample floors remain unchanged; skipped
+frames never enter those histograms. Idle still requires zero attempts. All actual
+native input frames still require matching CPU/presentation counts. This does not
+claim a gap-free physical120 Hz stream or general recovery of inputs from skipped
+frames. Full optimized repetitions, overhead/resources and display provenance stay
+required. No renderer pacing or production application behavior changes for this
+correction. Apply the new criteria to fresh runs, not relabelled old artifacts.

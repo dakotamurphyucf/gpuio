@@ -39,7 +39,9 @@ session. The raw trace is bounded at 4,096 records; histograms remain cumulative
 
 For full release runs, replace `--smoke` with `--check-budgets` and collect three
 independent runs. The [declared qualification contract](../../docs/design/metal-presentation-qualification.md)
-defines loss/accounting checks, sample floors, timing budgets and limitations.
+defines loss/accounting checks, the bounded input-free startup transition,
+sample floors, timing budgets and limitations. Every skipped frame remains counted;
+no later or input-bearing skips are accepted.
 Existing workload content/CPU/resource gates remain in force. OS-reported Metal
 presentation is separate from GPU execution duration and hardware/photon latency.
 Read-only one-second visibility/activation samples do not prove continuous

@@ -99,7 +99,7 @@ mod macos {
                 .all(|r| r.outcome == Outcome::Presented && r.inputs == 0)
     }
 
-    pub fn run(path: PathBuf) {
+    pub fn run(path: PathBuf, idle_before_frames: Duration) {
         gpui_platform::application().run(move |cx| {
             cx.set_quit_mode(gpui::QuitMode::Explicit);
             let bounds = Bounds::centered(None, size(px(760.), px(280.)), cx);
@@ -142,6 +142,11 @@ mod macos {
                     cx.background_executor()
                         .timer(Duration::from_millis(20))
                         .await;
+                }
+                // Diagnostic isolation of idle-to-active behavior: this runs no
+                // OCaml/Eio bridge and does not alter renderer presentation policy.
+                if !idle_before_frames.is_zero() {
+                    cx.background_executor().timer(idle_before_frames).await;
                 }
                 let sessions = windows
                     .iter()
@@ -198,7 +203,7 @@ mod macos {
                 let valid = animation_samples &&
                     visible && end_visible && finished && distinct && sessions.iter().all(accepted);
                 let output = json!({"schema": 1, "kind": "gpui_metal_hook_qualification",
-                    "passed": valid, "visible_at_start": visible, "visible_at_end": end_visible,
+                    "passed": valid, "idle_before_frames_ms": idle_before_frames.as_millis(), "visible_at_start": visible, "visible_at_end": end_visible,
                     "finished": finished, "frames_per_window": FRAMES, "distinct": distinct, "animation_samples": animation_samples,
                     "sessions": sessions.iter().map(report).collect::<Vec<_>>()});
                 std::fs::write(&path, serde_json::to_vec_pretty(&output).unwrap()).unwrap();
@@ -218,7 +223,15 @@ fn main() {
     {
         let path = std::env::var_os("GPUIO_PRESENTATION_REPORT")
             .expect("set GPUIO_PRESENTATION_REPORT to a fresh report path");
-        macos::run(path.into());
+        let idle_ms = std::env::var("GPUIO_PRESENTATION_IDLE_MS")
+            .map(|value| {
+                value
+                    .parse::<u64>()
+                    .expect("idle milliseconds must be an integer")
+            })
+            .unwrap_or(0);
+        assert!(idle_ms <= 5000, "idle delay exceeds diagnostic limit");
+        macos::run(path.into(), std::time::Duration::from_millis(idle_ms));
     }
     #[cfg(not(target_os = "macos"))]
     eprintln!("GPUIO_METAL_PRESENTATION_UNSUPPORTED: macOS Metal qualification only");
