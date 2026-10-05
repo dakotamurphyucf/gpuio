@@ -117,7 +117,8 @@ production limit and the 64 MiB aggregate source quota. The workload instead
 retains three growing sources of 8, 8 and 4 MiB together, exercises each native
 viewport, and verifies that an append past 8 MiB is rejected without mutation.
 This is aggregate large-document coverage, not support for a single 20 MiB
-document. No document run has been accepted against either formulation. Draw
+document. Three full runs now pass this aggregate formulation; see
+[document evidence](../evidence/growing-document-och17.md). Draw
 and RSS targets are unchanged. Preparation remains bounded: Markdown above
 64 KiB uses source fallback, so report that state explicitly rather than claiming
 20 MiB of rich Markdown parsing.
@@ -140,3 +141,6 @@ sampling. Finish returns observations after stopping the task. Sampled visibilit
 is separate from physical presentation and cannot rule out transitions between
 samples. The exact rectangular opaque reference window and collected native/AX
 state must be reported; an occluded window cannot be accepted as settled idle.
+
+Three full optimized focused/unfocused runs now pass the idle contract; see
+[raw reports and evidence](../evidence/idle-performance-och17.md).
