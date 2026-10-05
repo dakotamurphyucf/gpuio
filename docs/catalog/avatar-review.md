@@ -227,3 +227,14 @@ tests. A fresh installed public-gallery consumer built successfully with
 `run=False` after the palette API and identity-color gallery toggle were added.
 No native palette/group driver ran: desktop Accessibility access remains
 unavailable to this session.
+
+## Physical and installed-consumer follow-up — 2026-10-05
+
+The [native/consumer qualification](../evidence/avatar-native-consumer-och41.md) now
+passes actual rich-fallback GPU clipping/corners, raster/SVG/GIF transitions,
+retained source ownership, semantic ownership, idle and disposal. The fresh
+installed public gallery passes 50 geometry/identity cases and representative
+Light/Dark palette pixel checks, including background, glyph and border. Earlier
+unavailable/unrun statements above describe their dated checkpoints. Final-source
+hosted/release checks, physical monitor changes and VoiceOver remain separate;
+VoiceOver stays on the owner's hold.

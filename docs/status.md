@@ -60,6 +60,11 @@ whole-family acceptance. Start from [the catalog](catalog/README.md),
 
 Recent completed local checkpoints:
 
+- Rich-avatar GPU clipping, source/fallback ownership and cleanup now pass, as
+  do avatar and Rating walkthroughs from a fresh installed gallery. Representative
+  Light/Dark avatar palette pixels are checked on screen.
+  [Evidence](evidence/avatar-native-consumer-och41.md).
+
 - Avatar overflow now lays out after overlapping members following a scoped
   intrinsic-sizing repair in pinned Taffy. Engine regressions, 930 native tests,
   5,715 upstream tests and the real macOS gallery walkthrough pass.

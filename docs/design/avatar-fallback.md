@@ -183,3 +183,11 @@ independent Hello bytes. The final `GPUIO_JOBS=2 ./scripts/gpuio exec dune build
 also passed after the inert-ancestor correction. Rust formatting, Python/shell syntax and the
 structural catalog audit also pass. These are local results; the new code is not
 in the earlier hosted `e54d279` run and no Linux result is claimed for it yet.
+
+## Native follow-up — 2026-10-05
+
+The previously unrun rich-avatar fixture now [passes locally, together with the
+fresh installed public-gallery walkthrough](../evidence/avatar-native-consumer-och41.md).
+The dated evidence records real GPU clipping/child corners, primary/fallback
+transitions, ownership, native semantics and cleanup, with scope limits. This
+does not claim VoiceOver, Linux GUI or final distribution acceptance.

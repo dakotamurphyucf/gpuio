@@ -58,7 +58,8 @@ pass; commands and scope are in the [appearance contract](../design/rating-appea
 1. Scoped physical gallery and native GPU checks now pass; preserve the
    [recorded coverage and limits](../evidence/rating-gpu-och41.md), including the
    distinction between synthetic density and physical monitor transitions.
-2. Run the fresh installed-gallery consumer on the desktop and the required macOS/Linux gates.
+2. The [fresh installed-gallery desktop walkthrough](../evidence/avatar-native-consumer-och41.md)
+   now passes. Required final-source macOS/Linux hosted and broader release gates remain.
    Preserve earlier evidence at its recorded revision and scope rather than
    relabelling it as validation of the new appearance API.
 

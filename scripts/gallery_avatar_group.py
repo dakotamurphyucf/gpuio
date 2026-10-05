@@ -1,5 +1,7 @@
 """Public avatar-group geometry, image observations and lifecycle on macOS."""
 import ctypes as C
+from pathlib import Path
+import tempfile
 import time
 
 
@@ -9,6 +11,7 @@ def exercise(mac, images=None):
         select_gallery_appearance, wait_absent,
     )
     from test_canvas import screenshot
+    from window_pixels import read_png
 
     mac.press(TITLE, 'Presentation')
     mac.wait_text(TITLE, 'A familiar face. A team in a little space.')
@@ -20,6 +23,39 @@ def exercise(mac, images=None):
     equal.restype, equal.argtypes = C.c_bool, [C.c_void_p, C.c_void_p]
     retained = {}
     cases = 0
+
+    def palette_pixels(theme):
+        # Public stable-key fixture: "ada" maps to palette index 7. Expected
+        # bytes are fixed in avatar_palette_test.ml, independent of GPU output.
+        colors = ((0xDEFCFF, 0x007790, 0xB5E4ED) if theme == 'Light'
+                  else (0x03343C, 0x60D8EB, 0x05454E))
+        reveal_gallery_control(mac, 'Team avatars', 'AXGroup')
+        node, window = member('Ada'), mac.window(TITLE)
+        try:
+            x, y, width, height = element_rect(mac, node)
+            wx, wy, ww, wh = element_rect(mac, window)
+        finally:
+            mac.release(node)
+            mac.release(window)
+        assert wx <= x and wy <= y and x + width <= wx + ww and y + height <= wy + wh
+        with tempfile.TemporaryDirectory(prefix='gpuio-avatar-palette-') as temporary:
+            directory = Path(images) if images else Path(temporary)
+            path = directory / f'gallery-avatar-palette-{theme.lower()}.png'
+            screenshot(mac, path, title=TITLE)
+            pixels = read_png(mac, path)
+            sx, sy = pixels.width / ww, pixels.height / wh
+            # Inspect only the left half: the following avatar overlaps the right.
+            samples = [pixels.rgb(px, py)
+                       for py in range(round((y - wy) * sy), round((y + height - wy) * sy))
+                       for px in range(round((x - wx) * sx), round((x + width / 2 - wx) * sx))]
+            counts = []
+            for color in colors:
+                expected = tuple((color >> shift) & 255 for shift in (16, 8, 0))
+                count = sum(all(abs(a - b) <= 6 for a, b in zip(sample, expected))
+                            for sample in samples)
+                assert count >= 3, ('avatar palette pixels absent', theme, hex(color), count)
+                counts.append(count)
+            print('GALLERY_AVATAR_PALETTE_PIXELS_OK', theme, 'background/foreground/border', counts, flush=True)
 
     def member(name):
         return mac.wait_find(TITLE, 'Team member ' + name, 'AXImage')
@@ -81,6 +117,8 @@ def exercise(mac, images=None):
         # Shared size and overlap update the native leaves, retaining image identity.
         for theme in ('Light', 'Dark'):
             select_gallery_appearance(mac, theme)
+            geometry(names)
+            palette_pixels(theme)
             for _ in range(5):
                 for _ in range(3):
                     geometry(names)
