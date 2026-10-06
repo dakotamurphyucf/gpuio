@@ -171,3 +171,32 @@ primary agent's full `dune build -j2 @all @runtest @fmt` also passes at this sou
 checkpoint. Native runs performed for the separate rich-label implementation are
 recorded in [their own evidence](chart-node-labels-och41.md), not generalized to
 these prose changes. Existing recorded platform limits remain in force.
+
+## Scoped page/controller/conversation batch
+
+Starting from `c22a61c`, the same three authorized documentation agents reviewed
+eight further source groups: the gallery's [canvas](../../examples/gallery/canvas_page.md),
+[assets](../../examples/gallery/assets_page.md),
+[documents](../../examples/gallery/documents_page.md) and
+[charts](../../examples/gallery/charts_page.md) pages; the positioned-menu
+[launcher](../../examples/menu_controller/main.md),
+[single-window component](../../examples/menu_controller/component.md) and
+[multiwindow component](../../examples/menu_controller/multiwindow.md); and Agent
+Chat's [conversation owner](../../examples/agent_chat/runtime/conversation.md).
+Nested Phase/Message modules are explained in the conversation guide; separate
+files are not invented. The primary agent reviewed the prose and updated the
+shared inventory and README discovery links.
+
+Coverage is now **42 reviewed groups and 218 pending**, still 417 source files.
+The guides trace actual source publication, native commands and observations,
+Bonsai state/effects, activation disposal, stream acceptance/cancellation and
+resource ownership. They expose a confusing existing example detail: the Code
+tab's append/reset controls currently mutate Markdown. The guide describes that
+limitation without inferring design intent; it needs a separate example repair.
+No such code repair is claimed by this documentation batch.
+
+Relative local file links, source/table audit and whitespace checks pass. Agents
+checked command names/flags against code/Dune/drivers and ran no builds or GUI.
+The prior full repository build covers these unchanged implementations; current
+Sankey ribbon-color work is separate and not certified by this prose review.
+No new platform/input/performance acceptance is claimed.

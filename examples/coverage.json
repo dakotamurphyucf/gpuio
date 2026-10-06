@@ -108,8 +108,10 @@
         "examples/agent_chat/runtime/conversation.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/agent_chat/runtime/conversation.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -737,8 +739,10 @@
         "examples/gallery/assets_page.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/gallery/assets_page.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -799,8 +803,10 @@
         "examples/gallery/canvas_page.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/gallery/canvas_page.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -820,7 +826,7 @@
       "walkthroughs": [
         "examples/gallery/charts_page.md"
       ],
-      "review": "pending"
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -954,8 +960,10 @@
         "examples/gallery/documents_page.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/gallery/documents_page.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -1687,7 +1695,7 @@
       "walkthroughs": [
         "examples/menu_controller/component.md"
       ],
-      "review": "pending"
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -1695,9 +1703,9 @@
       ],
       "role": "application-entry",
       "walkthroughs": [
-        "examples/menu_controller/README.md"
+        "examples/menu_controller/main.md"
       ],
-      "review": "pending"
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -1708,7 +1716,7 @@
       "walkthroughs": [
         "examples/menu_controller/multiwindow.md"
       ],
-      "review": "pending"
+      "review": "reviewed"
     },
     {
       "sources": [

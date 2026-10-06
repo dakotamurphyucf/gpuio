@@ -55,7 +55,9 @@ model guide follows a send through acceptance, byte chunks, completion and retry
 The model's companion also explains its supporting expect test. Continue with
 [transcript message composition](runtime/chat_message.md) and
 [native workspace motion](runtime/chat_motion.md) to see small stateless view
-helpers and their caller-owned Bonsai state.
+helpers and their caller-owned Bonsai state. The
+[shared conversation controller](runtime/conversation.md) then explains the full
+acceptance/producer/document lifecycle, history loading and attachments.
 
 These are code walkthroughs, not new platform acceptance evidence. The runtime
 source map below identifies the remaining component boundaries; per-component
@@ -65,7 +67,7 @@ review status is explicit in the [coverage inventory](../coverage.md).
 
 - [Model/fake backend](model/fake_backend.md): pure chunk/delay/failure configuration and fixtures.
 - `runtime/icons` and `runtime/palette`: original SVG assets and semantic light/dark colors.
-- `runtime/conversation`: shared conversation scopes, paging, response documents,
+- [Shared conversation](runtime/conversation.md): conversation scopes, paging, response documents,
   bounded attachments, cancellation and retry.
 - `runtime/workspace`: one window's tabs, editors, list views, commands and close
   decision; composed entirely through public view/controller APIs.

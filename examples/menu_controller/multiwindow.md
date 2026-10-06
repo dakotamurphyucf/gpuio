@@ -13,7 +13,7 @@ On macOS the default popup uses AppKit. Linux uses the drawn fallback; add
 `--drawn` to request that renderer explicitly on either platform. The native
 tracking details below describe AppKit, not Linux desktop qualification.
 
-Read [main.ml](main.ml) for startup, [multiwindow.mli](multiwindow.mli) for the
+Read the [startup walkthrough](main.md) and [main.ml](main.ml) for startup, [multiwindow.mli](multiwindow.mli) for the
 component boundary, then [multiwindow.ml](multiwindow.ml) for its implementation.
 The ordinary single-window example has a separate [walkthrough](component.md).
 
@@ -24,11 +24,13 @@ passes its own `App.Window.t` to `Multiwindow.create`. No controller or mutable
 reactive value is shared between graphs. The `name` argument supplies the window
 label and initial editor contents; it is not a native resource identifier.
 
-Bonsai owns three pieces of application state: the Run counter, a status string,
-and whether the first editor is displayed. `B.state` returns a reactive value
+Bonsai owns three pieces of application state: the Run counter starts `0`,
+status starts `Ready`, and first-editor visibility starts `true`. `B.state` returns a reactive value
 and an effect that updates it; `B.toggle` supplies the Boolean state and toggle
 effect. `let%arr` builds a derived view when these values change. Constructing
-the graph is separate from evaluating that derived view.
+the graph is separate from evaluating that derived view. The `and` bindings
+declare reactive dependencies, not threads. Constructing a callback effect does
+not run it.
 
 `Text_input.create` runs once per editor during graph construction. Rust owns
 the mounted editor's live text, selection and undo state. `initial_text` seeds
@@ -56,8 +58,15 @@ has been observed. The validated position is measured in logical pixels relative
 to the window's content. An accepted Show response means the request was admitted;
 it is not proof that pixels have appeared or that the user selected an item.
 
+The local `menu_command` helper uses `E.map` to convert the controller reply
+to status text, then `E.bind` to run the status setter after completion. These
+are effect transformations, unlike Bonsai `let%arr` view derivation. The `focus`
+helper uses `E.Let_syntax`/`let%bind` to await `Input.focus` and formats its typed
+error or `applied` result. The local `editor label` helper creates each separate
+controller with a constant `B.return` config and a name-prefixed mount seed.
+
 The focus buttons call `Text_input.focus` and display its typed result. Activate
-and Observe call `App.Window.command`: Observe shows native window activation,
+and Observe use the `window_command` helper to await `App.Window.command`: Observe shows native window activation,
 which is different from an editor retaining a focus handle. A window can retain
 its focused editor while the OS considers another window active. Activation
 responses report current observed state; OS transitions can complete later.
@@ -102,3 +111,11 @@ and closes/reaps its application. It exercises inactive-window rejection,
 independent command routing, selected-editor changes/removal, activation loss,
 and owner-window close with recovery. It does not establish VoiceOver behavior,
 Linux GUI behavior, or cancellation before a queued popup begins tracking.
+
+After building, launch the separate foreground diagnostic from the repository
+root with `python3 scripts/test_menu_multiwindow_macos.py`. It requires macOS
+Accessibility permission and accepts `--binary` for an already-built consumer.
+No diagnostic was run merely by reading this guide. Public contracts:
+[Menu_controller](../../lib/eio/menu_controller.mli),
+[Text_input](../../lib/eio/text_input.mli),
+[Command](../../lib/core/command.mli) and [App](../../lib/eio/app.mli).

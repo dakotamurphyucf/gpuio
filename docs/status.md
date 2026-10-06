@@ -6,10 +6,11 @@ Markdown walkthroughs for every example component; it is in progress in this mil
 current work from historical checkpoints; it does not certify release readiness.
 
 [Example walkthrough coverage](evidence/example-walkthroughs-och48.md) now has an
-explicit inventory of 417 OCaml/Rust source files in 260 groups, with 34 groups
-reviewed and 226 still pending. The starter, palette/scope/gallery/theme guides,
+explicit inventory of 417 OCaml/Rust source files in 260 groups, with 42 groups
+reviewed and 218 still pending. The starter, palette/scope/gallery/theme guides,
 chart samples and application, controls/editors/menus, and Agent Chat startup/model/
-message/motion guides explain actual application, Bonsai, GPUIO and Eio code.
+message/motion/conversation guides, gallery data/media pages and positioned-menu
+controllers explain actual application, Bonsai, GPUIO and Eio code.
 Three owner-authorized GPT-6.1 Sol agents contributed scoped walkthroughs in parallel.
 Contributor guidance and a structural CI check keep new sources visible; neither
 file presence nor that check establishes documentation or platform acceptance.

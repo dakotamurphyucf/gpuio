@@ -16,7 +16,14 @@ Choose **Charts & data**, then a family or **Mixed layers**. Try **Horizontal
 axes**, **Reverse value axis**, and **Update chart samples**. Use arrows/Home/End
 to preview plotted values and Enter to select. **View data** opens the original
 values, including any omitted from the rendered picture by explicit sampling.
-macOS has local native acceptance; Linux desktop qualification is deferred.
+Existing [categorical](../../docs/evidence/categorical-charts-och41.md),
+[stacked](../../docs/evidence/stacked-charts-och41.md) and
+[inspection](../../docs/evidence/chart-inspection-och41.md) evidence records specific
+local macOS checks. This documentation review adds no native acceptance; full
+Linux desktop qualification is deferred. No external data, assets or credentials
+are needed. This page has no dedicated launch diagnostic flag; optional native
+test scripts are separate from ordinary launch. See the
+[development guide](../../docs/development.md) for toolchain prerequisites.
 
 ## Reading order
 
@@ -26,7 +33,9 @@ macOS has local native acceptance; Linux desktop qualification is deferred.
 3. [gpuio_chart_samples.ml](../charts/samples/gpuio_chart_samples.ml) constructs
    validated example datasets and translates typed selections into descriptions.
    Its [interface](../charts/samples/gpuio_chart_samples.mli) lists the families
-   and sample presets. These are demonstration values, not an external feed.
+   and sample presets; the [catalog walkthrough](../charts/samples/gpuio_chart_samples.md)
+   explains their constructors and synchronous Option syntax. These are
+   demonstration values, not an external feed.
 4. [preview_scope.ml](preview_scope.ml) owns branch activation, asynchronous
    acquisition and cancellation. [application.ml](application.ml) owns the app
    and window, while [component.ml](component.ml) selects this page branch.
@@ -40,12 +49,15 @@ bounds. IDs identify values; labels describe them. Missing line/area values are
 explicit gaps. The sample's mode and phase select new data without changing the
 meaning of the library's selection IDs.
 
-`Source.t` owns an application-scoped `Gpuio_eio.Chart.t`, the selected mode, and
+`Source.t` owns a page-visit-scoped `Gpuio_eio.Chart.t`, the selected mode, and
 an update phase. Its small mutable fields belong to the OCaml UI domain.
 `create` registers an initial dataset. `choose` uses `Chart.reset` when changing
 family, which creates a new logical data generation. `update` uses `Chart.set`
-for a new publication in the same generation. Both operations return errors
-instead of silently replacing accepted data on failure.
+for a new publication in the same generation. `Source.choose` resets phase to
+zero; `Source.update` advances it modulo 13. Mutable fields change only after
+the local operation succeeds. Native acceptance remains asynchronous, and the
+[registration interface](../../lib/eio/chart.mli) documents coalescing and native
+rejection rather than treating local success as publication acknowledgement.
 
 `Preview_scope.acquire` creates the source for the mounted page and cancels its
 scope when the page is left. Returning reacquires native data and clears the
@@ -59,7 +71,27 @@ Bonsai owns the page's reactive choices and status. `B.toggle` supplies each
 Boolean and its update effect. `B.state` supplies the notice text and setter.
 The mode and selection use `B.Expert.Var` because resource operations update
 them within explicit effects; they are constructed once per page graph, not on
-each render. `let%arr` derives the view from current values. The lifecycle hook
+each render. `let%arr` derives the view from current values. Initially the mode is Line,
+inspection and flow presets are Default, category layout is Auto, unknown color
+and stacking are enabled, horizontal/reversed/disabled are false, and selection
+is absent. A `Bonsai.Effect` is work scheduled by an event, not an operation to run
+while deriving a view. For example:
+
+```ocaml
+let update =
+  E.bind
+    (E.of_thunk (fun () -> Source.update source))
+    ~f:(function
+      | Ok () ->
+        if Registered.is_published source.chart
+        then E.Ignore
+        else set_notice "Publishing updated samples…"
+      | Error e -> set_notice (Error.to_string_hum e))
+```
+
+`E.of_thunk` defers the UI-domain source operation until the button runs it;
+`E.bind` chooses the resulting notice effect. The outer `let%arr` also reads
+setter effects so native buttons/switches can receive them. The lifecycle hook
 resets the notice when the branch deactivates; `Preview_scope` handles the actual
 resource cancellation.
 
@@ -67,7 +99,11 @@ GPUIO supplies the switches, buttons, theme styles and `V.chart`. The chart's
 stable key preserves its native identity across ordinary control changes. Its
 config contains the source handle, accessible label, plotting options, resolved
 colors and disabled state. Bonsai does not tessellate plots or calculate native
-pointer hit tests.
+pointer hit tests. `Disable chart input` changes `Chart.Config.create ~disabled`
+without unregistering data. Public constructors are documented in
+[chart.mli](../../lib/core/chart.mli),
+[chart_options.mli](../../lib/core/chart_options.mli) and
+[chart_style.mli](../../lib/core/chart_style.mli).
 
 The two direction switches select `Chart_options.Orientation.Vertical`,
 `Horizontal`, `Vertical_reversed` or `Horizontal_reversed`. Reversal changes the
@@ -92,6 +128,15 @@ against the accepted dataset. The page withholds a description while a new sourc
 publication is pending. Selecting a mark does not copy the whole dataset back
 through the bridge. Opening View data is a separate native browsing operation;
 it exposes original values and does not implicitly change the selected mark.
+
+For a concrete ID trace, choose Categorical and select the first Research bar at
+phase zero. The helper resolves Completed, category ID 42, value 30; the second
+Research bar has a distinct category ID 99. Update publishes phase one: those
+values become 31 and 46 while identity and the missing Code bar remain. While
+publication is pending the page hides derived selection text; it does not
+clear the selected variable on ordinary updates. Choosing another mode does
+clear it and reset the source generation. Native selection reconciliation and
+the matching-published-data guard determine the subsequent readout.
 
 ## Eio, performance and adaptation
 
@@ -176,3 +221,15 @@ labels. `V.chart` keeps its stable key and borrowed source handle. These changes
 affect presentation only: source publication, original names and selection IDs
 retain their existing ownership. The sample's walkthrough traces the actual
 button effect through Bonsai and the native Ready observation.
+
+Rich labels are presentation overrides keyed by `Chart_data.Node_id`; their
+validated constructors and limits are in
+[chart_node_labels.mli](../../lib/core/chart_node_labels.mli). The main view's
+`Chart_style.create` receives the complete override collection, restoring empty
+overrides outside Flow styling. For example, click **Rich flow labels** in that
+mode: its native button runs `set_flow_style`, `let%arr` rebuilds the options/style,
+and native preparation produces styled label lines while preserving original
+node names in the data table. **Hide target label** submits an explicit empty
+line list for the target; it does not remove the node, its flow or semantic
+selection. A Ready notice names the current preset after preparation; a label
+change alone does not create a new source revision.

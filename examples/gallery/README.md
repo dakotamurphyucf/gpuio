@@ -1069,3 +1069,9 @@ explains typed node/edge IDs, option-only changes, tiny/zero flows, styled multi
 labels and native selection versus raw values. It traces the actual preset button
 through Bonsai state and the GPUIO configuration APIs. The [page guide](charts_page.md) connects it to
 Bonsai state and the scoped source owner.
+
+The adjacent [Canvas page walkthrough](canvas_page.md),
+[Assets page walkthrough](assets_page.md), [Documents page walkthrough](documents_page.md)
+and [Charts page walkthrough](charts_page.md) explain the actual source owners,
+Bonsai controls, native observations and page-scope cleanup, with concrete
+interaction traces and adaptation examples.

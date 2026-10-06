@@ -3,7 +3,7 @@
 This component demonstrates explicit popup positioning, closing, command routing
 and safe rejection of a request captured before its menu definition changes.
 The [README](README.md) contains build/run commands and platform behavior.
-[main.ml](main.ml) only selects presentation and opens a window;
+[The startup walkthrough](main.md) explains presentation flags and runtime ownership;
 [component.ml](component.ml) contains the example's state and views.
 The [interface](component.mli) exposes the component constructor.
 
@@ -14,8 +14,15 @@ latest native menu observation. Pass that key to `V.context_menu` and pass
 `Controller.observe controller` as `on_change`. This connects a mounted menu to
 its commands; no Rust handle or callback appears in application code.
 
-The count, replacement flag, saved snapshot and result text are Bonsai state.
-Each `let%arr` dependency is named separately before composing the View. The
+A Bonsai graph is the persistent computation structure constructed by `create`.
+`B.state` allocates count `0`, replacement `false`, observing `true`, status
+`Ready` and released `false`; `B.state_opt` starts saved snapshot and artwork
+absent. `B.toggle ~default_model:true` owns icon visibility. Each returns a
+reactive value and a setter/toggle effect. Reactive values change over the
+graph lifetime; `let%arr` reads their current ordinary values and derives the
+View. Its `and` bindings list dependencies, not parallel threads. State allocation
+occurs outside that derivation, so rendering does not reset it. Constructing
+effects does not execute them. The
 snapshot is an opaque authority for one window, node and subscription, not a
 copy of the menu's content. Its identity changes when the definition changes.
 The draft editor owns its text and selection natively and stays at a stable
@@ -35,7 +42,11 @@ the screen; the drawn fallback stays inside the window. These are not absolute
 screen pixels.
 
 `Controller.command controller (Show point)` returns an effect with a typed
-result. `report` binds that result and updates status text. The Close button
+result. `report` uses `E.Let_syntax`/`let%bind` to wait for that asynchronous result,
+converts a `Menu.Command_error.t` with its sexp printer, then returns a status
+setter effect. The local `command` helper applies this to the primary controller.
+The `decorate` helper adds icon metadata to a context-menu view only when
+artwork exists and platform presentation/icons are enabled. The Close button
 uses the same mechanism with `Close`. Success means native admission, not that
 a frame was physically presented. An overlapping Show returns Busy. A second controller owns the separate secondary
 anchor; Show other owner demonstrates that AppKit's active lease also rejects a
@@ -101,10 +112,12 @@ workspace. Use a fresh directory for each independent build.
 
 ## Decorative native icons
 
-The activation effect constructs an encoded SVG and registers it with
+`B.Edge.lifecycle ~on_activate` registers an activation effect with the graph.
+Its `let%arr` reads current setters; `E.Let_syntax` and `let%bind` run the
+asynchronous registration and wait for its result. The activation effect constructs an encoded SVG and registers it with
 `Gpuio_eio.Asset.register` in the window scope. The source is an in-memory
-triangle, so this example performs no file I/O. The registration result becomes
-Bonsai state; its handle is passed to `View.with_menu_item_icons` at path `[0; 1]`
+triangle, so this example performs no file I/O. The `Ok asset` result becomes
+Bonsai state through `set_artwork`; `Error error` updates status instead; its handle is passed to `View.with_menu_item_icons` at path `[0; 1]`
 (first menu, second item: Run). Both menu owners use the same registered asset.
 The default platform presentation supplies a 16-point AppKit template icon;
 `--drawn` demonstrates the ordinary controller without platform icon metadata.
@@ -128,3 +141,13 @@ checks real AppKit pixels, clear/remount, release during tracking, retained vers
 new readers, and command selection. It also accepts `--binary` for an installed
 consumer. Its screenshots cover the owned popup rectangle; this is separate from
 VoiceOver, Linux desktop and performance qualification.
+
+The [asset interface](../../lib/eio/asset.mli) specifies that cancellation
+suppresses user completion and releases any late allocation. The asset lives
+until explicit release or window-scope end; its handle is not persistent identity
+and does not extend registration lifetime. `released` disables the release
+button after its first activation. `Asset.release` is idempotent asynchronous
+retirement. This example deliberately exercises retired decorative bindings;
+ordinary applications should remove them and avoid creating new bindings from
+a released handle. There is no application streaming, worker task or polling;
+registration and correlated commands use the runtime adapters.
