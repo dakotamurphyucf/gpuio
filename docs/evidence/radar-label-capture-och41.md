@@ -69,6 +69,7 @@ git diff --check
 [Raw failing/passing logs](radar-label-capture-och41-logs.tar.gz) and their
 [verified manifest](radar-label-capture-och41-manifest.json) preserve the checks.
 Current-source Linux/hosted coverage remains due; run 37487278162
-covers older `c373e3b`. Browser-triggered capture retirement, native popup leases,
-delayed accessible actions, clipping/resource children and multiwindow input
+covers older `c373e3b`. [Subsequent AppKit/browser evidence](radar-label-popup-och41.md) covers
+browser-triggered capture cleanup and queued/live popup retirement. Delayed
+non-menu accessible actions, clipping/resource children and multiwindow input
 isolation remain separate label qualification. OCH-41/OCH-17 remain open.

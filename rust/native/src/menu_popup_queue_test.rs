@@ -10,6 +10,9 @@ use std::{
     time::{Duration, Instant},
 };
 
+#[path = "menu_popup_chart_test.rs"]
+mod chart_labels;
+
 fn node(generation: i64) -> NodeId {
     NodeId::from_parts(0, generation).unwrap()
 }
@@ -251,6 +254,9 @@ async fn exercise(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>) {
     assert_eq!(popup::tracking_calls(), before + 1);
     eprintln!("POPUP_QUEUED_CURRENT_RECOVERY_OK");
 
+    chart_labels::exercise(cx, handle, owner).await;
+    let before_close = popup::tracking_calls();
+
     handle
         .update(cx, |view, window, cx| {
             show(view, window, cx, owner, 2);
@@ -259,7 +265,7 @@ async fn exercise(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>) {
         })
         .unwrap();
     retired(cx).await;
-    assert_eq!(popup::tracking_calls(), before + 1);
+    assert_eq!(popup::tracking_calls(), before_close);
     eprintln!("POPUP_QUEUED_WINDOW_CLOSE_OK");
 }
 
@@ -298,6 +304,7 @@ pub(crate) fn run() {
         cx.activate(true);
         cx.spawn(async move |cx| {
             let result = host::native_test::protect(exercise(cx, handle)).await;
+            crate::chart_render_host::shutdown(cx).await;
             *task_failure.borrow_mut() = result.err();
             cx.update(host::stop_application);
         })

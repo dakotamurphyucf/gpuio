@@ -219,6 +219,7 @@ impl View {
         hidden.extend(self.invisible_toasts());
         self.focus.borrow_mut().set_hidden(hidden);
         self.focus.borrow_mut().sync(window, cx);
+        self.retire_ineligible_menus(window, cx);
         for (id, state) in &mut self.tooltips {
             if !state.open
                 || !state.motion

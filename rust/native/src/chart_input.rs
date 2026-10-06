@@ -262,7 +262,15 @@ pub(super) fn keyboard(
     element
         .track_focus(&focus)
         .aria_description("Arrows browse plotted values; Enter or Space commits. D opens original data, including missing and unpainted values. Escape cancels a drag or clears selection.")
-        .on_key_down(move |event, window, cx| state.borrow_mut().key(&token, event, window, cx))
+        .on_key_down(move |event, window, cx| {
+            let gate = state.borrow().input.gate.clone();
+            let visibility = gate.borrow().visibility_identity();
+            state.borrow_mut().key(&token, event, window, cx);
+            let changed = !Rc::ptr_eq(&visibility, &gate.borrow().visibility_identity());
+            if changed {
+                sync_label_inputs(window, cx);
+            }
+        })
         .on_a11y_action(gpui::AccessibleAction::Focus, move |_, window, cx| {
             let state = access.borrow();
             if Rc::ptr_eq(&state.input.token, &access_token)
@@ -271,6 +279,14 @@ pub(super) fn keyboard(
                 window.focus(&state.input.focus, cx);
             }
         })
+}
+
+/// Run after releasing chart state: retiring focus/menu owners can invoke native
+/// focus callbacks. This must not wait for a frame in an occluded window.
+fn sync_label_inputs(window: &mut Window, cx: &mut App) {
+    if let Some(view) = window.root::<View>().flatten() {
+        view.update(cx, |view, cx| view.sync_tooltips(window, cx));
+    }
 }
 pub(super) fn prepaint(
     state: &Shared,

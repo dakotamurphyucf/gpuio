@@ -40,11 +40,14 @@ impl Route {
             }
             Action::Browse(_) => return,
         };
-        if state.sync_label_visibility() {
-            state.input.gate.borrow_mut().sync(window, cx);
-        }
-        window.focus(&state.input.focus, cx);
+        let changed = state.sync_label_visibility();
+        let focus = state.input.focus.clone();
         state.redraw(window, cx);
+        drop(state);
+        if changed {
+            super::sync_label_inputs(window, cx);
+        }
+        window.focus(&focus, cx);
         window.prevent_default();
         cx.stop_propagation();
     }
@@ -125,9 +128,7 @@ impl State {
         } else {
             return false;
         }
-        if self.sync_label_visibility() {
-            self.input.gate.borrow_mut().sync(window, cx);
-        }
+        self.sync_label_visibility();
         self.redraw(window, cx);
         window.prevent_default();
         cx.stop_propagation();

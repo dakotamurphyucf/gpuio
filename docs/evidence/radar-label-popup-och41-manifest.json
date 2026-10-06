@@ -1,0 +1,72 @@
+{
+  "source_base": "5f8890a",
+  "platform": "macOS 14.5 arm64",
+  "archive_sha256": "a39b9a9367d02ccb12e14e648d38d33047eb32f2db22bdd94e0b9d0b04b1a59e",
+  "files": [
+    {
+      "path": "radar-popup-baseline.log",
+      "bytes": 588892,
+      "sha256": "ee2b9347627beecf0be16a1f015f79aa650534cd1ffc7ba0ffcc2dfe952e9979"
+    },
+    {
+      "path": "radar-popup-before.log",
+      "bytes": 588886,
+      "sha256": "b2466106ffeafbbe1a61673fae82703106e70c545267b8bab46942649b22d8ba"
+    },
+    {
+      "path": "radar-popup-browser-baseline.log",
+      "bytes": 588892,
+      "sha256": "61f689378e2db3025dc5a53d03415da063c5916cc5a4cf72339c5c9ce439d506"
+    },
+    {
+      "path": "radar-popup-browser-before.log",
+      "bytes": 588877,
+      "sha256": "f4728b99e4f895b16d4761af8cd05730a1b3032e707947f86612e876b5f8255d"
+    },
+    {
+      "path": "radar-popup-browser-capture.log",
+      "bytes": 588764,
+      "sha256": "e7f4bf10b014f08554d63e352f621e4f40d24acb11b343ccec56f7f127214274"
+    },
+    {
+      "path": "radar-popup-browser-fixed.log",
+      "bytes": 588742,
+      "sha256": "046177e0a42e349c176c8a88a72692dfc6de334af723f467eaff5966bfb16013"
+    },
+    {
+      "path": "radar-popup-clippy-final.log",
+      "bytes": 588275,
+      "sha256": "cefa29220dfedef4b6dd1fda59fc856a0414cd4d09bc103ab5a94e46a2c388bf"
+    },
+    {
+      "path": "radar-popup-clippy.log",
+      "bytes": 588275,
+      "sha256": "9e2504570cdc8580de786d7ef0dad1f404a42343bcc2a78a50d2586452ba1ebb"
+    },
+    {
+      "path": "radar-popup-fixed.log",
+      "bytes": 588742,
+      "sha256": "30a0a259759585472d7983bcb52a968eefa2e6f2589cedcea25f2416e0619a33"
+    },
+    {
+      "path": "radar-popup-gallery-build.log",
+      "bytes": 100161,
+      "sha256": "de958ad9bd3b359bebed61f2d3ee5d0cea82d7d72a51afe91cebbabac53903fb"
+    },
+    {
+      "path": "radar-popup-gallery.log",
+      "bytes": 3217,
+      "sha256": "71f459beabda71c8f1e918bfbd7f5d9595595e21ce591d4881c8e4359ba88642"
+    },
+    {
+      "path": "radar-popup-native-suite.log",
+      "bytes": 699597,
+      "sha256": "d78acd677303b2d26c7fc49ea0fe1c4749330b06f07c2b7b008daba2307c46d5"
+    },
+    {
+      "path": "radar-popup-return-final.log",
+      "bytes": 588764,
+      "sha256": "f98b6ee4c427c40c690a3e7050e3431a51da3c9c3224e96c26b92a8027d44973"
+    }
+  ]
+}

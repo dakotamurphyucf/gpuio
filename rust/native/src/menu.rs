@@ -292,6 +292,23 @@ impl View {
             && config.menus.first().is_some_and(|menu| !menu.disabled)
     }
 
+    /// Retire native leases when their retained owner becomes ineligible, even
+    /// when an occluded window cannot paint. Do not restore focus into that owner.
+    pub(super) fn retire_ineligible_menus(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let retired: Vec<_> = self
+            .menus
+            .iter()
+            .filter_map(|(id, state)| {
+                let state = state.borrow();
+                ((!state.path.is_empty() || state.tracking()) && !self.focus.borrow().allows(*id))
+                    .then_some(*id)
+            })
+            .collect();
+        for id in retired {
+            self.close_menu(id, false, window, cx);
+        }
+    }
+
     pub(super) fn retire_unvisited_menus(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let retired: Vec<_> = self
             .menus
