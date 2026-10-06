@@ -18,8 +18,9 @@ fn config(source: ResourceId, color: i64) -> Config {
         ..Default::default()
     };
     Config {
-        version: -1,
+        version: -2,
         radar_labels: vec![],
+        inspection_content: vec![],
         source: Some(source),
         label: "Allocation".into(),
         legend: false,

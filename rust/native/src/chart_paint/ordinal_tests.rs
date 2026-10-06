@@ -239,8 +239,9 @@ fn candle_movement_and_key_namespaces_do_not_depend_on_raw_id_collisions() {
 fn expanded_style_storage_is_charged_and_cancelled_before_rendering() {
     let style = style((1..=1024).map(Key::Series).collect());
     let config = Config {
-        version: -1,
+        version: -2,
         radar_labels: vec![],
+        inspection_content: vec![],
         source: None,
         label: "Color storage".into(),
         options: options(),

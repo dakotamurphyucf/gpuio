@@ -1333,7 +1333,7 @@ impl Tree {
                     || node.chart.as_ref().is_some_and(|config| {
                         !config.is_valid()
                             || !node.text.is_empty()
-                            || node.children.len() != config.radar_labels.len()
+                            || node.children.len() != config.content_slot_count()
                             || node.children.iter().any(|child| {
                                 plan.node(*child).map_or(true, |slot| {
                                     slot.kind != Kind::Container

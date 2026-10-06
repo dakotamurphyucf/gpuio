@@ -20,6 +20,9 @@ pub(super) struct State {
     node: NodeId,
     window: WindowId,
     config: Arc<Config>,
+    // Combined retained wrappers: radar first, then inspection content. The
+    // current label renderer visits only radar slots; remaining slots stay gated
+    // until the inspection content adapter supplies eligible positions.
     label_slots: Arc<[NodeId]>,
     handler: Option<HandlerId>,
     revision: i64,

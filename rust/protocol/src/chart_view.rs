@@ -9,6 +9,7 @@ pub struct Config {
     pub sampling: Policy,
     pub style: Style,
     pub radar_labels: Vec<i64>,
+    pub inspection_content: Vec<crate::chart_inspection_content::Entry>,
     pub legend: bool,
     pub disabled: bool,
 }
@@ -19,10 +20,12 @@ impl Config {
             + self.style.heap_bytes()
             + self.options.heap_bytes()
             + self.radar_labels.capacity() * std::mem::size_of::<i64>()
+            + crate::chart_inspection_content::heap_bytes(&self.inspection_content)
     }
 
     pub fn is_valid(&self) -> bool {
-        self.version == -1
+        self.version == -2
+            && crate::chart_inspection_content::is_valid(&self.inspection_content)
             && self.radar_labels.len() <= 64
             && self.radar_labels.iter().all(|id| *id > 0)
             && self
@@ -38,7 +41,17 @@ impl Config {
             && self.sampling.is_valid()
             && self.style.is_valid()
     }
+
+    /// Radar wrappers precede inspection wrappers in the retained child array.
+    pub fn content_slot_count(&self) -> usize {
+        self.radar_labels.len() + self.inspection_content.len()
+    }
 }
+
+pub const MAX_CONFIG_BYTES: usize = crate::chart_style::MAX_STYLE_BYTES
+    + crate::chart_options::MAX_OPTIONS_BYTES
+    + crate::chart_inspection_content::MAX_BYTES
+    + 2 * 1024;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
 pub enum Error {
     WrongApplication,

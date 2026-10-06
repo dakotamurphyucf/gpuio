@@ -1,8 +1,9 @@
 # Rich chart inspection content
 
 OCH-41, 2026-10-06. Implementation contract in progress. The first increment
-introduces validated target/content values and paired metadata codecs; attachment
-to `View.chart`, native rendering/interaction and gallery qualification remain
+introduces validated target/content values and paired metadata codecs. The next
+increment carries them through chart-view schema -2 with retained-tree admission;
+attachment to `View.chart`, native rendering/interaction and gallery qualification remain
 required. This document does not claim those integration steps are implemented.
 
 ## Source capability and interface
@@ -99,11 +100,22 @@ Multiple targetless slots are valid; duplicate present targets remain invalid.
 Changing the container does not bypass duplicate admission. Expert raw conversion
 is not a replacement for the owner-aware metadata binding.
 
-The later attachment must explicitly version the parent chart-view envelope,
-account for metadata capacity, and transactionally require exactly the combined
-radar/content slot count. Ordinary view-tree depth/node/message limits continue
-to apply to arbitrary child content. Do not silently extend the existing schema
-or claim that the standalone codec alone enables rendering.
+Chart-view schema **-2** now follows radar axis IDs with the inspection metadata
+list, before legend/disabled flags. It rejects schema -1 rather than inferring
+the shape of the remaining bytes. The standalone parent decoder budget includes
+the extra 16 KiB metadata allowance; the normal message cap remains unchanged.
+Retained accounting charges metadata vector capacity. Native tree admission
+transactionally requires exactly the combined radar/content wrapper count, each
+an empty-text Container with one child. Radar wrappers precede inspection wrappers.
+The parent can hold at most 64 + 128 wrappers; normal node/depth budgets still apply.
+
+`Chart.Expert.with_inspection_content` binds the generic collection to the config's
+borrowed data identity. This is preparatory transport support, not a public
+`View.chart` content argument. Existing applications submit an empty inspection
+list. The current native label renderer visits only radar wrappers; inspection
+wrappers remain hidden until the full renderer/lifecycle adapter is installed.
+Later attachment must preserve this partition and resource accounting. Neither
+successful metadata decoding nor retained-tree admission qualifies rendering.
 
 ## Required evidence
 

@@ -280,13 +280,14 @@ fn full_tick_and_grid_storage_is_bounded_roundtrips_and_is_charged() {
     );
     assert!(style.heap_bytes() - base >= 128 * 256);
     let config = Config {
-        version: -1,
+        version: -2,
         source: None,
         label: "Max ticks".into(),
         options: Default::default(),
         sampling: Default::default(),
         style,
         radar_labels: vec![],
+        inspection_content: vec![],
         legend: true,
         disabled: false,
     };

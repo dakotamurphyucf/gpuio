@@ -749,3 +749,17 @@ Options schema 8 explicitly rejects version 7 and earlier. The default frame is
 This supersedes earlier sections' current-options version references; their
 original fixtures and evidence remain historical. Outside pie captions, leader
 styling and label spacing remain separate catalog work.
+
+
+## Retained inspection metadata — chart-view schema -2
+
+[Rich inspection content](chart-inspection-content.md) now has a bounded parent
+metadata list after the radar axis IDs. Chart-view -2 rejects the previous -1
+envelope; matching OCaml/native bridge packages are required. Options/style/data
+remain 9/-7/1. Native tree admission validates the combined radar/inspection
+wrapper count atomically and accounts for metadata capacity. This supersedes
+earlier sections' current-version references, without rewriting their evidence.
+
+This is transport/admission support. Public `View.chart` attachment, arbitrary
+content rendering, interactive lifetime handling and gallery qualification are
+still required. Existing applications submit an empty inspection list.

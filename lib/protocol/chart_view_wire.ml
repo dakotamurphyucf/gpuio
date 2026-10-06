@@ -9,13 +9,15 @@ module Config = struct
     ; sampling : Chart_sampling_wire.t
     ; style : Chart_style_wire.t
     ; radar_labels : int64 list
+    ; inspection_content : Chart_inspection_content_wire.t
     ; legend : bool
     ; disabled : bool
     }
   [@@deriving bin_io, equal, sexp_of]
 
   let valid t =
-    Int64.equal t.version (-1L)
+    Int64.equal t.version (-2L)
+    && Chart_inspection_content_wire.valid t.inspection_content
     && List.length t.radar_labels <= 64
     && List.for_all t.radar_labels ~f:(fun id -> Int64.(id > 0L))
     && (not (List.contains_dup t.radar_labels ~compare:Int64.compare))

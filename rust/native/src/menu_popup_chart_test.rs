@@ -127,13 +127,14 @@ pub(super) async fn exercise(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>
                     Op::SetChart(
                         id(2),
                         Box::new(Config {
-                            version: -1,
+                            version: -2,
                             source: Some(source),
                             label: "Radar popup owner".into(),
                             options: Default::default(),
                             sampling: Default::default(),
                             style: Default::default(),
                             radar_labels: vec![7],
+                            inspection_content: vec![],
                             legend: false,
                             disabled: false,
                         }),

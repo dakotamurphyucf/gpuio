@@ -59,13 +59,14 @@ module Config = struct
         ()
     =
     let wire =
-      { Wire.Config.version = -1L
+      { Wire.Config.version = -2L
       ; source = None
       ; label
       ; options = Chart_options.Expert.to_wire options
       ; sampling = Chart_sampling.Expert.to_wire sampling
       ; style = Chart_style.Expert.to_wire style
       ; radar_labels = []
+      ; inspection_content = []
       ; legend
       ; disabled
       }
@@ -79,6 +80,16 @@ module Config = struct
 end
 
 module Expert = struct
+  let with_inspection_content (t : Config.t) content =
+    { t with
+      wire =
+        { t.wire with
+          inspection_content =
+            Chart_inspection_content.Expert.metadata content ~data:t.data
+        }
+    }
+  ;;
+
   let with_radar_labels (t : Config.t) labels =
     { t with wire = { t.wire with radar_labels = Chart_radar_labels.Expert.axes labels } }
   ;;

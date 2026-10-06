@@ -2,8 +2,9 @@ use binprot::BinProtWrite;
 use gpuio_protocol::{DecodeError, ResourceId, chart_view::*, decode_chart_view_config};
 fn config() -> Config {
     Config {
-        version: -1,
+        version: -2,
         radar_labels: vec![],
+        inspection_content: vec![],
         source: Some(ResourceId::from_parts(7, 2).unwrap()),
         label: "Chart 🦀".into(),
         legend: true,
@@ -57,7 +58,7 @@ fn bounded_chart_view_and_transaction_match_independent_fixture() {
         Err(DecodeError::Malformed)
     );
     let bytes = encode(&config);
-    let fixture = include_str!("../../../test/fixtures/chart-view-v1-labels.hex").trim();
+    let fixture = include_str!("../../../test/fixtures/chart-view-v2-labels.hex").trim();
     assert_eq!(hex(&bytes), fixture);
     assert_eq!(decode_chart_view_config(&bytes), Ok(config.clone()));
     for end in 0..bytes.len() {
@@ -89,12 +90,7 @@ fn bounded_chart_view_and_transaction_match_independent_fixture() {
         Err(DecodeError::Malformed)
     );
     assert_eq!(
-        decode_chart_view_config(
-            &[0; gpuio_protocol::chart_style::MAX_STYLE_BYTES
-                + gpuio_protocol::chart_options::MAX_OPTIONS_BYTES
-                + 2 * 1024
-                + 1]
-        ),
+        decode_chart_view_config(&[0; gpuio_protocol::chart_view::MAX_CONFIG_BYTES + 1]),
         Err(DecodeError::LimitExceeded)
     );
     let window = WindowId::from_parts(0, 1).unwrap();
@@ -170,7 +166,7 @@ fn radar_label_targets_match_independent_bytes_and_bound_native_allocation() {
     let bytes = encode(&config);
     assert_eq!(
         hex(&bytes),
-        include_str!("../../../test/fixtures/chart-view-v1-rich-labels.hex").trim()
+        include_str!("../../../test/fixtures/chart-view-v2-rich-labels.hex").trim()
     );
     assert_eq!(decode_chart_view_config(&bytes), Ok(config.clone()));
     for end in 0..bytes.len() {
@@ -368,6 +364,29 @@ fn independently_full_chart_captions_fit_the_config_envelope_and_are_charged() {
         gpuio_protocol::chart_inspection::Span::Fraction(-1., 2.);
     value.style.inspection.marker.fill = Some(color);
     value.style.inspection.marker.stroke = Some(color);
+    value.radar_labels = (0..64).map(|i| i64::MAX - i).collect();
+    value.inspection_content = (0..gpuio_protocol::chart_inspection_content::MAX_ENTRIES)
+        .map(|i| gpuio_protocol::chart_inspection_content::Entry {
+            target: Some(
+                gpuio_protocol::chart_inspection_content::Target::Aggregate {
+                    source: ResourceId::from_parts(i64::from(u32::MAX), i64::from(u32::MAX))
+                        .unwrap(),
+                    data_revision: i64::MAX - i as i64,
+                    data_generation: i64::MAX,
+                    selection: gpuio_protocol::chart_selection::Selection::Candlestick {
+                        span: gpuio_protocol::chart_selection::Span {
+                            start_index: 99998,
+                            length: 2,
+                            first: i64::MAX,
+                            last: i64::MAX - 1,
+                        },
+                        aggregated: true,
+                    },
+                },
+            ),
+            container: gpuio_protocol::chart_inspection_content::Container::Overlay,
+        })
+        .collect();
     assert!(value.is_valid());
     assert!(
         value.retained_bytes() - before
@@ -378,6 +397,7 @@ fn independently_full_chart_captions_fit_the_config_envelope_and_are_charged() {
                 + value.style.grid.heap_bytes()
                 + value.style.appearance.heap_bytes()
                 + value.style.ordinal.as_ref().unwrap().heap_bytes()
+                + gpuio_protocol::chart_inspection_content::heap_bytes(&value.inspection_content)
     );
     let style_bytes = encode(&value.style);
     assert!(style_bytes.len() <= gpuio_protocol::chart_style::MAX_STYLE_BYTES);
@@ -405,4 +425,68 @@ fn configuration_failure_appends_an_observation_error_without_retagging_existing
     {
         assert_eq!(encode(&Observation::Failed(error)), vec![1, i as u8]);
     }
+}
+
+#[test]
+fn inspection_slots_share_parent_bytes_and_reject_old_or_invalid_metadata() {
+    use gpuio_protocol::chart_inspection_content::{Container, Entry, MAX_ENTRIES, Target};
+    let mut value = config();
+    value.radar_labels = vec![7, 9];
+    let before = value.retained_bytes();
+    let entry = Entry {
+        target: Some(Target::Slice(9)),
+        container: Container::Overlay,
+    };
+    let hidden = Entry {
+        target: None,
+        container: Container::Card,
+    };
+    value.inspection_content = vec![entry, hidden];
+    assert_eq!(value.content_slot_count(), 4);
+    assert_eq!(
+        value.retained_bytes() - before,
+        gpuio_protocol::chart_inspection_content::heap_bytes(&value.inspection_content)
+    );
+    let encoded = encode(&value);
+    assert_eq!(
+        hex(&encoded),
+        include_str!("../../../test/fixtures/chart-view-v2-inspection.hex").trim()
+    );
+    assert_eq!(decode_chart_view_config(&encoded), Ok(value.clone()));
+    for end in 0..encoded.len() {
+        assert!(decode_chart_view_config(&encoded[..end]).is_err());
+    }
+    for legacy in [
+        include_str!("../../../test/fixtures/chart-view-v1-labels.hex"),
+        include_str!("../../../test/fixtures/chart-view-v1-rich-labels.hex"),
+    ] {
+        let bytes = legacy
+            .trim()
+            .as_bytes()
+            .chunks_exact(2)
+            .map(|s| u8::from_str_radix(std::str::from_utf8(s).unwrap(), 16).unwrap())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            decode_chart_view_config(&bytes),
+            Err(DecodeError::Malformed)
+        );
+    }
+    for entries in [
+        vec![entry, entry],
+        vec![hidden; MAX_ENTRIES + 1],
+        vec![Entry {
+            target: Some(Target::Slice(0)),
+            ..entry
+        }],
+    ] {
+        value.inspection_content = entries;
+        assert!(!value.is_valid());
+        assert!(decode_chart_view_config(&encode(&value)).is_err());
+    }
+    value.inspection_content = vec![hidden; MAX_ENTRIES];
+    assert!(value.is_valid());
+    assert_eq!(decode_chart_view_config(&encode(&value)), Ok(value.clone()));
+    value.version = -1;
+    assert!(!value.is_valid());
+    assert!(decode_chart_view_config(&encode(&value)).is_err());
 }

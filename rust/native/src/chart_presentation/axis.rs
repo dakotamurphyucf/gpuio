@@ -181,13 +181,14 @@ mod tests {
     #[test]
     fn default_gutters_are_preserved_and_custom_sides_remain_bounded() {
         let mut config = Config {
-            version: -1,
+            version: -2,
             source: None,
             label: "Axes".into(),
             options: Default::default(),
             sampling: Default::default(),
             style: Default::default(),
             radar_labels: vec![],
+            inspection_content: vec![],
             legend: true,
             disabled: false,
         };
@@ -217,13 +218,14 @@ mod tests {
     #[test]
     fn custom_vertical_endpoints_have_room_above_the_legend() {
         let mut config = Config {
-            version: -1,
+            version: -2,
             source: None,
             label: "Endpoints".into(),
             options: Default::default(),
             sampling: Default::default(),
             style: Default::default(),
             radar_labels: vec![],
+            inspection_content: vec![],
             legend: true,
             disabled: false,
         };

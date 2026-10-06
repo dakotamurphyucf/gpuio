@@ -60,8 +60,9 @@ records scoped qualification and remaining limits.
 
 The [rich inspection contract](../design/chart-inspection-content.md) drafts
 ordinary OCaml View content alongside a title/row convenience API. The current
-foundation supplies validated stable/publication-bound targets and standalone
-metadata codecs only. `View.chart` attachment, native interactive content and
+foundation supplies validated stable/publication-bound targets, paired metadata
+codecs and [schema -2 parent admission](../evidence/chart-inspection-parent-och41.md).
+`View.chart` attachment, native interactive content and
 gallery qualification remain required; it does not close the Tooltip row above.
 
 [`Chart_appearance`](../../lib/core/chart_appearance.mli) now attaches to

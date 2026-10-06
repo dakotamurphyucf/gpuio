@@ -168,8 +168,9 @@ fn maximally_populated_metadata_fits_style_and_view_envelopes() {
     assert_eq!(decode_chart_style(&encoded), Ok(style.clone()));
     assert!(style.heap_bytes() >= labels::heap_bytes(&style.node_labels));
     let config = Config {
-        version: -1,
+        version: -2,
         radar_labels: vec![],
+        inspection_content: vec![],
         source: None,
         label: "x".repeat(1024),
         options: Default::default(),
