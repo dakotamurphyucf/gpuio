@@ -11,7 +11,7 @@ fn config() -> Config {
         options: Default::default(),
         sampling: Default::default(),
         style: gpuio_protocol::chart_style::Style {
-            version: -3,
+            version: -4,
             palette: vec![1, 2],
             axis_color: 3,
             grid_color: 4,
@@ -27,6 +27,9 @@ fn config() -> Config {
             node_labels: vec![],
             pie_labels: vec![],
             pie_label_line_color: None,
+            x_axis: Default::default(),
+            y_axis: Default::default(),
+            grid: Default::default(),
         },
     }
 }
@@ -224,7 +227,7 @@ fn pie_radius_storage_is_charged_and_full_override_lists_decode() {
 }
 
 #[test]
-fn independently_full_pie_and_sankey_captions_fit_the_config_envelope_and_are_charged() {
+fn independently_full_chart_captions_fit_the_config_envelope_and_are_charged() {
     use gpuio_protocol::{chart_node_labels as node, chart_pie_labels as pie};
     let mut value = config();
     let before = value.retained_bytes();
@@ -247,10 +250,33 @@ fn independently_full_pie_and_sankey_captions_fit_the_config_envelope_and_are_ch
                 .collect(),
         })
         .collect();
+    use gpuio_protocol::chart_axis::{LabelAlign, Tick, TickPosition};
+    let tick = Tick {
+        position: TickPosition::Value(1.),
+        text: "t".repeat(256),
+        color: Some(0xffff_ffff),
+        font_size: Some(32.),
+        align: LabelAlign::Right,
+    };
+    value.style.x_axis.ticks = Some(vec![tick.clone(); 64]);
+    value.style.y_axis.ticks = Some(vec![tick; 64]);
+    value.style.grid.x = Some(vec![TickPosition::Category(i64::MAX); 64]);
+    value.style.grid.y = Some(vec![TickPosition::Value(1e100); 64]);
+    value.style.grid.dashes = vec![128.; 16];
     assert!(value.is_valid());
     assert_eq!(
         value.retained_bytes() - before,
-        pie::heap_bytes(&value.style.pie_labels) + node::heap_bytes(&value.style.node_labels)
+        pie::heap_bytes(&value.style.pie_labels)
+            + node::heap_bytes(&value.style.node_labels)
+            + value.style.x_axis.heap_bytes()
+            + value.style.y_axis.heap_bytes()
+            + value.style.grid.heap_bytes()
+    );
+    let style_bytes = encode(&value.style);
+    assert!(style_bytes.len() <= gpuio_protocol::chart_style::MAX_STYLE_BYTES);
+    assert_eq!(
+        gpuio_protocol::decode_chart_style(&style_bytes),
+        Ok(value.style.clone())
     );
     let bytes = encode(&value);
     assert!(bytes.len() > 64 * 1024);

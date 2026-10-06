@@ -4,7 +4,7 @@ module W = Gpuio_protocol.Chart_style_wire
 
 let%expect_test "style has an independent paired byte fixture and validated defaults" =
   let wire : W.t =
-    { version = -3L
+    { version = -4L
     ; palette = [ 1L; 2L ]
     ; axis_color = 3L
     ; grid_color = 4L
@@ -18,6 +18,21 @@ let%expect_test "style has an independent paired byte fixture and validated defa
     ; node_labels = []
     ; pie_labels = []
     ; pie_label_line_color = None
+    ; x_axis =
+        Gpuio.Chart_axis.Expert.to_wire
+          Gpuio.Chart_axis.default
+          ~theme:Gpuio.Theme.default
+        |> Or_error.ok_exn
+    ; y_axis =
+        Gpuio.Chart_axis.Expert.to_wire
+          Gpuio.Chart_axis.default
+          ~theme:Gpuio.Theme.default
+        |> Or_error.ok_exn
+    ; grid =
+        Gpuio.Chart_grid.Expert.to_wire
+          Gpuio.Chart_grid.default
+          ~theme:Gpuio.Theme.default
+        |> Or_error.ok_exn
     ; inspection =
         Gpuio.Chart_inspection.Expert.to_wire
           Gpuio.Chart_inspection.default
@@ -35,7 +50,7 @@ let%expect_test "style has an independent paired byte fixture and validated defa
      |> List.map ~f:(fun c -> sprintf "%02x" (Char.to_int c))
      |> String.concat);
   [%expect
-    {| fffd020102030405060107000000000000004000000000000008400000000000001040000000000000e03f000101010000000000008071400000000000002040000000000000204000000000000018400000000000002840000000000000314000000000000000000000000000000000000000f03f000101000000000000304000000000000000000000000000 |}]
+    {| fffc020102030405060107000000000000004000000000000008400000000000001040000000000000e03f000101010000000000008071400000000000002040000000000000204000000000000018400000000000002840000000000000314000000000000000000000000000000000000000f03f0001010000000000003040000000000000000000000000000101000000000000000000000000002640000000000000f03f00000101000000000000000000000000002640000000000000f03f0000000000000000000000f03f00 |}]
 ;;
 
 let%expect_test "theme resolution and style bounds cannot be bypassed" =
@@ -123,7 +138,7 @@ let%expect_test
 
 let%expect_test "ordinal style bytes pair with the independent native fixture" =
   let wire : W.t =
-    { version = -3L
+    { version = -4L
     ; palette = [ 1L; 2L ]
     ; axis_color = 3L
     ; grid_color = 4L
@@ -137,6 +152,21 @@ let%expect_test "ordinal style bytes pair with the independent native fixture" =
     ; node_labels = []
     ; pie_labels = []
     ; pie_label_line_color = None
+    ; x_axis =
+        Gpuio.Chart_axis.Expert.to_wire
+          Gpuio.Chart_axis.default
+          ~theme:Gpuio.Theme.default
+        |> Or_error.ok_exn
+    ; y_axis =
+        Gpuio.Chart_axis.Expert.to_wire
+          Gpuio.Chart_axis.default
+          ~theme:Gpuio.Theme.default
+        |> Or_error.ok_exn
+    ; grid =
+        Gpuio.Chart_grid.Expert.to_wire
+          Gpuio.Chart_grid.default
+          ~theme:Gpuio.Theme.default
+        |> Or_error.ok_exn
     ; inspection =
         Gpuio.Chart_inspection.Expert.to_wire
           Gpuio.Chart_inspection.default
@@ -157,5 +187,5 @@ let%expect_test "ordinal style bytes pair with the independent native fixture" =
      |> List.map ~f:(fun c -> sprintf "%02x" (Char.to_int c))
      |> String.concat);
   [%expect
-    {| fffd020102030405060107000000000000004000000000000008400000000000001040000000000000e03f01050009010902090304020a14011e0101010000000000008071400000000000002040000000000000204000000000000018400000000000002840000000000000314000000000000000000000000000000000000000f03f000101000000000000304000000000000000000000000000 |}]
+    {| fffc020102030405060107000000000000004000000000000008400000000000001040000000000000e03f01050009010902090304020a14011e0101010000000000008071400000000000002040000000000000204000000000000018400000000000002840000000000000314000000000000000000000000000000000000000f03f0001010000000000003040000000000000000000000000000101000000000000000000000000002640000000000000f03f00000101000000000000000000000000002640000000000000f03f0000000000000000000000f03f00 |}]
 ;;

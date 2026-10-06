@@ -6,7 +6,7 @@ Markdown walkthroughs for every example component; its documentation acceptance 
 current work from historical checkpoints; it does not certify release readiness.
 
 [Example walkthrough coverage](evidence/example-walkthroughs-och48.md) now has an
-explicit inventory of 417 OCaml/Rust source files in 260 groups, with all 260 groups
+explicit inventory of 419 OCaml/Rust source files in 261 groups, with all 261 groups
 reviewed and none pending. The starter, palette/scope/gallery/theme guides,
 chart samples and application, controls/editors/menus, and Agent Chat startup/model/
 message/motion/conversation guides, gallery data/media pages and positioned-menu
@@ -15,11 +15,27 @@ Three owner-authorized GPT-6.1 Sol agents contributed scoped walkthroughs in par
 Contributor guidance and a structural CI check keep new sources visible; neither
 file presence nor that check establishes documentation or platform acceptance.
 
+[Custom chart axes and grids](evidence/chart-axis-presentation-och41.md) now expose
+explicit numeric/category/fraction ticks, caption styling, axis placement and
+dashed grids from OCaml. Paired codecs, geometry and actual GPU/font checks,
+root/fresh-installed gallery walkthroughs and resource cleanup pass locally.
+Visual review also found and repaired a clipped floating-axis endpoint. Style
+schema is now -4; matching packages are required. Current-source hosted/Linux
+checks, broader catalog work and release qualification remain open.
+
+[Hosted run 37515832448](evidence/hosted-presentation-calibration-och17.md#hosted-run-37515832448)
+is terminal at tree-equivalent `4fe365b`: both foundation jobs fail the same
+protocol-test lint rule, now corrected with local workspace-wide Clippy passing.
+All three extracted macOS apps pass; the two existing presentation probes still
+fail with zero timestamps on Apple Paravirtual. Neither foundation job is a
+passing release gate, and the current source still needs hosted revalidation.
+
 [Chart axis visibility](evidence/chart-axis-visibility-och41.md) now fixes missing
 categorical axis strokes and a scale-1 left-axis clipping failure. Before/after
 unit/GPU regressions cover independent axes, all four directions and four test
 scales; the native view suite and strict lint pass. Source projection and selection
-remain unchanged. Custom axis APIs and broader catalog/release work remain open.
+remain unchanged. The custom-axis extension is qualified separately above; broader
+catalog/release work remains open.
 
 [Hosted run 37502930557](evidence/hosted-presentation-calibration-och17.md#hosted-run-37502930557)
 is terminal: Linux foundation and all three independently extracted macOS apps

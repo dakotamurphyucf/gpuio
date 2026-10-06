@@ -15,6 +15,52 @@ fn render(contents: data::Contents) -> Result<Prepared, Error> {
 }
 
 #[test]
+fn custom_axis_strokes_have_independent_brushes_positions_and_visibility() {
+    let source = Data {
+        version: 1,
+        contents: data::Contents::Cartesian(vec![]),
+    };
+    let mut options = Options::default();
+    options.axes.grid = false;
+    let mut style = Style::default();
+    style.x_axis.position = Some(0.25);
+    style.x_axis.line_width = 4.;
+    style.x_axis.line_color = Some(7);
+    style.y_axis.position = Some(0.75);
+    style.y_axis.line_width = 2.;
+    style.y_axis.line_color = Some(8);
+    let make = |options: &Options, style: &Style| {
+        prepare(
+            &source,
+            Policy::default(),
+            options,
+            style,
+            Layout::new(200., 160., 1.).unwrap(),
+            &AtomicBool::new(false),
+        )
+        .unwrap()
+    };
+    let plan = make(&options, &style);
+    assert_eq!(plan.mesh_count(), 2);
+    assert_eq!((plan.meshes[0].color, plan.meshes[1].color), (7, 8));
+    let x = plan.meshes[0].mesh.bounds().unwrap();
+    let y = plan.meshes[1].mesh.bounds().unwrap();
+    assert_eq!((x.top, x.bottom), (38., 42.));
+    assert_eq!((y.left, y.right), (149., 151.));
+    style.x_axis.line = false;
+    let plan = make(&options, &style);
+    assert_eq!(plan.mesh_count(), 1);
+    assert!(plan.geometry.labels.iter().any(|l| matches!(l.kind,
+        geometry::LabelKind::Axis(a) if a.horizontal)));
+    options.axes.x = false;
+    let plan = make(&options, &style);
+    assert!(!plan.geometry.labels.iter().any(|l| matches!(l.kind,
+        geometry::LabelKind::Axis(a) if a.horizontal)));
+    style.y_axis.line = false;
+    assert_eq!(make(&options, &style).mesh_count(), 0);
+}
+
+#[test]
 fn categorical_axis_strokes_do_not_require_a_numeric_x_domain() {
     use gpuio_protocol::chart_options::Orientation;
     let source = Data {

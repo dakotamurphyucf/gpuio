@@ -309,6 +309,81 @@ fn cases() -> Vec<Case> {
             }
         }
     }
+    for categorical in [false, true] {
+        for orientation in [
+            gpuio_protocol::chart_options::Orientation::Vertical,
+            gpuio_protocol::chart_options::Orientation::Horizontal,
+            gpuio_protocol::chart_options::Orientation::VerticalReversed,
+            gpuio_protocol::chart_options::Orientation::HorizontalReversed,
+        ] {
+            let mut options = options();
+            options.axes.x = true;
+            options.axes.y = true;
+            options.axes.grid = true;
+            options.cartesian.orientation = orientation;
+            let mut style = style();
+            style.x_axis.position = Some(0.25);
+            style.x_axis.line_width = 4.;
+            style.x_axis.line_color = Some(0x00ff00ff);
+            style.y_axis.position = Some(0.75);
+            style.y_axis.line_width = 4.;
+            style.y_axis.line_color = Some(0xff0000ff);
+            style.grid.x = Some(vec![gpuio_protocol::chart_axis::TickPosition::Fraction(
+                0.5,
+            )]);
+            style.grid.y = Some(vec![]);
+            style.grid.dashes = vec![8., 4., 2.];
+            style.grid.width = 4.;
+            style.grid.color = Some(0x0000ffff);
+            let horizontal = orientation.is_horizontal();
+            let mut samples = if horizontal {
+                vec![
+                    sample(50., 20., 0, 255, 0),
+                    sample(20., 120., 255, 0, 0),
+                    sample(100., 159., 0, 0, 0),
+                ]
+            } else {
+                vec![
+                    sample(20., 40., 0, 255, 0),
+                    sample(150., 20., 255, 0, 0),
+                    sample(0., 80., 0, 0, 0),
+                ]
+            };
+            for (distance, painted) in [
+                (3., true),
+                (10., false),
+                (13., true),
+                (18., false),
+                (24., true),
+                (27., false),
+            ] {
+                let (x, y) = if horizontal {
+                    (distance, 80.)
+                } else {
+                    (100., distance)
+                };
+                samples.push(sample(x, y, 0, 0, if painted { 255 } else { 0 }));
+            }
+            let contents = if categorical {
+                data::Contents::Categorical(
+                    vec![data::Category {
+                        id: 42,
+                        label: "Alpha".into(),
+                    }],
+                    vec![],
+                )
+            } else {
+                data::Contents::Cartesian(vec![])
+            };
+            add(
+                "custom-axis-grid",
+                dataset(contents),
+                options,
+                style,
+                samples,
+            );
+        }
+    }
     let slices = vec![
         data::Slice {
             id: 1,

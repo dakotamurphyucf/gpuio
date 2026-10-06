@@ -331,6 +331,10 @@ impl State {
                 continue;
             }
             let (font_size, foreground) = match label.kind {
+                crate::chart_geometry::LabelKind::Axis(axis) => (
+                    axis.font_size,
+                    axis.color.unwrap_or(style.label_color as u32),
+                ),
                 crate::chart_geometry::LabelKind::FlowLine {
                     font_size, color, ..
                 } => (font_size, color.unwrap_or(style.label_color as u32)),

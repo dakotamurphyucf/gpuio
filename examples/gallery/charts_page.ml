@@ -198,6 +198,7 @@ let component app window palette graph =
         Source.create app scope (B.Expert.Var.get mode))
       graph
   in
+  let axes, set_axes = B.state Chart_axes.Default graph in
   let inspection, set_inspection = B.state Samples.Inspection.Default graph in
   let flow_style, set_flow_style = B.state Samples.Sankey_presentation.Default graph in
   let narrow_flow, toggle_narrow_flow = B.toggle ~default_model:false graph in
@@ -249,6 +250,8 @@ let component app window palette graph =
   and selection = B.Expert.Var.value selected
   and flow_style = flow_style
   and set_flow_style = set_flow_style
+  and axes = axes
+  and set_axes = set_axes
   and inspection = inspection
   and set_inspection = set_inspection
   and narrow_flow = narrow_flow
@@ -338,7 +341,7 @@ let component app window palette graph =
       | Ready metrics ->
         set_notice
           (sprintf
-             "Ready: %s · %d source values · %s · %s"
+             "Ready: %s · %d source values · %s · %s%s"
              (Mode.label source.mode)
              metrics.source_values
              (if Mode.equal current_mode Categorical
@@ -374,7 +377,8 @@ let component app window palette graph =
                   (if fixed_radius then "80 px" else "Fit")
                   (if spaced_radar then 24 else 0)
               else direction)
-             (Samples.Inspection.label inspection))
+             (Samples.Inspection.label inspection)
+             (if Chart_axes.equal axes Default then "" else " · " ^ Chart_axes.label axes))
       | Failed e -> set_notice (Sexp.to_string_hum [%sexp (e : Chart.Error.t)])
       | Selection_changed target ->
         E.of_thunk (fun () -> B.Expert.Var.set selected target)
@@ -441,8 +445,12 @@ let component app window palette graph =
            |> ok)
         ()
     in
+    let x_axis, y_axis, grid = Chart_axes.configuration axes p in
     let chart_style =
       Chart_style.create
+        ~x_axis
+        ~y_axis
+        ~grid
         ?ordinal:
           (Option.some_if
              (Mode.equal current_mode Ordinal_colors)
@@ -537,6 +545,26 @@ let component app window palette graph =
            ; Palette.button p "Update chart samples" update
            ]
        ]
+       @ (match current_mode with
+          | Family (Line | Area | Bar | Candlestick)
+          | Mixed | Categorical | Stacked_bars | Stacked_areas ->
+            [ V.row
+                ~style:(style [ Gap (px 6.); Wrap Wrap ])
+                (List.map Chart_axes.all ~f:(fun candidate ->
+                   Palette.button
+                     p
+                     ~selected:(Chart_axes.equal candidate axes)
+                     (Chart_axes.label candidate)
+                     (set_axes candidate)))
+            ; Palette.text
+                p
+                ~size:12.
+                ~muted:true
+                "Axis presentation changes labels and grid strokes, not the original \
+                 data."
+            ]
+          | Family (Pie | Radar | Sankey) | Ordinal_colors | Flow_styling | Flow_labels ->
+            [])
        @ (if Mode.equal current_mode (Family Pie)
           then
             [ V.row

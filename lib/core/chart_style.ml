@@ -56,6 +56,9 @@ let create
       ?(node_labels = Chart_node_labels.empty)
       ?(pie_labels = Chart_pie_labels.empty)
       ?pie_label_line_color
+      ?(x_axis = Chart_axis.default)
+      ?(y_axis = Chart_axis.default)
+      ?(grid = Chart_grid.default)
       ?(axis_color = Color.rgb_exn 0x64748b)
       ?(grid_color =
         Color.rgba ~red:100 ~green:116 ~blue:139 ~alpha:64 |> Or_error.ok_exn)
@@ -93,8 +96,11 @@ let create
       Option.value_map pie_label_line_color ~default:(Ok None) ~f:(fun c ->
         Theme.resolve theme c |> Or_error.map ~f:Option.some)
     in
+    let%bind x_axis = Chart_axis.Expert.to_wire x_axis ~theme in
+    let%bind y_axis = Chart_axis.Expert.to_wire y_axis ~theme in
+    let%bind grid = Chart_grid.Expert.to_wire grid ~theme in
     let t =
-      { Wire.version = -3L
+      { Wire.version = -4L
       ; palette
       ; axis_color
       ; grid_color
@@ -110,6 +116,9 @@ let create
       ; node_labels
       ; pie_labels
       ; pie_label_line_color
+      ; x_axis
+      ; y_axis
+      ; grid
       }
     in
     if Wire.valid t

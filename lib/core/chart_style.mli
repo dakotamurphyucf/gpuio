@@ -48,6 +48,10 @@ type t [@@deriving equal, sexp_of]
     [pie_label_line_color] defaults to the resolved axis color; per-slice colors
     take precedence. Neither changes original names, legend or selection values.
 
+    [x_axis]/[y_axis] supply optional ticks and axis presentation beneath the
+    existing options' visibility gates. [grid] controls independent positions
+    and line appearance. All colors, including per-tick colors, resolve here.
+
     Palette length 1..32; stroke width 0.5..8, point radius 1..12 and bar corner
     radius 0..32 logical pixels. Area opacity is 0..1. Optional [gradient_end]
     makes bars fade from their palette color to that color along the value axis.
@@ -64,6 +68,9 @@ val create
   -> ?node_labels:Chart_node_labels.t
   -> ?pie_labels:Chart_pie_labels.t
   -> ?pie_label_line_color:Color.t
+  -> ?x_axis:Chart_axis.t
+  -> ?y_axis:Chart_axis.t
+  -> ?grid:Chart_grid.t
   -> ?axis_color:Color.t
   -> ?grid_color:Color.t
   -> ?label_color:Color.t

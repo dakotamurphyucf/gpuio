@@ -1,0 +1,92 @@
+{
+  "source_base": "f5875f5",
+  "platform": "macOS 14.5 arm64",
+  "archive_sha256": "38e373eb3d1f9a715fb4238336a982b5ce79e0283202f5fefee95542aa42dce5",
+  "files": [
+    {
+      "path": "before/gallery-axes-line.png",
+      "bytes": 411475,
+      "sha256": "fd71b66b547b0be41629ed6ae2efdf6c1a631e7675dbf268e5b78811bc9e8b5d"
+    },
+    {
+      "path": "chart-axis-api-core-tests.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "chart-axis-api-dune-all.log",
+      "bytes": 705906,
+      "sha256": "852e04d443bc234f2f0a33fe47934aa0076a5962959768c1a0e26e83ba2a0420"
+    },
+    {
+      "path": "chart-axis-api-gpu.log",
+      "bytes": 615461,
+      "sha256": "d9f5b6475643187bbdae5785a3664895b1a069f2626a863c204c1e61a3d9869a"
+    },
+    {
+      "path": "chart-axis-api-protocol-all.log",
+      "bytes": 57289,
+      "sha256": "5d881c5ec3077dfc5a311ba4c55809eb71c8b5dc9844c0d8a15616dcfd358170"
+    },
+    {
+      "path": "chart-axis-api-workspace-clippy.log",
+      "bytes": 589113,
+      "sha256": "9f43b0a152b1dbb03afe0f8e4b691cfea7803ea434b9258d8beed13042454a84"
+    },
+    {
+      "path": "chart-axis-endpoint-before.log",
+      "bytes": 589213,
+      "sha256": "dd4f30af6a670f861234e5bff0321beb12cce9ab2cca2ebcd16e5ca202fe23d9"
+    },
+    {
+      "path": "chart-axis-endpoint-clippy.log",
+      "bytes": 588275,
+      "sha256": "fe722ff042ac7d67c35961f4f301ac257508ddd505bfcac7f448233f1bf296ac"
+    },
+    {
+      "path": "chart-axis-endpoint-native-all.log",
+      "bytes": 699253,
+      "sha256": "c8af4a64e9ae9170a47ee086af2d48970014a46bcf14a06504f3519a982a48c0"
+    },
+    {
+      "path": "chart-axis-endpoint-view.log",
+      "bytes": 589906,
+      "sha256": "942c2a1fc4a92633973115b68e766a1bf532e712ee07935d7b2475d2697c5834"
+    },
+    {
+      "path": "chart-axis-final-consumer.log",
+      "bytes": 207579,
+      "sha256": "03597b10d9fd9e7b880021628bf4ccf21dba0df0edeb0dfa1fc3f8522d098c0a"
+    },
+    {
+      "path": "chart-axis-final-gallery-build.log",
+      "bytes": 100161,
+      "sha256": "1473f3f69dba5892d76b631dc57c36735947911a9d2751ec8c8c3da3dc51a9fe"
+    },
+    {
+      "path": "chart-axis-final-gallery.log",
+      "bytes": 6589,
+      "sha256": "33632f0d82386c315131083b622b7921adbdd33e9d65eb16c62c329bf444433c"
+    },
+    {
+      "path": "chart-axis-final-protocol.log",
+      "bytes": 1694,
+      "sha256": "fa3ee5a8f283af68c1c27da263e607200aa062e1e19d8da8d243fe944f4fd4b1"
+    },
+    {
+      "path": "images/gallery-axes-candlestick.png",
+      "bytes": 408689,
+      "sha256": "674b17bb7f38e55203228e7e2565303c63fd6ce5909c177d074fa78c51446717"
+    },
+    {
+      "path": "images/gallery-axes-categorical.png",
+      "bytes": 403587,
+      "sha256": "2d374a80adbcecc4f62e970578e007637283c2bd7e462274f393eda48d99f8e6"
+    },
+    {
+      "path": "images/gallery-axes-line.png",
+      "bytes": 411462,
+      "sha256": "c7caf0a9da998d87ca865315562a22b51eecd5075326017e683ea6b40f537981"
+    }
+  ]
+}

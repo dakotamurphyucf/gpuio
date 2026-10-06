@@ -41,6 +41,9 @@ type t =
   ; node_labels : Chart_node_labels_wire.t
   ; pie_labels : Chart_pie_labels_wire.t
   ; pie_label_line_color : int64 option
+  ; x_axis : Chart_axis_wire.t
+  ; y_axis : Chart_axis_wire.t
+  ; grid : Chart_grid_wire.t
   }
 [@@deriving bin_io, equal, sexp_of]
 
@@ -61,7 +64,7 @@ let valid_ordinal (t : Ordinal.t) =
 ;;
 
 let valid t =
-  Int64.equal t.version (-3L)
+  Int64.equal t.version (-4L)
   && List.length t.palette >= 1
   && List.length t.palette <= 32
   && List.for_all t.palette ~f:color
@@ -78,4 +81,7 @@ let valid t =
   && Chart_node_labels_wire.valid t.node_labels
   && Chart_pie_labels_wire.valid t.pie_labels
   && Option.for_all t.pie_label_line_color ~f:color
+  && Chart_axis_wire.valid t.x_axis
+  && Chart_axis_wire.valid t.y_axis
+  && Chart_grid_wire.valid t.grid
 ;;

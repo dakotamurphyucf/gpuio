@@ -1,5 +1,6 @@
 //! Bounded native text layout around a prepared chart. Coordinates are logical pixels.
 use crate::chart_geometry::{Label, LabelKind};
+mod axis;
 use gpuio_protocol::{
     chart_data::{Contents, Data},
     chart_view::Config,
@@ -158,6 +159,11 @@ impl Frame {
         } else {
             0.
         };
+        let (left, right, top, bottom) = if numeric {
+            axis::gutters(config, horizontal)
+        } else {
+            (left, right, top, bottom)
+        };
         // Bound gutters proportionally so even a tiny view has a positive plot.
         let left = left.min(width * 0.3);
         let right = right.min(width * 0.3);
@@ -185,6 +191,9 @@ impl Frame {
     pub fn label(&self, label: &Label) -> Placement {
         let x = self.plot.x + label.position.x;
         let y = self.plot.y + label.position.y;
+        if let LabelKind::Axis(axis) = label.kind {
+            return axis::label(self, x, y, axis);
+        }
         if let LabelKind::Pie {
             placement: Some(p), ..
         } = label.kind

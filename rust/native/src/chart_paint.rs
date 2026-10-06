@@ -20,6 +20,8 @@ use std::{
     sync::atomic::{AtomicBool, Ordering},
 };
 
+mod decorations;
+
 pub const MAX_BYTES: usize = 64 * 1024 * 1024;
 pub const MAX_VERTICES: usize = 1_000_000;
 pub const MAX_QUADS: usize = 300_000;
@@ -488,12 +490,13 @@ pub fn prepare_with_text(
     } else {
         None
     };
-    let mut geometry = geometry::prepare_with_labels(
+    let mut geometry = geometry::prepare_with_axes(
         data,
         policy,
         options,
         (width, height),
         measured.as_deref(),
+        Some(geometry::axis_presentation::Styles::of(style)),
         cancel,
     )
     .map_err(|e| match e {
@@ -532,72 +535,13 @@ pub fn prepare_with_text(
         tolerance: 0.25 / scale,
         cancel,
     };
-    // All grid segments share a retained stroke mesh; axes are distinct from
-    // grid visibility and use their own brush.
-    let segments = |lines: &[(geometry::Point, geometry::Point)]| {
-        MeshPath(
-            lines
-                .iter()
-                .flat_map(|(a, b)| {
-                    [
-                        PathCommand::Move(point_wire(*a)),
-                        PathCommand::Line(point_wire(*b)),
-                    ]
-                })
-                .collect(),
-        )
-    };
-    if !geometry.grid.is_empty() {
-        build.mesh(
-            &segments(&geometry.grid),
-            mesh::Style::Stroke(1.),
-            style.grid_color as u32,
-        )?;
-    }
+    decorations::prepare(&mut build, &geometry, data, options, style)?;
     let horizontal = options.cartesian.orientation.is_horizontal()
         && matches!(
             data.contents,
             gpuio_protocol::chart_data::Contents::Cartesian(_)
                 | gpuio_protocol::chart_data::Contents::Categorical(..)
         );
-    if matches!(
-        data.contents,
-        gpuio_protocol::chart_data::Contents::Cartesian(_)
-            | gpuio_protocol::chart_data::Contents::Categorical(..)
-            | gpuio_protocol::chart_data::Contents::Candlestick(_)
-    ) {
-        // Categorical plots deliberately have no numeric x domain. Axis
-        // visibility belongs to their options, not numeric-domain presence.
-        // Center boundary strokes inside the clip; a half-clipped one-pixel
-        // vertical stroke otherwise misses every sample at scale 1.
-        let left = 0.5_f64.min(width / 2.);
-        let bottom = height - 0.5_f64.min(height / 2.);
-        let bottom_line = (
-            geometry::Point { x: 0., y: bottom },
-            geometry::Point {
-                x: width,
-                y: bottom,
-            },
-        );
-        let left_line = (
-            geometry::Point { x: left, y: 0. },
-            geometry::Point { x: left, y: height },
-        );
-        let mut lines = vec![];
-        if options.axes.x {
-            lines.push(if horizontal { left_line } else { bottom_line });
-        }
-        if options.axes.y {
-            lines.push(if horizontal { bottom_line } else { left_line });
-        }
-        if !lines.is_empty() {
-            build.mesh(
-                &segments(&lines),
-                mesh::Style::Stroke(1.),
-                style.axis_color as u32,
-            )?;
-        }
-    }
     let layers = geometry
         .paths
         .iter()
@@ -801,7 +745,7 @@ pub fn prepare_with_text(
                     .or(style.pie_label_line_color)
                     .unwrap_or(style.axis_color) as u32;
                 build.mesh(
-                    &segments(&[(p.edge, p.bend), (p.bend, p.end)]),
+                    &decorations::segments(&[(p.edge, p.bend), (p.bend, p.end)]),
                     mesh::Style::Stroke(1.),
                     color,
                 )?;

@@ -27,7 +27,7 @@ let%expect_test "pie caption and leader colors have paired bytes and theme resol
   assert (W.valid wire);
   let bytes = Bin_prot.Utils.bin_dump W.bin_writer_t wire |> Bigstring.to_string in
   print_endline
-    (String.suffix bytes 10
+    (String.sub bytes ~pos:(String.length bytes - 76) ~len:10
      |> String.to_list
      |> List.map ~f:(fun c -> sprintf "%02x" (Char.to_int c))
      |> String.concat);

@@ -120,6 +120,35 @@ numeric x-domain. Native axis strokes sit inside the plot clip, independently
 of grid visibility. See the [axis visibility evidence](../../docs/evidence/chart-axis-visibility-och41.md)
 for the specific rendering checks and their limits.
 
+## Axis and grid presentation presets
+
+The pure [Chart_axes helper](chart_axes.md) supplies Default, Styled, Floating,
+Axis labels only and Axis lines only presets. `B.state Chart_axes.Default graph`
+returns the current `axes` choice and `set_axes` setter. `B = Bonsai.Cont` retains
+that reactive model in the page graph; `set_axes candidate` constructs an effect,
+which runs when a native preset button is pressed. `let%arr` reads both state and
+setter, together with the current palette. It calls `Chart_axes.configuration axes p`,
+then passes the returned x axis, y axis and grid into `Chart_style.create` and
+ultimately the stable `V.chart` config. A theme change follows the same derivation
+with new palette colors; no OCaml measurement or paint callback runs natively.
+
+Trace: press Floating axes → native button executes its setter effect → Bonsai
+updates `axes` → `let%arr` constructs middle-position axes and dashed grid →
+resolved chart style reaches `V.chart` → native preparation replaces decorations.
+No source publication is required; values, domains, baselines, selection IDs and
+original-data names remain unchanged. The Ready notice appends the non-default preset name after native preparation
+completes. Buttons appear for line,
+area, bar, mixed, categorical, stacked and candlestick modes. Cartesian axes
+transpose with orientation; candlestick axes keep their vertical projection.
+The configuration remains submitted in other modes; unrelated families ignore
+axis presentation, while radar uses grid appearance but ignores position overrides.
+
+Start/Midpoint/End use physical fractions, not numeric values, so reversal does
+not turn Start into an opposite-domain label. See the helper for exact dimensions,
+validation bounds, independent grid visibility and adaptation to numeric/category
+positions. The [axis/grid design](../../docs/design/chart-axis-presentation.md)
+is under qualification; this documentation adds no platform acceptance claim.
+
 ## Follow an update and a selection
 
 Clicking Update invokes an OCaml effect, advances the sample phase, and asks the

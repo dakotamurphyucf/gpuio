@@ -356,6 +356,7 @@ async fn exercise(
     }
     labels::exercise(cx, handle, next, &session, &transport).await;
     pie_labels::exercise(cx, handle, next, &session, &transport).await;
+    axis_labels::exercise(cx, handle, next, &session, &transport).await;
     label_content::exercise(cx, handle, next, &session, &transport).await;
     apply(
         cx,
@@ -370,6 +371,8 @@ async fn exercise(
         "GPUIO_NATIVE_CHART_VIEW_OK: production tree GPU paint, style, async publish, reset, idle release, source replacement, hidden/unmount cleanup, dense legend scroll/update/reset"
     );
 }
+#[path = "chart_axis_view_test.rs"]
+mod axis_labels;
 #[path = "chart_input_test.rs"]
 mod interaction;
 #[path = "chart_label_content_test.rs"]

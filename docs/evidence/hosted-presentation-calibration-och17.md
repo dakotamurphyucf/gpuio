@@ -390,3 +390,30 @@ and the [verified manifest](hosted-presentation-calibration-och17/run-3750293055
 retain seven files (207,734 uncompressed bytes). Passing internal ad-hoc packages
 do not establish release signing, clean-machine distribution or whole-milestone
 acceptance. Linux desktop qualification remains OCH-47.
+
+## Hosted run 37515832448
+
+[Run 37515832448](https://github.com/dakotamurphyucf/gpuio/actions/runs/37515832448)
+is terminal. Both foundation jobs fail strict lint on the same pie-caption
+protocol test's `field_reassign_with_default` warning. The initializer has been
+rewritten locally without changing its bytes or assertions; workspace-wide
+Clippy passes locally. Hosted revalidation remains required. The other failed
+macOS steps are the GPUI presentation hook and standalone Metal calibration.
+All three independently extracted macOS applications pass their recorded checks.
+
+Checkout identifies merge `1d7f76fb950c54ef31e72bdbda260f3790c0c137`, whose tree
+`fec925c70477b204cddeecf2647098a388956de0` matches branch `4fe365b`. It covers the
+pie-caption implementation, before the axis visibility repair and new axis API.
+Neither foundation job is a passing release gate; this is not current-source
+Linux or macOS acceptance.
+
+Both GPUI sessions receive 90 zero-time callbacks, no missing callbacks and no
+pending submissions after closure. Standalone Metal receives 120 zero-time
+presentation callbacks on Apple Paravirtual / macOS 15.7.9. Neither probe
+qualifies physical presentation timing, and neither gate is waived.
+
+[Primary reports, failed-step logs, package results and source identity](hosted-presentation-calibration-och17/run-37515832448/reports.tar.gz)
+and the [verified manifest](hosted-presentation-calibration-och17/run-37515832448/manifest.json)
+retain 11 files (1,410,997 uncompressed bytes). Internal ad-hoc package checks
+do not establish release signing or whole-milestone acceptance. Full Linux desktop
+qualification remains deferred to OCH-47; required nongraphical gates remain.

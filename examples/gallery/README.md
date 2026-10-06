@@ -493,7 +493,10 @@ Charts share typed example datasets with the standalone Chart Studio. All seven
 families and mixed layers support native selection and original-data browsing,
 with horizontal/reversed value axes, disabled and data-update controls. Read the
 adjacent [charts walkthrough](charts_page.md) for the independent application-data,
-Bonsai, GPUIO and scoped-runtime parts. Each page visit acquires one
+Bonsai, GPUIO and scoped-runtime parts. The pure [axis/grid preset guide](chart_axes.md)
+explains physical-fraction ticks and styling; Cartesian axes transpose with
+orientation, while candlestick axes remain vertical. These controls change
+presentation without publishing new source data and are still under qualification. Each page visit acquires one
 scoped registration; leaving releases it. Choices survive a revisit while source
 phase and selection start fresh. The original-data table includes node records
 for Sankey flows as well as their numerical edge values.

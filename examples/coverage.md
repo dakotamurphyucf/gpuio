@@ -196,6 +196,7 @@ Generated from [coverage.json](coverage.json). Read the [review guide](coverage-
 | [button_preview.ml](gallery/button_preview.ml), [button_preview.mli](gallery/button_preview.mli) | component | [button_preview.md](gallery/button_preview.md) | reviewed |
 | [canvas_page.ml](gallery/canvas_page.ml), [canvas_page.mli](gallery/canvas_page.mli) | component | [canvas_page.md](gallery/canvas_page.md) | reviewed |
 | [carousel_track_preview.ml](gallery/carousel_track_preview.ml), [carousel_track_preview.mli](gallery/carousel_track_preview.mli) | component | [carousel_track_preview.md](gallery/carousel_track_preview.md) | reviewed |
+| [chart_axes.ml](gallery/chart_axes.ml), [chart_axes.mli](gallery/chart_axes.mli) | support | [chart_axes.md](gallery/chart_axes.md) | reviewed |
 | [charts_page.ml](gallery/charts_page.ml), [charts_page.mli](gallery/charts_page.mli) | component | [charts_page.md](gallery/charts_page.md) | reviewed |
 | [chat_composition_preview.ml](gallery/chat_composition_preview.ml), [chat_composition_preview.mli](gallery/chat_composition_preview.mli) | component | [chat_composition_preview.md](gallery/chat_composition_preview.md) | reviewed |
 | [chat_list_preview.ml](gallery/chat_list_preview.ml), [chat_list_preview.mli](gallery/chat_list_preview.mli) | component | [chat_list_preview.md](gallery/chat_list_preview.md) | reviewed |
@@ -497,4 +498,4 @@ Generated from [coverage.json](coverage.json). Read the [review guide](coverage-
 | --- | --- | --- | --- |
 | [main.ml](window_lifecycle/main.ml) | application-entry | [main.md](window_lifecycle/main.md) | reviewed |
 
-417 source files in 260 groups; 260 reviewed, 0 pending.
+419 source files in 261 groups; 261 reviewed, 0 pending.

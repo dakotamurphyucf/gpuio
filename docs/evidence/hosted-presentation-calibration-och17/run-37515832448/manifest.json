@@ -1,0 +1,64 @@
+{
+  "run": 37515832448,
+  "branch_commit": "4fe365b8ff54444c04504c08d18fb20b6a36daf2",
+  "tested_merge": "1d7f76fb950c54ef31e72bdbda260f3790c0c137",
+  "tree": "fec925c70477b204cddeecf2647098a388956de0",
+  "archive_sha256": "0dc0b5b782e13580fa87e02651fe86beabc14026706f766472a2bc0cabae5fc2",
+  "files": [
+    {
+      "path": "checkout.txt",
+      "bytes": 800,
+      "sha256": "e2c00c783835910ae16b4f186f86e30c52dd0457675569a90fdb8bebefc049cd"
+    },
+    {
+      "path": "failed-steps.log",
+      "bytes": 1197135,
+      "sha256": "060ce091a56118728b1fb292ff097806ea22c99f827634eb551641a67fe170cf"
+    },
+    {
+      "path": "merge-source.json",
+      "bytes": 101,
+      "sha256": "4d6a624ebeac5286da1ef0dcee6fac2a2a3e54de902f919b018f7b0022fb1340"
+    },
+    {
+      "path": "metal-presentation-calibration.json",
+      "bytes": 63439,
+      "sha256": "b137939c7014120e1686266b5ac81a05158f42e9855575f67c27a75b933af3de"
+    },
+    {
+      "path": "metal-presentation-display.json",
+      "bytes": 35,
+      "sha256": "0e2a2e10de1b28c2c98b9bf2faadb16610de1aad4b8308e92b54c13e74402c3c"
+    },
+    {
+      "path": "metal-presentation-hook/native.log",
+      "bytes": 122,
+      "sha256": "c0b114dcec83a6744a1b14cf21a9af8597b2a09a9227847e74604c511b9f94ac"
+    },
+    {
+      "path": "metal-presentation-hook/report.json",
+      "bytes": 76372,
+      "sha256": "cc10af892fda9db1e4cd83d1c804068aebaa5a7e6f2e29174f6a43c0e0f34b62"
+    },
+    {
+      "path": "packages/agent-chat.json",
+      "bytes": 1534,
+      "sha256": "0c0fa62c9ab216d698fee1c407fc6be019f0d86ff7fafc7d56d73bf3ef55a9f7"
+    },
+    {
+      "path": "packages/gallery.json",
+      "bytes": 3156,
+      "sha256": "42a9f5d51f350f57fe42fbdbdc15dcd311057ec56324e98a2bb272eb299fa29e"
+    },
+    {
+      "path": "packages/signal-studio.json",
+      "bytes": 1592,
+      "sha256": "20005a7c4c2affae93003086bcd03c94ffca32a30addd953dea8a4444420482c"
+    },
+    {
+      "path": "run.json",
+      "bytes": 66711,
+      "sha256": "aa4ad6b2bcd1125f7a9a88781c6f1588848f0dbe52455b5dd55aaad7b5157d0f"
+    }
+  ]
+}

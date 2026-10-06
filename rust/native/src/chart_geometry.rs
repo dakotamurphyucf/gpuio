@@ -142,6 +142,7 @@ pub struct PieLabelPlacement {
 pub enum LabelKind {
     X,
     Y,
+    Axis(axis_presentation::AxisLabel),
     Radial,
     Pie {
         slice_index: usize,
@@ -376,69 +377,28 @@ impl Coordinates {
             }
         }
     }
-    fn axes(self, plan: &mut Plan, axes: options::Axes, categories: Option<&[data::Category]>) {
-        plan.x_domain = categories.is_none().then_some(self.x);
-        plan.y_domain = Some(self.y);
-        let ticks = match categories {
-            None => self
-                .x
-                .ticks(axes.ticks)
-                .into_iter()
-                .map(|v| (v, format_number(v, axes.x_format)))
-                .collect::<Vec<_>>(),
-            Some(categories) => {
-                let count = categories.len().min(axes.ticks as usize);
-                (0..count)
-                    .map(|i| {
-                        let index = if count <= 1 {
-                            0
-                        } else {
-                            i * (categories.len() - 1) / (count - 1)
-                        };
-                        (index as f64, categories[index].label.clone())
-                    })
-                    .collect()
-            }
-        };
-        for (v, text) in ticks {
-            let c = self.category(v);
-            let (start, end) = if self.horizontal {
-                (Point::new(0., c), Point::new(self.height, c))
-            } else {
-                (Point::new(c, 0.), Point::new(c, self.height))
-            };
-            if axes.grid {
-                plan.grid.push((start, end));
-            }
-            if axes.x {
-                plan.labels.push(Label {
-                    position: if self.horizontal { start } else { end },
-                    text,
-                    kind: LabelKind::X,
-                });
-            }
-        }
-        for v in self.y.ticks(axes.ticks) {
-            let c = self.value(v);
-            let (start, end) = if self.horizontal {
-                (Point::new(c, 0.), Point::new(c, self.width))
-            } else {
-                (
-                    Point::new(0., self.height - c),
-                    Point::new(self.width, self.height - c),
-                )
-            };
-            if axes.grid {
-                plan.grid.push((start, end));
-            }
-            if axes.y {
-                plan.labels.push(Label {
-                    position: if self.horizontal { end } else { start },
-                    text: format_number(v, axes.y_format),
-                    kind: LabelKind::Y,
-                });
-            }
-        }
+    fn axes(
+        self,
+        plan: &mut Plan,
+        axes: options::Axes,
+        categories: Option<&[data::Category]>,
+        styles: Option<axis_presentation::Styles<'_>>,
+        cancel: &AtomicBool,
+    ) -> Result<(), Error> {
+        let default_axis = gpuio_protocol::chart_axis::Axis::default();
+        let default_grid = gpuio_protocol::chart_grid::Grid::default();
+        axis_presentation::prepare(
+            self,
+            plan,
+            axes,
+            categories,
+            styles.unwrap_or(axis_presentation::Styles {
+                x: &default_axis,
+                y: &default_axis,
+                grid: &default_grid,
+            }),
+            cancel,
+        )
     }
 }
 fn minimum_spacing(mut positions: Vec<f64>, domain: Domain) -> f64 {
@@ -490,6 +450,7 @@ fn cartesian(
     categories: Option<&[data::Category]>,
     reduced: &[reduce::Series],
     options: &options::Options,
+    axes: Option<axis_presentation::Styles<'_>>,
     cancel: &AtomicBool,
 ) -> Result<(), Error> {
     let x = Domain::from(
@@ -547,7 +508,7 @@ fn cartesian(
         categorical: categories
             .map(|c| Projection::new(c.len(), width, options.cartesian.category_layout, bars > 0)),
     };
-    c.axes(plan, options.axes, categories);
+    c.axes(plan, options.axes, categories, axes, cancel)?;
     let bar_width = slot * options.cartesian.bar_width / (groups as f64);
     let mut bar_index = 0;
     for (series, (layer, reduction)) in layers.iter().zip(reduced).enumerate() {
@@ -872,7 +833,9 @@ fn candles(
     source: &[data::Candle],
     values: &[reduce::Candle],
     options: &options::Options,
-) {
+    axes: Option<axis_presentation::Styles<'_>>,
+    cancel: &AtomicBool,
+) -> Result<(), Error> {
     let x = Domain::from(source.iter().map(|v| v.x), false);
     let y = Domain::from(values.iter().flat_map(|v| [v.low, v.high]), false);
     let spacing = minimum_spacing(values.iter().map(|v| v.x).collect(), x);
@@ -887,7 +850,7 @@ fn candles(
         reversed: false,
         categorical: None,
     };
-    c.axes(plan, options.axes, None);
+    c.axes(plan, options.axes, None, axes, cancel)?;
     for candle in values {
         let center = c.category(candle.x);
         let half = slot * options.candlestick.body_width / 2.;
@@ -917,6 +880,7 @@ fn candles(
             },
         });
     }
+    Ok(())
 }
 fn sankey(
     plan: &mut Plan,
@@ -1213,6 +1177,20 @@ pub fn prepare_with_labels(
     labels: Option<&[Option<LabelMetrics>]>,
     cancel: &AtomicBool,
 ) -> Result<Plan, Error> {
+    prepare_with_axes(data, policy, options, size, labels, None, cancel)
+}
+pub(crate) fn prepare_with_axes(
+    data: &data::Data,
+    policy: Policy,
+    options: &options::Options,
+    size: (f64, f64),
+    labels: Option<&[Option<LabelMetrics>]>,
+    axes: Option<axis_presentation::Styles<'_>>,
+    cancel: &AtomicBool,
+) -> Result<Plan, Error> {
+    if axes.is_some_and(|s| !s.x.is_valid() || !s.y.is_valid() || !s.grid.is_valid()) {
+        return Err(Error::InvalidInput);
+    }
     let (width, height) = size;
     check(cancel)?;
     if labels.is_some()
@@ -1277,10 +1255,11 @@ pub fn prepare_with_labels(
             },
             series,
             options,
+            axes,
             cancel,
         )?,
         (data::Contents::Candlestick(source), reduce::Contents::Candlestick(values)) => {
-            candles(&mut plan, source, values, options)
+            candles(&mut plan, source, values, options, axes, cancel)?
         }
         (data::Contents::Pie(slices), _) => pie(&mut plan, slices, &options.pie, labels)?,
         (data::Contents::Radar(axes, series), _) => radar(&mut plan, axes, series, options.radar)?,
@@ -1315,3 +1294,5 @@ mod flow_labels_tests;
 mod pie_radii_tests;
 
 mod pie_labels;
+
+pub(crate) mod axis_presentation;
