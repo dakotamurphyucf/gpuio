@@ -125,9 +125,10 @@ impl View {
             });
         }
         if interaction.clip_controls
-            // PointerArea's outer native Region must receive this event before
-            // applying its own capture/propagation policy.
+            // These outer native Regions must receive this event before
+            // applying their own capture/propagation policy.
             && node.pointer.is_none()
+            && node.slider.is_none()
             && (node.handler.is_some() || node.command_ref.is_some() || node.editor.is_some())
         {
             // Keep the control's default focus/selection behavior, but do not

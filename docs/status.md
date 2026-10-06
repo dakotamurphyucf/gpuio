@@ -15,6 +15,13 @@ Three owner-authorized GPT-6.1 Sol agents contributed scoped walkthroughs in par
 Contributor guidance and a structural CI check keep new sources visible; neither
 file presence nor that check establishes documentation or platform acceptance.
 
+[Radar label sliders](evidence/radar-label-slider-och41.md) now pass native track
+input and immediate source-hide cancellation. The regression exposed inner
+mouse-down suppression and stale slider capture; both are repaired, with
+same-axis publication preservation and stale-release recovery verified.
+Native chart/input/popup and ordinary slider suites pass. Other label wrappers
+and broader catalog/release qualification remain open.
+
 [Radar label popup retirement](evidence/radar-label-popup-och41.md) now has real
 AppKit evidence for queued hide/return and cancellation during native tracking.
 The regression exposed missing menu-lease cleanup and a focus-only data-browser

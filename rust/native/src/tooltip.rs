@@ -220,6 +220,7 @@ impl View {
         self.focus.borrow_mut().set_hidden(hidden);
         self.focus.borrow_mut().sync(window, cx);
         self.retire_ineligible_menus(window, cx);
+        self.retire_ineligible_slider_drags(window);
         for (id, state) in &mut self.tooltips {
             if !state.open
                 || !state.motion

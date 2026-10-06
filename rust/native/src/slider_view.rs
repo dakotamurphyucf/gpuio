@@ -413,6 +413,11 @@ impl View {
                 self.sliders.insert(node.id, Rc::new(RefCell::new(state)));
             }
         }
+        self.retire_ineligible_slider_drags(window);
+    }
+    // Resource/browser visibility may change without a retained-tree update.
+    // Share the same cancellation policy with that immediate input cleanup.
+    pub(super) fn retire_ineligible_slider_drags(&self, window: &mut Window) {
         for shared in self.sliders.values() {
             let mut state = shared.borrow_mut();
             if let Some(reason) = state.unavailable() {
