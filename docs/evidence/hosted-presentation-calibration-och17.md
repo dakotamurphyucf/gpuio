@@ -263,3 +263,30 @@ artifacts. [Raw reports, job results and source identity](hosted-presentation-ca
 and a [verified manifest](hosted-presentation-calibration-och17/run-37433332134/manifest.json)
 retain 31 files (1,262,072 uncompressed bytes). Current-source validation,
 notices, signing/distribution and broader release acceptance remain open.
+
+## Repeat on hosted run 37447717604
+
+[Run 37447717604](https://github.com/dakotamurphyucf/gpuio/actions/runs/37447717604)
+is terminal with failure. Linux foundation and the independent fresh macOS
+extracted-app job pass. The only failed macOS foundation steps are the GPUI
+Metal presentation hook and independent Metal calibration. Actual tested merge
+`1af943233fc4f2ce8976889e64d954d8c0c6ef48` has tree
+`4465343cd4b49a6a240923f9bf871e2dc801f18d`, matching branch `548bcde`. This
+includes the chart inspection work but predates rich Sankey labels, ribbon color
+policies and the Code document-control repair.
+
+Each hook window records 90 zero-time callbacks, no missing callbacks and no
+pending submissions after closure. Standalone Metal submits 120 frames on Apple
+Paravirtual, again with all presentation times zero and failed clock ordering.
+No presentation gate is waived; these reports do not establish display timing.
+
+The separate receiver passes all three extracted applications: gallery, Agent
+Workspace and Signal Studio. Their package reports identify the same tested merge
+and preserve archive/executable hashes; transfer verification and separate-job
+execution establish the source/receiver provenance. These are internal ad-hoc
+packages, not release-signing or general distribution acceptance.
+
+[Reports, terminal jobs and source identity](hosted-presentation-calibration-och17/run-37447717604/reports.tar.gz)
+and a [verified manifest](hosted-presentation-calibration-och17/run-37447717604/manifest.json)
+retain 31 files (1,262,087 uncompressed bytes). Newer source requires its own
+hosted checks; API/catalog, notices, signing and broader release work remain open.

@@ -15,6 +15,12 @@ Three owner-authorized GPT-6.1 Sol agents contributed scoped walkthroughs in par
 Contributor guidance and a structural CI check keep new sources visible; neither
 file presence nor that check establishes documentation or platform acceptance.
 
+[Hosted run 37447717604](evidence/hosted-presentation-calibration-och17.md#repeat-on-hosted-run-37447717604)
+is terminal: Linux and all three independently extracted macOS apps pass. Only
+the two Metal presentation probes fail, again with 180/120 zero-time callbacks on
+Apple Paravirtual. Evidence covers tree-equivalent `548bcde`, not newer Sankey or
+Code document-control changes. No gate is waived; current-source checks remain due.
+
 [Measured Sankey geometry](evidence/sankey-label-layout-engine.md) now reserves
 bounded margins and preserves multiline placement and source hit identity in the
 internal engine. Native library tests and strict lint pass. Public options, paired
