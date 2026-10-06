@@ -14,9 +14,22 @@ type t =
   | Spaced
   | Rich_labels
   | Hidden_target
+  | Gradient
+  | Target
 [@@deriving equal]
 
-let all = [ Default; Rounded; Muted; Minimum; Spaced; Rich_labels; Hidden_target ]
+let all =
+  [ Default
+  ; Rounded
+  ; Muted
+  ; Minimum
+  ; Spaced
+  ; Rich_labels
+  ; Hidden_target
+  ; Gradient
+  ; Target
+  ]
+;;
 
 let label = function
   | Default -> "Default flows"
@@ -26,6 +39,8 @@ let label = function
   | Spaced -> "Spaced flow labels"
   | Rich_labels -> "Rich flow labels"
   | Hidden_target -> "Hide target label"
+  | Gradient -> "Gradient flows"
+  | Target -> "Target-colored flows"
 ;;
 
 let options = function
@@ -34,10 +49,13 @@ let options = function
   | Muted -> O.Sankey.create ~link_opacity:0.12 () |> ok
   | Minimum -> O.Sankey.create ~min_link_width:12. () |> ok
   | Spaced -> O.Sankey.create ~label_gap:32. () |> ok
+  | Gradient -> O.Sankey.create ~link_color:Gradient () |> ok
+  | Target -> O.Sankey.create ~link_color:Target () |> ok
 ;;
 
 let node_labels = function
-  | Default | Rounded | Muted | Minimum | Spaced -> Gpuio.Chart_node_labels.empty
+  | Default | Rounded | Muted | Minimum | Spaced | Gradient | Target ->
+    Gpuio.Chart_node_labels.empty
   | (Rich_labels | Hidden_target) as preset ->
     let module L = Gpuio.Chart_node_labels in
     let line ?color ?font_size text = L.Line.create ?color ?font_size text |> ok in

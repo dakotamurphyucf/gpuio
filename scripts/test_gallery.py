@@ -4702,7 +4702,7 @@ def exercise_sankey_presentation(mac, images):
         baseline = None
         for label in ['Default flows', 'Rounded nodes', 'Muted ribbons',
                       'Visible small flows', 'Spaced flow labels', 'Rich flow labels',
-                      'Hide target label', 'Default flows']:
+                      'Hide target label', 'Gradient flows', 'Target-colored flows', 'Default flows']:
             reveal_gallery_control(mac, label, 'AXButton')
             mac.press(TITLE, label)
             mac.wait_text(TITLE, 'Ready: Flow styling · 3 source values · Vertical · '

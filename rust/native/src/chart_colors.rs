@@ -53,3 +53,31 @@ pub(crate) fn resolve(data: &Data, style: &Style, cancel: &AtomicBool) -> Result
     }
     Ok(result)
 }
+
+/// Resolve both endpoints by identity before painting. This temporary lookup is
+/// bounded by the already validated dataset and never runs per frame.
+pub(crate) fn link_colors(
+    data: &Data,
+    colors: &[u32],
+    cancel: &AtomicBool,
+) -> Result<Vec<(u32, u32)>, Error> {
+    let Contents::Sankey(nodes, edges) = &data.contents else {
+        return Ok(vec![]);
+    };
+    if nodes.len() != colors.len() {
+        return Err(Error::InvalidInput);
+    }
+    let by_id: BTreeMap<_, _> = nodes.iter().zip(colors).map(|(n, c)| (n.id, *c)).collect();
+    edges
+        .iter()
+        .map(|edge| {
+            if cancel.load(Ordering::Relaxed) {
+                return Err(Error::Cancelled);
+            }
+            Ok((
+                *by_id.get(&edge.source).ok_or(Error::InvalidInput)?,
+                *by_id.get(&edge.target).ok_or(Error::InvalidInput)?,
+            ))
+        })
+        .collect()
+}

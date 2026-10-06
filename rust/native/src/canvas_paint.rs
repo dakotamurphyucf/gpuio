@@ -192,6 +192,18 @@ pub fn paint(
     budget: &mut FrameBudget,
     window: &mut Window,
 ) -> Result<usize, Error> {
+    paint_background(mesh, placement, gpui::rgba(color).into(), budget, window)
+}
+
+/// One background spans the complete retained mesh, including all triangles.
+/// Gradient coordinates therefore remain continuous at tessellation boundaries.
+pub(crate) fn paint_background(
+    mesh: &Mesh,
+    placement: &Placement<'_>,
+    background: gpui::Background,
+    budget: &mut FrameBudget,
+    window: &mut Window,
+) -> Result<usize, Error> {
     let Some(clip) = placement.clip()? else {
         return Ok(0);
     };
@@ -215,7 +227,7 @@ pub fn paint(
         path.push_triangle((a, b, c), (point(0., 1.), point(0., 1.), point(0., 1.)));
     }
     window.with_content_mask(Some(ContentMask { bounds: clip }), |window| {
-        window.paint_path(path, gpui::rgba(color));
+        window.paint_path(path, background);
     });
     Ok(vertices)
 }

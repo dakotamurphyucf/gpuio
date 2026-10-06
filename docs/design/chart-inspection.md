@@ -69,4 +69,5 @@ Rust bridge packages are required. [Sankey presentation](sankey-presentation.md)
 version 4; data version 1 remains unchanged. The inspection record follows the optional ordinal field; the existing
 16 KiB style and 18 KiB view caps covered that bounded maximum. The subsequent
 [rich node-label addition](chart-node-labels.md) advances style to -2 and raises
-the caps to 64/66 KiB; options/data remain 4/1.
+the caps to 64/66 KiB. [Ribbon color policies](sankey-link-colors.md) subsequently
+advance options to 5; style/data remain -2/1.

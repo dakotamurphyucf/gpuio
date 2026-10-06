@@ -155,3 +155,59 @@ fn opacity_rounding_node_corners_and_edge_relative_labels_use_configuration() {
         "opacity does not change source identity or hit geometry"
     );
 }
+
+#[test]
+fn link_brushes_follow_ids_and_opacity_without_changing_geometry_or_budget() {
+    use gpuio_protocol::chart_style::{Key, Ordinal};
+    let style = Style {
+        ordinal: Some(Ordinal {
+            domain: vec![Key::Node(20), Key::Node(10)],
+            range: vec![0x0000ff80, 0xff0000c8],
+            unknown: None,
+        }),
+        ..Default::default()
+    };
+    for reverse in [false, true] {
+        let mut source = data();
+        if let Contents::Sankey(nodes, _) = &mut source.contents
+            && reverse
+        {
+            nodes.reverse();
+        }
+        let make = |mode| {
+            let mut options = Options::default();
+            options.sankey.link_opacity = 0.25;
+            options.sankey.link_color = mode;
+            prepare(
+                &source,
+                Policy::default(),
+                &options,
+                &style,
+                Layout::new(400., 200., 1.).unwrap(),
+                &AtomicBool::new(false),
+            )
+            .unwrap()
+        };
+        let ordinary = make(LinkColor::Source);
+        for (mode, start, end) in [
+            (LinkColor::Source, 0xff000032, None),
+            (LinkColor::Target, 0x0000ff20, None),
+            (LinkColor::Gradient, 0xff000032, Some(0x0000ff20)),
+        ] {
+            let plan = make(mode);
+            assert_eq!(plan.geometry.marks, ordinary.geometry.marks);
+            assert_eq!(plan.vertices(), ordinary.vertices());
+            assert_eq!(plan.retained_bytes(), ordinary.retained_bytes());
+            assert_eq!(plan.meshes.len(), 2, "zero-valued third edge stays absent");
+            for draw in &plan.meshes {
+                assert_eq!((draw.color, draw.gradient_end), (start, end));
+            }
+            assert!(
+                plan.geometry
+                    .marks
+                    .iter()
+                    .any(|m| m.source == Source::Edge(1))
+            );
+        }
+    }
+}

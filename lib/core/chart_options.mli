@@ -168,6 +168,14 @@ module Sankey : sig
     [@@deriving equal, sexp_of]
   end
 
+  module Link_color : sig
+    type t =
+      | Source
+      | Target
+      | Gradient
+    [@@deriving equal, sexp_of]
+  end
+
   type t [@@deriving equal, sexp_of]
 
   (** Node width 1..64 logical pixels, padding 0..64, relaxation iterations
@@ -179,7 +187,11 @@ module Sankey : sig
       Positive ribbons may be widened for visibility without changing raw flow
       values; endpoints clip to the plot. Zero flows are not made visible.
       Label gaps are measured from the facing node edge; small views may clamp
-      labels to fit. All dimensions are logical pixels. *)
+      labels to fit. [link_color] defaults to Source; Target uses the target node
+      color and Gradient blends source to target across the full ribbon. Both
+      endpoints use resolved ordinal/palette colors multiplied by [link_opacity].
+      These choices do not change source values or hit geometry.
+      All dimensions are logical pixels. *)
   val create
     :  ?node_width:float
     -> ?node_padding:float
@@ -191,6 +203,7 @@ module Sankey : sig
     -> ?link_opacity:float
     -> ?min_link_width:float
     -> ?label_gap:float
+    -> ?link_color:Link_color.t
     -> unit
     -> t Or_error.t
 

@@ -435,6 +435,41 @@ fn cases() -> Vec<Case> {
             sample(100., 80., 128, 0, 0),
         ],
     );
+    for (name, mode) in [
+        ("sankey-target", LinkColor::Target),
+        ("sankey-gradient", LinkColor::Gradient),
+    ] {
+        let mut o = options();
+        o.sankey.link_color = mode;
+        add(
+            name,
+            dataset(data::Contents::Sankey(
+                vec![
+                    data::Node {
+                        id: 1,
+                        label: "source".into(),
+                    },
+                    data::Node {
+                        id: 2,
+                        label: "target".into(),
+                    },
+                ],
+                vec![data::Edge {
+                    id: 1,
+                    source: 1,
+                    target: 2,
+                    value: 1.,
+                }],
+            )),
+            o,
+            style(),
+            if mode == LinkColor::Target {
+                vec![sample(100., 80., 0, 0, 128)]
+            } else {
+                vec![]
+            },
+        );
+    }
     // A later line must paint above an earlier bar, across primitive types.
     let mut line = bars.clone();
     line.id = 2;
@@ -520,6 +555,22 @@ async fn exercise(
                     "{} plot clip",
                     case.name
                 );
+                if case.name == "sankey-gradient" {
+                    let left = pixel(&image, bounds, scale, 35., 80.);
+                    let right = pixel(&image, bounds, scale, 165., 80.);
+                    assert!(left[0] > right[0] + 50 && right[2] > left[2] + 50,
+                        "ribbon blends source red to target blue: {left:?} {right:?}");
+                    // The pinned Metal shader adds +/-2/255 RGB and +/-3/255
+                    // alpha dither. On black at half opacity, adjacent samples
+                    // may differ by ~8 levels plus the gradient slope/rounding.
+                    // A restarted triangle gradient is much larger than this.
+                    for x in 40..160 {
+                        let before = pixel(&image, bounds, scale, (x - 1) as f32, 80.);
+                        let after = pixel(&image, bounds, scale, x as f32, 80.);
+                        assert!(before[0].abs_diff(after[0]) <= 10 && before[2].abs_diff(after[2]) <= 10,
+                            "gradient must not restart at triangle boundaries: {x}: {before:?} {after:?}");
+                    }
+                }
                 if case.name == "gradient" {
                     let top = pixel(&image, bounds, scale, 150., 20.);
                     let bottom = pixel(&image, bounds, scale, 150., 140.);
@@ -552,7 +603,7 @@ async fn exercise(
             .unwrap();
     }
     eprintln!(
-        "GPUIO_NATIVE_CHART_PAINT_OK scale={scale}: all seven families, mixed layer ordering, donut holes, area alpha, hollow/filled candles, bar corners/gradient and clipping; hidden-window GPU pixels only"
+        "GPUIO_NATIVE_CHART_PAINT_OK scale={scale}: all seven families, mixed layer ordering, donut holes, area alpha, hollow/filled candles, bar corners/gradient, Sankey endpoint gradients and clipping; hidden-window GPU pixels only"
     );
 }
 pub(crate) fn run() {

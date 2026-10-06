@@ -7,7 +7,7 @@ fn bytes(value: &Options) -> Vec<u8> {
 }
 #[test]
 fn default_options_match_independent_ocaml_fixture_and_reject_truncation() {
-    let hex = "040101010500000000009a9999999999e93f00000000000000000000000000000000000001040101666666666666e63f0000000000003040000000000000284003000601000000000000f03f000000000000e03f00000000000000000000000000001840";
+    let hex = "050101010500000000009a9999999999e93f00000000000000000000000000000000000001040101666666666666e63f0000000000003040000000000000284003000601000000000000f03f000000000000e03f0000000000000000000000000000184000";
     let expected: Vec<u8> = hex
         .as_bytes()
         .chunks_exact(2)
@@ -186,7 +186,7 @@ fn categorical_layout_tags_and_padding_bounds_are_paired_and_versioned() {
 fn stacking_is_explicit_paired_and_old_layouts_are_rejected() {
     let mut options = Options::default();
     let mut expected = bytes(&options);
-    assert_eq!(expected[0], 4);
+    assert_eq!(expected[0], 5);
     assert_eq!(expected[19], 0);
     options.cartesian.stacking = Stacking::Stacked;
     expected[19] = 1;
@@ -238,4 +238,27 @@ fn sankey_presentation_bounds_apply_to_native_records_and_wire() {
         options.sankey.label_gap = gap;
         assert_eq!(decode_chart_options(&bytes(&options)), Ok(options));
     }
+}
+
+#[test]
+fn sankey_link_color_tags_preserve_default_and_reject_unknown_variants() {
+    for (mode, tag) in [
+        (LinkColor::Source, 0),
+        (LinkColor::Target, 1),
+        (LinkColor::Gradient, 2),
+    ] {
+        let mut value = Options::default();
+        value.sankey.link_color = mode;
+        let encoded = bytes(&value);
+        assert_eq!(encoded.len(), 101);
+        assert_eq!(encoded[100], tag);
+        assert_eq!(decode_chart_options(&encoded), Ok(value));
+    }
+    let mut encoded = bytes(&Options::default());
+    assert_eq!(encoded[100], 0);
+    encoded[100] = 3;
+    assert_eq!(decode_chart_options(&encoded), Err(DecodeError::Malformed));
+    encoded[100] = 0;
+    encoded[0] = 4;
+    assert_eq!(decode_chart_options(&encoded), Err(DecodeError::Malformed));
 }

@@ -46,9 +46,12 @@ after inspection controls. The standalone style decoder cap becomes 64 KiB and
 the view cap becomes 66 KiB, accommodating the explicitly bounded text/metadata
 alongside the existing ordinal mapping. A maximal valid metadata fixture checks
 that admitted values fit those caps. Options remain version 4 and data version 1;
-old style -1 frames are explicitly rejected. Both bridge packages must match.
+old style -1 frames are explicitly rejected. The subsequent
+[ribbon-color addition](sankey-link-colors.md) advances options to 5; style/data
+remain -2/1. Both bridge packages must match.
 
 The pinned `SankeyLabel` builder's multiline text, color and size are represented
-as serializable values. Its outer-column margins/above-middle label placement and
-source-to-target ribbon gradients remain separate catalog work. This adds no
-arbitrary text-layout closure or unrestricted per-frame OCaml callback.
+as serializable values. Outer-column margins and above-middle label placement
+remain catalog work. [Ribbon color policies](sankey-link-colors.md) separately add
+source-to-target gradients. Neither feature introduces arbitrary text-layout
+closures or unrestricted per-frame OCaml callbacks.

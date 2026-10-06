@@ -159,6 +159,14 @@ module Sankey = struct
     [@@deriving equal, sexp_of]
   end
 
+  module Link_color = struct
+    type t = Wire.Sankey.Link_color.t =
+      | Source
+      | Target
+      | Gradient
+    [@@deriving equal, sexp_of]
+  end
+
   type t = Wire.Sankey.t [@@deriving equal, sexp_of]
 
   let create
@@ -172,6 +180,7 @@ module Sankey = struct
         ?(link_opacity = 0.5)
         ?(min_link_width = 0.)
         ?(label_gap = 6.)
+        ?(link_color = Link_color.Source)
         ()
     =
     checked
@@ -186,6 +195,7 @@ module Sankey = struct
       ; link_opacity
       ; min_link_width
       ; label_gap
+      ; link_color
       }
       "invalid Sankey options: width [1,64], padding/gap/minimum link width [0,64], \
        iterations/radius [0,32], opacity [0,1]"
@@ -205,7 +215,7 @@ let create
       ?(sankey = Sankey.default)
       ()
   =
-  { Wire.version = 4L; axes; cartesian; pie; radar; candlestick; sankey }
+  { Wire.version = 5L; axes; cartesian; pie; radar; candlestick; sankey }
 ;;
 
 let default = create ()

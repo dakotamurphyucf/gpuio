@@ -15,7 +15,9 @@ including tokens, and supplies that immutable mapping to the native chart.
 pie slices and Sankey nodes, plus `rising` and `falling` candlestick keys. The
 namespaces are distinct: series 9, slice 9 and node 9 do not collide. A source's
 label, current position and numeric value do not determine its ordinal identity.
-A Sankey ribbon keeps the color of its source node, matching the existing painter.
+A Sankey ribbon defaults to its source node's color. The optional
+[ribbon policy](sankey-link-colors.md) instead uses its target color or blends
+between both resolved endpoint colors.
 Candlesticks retain hollow/filled movement cues independently of their colors.
 Rising means close > open; flat candles keep the existing falling-color convention.
 
@@ -77,7 +79,8 @@ subsequently advances options to version 4; data remains version 1.
 
 Current styles use **version -2**, appending [rich node labels](chart-node-labels.md),
 with bounded decoder caps of 64 KiB for style and 66 KiB for view. The current
-paired fixture is `chart-v4-node-labels-view.hex`; options/data remain 4/1.
+paired fixture is `chart-v5-link-colors-view.hex`; options/data are 5/1 after
+[ribbon color policies](sankey-link-colors.md).
 
 ## Scope and validation
 

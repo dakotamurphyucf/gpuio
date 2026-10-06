@@ -15,6 +15,13 @@ Three owner-authorized GPT-6.1 Sol agents contributed scoped walkthroughs in par
 Contributor guidance and a structural CI check keep new sources visible; neither
 file presence nor that check establishes documentation or platform acceptance.
 
+[Sankey ribbon color policies](evidence/sankey-link-colors-och41.md) now expose
+Source, Target and Gradient through the public OCaml API. Endpoint colors resolve
+on the worker and one retained mesh carries the whole-ribbon gradient. Paired
+codecs, native unit tests, GPU readback at four scales, full OCaml checks and
+root/fresh-installed macOS chart walkthroughs pass. Options schema is 5; style/data
+remain -2/1. Broader catalog and release qualification remain open.
+
 [Rich Sankey labels](evidence/chart-node-labels-och41.md) now provide bounded
 ID-keyed multiline captions, per-line font/color and explicit hiding through the
 public OCaml API. Native/protocol/Core/lint checks, the root gallery and a rerun

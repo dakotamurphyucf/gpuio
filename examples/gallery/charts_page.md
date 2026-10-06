@@ -233,3 +233,9 @@ node names in the data table. **Hide target label** submits an explicit empty
 line list for the target; it does not remove the node, its flow or semantic
 selection. A Ready notice names the current preset after preparation; a label
 change alone does not create a new source revision.
+
+Gradient flows and Target-colored flows use the same preset state/effect path.
+`Samples.Sankey_presentation.options` supplies `Sankey.Link_color.Gradient` or
+`Target`; source data and rich-label overrides remain separate. Color changes
+need no dataset publication, and Ready names the selected preset. The sample
+walkthrough explains endpoint colors and opacity.

@@ -105,6 +105,12 @@ pub enum FlowScale {
     Linear,
     Sqrt,
 }
+#[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
+pub enum LinkColor {
+    Source,
+    Target,
+    Gradient,
+}
 #[derive(Clone, Copy, Debug, PartialEq, BinProtWrite)]
 pub struct Sankey {
     pub node_width: f64,
@@ -117,6 +123,7 @@ pub struct Sankey {
     pub link_opacity: f64,
     pub min_link_width: f64,
     pub label_gap: f64,
+    pub link_color: LinkColor,
 }
 #[derive(Clone, Copy, Debug, PartialEq, BinProtWrite)]
 pub struct Options {
@@ -136,7 +143,7 @@ fn fraction(n: f64) -> bool {
 }
 impl Options {
     pub fn is_valid(&self) -> bool {
-        self.version == 4
+        self.version == 5
             && (2..=12).contains(&self.axes.ticks)
             && self.axes.x_format.is_valid()
             && self.axes.y_format.is_valid()
@@ -158,7 +165,7 @@ impl Options {
 impl Default for Options {
     fn default() -> Self {
         Self {
-            version: 4,
+            version: 5,
             axes: Axes {
                 x: true,
                 y: true,
@@ -197,6 +204,7 @@ impl Default for Options {
                 link_opacity: 0.5,
                 min_link_width: 0.,
                 label_gap: 6.,
+                link_color: LinkColor::Source,
             },
         }
     }

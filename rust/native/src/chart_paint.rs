@@ -10,7 +10,7 @@ use gpuio_protocol::{
     canvas::{Path as MeshPath, PathCommand, Point as MeshPoint, Transform},
     canvas_view::Viewport,
     chart_data::Data,
-    chart_options::Options,
+    chart_options::{LinkColor, Options},
     chart_sampling::Policy,
     chart_style::Style,
 };
@@ -65,6 +65,7 @@ pub enum Error {
 struct MeshDraw {
     mesh: mesh::Mesh,
     color: u32,
+    gradient_end: Option<u32>,
 }
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Layout {
@@ -206,10 +207,18 @@ impl Prepared {
                 let q = match *draw {
                     Draw::Mesh(index) => {
                         let draw = &self.meshes[index];
-                        canvas_paint::paint(
+                        let background = match draw.gradient_end {
+                            None => gpui::Background::from(gpui::rgba(draw.color)),
+                            Some(end) => gpui::linear_gradient(
+                                90.,
+                                gpui::linear_color_stop(gpui::rgba(draw.color), 0.),
+                                gpui::linear_color_stop(gpui::rgba(end), 1.),
+                            ),
+                        };
+                        canvas_paint::paint_background(
                             &draw.mesh,
                             &placement,
-                            draw.color,
+                            background,
                             &mut budget.meshes,
                             window,
                         )
@@ -292,6 +301,15 @@ struct Build<'a> {
 }
 impl Build<'_> {
     fn mesh(&mut self, path: &MeshPath, style: mesh::Style, color: u32) -> Result<(), Error> {
+        self.mesh_with_gradient(path, style, color, None)
+    }
+    fn mesh_with_gradient(
+        &mut self,
+        path: &MeshPath,
+        style: mesh::Style,
+        color: u32,
+        gradient_end: Option<u32>,
+    ) -> Result<(), Error> {
         check(self.cancel)?;
         let prepared =
             mesh::prepare_chart(path, style, self.tolerance, self.cancel).map_err(|error| {
@@ -316,6 +334,7 @@ impl Build<'_> {
         self.meshes.push(MeshDraw {
             mesh: prepared,
             color,
+            gradient_end,
         });
         Ok(())
     }
@@ -448,6 +467,7 @@ pub fn prepare(
         geometry::Error::RenderLimit => Error::RenderLimit,
     })?;
     let colors = crate::chart_colors::resolve(data, style, cancel)?;
+    let link_colors = crate::chart_colors::link_colors(data, &colors, cancel)?;
     let mut build = Build {
         meshes: vec![],
         quads: Vec::with_capacity(geometry.marks.len().min(MAX_QUADS)),
@@ -675,10 +695,22 @@ pub fn prepare(
                     end_top,
                     end_bottom,
                 } => {
-                    build.mesh(
+                    let geometry::Source::Edge(edge) = mark.source else {
+                        return Err(Error::InvalidInput);
+                    };
+                    let (source, target) = *link_colors.get(edge).ok_or(Error::InvalidInput)?;
+                    let source = alpha(source, options.sankey.link_opacity);
+                    let target = alpha(target, options.sankey.link_opacity);
+                    let (start, end) = match options.sankey.link_color {
+                        LinkColor::Source => (source, None),
+                        LinkColor::Target => (target, None),
+                        LinkColor::Gradient => (source, Some(target)),
+                    };
+                    build.mesh_with_gradient(
                         &ribbon(start_top, start_bottom, end_top, end_bottom),
                         mesh::Style::Fill,
-                        alpha(color, options.sankey.link_opacity),
+                        start,
+                        end,
                     )?;
                 }
             }

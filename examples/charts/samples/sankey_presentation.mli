@@ -8,6 +8,8 @@ type t =
   | Spaced
   | Rich_labels
   | Hidden_target
+  | Gradient
+  | Target
 [@@deriving equal]
 
 val all : t list

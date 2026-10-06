@@ -11,7 +11,7 @@ GPUIO_JOBS=2 ./scripts/gpuio build examples/gallery/main.exe
 
 Choose **Charts & data → Flow styling**. Switch among Default flows, Rounded nodes,
 Muted ribbons, Visible small flows, Spaced flow labels, Rich flow labels and Hide
-target label. Home/arrows preview a
+target label, Gradient flows and Target-colored flows. Home/arrows preview a
 flow; Enter selects it. Update chart samples increments the main flow. View data
 includes both nodes and all three edges, including the zero-valued edge. Local
 native checks target macOS; Linux desktop qualification remains deferred.
@@ -105,3 +105,20 @@ constructors' `Or_error.t` results explicitly instead of copying this sample's
 [style interface](../../../lib/core/chart_style.mli) describe validation and theme
 resolution. This example's hard-coded colors demonstrate overrides; a real app
 can use its theme colors when deriving the style.
+
+`Gradient` and `Target` are two additional `t` constructors in the chooser. Their
+`options` branches call `Chart_options.Sankey.create ~link_color:Gradient` and
+`~link_color:Target`; other presets retain the Source default. This is a typed
+choice, not a custom painter. The existing button → `set_flow_style` → `let%arr`
+path submits the changed options while the source handle and IDs remain stable.
+Native preparation resolves each endpoint's palette/ordinal color and applies
+`link_opacity` to both. A gradient spans each whole ribbon, including all its
+tessellated triangles.
+
+Try Gradient flows, select the main flow and update its value: the fill blends
+from Input's purple to Output's teal, while the selected raw value moves from
+100 to 101. Target-colored flows fills the ribbon using Output's color. The
+source-node legend still explains each node's color. To combine the gradient
+with quieter ribbons, add `~link_opacity:0.25` to that preset's constructor.
+See [ribbon color policies](../../../docs/design/sankey-link-colors.md) for the
+wire compatibility, opacity and ownership contract.

@@ -42,10 +42,13 @@ Sankey `labels` flag. The default options fixture is 100 bytes, with the existin
 256-byte decoder bound unchanged. Old options-3 view frames are rejected; the
 paired view fixture for that addition is `chart-v4-style-inspection-view.hex`.
 The subsequent [rich label contract](chart-node-labels.md) advances style -1 to -2;
-the current fixture is `chart-v4-node-labels-view.hex`. Options/data remain 4/1.
+that fixture is `chart-v4-node-labels-view.hex`. The subsequent
+[ribbon-color addition](sankey-link-colors.md) advances options to 5, with current
+fixture `chart-v5-link-colors-view.hex`; style/data remain -2/1.
 OCaml and Rust packages must match.
 
 Rich per-node multiline labels and per-line font/color have a separate
 [contract](chart-node-labels.md). Outer-column margins/above-middle label placement
-and source-to-target ribbon color gradients remain catalog work. This does not claim full
+remain catalog work. Source-to-target ribbon gradients have their own
+[typed color-policy contract](sankey-link-colors.md). This does not claim full
 upstream plotting-builder parity, VoiceOver or performance qualification.
