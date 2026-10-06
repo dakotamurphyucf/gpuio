@@ -6,6 +6,10 @@ streaming workloads; only the statically composed backend changes. This is not a
 new installed application API. Ordinary applications and CPU-only benchmarks keep
 their existing feature selection.
 
+Read the [generated OCaml bridge](backend/backend.md),
+[static registration walkthrough](backend/registration.md) and
+[probe package guides](../performance_probe/README.md) for code and ownership.
+
 Build before measuring, with no other compiler or GUI test running:
 
 ```sh

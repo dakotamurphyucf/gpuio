@@ -1,5 +1,8 @@
 # Growing-document qualification driver
 
+Read the [document growth implementation walkthrough](main.md) for reactive view
+selection, publication checkpoints and collector acknowledgements.
+
 OCH-17 workload with three passing optimized runs at a recorded checkpoint.
 See the [qualification evidence](../../docs/evidence/growing-document-och17.md)
 for exact sources, raw reports and remaining accessibility/presentation limits.

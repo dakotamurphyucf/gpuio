@@ -1,5 +1,8 @@
 # Focused and unfocused settled idle
 
+Read the [idle driver implementation walkthrough](main.md) for native editor
+ownership, focus choreography and interval boundaries.
+
 Qualification driver with [three full local macOS passes](../../docs/evidence/idle-performance-och17.md). The full reference window is 1200×800
 logical pixels, as declared in the performance plan. The two-second smoke passes both phases;
 three repeated 60-second measurements pass each phase. This uses public Eio/Bonsai

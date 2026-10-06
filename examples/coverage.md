@@ -347,37 +347,37 @@ Generated from [coverage.json](coverage.json). Read the [review guide](coverage-
 
 | Source parts | Role | Walkthrough | Review |
 | --- | --- | --- | --- |
-| [backend.ml](performance/backend/backend.ml) | generated-registration | Missing | pending |
-| [registration.rs](performance/backend/registration.rs) | generated-registration | Missing | pending |
-| [main.ml](performance/main.ml) | benchmark | [README.md](performance/README.md) | pending |
+| [backend.ml](performance/backend/backend.ml) | generated-registration | [backend.md](performance/backend/backend.md) | reviewed |
+| [registration.rs](performance/backend/registration.rs) | generated-registration | [registration.md](performance/backend/registration.md) | reviewed |
+| [main.ml](performance/main.ml) | benchmark | [main.md](performance/main.md) | reviewed |
 ## performance_document
 
 | Source parts | Role | Walkthrough | Review |
 | --- | --- | --- | --- |
-| [main.ml](performance_document/main.ml) | benchmark | [README.md](performance_document/README.md) | pending |
+| [main.ml](performance_document/main.ml) | benchmark | [main.md](performance_document/main.md) | reviewed |
 ## performance_idle
 
 | Source parts | Role | Walkthrough | Review |
 | --- | --- | --- | --- |
-| [main.ml](performance_idle/main.ml) | benchmark | [README.md](performance_idle/README.md) | pending |
+| [main.ml](performance_idle/main.ml) | benchmark | [main.md](performance_idle/main.md) | reviewed |
 ## performance_lifecycle
 
 | Source parts | Role | Walkthrough | Review |
 | --- | --- | --- | --- |
-| [main.ml](performance_lifecycle/main.ml) | benchmark | [README.md](performance_lifecycle/README.md) | pending |
+| [main.ml](performance_lifecycle/main.ml) | benchmark | [main.md](performance_lifecycle/main.md) | reviewed |
 ## performance_presented
 
 | Source parts | Role | Walkthrough | Review |
 | --- | --- | --- | --- |
-| [backend.ml](performance_presented/backend/backend.ml) | generated-registration | Missing | pending |
-| [registration.rs](performance_presented/backend/registration.rs) | generated-registration | Missing | pending |
+| [backend.ml](performance_presented/backend/backend.ml) | generated-registration | [backend.md](performance_presented/backend/backend.md) | reviewed |
+| [registration.rs](performance_presented/backend/registration.rs) | generated-registration | [registration.md](performance_presented/backend/registration.md) | reviewed |
 ## performance_probe
 
 | Source parts | Role | Walkthrough | Review |
 | --- | --- | --- | --- |
-| [gpuio_performance_probe.ml](performance_probe/ocaml/gpuio_performance_probe.ml), [gpuio_performance_probe.mli](performance_probe/ocaml/gpuio_performance_probe.mli) | benchmark | Missing | pending |
-| [lib.rs](performance_probe/rust/src/lib.rs) | benchmark | Missing | pending |
-| [presentation.rs](performance_probe/rust/src/presentation.rs) | benchmark | Missing | pending |
+| [gpuio_performance_probe.ml](performance_probe/ocaml/gpuio_performance_probe.ml), [gpuio_performance_probe.mli](performance_probe/ocaml/gpuio_performance_probe.mli) | benchmark | [gpuio_performance_probe.md](performance_probe/ocaml/gpuio_performance_probe.md) | reviewed |
+| [lib.rs](performance_probe/rust/src/lib.rs) | benchmark | [lib.md](performance_probe/rust/src/lib.md) | reviewed |
+| [presentation.rs](performance_probe/rust/src/presentation.rs) | benchmark | [presentation.md](performance_probe/rust/src/presentation.md) | reviewed |
 ## performance_streaming
 
 | Source parts | Role | Walkthrough | Review |
@@ -413,12 +413,12 @@ Generated from [coverage.json](coverage.json). Read the [review guide](coverage-
 
 | Source parts | Role | Walkthrough | Review |
 | --- | --- | --- | --- |
-| [backend.ml](resource_audit/backend/backend.ml) | generated-registration | Missing | pending |
-| [registration.rs](resource_audit/backend/registration.rs) | generated-registration | Missing | pending |
-| [main.ml](resource_audit/main.ml) | diagnostic | [README.md](resource_audit/README.md) | pending |
-| [gpuio_resource_audit.ml](resource_audit/ocaml/gpuio_resource_audit.ml), [gpuio_resource_audit.mli](resource_audit/ocaml/gpuio_resource_audit.mli) | diagnostic | Missing | pending |
-| [lib.rs](resource_audit/rust/src/lib.rs) | diagnostic | Missing | pending |
-| [metal.rs](resource_audit/rust/src/metal.rs) | diagnostic | Missing | pending |
+| [backend.ml](resource_audit/backend/backend.ml) | generated-registration | [backend.md](resource_audit/backend/backend.md) | reviewed |
+| [registration.rs](resource_audit/backend/registration.rs) | generated-registration | [registration.md](resource_audit/backend/registration.md) | reviewed |
+| [main.ml](resource_audit/main.ml) | diagnostic | [main.md](resource_audit/main.md) | reviewed |
+| [gpuio_resource_audit.ml](resource_audit/ocaml/gpuio_resource_audit.ml), [gpuio_resource_audit.mli](resource_audit/ocaml/gpuio_resource_audit.mli) | diagnostic | [gpuio_resource_audit.md](resource_audit/ocaml/gpuio_resource_audit.md) | reviewed |
+| [lib.rs](resource_audit/rust/src/lib.rs) | diagnostic | [lib.md](resource_audit/rust/src/lib.md) | reviewed |
+| [metal.rs](resource_audit/rust/src/metal.rs) | diagnostic | [metal.md](resource_audit/rust/src/metal.md) | reviewed |
 ## runtime
 
 | Source parts | Role | Walkthrough | Review |
@@ -497,4 +497,4 @@ Generated from [coverage.json](coverage.json). Read the [review guide](coverage-
 | --- | --- | --- | --- |
 | [main.ml](window_lifecycle/main.ml) | application-entry | [main.md](window_lifecycle/main.md) | reviewed |
 
-417 source files in 260 groups; 243 reviewed, 17 pending.
+417 source files in 260 groups; 260 reviewed, 0 pending.

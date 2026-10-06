@@ -101,6 +101,7 @@ Start with the small examples above before reading diagnostics or extension inte
   [window lifecycle](performance_lifecycle/README.md),
   [shared lifecycle workload](lifecycle_workload/README.md),
   [presentation timing](performance_presented/README.md),
+  [native measurement probe](performance_probe/README.md),
   [streaming](performance_streaming/README.md),
   [paged table history](performance_table/README.md), [resource audit](resource_audit/README.md).
   Read the measurement contract before running or interpreting a benchmark.

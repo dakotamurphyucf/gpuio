@@ -3,13 +3,13 @@
 [The checklist](coverage.md) maps every tracked `.ml`, `.mli` and `.rs` under
 `examples/` to one owner. An implementation and its adjacent interface normally
 share a row. Rust adapter sources have separate rows because their audience and
-ownership differ from ordinary OCaml application code. This initial inventory
-exposes unfinished work; it does not certify existing READMEs by their presence.
+ownership differ from ordinary OCaml application code. The inventory
+exposes omissions as examples evolve; it does not certify READMEs by their presence.
 
 `coverage.json` is the maintained source of the table. `walkthroughs` lists
 existing companions worth reviewing, or is empty when one is missing. `review`
 stays `pending` until a person or agent has read the source and checked the
-contents below. Existing older guides therefore start pending, too. `reviewed`
+contents below. New or substantially changed guides require renewed content review. `reviewed`
 means documentation review, not native input, accessibility, performance or
 platform qualification. Keep the evidence for those claims separate.
 

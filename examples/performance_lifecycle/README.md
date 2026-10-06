@@ -1,5 +1,8 @@
 # Window/resource lifecycle measurement
 
+Read the [launcher implementation walkthrough](main.md) for the shared workload
+call, fixed auditing options and acknowledged RSS checkpoints.
+
 This driver uses public OCaml APIs to open/exercise/close one 1200×800 window at
 a time in a single application process. Full mode has three warm-up cycles and
 30 measured cycles; smoke has one warm-up and three measured cycles.

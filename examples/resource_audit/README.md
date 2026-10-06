@@ -1,5 +1,13 @@
 # Native entity retention qualification
 
+## Source walkthroughs
+
+Read [main](main.md) for the collector handshake and shared workload, and
+[OCaml configuration](ocaml/gpuio_resource_audit.md) for the checked instance/interface.
+Generated [backend selection](backend/backend.md) and [Rust registration](backend/registration.md)
+explain static composition. The [native entity audit](rust/src/lib.md) and
+[Metal probe](rust/src/metal.md) explain instrumentation ownership and accounting limits.
+
 This separate statically composed backend enables GPUI `leak-detection` only for
 this audit. Do not use its timings as ordinary responsiveness evidence. It uses
 the same OCaml lifecycle workload as `performance_lifecycle`: images, Markdown,

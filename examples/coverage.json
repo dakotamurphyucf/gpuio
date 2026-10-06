@@ -2092,16 +2092,20 @@
         "examples/performance/backend/backend.ml"
       ],
       "role": "generated-registration",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/performance/backend/backend.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
         "examples/performance/backend/registration.rs"
       ],
       "role": "generated-registration",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/performance/backend/registration.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -2109,9 +2113,9 @@
       ],
       "role": "benchmark",
       "walkthroughs": [
-        "examples/performance/README.md"
+        "examples/performance/main.md"
       ],
-      "review": "pending"
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -2119,9 +2123,9 @@
       ],
       "role": "benchmark",
       "walkthroughs": [
-        "examples/performance_document/README.md"
+        "examples/performance_document/main.md"
       ],
-      "review": "pending"
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -2129,9 +2133,9 @@
       ],
       "role": "benchmark",
       "walkthroughs": [
-        "examples/performance_idle/README.md"
+        "examples/performance_idle/main.md"
       ],
-      "review": "pending"
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -2139,25 +2143,29 @@
       ],
       "role": "benchmark",
       "walkthroughs": [
-        "examples/performance_lifecycle/README.md"
+        "examples/performance_lifecycle/main.md"
       ],
-      "review": "pending"
+      "review": "reviewed"
     },
     {
       "sources": [
         "examples/performance_presented/backend/backend.ml"
       ],
       "role": "generated-registration",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/performance_presented/backend/backend.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
         "examples/performance_presented/backend/registration.rs"
       ],
       "role": "generated-registration",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/performance_presented/backend/registration.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -2165,24 +2173,30 @@
         "examples/performance_probe/ocaml/gpuio_performance_probe.mli"
       ],
       "role": "benchmark",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/performance_probe/ocaml/gpuio_performance_probe.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
         "examples/performance_probe/rust/src/lib.rs"
       ],
       "role": "benchmark",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/performance_probe/rust/src/lib.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
         "examples/performance_probe/rust/src/presentation.rs"
       ],
       "role": "benchmark",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/performance_probe/rust/src/presentation.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -2302,16 +2316,20 @@
         "examples/resource_audit/backend/backend.ml"
       ],
       "role": "generated-registration",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/resource_audit/backend/backend.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
         "examples/resource_audit/backend/registration.rs"
       ],
       "role": "generated-registration",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/resource_audit/backend/registration.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -2319,9 +2337,9 @@
       ],
       "role": "diagnostic",
       "walkthroughs": [
-        "examples/resource_audit/README.md"
+        "examples/resource_audit/main.md"
       ],
-      "review": "pending"
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -2329,24 +2347,30 @@
         "examples/resource_audit/ocaml/gpuio_resource_audit.mli"
       ],
       "role": "diagnostic",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/resource_audit/ocaml/gpuio_resource_audit.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
         "examples/resource_audit/rust/src/lib.rs"
       ],
       "role": "diagnostic",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/resource_audit/rust/src/lib.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
         "examples/resource_audit/rust/src/metal.rs"
       ],
       "role": "diagnostic",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/resource_audit/rust/src/metal.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [

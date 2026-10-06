@@ -580,3 +580,54 @@ Inventory/discovery, local Markdown file links and whitespace pass. Both example
 package schema fingerprints were compared with OCaml and Rust declarations. No
 new builds or graphical runs were performed for the prose-only changes; existing
 scoped evidence and build declarations retain their limits. OCH-48 stays open.
+
+
+## Completed example documentation acceptance
+
+Source base `d80e7b3`, 2026-10-06: the final 17 groups bring the inventory to
+**260 reviewed / 0 pending**, covering all **417 tracked OCaml/Rust source files**.
+Three owner-authorized GPT-6.1 Sol agents drafted disjoint source walkthroughs;
+the primary agent read every final guide and reconciled review corrections before
+marking its inventory row reviewed. Earlier sections preserve the batch history.
+
+The final batch covers resource-audit OCaml/native/Metal ownership and registration,
+frame/document/idle/lifecycle workloads, presentation-specific generated backends,
+and the performance probe's codecs, native phases and bounded Metal observations.
+These guides distinguish ordinary OCaml application usage from extension authorship
+and qualification instrumentation. Review corrected a generator command to use a
+fresh output directory, the lifecycle budget's baseline to the first of the final
+ten checkpoints, and compilation versus runtime schema-validation claims.
+
+Acceptance review:
+
+- Each inventoried source has explicit ownership and a reviewed adjacent companion
+  (interfaces and tightly related test/support modules share explanations where
+  appropriate). No historical/generated/native diagnostic category is hidden.
+- The main examples index and each owning README provide prose-link reading paths
+  to every guide. The structural audit enforces both without counting the coverage
+  table as navigation. Newcomers have the small counter as a starting point.
+- Guides explain actual named functions/types, Bonsai state/effects/reactive syntax,
+  GPUIO views/controllers and Eio/native lifetimes where used, with concrete traces
+  and adaptations. Pure/synchronous examples explicitly avoid invented layers.
+- Launch/build commands were checked against repository wrappers, Dune/Cargo targets
+  and collectors. Prior starter/gallery executions and the recent full isolated
+  `dune build @all @runtest @fmt -j 2` remain scoped evidence; see
+  [the source validation checkpoint](sankey-label-gallery.md). No benchmark budgets
+  or new graphical acceptance are inferred from reviewing commands.
+- Contributor/agent guidance requires adjacent-guide maintenance. All 260 reviews
+  were explicit content reviews; structural success alone cannot approve prose.
+
+Final local checks pass: `python3 scripts/audit_example_docs.py --write`,
+`python3 scripts/audit_example_docs.py`, `python3 -m py_compile
+scripts/audit_example_docs.py`, and `git diff --check`. The separate Markdown scans
+resolved **3,307 local file targets** and **41 local heading anchors**, with no
+missing destinations. External URLs were not comprehensively checked. No new
+builds, GUI tests or VoiceOver sessions ran for this final prose batch.
+
+OCH-48 documentation acceptance is complete. OCH-41, OCH-17 and milestone 07 remain
+open. The separate Metal plan now reflects the owner's October 5 VoiceOver
+authorization; this correction is not accessibility test evidence. Hosted run
+37460415879 covers older PR head `75ce53d`: Linux passed, the macOS foundation job
+failed Signal Studio responsive/input, Agent Workspace Diagram and both Metal
+presentation checks; fresh extracted-app checks were still running at this
+checkpoint. Their failures and remaining release gates are not waived by docs.

@@ -113,7 +113,8 @@ replacement session or retain native window resources.
    or retained native resources. Linux build/unit/consumer checks stay required;
    Linux desktop presentation remains OCH-47.
 
-VoiceOver is unrelated to this measurement and remains on the owner's hold.
+VoiceOver is unrelated to this measurement. The owner authorized VoiceOver
+validation again on 2026-10-05; its separate accessibility evidence is still required.
 
 
 ## Workload transport and predeclared budgets

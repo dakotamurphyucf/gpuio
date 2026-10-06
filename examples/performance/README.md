@@ -1,5 +1,9 @@
 # Loaded-history measurement
 
+Read the implementation walkthroughs for the [history driver](main.md),
+[OCaml backend initializer](backend/backend.md) and
+[generated Rust registration](backend/registration.md).
+
 This qualification workload uses the public Bonsai managed list and a private
 statically linked snapshot probe. It is not an installed GPUIO API. The ordinary
 native backend does not enable its profiler.

@@ -2,12 +2,12 @@
 
 Current handoff: 2026-10-06. Milestone **07 — Expanded v1 macOS validation and
 release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **OCH-48** adds adjacent
-Markdown walkthroughs for every example component; it is in progress in this milestone. This page separates
+Markdown walkthroughs for every example component; its documentation acceptance is complete. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
 [Example walkthrough coverage](evidence/example-walkthroughs-och48.md) now has an
-explicit inventory of 417 OCaml/Rust source files in 260 groups, with 243 groups
-reviewed and 17 still pending. The starter, palette/scope/gallery/theme guides,
+explicit inventory of 417 OCaml/Rust source files in 260 groups, with all 260 groups
+reviewed and none pending. The starter, palette/scope/gallery/theme guides,
 chart samples and application, controls/editors/menus, and Agent Chat startup/model/
 message/motion/conversation guides, gallery data/media pages and positioned-menu
 controllers explain actual application, Bonsai, GPUIO and Eio code.
@@ -85,7 +85,7 @@ gallery walkthroughs pass, including reorder/selection, fallback changes and
 scope teardown. Style envelope 0 requires matching bridge packages. Richer
 chart presentation options and broader catalog/release acceptance remain open.
 The [sample companion](../examples/charts/samples/ordinal_colors.md) adds partial
-OCH-48 coverage; the every-example inventory is still incomplete.
+OCH-48 coverage; the completed every-example inventory is linked above.
 
 [Stacked Cartesian charts](evidence/stacked-charts-och41.md) now add typed opt-in
 cumulative bars/areas, shared area sampling/curves and raw-value selection with
