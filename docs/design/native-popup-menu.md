@@ -88,8 +88,10 @@ Native icons now have [scoped pixel and lifecycle evidence](../evidence/native-m
 The [two-window follow-up](../evidence/menu-multiwindow-och41.md) qualifies inactive
 Show rejection, independent dispatch, editor target changes/removal, activation
 loss and owner close with recovery on an independently installed macOS consumer.
-Cancellation before queued tracking starts and consolidated gallery/platform
-acceptance remain open; these results do not imply all lifecycle cases are complete.
+[Queued-start qualification](../evidence/menu-popup-queue-och41.md) now covers
+Close, observer/definition replacement, hide/disable, owner removal/remount and
+window close before the scheduled tracking callback. Consolidated gallery/platform
+acceptance remains open; these results do not imply every OS interleaving is tested.
 
 ## Tracking-loop scheduling correction
 

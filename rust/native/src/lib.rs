@@ -163,6 +163,11 @@ pub fn run_native_ui_test() {
     host::native_test::run();
 }
 
+#[cfg(all(target_os = "macos", feature = "native-tests"))]
+pub fn run_native_menu_popup_queue_test() {
+    host::run_native_menu_popup_queue_test();
+}
+
 #[cfg(feature = "native-tests")]
 pub fn run_native_scroll_test() {
     host::scroll_test::run();

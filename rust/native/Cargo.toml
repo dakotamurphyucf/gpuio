@@ -96,6 +96,11 @@ harness = false
 required-features = ["native-tests"]
 
 [[test]]
+name = "native_menu_popup_queue"
+harness = false
+required-features = ["native-tests"]
+
+[[test]]
 name = "native_editor"
 path = "tests/native_editor.rs"
 harness = false

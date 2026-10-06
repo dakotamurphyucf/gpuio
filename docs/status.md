@@ -10,7 +10,10 @@ a public two-window example and passing installed-consumer macOS qualification.
 The expanded test exposed a popup remaining open after its owner became inactive;
 the activation observer now cancels that owner's native tracking lease without
 restoring its focus. Independent dispatch, editor focus/removal guards and owner
-close/recovery pass. Queued-start and broader catalog/release acceptance remain open.
+close/recovery pass. A separate [real-AppKit queued-start harness](evidence/menu-popup-queue-och41.md)
+also passes Close, observer/definition replacement, hide/disable, owner
+removal/remount and window-close cases before tracking begins, with a current
+popup positive control. Broader catalog/release acceptance remains open.
 
 [Native popup SVG icons](evidence/native-menu-icons-och41.md) now have typed
 Core/Bonsai APIs, bounded worker rasterization and AppKit template snapshots.

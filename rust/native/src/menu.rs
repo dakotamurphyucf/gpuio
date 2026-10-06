@@ -26,6 +26,10 @@ mod popup_icon;
 #[path = "menu_command_host.rs"]
 mod command_host;
 
+#[cfg(all(target_os = "macos", feature = "native-tests"))]
+#[path = "menu_popup_queue_test.rs"]
+pub(crate) mod queued_test;
+
 type Geometry = Rc<Cell<Bounds<Pixels>>>;
 #[cfg(all(test, feature = "native-image-tests"))]
 #[path = "editor_menu_test.rs"]

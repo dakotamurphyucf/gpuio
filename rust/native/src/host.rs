@@ -136,6 +136,8 @@ mod loading;
 mod measured_list_layout;
 #[path = "menu.rs"]
 mod menu;
+#[cfg(all(target_os = "macos", feature = "native-tests"))]
+pub(crate) use menu::queued_test::run as run_native_menu_popup_queue_test;
 #[path = "menu_platform.rs"]
 mod menu_platform;
 #[path = "navigation_view.rs"]

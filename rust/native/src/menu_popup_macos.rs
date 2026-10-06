@@ -70,6 +70,14 @@ struct State {
 thread_local! {
     static ACTIVE: RefCell<Weak<State>> = const { RefCell::new(Weak::new()) };
 }
+#[cfg(feature = "native-tests")]
+thread_local! {
+    static TRACKING_CALLS: Cell<usize> = const { Cell::new(0) };
+}
+#[cfg(feature = "native-tests")]
+pub(super) fn tracking_calls() -> usize {
+    TRACKING_CALLS.with(Cell::get)
+}
 
 /// The View owns this lease. Its destruction invalidates selection immediately,
 /// and schedules AppKit cancellation without holding the View/Session borrow.
@@ -109,6 +117,8 @@ impl Runner {
                 state.view.bounds().size.height - y
             },
         );
+        #[cfg(feature = "native-tests")]
+        TRACKING_CALLS.with(|calls| calls.set(calls.get() + 1));
         state
             .menu
             .popUpMenuPositioningItem_atLocation_inView(None, location, Some(&state.view));

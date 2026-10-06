@@ -97,8 +97,10 @@ consumer and deferred desktop evidence remain separate.
 The [two-window follow-up](../evidence/menu-multiwindow-och41.md) now qualifies
 independent window dispatch, inactive Show rejection, editor target changes and
 removal, activation-loss cancellation and window-close recovery on an installed
-macOS consumer. Queued-start cancellation and the remaining consolidated native
-menu/palette family coverage remain open.
+macOS consumer. The [queued-start follow-up](../evidence/menu-popup-queue-och41.md)
+adds deterministic same-update cancellation/replacement/removal cases through
+the real AppKit scheduler, including current-owner recovery. The remaining
+consolidated native menu/palette family coverage stays open.
 
 The remaining native popup lifecycle and consolidated palette/menu family
 qualification are catalog work, not newly approved post-v1 exclusions. Positioned
