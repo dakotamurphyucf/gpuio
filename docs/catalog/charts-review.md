@@ -37,6 +37,9 @@ implicit color map keyed by datum ID.
 Categorical data can be assigned numeric positions by an application, but doing
 so changes the data model and does not install category axis labels. This is an
 important remaining surface difference, not complete categorical-scale parity.
+The [categorical implementation draft](../design/categorical-charts.md) specifies
+typed identity, point/band placement, sampling and original-data requirements;
+it is planning evidence, not an implemented capability.
 
 ## Plot helpers and styling
 
