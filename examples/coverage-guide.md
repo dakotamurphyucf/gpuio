@@ -39,6 +39,15 @@ silently omit a new maintained component because it uses a different extension.
 
 ## Content review
 
+Assume the reader is new to Bonsai as well as GPUIO. Explain the actual example's
+implementation: name and link its functions, types and API calls, and describe
+how they cooperate. Introduce graph construction, reactive values, `let%arr`,
+`match%sub`, effects and lifecycle hooks when that example uses them. Trace an
+event through the specific handler/model update/view derivation, including which
+parts stay native. A list of library names or a visual feature tour is not enough.
+Use small source excerpts where they clarify unfamiliar syntax; avoid copying
+the entire file or paraphrasing every line without explaining why it exists.
+
 For each independently reusable component, add an adjacent `component.md`. A
 single-component application may use a complete adjacent `README.md`. A group of
 support modules may share a guide if that guide links and explains each part.

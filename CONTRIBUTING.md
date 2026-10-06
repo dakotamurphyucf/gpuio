@@ -44,3 +44,7 @@ commands change. Maintain the explicit [coverage inventory](examples/coverage-gu
 and run `python3 scripts/audit_example_docs.py`; a present file or passing build
 does not substitute for reviewing its explanation. Keep application, Bonsai,
 GPUIO and Eio/native responsibilities clear, including lifetime and adaptation.
+Assume readers are also new to Bonsai: explain the example's actual functions,
+types and GPUIO calls, introduce the reactive syntax it uses, and trace a concrete
+event through effects, state and view updates. A feature overview alone is not a
+component walkthrough.

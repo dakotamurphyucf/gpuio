@@ -45,6 +45,9 @@ its owning README. Keep it current when behavior, structure or commands change.
 Follow `examples/coverage-guide.md`, maintain its source inventory and run
 `python3 scripts/audit_example_docs.py`. Review explanations against the actual
 code; source/file coverage alone does not prove onboarding or platform acceptance.
+Assume newcomers are new to Bonsai too. Explain relevant code implementation,
+reactive syntax, functions/types and GPUIO API usage, with a concrete interaction
+trace; do not substitute a feature tour for a code walkthrough.
 
 Use `scratch/` for local experiments, logs, implementation notes and handoffs that
 must survive context compaction. Create it when absent; it is ignored by Git and
