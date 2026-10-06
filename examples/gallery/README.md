@@ -1055,3 +1055,9 @@ under source reordering and an explicit unknown-key policy.
 
 [Chart inspection presets](../charts/samples/inspection.md) explain native card, crosshair and marker
 configuration and their separation from Bonsai state and scoped source ownership.
+
+**Charts & data → Flow styling** demonstrates the public Sankey presentation
+options. The [adjacent sample walkthrough](../charts/samples/sankey_presentation.md)
+explains typed node/edge IDs, option-only changes, tiny/zero flows and native
+selection versus raw values. The [page guide](charts_page.md) connects it to
+Bonsai state and the scoped source owner.

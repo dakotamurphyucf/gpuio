@@ -574,7 +574,14 @@ pub fn prepare(
                     };
                     build.quad(rect, style.bar_radius, start, end, horizontal, None)?;
                 }
-                geometry::Shape::Node(rect) => build.quad(rect, 1., color, None, false, None)?,
+                geometry::Shape::Node(rect) => build.quad(
+                    rect,
+                    options.sankey.node_corner_radius,
+                    color,
+                    None,
+                    false,
+                    None,
+                )?,
                 geometry::Shape::Candle {
                     center,
                     left,
@@ -666,7 +673,7 @@ pub fn prepare(
                     build.mesh(
                         &ribbon(start_top, start_bottom, end_top, end_bottom),
                         mesh::Style::Fill,
-                        alpha(color, 0.5),
+                        alpha(color, options.sankey.link_opacity),
                     )?;
                 }
             }
@@ -715,3 +722,6 @@ mod tests;
 
 #[cfg(test)]
 mod ordinal_tests;
+
+#[cfg(test)]
+mod sankey_tests;

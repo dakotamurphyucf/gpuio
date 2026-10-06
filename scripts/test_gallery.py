@@ -4693,6 +4693,67 @@ def exercise_chart_ordinal_colors(mac, images):
         reveal_gallery_control(mac, 'Stacked bars', 'AXButton')
 
 
+def exercise_sankey_presentation(mac, images):
+    reveal_gallery_control(mac, 'Flow styling', 'AXButton')
+    mac.press(TITLE, 'Flow styling')
+    mac.wait_text(TITLE, 'Ready: Flow styling · 3 source values')
+    with tempfile.TemporaryDirectory(prefix='gpuio-sankey-presentation-') as temporary:
+        directory = images or Path(temporary)
+        baseline = None
+        for label in ['Default flows', 'Rounded nodes', 'Muted ribbons',
+                      'Visible small flows', 'Spaced flow labels', 'Default flows']:
+            reveal_gallery_control(mac, label, 'AXButton')
+            mac.press(TITLE, label)
+            mac.wait_text(TITLE, 'Ready: Flow styling · 3 source values · Vertical · '
+                          + label + ' · Default inspection')
+            focus_gallery_control(mac, 'Chart preview: Flow styling', 'AXGroup')
+            mac.key(115)
+            mac.key(36)
+            mac.wait_text(TITLE, 'Selected: Input → Output · 100')
+            if label == 'Visible small flows':
+                mac.key(124)
+                mac.key(36)
+                mac.wait_text(TITLE, 'Selected: Input → Output · 0.01')
+            mac.key(53)
+            mac.wait_text(TITLE, 'Select a chart value to inspect it.')
+            reveal_gallery_control(mac, 'Chart preview: Flow styling', 'AXGroup')
+            chart = mac.wait_find(TITLE, 'Chart preview: Flow styling', 'AXGroup')
+            window = mac.window(TITLE)
+            try:
+                x,y,w,h = element_rect(mac,chart)
+                wx,wy,ww,wh = element_rect(mac,window)
+            finally:
+                mac.release(chart)
+                mac.release(window)
+            GalleryMouse(mac).send(5,(wx+ww-25,wy+110))
+            time.sleep(.1)
+            path=directory/('gallery-sankey-'+label.lower().replace(' ','-')+'.png')
+            screenshot(mac,path,title=TITLE)
+            pixels=read_png(mac,path)
+            assert wy <= y and y+h <= wy+wh
+            samples=[pixels.rgb((x+dx-wx)*pixels.width/ww,(y+dy-wy)*pixels.height/wh)
+                     for dy in range(1,int(h)-1) for dx in range(1,int(w)-1)]
+            if label == 'Default flows':
+                baseline=samples
+            else:
+                assert len(samples)==len(baseline)
+                changed=sum(max(abs(a-b) for a,b in zip(p,q))>8 for p,q in zip(samples,baseline))
+                assert changed>20,('Sankey option did not change plot pixels',label,changed)
+                print('SANKEY_PRESENTATION_PIXELS',label,changed,flush=True)
+        focus_gallery_control(mac,'Chart preview: Flow styling','AXGroup')
+        mac.key(115)
+        mac.key(36)
+        mac.wait_text(TITLE,'Selected: Input → Output · 100')
+        mac.press(TITLE,'Update chart samples')
+        mac.wait_text(TITLE,'Selected: Input → Output · 101')
+        mac.press(TITLE,'View data')
+        mac.release(mac.wait_find(TITLE,'Chart preview: Flow styling · original data','AXTable'))
+        mac.key(119)
+        mac.release(mac.wait_find(TITLE,'Row 5:', 'AXRow', contains=True,search_files=True))
+        mac.press(TITLE,'Back to chart')
+        reveal_gallery_control(mac,'Stacked bars','AXButton')
+
+
 def exercise_charts(mac, images):
     mac.press(TITLE, 'Charts & data')
     cases = [
@@ -4746,6 +4807,7 @@ def exercise_charts(mac, images):
         mac.release(mac.wait_find(TITLE, 'View data', 'AXButton'))
     exercise_chart_inspection(mac, images)
     exercise_chart_ordinal_colors(mac, images)
+    exercise_sankey_presentation(mac, images)
     for family in ['Stacked bars', 'Stacked areas']:
         mac.press(TITLE, family)
         mac.wait_text(TITLE, f'Ready: {family} · 15 source values · Vertical · Stacked')
@@ -4840,7 +4902,7 @@ def exercise_charts(mac, images):
     wait_for_resource_cleanup(mac)
     mac.wait_text(TITLE, 'Registered source bytes: 0')
     print('GALLERY_CHARTS_OK: seven families plus mixed layers, four Cartesian directions, native keyboard selection, '
-          'inspection card/crosshair/marker pixels, categorical point/band layout, stable ordinal legend colors through reorder/unknown fallback, stacked bars/areas with retained selection and raw missing values, category identity, data updates, bounded original-data pages, styles and scope cleanup', flush=True)
+          'inspection card/crosshair/marker and Sankey presentation pixels, categorical point/band layout, stable ordinal legend colors through reorder/unknown fallback, stacked bars/areas with retained selection and raw missing values, category identity, data updates, bounded original-data pages, styles and scope cleanup', flush=True)
 
 
 class GalleryMouse:

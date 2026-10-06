@@ -34,7 +34,7 @@ macOS has local native acceptance; Linux desktop qualification is deferred.
 ## Data and lifetime
 
 `Mode.t` selects a named family, mixed layers, categorical data, stacked bars or
-areas, or the ordinal-color example. Its `data` function builds immutable
+areas, the ordinal-color example, or Flow styling. Its `data` function builds immutable
 `Chart_data` values with validated numeric domains, source IDs and resource
 bounds. IDs identify values; labels describe them. Missing line/area values are
 explicit gaps. The sample's mode and phase select new data without changing the
@@ -155,3 +155,13 @@ source publication, selected source ID and original-data table. Native hover and
 keyboard previews use the prepared style; a matching Ready notice names the
 preset. Crosshair/marker layout and anchored-card placement run natively. No
 Bonsai update is needed for ordinary pointer movement within a prepared chart.
+
+## Sankey presentation
+
+Flow styling uses the [Sankey presentation sample](../charts/samples/sankey_presentation.md):
+main, tiny and zero parallel flows with separate node/edge IDs. A separate Bonsai
+state selects node radius, ribbon opacity, minimum width or label gap presets.
+Only this mode applies those sample options; other modes retain Sankey defaults.
+The usual source generation, selection and original-data paths stay in use.
+Minimum width changes native paint/hit geometry without changing the value 0.01;
+zero flows remain available only through original data.

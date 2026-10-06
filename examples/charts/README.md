@@ -76,3 +76,7 @@ under source reordering and an explicit unknown-key policy.
 
 [Chart inspection presets](samples/inspection.md) explain native card, crosshair and marker
 configuration and their separation from Bonsai state and scoped source ownership.
+
+The gallery's **Flow styling** mode uses the pure [Sankey presentation
+sample](samples/sankey_presentation.md). It demonstrates node rounding, ribbon
+opacity, minimum visible thickness and label spacing, including tiny/zero flows.

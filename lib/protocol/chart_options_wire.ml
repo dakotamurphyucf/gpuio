@@ -143,6 +143,10 @@ module Sankey = struct
     ; scale : Scale.t
     ; iterations : int64
     ; labels : bool
+    ; node_corner_radius : float
+    ; link_opacity : float
+    ; min_link_width : float
+    ; label_gap : float
     }
   [@@deriving bin_io, equal, sexp_of]
 
@@ -150,6 +154,10 @@ module Sankey = struct
     between t.node_width 1. 64.
     && between t.node_padding 0. 64.
     && Int64.(t.iterations >= 0L && t.iterations <= 32L)
+    && between t.node_corner_radius 0. 32.
+    && between t.link_opacity 0. 1.
+    && between t.min_link_width 0. 64.
+    && between t.label_gap 0. 64.
   ;;
 end
 
@@ -165,7 +173,7 @@ type t =
 [@@deriving bin_io, equal, sexp_of]
 
 let valid t =
-  Int64.equal t.version 3L
+  Int64.equal t.version 4L
   && Axes.valid t.axes
   && Cartesian.valid t.cartesian
   && Pie.valid t.pie

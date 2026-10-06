@@ -5,6 +5,15 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **O
 Markdown walkthroughs for every example component; it is planned in this milestone. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
+[Sankey presentation controls](evidence/sankey-presentation-och41.md) now expose
+validated node corners, ribbon opacity/minimum thickness and label spacing.
+Native/protocol/OCaml/lint checks and root/fresh-installed macOS chart walkthroughs
+pass. Widened tiny flows retain their raw value and identity; zero flows remain
+absent. Options schema 4 requires matching bridge packages. Rich multiline labels,
+ribbon gradients and broader catalog/release acceptance remain open. The adjacent
+[sample walkthrough](../examples/charts/samples/sankey_presentation.md) adds partial
+OCH-48 coverage.
+
 [Native chart inspection controls](evidence/chart-inspection-och41.md) now expose
 typed card placement/appearance, crosshair axes/dashes/bands and marker styling.
 Clean native/protocol/OCaml/lint checks and full root/fresh-installed macOS chart

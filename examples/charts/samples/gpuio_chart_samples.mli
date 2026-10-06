@@ -56,3 +56,4 @@ module Ordinal_colors : sig
 end
 
 module Inspection : module type of Inspection
+module Sankey_presentation = Sankey_presentation

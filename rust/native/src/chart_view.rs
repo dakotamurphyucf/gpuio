@@ -271,7 +271,7 @@ impl State {
             let r = placement.rect;
             let backed = matches!(
                 label.kind,
-                crate::chart_geometry::LabelKind::Flow
+                crate::chart_geometry::LabelKind::Flow { .. }
                     | crate::chart_geometry::LabelKind::Series(_)
             ) || (matches!(label.kind, crate::chart_geometry::LabelKind::Radial)
                 && matches!(

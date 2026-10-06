@@ -168,6 +168,10 @@ module Sankey = struct
         ?(scale = Scale.Linear)
         ?(iterations = 6)
         ?(labels = true)
+        ?(node_corner_radius = 1.)
+        ?(link_opacity = 0.5)
+        ?(min_link_width = 0.)
+        ?(label_gap = 6.)
         ()
     =
     checked
@@ -178,8 +182,13 @@ module Sankey = struct
       ; scale
       ; iterations = Int64.of_int iterations
       ; labels
+      ; node_corner_radius
+      ; link_opacity
+      ; min_link_width
+      ; label_gap
       }
-      "chart Sankey width must be in [1,64], padding in [0,64], iterations in [0,32]"
+      "invalid Sankey options: width [1,64], padding/gap/minimum link width [0,64], \
+       iterations/radius [0,32], opacity [0,1]"
   ;;
 
   let default = create () |> Or_error.ok_exn
@@ -196,7 +205,7 @@ let create
       ?(sankey = Sankey.default)
       ()
   =
-  { Wire.version = 3L; axes; cartesian; pie; radar; candlestick; sankey }
+  { Wire.version = 4L; axes; cartesian; pie; radar; candlestick; sankey }
 ;;
 
 let default = create ()

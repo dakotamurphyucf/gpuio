@@ -38,7 +38,7 @@ fn bounded_chart_view_and_transaction_match_independent_fixture() {
     use gpuio_protocol::{HandlerId, NodeId, WindowId, decode, v1::*};
     let config = config();
     let bytes = encode(&config);
-    let fixture = include_str!("../../../test/fixtures/chart-v3-style-inspection-view.hex").trim();
+    let fixture = include_str!("../../../test/fixtures/chart-v4-style-inspection-view.hex").trim();
     assert_eq!(hex(&bytes), fixture);
     assert_eq!(decode_chart_view_config(&bytes), Ok(config.clone()));
     for end in 0..bytes.len() {

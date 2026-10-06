@@ -14,7 +14,7 @@ impl Decoder<'_> {
     }
     pub(super) fn chart_options(&mut self) -> Result<Options, DecodeError> {
         let version = self.int()?;
-        if version != 3 {
+        if version != 4 {
             return Err(DecodeError::Malformed);
         }
         let options = Options {
@@ -88,6 +88,10 @@ impl Decoder<'_> {
                 },
                 iterations: self.int()?,
                 labels: self.boolean()?,
+                node_corner_radius: self.float()?,
+                link_opacity: self.float()?,
+                min_link_width: self.float()?,
+                label_gap: self.float()?,
             },
         };
         if options.is_valid() {

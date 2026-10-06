@@ -113,6 +113,10 @@ pub struct Sankey {
     pub scale: FlowScale,
     pub iterations: i64,
     pub labels: bool,
+    pub node_corner_radius: f64,
+    pub link_opacity: f64,
+    pub min_link_width: f64,
+    pub label_gap: f64,
 }
 #[derive(Clone, Copy, Debug, PartialEq, BinProtWrite)]
 pub struct Options {
@@ -132,7 +136,7 @@ fn fraction(n: f64) -> bool {
 }
 impl Options {
     pub fn is_valid(&self) -> bool {
-        self.version == 3
+        self.version == 4
             && (2..=12).contains(&self.axes.ticks)
             && self.axes.x_format.is_valid()
             && self.axes.y_format.is_valid()
@@ -145,12 +149,16 @@ impl Options {
             && between(self.sankey.node_width, 1., 64.)
             && between(self.sankey.node_padding, 0., 64.)
             && (0..=32).contains(&self.sankey.iterations)
+            && between(self.sankey.node_corner_radius, 0., 32.)
+            && between(self.sankey.link_opacity, 0., 1.)
+            && between(self.sankey.min_link_width, 0., 64.)
+            && between(self.sankey.label_gap, 0., 64.)
     }
 }
 impl Default for Options {
     fn default() -> Self {
         Self {
-            version: 3,
+            version: 4,
             axes: Axes {
                 x: true,
                 y: true,
@@ -185,6 +193,10 @@ impl Default for Options {
                 scale: FlowScale::Linear,
                 iterations: 6,
                 labels: true,
+                node_corner_radius: 1.,
+                link_opacity: 0.5,
+                min_link_width: 0.,
+                label_gap: 6.,
             },
         }
     }

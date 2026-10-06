@@ -33,7 +33,7 @@ let%expect_test "default chart options match independent fixed-width wire fixtur
      |> List.map ~f:(fun c -> sprintf "%02x" (Char.to_int c))
      |> String.concat);
   [%expect
-    {| 030101010500000000009a9999999999e93f00000000000000000000000000000000000001040101666666666666e63f0000000000003040000000000000284003000601 |}]
+    {| 040101010500000000009a9999999999e93f00000000000000000000000000000000000001040101666666666666e63f0000000000003040000000000000284003000601000000000000f03f000000000000e03f00000000000000000000000000001840 |}]
 ;;
 
 let%expect_test "typed construction rejects invalid geometry and formatting bounds" =
@@ -61,6 +61,7 @@ let%expect_test "typed construction rejects invalid geometry and formatting boun
   List.iter
     [ { wire with version = 1L }
     ; { wire with version = 2L }
+    ; { wire with version = 3L }
     ; { wire with axes = { wire.axes with x_format = Fixed 7L } }
     ; { wire with pie = { wire.pie with inner_radius = Float.nan } }
     ; { wire with sankey = { wire.sankey with iterations = Int64.max_value } }
@@ -123,7 +124,7 @@ let%expect_test "category layout options validate padding and append paired payl
     Bin_prot.Utils.bin_dump W.bin_writer_t (O.Expert.to_wire config)
     |> Bigstring.to_string
   in
-  assert (Char.to_int bytes.[0] = 3);
+  assert (Char.to_int bytes.[0] = 4);
   print_endline
     (String.sub bytes ~pos:18 ~len:9
      |> String.to_list
@@ -142,8 +143,47 @@ let%expect_test "stacking is opt-in with a paired versioned wire tag" =
       let wire = O.Expert.to_wire options in
       assert (O.equal options (O.Expert.of_wire wire |> Or_error.ok_exn));
       let bytes = Bin_prot.Utils.bin_dump W.bin_writer_t wire |> Bigstring.to_string in
-      assert (Char.to_int bytes.[0] = 3);
+      assert (Char.to_int bytes.[0] = 4);
       assert (Char.to_int bytes.[19] = tag));
-  print_endline "options v3: grouped=0 stacked=1; default grouped";
-  [%expect {| options v3: grouped=0 stacked=1; default grouped |}]
+  print_endline "options v4: grouped=0 stacked=1; default grouped";
+  [%expect {| options v4: grouped=0 stacked=1; default grouped |}]
+;;
+
+let%expect_test "Sankey presentation preserves defaults and validates decoded overrides" =
+  let options =
+    O.create
+      ~sankey:
+        (O.Sankey.create
+           ~node_corner_radius:12.
+           ~link_opacity:0.8
+           ~min_link_width:8.
+           ~label_gap:24.
+           ()
+         |> Or_error.ok_exn)
+      ()
+  in
+  let wire = O.Expert.to_wire options in
+  assert (O.equal options (O.Expert.of_wire wire |> Or_error.ok_exn));
+  List.iter [ Float.nan; Float.infinity; Float.neg_infinity; -1.; 65. ] ~f:(fun n ->
+    assert (Result.is_error (O.Sankey.create ~node_corner_radius:n ()));
+    assert (Result.is_error (O.Sankey.create ~link_opacity:n ()));
+    assert (Result.is_error (O.Sankey.create ~min_link_width:n ()));
+    assert (Result.is_error (O.Sankey.create ~label_gap:n ()));
+    List.iter
+      [ { wire.sankey with node_corner_radius = n }
+      ; { wire.sankey with link_opacity = n }
+      ; { wire.sankey with min_link_width = n }
+      ; { wire.sankey with label_gap = n }
+      ]
+      ~f:(fun sankey -> assert (Result.is_error (O.Expert.of_wire { wire with sankey }))));
+  assert (Result.is_error (O.Sankey.create ~node_corner_radius:32.01 ()));
+  assert (Result.is_error (O.Sankey.create ~link_opacity:1.01 ()));
+  let defaults = (O.Expert.to_wire O.default).sankey in
+  print_s
+    [%sexp
+      (defaults.node_corner_radius : float)
+    , (defaults.link_opacity : float)
+    , (defaults.min_link_width : float)
+    , (defaults.label_gap : float)];
+  [%expect {| (1 0.5 0 6) |}]
 ;;

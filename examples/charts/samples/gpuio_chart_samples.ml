@@ -330,3 +330,4 @@ let description preset family =
 ;;
 
 module Inspection = Inspection
+module Sankey_presentation = Sankey_presentation

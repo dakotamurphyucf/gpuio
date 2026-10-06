@@ -20,11 +20,12 @@ module Mode = struct
     | Stacked_bars
     | Stacked_areas
     | Ordinal_colors
+    | Flow_styling
   [@@deriving equal]
 
   let all =
     List.map Family.all ~f:(fun f -> Family f)
-    @ [ Mixed; Categorical; Stacked_bars; Stacked_areas; Ordinal_colors ]
+    @ [ Mixed; Categorical; Stacked_bars; Stacked_areas; Ordinal_colors; Flow_styling ]
   ;;
 
   let label = function
@@ -34,6 +35,7 @@ module Mode = struct
     | Stacked_bars -> "Stacked bars"
     | Stacked_areas -> "Stacked areas"
     | Ordinal_colors -> "Ordinal colors"
+    | Flow_styling -> "Flow styling"
   ;;
 
   let data t phase =
@@ -44,6 +46,7 @@ module Mode = struct
     | Stacked_bars -> Samples.Stacked.data_exn ~area:false phase
     | Stacked_areas -> Samples.Stacked.data_exn ~area:true phase
     | Ordinal_colors -> Samples.Ordinal_colors.data_exn phase
+    | Flow_styling -> Samples.Sankey_presentation.data_exn phase
   ;;
 end
 
@@ -118,6 +121,7 @@ let component app window palette graph =
       graph
   in
   let inspection, set_inspection = B.state Samples.Inspection.Default graph in
+  let flow_style, set_flow_style = B.state Samples.Sankey_presentation.Default graph in
   let horizontal, toggle_horizontal = B.toggle ~default_model:false graph in
   let reversed, toggle_reversed = B.toggle ~default_model:false graph in
   let category_layout, set_category_layout = B.state Category_layout.Auto graph in
@@ -135,6 +139,8 @@ let component app window palette graph =
   and resources = resources
   and current_mode = B.Expert.Var.value mode
   and selection = B.Expert.Var.value selected
+  and flow_style = flow_style
+  and set_flow_style = set_flow_style
   and inspection = inspection
   and set_inspection = set_inspection
   and horizontal = horizontal
@@ -200,6 +206,8 @@ let component app window palette graph =
               then
                 direction
                 ^ if unknown_color then " · Explicit unknown" else " · Palette fallback"
+              else if Mode.equal current_mode Flow_styling
+              then direction ^ " · " ^ Samples.Sankey_presentation.label flow_style
               else direction)
              (Samples.Inspection.label inspection))
       | Failed e -> set_notice (Sexp.to_string_hum [%sexp (e : Chart.Error.t)])
@@ -216,10 +224,14 @@ let component app window palette graph =
     let stack_mode =
       match current_mode with
       | Mode.Stacked_bars | Stacked_areas -> true
-      | Family _ | Mixed | Categorical | Ordinal_colors -> false
+      | Family _ | Mixed | Categorical | Ordinal_colors | Flow_styling -> false
     in
     let options =
       Chart_options.create
+        ~sankey:
+          (if Mode.equal current_mode Flow_styling
+           then Samples.Sankey_presentation.options flow_style
+           else Chart_options.Sankey.default)
         ~cartesian:
           (Chart_options.Cartesian.create
              ~orientation
@@ -308,6 +320,18 @@ let component app window palette graph =
                      ~selected:(Category_layout.equal candidate category_layout)
                      (Category_layout.label candidate)
                      (set_category_layout candidate)))
+            ]
+          else [])
+       @ (if Mode.equal current_mode Flow_styling
+          then
+            [ V.row
+                ~style:(style [ Gap (px 6.); Wrap Wrap ])
+                (List.map Samples.Sankey_presentation.all ~f:(fun candidate ->
+                   Palette.button
+                     p
+                     ~selected:(Samples.Sankey_presentation.equal candidate flow_style)
+                     (Samples.Sankey_presentation.label candidate)
+                     (set_flow_style candidate)))
             ]
           else [])
        @ [ V.row

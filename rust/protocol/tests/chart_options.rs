@@ -7,7 +7,7 @@ fn bytes(value: &Options) -> Vec<u8> {
 }
 #[test]
 fn default_options_match_independent_ocaml_fixture_and_reject_truncation() {
-    let hex = "030101010500000000009a9999999999e93f00000000000000000000000000000000000001040101666666666666e63f0000000000003040000000000000284003000601";
+    let hex = "040101010500000000009a9999999999e93f00000000000000000000000000000000000001040101666666666666e63f0000000000003040000000000000284003000601000000000000f03f000000000000e03f00000000000000000000000000001840";
     let expected: Vec<u8> = hex
         .as_bytes()
         .chunks_exact(2)
@@ -186,7 +186,7 @@ fn categorical_layout_tags_and_padding_bounds_are_paired_and_versioned() {
 fn stacking_is_explicit_paired_and_old_layouts_are_rejected() {
     let mut options = Options::default();
     let mut expected = bytes(&options);
-    assert_eq!(expected[0], 3);
+    assert_eq!(expected[0], 4);
     assert_eq!(expected[19], 0);
     options.cartesian.stacking = Stacking::Stacked;
     expected[19] = 1;
@@ -197,6 +197,7 @@ fn stacking_is_explicit_paired_and_old_layouts_are_rejected() {
     for fixture in [
         include_str!("../../../test/fixtures/chart-v1-view.hex"),
         include_str!("../../../test/fixtures/chart-v2-view.hex"),
+        include_str!("../../../test/fixtures/chart-v3-style-inspection-view.hex"),
     ] {
         let frame = fixture
             .trim()
@@ -208,5 +209,33 @@ fn stacking_is_explicit_paired_and_old_layouts_are_rejected() {
             gpuio_protocol::decode_chart_view_config(&frame),
             Err(DecodeError::Malformed)
         );
+    }
+}
+
+#[test]
+fn sankey_presentation_bounds_apply_to_native_records_and_wire() {
+    for n in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY, -1., 65.] {
+        for field in 0..4 {
+            let mut options = Options::default();
+            match field {
+                0 => options.sankey.node_corner_radius = n,
+                1 => options.sankey.link_opacity = n,
+                2 => options.sankey.min_link_width = n,
+                _ => options.sankey.label_gap = n,
+            }
+            assert!(!options.is_valid());
+            assert_eq!(
+                decode_chart_options(&bytes(&options)),
+                Err(DecodeError::Malformed)
+            );
+        }
+    }
+    for (radius, opacity, minimum, gap) in [(0., 0., 0., 0.), (32., 1., 64., 64.)] {
+        let mut options = Options::default();
+        options.sankey.node_corner_radius = radius;
+        options.sankey.link_opacity = opacity;
+        options.sankey.min_link_width = minimum;
+        options.sankey.label_gap = gap;
+        assert_eq!(decode_chart_options(&bytes(&options)), Ok(options));
     }
 }

@@ -173,7 +173,13 @@ module Sankey : sig
   (** Node width 1..64 logical pixels, padding 0..64, relaxation iterations
       0..32. Small plots clamp width/padding to fit their bounds. Sqrt changes
       geometric weights only; tooltips and events retain original flow values.
-      Zero-flow and isolated nodes remain available in the data alternative. *)
+      Zero-flow and isolated nodes remain available in the data alternative.
+      Node corner radius is 0..32 (default 1), link opacity 0..1 (default 0.5),
+      minimum link width 0..64 (default 0), label gap 0..64 (default 6).
+      Positive ribbons may be widened for visibility without changing raw flow
+      values; endpoints clip to the plot. Zero flows are not made visible.
+      Label gaps are measured from the facing node edge; small views may clamp
+      labels to fit. All dimensions are logical pixels. *)
   val create
     :  ?node_width:float
     -> ?node_padding:float
@@ -181,6 +187,10 @@ module Sankey : sig
     -> ?scale:Scale.t
     -> ?iterations:int
     -> ?labels:bool
+    -> ?node_corner_radius:float
+    -> ?link_opacity:float
+    -> ?min_link_width:float
+    -> ?label_gap:float
     -> unit
     -> t Or_error.t
 

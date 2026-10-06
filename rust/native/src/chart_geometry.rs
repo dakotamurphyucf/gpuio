@@ -114,7 +114,7 @@ pub enum LabelKind {
     X,
     Y,
     Radial,
-    Flow,
+    Flow { align_right: bool },
     Series(usize),
 }
 #[derive(Clone, Debug, PartialEq)]
@@ -839,14 +839,22 @@ fn sankey(
         }
         let a = &graph.nodes[link.source];
         let b = &graph.nodes[link.target];
+        // Widen paint and hit geometry together. Keep raw values/provenance
+        // unchanged and clip endpoint spans inside small plotting rectangles.
+        let source_half = f64::from(link.source_width).max(options.min_link_width) / 2.;
+        let target_half = f64::from(link.target_width).max(options.min_link_width) / 2.;
+        let span =
+            |center: f64, half: f64| ((center - half).max(0.), (center + half).min(plan.height));
+        let (source_top, source_bottom) = span(f64::from(link.y0), source_half);
+        let (target_top, target_bottom) = span(f64::from(link.y1), target_half);
         plan.marks.push(Mark {
             layer: link.source,
             source: Source::Edge(link.index),
             shape: Shape::Ribbon {
-                start_top: Point::new(a.x1 as f64, (link.y0 - link.source_width / 2.) as f64),
-                start_bottom: Point::new(a.x1 as f64, (link.y0 + link.source_width / 2.) as f64),
-                end_top: Point::new(b.x0 as f64, (link.y1 - link.target_width / 2.) as f64),
-                end_bottom: Point::new(b.x0 as f64, (link.y1 + link.target_width / 2.) as f64),
+                start_top: Point::new(a.x1 as f64, source_top),
+                start_bottom: Point::new(a.x1 as f64, source_bottom),
+                end_top: Point::new(b.x0 as f64, target_top),
+                end_bottom: Point::new(b.x0 as f64, target_bottom),
             },
         });
     }
@@ -863,10 +871,18 @@ fn sankey(
             shape: Shape::Node(bounds),
         });
         if options.labels {
+            let align_right = (bounds.left + bounds.right) / 2. > plan.width / 2.;
             plan.labels.push(Label {
-                position: Point::new(bounds.left, (bounds.top + bounds.bottom) / 2.),
+                position: Point::new(
+                    if align_right {
+                        bounds.left - options.label_gap
+                    } else {
+                        bounds.right + options.label_gap
+                    },
+                    (bounds.top + bounds.bottom) / 2.,
+                ),
                 text: nodes[node.index].label.clone(),
-                kind: LabelKind::Flow,
+                kind: LabelKind::Flow { align_right },
             });
         }
     }

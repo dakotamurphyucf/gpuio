@@ -193,11 +193,11 @@ impl Frame {
             (80., x - 40., y + 6., Align::Center)
         } else if matches!(label.kind, LabelKind::Series(_)) {
             (22., x - 11., y - TEXT_HEIGHT / 2., Align::Center)
-        } else if matches!(label.kind, LabelKind::Flow) {
-            if x > self.plot.x + self.plot.width / 2. {
-                (140., x - 6. - 140., y - TEXT_HEIGHT / 2., Align::Right)
+        } else if let LabelKind::Flow { align_right } = label.kind {
+            if align_right {
+                (140., x - 140., y - TEXT_HEIGHT / 2., Align::Right)
             } else {
-                (140., x + 6., y - TEXT_HEIGHT / 2., Align::Left)
+                (140., x, y - TEXT_HEIGHT / 2., Align::Left)
             }
         } else {
             (120., x - 60., y - TEXT_HEIGHT / 2., Align::Center)
@@ -253,7 +253,8 @@ mod tests {
                     LabelKind::X,
                     LabelKind::Y,
                     LabelKind::Radial,
-                    LabelKind::Flow,
+                    LabelKind::Flow { align_right: false },
+                    LabelKind::Flow { align_right: true },
                     LabelKind::Series(0),
                 ] {
                     let placement = frame.label(&Label {

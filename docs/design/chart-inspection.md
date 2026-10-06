@@ -65,6 +65,6 @@ use the existing native preview/capture cancellation rules.
 The style schema tag advances from **0 to -1**. Nonpositive schema tags keep the
 version namespace disjoint from valid legacy unversioned palette lengths 1–32.
 Previous style/version-0 view frames are explicitly rejected; matching OCaml and
-Rust bridge packages are required. Options version 3 and data version 1 remain
-unchanged. The inspection record follows the optional ordinal field; the existing
+Rust bridge packages are required. [Sankey presentation](sankey-presentation.md) subsequently advances options to
+version 4; data version 1 remains unchanged. The inspection record follows the optional ordinal field; the existing
 16 KiB style and 18 KiB view caps still cover the bounded maximum.

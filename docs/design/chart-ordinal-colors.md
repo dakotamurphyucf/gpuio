@@ -72,7 +72,8 @@ legacy-style rejection case. OCaml and Rust bridge packages must match.
 Current styles use **version -1**, appending the [inspection configuration](chart-inspection.md)
 after the ordinal field. The historical v0 fixture is now an explicit rejection
 case; the current fixture is `chart-v3-style-inspection-view.hex`. The bounded
-ordinal mapping and the options/data versions remain unchanged.
+ordinal mapping remains unchanged. [Sankey presentation](sankey-presentation.md)
+subsequently advances options to version 4; data remains version 1.
 
 ## Scope and validation
 
