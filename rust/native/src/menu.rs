@@ -13,6 +13,13 @@ use std::{
     sync::Arc,
 };
 
+#[cfg(target_os = "macos")]
+#[path = "menu_popup_macos.rs"]
+mod popup;
+#[cfg(target_os = "macos")]
+#[path = "menu_popup_host.rs"]
+mod popup_host;
+
 type Geometry = Rc<Cell<Bounds<Pixels>>>;
 #[cfg(all(test, feature = "native-image-tests"))]
 #[path = "editor_menu_test.rs"]
@@ -21,6 +28,8 @@ mod editor_menu_tests;
 #[path = "menu_observation_test.rs"]
 mod observation_tests;
 pub(super) struct State {
+    #[cfg(target_os = "macos")]
+    popup: Option<popup::Owner>,
     config: Arc<MenuConfig>,
     pub(super) focus: FocusHandle,
     restore: Option<FocusHandle>,
@@ -41,6 +50,8 @@ impl State {
     fn new(config: Arc<MenuConfig>, cx: &mut App) -> Self {
         let trigger_count = config.menus.len();
         Self {
+            #[cfg(target_os = "macos")]
+            popup: None,
             config,
             focus: cx.focus_handle(),
             restore: None,
@@ -101,7 +112,21 @@ impl State {
         self.panels.resize_with(self.path.len(), Default::default);
         self.scrolls.resize_with(self.path.len(), Default::default);
     }
+    fn tracking(&self) -> bool {
+        #[cfg(target_os = "macos")]
+        {
+            self.popup.is_some()
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            false
+        }
+    }
     fn close(&mut self) {
+        #[cfg(target_os = "macos")]
+        {
+            self.popup = None;
+        }
         self.path.clear();
         self.editor_target = None;
         self.panels.clear();
@@ -403,7 +428,7 @@ impl View {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if !self.focus.borrow().allows(id) || !self.focus.borrow().visible(id) {
+        if !self.focus.borrow().interactive(id) || !self.focus.borrow().allows(id) {
             return;
         }
         let Some(state) = self.menus.get(&id).cloned() else {
@@ -417,6 +442,11 @@ impl View {
             .and_then(|node| node.menu.as_ref())
             .is_some_and(|config| config == &state.borrow().config);
         if !current {
+            return;
+        }
+        #[cfg(target_os = "macos")]
+        if state.borrow().config.presentation == MenuPresentation::PlatformContext {
+            self.open_platform_popup(id, state.clone(), position, window, cx);
             return;
         }
         let editor_target = if state.borrow().config.presentation == MenuPresentation::EditorContext
@@ -728,7 +758,11 @@ impl View {
                     .triggers
                     .resize_with(config.menus.len(), Default::default);
             }
-            if !visible || !state.focus.is_focused(window) || !self.focus.borrow().allows(id) {
+            if !visible
+                || (!state.tracking() && !state.focus.is_focused(window))
+                || !self.focus.borrow().interactive(id)
+                || !self.focus.borrow().allows(id)
+            {
                 state.close();
             }
             state.rows.borrow_mut().clear();
@@ -907,6 +941,7 @@ impl View {
                         MenuPresentation::Button
                             | MenuPresentation::Context
                             | MenuPresentation::EditorContext
+                            | MenuPresentation::PlatformContext
                     ) && !(state.config.presentation.is_context()
                         && !state.path.is_empty()
                         && state.context_position.is_some())

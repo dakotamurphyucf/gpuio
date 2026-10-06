@@ -101,6 +101,7 @@ module Expert = struct
     | Bar
     | Platform_bar
     | Editor_context
+    | Platform_context
   [@@deriving equal, sexp_of]
 
   let item_paths menus =

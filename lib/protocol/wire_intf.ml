@@ -716,6 +716,7 @@ module type S = sig
       | Bar
       | Platform_bar
       | Editor_context
+      | Platform_context
     [@@deriving bin_io, equal, sexp_of]
   end
 

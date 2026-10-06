@@ -358,6 +358,7 @@ module View : sig
     :  ?key:Gpuio.Key.t
     -> ?style:Gpuio.Style.t
     -> ?appearance:Gpuio.Menu.Appearance.t
+    -> ?platform:bool
     -> menu:Gpuio.Menu.t
     -> t
     -> t

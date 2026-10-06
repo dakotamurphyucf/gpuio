@@ -325,10 +325,15 @@ val menu_button
   -> unit
   -> 'action t
 
+(** [platform=true] uses an AppKit popup on macOS and the drawn menu on Linux.
+    The default is [false]. The OS popup can extend outside the window and owns
+    its appearance; [appearance] configures only the drawn fallback. Rich View
+    row content is rejected for this presentation on both platforms. *)
 val context_menu
   :  ?key:Key.t
   -> ?style:Style.t
   -> ?appearance:Menu.Appearance.t
+  -> ?platform:bool
   -> menu:Menu.t
   -> 'action t
   -> 'action t

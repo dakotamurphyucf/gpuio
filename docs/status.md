@@ -5,6 +5,15 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **O
 Markdown walkthroughs for every example component; it is planned in this milestone. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
+The [native OS context-popup slice](evidence/native-popup-och41.md) now adds
+`View.context_menu ~platform:true`, with AppKit on macOS and drawn Linux fallback.
+Local and independently installed macOS tests pass physical opening, outside-window
+bounds, nested selection, Escape, native Copy, owner removal, stale-command
+rejection and window close during tracking. The close test first exposed main-queue
+starvation; a main-run-loop callback now keeps native work progressing. Programmatic
+show-at-position, native icons, additional lifecycle cases and consolidated gallery
+acceptance remain open. No Linux GUI or VoiceOver acceptance is claimed.
+
 Run [37400903839](https://github.com/dakotamurphyucf/gpuio/actions/runs/37400903839)
 at older branch `2e9cd54` is terminal: Linux passes; macOS fails native navigation
 resize and both presentation probes; the fresh receiver is skipped. The viewport

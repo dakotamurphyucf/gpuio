@@ -21,6 +21,7 @@ pub enum MenuPresentation {
     Bar,
     PlatformBar,
     EditorContext,
+    PlatformContext,
 }
 #[derive(Clone, Debug, PartialEq, Eq, BinProtWrite)]
 pub struct MenuConfig {
@@ -173,7 +174,8 @@ impl MenuConfig {
         let shape = match self.presentation {
             MenuPresentation::Button
             | MenuPresentation::Context
-            | MenuPresentation::EditorContext => self.menus.len() == 1,
+            | MenuPresentation::EditorContext
+            | MenuPresentation::PlatformContext => self.menus.len() == 1,
             MenuPresentation::Bar | MenuPresentation::PlatformBar => self.menus.len() <= 32,
         };
         shape
@@ -206,6 +208,9 @@ impl MenuConfig {
 
 impl MenuPresentation {
     pub fn is_context(self) -> bool {
-        matches!(self, Self::Context | Self::EditorContext)
+        matches!(
+            self,
+            Self::Context | Self::EditorContext | Self::PlatformContext
+        )
     }
 }

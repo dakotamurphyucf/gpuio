@@ -71,7 +71,7 @@ and a persistent list does not by itself demonstrate a command palette.
 | Noninteractive label rows | `Menu.Item.Label` adds bounded passive text to drawn dropdown/context/bar menus, including nested submenus. Keyboard navigation skips labels; they have no command, focus or press action. Platform menu bars explicitly reject them. [Contract](../design/menu-labels.md) and [installed macOS evidence](../evidence/menu-labels-och41.md). |
 | Per-item/submenu icons and custom element rows | `Menu.Item_path` and `View.with_menu_item_content` compose registered icons and passive rich labels for command/submenu/section positions; `editor_menu ~item_content` covers the editor wrapper. Native row ownership, names, checks and navigation remain intact. [Contract](../design/menu-content.md) and [installed macOS evidence](../evidence/menu-content-och41.md). Content uses the configured uniform row height; arbitrary nested interactive controls and per-item variable heights are not provided. Platform bars reject these slots. This is an explicit functional equivalent for passive rich action rows, not unrestricted source `AnyElement` parity. |
 | Link items | An application command can request the desktop URL-opening service. It does not automatically add source link artwork or change menu accessibility semantics. Source handler/action precedence is replaced by one explicit command behavior. |
-| `NativeMenu.show(position)` outside window bounds | **No public OS popup-menu equivalent.** GPUIO's AppKit menu **bar** does not establish native context-popup support. Existing popup/context menus are rendered within the GPUI window. Source macOS uses an OS tracking loop outside the GPUI borrow and revalidates the window before action delivery; a future bridge must preserve native target lifetimes and avoid blocking the OCaml UI domain. |
+| `NativeMenu.show(position)` outside window bounds | `View.context_menu ~platform:true` now supplies an AppKit context popup on macOS, with right-click/Shift-F10, retained native ownership and revalidated asynchronous command dispatch. [Local and installed evidence](../evidence/native-popup-och41.md) covers physical input, a popup beyond window bounds, native Copy, window close, owner removal and stale-command rejection. The default remains drawn. [Design](../design/native-popup-menu.md) records remaining programmatic show-at-position, native icons and lifecycle qualification; right-click support alone does not complete the source API mapping. |
 | Native popup Linux fallback | Source itself uses a drawn, window-clipped popup on Linux, held by its Root overlay. GPUIO's existing drawn menus are a corresponding rendering route; full Linux desktop behavior remains OCH-47, not proven by source similarity. |
 
 The AppKit bar is application-global: current-window ownership, scope changes and
@@ -94,7 +94,7 @@ standalone `examples/menus` / `examples/palette` expose the currently supported
 APIs. Current consolidated macOS acceptance remains OCH-17; Linux build/unit/
 consumer and deferred desktop evidence remain separate.
 
-The remaining OS context-popup route and consolidated palette/menu family
+The remaining programmatic OS popup operations, native icons, lifecycle and consolidated palette/menu family
 qualification are catalog work, not newly approved post-v1 exclusions.
 Implement typed, bounded content/identity contracts first, retain native command
 resolution and editor targeting, and demonstrate the resulting public API in the

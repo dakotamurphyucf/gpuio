@@ -1545,7 +1545,8 @@ let rec mount builder ~depth previous view =
              | Context -> Context
              | Bar -> Bar
              | Platform_bar -> Platform_bar
-             | Editor_context -> Editor_context)
+             | Editor_context -> Editor_context
+             | Platform_context -> Platform_context)
         ; menus = List.map menu.menus ~f:Menu.Expert.to_wire
         })
     in
@@ -2979,7 +2980,7 @@ let rec mount builder ~depth previous view =
          Option.exists menu ~f:(fun menu ->
            match menu.presentation with
            | Platform_bar -> true
-           | Button | Context | Bar | Editor_context -> false)
+           | Button | Context | Bar | Editor_context | Platform_context -> false)
        then 1
        else 0)
       + List.sum (module Int) children ~f:(fun child -> child.platform_menus)

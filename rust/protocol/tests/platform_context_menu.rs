@@ -2,7 +2,7 @@ use binprot::BinProtWrite;
 use gpuio_protocol::{NodeId, WindowId, decode, v1::*};
 
 #[test]
-fn editor_context_menu_matches_paired_bytes_and_rejects_invalid_presentations() {
+fn platform_context_menu_matches_paired_bytes_and_rejects_invalid_presentations() {
     let message = Message::Apply(Transaction {
         window: WindowId::from_parts(0, 1).unwrap(),
         base: 0,
@@ -10,7 +10,7 @@ fn editor_context_menu_matches_paired_bytes_and_rejects_invalid_presentations() 
         operations: vec![Op::SetMenu(
             NodeId::from_parts(1, 2).unwrap(),
             MenuConfig {
-                presentation: MenuPresentation::EditorContext,
+                presentation: MenuPresentation::PlatformContext,
                 menus: vec![MenuDefinition {
                     label: "Edit".into(),
                     disabled: false,
@@ -23,7 +23,7 @@ fn editor_context_menu_matches_paired_bytes_and_rejects_invalid_presentations() 
     message.binprot_write(&mut bytes).unwrap();
     assert_eq!(
         bytes.iter().map(|b| format!("{b:02x}")).collect::<String>(),
-        include_str!("../../../test/fixtures/editor-menu-operation.hex").trim()
+        include_str!("../../../test/fixtures/platform-context-menu-operation.hex").trim()
     );
     assert_eq!(decode(&bytes), Ok(message));
     for end in 0..bytes.len() {
@@ -50,7 +50,7 @@ fn editor_context_menu_matches_paired_bytes_and_rejects_invalid_presentations() 
     ] {
         assert!(
             !MenuConfig {
-                presentation: MenuPresentation::EditorContext,
+                presentation: MenuPresentation::PlatformContext,
                 menus
             }
             .is_valid()

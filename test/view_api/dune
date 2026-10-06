@@ -3,6 +3,7 @@
  (libraries core gpuio gpuio.protocol eio_main)
  (inline_tests
   (deps
+   platform-context-menu-operation.hex
    menu-content-public.hex
    calendar-content-public.hex
    table-header-style.hex
@@ -578,3 +579,5 @@
 (copy_files ../fixtures/animation-repeat.tsv)
 
 (copy_files ../fixtures/menu-content-public.hex)
+
+(copy_files ../fixtures/platform-context-menu-operation.hex)

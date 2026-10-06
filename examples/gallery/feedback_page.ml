@@ -406,7 +406,10 @@ let component ~search_palette app window palette graph =
         [ V.menu_bar ~platform:false [ menu ] |> ok |> decorate
         ; V.row
             ~style:(style [ Gap (px 12.); Wrap Wrap ])
-            [ V.command_button ~style:button_style ~command:advance ()
+            [ V.context_menu
+                ~platform:true
+                ~menu
+                (V.command_button ~style:button_style ~command:advance ())
             ; V.menu_button ~style:button_style ~menu () |> decorate
             ; V.command_button ~style:button_style ~command:choose ()
             ]
@@ -414,7 +417,7 @@ let component ~search_palette app window palette graph =
             p
             ~muted:true
             "Use ⌘K on macOS or Ctrl+K on Linux to advance. Right-click the draft for \
-             its menu."
+             its menu. Right-click Advance for an OS popup (drawn on Linux)."
         ; V.context_menu ~menu (Gpuio_eio.Text_input.view input) |> decorate
         ; Palette.button p ("Palette search: " ^ search_label) (next_palette_search ())
         ; V.switch

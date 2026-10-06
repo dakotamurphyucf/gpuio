@@ -29,6 +29,7 @@ end
     [Item.Label] section labels. Labels are noninteractive text rows: keyboard
     navigation/typeahead skip them and they never resolve a command. They are
     supported in drawn button/context menus and [View.menu_bar ~platform:false].
+    Platform context popups show labels as disabled, non-actionable native rows.
     Platform menu bars reject labels rather than converting them into commands.
     A menu is limited to
     eight nested levels, 1024 items and 256 KiB of labels/command IDs. Disabled
@@ -47,6 +48,7 @@ module Expert : sig
     | Bar
     | Platform_bar
     | Editor_context
+    | Platform_context
   [@@deriving equal, sexp_of]
 
   val command_ids : t -> Command.Id.t list

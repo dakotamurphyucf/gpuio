@@ -286,7 +286,7 @@ impl View {
         self.command_target_node(window, cx)
             .filter(|node| !self.tables.contains_key(node))
     }
-    fn command_target_node(&self, window: &Window, cx: &App) -> Option<NodeId> {
+    pub(super) fn command_target_node(&self, window: &Window, cx: &App) -> Option<NodeId> {
         self.editors
             .iter()
             .find(|(_, editor)| editor.focus_handle(cx).is_focused(window))

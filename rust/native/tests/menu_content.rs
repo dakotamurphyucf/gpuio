@@ -186,3 +186,30 @@ fn exact_ocaml_public_transactions_admit_all_three_drawn_presentations() {
     }
     assert_eq!(tree.get(id(7)).unwrap().text.as_ref(), "Target");
 }
+
+#[test]
+fn platform_context_rejects_rich_slots_but_admits_one_target_and_passive_labels() {
+    let mut tree = Tree::new(WindowId::from_parts(0, 1).unwrap());
+    let invalid = initial(MenuPresentation::PlatformContext);
+    assert!(tree.apply(&tx(0, invalid)).is_err());
+    assert_eq!(tree.revision(), 0);
+    let mut valid = initial(MenuPresentation::PlatformContext);
+    for op in &mut valid {
+        if let Op::Splice(owner, _, _, children) = op {
+            if *owner == id(0) {
+                *children = vec![id(1)];
+            }
+            // Keep unused rich slots reachable as ordinary siblings.
+            if *owner == id(11) {
+                children.extend((2..7).map(id));
+            }
+        }
+    }
+    tree.apply(&tx(0, valid)).unwrap();
+    assert_eq!(tree.revision(), 1);
+    assert!(
+        tree.apply(&tx(1, vec![Op::Splice(id(0), 0, 1, vec![])]))
+            .is_err()
+    );
+    assert_eq!(tree.revision(), 1);
+}

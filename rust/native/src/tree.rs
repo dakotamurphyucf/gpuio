@@ -2177,7 +2177,10 @@ impl Plan<'_> {
             let slots = &root.children[usize::from(menu.presentation.is_context())..];
             if !slots.is_empty() {
                 let items = menu.items_preorder();
-                if menu.presentation == MenuPresentation::PlatformBar || slots.len() != items.len()
+                if matches!(
+                    menu.presentation,
+                    MenuPresentation::PlatformBar | MenuPresentation::PlatformContext
+                ) || slots.len() != items.len()
                 {
                     return Err(ErrorCode::InvalidTree);
                 }

@@ -21,7 +21,7 @@ let actions_menu =
   |> Or_error.ok_exn
 ;;
 
-let component ~phase ~observed window graph =
+let component ~platform_popup ~phase ~observed window graph =
   let count, set_count = B.state 0 graph in
   let enabled, set_enabled = B.state true graph in
   let input =
@@ -91,7 +91,13 @@ let component ~phase ~observed window graph =
          context menu."
     ; View.menu_button ~menu:actions_menu ()
     ; View.text (sprintf "Total runs: %d" count)
-    ; View.context_menu ~menu:actions_menu (Gpuio_eio.Text_input.view input)
+    ; (if phase = 4
+       then View.text "Popup owner retired"
+       else
+         View.context_menu
+           ~platform:platform_popup
+           ~menu:actions_menu
+           (Gpuio_eio.Text_input.view input))
     ; View.row
         [ View.command_button ~command:run_id ()
         ; View.command_button ~command:copy_id ()
@@ -115,6 +121,18 @@ let component ~phase ~observed window graph =
 
 let () =
   let self_test = Array.exists (Sys.get_argv ()) ~f:(String.equal "--self-test") in
+  let platform_popup =
+    Array.exists (Sys.get_argv ()) ~f:(String.equal "--platform-popup")
+  in
+  let popup_close_test =
+    Array.exists (Sys.get_argv ()) ~f:(String.equal "--popup-close-test")
+  in
+  let popup_retire_test =
+    Array.exists (Sys.get_argv ()) ~f:(String.equal "--popup-retire-test")
+  in
+  let popup_invalidate_test =
+    Array.exists (Sys.get_argv ()) ~f:(String.equal "--popup-invalidate-test")
+  in
   let completed = ref false in
   App.run (fun env app ->
     let phase = B.Expert.Var.create 0 in
@@ -125,9 +143,30 @@ let () =
         ~title:"GPUIO menus"
         ~width:660.
         ~height:520.
-        (component ~phase ~observed)
+        (component ~platform_popup ~phase ~observed)
       |> Or_error.ok_exn
     in
+    (if popup_close_test || popup_retire_test || popup_invalidate_test
+     then
+       Gpuio_eio.Scope.start
+         (App.scope app)
+         ~f:(fun () -> Eio.Time.sleep (Eio.Stdenv.clock env) 3.)
+         ~on_result:(fun result ->
+           E.of_thunk (fun () ->
+             Or_error.ok_exn result;
+             if popup_close_test
+             then (
+               print_endline "GPUIO_POPUP_CLOSE_REQUESTED";
+               App.Window.close window)
+             else if popup_retire_test
+             then (
+               print_endline "GPUIO_POPUP_RETIRE_REQUESTED";
+               B.Expert.Var.set phase 4)
+             else (
+               print_endline "GPUIO_POPUP_INVALIDATE_REQUESTED";
+               B.Expert.Var.set phase 1)))
+       |> Or_error.ok_exn
+       |> fun (_ : Gpuio_eio.Scope.Task.t) -> ());
     if self_test
     then (
       let clock = Eio.Stdenv.clock env in

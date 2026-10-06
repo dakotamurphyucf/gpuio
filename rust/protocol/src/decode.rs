@@ -919,6 +919,7 @@ impl Decoder<'_> {
             2 => MenuPresentation::Bar,
             3 => MenuPresentation::PlatformBar,
             4 => MenuPresentation::EditorContext,
+            5 => MenuPresentation::PlatformContext,
             _ => return Err(DecodeError::Malformed),
         };
         let size = self.count(32)?;

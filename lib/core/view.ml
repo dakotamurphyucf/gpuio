@@ -1286,6 +1286,7 @@ let context_menu
       ?key
       ?(style = Style.empty)
       ?(appearance = Menu.Appearance.default)
+      ?(platform = false)
       ~menu
       child
   =
@@ -1293,7 +1294,7 @@ let context_menu
     kind = Menu
   ; menu =
       Some
-        { presentation = Context
+        { presentation = (if platform then Platform_context else Context)
         ; menus = [ menu ]
         ; appearance
         ; placement = None
@@ -1500,7 +1501,8 @@ let split_button
            && Option.exists part.menu ~f:(fun menu ->
              match menu.presentation with
              | Button -> true
-             | Context | Bar | Platform_bar | Editor_context -> false) -> finish part
+             | Context | Bar | Platform_bar | Editor_context | Platform_context -> false)
+      -> finish part
     | _ ->
       Or_error.error_string
         "split button requires button/menu-button parts with at most eight tooltip \
@@ -1601,6 +1603,8 @@ let with_menu_item_content t ~items =
       match config.presentation with
       | Platform_bar ->
         Or_error.error_string "platform menu bars do not support custom content"
+      | Platform_context ->
+        Or_error.error_string "platform context menus do not support custom content"
       | Button | Context | Bar | Editor_context -> Ok ()
     in
     let path_key path =
@@ -1643,7 +1647,7 @@ let with_menu_item_content t ~items =
     let%map () = validate_control_labels slots in
     let target =
       match config.presentation with
-      | Context | Editor_context -> List.take t.children 1
+      | Context | Editor_context | Platform_context -> List.take t.children 1
       | Button | Bar | Platform_bar -> []
     in
     { t with children = target @ slots }
