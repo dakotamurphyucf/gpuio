@@ -679,12 +679,13 @@
       "id": "charts",
       "owner": "OCH-40",
       "scope": "v1",
-      "audit_status": "All seven pinned chart families and nested plot/scale/shape/axis/tooltip sources reviewed in charts-review.md. Existing numeric data/resources, native preparation/rendering/input, explicit sampling and original-data accessibility are mapped. Categorical scales, stacking and richer per-datum/label/tooltip styling remain explicit surface differences/work; names alone do not imply full plotting parity. Existing staged outlier investigation is linked; current optimized/performance/VoiceOver/release qualification remains open.",
+      "audit_status": "All seven pinned chart families and nested plot/scale/shape/axis/tooltip sources reviewed in charts-review.md. Numeric data/resources, native preparation/rendering/input, explicit sampling and original-data accessibility are mapped. Four Cartesian value directions now have paired codec, signed mixed geometry/provenance, hit-index, real GPU pixel and installed macOS gallery evidence. Categorical scales, stacking and richer per-datum/label/tooltip styling remain explicit surface differences/work; names alone do not imply full plotting parity. Current optimized/performance/VoiceOver/release qualification remains open.",
       "public_interface": "lib/core/chart.mli",
       "example": "examples/charts",
       "evidence": [
         "docs/evidence/charts-och40.md",
-        "docs/catalog/charts-review.md"
+        "docs/catalog/charts-review.md",
+        "docs/evidence/chart-directions-och41.md"
       ],
       "gallery_page": "charts",
       "contract": "Seven chart families/mixed layers, bounded source/preparation and original-data accessibility; preserve exact/reduced provenance.",
@@ -719,7 +720,7 @@
       "id": "commands-menus",
       "owner": "OCH-11",
       "scope": "v1",
-      "audit_status": "Pinned action, command/state/item, popup/context/dropdown/bar, native-menu and shared searchable-list sources reviewed in commands-menus-review.md. Existing native registry/menu/palette behavior and scoped evidence are mapped. Passive menu section labels now have API/codec/native and installed macOS dropdown/nested-bar/editor-context evidence; platform bars reject labels explicitly. Bounded passive View content now supplies item/submenu icons and rich labels with paired native admission and installed pixel/action evidence; uniform row sizing and one native action owner remain explicit limits. Palette keywords, all-term/substring/unfiltered search, hidden-query navigation and optional clear-first Escape now have public API/codec/native lifecycle and installed macOS evidence. Stable palette groups/separators, measured rows and filtered passive headings now have paired protocol/OCaml/native and installed macOS gallery evidence. Rich measured command rows and interactive header/footer/empty Views now have public API, native lifecycle/1000-row/focus tests and installed macOS keyboard/content evidence. Asynchronous query/composition/highlight/count snapshots now have typed lifetime/query identity and bounded delivery; see palette-observation.md and palette-observation-och41.md for native/installed macOS evidence. Correlated native read/focus/query/highlight controls now have typed subscription/query checks, App/controller lifecycle and full native/OCaml tests plus a fresh installed macOS walkthrough; see palette-commands-och41.md. Native loading now has query-fenced controls, retained editing/undo, empty-content gating, reduced-motion/cleanup tests and installed macOS typing/undo/pixel evidence; see palette-loading-och41.md. Query-fenced external result publication now has typed bounded metadata, native lifecycle/ABA/composition/order checks, accepted dynamic command staging and installed macOS delayed-search/typing/selection/cancellation evidence; see palette-external-results-och41.md. Persistent embedding now has normal layout/focus, repeated dispatch, clear/cancel, hidden-state retention, nested scrolling and live modal-transition tests plus an installed macOS keyboard/document/undo walkthrough; see palette-embedded-och41.md. A reproduced pre-paint modal focus-entry race is corrected with deterministic and installed evidence. OS context-popup support remains an explicit gap, not newly deferred scope. General selectable-list composition is not automatic command-route equivalence. Current physical/release acceptance remains open.",
+      "audit_status": "Pinned action, command/state/item, popup/context/dropdown/bar, native-menu and shared searchable-list sources reviewed in commands-menus-review.md. Public APIs and scoped native/installed macOS evidence cover passive menu labels/content, palette search policies, grouped/measured rich content, observations/controllers, retained loading, external results and persistent embedding. Native macOS context popups, positioned Show/Close, bounded SVG icons, multi-window/editor-target ownership and queued-start cancellation now have implementation and qualification evidence; Linux uses the documented drawn popup fallback. Native menu-bar/nested-icon and consolidated family acceptance remain open. Uniform drawn menu row sizing and one native action owner remain explicit limits. General selectable-list composition is not automatic command-route equivalence. Physical coverage is scoped to the linked evidence; full VoiceOver/release acceptance remains open.",
       "public_interface": "lib/core/command.mli",
       "example": "examples/palette",
       "evidence": [
@@ -734,7 +735,12 @@
         "docs/evidence/palette-commands-och41.md",
         "docs/evidence/palette-loading-och41.md",
         "docs/evidence/palette-external-results-och41.md",
-        "docs/evidence/palette-embedded-och41.md"
+        "docs/evidence/palette-embedded-och41.md",
+        "docs/evidence/native-popup-och41.md",
+        "docs/evidence/menu-commands-och41.md",
+        "docs/evidence/native-menu-icons-och41.md",
+        "docs/evidence/menu-multiwindow-och41.md",
+        "docs/evidence/menu-popup-queue-och41.md"
       ],
       "gallery_page": "feedback",
       "contract": "Shared typed commands/key bindings, native menus/palette search and queued invocations; audit searchable-list composition separately.",

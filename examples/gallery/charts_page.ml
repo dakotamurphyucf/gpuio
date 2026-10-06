@@ -80,6 +80,7 @@ let component app window palette graph =
       graph
   in
   let horizontal, toggle_horizontal = B.toggle ~default_model:false graph in
+  let reversed, toggle_reversed = B.toggle ~default_model:false graph in
   let disabled, toggle_disabled = B.toggle ~default_model:false graph in
   let notice, set_notice = B.state "Preparing chart…" graph in
   let open B.Let_syntax in
@@ -94,6 +95,8 @@ let component app window palette graph =
   and selection = B.Expert.Var.value selected
   and horizontal = horizontal
   and toggle_horizontal = toggle_horizontal
+  and reversed = reversed
+  and toggle_reversed = toggle_reversed
   and disabled = disabled
   and toggle_disabled = toggle_disabled
   and notice = notice
@@ -102,6 +105,13 @@ let component app window palette graph =
   | Preview_scope.Loading -> Palette.text p "Preparing chart…"
   | Failed e -> Palette.text p ("Chart unavailable: " ^ Error.to_string_hum e)
   | Ready source ->
+    let orientation, direction =
+      match horizontal, reversed with
+      | false, false -> Chart_options.Orientation.Vertical, "Vertical"
+      | true, false -> Horizontal, "Horizontal"
+      | false, true -> Vertical_reversed, "Vertical reversed"
+      | true, true -> Horizontal_reversed, "Horizontal reversed"
+    in
     let choose next =
       E.bind
         (E.of_thunk (fun () ->
@@ -127,9 +137,10 @@ let component app window palette graph =
       | Ready metrics ->
         set_notice
           (sprintf
-             "Ready: %s · %d source values"
+             "Ready: %s · %d source values · %s"
              (Mode.label source.mode)
-             metrics.source_values)
+             metrics.source_values
+             direction)
       | Failed e -> set_notice (Sexp.to_string_hum [%sexp (e : Chart.Error.t)])
       | Selection_changed target ->
         E.of_thunk (fun () -> B.Expert.Var.set selected target)
@@ -143,11 +154,7 @@ let component app window palette graph =
     in
     let options =
       Chart_options.create
-        ~cartesian:
-          (Chart_options.Cartesian.create
-             ~orientation:(if horizontal then Horizontal else Vertical)
-             ()
-           |> ok)
+        ~cartesian:(Chart_options.Cartesian.create ~orientation () |> ok)
         ~pie:(Chart_options.Pie.create ~inner_radius:0.5 () |> ok)
         ()
     in
@@ -193,6 +200,7 @@ let component app window palette graph =
       ; V.row
           ~style:(style [ Gap (px 12.); Wrap Wrap ])
           [ V.switch ~checked:horizontal ~on_toggle:toggle_horizontal "Horizontal axes"
+          ; V.switch ~checked:reversed ~on_toggle:toggle_reversed "Reverse value axis"
           ; V.switch ~checked:disabled ~on_toggle:toggle_disabled "Disable chart input"
           ; Palette.button p "Update chart samples" update
           ]

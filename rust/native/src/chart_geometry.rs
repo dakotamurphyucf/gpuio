@@ -272,11 +272,20 @@ struct Coordinates {
     height: f64,
     inset: f64,
     horizontal: bool,
+    reversed: bool,
 }
 impl Coordinates {
+    fn value(self, value: f64) -> f64 {
+        let fraction = self.y.unit(value);
+        (if self.reversed {
+            1. - fraction
+        } else {
+            fraction
+        }) * self.height
+    }
     fn point(self, x: f64, y: f64) -> Point {
         let category = self.inset + self.x.unit(x) * (self.width - 2. * self.inset);
-        let value = self.y.unit(y) * self.height;
+        let value = self.value(y);
         if self.horizontal {
             Point::new(value, category)
         } else {
@@ -288,8 +297,8 @@ impl Coordinates {
     }
     fn rect(self, x: f64, value: f64, offset: f64, width: f64) -> Rect {
         let c = self.category(x) + offset;
-        let a = self.y.unit(0.) * self.height;
-        let b = self.y.unit(value) * self.height;
+        let a = self.value(0.);
+        let b = self.value(value);
         if self.horizontal {
             Rect {
                 left: a.min(b),
@@ -328,7 +337,7 @@ impl Coordinates {
             }
         }
         for v in self.y.ticks(axes.ticks) {
-            let c = self.y.unit(v) * self.height;
+            let c = self.value(v);
             let (start, end) = if self.horizontal {
                 (Point::new(c, 0.), Point::new(c, self.width))
             } else {
@@ -436,7 +445,7 @@ fn cartesian(
         .map(|b| b.x)
         .collect();
     let spacing = minimum_spacing(positions, x);
-    let horizontal = options.cartesian.orientation == options::Orientation::Horizontal;
+    let horizontal = options.cartesian.orientation.is_horizontal();
     let (width, height) = if horizontal {
         (plan.height, plan.width)
     } else {
@@ -450,6 +459,7 @@ fn cartesian(
         height,
         inset: if bars > 0 { slot / 2. } else { 0. },
         horizontal,
+        reversed: options.cartesian.orientation.is_reversed(),
     };
     c.axes(plan, options.axes);
     let bar_width = slot * options.cartesian.bar_width / (bars.max(1) as f64);
@@ -658,6 +668,7 @@ fn candles(
         height: plan.height,
         inset: slot / 2.,
         horizontal: false,
+        reversed: false,
     };
     c.axes(plan, options.axes);
     for candle in values {
@@ -868,7 +879,7 @@ pub fn prepare(
     let reduction = reduce::prepare(
         data,
         policy,
-        if options.cartesian.orientation == options::Orientation::Horizontal
+        if options.cartesian.orientation.is_horizontal()
             && matches!(data.contents, data::Contents::Cartesian(_))
         {
             height

@@ -44,6 +44,8 @@ module Orientation = struct
   type t =
     | Vertical
     | Horizontal
+    | Vertical_reversed
+    | Horizontal_reversed
   [@@deriving bin_io, equal, sexp_of]
 end
 

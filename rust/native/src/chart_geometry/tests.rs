@@ -35,6 +35,158 @@ fn series(id: i64, ys: &[Option<f64>]) -> data::Series {
             .collect(),
     }
 }
+
+#[test]
+fn reversed_axes_mirror_signed_mixed_geometry_without_changing_provenance() {
+    let data = dataset(data::Contents::Cartesian(vec![
+        data::Layer::Line(series(1, &[Some(-2.), None, Some(6.), Some(1.)])),
+        data::Layer::Area(series(2, &[Some(1.), Some(3.), Some(2.), Some(-1.)])),
+        data::Layer::Bar(series(3, &[Some(-1.), Some(2.), Some(4.), Some(0.)])),
+    ]));
+    for (normal, reversed) in [
+        (
+            options::Orientation::Vertical,
+            options::Orientation::VerticalReversed,
+        ),
+        (
+            options::Orientation::Horizontal,
+            options::Orientation::HorizontalReversed,
+        ),
+    ] {
+        for curve in [
+            options::Curve::Linear,
+            options::Curve::Natural,
+            options::Curve::StepAfter,
+        ] {
+            let make = |orientation| {
+                let mut o = options();
+                o.cartesian.orientation = orientation;
+                o.cartesian.curve = curve;
+                prepare(
+                    &data,
+                    Policy::default(),
+                    &o,
+                    800.,
+                    400.,
+                    &AtomicBool::new(false),
+                )
+                .unwrap()
+            };
+            let a = make(normal);
+            let b = make(reversed);
+            let mirror = |p: Point| {
+                if normal.is_horizontal() {
+                    Point::new(800. - p.x, p.y)
+                } else {
+                    Point::new(p.x, 400. - p.y)
+                }
+            };
+            let equal = |a: Point, b: Point| {
+                assert!(
+                    (a.x - b.x).abs() < 1e-9 && (a.y - b.y).abs() < 1e-9,
+                    "{a:?} != {b:?}"
+                );
+            };
+            assert_eq!(a.x_domain, b.x_domain);
+            assert_eq!(a.y_domain, b.y_domain);
+            assert_eq!(a.marks.len(), b.marks.len());
+            for (a, b) in a.marks.iter().zip(&b.marks) {
+                assert_eq!(a.source, b.source);
+                assert_eq!(a.layer, b.layer);
+                match (a.shape, b.shape) {
+                    (
+                        Shape::Dot {
+                            center: a,
+                            visible: av,
+                        },
+                        Shape::Dot {
+                            center: b,
+                            visible: bv,
+                        },
+                    ) => {
+                        assert_eq!(av, bv);
+                        equal(mirror(a), b);
+                    }
+                    (Shape::Bar(a), Shape::Bar(b)) => {
+                        let p = mirror(Point::new(a.left, a.top));
+                        let q = mirror(Point::new(a.right, a.bottom));
+                        equal(
+                            Point::new(p.x.min(q.x), p.y.min(q.y)),
+                            Point::new(b.left, b.top),
+                        );
+                        equal(
+                            Point::new(p.x.max(q.x), p.y.max(q.y)),
+                            Point::new(b.right, b.bottom),
+                        );
+                    }
+                    _ => panic!("unexpected mixed chart shape"),
+                }
+            }
+            assert_eq!(a.paths.len(), b.paths.len());
+            for (a, b) in a.paths.iter().zip(&b.paths) {
+                assert_eq!(
+                    (a.layer, a.fill, a.commands.len()),
+                    (b.layer, b.fill, b.commands.len())
+                );
+                for (a, b) in a.commands.iter().zip(&b.commands) {
+                    match (*a, *b) {
+                        (Command::Move(a), Command::Move(b))
+                        | (Command::Line(a), Command::Line(b)) => equal(mirror(a), b),
+                        (Command::Cubic(a, b, c), Command::Cubic(x, y, z)) => {
+                            equal(mirror(a), x);
+                            equal(mirror(b), y);
+                            equal(mirror(c), z);
+                        }
+                        (Command::Close, Command::Close) => (),
+                        _ => panic!("curve shape changed"),
+                    }
+                }
+            }
+            let ticks = |plan: &Plan| {
+                plan.labels
+                    .iter()
+                    .filter(|l| l.kind == LabelKind::Y)
+                    .cloned()
+                    .collect::<Vec<_>>()
+            };
+            for (a, b) in ticks(&a).iter().zip(ticks(&b)) {
+                assert_eq!(a.text, b.text);
+                equal(mirror(a.position), b.position);
+            }
+        }
+    }
+}
+
+#[test]
+fn reversed_horizontal_sampling_uses_category_height() {
+    let values = (0..1000).map(|i| Some((i % 17) as f64)).collect::<Vec<_>>();
+    let data = dataset(data::Contents::Cartesian(vec![data::Layer::Line(series(
+        1, &values,
+    ))]));
+    let make = |orientation| {
+        let mut o = options();
+        o.cartesian.orientation = orientation;
+        prepare(
+            &data,
+            Policy::default(),
+            &o,
+            20.,
+            200.,
+            &AtomicBool::new(false),
+        )
+        .unwrap()
+    };
+    let a = make(options::Orientation::Horizontal);
+    let b = make(options::Orientation::HorizontalReversed);
+    assert!(
+        a.marks.len() > 80,
+        "height-based buckets retain more than a width-based reduction"
+    );
+    assert_eq!(
+        a.marks.iter().map(|m| m.source).collect::<Vec<_>>(),
+        b.marks.iter().map(|m| m.source).collect::<Vec<_>>()
+    );
+}
 fn finite_point(p: Point) {
     assert!(p.x.is_finite() && p.y.is_finite(), "{p:?}");
 }

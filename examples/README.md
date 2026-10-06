@@ -8,6 +8,9 @@ and [Signal Studio](signal_studio/README.md#reading-the-code) for graphics and
 desktop integration. Their entry points link to modules by responsibility;
 optional acceptance runners are separate from normal app code.
 
+The gallery's [charts walkthrough](gallery/charts_page.md) traces source
+publication, plotting options, native selection and page-scope cleanup.
+
 The examples below include historical bootstrap and low-level integration checks.
 They are useful for framework work, but are not the recommended first-app template.
 

@@ -55,6 +55,8 @@ module Orientation = struct
   type t = Wire.Orientation.t =
     | Vertical
     | Horizontal
+    | Vertical_reversed
+    | Horizontal_reversed
   [@@deriving equal, sexp_of]
 end
 

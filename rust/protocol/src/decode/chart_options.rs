@@ -34,6 +34,8 @@ impl Decoder<'_> {
                 orientation: match self.tag()? {
                     0 => Orientation::Vertical,
                     1 => Orientation::Horizontal,
+                    2 => Orientation::VerticalReversed,
+                    3 => Orientation::HorizontalReversed,
                     _ => return Err(DecodeError::Malformed),
                 },
                 bar_width: self.float()?,

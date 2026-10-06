@@ -49,9 +49,14 @@ module Curve : sig
 end
 
 module Orientation : sig
+  (** Reversed variants reverse the numeric value axis, preserving category
+      order. Positive bars grow downward or leftward respectively. Axis gutters
+      remain in their usual positions. Applies to Cartesian layers only. *)
   type t =
     | Vertical
     | Horizontal
+    | Vertical_reversed
+    | Horizontal_reversed
   [@@deriving equal, sexp_of]
 end
 

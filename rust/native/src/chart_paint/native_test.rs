@@ -119,6 +119,35 @@ fn cases() -> Vec<Case> {
             sample(10., 80., 0, 0, 0),
         ],
     );
+    for (name, orientation, samples) in [
+        (
+            "bar-top",
+            gpuio_protocol::chart_options::Orientation::VerticalReversed,
+            vec![sample(50., 30., 255, 0, 0), sample(50., 120., 0, 0, 0)],
+        ),
+        (
+            "bar-left",
+            gpuio_protocol::chart_options::Orientation::Horizontal,
+            vec![sample(50., 40., 255, 0, 0), sample(150., 40., 0, 0, 0)],
+        ),
+        (
+            "bar-right",
+            gpuio_protocol::chart_options::Orientation::HorizontalReversed,
+            vec![sample(150., 40., 255, 0, 0), sample(50., 40., 0, 0, 0)],
+        ),
+    ] {
+        let mut options = options();
+        options.cartesian.orientation = orientation;
+        add(
+            name,
+            dataset(data::Contents::Cartesian(vec![data::Layer::Bar(
+                bars.clone(),
+            )])),
+            options,
+            style(),
+            samples,
+        );
+    }
     let slices = vec![
         data::Slice {
             id: 1,
@@ -253,8 +282,19 @@ fn cases() -> Vec<Case> {
     gradient.gradient_end = Some(0x0000ffff);
     add(
         "gradient",
-        dataset(data::Contents::Cartesian(vec![data::Layer::Bar(bars)])),
+        dataset(data::Contents::Cartesian(vec![data::Layer::Bar(
+            bars.clone(),
+        )])),
         options(),
+        gradient.clone(),
+        vec![],
+    );
+    let mut reversed = options();
+    reversed.cartesian.orientation = gpuio_protocol::chart_options::Orientation::VerticalReversed;
+    add(
+        "gradient-reversed",
+        dataset(data::Contents::Cartesian(vec![data::Layer::Bar(bars)])),
+        reversed,
         gradient,
         vec![],
     );
@@ -314,6 +354,14 @@ async fn exercise(
                     assert!(
                         top[0] > bottom[0] + 50 && bottom[2] > top[2] + 50,
                         "gradient follows vertical value axis: {top:?} {bottom:?}"
+                    );
+                }
+                if case.name == "gradient-reversed" {
+                    let top = pixel(&image, bounds, scale, 150., 20.);
+                    let bottom = pixel(&image, bounds, scale, 150., 140.);
+                    assert!(
+                        bottom[0] > top[0] + 50 && top[2] > bottom[2] + 50,
+                        "gradient mirrors reversed value axis: {top:?} {bottom:?}"
                     );
                 }
                 eprintln!(

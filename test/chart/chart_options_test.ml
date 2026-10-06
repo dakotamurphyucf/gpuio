@@ -2,6 +2,28 @@ open Core
 module O = Gpuio.Chart_options
 module W = Gpuio_protocol.Chart_options_wire
 
+let%expect_test "reversed Cartesian directions append stable paired wire tags" =
+  List.iter
+    [ O.Orientation.Vertical, 0
+    ; Horizontal, 1
+    ; Vertical_reversed, 2
+    ; Horizontal_reversed, 3
+    ]
+    ~f:(fun (orientation, tag) ->
+      let options =
+        O.create ~cartesian:(O.Cartesian.create ~orientation () |> Or_error.ok_exn) ()
+      in
+      let bytes =
+        Bin_prot.Utils.bin_dump W.bin_writer_t (O.Expert.to_wire options)
+        |> Bigstring.to_string
+      in
+      assert (Char.to_int bytes.[9] = tag);
+      assert (
+        O.equal options (O.Expert.of_wire (O.Expert.to_wire options) |> Or_error.ok_exn)));
+  print_endline "vertical=0 horizontal=1 vertical_reversed=2 horizontal_reversed=3";
+  [%expect {| vertical=0 horizontal=1 vertical_reversed=2 horizontal_reversed=3 |}]
+;;
+
 let%expect_test "default chart options match independent fixed-width wire fixture" =
   let wire = O.Expert.to_wire O.default in
   assert (O.equal O.default (O.Expert.of_wire wire |> Or_error.ok_exn));

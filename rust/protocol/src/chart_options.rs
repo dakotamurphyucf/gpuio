@@ -35,6 +35,16 @@ pub enum Curve {
 pub enum Orientation {
     Vertical,
     Horizontal,
+    VerticalReversed,
+    HorizontalReversed,
+}
+impl Orientation {
+    pub fn is_horizontal(self) -> bool {
+        matches!(self, Self::Horizontal | Self::HorizontalReversed)
+    }
+    pub fn is_reversed(self) -> bool {
+        matches!(self, Self::VerticalReversed | Self::HorizontalReversed)
+    }
 }
 #[derive(Clone, Copy, Debug, PartialEq, BinProtWrite)]
 pub struct Cartesian {

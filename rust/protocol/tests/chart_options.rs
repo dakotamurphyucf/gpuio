@@ -36,7 +36,12 @@ fn default_options_match_independent_ocaml_fixture_and_reject_truncation() {
 #[test]
 fn all_option_variants_roundtrip_and_invalid_records_fail_validation() {
     for curve in [Curve::Linear, Curve::Natural, Curve::StepAfter] {
-        for orientation in [Orientation::Vertical, Orientation::Horizontal] {
+        for orientation in [
+            Orientation::Vertical,
+            Orientation::Horizontal,
+            Orientation::VerticalReversed,
+            Orientation::HorizontalReversed,
+        ] {
             for alignment in [
                 Alignment::Left,
                 Alignment::Right,
@@ -106,4 +111,23 @@ fn all_option_variants_roundtrip_and_invalid_records_fail_validation() {
         version: 2,
         ..Options::default()
     });
+}
+
+#[test]
+fn reversed_value_directions_append_tags_without_changing_existing_frames() {
+    let original = bytes(&Options::default());
+    for (tag, orientation) in [
+        (2, Orientation::VerticalReversed),
+        (3, Orientation::HorizontalReversed),
+    ] {
+        let mut expected = original.clone();
+        expected[9] = tag;
+        let mut options = Options::default();
+        options.cartesian.orientation = orientation;
+        assert_eq!(bytes(&options), expected);
+        assert_eq!(decode_chart_options(&expected), Ok(options));
+    }
+    let mut unknown = original;
+    unknown[9] = 4;
+    assert_eq!(decode_chart_options(&unknown), Err(DecodeError::Malformed));
 }

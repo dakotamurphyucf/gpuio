@@ -4605,8 +4605,25 @@ def exercise_charts(mac, images):
         mac.release(mac.wait_find(TITLE, f'Row {originals}:', 'AXRow', contains=True, search_files=True))
         mac.press(TITLE, 'Back to chart')
         mac.release(mac.wait_find(TITLE, 'View data', 'AXButton'))
+    for control, direction in [
+        ('Horizontal axes', 'Horizontal'),
+        ('Reverse value axis', 'Horizontal reversed'),
+        ('Horizontal axes', 'Vertical reversed'),
+        ('Reverse value axis', 'Vertical'),
+    ]:
+        activate(mac, mac.wait_find(TITLE, control, 'AXCheckBox'))
+        mac.release(mac.wait_find(TITLE, f'Ready: Mixed layers · 72 source values · {direction}'))
+        print('CHART_DIRECTION_READY', direction, flush=True)
+        focus_gallery_control(mac, 'Chart preview: Mixed layers', 'AXGroup')
+        mac.key(53)
+        mac.wait_text(TITLE, 'Select a chart value to inspect it.')
+        mac.key(115)
+        mac.key(36)
+        mac.wait_text(TITLE, 'Selected: Capacity · x 0 · value 30')
+        if images:
+            screenshot(mac, images / ('gallery-chart-' + direction.lower().replace(' ', '-') + '.png'), title=TITLE)
     activate(mac, mac.wait_find(TITLE, 'Horizontal axes', 'AXCheckBox'))
-    mac.wait_text(TITLE, 'Ready: Mixed layers · 72 source values')
+    mac.release(mac.wait_find(TITLE, 'Ready: Mixed layers · 72 source values · Horizontal'))
     activate(mac, mac.wait_find(TITLE, 'Disable chart input', 'AXCheckBox'))
     expect_enabled(mac, 'Chart preview: Mixed layers', False, 'AXGroup')
     activate(mac, mac.wait_find(TITLE, 'Disable chart input', 'AXCheckBox'))
@@ -4637,7 +4654,7 @@ def exercise_charts(mac, images):
     mac.press(TITLE, 'Refresh resource counts')
     wait_for_resource_cleanup(mac)
     mac.wait_text(TITLE, 'Registered source bytes: 0')
-    print('GALLERY_CHARTS_OK: seven families plus mixed layers, native keyboard selection, '
+    print('GALLERY_CHARTS_OK: seven families plus mixed layers, four Cartesian directions, native keyboard selection, '
           'data updates, bounded original-data pages, styles and scope cleanup', flush=True)
 
 

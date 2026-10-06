@@ -249,7 +249,7 @@ impl Index {
             return Err(Error::InvalidGeometry);
         }
         let mut index = Self {
-            horizontal: orientation == Orientation::Horizontal,
+            horizontal: orientation.is_horizontal(),
             point_radius: (point_radius + 4.).max(8.),
             ..Self::default()
         };
@@ -468,7 +468,12 @@ mod tests {
                 .map(|i| u8::from_str_radix(&hex[i..i + 2], 16).unwrap())
                 .collect::<Vec<_>>();
             let data = gpuio_protocol::decode_chart_data(&bytes).unwrap();
-            for orientation in [Orientation::Vertical, Orientation::Horizontal] {
+            for orientation in [
+                Orientation::Vertical,
+                Orientation::Horizontal,
+                Orientation::VerticalReversed,
+                Orientation::HorizontalReversed,
+            ] {
                 let (plan, index) = prepared(&data, Policy::default(), orientation);
                 for x in 0..=40 {
                     for y in 0..=20 {
@@ -525,7 +530,12 @@ mod tests {
             line: gpuio_protocol::chart_sampling::Line::Exact,
             ..Default::default()
         };
-        for orientation in [Orientation::Vertical, Orientation::Horizontal] {
+        for orientation in [
+            Orientation::Vertical,
+            Orientation::Horizontal,
+            Orientation::VerticalReversed,
+            Orientation::HorizontalReversed,
+        ] {
             let (plan, index) = prepared(&data, policy, orientation);
             assert_eq!(plan.marks.len(), 100_000);
             assert!(index.retained_bytes() < MAX_BYTES);

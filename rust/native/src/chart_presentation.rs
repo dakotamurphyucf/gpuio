@@ -2,7 +2,6 @@
 use crate::chart_geometry::{Label, LabelKind};
 use gpuio_protocol::{
     chart_data::{Contents, Data},
-    chart_options::Orientation,
     chart_view::Config,
 };
 
@@ -106,7 +105,7 @@ impl Frame {
         let legend_height = (rows as f64 * LEGEND_ROW).min(height * 0.3);
         let body_height = height - legend_height;
         let horizontal = matches!(data.contents, Contents::Cartesian(_))
-            && config.options.cartesian.orientation == Orientation::Horizontal;
+            && config.options.cartesian.orientation.is_horizontal();
         let numeric = matches!(
             data.contents,
             Contents::Cartesian(_) | Contents::Candlestick(_)
@@ -215,6 +214,7 @@ impl Frame {
 mod tests {
     use super::*;
     use crate::chart_geometry::Point;
+    use gpuio_protocol::chart_options::Orientation;
     fn config() -> Config {
         Config {
             source: None,

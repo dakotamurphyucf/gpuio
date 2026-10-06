@@ -5,6 +5,15 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **O
 Markdown walkthroughs for every example component; it is planned in this milestone. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
+[Four Cartesian value directions](evidence/chart-directions-och41.md) now have
+public OCaml options and a gallery reversal control. Local paired-codec,
+signed mixed geometry/provenance, native hit-index and real GPU pixel checks pass;
+a fresh installed gallery passes all four directions, selection, original-data
+browsing and scope cleanup. Categorical scales, stacking, richer labels/tooltips
+and broader chart/catalog/release qualification remain open. The adjacent
+[chart-page walkthrough](../examples/gallery/charts_page.md) adds partial OCH-48
+coverage; it does not complete the every-example inventory.
+
 [Native popup window/editor ownership](evidence/menu-multiwindow-och41.md) now has
 a public two-window example and passing installed-consumer macOS qualification.
 The expanded test exposed a popup remaining open after its owner became inactive;

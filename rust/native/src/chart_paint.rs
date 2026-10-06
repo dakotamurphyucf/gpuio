@@ -10,7 +10,7 @@ use gpuio_protocol::{
     canvas::{Path as MeshPath, PathCommand, Point as MeshPoint, Transform},
     canvas_view::Viewport,
     chart_data::Data,
-    chart_options::{Options, Orientation},
+    chart_options::Options,
     chart_sampling::Policy,
     chart_style::Style,
 };
@@ -468,7 +468,7 @@ pub fn prepare(
             style.grid_color as u32,
         )?;
     }
-    let horizontal = options.cartesian.orientation == Orientation::Horizontal
+    let horizontal = options.cartesian.orientation.is_horizontal()
         && matches!(
             data.contents,
             gpuio_protocol::chart_data::Contents::Cartesian(_)
@@ -558,14 +558,15 @@ pub fn prepare(
                     )?;
                 }
                 geometry::Shape::Dot { visible: false, .. } => {}
-                geometry::Shape::Bar(rect) => build.quad(
-                    rect,
-                    style.bar_radius,
-                    color,
-                    style.gradient_end.map(|c| c as u32),
-                    horizontal,
-                    None,
-                )?,
+                geometry::Shape::Bar(rect) => {
+                    let end = style.gradient_end.map(|c| c as u32);
+                    let (start, end) = if options.cartesian.orientation.is_reversed() {
+                        (end.unwrap_or(color), end.map(|_| color))
+                    } else {
+                        (color, end)
+                    };
+                    build.quad(rect, style.bar_radius, start, end, horizontal, None)?;
+                }
                 geometry::Shape::Node(rect) => build.quad(rect, 1., color, None, false, None)?,
                 geometry::Shape::Candle {
                     center,

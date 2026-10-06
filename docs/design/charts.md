@@ -23,6 +23,11 @@ delivery record supersedes those states.
 
 ## Data contract
 
+Cartesian orientation now supports [reversed value directions](chart-directions.md)
+in addition to the original vertical/horizontal projections. This opt-in change
+preserves source and selection identity; categorical scales and stacking remain
+separate catalog work.
+
 `Gpuio.Chart_data` contains immutable values, with abstract positive IDs and
 validated constructors. Labels are data, never identity or callbacks. Datum IDs
 are scoped to a Cartesian series, or to the dataset for slices/candles/radar axes;
