@@ -206,8 +206,10 @@
         "examples/agent_chat/runtime/result_data.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/agent_chat/runtime/result_data.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -215,8 +217,10 @@
         "examples/agent_chat/runtime/results.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/agent_chat/runtime/results.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -287,8 +291,10 @@
         "examples/agent_chat/runtime/source_data.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/agent_chat/runtime/source_data.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -296,8 +302,10 @@
         "examples/agent_chat/runtime/sources.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/agent_chat/runtime/sources.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -366,17 +374,19 @@
       ],
       "role": "application-entry",
       "walkthroughs": [
-        "examples/calendar/README.md"
+        "examples/calendar/main.md"
       ],
-      "review": "pending"
+      "review": "reviewed"
     },
     {
       "sources": [
         "examples/calendar/picker.ml"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/calendar/picker.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -519,17 +529,19 @@
       ],
       "role": "application-entry",
       "walkthroughs": [
-        "examples/color_input/README.md"
+        "examples/color_input/main.md"
       ],
-      "review": "pending"
+      "review": "reviewed"
     },
     {
       "sources": [
         "examples/color_input/picker.ml"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/color_input/picker.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -1783,25 +1795,29 @@
       ],
       "role": "application-entry",
       "walkthroughs": [
-        "examples/numeric/README.md"
+        "examples/numeric/main.md"
       ],
-      "review": "pending"
+      "review": "reviewed"
     },
     {
       "sources": [
         "examples/numeric/number.ml"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/numeric/number.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
         "examples/numeric/otp.ml"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/numeric/otp.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [

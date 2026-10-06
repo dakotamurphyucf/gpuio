@@ -28,8 +28,8 @@ Generated from [coverage.json](coverage.json). Read the [review guide](coverage-
 | [query_loading.ml](agent_chat/runtime/query_loading.ml), [query_loading.mli](agent_chat/runtime/query_loading.mli) | component | [query_loading.md](agent_chat/runtime/query_loading.md) | reviewed |
 | [responsive.ml](agent_chat/runtime/responsive.ml), [responsive.mli](agent_chat/runtime/responsive.mli) | component | Missing | pending |
 | [result_actions.ml](agent_chat/runtime/result_actions.ml), [result_actions.mli](agent_chat/runtime/result_actions.mli) | component | [result_actions.md](agent_chat/runtime/result_actions.md) | reviewed |
-| [result_data.ml](agent_chat/runtime/result_data.ml), [result_data.mli](agent_chat/runtime/result_data.mli) | component | Missing | pending |
-| [results.ml](agent_chat/runtime/results.ml), [results.mli](agent_chat/runtime/results.mli) | component | Missing | pending |
+| [result_data.ml](agent_chat/runtime/result_data.ml), [result_data.mli](agent_chat/runtime/result_data.mli) | component | [result_data.md](agent_chat/runtime/result_data.md) | reviewed |
+| [results.ml](agent_chat/runtime/results.ml), [results.mli](agent_chat/runtime/results.mli) | component | [results.md](agent_chat/runtime/results.md) | reviewed |
 | [review.ml](agent_chat/runtime/review.ml), [review.mli](agent_chat/runtime/review.mli) | component | Missing | pending |
 | [review_feedback.ml](agent_chat/runtime/review_feedback.ml), [review_feedback.mli](agent_chat/runtime/review_feedback.mli) | component | Missing | pending |
 | [run_diagram.ml](agent_chat/runtime/run_diagram.ml), [run_diagram.mli](agent_chat/runtime/run_diagram.mli) | component | Missing | pending |
@@ -37,8 +37,8 @@ Generated from [coverage.json](coverage.json). Read the [review guide](coverage-
 | [schedule_settings.ml](agent_chat/runtime/schedule_settings.ml), [schedule_settings.mli](agent_chat/runtime/schedule_settings.mli) | component | Missing | pending |
 | [score_range.ml](agent_chat/runtime/score_range.ml), [score_range.mli](agent_chat/runtime/score_range.mli) | component | Missing | pending |
 | [settings.ml](agent_chat/runtime/settings.ml), [settings.mli](agent_chat/runtime/settings.mli) | component | Missing | pending |
-| [source_data.ml](agent_chat/runtime/source_data.ml), [source_data.mli](agent_chat/runtime/source_data.mli) | component | Missing | pending |
-| [sources.ml](agent_chat/runtime/sources.ml), [sources.mli](agent_chat/runtime/sources.mli) | component | Missing | pending |
+| [source_data.ml](agent_chat/runtime/source_data.ml), [source_data.mli](agent_chat/runtime/source_data.mli) | component | [source_data.md](agent_chat/runtime/source_data.md) | reviewed |
+| [sources.ml](agent_chat/runtime/sources.ml), [sources.mli](agent_chat/runtime/sources.mli) | component | [sources.md](agent_chat/runtime/sources.md) | reviewed |
 | [workspace.ml](agent_chat/runtime/workspace.ml), [workspace.mli](agent_chat/runtime/workspace.mli) | component | Missing | pending |
 | [self_test.ml](agent_chat/self_test.ml), [self_test.mli](agent_chat/self_test.mli) | test-support | Missing | pending |
 | [workload_metrics.ml](agent_chat/workload_metrics.ml), [workload_metrics.mli](agent_chat/workload_metrics.mli) | component | Missing | pending |
@@ -66,8 +66,8 @@ Generated from [coverage.json](coverage.json). Read the [review guide](coverage-
 
 | Source parts | Role | Walkthrough | Review |
 | --- | --- | --- | --- |
-| [main.ml](calendar/main.ml) | application-entry | [README.md](calendar/README.md) | pending |
-| [picker.ml](calendar/picker.ml) | component | Missing | pending |
+| [main.ml](calendar/main.ml) | application-entry | [main.md](calendar/main.md) | reviewed |
+| [picker.ml](calendar/picker.ml) | component | [picker.md](calendar/picker.md) | reviewed |
 ## canvas
 
 | Source parts | Role | Walkthrough | Review |
@@ -105,8 +105,8 @@ Generated from [coverage.json](coverage.json). Read the [review guide](coverage-
 
 | Source parts | Role | Walkthrough | Review |
 | --- | --- | --- | --- |
-| [main.ml](color_input/main.ml) | application-entry | [README.md](color_input/README.md) | pending |
-| [picker.ml](color_input/picker.ml) | component | Missing | pending |
+| [main.ml](color_input/main.ml) | application-entry | [main.md](color_input/main.md) | reviewed |
+| [picker.ml](color_input/picker.ml) | component | [picker.md](color_input/picker.md) | reviewed |
 ## combobox
 
 | Source parts | Role | Walkthrough | Review |
@@ -330,9 +330,9 @@ Generated from [coverage.json](coverage.json). Read the [review guide](coverage-
 
 | Source parts | Role | Walkthrough | Review |
 | --- | --- | --- | --- |
-| [main.ml](numeric/main.ml) | application-entry | [README.md](numeric/README.md) | pending |
-| [number.ml](numeric/number.ml) | component | Missing | pending |
-| [otp.ml](numeric/otp.ml) | component | Missing | pending |
+| [main.ml](numeric/main.ml) | application-entry | [main.md](numeric/main.md) | reviewed |
+| [number.ml](numeric/number.ml) | component | [number.md](numeric/number.md) | reviewed |
+| [otp.ml](numeric/otp.ml) | component | [otp.md](numeric/otp.md) | reviewed |
 ## overlays
 
 | Source parts | Role | Walkthrough | Review |
@@ -497,4 +497,4 @@ Generated from [coverage.json](coverage.json). Read the [review guide](coverage-
 | --- | --- | --- | --- |
 | [main.ml](window_lifecycle/main.ml) | application-entry | Missing | pending |
 
-417 source files in 260 groups; 49 reviewed, 211 pending.
+417 source files in 260 groups; 60 reviewed, 200 pending.

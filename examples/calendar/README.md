@@ -1,5 +1,10 @@
 # Calendar Lab
 
+Read the [inline calendar walkthrough](main.md) for its actual Bonsai graph,
+native controller commands and diagnostic boundaries, then the
+[popup picker walkthrough](picker.md) for confirmed-value/draft ownership and
+session lifetimes. Both entry points are independent executables in [dune](dune).
+
 Build with `GPUIO_JOBS=2 ./scripts/gpuio build examples/calendar/main.exe`, then
 run `_build/default/examples/calendar/main.exe`.
 

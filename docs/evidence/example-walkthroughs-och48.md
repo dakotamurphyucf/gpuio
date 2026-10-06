@@ -225,3 +225,29 @@ Coverage is **49 reviewed and 211 pending**, with 417 sources still mapped. The
 structural audit, local Markdown paths and whitespace checks pass. Command/flag
 review uses the actual source and manifests. This documentation batch changes no
 implementation and runs no GUI; platform acceptance remains separately evidenced.
+
+## Native drafts, confirmation and paged chat data
+
+Starting from `9dc6328`, eleven further groups are reviewed: the numeric
+[slider](../../examples/numeric/main.md), [number input](../../examples/numeric/number.md)
+and [OTP](../../examples/numeric/otp.md); inline/popup
+[calendar](../../examples/calendar/README.md) and
+[color](../../examples/color_input/README.md) controls; and Agent Chat's
+[Sources](../../examples/agent_chat/runtime/sources.md),
+[Source_data](../../examples/agent_chat/runtime/source_data.md),
+[Results](../../examples/agent_chat/runtime/results.md) and
+[Result_data](../../examples/agent_chat/runtime/result_data.md).
+
+The three authorized GPT-6.1 Sol agents read the implementations and interfaces
+where present; the primary agent reviewed the guides, checked representative
+source paths and updated the shared inventory. The guides distinguish native
+editing from confirmed application state, keyed graph deactivation from removing
+a view, command/session/revision guards, scoped lazy loading, complete-query
+sorting before pagination and application approval of synthetic tree moves.
+They name the actual helpers and public APIs and explain reactive/effect syntax.
+
+Coverage is **60 reviewed groups and 200 pending**, still mapping 417 sources.
+Local Markdown path checks, the source/table audit and whitespace checks pass.
+Documented commands/flags were checked against source and build declarations.
+This documentation review adds no GUI, accessibility or platform acceptance;
+separate in-progress Sankey implementation checks are not evidence for these guides.

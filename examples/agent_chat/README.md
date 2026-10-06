@@ -61,7 +61,12 @@ acceptance/producer/document lifecycle, history loading and attachments. For the
 larger fixtures, read [bounded CPU jobs](runtime/fixture_job.md), then
 [native query loading](runtime/query_loading.md) and
 [guarded finding actions](runtime/result_actions.md). These helpers separate
-producer scheduling, pending-state presentation and current-row inspection.
+producer scheduling, pending-state presentation and current-row inspection. Continue
+with the [source explorer](runtime/sources.md) and its
+[pure tree fixtures/moves](runtime/source_data.md), then the
+[results controller](runtime/results.md) and
+[complete query/data model](runtime/result_data.md). Their guides trace lazy
+loading, current-generation delivery, virtualized rows/cells and accepted moves.
 
 These are code walkthroughs, not new platform acceptance evidence. The runtime
 source map below identifies the remaining component boundaries; per-component
