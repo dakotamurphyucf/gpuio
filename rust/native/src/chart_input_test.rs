@@ -242,16 +242,16 @@ pub(super) async fn exercise(
         handle,
         vec![Op::SetChart(
             id(1),
-            Config {
+            Box::new(Config {
                 disabled: true,
                 ..config(source, 0xff0000ff)
-            },
+            }),
         )],
     );
     apply(
         cx,
         handle,
-        vec![Op::SetChart(id(1), config(source, 0xff0000ff))],
+        vec![Op::SetChart(id(1), Box::new(config(source, 0xff0000ff)))],
     );
     mouse(cx, handle, position(150., 100.), false);
     assert!(observations(&transport).is_empty());
@@ -326,7 +326,7 @@ pub(super) async fn exercise(
     drop(budget_hold);
     let mut retry = config(source, 0xff0000ff);
     retry.style.stroke_width = 3.;
-    apply(cx, handle, vec![Op::SetChart(id(1), retry)]);
+    apply(cx, handle, vec![Op::SetChart(id(1), Box::new(retry))]);
     ready(cx, handle, 3, 0xff0000ff).await;
     key(cx, handle, "d");
     key(cx, handle, "end");

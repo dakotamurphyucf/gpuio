@@ -353,6 +353,7 @@ mod tests {
                     LabelKind::X,
                     LabelKind::Y,
                     LabelKind::Radial,
+                    LabelKind::RadarAxis(1),
                     LabelKind::Flow {
                         placement: None,
                         align_right: false,

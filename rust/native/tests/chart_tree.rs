@@ -45,7 +45,7 @@ fn chart_leaf_validation_and_failed_updates_are_atomic() {
         &mut tree,
         vec![
             Op::Create(node(0), Kind::ChartView, "".into(), None),
-            Op::SetChart(node(0), config()),
+            Op::SetChart(node(0), Box::new(config())),
             Op::SetRoot(Some(node(0))),
         ],
     )
@@ -57,15 +57,15 @@ fn chart_leaf_validation_and_failed_updates_are_atomic() {
         ..config()
     };
     for ops in [
-        vec![Op::SetChart(node(0), invalid)],
+        vec![Op::SetChart(node(0), Box::new(invalid))],
         vec![Op::SetText(node(0), "not a text leaf".into())],
         vec![
             Op::Create(node(1), Kind::Text, "child".into(), None),
             Op::Splice(node(0), 0, 0, vec![node(1)]),
         ],
         vec![
-            Op::SetChart(node(0), config()),
-            Op::SetChart(node(0), config()),
+            Op::SetChart(node(0), Box::new(config())),
+            Op::SetChart(node(0), Box::new(config())),
         ],
     ] {
         assert_eq!(apply(&mut tree, ops), Err(ErrorCode::InvalidTree));
@@ -78,10 +78,10 @@ fn chart_leaf_validation_and_failed_updates_are_atomic() {
         &mut tree,
         vec![Op::SetChart(
             node(0),
-            Config {
+            Box::new(Config {
                 source: None,
                 ..config()
-            },
+            }),
         )],
     )
     .unwrap();
@@ -97,7 +97,7 @@ fn chart_mount_quota_rolls_back_and_is_reusable_after_removal() {
     for child in &children {
         ops.extend([
             Op::Create(*child, Kind::ChartView, "".into(), None),
-            Op::SetChart(*child, config()),
+            Op::SetChart(*child, Box::new(config())),
         ]);
     }
     ops.extend([
@@ -122,7 +122,7 @@ fn chart_mount_quota_rolls_back_and_is_reusable_after_removal() {
         vec![
             Op::Remove(node(1)),
             Op::Create(replacement, Kind::ChartView, "".into(), None),
-            Op::SetChart(replacement, config()),
+            Op::SetChart(replacement, Box::new(config())),
             Op::Splice(node(0), 0, 128, next_children),
         ],
     )

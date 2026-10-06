@@ -205,7 +205,7 @@ pub(super) async fn exercise(
             cx,
             handle,
             vec![
-                Op::SetChart(id(1), chart(source, placement, labels)),
+                Op::SetChart(id(1), Box::new(chart(source, placement, labels))),
                 Op::SetStyle(id(1), dimensions(width, weight)),
             ],
         );

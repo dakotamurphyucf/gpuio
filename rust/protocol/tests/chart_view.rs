@@ -93,7 +93,7 @@ fn bounded_chart_view_and_transaction_match_independent_fixture() {
         revision: 1,
         operations: vec![
             Op::Create(node, Kind::ChartView, "".into(), Some(handler)),
-            Op::SetChart(node, config),
+            Op::SetChart(node, Box::new(config)),
         ],
     });
     let bytes = encode(&message);

@@ -63,6 +63,12 @@ does not create a new post-v1 deferral. Any extension must use bounded serialize
 values/native preparation and preserve accessibility/provenance, rather than
 introducing per-frame OCaml callbacks or weakening data validation.
 
+The [radar child-content design](../design/radar-label-content.md) specifies
+arbitrary OCaml View labels, native natural-size measurement, stable axis identity
+and focus/visibility retirement. It is an implementation plan, not a shipped API.
+Prepared radar captions now preserve axis IDs separately from pie captions;
+the public child-content adapter and its native acceptance remain unfinished.
+
 ## Interaction, accessibility and resource evidence
 
 [`Chart.Config`](../../lib/core/chart.mli) supports native pointer/drag selection,

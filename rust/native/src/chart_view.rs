@@ -318,8 +318,14 @@ impl State {
                     .rounded_sm()
                     .bg(gpui::rgba(presentation::label_backing(foreground)));
             }
+            let label_identity = match label.kind {
+                crate::chart_geometry::LabelKind::RadarAxis(axis) => {
+                    ("gpuio-chart-radar-label", axis as u64)
+                }
+                _ => ("gpuio-chart-label", index as u64),
+            };
             let element = div()
-                .id(("gpuio-chart-label", index as u64))
+                .id(label_identity)
                 .role(gpui::Role::Label)
                 .absolute()
                 .left(px(r.x as f32))

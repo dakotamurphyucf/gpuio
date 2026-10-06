@@ -3699,7 +3699,7 @@ impl Plan<'_> {
                 if self.node(*id)?.kind != Kind::ChartView || !config.is_valid() {
                     return Err(ErrorCode::InvalidTree);
                 }
-                self.node_mut(*id)?.chart = Some(Arc::new(config.clone()));
+                self.node_mut(*id)?.chart = Some(Arc::new(config.as_ref().clone()));
             }
             Op::SetDocumentDiff(id, epoch, config) => {
                 let node = self.node(*id)?;

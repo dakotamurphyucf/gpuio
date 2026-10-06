@@ -185,7 +185,7 @@ fn mount(source: ResourceId) -> Vec<Op> {
             "".into(),
             Some(HandlerId::from_parts(1, 1).unwrap()),
         ),
-        Op::SetChart(id(1), config(source, 0xff0000ff)),
+        Op::SetChart(id(1), Box::new(config(source, 0xff0000ff))),
         Op::SetStyle(
             id(1),
             vec![Style::Fields(vec![
@@ -222,7 +222,7 @@ async fn exercise(
     apply(
         cx,
         handle,
-        vec![Op::SetChart(id(1), config(source, 0x0000ffff))],
+        vec![Op::SetChart(id(1), Box::new(config(source, 0x0000ffff)))],
     );
     ready(cx, handle, 1, 0x0000ffff).await;
     pixels(cx, handle, [0, 0, 255, 255]);
@@ -279,7 +279,7 @@ async fn exercise(
     apply(
         cx,
         handle,
-        vec![Op::SetChart(id(1), config(next, 0x00ff00ff))],
+        vec![Op::SetChart(id(1), Box::new(config(next, 0x00ff00ff)))],
     );
     ready(cx, handle, 1, 0x00ff00ff).await;
     pixels(cx, handle, [0, 255, 0, 255]);
@@ -325,7 +325,11 @@ async fn exercise(
     };
     let mut dense_config = config(next, 0x00ff00ff);
     dense_config.legend = true;
-    apply(cx, handle, vec![Op::SetChart(id(1), dense_config)]);
+    apply(
+        cx,
+        handle,
+        vec![Op::SetChart(id(1), Box::new(dense_config))],
+    );
     for (base, generation) in [(1, 1), (2, 1), (3, 2)] {
         stage_data(&session, next, base, generation, &dense);
         cx.update(|cx| dispatch(cx, &transport, 30 + base, Request::Publish(next, base + 1)));

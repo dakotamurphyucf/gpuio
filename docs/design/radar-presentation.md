@@ -3,7 +3,7 @@
 Implemented with [scoped local evidence](../evidence/radar-projection-och41.md),
 2026-10-06. This extends the existing per-axis radar
 API with the pinned catalog's shared scale, outer radius and label spacing.
-Rich axis-label content remains separate unfinished catalog work; this contract
+Rich axis-label content remains [separate unfinished catalog work](radar-label-content.md); this contract
 is not complete radar-family acceptance.
 
 `Chart_options.Radar.Scale` is `Per_axis | Data_max | Maximum of float`.

@@ -1310,7 +1310,7 @@ impl Decoder<'_> {
             52 => Op::SetTable(self.node()?, self.table_config()?),
             53 => Op::SetTableCell(self.node()?, self.table_cell()?),
             54 => Op::TableCommand(self.node()?, self.table_command()?),
-            55 => Op::SetChart(self.node()?, self.chart_view_config()?),
+            55 => Op::SetChart(self.node()?, Box::new(self.chart_view_config()?)),
             56 => Op::SetInputRegion(self.node()?, self.input_config()?),
             57 => Op::SetHighlightScope(self.node()?, self.highlight_config()?),
             59 => Op::SetStyledText(self.node()?, self.text_content()?),

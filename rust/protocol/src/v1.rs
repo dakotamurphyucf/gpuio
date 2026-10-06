@@ -768,7 +768,9 @@ pub enum Op {
     SetTable(NodeId, crate::table::Config),
     SetTableCell(NodeId, crate::table::Cell),
     TableCommand(NodeId, crate::table::Command),
-    SetChart(NodeId, crate::chart_view::Config),
+    // Keep the growing chart payload from inflating every small tree operation.
+    // Box is transparent to bin_prot; the operation tag and payload stay unchanged.
+    SetChart(NodeId, Box<crate::chart_view::Config>),
     SetInputRegion(NodeId, crate::input::Config),
     SetHighlightScope(NodeId, crate::highlight::Config),
     SetDocumentDiff(NodeId, i64, Option<crate::document_diff::Config>),

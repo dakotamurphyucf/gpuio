@@ -15,6 +15,14 @@ Three owner-authorized GPT-6.1 Sol agents contributed scoped walkthroughs in par
 Contributor guidance and a structural CI check keep new sources visible; neither
 file presence nor that check establishes documentation or platform acceptance.
 
+[Radar label identity](evidence/radar-label-identity-och41.md) now follows stable
+axis IDs across caption changes/reordering. Broader lint also exposed and repaired
+chart configuration inflating every protocol operation: its Rust payload is now
+boxed, preserving wire bytes and reducing local operation size from 584 to 352
+bytes. Protocol/chart/tree tests and dependency-inclusive strict lint pass.
+The [arbitrary View label design](design/radar-label-content.md) is drafted;
+the public child-content adapter and native acceptance remain unfinished.
+
 [Radar projection options](evidence/radar-projection-och41.md) now expose shared
 maxima, fixed radius and label spacing from OCaml, preserving per-axis defaults
 and original source values. Paired codecs, worker/mesh tests, full local checks,

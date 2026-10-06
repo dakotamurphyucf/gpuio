@@ -135,6 +135,9 @@ pub enum LabelKind {
     X,
     Y,
     Radial,
+    /// Stable source-axis identity, independent of caption text or display order.
+    /// Custom retained label content must join against this ID, not label indices.
+    RadarAxis(i64),
     Flow {
         placement: Option<FlowLabelPlacement>,
         align_right: bool,
@@ -725,7 +728,7 @@ fn radar(
             plan.labels.push(Label {
                 position: Point::polar(center, radius + options.label_gap, angle(i)),
                 text: axis.label.clone(),
-                kind: LabelKind::Radial,
+                kind: LabelKind::RadarAxis(axis.id),
             });
         }
         for level in 1..=options.levels {

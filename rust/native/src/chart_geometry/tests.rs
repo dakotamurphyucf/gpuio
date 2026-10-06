@@ -910,6 +910,69 @@ fn radar_series_identifiers_follow_axes_and_do_not_require_colored_fills() {
 }
 
 #[test]
+fn radar_label_identity_survives_duplicate_captions_reordering_and_empty_series() {
+    let axes = vec![
+        data::RadarAxis {
+            id: 7,
+            label: "Repeated".into(),
+            maximum: 10.,
+        },
+        data::RadarAxis {
+            id: 3,
+            label: "Repeated".into(),
+            maximum: 10.,
+        },
+        data::RadarAxis {
+            id: 9,
+            label: "Third".into(),
+            maximum: 10.,
+        },
+    ];
+    let original = plan(data::Contents::Radar(axes.clone(), vec![]));
+    let labels = |p: &Plan| {
+        p.labels
+            .iter()
+            .filter_map(|label| match label.kind {
+                LabelKind::RadarAxis(id) => Some((id, label.text.clone(), label.position)),
+                _ => None,
+            })
+            .collect::<Vec<_>>()
+    };
+    let before = labels(&original);
+    assert_eq!(before.iter().map(|l| l.0).collect::<Vec<_>>(), [7, 3, 9]);
+    assert_eq!(before[0].1, before[1].1);
+    assert_ne!(before[0].2, before[1].2);
+    // Axis identity follows the source, while the first position remains 12 o'clock.
+    let mut reordered = axes;
+    reordered.rotate_left(1);
+    reordered[0].label = "Renamed".into();
+    let after = labels(&plan(data::Contents::Radar(reordered.clone(), vec![])));
+    assert_eq!(after.iter().map(|l| l.0).collect::<Vec<_>>(), [3, 9, 7]);
+    assert_eq!(after[0].1, "Renamed");
+    assert_eq!(after[0].2, before[0].2);
+    let mut hidden = options();
+    hidden.radar.labels = false;
+    let hidden_plan = prepare(
+        &dataset(data::Contents::Radar(reordered, vec![])),
+        Policy::default(),
+        &hidden,
+        800.,
+        400.,
+        &AtomicBool::new(false),
+    )
+    .unwrap();
+    assert!(labels(&hidden_plan).is_empty());
+    // Pie captions retain their distinct provenance, even if their text is equal.
+    let pie = plan(data::Contents::Pie(vec![data::Slice {
+        id: 7,
+        label: "Repeated".into(),
+        value: 1.,
+    }]));
+    assert!(labels(&pie).is_empty());
+    assert!(pie.labels.iter().any(|l| l.kind == LabelKind::Radial));
+}
+
+#[test]
 fn radar_shared_scales_extrapolate_without_changing_source_identity() {
     let axes = vec![
         data::RadarAxis {
