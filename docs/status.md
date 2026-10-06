@@ -15,6 +15,13 @@ Three owner-authorized GPT-6.1 Sol agents contributed scoped walkthroughs in par
 Contributor guidance and a structural CI check keep new sources visible; neither
 file presence nor that check establishes documentation or platform acceptance.
 
+[Radar label capture](evidence/radar-label-capture-och41.md) now has a native
+regression for ordinary View gestures. It exposed and repaired inner mouse-down
+suppression and capture surviving source-driven hiding until another frame.
+Native dispatch checks pass removal/reset/family/hide/source replacement/release,
+stale mouse-up rejection and fresh gesture recovery. Broader qualification remains
+open; hidden-window dispatch is not physical-mouse or VoiceOver evidence.
+
 [Radar label identity](evidence/radar-label-identity-och41.md) now follows stable
 axis IDs across caption changes/reordering. Broader lint also exposed and repaired
 chart configuration inflating every protocol operation: its Rust payload is now

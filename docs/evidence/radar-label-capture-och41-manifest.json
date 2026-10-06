@@ -1,0 +1,52 @@
+{
+  "source_base": "c373e3b",
+  "platform": "macOS 14.5 arm64",
+  "archive_sha256": "995653434137cd6890a91f42c7a0a4dc4c30dd91eafef0cd5d15c53657cb5596",
+  "files": [
+    {
+      "path": "radar-capture-before.log",
+      "bytes": 588815,
+      "sha256": "fd824f547459a0467a5c439e8364f0928aa01b2a5a5b8f31f487465e8b272a2a"
+    },
+    {
+      "path": "radar-capture-clippy.log",
+      "bytes": 588275,
+      "sha256": "8b7524b250bd2e73f87a46b494f637e9cc3be1a0bef84f11c85d2d1142680c97"
+    },
+    {
+      "path": "radar-capture-fixed.log",
+      "bytes": 589179,
+      "sha256": "ae0837c49939ce99060c3ac7a51420e720a414c06a320568dec91b6f1891beb7"
+    },
+    {
+      "path": "radar-capture-gallery-build.log",
+      "bytes": 100161,
+      "sha256": "f2928f2df4f6baaa5c9c11c81e236a9ee8be5e294627fb2941a2891d95b021bb"
+    },
+    {
+      "path": "radar-capture-gallery.log",
+      "bytes": 3314,
+      "sha256": "3f10bded2a905a0532637819c5eede439cbe354985ba1a821a33f99ac074bd13"
+    },
+    {
+      "path": "radar-capture-lifetimes.log",
+      "bytes": 589231,
+      "sha256": "e665a98e2f3ee78f896bce1d61f8a7f78ac1f8ef20633d93ba12693692dab28b"
+    },
+    {
+      "path": "radar-capture-native-suite.log",
+      "bytes": 697742,
+      "sha256": "4e30feaaf585f5242df6cde7a407c24fa656e671de48bd9648575ac2d75d98b4"
+    },
+    {
+      "path": "radar-capture-recovery.log",
+      "bytes": 589206,
+      "sha256": "89fa44a6b3cefe2cc28c88bf213163129bceafab5481f52646a968f8d7c9e97e"
+    },
+    {
+      "path": "radar-capture-routing.log",
+      "bytes": 588825,
+      "sha256": "b4da8f58cfe8f66f9ecf015f6dfeacf7e6d8b9dc885949a251803a772f2f9246"
+    }
+  ]
+}

@@ -570,7 +570,7 @@ impl View {
         let visibility_changed =
             !Rc::ptr_eq(&visibility, &self.focus.borrow().visibility_identity());
         if visibility_changed {
-            self.focus.borrow_mut().sync(window, cx);
+            self.sync_tooltips(window, cx);
         }
     }
     pub(super) fn hide_unvisited_charts(&self, window: &mut Window) {
@@ -581,7 +581,7 @@ impl View {
         }
     }
     pub(super) fn charts_changed(
-        &self,
+        &mut self,
         source: Option<ResourceId>,
         window: &mut Window,
         cx: &mut Context<Self>,
@@ -601,7 +601,10 @@ impl View {
             let visibility_changed =
                 !Rc::ptr_eq(&visibility, &self.focus.borrow().visibility_identity());
             if visibility_changed {
-                self.focus.borrow_mut().sync(window, cx);
+                // Visibility can change without a retained-tree transaction or
+                // another paint. Retire captures/drag/tooltip owners as well as
+                // focus while their old source target is still hidden.
+                self.sync_tooltips(window, cx);
             }
             cx.notify();
         }

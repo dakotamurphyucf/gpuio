@@ -3,6 +3,9 @@
 use super::*;
 use gpuio_protocol::chart_data::RadarAxis;
 
+#[path = "chart_label_capture_test.rs"]
+mod capture;
+
 fn content_config(source: ResourceId, labels: bool) -> Config {
     let mut value = config(source, 0xff0000ff);
     value.radar_labels = vec![7];
@@ -284,6 +287,7 @@ pub(super) async fn exercise(
             })
             .unwrap();
     }
+    capture::exercise(cx, handle, source, session, transport, &absent).await;
     apply(
         cx,
         handle,

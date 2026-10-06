@@ -103,7 +103,9 @@ also pass.
 Required current-source Linux/hosted checks are pending; the
 older hosted run 37470525492 does not cover this schema or adapter.
 
-Additional custom-label acceptance must cover icon/resource children, narrow and
+[Subsequent pointer-capture evidence](radar-label-capture-och41.md) covers held
+gestures across source and visibility transitions. Other custom-label acceptance
+must cover icon/resource children, narrow and
 oversized clipping, theme/font/scale transitions with interactive labels, source
 family/replacement/release transitions, delayed stale actions across hidden/reset
 and return, pointer capture and popup retirement without paint, and interaction
