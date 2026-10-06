@@ -7,16 +7,14 @@ use objc2::{
 };
 use objc2_foundation::NSString;
 
-unsafe fn find(object: *mut AnyObject, depth: usize) -> Option<Retained<AnyObject>> {
+unsafe fn find(object: *mut AnyObject, depth: usize, name: &str) -> Option<Retained<AnyObject>> {
     if object.is_null() || depth > 20 {
         return None;
     }
     unsafe {
         let title: *mut NSString = msg_send![object, accessibilityTitle];
         let role: *mut NSString = msg_send![object, accessibilityRole];
-        if title
-            .as_ref()
-            .is_some_and(|s| s.to_string() == "Run radar action")
+        if title.as_ref().is_some_and(|s| s.to_string() == name)
             && role.as_ref().is_some_and(|s| s.to_string() == "AXButton")
         {
             return Retained::retain(object);
@@ -29,7 +27,7 @@ unsafe fn find(object: *mut AnyObject, depth: usize) -> Option<Retained<AnyObjec
         assert!(count < 128);
         for index in 0..count {
             let child: *mut AnyObject = msg_send![children, objectAtIndex:index];
-            if let Some(found) = find(child, depth + 1) {
+            if let Some(found) = find(child, depth + 1, name) {
                 return Some(found);
             }
         }
@@ -40,13 +38,21 @@ pub(super) async fn target(
     cx: &mut gpui::AsyncApp,
     handle: WindowHandle<View>,
 ) -> Retained<AnyObject> {
+    target_named(cx, handle, "Run radar action").await
+}
+
+pub(super) async fn target_named(
+    cx: &mut gpui::AsyncApp,
+    handle: WindowHandle<View>,
+    name: &str,
+) -> Retained<AnyObject> {
     for _ in 0..100 {
         draw(cx, handle);
         let address = crate::host::editor_test::native_view(cx, handle) as *mut AnyObject;
         let found = unsafe {
             let window: *mut AnyObject = msg_send![address, window];
             let content: *mut AnyObject = msg_send![window, contentView];
-            find(content, 0)
+            find(content, 0, name)
         };
         if let Some(found) = found {
             return found;
@@ -55,7 +61,7 @@ pub(super) async fn target(
             .timer(Duration::from_millis(10))
             .await;
     }
-    panic!("native radar AXButton missing");
+    panic!("native radar AXButton missing: {name}");
 }
 pub(super) fn press(object: &Retained<AnyObject>) {
     unsafe {

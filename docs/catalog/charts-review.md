@@ -77,6 +77,12 @@ foreground/font-size changes and eight cardinal/diagonal anchors at test densiti
 It does not establish physical monitor transitions, VoiceOver or cross-window
 label interaction isolation.
 
+[Ordinary button isolation](../evidence/radar-label-isolation-och41.md) now has
+actual AppKit action evidence for two charts in each of two windows, including
+per-owner hiding, shared-source membership changes, unmount/close and exact
+window/node routing. Specialized widget and broader accessibility acceptance
+remain separate.
+
 ## Interaction, accessibility and resource evidence
 
 [`Chart.Config`](../../lib/core/chart.mli) supports native pointer/drag selection,

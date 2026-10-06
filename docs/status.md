@@ -15,6 +15,13 @@ Three owner-authorized GPT-6.1 Sol agents contributed scoped walkthroughs in par
 Contributor guidance and a structural CI check keep new sources visible; neither
 file presence nor that check establishes documentation or platform acceptance.
 
+[Radar label isolation](evidence/radar-label-isolation-och41.md) now passes actual
+AppKit button actions for two charts in two windows with identical node IDs.
+Per-chart hiding, shared-axis removal/return and one owner's unmount/close preserve
+the others' eligibility and exact event routing. The surviving button also accepts
+native GPUI pointer/keyboard dispatch; source bytes return to baseline. This is
+ordinary-button coverage, not every specialized widget or VoiceOver acceptance.
+
 [Radar label resources](evidence/radar-label-resources-och41.md) now have native
 SVG pixel, intrinsic-size, inherited tint/font, hide/return and unmount evidence.
 All eight anchors pass independently calculated placement checks at test densities;

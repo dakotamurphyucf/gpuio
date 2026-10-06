@@ -1,0 +1,42 @@
+{
+  "source_base": "c0354bb",
+  "platform": "macOS 14.5 arm64",
+  "archive_sha256": "f3609b048e039c65f22dc0f36a492cfd13bbbccc47363f2384bf849396a940a5",
+  "files": [
+    {
+      "path": "radar-isolation-clippy.log",
+      "bytes": 588275,
+      "sha256": "50ea69a0fdc4b8eff6dcf5867ad7936c513e25b4485ab70b51a355b95c6a1fdd"
+    },
+    {
+      "path": "radar-isolation-first.log",
+      "bytes": 588812,
+      "sha256": "d72f34e36e66945c62556da4020c0ac7d06721c455a96b0db065741d9e1c42a6"
+    },
+    {
+      "path": "radar-isolation-format-check.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "radar-isolation-format.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "radar-isolation-keys.log",
+      "bytes": 589700,
+      "sha256": "1d6c85f7122c74d296dbdcdd473409d4cca9f4339a415bf450daa2ff5b545445"
+    },
+    {
+      "path": "radar-isolation-native.log",
+      "bytes": 589278,
+      "sha256": "ea7af47c970f90b5ba202fd60e47ee1ec2ac51e1be62b1f1915133da2cc48dbf"
+    },
+    {
+      "path": "radar-isolation-reveal.log",
+      "bytes": 589453,
+      "sha256": "327fbd4c0b4ad6b00cdf064fb2dd575eabab9d826320fab0ddb99365dc2ffe29"
+    }
+  ]
+}
