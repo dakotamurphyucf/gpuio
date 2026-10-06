@@ -257,6 +257,9 @@ def exercise_lifecycle(mac, mode):
         mac.perform(window, 'AXRaise')
     finally:
         mac.release(window)
+    if mode in ('replace', 'hide', 'disable', 'modal'):
+        mac.field(TITLE, 'Draft', 'AXTextField', 'Retained popup draft')
+    mac.press(TITLE, 'Arm popup transition')
     menu = open_keyboard(mac)
     print('NATIVE_POPUP_TRACKING_BEFORE_LIFECYCLE', mode, flush=True)
     try:
@@ -266,6 +269,86 @@ def exercise_lifecycle(mac, mode):
         if mode == 'retire':
             wait_popup(mac, False)
             mac.wait_text(TITLE, 'Popup owner retired')
+        elif mode in ('replace', 'hide', 'disable', 'modal'):
+            wait_popup(mac, False)
+            mac.wait_text(TITLE, 'Restore popup owner')
+            mac.wait_text(TITLE, 'Total runs: 0')
+            if mode == 'replace':
+                replacement = open_keyboard(mac)
+                try:
+                    rows = mac.children(replacement)
+                    try:
+                        assert [mac.text(row, 'AXTitle') for row in rows] == [
+                            'Replacement definition', 'Run (0)']
+                        assert not enabled(mac, rows[0])
+                    finally:
+                        for row in rows:
+                            mac.release(row)
+                finally:
+                    mac.release(replacement)
+                mac.key(53)
+                wait_popup(mac, False)
+            elif mode == 'disable':
+                draft = mac.wait_find(TITLE, 'Draft', 'AXTextField')
+                try:
+                    assert not enabled(mac, draft), 'Ancestor must disable its editor'
+                finally:
+                    mac.release(draft)
+            elif mode == 'hide':
+                draft = mac.find(TITLE, 'Draft', 'AXTextField')
+                try:
+                    assert not draft, 'Hidden editor must leave the accessible tree'
+                finally:
+                    if draft:
+                        mac.release(draft)
+            if mode == 'modal':
+                # The modal must receive actual keyboard focus after AppKit
+                # cancellation, not merely appear in the accessibility tree.
+                mac.key(48)  # Tab to the dialog's sole control.
+                mac.key(36)
+            else:
+                mac.press(TITLE, 'Restore popup owner')
+            deadline = time.monotonic() + 5
+            while True:
+                restore = mac.find(TITLE, 'Restore popup owner', 'AXButton')
+                if not restore:
+                    break
+                mac.release(restore)
+                if time.monotonic() > deadline:
+                    raise RuntimeError('Owner restoration was not published')
+                time.sleep(.03)
+            # Observing the original menu again fences the restoration, and
+            # actually invoking it proves the application-wide lease was freed.
+            restored = open_keyboard(mac)
+            try:
+                rows = mac.children(restored)
+                try:
+                    assert [mac.text(row, 'AXTitle') for row in rows] == [
+                        'Run (0)', 'Copy selection', '', 'More actions']
+                finally:
+                    for row in rows:
+                        mac.release(row)
+                mac.key(15)  # r: Run.
+                deadline = time.monotonic() + 5
+                while True:
+                    selected = mac.children(restored, 'AXSelectedChildren')
+                    try:
+                        names = [mac.text(row, 'AXTitle') for row in selected]
+                    finally:
+                        for row in selected:
+                            mac.release(row)
+                    if names == ['Run (0)']:
+                        break
+                    if time.monotonic() > deadline:
+                        raise RuntimeError(f'Restored menu selection not observed: {names}')
+                    time.sleep(.03)
+                mac.key(36)
+            finally:
+                mac.release(restored)
+            wait_popup(mac, False)
+            mac.wait_text(TITLE, 'Total runs: 1')
+            assert mac.field(TITLE, 'Draft', 'AXTextField') == 'Retained popup draft'
+            print('NATIVE_POPUP_OWNER_RECOVERY_OK:', mode, flush=True)
         else:
             deadline = time.monotonic() + 8
             while True:
@@ -339,7 +422,8 @@ def exercise_lifecycle(mac, mode):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--binary', type=Path, default=Path('_build/default/examples/menus/main.exe'))
-    parser.add_argument('--lifecycle', choices=['close', 'retire', 'invalidate'])
+    parser.add_argument('--lifecycle', choices=[
+        'close', 'retire', 'invalidate', 'replace', 'hide', 'disable', 'modal'])
     args = parser.parse_args()
     Mac.require_accessibility()
     with tempfile.TemporaryFile(mode='w+') as log:

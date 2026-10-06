@@ -281,6 +281,15 @@ jobs:
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
         timeout-minutes: 3
         run: python3 scripts/test_gallery.py --section clipboard 2>&1 | tee .cache/ci/macos-clipboard.log
+      - name: macOS native context popup interaction and lifecycle
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 5
+        run: |
+          ./scripts/gpuio build examples/menus/main.exe
+          python3 scripts/test_native_popup_macos.py 2>&1 | tee .cache/ci/macos-native-popup.log
+          for mode in close retire invalidate replace hide disable modal; do
+            python3 scripts/test_native_popup_macos.py --lifecycle "$mode" 2>&1 | tee ".cache/ci/macos-native-popup-$mode.log"
+          done
       - name: macOS cross-application file drop
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
         timeout-minutes: 4

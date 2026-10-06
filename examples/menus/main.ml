@@ -21,8 +21,15 @@ let actions_menu =
   |> Or_error.ok_exn
 ;;
 
-let component ~platform_popup ~phase ~observed window graph =
+let replacement_menu =
+  Menu.create ~label:"Replacement" [ Label "Replacement definition"; Command run_id ]
+  |> Or_error.ok_exn
+;;
+
+let component ~platform_popup ~phase ~observed ~arm_popup window graph =
+  let phase_source = phase in
   let count, set_count = B.state 0 graph in
+  let armed, set_armed = B.state false graph in
   let enabled, set_enabled = B.state true graph in
   let input =
     Gpuio_eio.Text_input.create
@@ -41,6 +48,8 @@ let component ~platform_popup ~phase ~observed window graph =
     graph;
   let open B.Let_syntax in
   let%arr count = count
+  and armed = armed
+  and set_armed = set_armed
   and set_count = set_count
   and enabled = enabled
   and set_enabled = set_enabled
@@ -94,10 +103,15 @@ let component ~platform_popup ~phase ~observed window graph =
     ; (if phase = 4
        then View.text "Popup owner retired"
        else
-         View.context_menu
-           ~platform:platform_popup
-           ~menu:actions_menu
-           (Gpuio_eio.Text_input.view input))
+         View.column
+           ~style:
+             (Gpuio.Style.create_exn
+                [ Display (if phase = 6 then Hidden else Flex); Disabled (phase = 7) ])
+           [ View.context_menu
+               ~platform:platform_popup
+               ~menu:(if phase = 5 then replacement_menu else actions_menu)
+               (Gpuio_eio.Text_input.view input)
+           ])
     ; View.row
         [ View.command_button ~command:run_id ()
         ; View.command_button ~command:copy_id ()
@@ -116,6 +130,31 @@ let component ~platform_popup ~phase ~observed window graph =
            ; View.menu_button ~menu:actions_menu ()
            ])
     ; View.command_button ~command:quit_id ()
+    ; (match arm_popup with
+       | None -> View.text ""
+       | Some arm ->
+         View.button
+           ~disabled:armed
+           ~on_click:(E.Many [ set_armed true; arm window ])
+           "Arm popup transition")
+    ; (if phase >= 5 && phase <= 7
+       then
+         View.button
+           ~on_click:(E.of_thunk (fun () -> B.Expert.Var.set phase_source 0))
+           "Restore popup owner"
+       else View.text "")
+    ; View.dialog
+        ~config:
+          (Gpuio.Overlay.Config.create ~label:"Popup lifecycle dialog" ()
+           |> Or_error.ok_exn)
+        ~on_dismiss:(fun _ -> E.of_thunk (fun () -> B.Expert.Var.set phase_source 0))
+        (if phase = 8
+         then
+           Some
+             (View.button
+                ~on_click:(E.of_thunk (fun () -> B.Expert.Var.set phase_source 0))
+                "Restore popup owner")
+         else None)
     ]
 ;;
 
@@ -124,49 +163,51 @@ let () =
   let platform_popup =
     Array.exists (Sys.get_argv ()) ~f:(String.equal "--platform-popup")
   in
-  let popup_close_test =
-    Array.exists (Sys.get_argv ()) ~f:(String.equal "--popup-close-test")
-  in
-  let popup_retire_test =
-    Array.exists (Sys.get_argv ()) ~f:(String.equal "--popup-retire-test")
-  in
-  let popup_invalidate_test =
-    Array.exists (Sys.get_argv ()) ~f:(String.equal "--popup-invalidate-test")
+  let popup_transition =
+    List.find_map
+      [ "close", None
+      ; "retire", Some 4
+      ; "invalidate", Some 1
+      ; "replace", Some 5
+      ; "hide", Some 6
+      ; "disable", Some 7
+      ; "modal", Some 8
+      ]
+      ~f:(fun (name, phase) ->
+        let flag = "--popup-" ^ name ^ "-test" in
+        if Array.exists (Sys.get_argv ()) ~f:(String.equal flag)
+        then Some (name, phase)
+        else None)
   in
   let completed = ref false in
   App.run (fun env app ->
     let phase = B.Expert.Var.create 0 in
     let observed = ref (-1) in
+    let arm_popup =
+      Option.map popup_transition ~f:(fun (name, next_phase) window ->
+        E.of_thunk (fun () ->
+          Gpuio_eio.Scope.start
+            (App.scope app)
+            ~f:(fun () -> Eio.Time.sleep (Eio.Stdenv.clock env) 3.)
+            ~on_result:(fun result ->
+              E.of_thunk (fun () ->
+                Or_error.ok_exn result;
+                print_endline ("GPUIO_POPUP_" ^ String.uppercase name ^ "_REQUESTED");
+                match next_phase with
+                | None -> App.Window.close window
+                | Some next_phase -> B.Expert.Var.set phase next_phase))
+          |> Or_error.ok_exn
+          |> fun (_ : Gpuio_eio.Scope.Task.t) -> ()))
+    in
     let window =
       App.open_window
         app
         ~title:"GPUIO menus"
         ~width:660.
         ~height:520.
-        (component ~platform_popup ~phase ~observed)
+        (component ~platform_popup ~phase ~observed ~arm_popup)
       |> Or_error.ok_exn
     in
-    (if popup_close_test || popup_retire_test || popup_invalidate_test
-     then
-       Gpuio_eio.Scope.start
-         (App.scope app)
-         ~f:(fun () -> Eio.Time.sleep (Eio.Stdenv.clock env) 3.)
-         ~on_result:(fun result ->
-           E.of_thunk (fun () ->
-             Or_error.ok_exn result;
-             if popup_close_test
-             then (
-               print_endline "GPUIO_POPUP_CLOSE_REQUESTED";
-               App.Window.close window)
-             else if popup_retire_test
-             then (
-               print_endline "GPUIO_POPUP_RETIRE_REQUESTED";
-               B.Expert.Var.set phase 4)
-             else (
-               print_endline "GPUIO_POPUP_INVALIDATE_REQUESTED";
-               B.Expert.Var.set phase 1)))
-       |> Or_error.ok_exn
-       |> fun (_ : Gpuio_eio.Scope.Task.t) -> ());
     if self_test
     then (
       let clock = Eio.Stdenv.clock env in

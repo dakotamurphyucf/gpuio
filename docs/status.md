@@ -13,6 +13,12 @@ rejection and window close during tracking. The close test first exposed main-qu
 starvation; a main-run-loop callback now keeps native work progressing. Programmatic
 show-at-position, native icons, additional lifecycle cases and consolidated gallery
 acceptance remain open. No Linux GUI or VoiceOver acceptance is claimed.
+The [owner-transition follow-up](evidence/native-popup-och41.md#owner-transition-and-recovery-follow-up)
+now passes definition replacement, hidden/disabled ancestors and modal entry,
+including actual keyboard recovery and retained editor content. A fresh installed
+consumer passes the complete eight-run popup matrix. The added CI step awaits
+hosted execution; positioned operations, native icons, overlap/editor-target
+qualification and consolidated acceptance remain open.
 
 Run [37400903839](https://github.com/dakotamurphyucf/gpuio/actions/runs/37400903839)
 at older branch `2e9cd54` is terminal: Linux passes; macOS fails native navigation

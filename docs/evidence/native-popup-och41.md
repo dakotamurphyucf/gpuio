@@ -116,7 +116,7 @@ current gallery build qualify their respective binaries. The current gallery bui
 gallery-build logs are recorded in the companion archive.
 
 Remaining native-popup work includes programmatic show-at-position, native icon
-metadata, overlap, definition replacement and hidden/modal transition cases,
+metadata, overlap and native editor focus-change cases,
 plus consolidated gallery/platform acceptance. AppKit label/check construction
 is not a VoiceOver test. Linux uses the drawn route, but this local run is not
 Linux execution or desktop qualification. OCH-41 and OCH-17 remain open.
@@ -125,3 +125,63 @@ The [archive](native-popup-och41/evidence.tar.gz) and
 [manifest](native-popup-och41/manifest.json) preserve implementation sources,
 commands, logs, failures and final checks. The initial exploratory dump of the
 system menu bar is intentionally not published; it adds no required evidence.
+
+## Owner transition and recovery follow-up
+
+Local changes based on `80b1f78`, same macOS 14.5 arm64 machine. This follow-up
+changes the public example, physical driver, documentation and CI workflow;
+the native library and protocol are unchanged.
+
+Four additional real AppKit lifecycle cases pass:
+
+- Replacing the menu definition dismisses its old popup. Reopening shows the new
+  passive section label and command, then restoring shows the original rows.
+- Hiding an ancestor dismisses the popup and removes its editor from the
+  accessible tree. Restoring the ancestor allows another popup and invocation.
+- Disabling an ancestor dismisses the popup and exposes its editor as disabled.
+  Re-enabling restores ordinary invocation.
+- Opening a modal dialog dismisses the background popup. Actual Tab/Enter
+  operates the dialog's sole restore button, then the original context menu
+  opens and dispatches again.
+
+Each case starts with a draft in the native editor, observes an actual open
+AppKit menu before the transition, verifies no command ran during cancellation,
+then reopens and invokes Run once. The unchanged draft and final counter are
+checked after the accepted invocation. This exercises recovery and lease release,
+not just menu disappearance. The driver waits for the restored definition and
+actual native selected row before selecting it.
+
+The example now exposes a private Arm popup transition button only in lifecycle
+test mode. Its effect starts the three-second Eio timer after the driver has
+prepared the window, avoiding dependence on application startup speed. It
+disables itself after one activation. Normal launches do not start this timer.
+
+The initial local four-case checks passed before this arming improvement. A
+fresh installed consumer then passed **all eight runs** on the final source:
+ordinary keyboard/pointer/clipboard interaction plus `close`, `retire`,
+`invalidate`, `replace`, `hide`, `disable` and `modal`. All child processes exited
+successfully; the ordinary interaction driver restored the clipboard.
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build examples/menus/main.exe @fmt
+GPUIO_JOBS=2 python3 scripts/test_extension_consumer.py --example menus \
+  --workspace scratch/agents/root-20261004-resumed/native-popup-lifecycle-armed-consumer
+python3 scripts/test_native_popup_macos.py --binary <consumer>/main.exe
+# Repeat with --lifecycle close|retire|invalidate|replace|hide|disable|modal.
+```
+
+Final repository binary SHA-256:
+`b0995bcfc208a3cda0c6190bc46c77cfa988a3cfe9511322818763757aa79fa2`.
+Final installed consumer SHA-256:
+`f36a98e5f4526eddc6e81eb1e84767f8d52832c6344e56f627a01e6d38b29c82`.
+The physical final matrix used the latter. Formatting, Python compilation and
+workflow actionlint pass locally. The new macOS CI step runs the same eight
+driver modes with a five-minute bound and retained per-mode logs; its hosted
+execution remains pending. No Linux GUI or VoiceOver coverage is implied.
+
+[Follow-up archive](native-popup-lifecycle-och41/evidence.tar.gz) and
+[manifest](native-popup-lifecycle-och41/manifest.json) retain source snapshots,
+the exact command matrix, final installed logs, initial local logs and build/lint
+results. The earlier archive remains unchanged. Programmatic positioned menus,
+native icons, overlapping requests, native editor focus changes and consolidated
+catalog/release acceptance remain open.

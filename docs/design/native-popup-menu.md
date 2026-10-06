@@ -83,7 +83,7 @@ Its submenu test waits for actual native selected children, because initial
 highlighting can depend on the previous pointer position.
 
 Still required before closing the native-popup catalog row: programmatic
-positioned operations, icon metadata, remaining definition replacement, hidden/modal transitions and overlap cases,
+positioned operations, icon metadata, overlap and native editor focus-change cases,
 and consolidated gallery/platform acceptance. Window close, owner removal,
 stale-command rejection and independently installed consumer interaction now
 have local macOS evidence; these do not imply all lifecycle cases are complete.
@@ -110,3 +110,11 @@ The exact close regression now passes. The versioned driver also passes owner
 removal and stale-command selection during tracking, against both the local and
 independently installed public consumer. [Evidence](../evidence/native-popup-och41.md)
 records the failure, correction, hashes and remaining scope.
+
+## Owner transition qualification
+
+The [lifecycle follow-up](../evidence/native-popup-och41.md#owner-transition-and-recovery-follow-up)
+also qualifies definition replacement, hidden/disabled ancestors and modal entry,
+including reopening, command delivery and preserved editor content, on a fresh
+installed-library consumer. These checks do not establish multi-window overlap
+or native editor retargeting behavior.

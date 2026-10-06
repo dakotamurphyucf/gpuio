@@ -98,20 +98,44 @@ stable when changing labels or counts; menu positions are not command identity.
 
 ## Native popup lifecycle probes
 
-`--popup-close-test`, `--popup-retire-test` and `--popup-invalidate-test` are
-private acceptance controls used together with `--platform-popup`. Three
-seconds after startup, their scoped Eio task respectively requests window close,
-removes the context owner from the View, or changes Run's command availability.
+The `--popup-<mode>-test` flags are private acceptance controls used together
+with `--platform-popup`. They expose an Arm popup transition button. After the
+driver has found and prepared the window, it presses that button and opens the
+popup. Three seconds after arming, the scoped Eio task applies the corresponding
+transition. Startup time therefore cannot consume the tracking-test interval.
+The button disables itself after one activation.
+
+| Mode | Transition |
+| --- | --- |
+| `close` | Request window close. |
+| `retire` | Remove the context owner from the View. |
+| `invalidate` | Disable Run in the command registry. |
+| `replace` | Replace the menu definition while keeping the same wrapper/editor. |
+| `hide` | Apply `Display Hidden` to the wrapper's parent. |
+| `disable` | Apply `Disabled true` to that parent. |
+| `modal` | Open a dialog that blocks the context owner's background subtree. |
+
 These flags are not needed in an ordinary application. The physical driver
 first verifies that an AppKit menu is open, then checks the corresponding
 transition. A later checkbox roundtrip makes the stale-command check observe a
 subsequent accepted application publication rather than an old text snapshot.
+The last four modes expose a private Restore popup owner button. The driver
+restores the original definition and ancestor state, reopens the menu, invokes
+Run, and checks the editor's retained draft. The replacement case also opens
+the new definition before restoring it. These checks distinguish cancellation
+from a stuck global popup lease or an editing session that was accidentally lost.
+In the modal case, Tab/Enter activates that button inside the dialog, checking
+real keyboard recovery after AppKit tracking ends.
 
 ```sh
 python3 scripts/test_native_popup_macos.py
 python3 scripts/test_native_popup_macos.py --lifecycle close
 python3 scripts/test_native_popup_macos.py --lifecycle retire
 python3 scripts/test_native_popup_macos.py --lifecycle invalidate
+python3 scripts/test_native_popup_macos.py --lifecycle replace
+python3 scripts/test_native_popup_macos.py --lifecycle hide
+python3 scripts/test_native_popup_macos.py --lifecycle disable
+python3 scripts/test_native_popup_macos.py --lifecycle modal
 ```
 
 These tests require macOS Accessibility permission, open a foreground window,
