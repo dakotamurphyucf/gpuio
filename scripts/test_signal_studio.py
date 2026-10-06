@@ -69,6 +69,23 @@ class Studio(Outline):
         node = self.wait_find(TITLE, label, role)
         try:
             self.set(node, 'AXFocused', self.true)
+            # AX setters enqueue native actions. Sending Home/Enter immediately
+            # can still target the previously focused canvas on a busy desktop.
+            # Observe completion; do not repeat the focus action or the keys.
+            boolean = self.cf.CFBooleanGetValue
+            boolean.restype, boolean.argtypes = C.c_bool, [C.c_void_p]
+            deadline = time.monotonic() + 5
+            while True:
+                value = self.attr(node, 'AXFocused')
+                try:
+                    if value and boolean(value):
+                        break
+                finally:
+                    if value:
+                        self.release(value)
+                if self.child.poll() is not None or time.monotonic() >= deadline:
+                    raise RuntimeError(f'Native focus was not accepted: {label}')
+                time.sleep(.01)
         finally:
             self.release(node)
 

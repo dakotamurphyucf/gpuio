@@ -290,3 +290,54 @@ packages, not release-signing or general distribution acceptance.
 and a [verified manifest](hosted-presentation-calibration-och17/run-37447717604/manifest.json)
 retain 31 files (1,262,087 uncompressed bytes). Newer source requires its own
 hosted checks; API/catalog, notices, signing and broader release work remain open.
+
+
+## Hosted run 37460415879 and local input synchronization repairs
+
+[Run 37460415879](https://github.com/dakotamurphyucf/gpuio/actions/runs/37460415879)
+is terminal with failure. Linux foundation and the fresh macOS extracted-app job
+pass. Tested merge `32620deb256384a114a51efcd9f291dbe3d95b58` has tree
+`451f97ee097161ff2b7eb795a025a9944515c034`, matching branch `75ce53d`.
+This predates the later measured Sankey-label and completed example-doc changes.
+
+Four macOS foundation steps failed: Signal Studio responsive/input, Agent Workspace
+Diagram, GPUI Metal presentation hook and independent Metal calibration. Both hook
+windows close with 90 zero-time callbacks each, zero missing callbacks and zero
+pending submissions. Standalone Metal again returns zero for all 120 presentation
+times on Apple Paravirtual. No timing gate is waived.
+
+All three separately extracted applications (gallery, Agent Workspace and Signal
+Studio) pass on the fresh runner; reports retain packaging revision and archive/
+executable hashes. This remains internal ad-hoc package qualification, not release
+signing or general distribution acceptance.
+
+The failed Signal Studio log ends with `canvas activated` after the driver requests
+chart focus and immediately sends Home/Enter. The AX setter queues a native action;
+its return does not establish that keyboard focus moved. The driver now observes
+`AXFocused` before issuing keys, with a bounded deadline and no repeated action.
+The Diagram failure is `AXPress failed: -25202` while reopening immediately after
+closing the inspector. Closing changes layout and may replace the responsive
+Explore button. The driver now checks that the inspector's close action remains
+absent briefly before locating the current opener. This is a targeted transition
+synchronization repair; exact hosted scheduling still needs a rerun.
+
+Both complete foreground walkthroughs pass locally on macOS 14.5 arm64 from source
+base `63c38b3` plus these driver changes. Signal Studio covers chart selection,
+canvas drag/pan/zoom, disabled/hidden controls, streaming, wide/compact state,
+remount and close. Diagram covers movement, pan/zoom, activation, navigation,
+retained state/draft, close/reopen, both themes and shutdown. Both children exit 0
+and are reaped. No framework behavior, assertions or timing budgets were relaxed.
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio build examples/signal_studio/main.exe examples/agent_chat/main.exe
+python3 scripts/test_signal_studio.py --output scratch/agents/root-20261004-resumed/signal-focus-fixed
+python3 scripts/test_agent_chat_diagram.py
+python3 -m py_compile scripts/test_signal_studio.py scripts/test_agent_chat_diagram.py
+git diff --check
+```
+
+[Raw hosted/local reports and logs](hosted-presentation-calibration-och17/run-37460415879/reports.tar.gz)
+and the [verified manifest](hosted-presentation-calibration-och17/run-37460415879/manifest.json)
+retain 38 files (1,415,049 uncompressed bytes). Local success does not establish
+that the hosted timing races are resolved; the next CI run must check that.
+Broader catalog, accessibility, measured workload and release requirements remain.

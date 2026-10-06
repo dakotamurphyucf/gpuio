@@ -15,11 +15,13 @@ Three owner-authorized GPT-6.1 Sol agents contributed scoped walkthroughs in par
 Contributor guidance and a structural CI check keep new sources visible; neither
 file presence nor that check establishes documentation or platform acceptance.
 
-[Hosted run 37447717604](evidence/hosted-presentation-calibration-och17.md#repeat-on-hosted-run-37447717604)
-is terminal: Linux and all three independently extracted macOS apps pass. Only
-the two Metal presentation probes fail, again with 180/120 zero-time callbacks on
-Apple Paravirtual. Evidence covers tree-equivalent `548bcde`, not newer Sankey or
-Code document-control changes. No gate is waived; current-source checks remain due.
+[Hosted run 37460415879](evidence/hosted-presentation-calibration-och17.md#hosted-run-37460415879-and-local-input-synchronization-repairs)
+is terminal: Linux and all three independently extracted macOS apps pass. The
+macOS foundation job failed Signal Studio input, Agent Workspace Diagram and both
+Metal presentation probes (again 180/120 zero-time callbacks on Apple Paravirtual).
+The two demo drivers now wait for the relevant native focus/closure transition;
+both complete local foreground walkthroughs pass. Hosted confirmation is pending.
+Hosted evidence covers tree-equivalent `75ce53d`, not newer work. No gate is waived.
 
 [Measured Sankey labels](evidence/sankey-label-gallery.md) now pass actual hidden-window
 text pixels and root/fresh-installed public gallery checks with three columns,
