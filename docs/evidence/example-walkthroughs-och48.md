@@ -381,3 +381,32 @@ the drag fixture's two self-test flags start independent tasks and are documente
 separately. Diagram local scene admission is distinguished from later native
 rejection, which this helper does not poll/retry. These limits were documented,
 not repaired or newly reproduced by the prose review.
+
+## Notifications, composition and Signal Studio ownership
+
+Starting from `bb24014`, sixteen further source groups are reviewed: images,
+notification, overlays, toasts and tooltips entry points; gallery description,
+disclosure, empty state, form, group and link previews; Signal Studio workspace
+model and its expect tests, application identity, documents and UI-thread adapter.
+The model and tests share a guide that explains both sources. READMEs link every
+companion. The notification README's obsolete Linux Unsupported statement was
+corrected against the current freedesktop contract without claiming desktop
+qualification.
+
+The three authorized GPT-6.1 Sol agents read their full sources/interfaces and
+relevant callers/contracts. Primary review checked the guides and representative
+source contracts. Explanations cover reactive syntax/actions, native resource
+retention, hidden versus unmounted content, simulated actions, filesystem
+capabilities, submitted-save snapshots and epoch-fenced replies.
+
+Coverage is **135 reviewed / 125 pending**, still 417 sources in 260 groups.
+Primary checks pass 269 relative file targets across 22 guide/README files,
+structural inventory and whitespace. Commands were checked against source/build/
+driver declarations. No new example build, GUI or platform acceptance is claimed
+from this batch; native geometry tests performed separately have their own scope.
+
+Signal Studio's `Ui_thread.perform` requires active-scope and caller cancellation/
+timeout ownership: inactive-scope enqueue alone cannot resolve its waiting promise.
+Actual application/check callers provide the documented scope and timeout. Document
+reset fences acceptance but does not cancel an in-progress file write. These are
+source-level limitations and semantics, not newly reproduced or repaired bugs.

@@ -1,5 +1,8 @@
 # Scoped images
 
+Read the [source walkthrough](main.md) for the Bonsai graph, API calls, runtime
+ownership, interaction trace, and diagnostic limitations.
+
 Run `./scripts/gpuio exec dune exec examples/images/main.exe` to display a generated
 PNM asset through the public Eio/Bonsai image API. It uses no filesystem/network
 acquisition. For file or remote images, acquire bytes with explicit Eio capabilities

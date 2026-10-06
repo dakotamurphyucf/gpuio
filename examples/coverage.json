@@ -1015,8 +1015,10 @@
         "examples/gallery/description_preview.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/gallery/description_preview.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -1041,8 +1043,10 @@
         "examples/gallery/disclosure_preview.ml"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/gallery/disclosure_preview.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -1081,8 +1085,10 @@
         "examples/gallery/empty_preview.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/gallery/empty_preview.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -1157,8 +1163,10 @@
         "examples/gallery/form_preview.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/gallery/form_preview.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -1175,8 +1183,10 @@
         "examples/gallery/group_preview.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/gallery/group_preview.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -1251,8 +1261,10 @@
         "examples/gallery/link_preview.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/gallery/link_preview.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -1793,9 +1805,9 @@
       ],
       "role": "application-entry",
       "walkthroughs": [
-        "examples/images/README.md"
+        "examples/images/main.md"
       ],
-      "review": "pending"
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -1885,9 +1897,9 @@
       ],
       "role": "application-entry",
       "walkthroughs": [
-        "examples/notification/README.md"
+        "examples/notification/main.md"
       ],
-      "review": "pending"
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -1924,8 +1936,10 @@
         "examples/overlays/main.ml"
       ],
       "role": "application-entry",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/overlays/main.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -2229,8 +2243,10 @@
         "examples/signal_studio/application_identity.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/signal_studio/application_identity.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -2272,8 +2288,10 @@
         "examples/signal_studio/documents.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/signal_studio/documents.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -2307,8 +2325,10 @@
         "examples/signal_studio/model/test/workspace_test.ml"
       ],
       "role": "test-support",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/signal_studio/model/workspace.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -2316,8 +2336,10 @@
         "examples/signal_studio/model/workspace.mli"
       ],
       "role": "support",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/signal_studio/model/workspace.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -2351,8 +2373,10 @@
         "examples/signal_studio/ui_thread.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/signal_studio/ui_thread.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -2388,16 +2412,20 @@
         "examples/toasts/main.ml"
       ],
       "role": "application-entry",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/toasts/main.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
         "examples/tooltips/main.ml"
       ],
       "role": "application-entry",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/tooltips/main.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [

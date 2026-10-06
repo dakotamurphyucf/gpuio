@@ -54,6 +54,10 @@ Action and input policy walkthroughs: [live bindings](binding_preview.md),
 [standalone radio navigation](checkable_navigation_preview.md),
 [command shortcut tooltips](command_tooltip_preview.md) and [native content hints](content_hint_preview.md).
 
+Composition walkthroughs: [description lists](description_preview.md),
+[disclosures and retained drafts](disclosure_preview.md), [empty states](empty_preview.md),
+[forms](form_preview.md), [group boxes](group_preview.md) and [composed links](link_preview.md).
+
 Styles → **A theme from your workspace** loads a palette for the current window.
 Read the [theme-loading walkthrough](theme_preview.md), then the independent
 [appearance model](model/appearance.md), [selection identity](model/theme_selection.md),
