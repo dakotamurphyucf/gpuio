@@ -43,10 +43,11 @@ future-compatibility warnings remain. This is the native **library** suite, not
 every external native/GUI harness. No OCaml files, dependencies or GUI were changed
 or executed by this slice.
 
-[Initial failure log](sankey-label-layout-engine/initial-chart-tests.log),
-[final library tests](sankey-label-layout-engine/native-library-tests.log),
-[Clippy](sankey-label-layout-engine/clippy.log) and
-[checksums](sankey-label-layout-engine/manifest.json) retain the evidence.
+[Archived initial failure, final library-test and Clippy logs](sankey-label-layout-engine/logs.tar.gz)
+and [verified checksums](sankey-label-layout-engine/manifest.json) retain the raw
+evidence unchanged. An initial whitespace check flagged a trailing blank line in
+the raw test log; archiving the exact bytes keeps diagnostics out of source
+whitespace checks. The final repository whitespace check passes.
 Runtime worker metrics/font invalidation, paired public codecs, real painting/
 input, independent installed-consumer checks and Linux qualification of this
 source remain the next steps. This does not close OCH-41 or release acceptance.
