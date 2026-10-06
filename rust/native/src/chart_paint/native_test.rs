@@ -270,6 +270,45 @@ fn cases() -> Vec<Case> {
             sample(167., 40., 255, 0, 0),
         ],
     );
+    for categorical in [false, true] {
+        for orientation in [
+            gpuio_protocol::chart_options::Orientation::Vertical,
+            gpuio_protocol::chart_options::Orientation::Horizontal,
+            gpuio_protocol::chart_options::Orientation::VerticalReversed,
+            gpuio_protocol::chart_options::Orientation::HorizontalReversed,
+        ] {
+            for (x, y) in [(true, false), (false, true), (true, true), (false, false)] {
+                let mut options = options();
+                options.axes.x = x;
+                options.axes.y = y;
+                options.cartesian.orientation = orientation;
+                let mut style = style();
+                style.axis_color = 0x00ff00ff;
+                let contents = if categorical {
+                    data::Contents::Categorical(
+                        vec![data::Category {
+                            id: 42,
+                            label: "Alpha".into(),
+                        }],
+                        vec![],
+                    )
+                } else {
+                    data::Contents::Cartesian(vec![])
+                };
+                add(
+                    if categorical {
+                        "categorical-axes"
+                    } else {
+                        "numeric-axes"
+                    },
+                    dataset(contents),
+                    options,
+                    style,
+                    vec![],
+                );
+            }
+        }
+    }
     let slices = vec![
         data::Slice {
             id: 1,
@@ -640,6 +679,32 @@ async fn exercise(
                         bottom[0] > top[0] + 50 && top[2] > bottom[2] + 50,
                         "gradient mirrors reversed value axis: {top:?} {bottom:?}"
                     );
+                }
+                if matches!(case.name, "numeric-axes" | "categorical-axes") {
+                    let green = |left: f32, top: f32, right: f32, bottom: f32| {
+                        let mut count = 0;
+                        for y in ((f32::from(bounds.origin.y) + top) * scale).ceil() as u32
+                            ..((f32::from(bounds.origin.y) + bottom) * scale).floor() as u32 {
+                            for x in ((f32::from(bounds.origin.x) + left) * scale).ceil() as u32
+                                ..((f32::from(bounds.origin.x) + right) * scale).floor() as u32 {
+                                let p = image.get_pixel(x, y).0;
+                                count += usize::from(p[1] > 32 && p[1].saturating_sub(p[0]) > 30
+                                    && p[1].saturating_sub(p[2]) > 30);
+                            }
+                        }
+                        count
+                    };
+                    let horizontal = case.options.cartesian.orientation.is_horizontal();
+                    let (left, bottom) = if horizontal {
+                        (case.options.axes.x, case.options.axes.y)
+                    } else { (case.options.axes.y, case.options.axes.x) };
+                    assert_eq!(green(0., 40., 2., 120.) > 0, left,
+                        "{} left axis at scale {scale}, {:?}, x={} y={}", case.name,
+                        case.options.cartesian.orientation, case.options.axes.x, case.options.axes.y);
+                    assert_eq!(green(40., 158., 160., 160.) > 0, bottom,
+                        "{} bottom axis at scale {scale}, {:?}, x={} y={}", case.name,
+                        case.options.cartesian.orientation, case.options.axes.x, case.options.axes.y);
+                    assert_eq!(pixel(&image, bounds, scale, 100., 80.), [0, 0, 0, 255]);
                 }
                 eprintln!(
                     "CHART_PAINT_GPU {} scale={} meshes={} quads={} vertices={} retained_bytes={}",

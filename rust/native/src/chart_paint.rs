@@ -560,19 +560,35 @@ pub fn prepare_with_text(
             gpuio_protocol::chart_data::Contents::Cartesian(_)
                 | gpuio_protocol::chart_data::Contents::Categorical(..)
         );
-    if geometry.x_domain.is_some() {
-        let a = geometry::Point { x: 0., y: height };
-        let b = geometry::Point {
-            x: width,
-            y: height,
-        };
-        let c = geometry::Point { x: 0., y: 0. };
+    if matches!(
+        data.contents,
+        gpuio_protocol::chart_data::Contents::Cartesian(_)
+            | gpuio_protocol::chart_data::Contents::Categorical(..)
+            | gpuio_protocol::chart_data::Contents::Candlestick(_)
+    ) {
+        // Categorical plots deliberately have no numeric x domain. Axis
+        // visibility belongs to their options, not numeric-domain presence.
+        // Center boundary strokes inside the clip; a half-clipped one-pixel
+        // vertical stroke otherwise misses every sample at scale 1.
+        let left = 0.5_f64.min(width / 2.);
+        let bottom = height - 0.5_f64.min(height / 2.);
+        let bottom_line = (
+            geometry::Point { x: 0., y: bottom },
+            geometry::Point {
+                x: width,
+                y: bottom,
+            },
+        );
+        let left_line = (
+            geometry::Point { x: left, y: 0. },
+            geometry::Point { x: left, y: height },
+        );
         let mut lines = vec![];
         if options.axes.x {
-            lines.push(if horizontal { (c, a) } else { (a, b) });
+            lines.push(if horizontal { left_line } else { bottom_line });
         }
         if options.axes.y {
-            lines.push(if horizontal { (a, b) } else { (c, a) });
+            lines.push(if horizontal { bottom_line } else { left_line });
         }
         if !lines.is_empty() {
             build.mesh(

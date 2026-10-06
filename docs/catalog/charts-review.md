@@ -63,6 +63,12 @@ does not create a new post-v1 deferral. Any extension must use bounded serialize
 values/native preparation and preserve accessibility/provenance, rather than
 introducing per-frame OCaml callbacks or weakening data validation.
 
+[Axis visibility qualification](../evidence/chart-axis-visibility-och41.md) repairs
+categorical axes omitted by a numeric-domain guard and left boundary strokes
+disappearing at scale 1. Actual GPU tests now cover independent x/y flags and
+all four orientations at four test scales. This validates the existing axis
+controls, not the custom-axis options still listed above.
+
 The [radar child-content design](../design/radar-label-content.md) specifies
 arbitrary OCaml View labels, native natural-size measurement, stable axis identity
 and focus/visibility retirement. The public API and retained native adapter are

@@ -13,6 +13,64 @@ fn render(contents: data::Contents) -> Result<Prepared, Error> {
         &AtomicBool::new(false),
     )
 }
+
+#[test]
+fn categorical_axis_strokes_do_not_require_a_numeric_x_domain() {
+    use gpuio_protocol::chart_options::Orientation;
+    let source = Data {
+        version: 1,
+        contents: data::Contents::Categorical(
+            vec![data::Category {
+                id: 42,
+                label: "Alpha".into(),
+            }],
+            vec![],
+        ),
+    };
+    for orientation in [
+        Orientation::Vertical,
+        Orientation::Horizontal,
+        Orientation::VerticalReversed,
+        Orientation::HorizontalReversed,
+    ] {
+        for (x, y) in [(true, false), (false, true), (true, true), (false, false)] {
+            let mut options = Options::default();
+            options.cartesian.orientation = orientation;
+            options.axes.x = x;
+            options.axes.y = y;
+            options.axes.grid = false;
+            let plan = prepare(
+                &source,
+                Policy::default(),
+                &options,
+                &Style::default(),
+                Layout::new(200., 160., 1.).unwrap(),
+                &AtomicBool::new(false),
+            )
+            .unwrap();
+            assert!(
+                plan.geometry.x_domain.is_none(),
+                "categories must not invent a numeric domain"
+            );
+            assert!(plan.geometry.grid.is_empty());
+            assert!(plan.geometry.marks.is_empty());
+            assert_eq!(
+                plan.mesh_count(),
+                usize::from(x || y),
+                "{orientation:?} x={x} y={y}"
+            );
+            if x || y {
+                assert_eq!(plan.meshes[0].color, Style::default().axis_color as u32);
+                let bounds = plan.meshes[0].mesh.bounds().unwrap();
+                let vertical = if orientation.is_horizontal() { x } else { y };
+                let horizontal = if orientation.is_horizontal() { y } else { x };
+                assert_eq!(bounds.top, if vertical { 0. } else { 159. });
+                assert_eq!(bounds.right, if horizontal { 200. } else { 1. });
+                assert!(bounds.left >= 0. && bounds.bottom <= 160.);
+            }
+        }
+    }
+}
 #[test]
 fn sampled_streams_prepare_bounded_reusable_meshes_and_preserve_gaps() {
     for gaps in [false, true] {

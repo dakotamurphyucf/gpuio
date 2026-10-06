@@ -112,6 +112,14 @@ leftward respectively. It keeps category order, raw values, IDs and axis gutters
 unchanged. The setting affects Cartesian layers; pie, radar, candlestick and
 Sankey keep their own family-specific layouts.
 
+When adapting the plotting options, `Chart_options.Axes.create ~x ~y` controls
+the data axes independently for numeric and categorical charts. In a vertical
+chart x is drawn along the bottom and y along the left; horizontal orientation
+swaps those roles. Category labels remain category text, without inventing a
+numeric x-domain. Native axis strokes sit inside the plot clip, independently
+of grid visibility. See the [axis visibility evidence](../../docs/evidence/chart-axis-visibility-och41.md)
+for the specific rendering checks and their limits.
+
 ## Follow an update and a selection
 
 Clicking Update invokes an OCaml effect, advances the sample phase, and asks the

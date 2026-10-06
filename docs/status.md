@@ -15,6 +15,12 @@ Three owner-authorized GPT-6.1 Sol agents contributed scoped walkthroughs in par
 Contributor guidance and a structural CI check keep new sources visible; neither
 file presence nor that check establishes documentation or platform acceptance.
 
+[Chart axis visibility](evidence/chart-axis-visibility-och41.md) now fixes missing
+categorical axis strokes and a scale-1 left-axis clipping failure. Before/after
+unit/GPU regressions cover independent axes, all four directions and four test
+scales; the native view suite and strict lint pass. Source projection and selection
+remain unchanged. Custom axis APIs and broader catalog/release work remain open.
+
 [Hosted run 37502930557](evidence/hosted-presentation-calibration-och17.md#hosted-run-37502930557)
 is terminal: Linux foundation and all three independently extracted macOS apps
 pass. Only the two macOS Metal presentation probes fail, receiving zero-time
