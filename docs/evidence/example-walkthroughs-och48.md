@@ -648,3 +648,14 @@ local-file link scan resolves all 70 targets in the six changed guides. Coverage
 remains 421 source files in 262 reviewed groups, with zero pending. No builds,
 GUI tests or new platform/performance acceptance were needed or claimed for this
 maintenance pass. OCH-48 remains complete; milestone 07 remains in progress.
+
+
+## Chart page boundary clarification — 2026-10-06
+
+The owner-authorized GPT-6.1 Sol documentation agent clarified the actual chart
+page's module aliases, reactive values versus effects, acquisition Ready versus
+native chart Ready, and the Update → publication → event → model → view trace.
+The primary agent checked these claims against `charts_page.ml`; all 46 relative
+links and whitespace checks pass. Coverage remains 421 sources / 262 reviewed
+groups / 0 pending. This documentation change does not add platform acceptance or
+claim the experimental inspection-content adapter is already used by the gallery.

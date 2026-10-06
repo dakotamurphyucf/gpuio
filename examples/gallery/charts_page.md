@@ -67,6 +67,17 @@ a handle does not keep a cancelled registration alive.
 
 ## Bonsai and GPUIO boundaries
 
+The source aliases `B = Bonsai.Cont`, `E = Bonsai.Effect`,
+`V = Gpuio_bonsai.View` and `Registered = Gpuio_eio.Chart`.
+`component app window palette graph` builds one page graph in one window. A
+reactive value is a current
+input to that graph: `let%arr` reads such inputs together and derives a new view
+when they change. It is not an event handler or a loop. `B.Expert.Var.value`
+exposes a Var reactively; `get` reads it immediately and `set` changes it inside
+the explicit UI effects below. Pure helpers such as `Chart_axes.configuration`,
+`Chart_marks.configuration` and `Samples.Inspection.config` construct values;
+they do not own the state cells or acquire native registrations.
+
 Bonsai owns the page's reactive choices and status. `B.toggle` supplies each
 Boolean and its update effect. `B.state` supplies the notice text and setter.
 The mode and selection use `B.Expert.Var` because resource operations update
@@ -93,7 +104,12 @@ let update =
 `E.bind` chooses the resulting notice effect. The outer `let%arr` also reads
 setter effects so native buttons/switches can receive them. The lifecycle hook
 resets the notice when the branch deactivates; `Preview_scope` handles the actual
-resource cancellation.
+resource cancellation. The outer match on `resources` displays preparation text
+for `Preview_scope.Loading`, an error for `Failed`, and the chart only for
+`Ready source`. This Ready means acquisition succeeded; it is distinct from
+`Chart.Event.Ready metrics`, which acknowledges native chart preparation.
+The scope suppresses acquisition results arriving after cancellation, so a late
+completion cannot revive a page that has been left.
 
 GPUIO supplies the switches, buttons, theme styles and `V.chart`. The chart's
 stable key preserves its native identity across ordinary control changes. Its
@@ -189,6 +205,16 @@ pending publication from accepted data. Rust prepares bounded plot geometry off
 the UI thread. The chart reports Ready when that preparation becomes observable
 through its native view. The page displays the family, source count and direction.
 Ready is not a physical-presentation or FPS measurement.
+
+Concrete API trace: the native Update chart samples button executes the `update`
+effect → `E.of_thunk` calls `Source.update` → `Registered.set` accepts a new local
+publication request and advances phase on success → pending publication sets the
+Bonsai notice → `let%arr` derives its new `Palette.text` view. Later `V.chart`'s
+`~on_event` receives `Chart.Event.Ready`; its returned `set_notice` effect updates
+the notice with prepared source count and current presets. `Failed` instead
+returns an error notice effect. `Selection_changed target` returns a separate
+thunk that sets the selected Var, causing the guarded description view to derive
+again. None of these event handlers must synchronously wait for native painting.
 
 Native pointer/keyboard previews use the displayed geometry. Committing a
 selection delivers a typed event with publication identity. `on_event` stores
