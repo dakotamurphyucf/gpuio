@@ -20,14 +20,24 @@ axis IDs across caption changes/reordering. Broader lint also exposed and repair
 chart configuration inflating every protocol operation: its Rust payload is now
 boxed, preserving wire bytes and reducing local operation size from 584 to 352
 bytes. Protocol/chart/tree tests and dependency-inclusive strict lint pass.
-The [arbitrary View label design](design/radar-label-content.md) is drafted;
-the public child-content adapter and native acceptance remain unfinished.
+The [arbitrary View label adapter](design/radar-label-content.md) is now implemented:
+ordinary OCaml buttons, composed text and native editors can replace axis captions.
+[Scoped local evidence](evidence/radar-label-content-och41.md) covers paired codecs,
+retained-tree validation, real GPU layout and foreground input/draft retention.
+Additional lifecycle/interaction qualification and broader catalog work remain.
 
 [Radar projection options](evidence/radar-projection-och41.md) now expose shared
 maxima, fixed radius and label spacing from OCaml, preserving per-axis defaults
 and original source values. Paired codecs, worker/mesh tests, full local checks,
 and root/fresh-installed macOS gallery walkthroughs pass. Options schema is 7;
 style/data remain -2/1. Rich radar labels and broader chart/catalog work remain.
+
+[Hosted run 37470525492](https://github.com/dakotamurphyucf/gpuio/actions/runs/37470525492)
+is terminal: Linux foundation and all three independently extracted macOS apps
+pass. The macOS foundation job fails only the GPUI Metal presentation hook and
+standalone Metal calibration. Signal Studio and Agent Workspace Diagram now pass
+on the runner. This checks older `00f43c8`, not subsequent radar work; no
+presentation gate is waived.
 
 [Hosted run 37460415879](evidence/hosted-presentation-calibration-och17.md#hosted-run-37460415879-and-local-input-synchronization-repairs)
 is terminal: Linux and all three independently extracted macOS apps pass. The

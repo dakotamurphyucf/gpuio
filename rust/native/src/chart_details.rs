@@ -59,12 +59,24 @@ fn anchor(shape: Shape) -> Point {
         },
     }
 }
+#[cfg(test)]
 pub(crate) fn describe(
     data: &Data,
     policy: &Policy,
     options: &Options,
     plan: &Plan,
     index: usize,
+) -> Option<Details> {
+    describe_with_radar_labels(data, policy, options, plan, index, &[])
+}
+
+pub(crate) fn describe_with_radar_labels(
+    data: &Data,
+    policy: &Policy,
+    options: &Options,
+    plan: &Plan,
+    index: usize,
+    radar_labels: &[i64],
 ) -> Option<Details> {
     let mark = plan.marks.get(index)?;
     let x = |n| geometry::format_number(n, options.axes.x_format);
@@ -165,7 +177,11 @@ pub(crate) fn describe(
             let value = series.values.iter().find(|(id, _)| *id == axis.id)?.1;
             (
                 series.name.clone(),
-                format!("{}\n{} / {}", axis.label, y(value), y(axis.maximum)),
+                if radar_labels.contains(&axis.id) {
+                    format!("{} / {}", y(value), y(axis.maximum))
+                } else {
+                    format!("{}\n{} / {}", axis.label, y(value), y(axis.maximum))
+                },
             )
         }
         (Contents::Candlestick(values), Source::Candle(span)) => {
@@ -325,6 +341,47 @@ mod tests {
         assert_eq!(details.title, "OHLC · 2 samples");
         assert_eq!(details.text, "x: 0 – 1\nOpen 2 · High 9\nLow -2 · Close 6");
     }
+    #[test]
+    fn custom_radar_content_omits_only_its_axis_title() {
+        let data = Data {
+            version: 1,
+            contents: Contents::Radar(
+                [7, 9, 11]
+                    .into_iter()
+                    .map(|id| RadarAxis {
+                        id,
+                        label: "Repeated caption".into(),
+                        maximum: 100.,
+                    })
+                    .collect(),
+                vec![RadarSeries {
+                    id: 1,
+                    name: "Original series".into(),
+                    values: vec![(7, 20.), (9, 30.), (11, 40.)],
+                }],
+            ),
+        };
+        let policy = Policy::default();
+        let options = Options::default();
+        let plan = prepare(&data, policy);
+        let mut checked = 0;
+        for index in 0..plan.marks.len() {
+            let original = describe(&data, &policy, &options, &plan, index).unwrap();
+            let custom =
+                describe_with_radar_labels(&data, &policy, &options, &plan, index, &[7]).unwrap();
+            assert_eq!(custom.title, original.title);
+            assert_eq!(custom.anchor.x, original.anchor.x);
+            assert_eq!(custom.anchor.y, original.anchor.y);
+            if original.text == "Repeated caption\n20 / 100" {
+                assert_eq!(custom.text, "20 / 100");
+                checked += 1;
+            } else {
+                assert_eq!(custom.text, original.text);
+            }
+        }
+        assert!(checked > 0);
+    }
+
     #[test]
     fn every_family_describes_actual_marks_and_rejects_unrelated_sources() {
         for fixture in include_str!("../../../test/fixtures/chart-v1-data.hex").lines() {

@@ -290,4 +290,66 @@ label together, or pass a different `Radius.Pixels` value in `component`. Keep
 values inside the public option bounds; extreme data/scale combinations may
 report Render_limit instead of drawing a distorted clamped polygon. See the
 [radar contract](../../docs/design/radar-presentation.md). Default Per_axis/Fit/gap 0
-preserves previous behavior. These controls do not add rich axis-label elements.
+preserves previous behavior.
+
+### Ordinary Views as radar labels
+
+**Custom radar labels** replaces Quality with a real button, Cost with a
+two-line column, and Context with an editable note. The remaining axes keep
+their dataset captions. The pure `radar_labels` helper builds this collection
+from the current palette, counter, effect and editor controller. It returns an
+empty collection when custom labels are disabled. The helper uses
+`Chart_radar_labels.Entry.create ~axis` to associate each ordinary `V.t` with a
+positive `Chart_data.Datum_id`, validates the entries with
+`Chart_radar_labels.create`, and passes the collection as `V.chart ~radar_labels`.
+The IDs 1, 3 and 4 come from the sample dataset; neither list order nor caption text
+determines which native axis receives the content.
+
+The `rich_radar` and `show_radar_labels` toggles are Bonsai state. `label_activations`
+is a separate `B.state 0` model. Pressing the Quality button runs the effect from
+`set_label_activations`; the next `let%arr` result contains updated button text and
+the activation readout. That is an ordinary Bonsai state/view update, without a
+chart-data publication or an OCaml measurement callback. `accessible_name` keeps
+the button's name stable while its visible counter changes.
+
+`Gpuio_eio.Text_input.create window ... graph` constructs the editor's Bonsai
+controller once in the page graph. `B.return` lifts its constant validated
+`Text_input.Config` into a Bonsai value; `Single_line` selects the editing mode,
+`label` supplies the accessible name, and `placeholder` supplies the empty-field
+hint. The outer `let%arr` reads the controller and passes it to the pure helper.
+`Gpuio_eio.Text_input.view editor` then places its one native editor in axis 4.
+The controller and the placement are separate: do not call `create` in the pure
+view helper or place the same controller twice.
+
+Typing goes to Rust's native editing session. Its text, selection and undo
+history are not reconstructed from the button counter or the chart dataset.
+The controller receives asynchronous observations; this example does not mirror
+or replace the draft on every observation. The input has explicit dimensions
+while the enclosing axis wrapper is measured naturally. See the
+[editor controller interface](../../lib/eio/text_input.mli) for snapshot and
+revision-checked command APIs when adapting this field to application data.
+
+Rust lays out these submitted Views at natural size during native prepaint, then
+positions them at their axis anchors. The button uses ordinary padding, border,
+radius and theme colors. The Cost column composes two `Palette.text` Views. They
+retain their own styles instead of receiving `Chart_style.label_color`. Large
+content can overlap or clip: use normal View sizing and the chart's radius/gap
+controls when adapting the layout.
+
+**Show radar labels** changes `Chart_options.Radar.labels`, keeping the View
+entries mounted but hiding their native content. The original-data browser also
+hides them. Closing the browser or showing labels restores the content; neither
+operation resets the Bonsai counter or destroys the retained editor draft. **Custom radar labels** off removes the
+entries and unmounts their native children, while the page-owned counter still
+exists. The native editor draft, selection and undo history are destroyed on
+unmount; enabling custom labels again creates a fresh empty editor. To retain
+text across unmount, explicitly maintain an application-owned draft and supply
+a validated creation seed through the editor API. To reset that model on removal too, change its owning Bonsai branch/key
+deliberately. **Disable chart input** also disables the label button through its
+chart ancestor, even though the button itself does not request a disabled state.
+
+To add another composed label, create an entry for the corresponding stable axis
+ID. The collection permits at most 64 distinct IDs; an ID absent from the current
+dataset is retained but hidden. Original-data names, values and selection remain
+unchanged. See the [content contract](../../docs/design/radar-label-content.md)
+for the native ownership and qualification requirements.

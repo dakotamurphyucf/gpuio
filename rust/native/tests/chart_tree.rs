@@ -9,6 +9,8 @@ fn node(slot: u32) -> NodeId {
 }
 fn config() -> Config {
     Config {
+        version: -1,
+        radar_labels: vec![],
         source: Some(ResourceId::from_parts(0, 1).unwrap()),
         label: "Diagram".into(),
         legend: true,
@@ -17,6 +19,64 @@ fn config() -> Config {
         sampling: Default::default(),
         style: Default::default(),
     }
+}
+
+#[test]
+fn radar_slots_validate_complete_tree_and_preserve_identity_on_reorder() {
+    let mut tree = Tree::new(window());
+    let configured = |axes| {
+        Box::new(Config {
+            radar_labels: axes,
+            ..config()
+        })
+    };
+    apply(
+        &mut tree,
+        vec![
+            Op::Create(node(0), Kind::ChartView, "".into(), None),
+            Op::SetChart(node(0), configured(vec![7, 9])),
+            Op::Create(node(1), Kind::Container, "".into(), None),
+            Op::Create(node(2), Kind::Text, "First".into(), None),
+            Op::Create(node(3), Kind::Container, "".into(), None),
+            Op::Create(node(4), Kind::Text, "Second".into(), None),
+            Op::Splice(node(1), 0, 0, vec![node(2)]),
+            Op::Splice(node(3), 0, 0, vec![node(4)]),
+            Op::Splice(node(0), 0, 0, vec![node(1), node(3)]),
+            Op::SetRoot(Some(node(0))),
+        ],
+    )
+    .unwrap();
+    let revision = tree.revision();
+    let retained = tree.retained_bytes();
+    for operations in [
+        vec![Op::SetChart(node(0), configured(vec![7]))],
+        vec![Op::SetChart(node(0), configured(vec![7, 7]))],
+        vec![Op::SetChart(node(0), configured(vec![0, 9]))],
+        vec![Op::Splice(node(1), 0, 1, vec![]), Op::Remove(node(2))],
+    ] {
+        assert_eq!(apply(&mut tree, operations), Err(ErrorCode::InvalidTree));
+        assert_eq!(tree.revision(), revision);
+        assert_eq!(tree.retained_bytes(), retained);
+        assert_eq!(tree.get(node(1)).unwrap().children.as_ref(), &[node(2)]);
+    }
+    apply(
+        &mut tree,
+        vec![
+            Op::SetChart(node(0), configured(vec![9, 7])),
+            Op::Splice(node(0), 0, 2, vec![node(3), node(1)]),
+        ],
+    )
+    .unwrap();
+    assert_eq!(
+        tree.get(node(0))
+            .unwrap()
+            .chart
+            .as_ref()
+            .unwrap()
+            .radar_labels,
+        vec![9, 7]
+    );
+    assert_eq!(tree.get(node(1)).unwrap().children.as_ref(), &[node(2)]);
 }
 fn apply(tree: &mut Tree, operations: Vec<Op>) -> Result<gpuio_native::tree::Applied, ErrorCode> {
     tree.apply(&Transaction {

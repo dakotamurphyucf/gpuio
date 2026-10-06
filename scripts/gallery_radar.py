@@ -1,5 +1,6 @@
 """Public radar projection controls with retained source values and teardown."""
-from test_gallery import TITLE, activate, focus_gallery_control, reveal_gallery_control
+from test_gallery import (TITLE, activate, focus_gallery_control, reveal_gallery_control,
+                          wait_absent, expect_enabled, expect_field, expect_focus)
 from test_canvas import screenshot
 
 
@@ -8,8 +9,9 @@ def exercise(mac, images):
         reveal_gallery_control(mac, label, 'AXButton')
         mac.press(TITLE, label)
 
-    def toggle(label):
-        reveal_gallery_control(mac, label, 'AXCheckBox')
+    def toggle(label, *, keep_viewport=False):
+        if not keep_viewport:
+            reveal_gallery_control(mac, label, 'AXCheckBox')
         activate(mac, mac.wait_find(TITLE, label, 'AXCheckBox'))
 
     def ready(scale, radius, gap):
@@ -73,4 +75,60 @@ def exercise(mac, images):
     toggle('Radar label gap 24')
     ready('Per-axis maxima', 'Fit', 0)
     select()
+    toggle('Custom radar labels')
+    reveal_gallery_control(mac, 'Radar axis note', 'AXTextField')
+    focus_gallery_control(mac, 'Radar axis note', 'AXTextField')
+    mac.key(0, flags=1 << 20)
+    mac.key(0)
+    expect_field(mac, TITLE, 'Radar axis note', 'a')
+    mac.key(51)
+    expect_field(mac, TITLE, 'Radar axis note', '')
+    mac.key(11)
+    expect_field(mac, TITLE, 'Radar axis note', 'b')
+    # Keep the editor in the viewport: revealing the update button scrolls
+    # the lower label away and legitimately retires its focus. AXPress exercises
+    # publication without introducing that unrelated visibility transition.
+    mac.press(TITLE, 'Update chart samples')
+    expect_focus(mac, 'Radar axis note', 'AXTextField')
+    expect_field(mac, TITLE, 'Radar axis note', 'b')
+    press('Inspect radar quality')
+    mac.wait_text(TITLE, 'Radar label activations: 1')
+    focus_gallery_control(mac, 'Inspect radar quality', 'AXButton')
+    mac.key(49)
+    mac.wait_text(TITLE, 'Radar label activations: 2')
+    focus_gallery_control(mac, 'Radar axis note', 'AXTextField')
+    toggle('Disable chart input', keep_viewport=True)
+    expect_enabled(mac, 'Inspect radar quality', False)
+    expect_enabled(mac, 'Radar axis note', False, role='AXTextField')
+    expect_focus(mac, 'Radar axis note', 'AXTextField', focused=False)
+    mac.key(0)
+    expect_field(mac, TITLE, 'Radar axis note', 'b')
+    toggle('Disable chart input', keep_viewport=True)
+    expect_enabled(mac, 'Inspect radar quality', True)
+    toggle('Show radar labels', keep_viewport=True)
+    wait_absent(mac, 'Inspect radar quality', 'AXButton')
+    wait_absent(mac, 'Radar axis note', 'AXTextField')
+    toggle('Show radar labels', keep_viewport=True)
+    expect_field(mac, TITLE, 'Radar axis note', 'b')
+    press('Inspect radar quality')
+    mac.wait_text(TITLE, 'Radar label activations: 3')
+    press('View data')
+    wait_absent(mac, 'Inspect radar quality', 'AXButton')
+    wait_absent(mac, 'Radar axis note', 'AXTextField')
+    press('Back to chart')
+    reveal_gallery_control(mac, 'Chart preview: Radar', 'AXGroup')
+    expect_field(mac, TITLE, 'Radar axis note', 'b')
+    press('Inspect radar quality')
+    mac.wait_text(TITLE, 'Radar label activations: 4')
+    if images:
+        screenshot(mac, images / 'gallery-radar-custom-labels.png', title=TITLE)
+    toggle('Custom radar labels', keep_viewport=True)
+    wait_absent(mac, 'Inspect radar quality', 'AXButton')
+    wait_absent(mac, 'Radar axis note', 'AXTextField')
+    toggle('Custom radar labels', keep_viewport=True)
+    expect_field(mac, TITLE, 'Radar axis note', '')
+    mac.wait_text(TITLE, 'Radar label activations: 4')
+    toggle('Custom radar labels', keep_viewport=True)
+    wait_absent(mac, 'Radar axis note', 'AXTextField')
     print('GALLERY_RADAR_OK: shared/explicit/per-axis scale, radius, gap, native selection and original values', flush=True)
+    print('GALLERY_RADAR_LABELS_OK: ordinary OCaml Views, click/keyboard effects, ancestor disable, hide/browser retention and unmount', flush=True)

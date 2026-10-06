@@ -10,6 +10,7 @@ fn allows_children(kind: Kind) -> bool {
     matches!(
         kind,
         Kind::Container
+            | Kind::ChartView
             | Kind::Input
             | Kind::Textarea
             | Kind::NumberInput
@@ -907,6 +908,18 @@ impl Tree {
         for parent in carousel_parents {
             plan.node_mut(parent)?;
         }
+        // Editing a label wrapper must revalidate its unchanged chart owner.
+        let chart_parents = plan
+            .changes
+            .values()
+            .filter_map(|slot| {
+                let parent = slot.node.as_ref()?.parent?;
+                (plan.node(parent).ok()?.kind == Kind::ChartView).then_some(parent)
+            })
+            .collect::<BTreeSet<_>>();
+        for parent in chart_parents {
+            plan.node_mut(parent)?;
+        }
         for slot in plan.changes.values() {
             if let Some(node) = &slot.node {
                 plan.validate_list(node)?;
@@ -1318,7 +1331,16 @@ impl Tree {
                 }
                 if (node.kind == Kind::ChartView) != node.chart.is_some()
                     || node.chart.as_ref().is_some_and(|config| {
-                        !config.is_valid() || !node.text.is_empty() || !node.children.is_empty()
+                        !config.is_valid()
+                            || !node.text.is_empty()
+                            || node.children.len() != config.radar_labels.len()
+                            || node.children.iter().any(|child| {
+                                plan.node(*child).map_or(true, |slot| {
+                                    slot.kind != Kind::Container
+                                        || !slot.text.is_empty()
+                                        || slot.children.len() != 1
+                                })
+                            })
                     })
                 {
                     return Err(ErrorCode::InvalidTree.into());

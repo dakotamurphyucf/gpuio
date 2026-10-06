@@ -124,11 +124,11 @@ impl View {
                 cx.stop_propagation();
             });
         }
-        if interaction.table_header
+        if interaction.clip_controls
             && (node.handler.is_some() || node.command_ref.is_some() || node.editor.is_some())
         {
             // Keep the control's default focus/selection behavior, but do not
-            // arm the enclosing native column's drag on a child's mouse down.
+            // arm the enclosing table column or chart's drag on a child's mouse down.
             element = element.on_mouse_down(gpui::MouseButton::Left, |_, _, cx| {
                 cx.stop_propagation();
             });

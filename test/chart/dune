@@ -5,13 +5,16 @@
   (deps
    (sandbox preserve_file_kind)
    chart-v1-data.hex
-   chart-v7-radar-view.hex
+   chart-view-v1-labels.hex
+   chart-view-v1-rich-labels.hex
    chart-v1-selection.hex))
  (preprocess
   (pps ppx_jane)))
 
 (copy_files ../fixtures/chart-v1-data.hex)
 
-(copy_files ../fixtures/chart-v7-radar-view.hex)
+(copy_files ../fixtures/chart-view-v1-labels.hex)
+
+(copy_files ../fixtures/chart-view-v1-rich-labels.hex)
 
 (copy_files ../fixtures/chart-v1-selection.hex)

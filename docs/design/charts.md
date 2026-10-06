@@ -720,5 +720,16 @@ See [radar presentation](radar-presentation.md) for the shared-data/shared-expli
 maximum, fixed logical-pixel radius and label gap additions. Per-axis scaling and
 fitted radius remain defaults. Explicit maxima can extrapolate outside the grid;
 source IDs/values and original-data selection remain unchanged. Extreme projected
-coordinates return Render_limit before tessellation. Rich axis-label content is
-still unfinished catalog work, separate from these projection options.
+coordinates return Render_limit before tessellation.
+
+## Ordinary Views as radar labels — chart-view schema -1
+
+`View.chart ~radar_labels` accepts a validated `Chart_radar_labels` collection
+of ordinary Views keyed by stable axis IDs. Native prepaint measures buttons,
+text and editors without an OCaml callback. Content retains normal styling and
+input semantics. Hide/show retains native children; removing an entry unmounts
+it. Original source values and selection are unchanged. See the
+[content contract](radar-label-content.md), [example walkthrough](../../examples/gallery/charts_page.md#ordinary-views-as-radar-labels)
+and [scoped local evidence](../evidence/radar-label-content-och41.md), including
+remaining interaction/lifecycle qualification. The explicit chart-view envelope
+is -1; options/style/data are 7/-2/1. Matching bridge revisions are required.

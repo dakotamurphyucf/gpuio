@@ -14,7 +14,7 @@ pub(super) use data_view::capture_browse;
 pub(super) use data_view::element as data_element;
 pub(super) struct Input {
     pub focus: gpui::FocusHandle,
-    gate: crate::host::focus::Shared,
+    pub(super) gate: crate::host::focus::Shared,
     bounds: Bounds<Pixels>,
     capture: Option<HitboxId>,
     pub token: Rc<()>,
@@ -221,12 +221,13 @@ impl State {
             .hover
             .or(self.input.cursor)
             .or(self.input.selected_index)?;
-        let details = crate::chart_details::describe(
+        let details = crate::chart_details::describe_with_radar_labels(
             ready.snapshot.data(),
             &ready.config.sampling,
             &ready.config.options,
             ready.plan.geometry(),
             index,
+            &self.config.radar_labels,
         )?;
         let selected = self.input.capture.is_none() && self.input.selected_index == Some(index);
         Some(inspection::overlay(ready, frame, details, selected))

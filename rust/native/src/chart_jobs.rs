@@ -403,6 +403,8 @@ mod tests {
             observer: None,
             snapshot: store.acquire(id).unwrap().snapshot().unwrap(),
             config: Arc::new(Config {
+                version: -1,
+                radar_labels: vec![],
                 source: Some(id),
                 label: "Chart".into(),
                 legend: true,

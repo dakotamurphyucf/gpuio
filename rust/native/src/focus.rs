@@ -142,6 +142,27 @@ mod search_visibility_tests {
     }
 
     #[test]
+    fn chart_visibility_updates_preserve_other_charts_and_windows() {
+        let session = Rc::new(RefCell::new(crate::session::Session::default()));
+        let first = Manager::new(WindowId::from_parts(0, 1).unwrap(), session.clone());
+        let second = Manager::new(WindowId::from_parts(1, 1).unwrap(), session);
+        let a = NodeId::from_parts(0, 1).unwrap();
+        let b = NodeId::from_parts(1, 1).unwrap();
+        let mut first = first.borrow_mut();
+        assert!(first.replace_chart_hidden(&[a], &[a]));
+        assert!(first.replace_chart_hidden(&[b], &[b]));
+        let hidden = first.visibility_identity();
+        assert!(!first.replace_chart_hidden(&[a], &[a]));
+        assert!(Rc::ptr_eq(&hidden, &first.visibility_identity()));
+        assert!(first.replace_chart_hidden(&[a], &[]));
+        assert_eq!(first.chart_hidden, BTreeSet::from([b]));
+        assert!(!Rc::ptr_eq(&hidden, &first.visibility_identity()));
+        assert!(second.borrow().chart_hidden.is_empty());
+        assert!(first.replace_chart_hidden(&[b], &[]));
+        assert!(first.chart_hidden.is_empty());
+    }
+
+    #[test]
     fn visibility_identity_changes_only_with_actual_branch_selection() {
         let session = Rc::new(RefCell::new(crate::session::Session::default()));
         let manager = Manager::new(WindowId::from_parts(0, 1).unwrap(), session);
@@ -519,6 +540,7 @@ pub(super) struct Manager {
     query_hidden: BTreeSet<NodeId>,
     avatar_hidden: BTreeSet<NodeId>,
     picker_hidden: BTreeSet<NodeId>,
+    chart_hidden: BTreeSet<NodeId>,
     track_clipped: BTreeSet<NodeId>,
     retired_input: BTreeSet<NodeId>,
     previous_track_clipped: BTreeSet<NodeId>,
@@ -554,6 +576,7 @@ impl Manager {
             query_hidden: BTreeSet::new(),
             avatar_hidden: BTreeSet::new(),
             picker_hidden: BTreeSet::new(),
+            chart_hidden: BTreeSet::new(),
             track_clipped: BTreeSet::new(),
             retired_input: BTreeSet::new(),
             previous_track_clipped: BTreeSet::new(),
@@ -617,6 +640,7 @@ impl Manager {
                 || self.query_hidden.contains(&id)
                 || self.avatar_hidden.contains(&id)
                 || self.picker_hidden.contains(&id)
+                || self.chart_hidden.contains(&id)
             {
                 return true;
             }
@@ -662,6 +686,24 @@ impl Manager {
             self.visibility_identity = Rc::new(());
             self.pending = true;
         }
+    }
+    /// Each chart owns only its own retained label wrappers.
+    pub(super) fn replace_chart_hidden(&mut self, previous: &[NodeId], hidden: &[NodeId]) -> bool {
+        let next: BTreeSet<_> = hidden.iter().copied().collect();
+        let mut changed = false;
+        for id in previous {
+            if !next.contains(id) {
+                changed |= self.chart_hidden.remove(id);
+            }
+        }
+        for id in next {
+            changed |= self.chart_hidden.insert(id);
+        }
+        if changed {
+            self.visibility_identity = Rc::new(());
+            self.pending = true;
+        }
+        changed
     }
     pub(super) fn show_avatar_fallback(&mut self, child: NodeId, visible: bool) {
         let changed = if visible {
@@ -976,6 +1018,7 @@ impl Manager {
             };
             if crate::style::disabled(&item.style)
                 || item.list_input.is_some_and(|config| config.disabled)
+                || item.chart.as_ref().is_some_and(|config| config.disabled)
                 || (item.number_presentation.is_some()
                     && item
                         .number_input
@@ -1137,6 +1180,8 @@ impl Manager {
                         || self.query_hidden.contains(&id)
                         || self.avatar_hidden.contains(&id)
                         || self.picker_hidden.contains(&id)
+                        || self.chart_hidden.contains(&id)
+                        || node.chart.as_ref().is_some_and(|config| config.disabled)
                         || style_hidden(node)
                         || crate::style::disabled(&node.style)
                         || navigation_hidden(tree, node)

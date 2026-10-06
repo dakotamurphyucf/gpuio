@@ -39,6 +39,44 @@ let style =
   |> ok
 ;;
 
+let%expect_test "radar content collection has bounded unique identity and paired metadata"
+  =
+  let module L = Gpuio.Chart_radar_labels in
+  let entry n = L.Entry.create ~axis:(Gpuio.Chart_data.Datum_id.of_int64 n |> ok) () in
+  let labels = L.create [ entry 7L; entry 9L ] |> ok in
+  assert (List.equal Int64.equal (L.Expert.axes labels) [ 7L; 9L ]);
+  assert (List.is_empty (L.Expert.axes L.empty));
+  assert (Result.is_error (L.create [ entry 7L; entry 7L ]));
+  assert (
+    Result.is_error (L.create (List.init 65 ~f:(fun n -> entry (Int64.of_int (n + 1))))));
+  assert (
+    Result.is_ok (L.create (List.init 64 ~f:(fun n -> entry (Int64.of_int (n + 1))))));
+  let config = Chart.Config.create ~data:handle ~label:"Chart 🦀" ~style () |> ok in
+  let wire =
+    Chart.Expert.with_radar_labels config labels
+    |> Chart.Expert.to_wire ~owner:(Some owner)
+  in
+  assert (W.Config.valid wire);
+  Eio_main.run (fun env ->
+    let expected =
+      Eio.Path.load Eio.Path.(Eio.Stdenv.cwd env / "chart-view-v1-rich-labels.hex")
+      |> String.strip
+    in
+    let bytes =
+      Bin_prot.Utils.bin_dump W.Config.bin_writer_t wire |> Bigstring.to_string
+    in
+    assert (String.equal (hex bytes) expected));
+  List.iter
+    [ []; [ Int64.max_value ]; List.init 64 ~f:(fun n -> Int64.of_int (n + 1)) ]
+    ~f:(fun radar_labels -> assert (W.Config.valid { wire with radar_labels }));
+  List.iter
+    [ [ 0L ]; [ -1L ]; [ 7L; 7L ]; List.init 65 ~f:(fun n -> Int64.of_int (n + 1)) ]
+    ~f:(fun radar_labels -> assert (not (W.Config.valid { wire with radar_labels })));
+  assert (not (W.Config.valid { wire with version = 0L }));
+  print_endline "64 unique positive targets; unknown axes allowed; versioned paired bytes";
+  [%expect {| 64 unique positive targets; unknown axes allowed; versioned paired bytes |}]
+;;
+
 let%expect_test "chart view owner and append-only envelopes match independent fixtures" =
   let config = Chart.Config.create ~data:handle ~label:"Chart 🦀" ~style () |> ok in
   let wire = Chart.Expert.to_wire config ~owner:(Some owner) in
@@ -57,7 +95,7 @@ let%expect_test "chart view owner and append-only envelopes match independent fi
   let bytes = Bin_prot.Utils.bin_dump W.Config.bin_writer_t wire |> Bigstring.to_string in
   Eio_main.run (fun env ->
     let expected =
-      Eio.Path.load Eio.Path.(Eio.Stdenv.cwd env / "chart-v7-radar-view.hex")
+      Eio.Path.load Eio.Path.(Eio.Stdenv.cwd env / "chart-view-v1-labels.hex")
       |> String.strip
     in
     assert (String.equal (hex bytes) expected));

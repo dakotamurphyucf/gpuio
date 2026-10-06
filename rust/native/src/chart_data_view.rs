@@ -40,6 +40,9 @@ impl Route {
             }
             Action::Browse(_) => return,
         };
+        if state.sync_label_visibility() {
+            state.input.gate.borrow_mut().sync(window, cx);
+        }
         window.focus(&state.input.focus, cx);
         state.redraw(window, cx);
         window.prevent_default();
@@ -121,6 +124,9 @@ impl State {
             }
         } else {
             return false;
+        }
+        if self.sync_label_visibility() {
+            self.input.gate.borrow_mut().sync(window, cx);
         }
         self.redraw(window, cx);
         window.prevent_default();

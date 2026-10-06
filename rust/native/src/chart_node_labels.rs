@@ -235,6 +235,8 @@ mod tests {
         let data = data(false);
         for (width, height) in [(400., 200.), (80., 30.), (1., 1.)] {
             let config = Config {
+                version: -1,
+                radar_labels: vec![],
                 source: None,
                 label: "Chart".into(),
                 options: Default::default(),

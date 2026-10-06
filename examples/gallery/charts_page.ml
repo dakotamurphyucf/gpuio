@@ -99,6 +99,58 @@ module Radar_scale = struct
   ;;
 end
 
+let radar_labels p ~enabled ~activations ~on_activate ~editor =
+  if not enabled
+  then Chart_radar_labels.empty
+  else (
+    let entry id content =
+      Chart_radar_labels.Entry.create
+        ~axis:(Chart_data.Datum_id.of_int64 id |> ok)
+        content
+    in
+    Chart_radar_labels.create
+      [ entry
+          1L
+          (V.button
+             ~accessible_name:"Inspect radar quality"
+             ~on_click:on_activate
+             ~style:
+               (style
+                  [ Padding (px 6.)
+                  ; Radius 7.
+                  ; Font_size (Palette.size p 11.)
+                  ; Background (Background.solid (Palette.surface p))
+                  ; Foreground (Palette.accent p)
+                  ; Border_width 1.
+                  ; Border_color (Palette.border p)
+                  ])
+             (sprintf "Quality · %d" activations))
+      ; entry
+          3L
+          (V.column
+             [ Palette.text p ~size:11. "Cost"
+             ; Palette.text p ~size:10. ~muted:true "per request"
+             ])
+      ; entry
+          4L
+          (Gpuio_eio.Text_input.view
+             editor
+             ~style:
+               (style
+                  [ Width (px (Palette.size p 128.))
+                  ; Height (px (Palette.size p 30.))
+                  ; Font_size (Palette.size p 11.)
+                  ; Padding (px 4.)
+                  ; Radius 6.
+                  ; Background (Background.solid (Palette.surface p))
+                  ; Foreground (Palette.foreground p)
+                  ; Border_width 1.
+                  ; Border_color (Palette.border p)
+                  ]))
+      ]
+    |> ok)
+;;
+
 module Source = struct
   type t =
     { chart : Registered.t
@@ -161,6 +213,22 @@ let component app window palette graph =
   let radar_scale, set_radar_scale = B.state Radar_scale.Per_axis graph in
   let fixed_radius, toggle_fixed_radius = B.toggle ~default_model:false graph in
   let spaced_radar, toggle_spaced_radar = B.toggle ~default_model:false graph in
+  let rich_radar, toggle_rich_radar = B.toggle ~default_model:false graph in
+  let show_radar_labels, toggle_radar_labels = B.toggle ~default_model:true graph in
+  let label_activations, set_label_activations = B.state 0 graph in
+  let label_editor =
+    Gpuio_eio.Text_input.create
+      window
+      ~config:
+        (B.return
+           (Text_input.Config.create
+              ~mode:Single_line
+              ~label:"Radar axis note"
+              ~placeholder:"Context note"
+              ()
+            |> ok))
+      graph
+  in
   let disabled, toggle_disabled = B.toggle ~default_model:false graph in
   let notice, set_notice = B.state "Preparing chart…" graph in
   let open B.Let_syntax in
@@ -203,6 +271,13 @@ let component app window palette graph =
   and toggle_fixed_radius = toggle_fixed_radius
   and spaced_radar = spaced_radar
   and toggle_spaced_radar = toggle_spaced_radar
+  and rich_radar = rich_radar
+  and toggle_rich_radar = toggle_rich_radar
+  and show_radar_labels = show_radar_labels
+  and toggle_radar_labels = toggle_radar_labels
+  and label_editor = label_editor
+  and label_activations = label_activations
+  and set_label_activations = set_label_activations
   and disabled = disabled
   and toggle_disabled = toggle_disabled
   and notice = notice
@@ -313,6 +388,7 @@ let component app window palette graph =
         ~pie:(Chart_options.Pie.create ~inner_radius:0.5 () |> ok)
         ~radar:
           (Chart_options.Radar.create
+             ~labels:show_radar_labels
              ~scale:radar_scale
              ~radius:(if fixed_radius then Pixels 80. else Fit)
              ~label_gap:(if spaced_radar then 24. else 0.)
@@ -346,6 +422,13 @@ let component app window palette graph =
       V.chart
         ~key:(Key.of_string_exn "gallery-chart")
         ~on_event
+        ~radar_labels:
+          (radar_labels
+             p
+             ~enabled:(rich_radar && Mode.equal current_mode (Family Radar))
+             ~activations:label_activations
+             ~on_activate:(set_label_activations (label_activations + 1))
+             ~editor:label_editor)
         ~style:
           (style
              [ Width
@@ -405,7 +488,19 @@ let component app window palette graph =
                     ~checked:spaced_radar
                     ~on_toggle:toggle_spaced_radar
                     "Radar label gap 24"
+                ; V.switch
+                    ~checked:rich_radar
+                    ~on_toggle:toggle_rich_radar
+                    "Custom radar labels"
+                ; V.switch
+                    ~checked:show_radar_labels
+                    ~on_toggle:toggle_radar_labels
+                    "Show radar labels"
                 ]
+            ; Palette.text
+                p
+                ~size:12.
+                (sprintf "Radar label activations: %d" label_activations)
             ; Palette.text
                 p
                 ~muted:true

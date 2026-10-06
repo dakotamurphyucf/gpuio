@@ -59,11 +59,13 @@ module Config = struct
         ()
     =
     let wire =
-      { Wire.Config.source = None
+      { Wire.Config.version = -1L
+      ; source = None
       ; label
       ; options = Chart_options.Expert.to_wire options
       ; sampling = Chart_sampling.Expert.to_wire sampling
       ; style = Chart_style.Expert.to_wire style
+      ; radar_labels = []
       ; legend
       ; disabled
       }
@@ -77,6 +79,10 @@ module Config = struct
 end
 
 module Expert = struct
+  let with_radar_labels (t : Config.t) labels =
+    { t with wire = { t.wire with radar_labels = Chart_radar_labels.Expert.axes labels } }
+  ;;
+
   let to_wire (t : Config.t) ~owner =
     let source =
       Option.bind owner ~f:(fun owner ->

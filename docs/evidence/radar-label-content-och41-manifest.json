@@ -1,0 +1,138 @@
+{
+  "source_base": "4b0b33c",
+  "platform": "macOS 14.5 arm64",
+  "scope": "Local radar View adapter checks; remaining qualification is documented separately.",
+  "archive_sha256": "b9134a727548d2c67c5e0d83e17291685100b6af2a15c3d0b2e50a21a094ce0d",
+  "files": [
+    {
+      "path": "radar-content-clippy.log",
+      "bytes": 588425,
+      "sha256": "5248a1437950cb07bf4cd07d83f9b659ed91cca0dac3734b48455388327239e8"
+    },
+    {
+      "path": "radar-content-dune-full.log",
+      "bytes": 705921,
+      "sha256": "0ec295fee52673e6b1faff93bbf9a5a9b0a7002d86ec5041e4c8d5b9d9f9ce1e"
+    },
+    {
+      "path": "radar-content-final-ocaml.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "radar-content-gallery-build-fixed.log",
+      "bytes": 510,
+      "sha256": "5c73226816f9c25fcd7329cbb02e45034a98da459be773eeb26861af5c5cebc2"
+    },
+    {
+      "path": "radar-content-gallery-build.log",
+      "bytes": 234,
+      "sha256": "d0a44c759121ba10188bfcbd883829230860b5b7adc8b33ebd734c90775a7d0e"
+    },
+    {
+      "path": "radar-content-gallery-editor-build.log",
+      "bytes": 71,
+      "sha256": "22123947a145f448a522ca123bf67954da146ea87a8612b67548a3c86b2b6866"
+    },
+    {
+      "path": "radar-content-gallery-rerun.log",
+      "bytes": 12139,
+      "sha256": "97f4a8bfdb194266b6019b6b351e60a14790384b9e114d92cb7e6c59eda33af4"
+    },
+    {
+      "path": "radar-content-gallery-run.log",
+      "bytes": 11869,
+      "sha256": "a553cbdda0f14e8779424eb7edb30ab939c5e3d8a179c9c187d1311a02d828f7"
+    },
+    {
+      "path": "radar-content-gallery-viewport.log",
+      "bytes": 3134,
+      "sha256": "a9e79af4a089031f1963e2d62e7d04c8f5526925b79724a83f86d526a692f122"
+    },
+    {
+      "path": "radar-content-installed.log",
+      "bytes": 204181,
+      "sha256": "dd7190eb3b9e237286e610ac45bf92fc88498920acc749bc2e9e1ab8f14aa493"
+    },
+    {
+      "path": "radar-content-native-boundary.log",
+      "bytes": 589035,
+      "sha256": "cdf25f87a535549905163a0e91fe470b8d9d1fabd7a0cd5bc734940470b55078"
+    },
+    {
+      "path": "radar-content-native-check.log",
+      "bytes": 588910,
+      "sha256": "6e5b6bc64575ddd00d029888671ca0de2ad04b51c579dfc62d57f9e53ebb58f9"
+    },
+    {
+      "path": "radar-content-native-test-rerun.log",
+      "bytes": 589242,
+      "sha256": "abaf735bbc9950a6f5818673ceb444d071d462c838065c5b5a635c7ca035a8e6"
+    },
+    {
+      "path": "radar-content-native-test-run.log",
+      "bytes": 599068,
+      "sha256": "74e9e5543209df60092f49c9e77cf9717413ce33e41ae6011211854f586442a7"
+    },
+    {
+      "path": "radar-content-native-tests.log",
+      "bytes": 598664,
+      "sha256": "4e44db1825e16ac3bf566f9052450a70013760df3c99d5e4d23fee4e39087640"
+    },
+    {
+      "path": "radar-content-native-transitions.log",
+      "bytes": 589064,
+      "sha256": "a3dc8e122d368e5c8817e8fb4a2af82669fd254a2c071b67ca3c88354c1523df"
+    },
+    {
+      "path": "radar-content-native-unit.log",
+      "bytes": 654830,
+      "sha256": "fd0514072bdbdaaac24922656f06a7f8ecf14aa8cb4f77a60ac8b3a1f49f0762"
+    },
+    {
+      "path": "radar-content-ocaml.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "radar-content-protocol-full.log",
+      "bytes": 56428,
+      "sha256": "fd253f635e89017a8ed40b466260c6a9cf033684a33c8100c1fc755fb4864d7f"
+    },
+    {
+      "path": "radar-content-protocol.log",
+      "bytes": 565,
+      "sha256": "e957c58966b85aeab5107d643bf35d03120f7257ec4225eafa0488a14bdeab5b"
+    },
+    {
+      "path": "radar-content-reset-diagnostic.log",
+      "bytes": 588833,
+      "sha256": "402d19a245b12b7f43a91ecbe40c4390cc472c6d7eb22d0360243d09e0eab9d1"
+    },
+    {
+      "path": "radar-content-reset-diagnostic2.log",
+      "bytes": 588849,
+      "sha256": "ca07e2ed08eb5fb204393d0a3db645e686fc11c2852dfb7bf8a63b89cb992269"
+    },
+    {
+      "path": "radar-content-gallery-images/gallery-failure.png",
+      "bytes": 434695,
+      "sha256": "279672e33ae5df49f0398938f9c533608d8a4829787ff4ec79f193a7f6981ca0"
+    },
+    {
+      "path": "radar-content-gallery-images/gallery-radar-custom-labels.png",
+      "bytes": 414791,
+      "sha256": "5de0f779ce42e3637c029224eda22b5ef15e9a69923f813f6c58e3631a6a39c8"
+    },
+    {
+      "path": "radar-content-gallery-images/gallery-radar-other-theme.png",
+      "bytes": 403975,
+      "sha256": "26f64e8eef070a6169705b0e31f7bee07849743911760e2da1eef028441754cb"
+    },
+    {
+      "path": "radar-content-gallery-images/gallery-radar-shared-50.png",
+      "bytes": 409786,
+      "sha256": "6838245a1668cfe575ec812a671c24b59fa037e7bf62880c1ec3e2a67896641a"
+    }
+  ]
+}

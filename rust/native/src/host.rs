@@ -273,7 +273,7 @@ struct Interaction {
     selection_color: Option<gpui::Hsla>,
     link_content: bool,
     passive_disabled: bool,
-    table_header: bool,
+    clip_controls: bool,
 }
 impl Default for Interaction {
     fn default() -> Self {
@@ -283,7 +283,7 @@ impl Default for Interaction {
             selection_color: None,
             link_content: false,
             passive_disabled: false,
-            table_header: false,
+            clip_controls: false,
         }
     }
 }
@@ -793,7 +793,7 @@ impl View {
     ) -> gpui::AnyElement {
         let id = placement.node;
         let element = self.element_body(tree, placement, interaction, window, cx);
-        let element = if interaction.table_header
+        let element = if interaction.clip_controls
             && tree.get(id).is_some_and(|node| {
                 node.handler.is_some() || node.command_ref.is_some() || node.editor.is_some()
             }) {
@@ -848,7 +848,7 @@ impl View {
             .filter(|_| self.focus.borrow().highlight_visible(tree, id))
             .map(|_| self.prepare_highlight(tree, node, window, cx));
         if node.kind == Kind::ChartView {
-            return self.chart_element(node, interaction);
+            return self.chart_element(tree, node, interaction, window, cx);
         }
         if node.kind == Kind::CanvasView {
             return self.canvas_element(node, interaction, window, cx);

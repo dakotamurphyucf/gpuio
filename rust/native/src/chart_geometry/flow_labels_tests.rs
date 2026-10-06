@@ -246,6 +246,8 @@ fn rich_middle_block_keeps_placement_and_clips_coherently_in_tiny_views() {
         ..Default::default()
     };
     let config = Config {
+        version: -1,
+        radar_labels: vec![],
         source: None,
         label: "Chart".into(),
         options: Default::default(),

@@ -1,9 +1,10 @@
 # Radar label content — OCH-41
 
-Implementation design, 2026-10-06. **The public child-content API and native slot
-adapter are not implemented yet.** Stable axis provenance is the first prerequisite;
-the existing text-label renderer uses it. This document defines the remaining
-work and must not be read as feature or native acceptance evidence.
+Implementation contract, 2026-10-06. The public child-content API, versioned
+metadata and retained native adapter are implemented. Local codec/tree/unit,
+GPU layout and foreground gallery checks pass; the [evidence record](../evidence/radar-label-content-och41.md)
+distinguishes those checks from remaining interaction/lifecycle qualification.
+This does not complete OCH-41 or certify the broader catalog/release.
 
 ## Source behavior and scope
 
@@ -12,7 +13,7 @@ at `84f57fdfcb4910623fb0bb7f795b077e249f9271` accepts `RadarLabel::Text` or
 `RadarLabel::Element(AnyElement)`. Element labels are arbitrary native content,
 measured during prepaint, styled independently of `label_color`, and omit the
 axis title from the hover tooltip. Merely adding multiline text descriptors would
-not cover this capability. GPUIO will accept ordinary OCaml Views, including icons,
+not cover this capability. GPUIO accepts ordinary OCaml Views, including icons,
 buttons and inputs, with no OCaml callback from native layout, paint or measurement.
 
 Existing [projection behavior](radar-presentation.md) stays intact: per-axis and
@@ -20,7 +21,7 @@ shared scales, Fit or fixed radius, label gap, immutable original data and bound
 geometry. Unlike the pin, GPUIO already permits axes/grid without any series;
 custom labels must work in that state too. Source captions remain the default.
 
-## Proposed OCaml interface
+## OCaml interface
 
 Use an abstract collection so duplicate targets and excessive slot counts fail
 before view reconciliation. Content is generic to avoid a Chart/View module cycle:

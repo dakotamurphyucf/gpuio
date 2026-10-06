@@ -2,21 +2,35 @@ use crate::{ResourceId, chart_options::Options, chart_sampling::Policy, chart_st
 use binprot::macros::BinProtWrite;
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]
 pub struct Config {
+    pub version: i64,
     pub source: Option<ResourceId>,
     pub label: String,
     pub options: Options,
     pub sampling: Policy,
     pub style: Style,
+    pub radar_labels: Vec<i64>,
     pub legend: bool,
     pub disabled: bool,
 }
 impl Config {
     pub fn retained_bytes(&self) -> usize {
-        std::mem::size_of::<Self>() + self.label.capacity() + self.style.heap_bytes()
+        std::mem::size_of::<Self>()
+            + self.label.capacity()
+            + self.style.heap_bytes()
+            + self.radar_labels.capacity() * std::mem::size_of::<i64>()
     }
 
     pub fn is_valid(&self) -> bool {
-        self.label.len() <= 1024
+        self.version == -1
+            && self.radar_labels.len() <= 64
+            && self.radar_labels.iter().all(|id| *id > 0)
+            && self
+                .radar_labels
+                .iter()
+                .collect::<std::collections::BTreeSet<_>>()
+                .len()
+                == self.radar_labels.len()
+            && self.label.len() <= 1024
             && self.label.bytes().any(|b| !matches!(b, 9..=13 | 32))
             && !self.label.bytes().any(|b| matches!(b, 0 | 10 | 13))
             && self.options.is_valid()

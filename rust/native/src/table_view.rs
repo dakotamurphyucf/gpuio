@@ -187,7 +187,7 @@ impl Delegate {
                     tree,
                     *node.children.first()?,
                     Interaction {
-                        table_header: true,
+                        clip_controls: true,
                         ..self.interaction
                     },
                     window,

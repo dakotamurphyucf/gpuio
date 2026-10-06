@@ -2,6 +2,8 @@ use binprot::BinProtWrite;
 use gpuio_protocol::{DecodeError, ResourceId, chart_view::*, decode_chart_view_config};
 fn config() -> Config {
     Config {
+        version: -1,
+        radar_labels: vec![],
         source: Some(ResourceId::from_parts(7, 2).unwrap()),
         label: "Chart 🦀".into(),
         legend: true,
@@ -49,7 +51,7 @@ fn bounded_chart_view_and_transaction_match_independent_fixture() {
         Err(DecodeError::Malformed)
     );
     let bytes = encode(&config);
-    let fixture = include_str!("../../../test/fixtures/chart-v7-radar-view.hex").trim();
+    let fixture = include_str!("../../../test/fixtures/chart-view-v1-labels.hex").trim();
     assert_eq!(hex(&bytes), fixture);
     assert_eq!(decode_chart_view_config(&bytes), Ok(config.clone()));
     for end in 0..bytes.len() {
@@ -148,4 +150,49 @@ fn invalid_nested_configuration_and_label_cannot_reach_native_tree() {
     let mut value = config();
     value.style.palette.clear();
     assert!(decode_chart_view_config(&encode(&value)).is_err());
+}
+
+#[test]
+fn radar_label_targets_match_independent_bytes_and_bound_native_allocation() {
+    let mut config = config();
+    config.radar_labels = vec![7, 9];
+    let bytes = encode(&config);
+    assert_eq!(
+        hex(&bytes),
+        include_str!("../../../test/fixtures/chart-view-v1-rich-labels.hex").trim()
+    );
+    assert_eq!(decode_chart_view_config(&bytes), Ok(config.clone()));
+    for end in 0..bytes.len() {
+        assert!(decode_chart_view_config(&bytes[..end]).is_err());
+    }
+    for axes in [vec![], vec![i64::MAX], (1..=64).collect()] {
+        config.radar_labels = axes;
+        assert!(config.is_valid());
+        assert_eq!(
+            decode_chart_view_config(&encode(&config)),
+            Ok(config.clone())
+        );
+    }
+    for axes in [vec![0], vec![-1], vec![7, 7], (1..=65).collect()] {
+        config.radar_labels = axes;
+        assert!(!config.is_valid());
+        assert!(decode_chart_view_config(&encode(&config)).is_err());
+    }
+    config.radar_labels.clear();
+    config.version = 0;
+    assert!(!config.is_valid());
+    assert_eq!(
+        decode_chart_view_config(&encode(&config)),
+        Err(DecodeError::Malformed)
+    );
+    let previous = include_str!("../../../test/fixtures/chart-v7-radar-view.hex")
+        .trim()
+        .as_bytes()
+        .chunks_exact(2)
+        .map(|s| u8::from_str_radix(std::str::from_utf8(s).unwrap(), 16).unwrap())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        decode_chart_view_config(&previous),
+        Err(DecodeError::Malformed)
+    );
 }

@@ -91,6 +91,9 @@ module Config : sig
 end
 
 module Expert : sig
+  (** Supplies metadata for the ordinary retained children emitted by [View.chart]. *)
+  val with_radar_labels : Config.t -> _ Chart_radar_labels.t -> Config.t
+
   val to_wire
     :  Config.t
     -> owner:Chart_resource.Expert.Owner.t option

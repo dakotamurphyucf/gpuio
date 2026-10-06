@@ -18,6 +18,8 @@ fn config(source: ResourceId, color: i64) -> Config {
         ..Default::default()
     };
     Config {
+        version: -1,
+        radar_labels: vec![],
         source: Some(source),
         label: "Allocation".into(),
         legend: false,
@@ -353,6 +355,7 @@ async fn exercise(
             .unwrap();
     }
     labels::exercise(cx, handle, next, &session, &transport).await;
+    label_content::exercise(cx, handle, next, &session, &transport).await;
     apply(
         cx,
         handle,
@@ -368,6 +371,8 @@ async fn exercise(
 }
 #[path = "chart_input_test.rs"]
 mod interaction;
+#[path = "chart_label_content_test.rs"]
+mod label_content;
 #[path = "chart_label_view_test.rs"]
 mod labels;
 #[path = "chart_stream_test.rs"]

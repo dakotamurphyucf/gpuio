@@ -301,6 +301,8 @@ mod tests {
     use gpuio_protocol::chart_options::Orientation;
     fn config() -> Config {
         Config {
+            version: -1,
+            radar_labels: vec![],
             source: None,
             label: "Chart".into(),
             options: Default::default(),

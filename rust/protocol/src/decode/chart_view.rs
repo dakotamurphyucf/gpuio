@@ -3,12 +3,18 @@ use crate::chart_view::Config;
 use std::io::Cursor;
 impl Decoder<'_> {
     pub(super) fn chart_view_config(&mut self) -> Result<Config, DecodeError> {
+        let version = self.int()?;
+        if version != -1 {
+            return Err(DecodeError::Malformed);
+        }
         let value = Config {
+            version,
             source: self.option(|d| d.resource())?,
             label: self.bounded_text(1024)?,
             options: self.chart_options()?,
             sampling: self.chart_sampling()?,
             style: self.chart_style()?,
+            radar_labels: self.list(64, |d| d.int())?,
             legend: self.boolean()?,
             disabled: self.boolean()?,
         };

@@ -65,11 +65,17 @@ val with_text_shimmer
   -> Text_shimmer.Config.t option
   -> 'action t Core.Or_error.t
 
-(** Native chart backed by a scoped data registration. Style determines its size. *)
+(** Native chart backed by a scoped data registration. Style determines its size.
+    [radar_labels] replaces the named axes' captions with ordinary Views, measured
+    natively at natural size. Normal View styles control sizing and wrapping.
+    Content clips to the chart; oversized labels may overlap. Missing axes,
+    hidden radar labels and the original-data browser hide retained content.
+    Custom content owns its styling; chart label color affects default text only. *)
 val chart
   :  ?key:Key.t
   -> ?style:Style.t
   -> ?on_event:(Chart.Event.t -> 'action)
+  -> ?radar_labels:'action t Chart_radar_labels.t
   -> Chart.Config.t
   -> 'action t
 

@@ -623,8 +623,28 @@ let image ?key ?(style = Style.empty) ?on_change config =
   { (text ?key ~style "") with kind = Image; image = Some { config; on_change } }
 ;;
 
-let chart ?key ?(style = Style.empty) ?on_event config =
-  { (text ?key ~style "") with kind = Chart_view; chart = Some { config; on_event } }
+let chart
+      ?key
+      ?(style = Style.empty)
+      ?on_event
+      ?(radar_labels = Chart_radar_labels.empty)
+      config
+  =
+  let config = Chart.Expert.with_radar_labels config radar_labels in
+  let children =
+    List.map (Chart_radar_labels.Expert.entries radar_labels) ~f:(fun entry ->
+      let axis = Chart_radar_labels.Entry.axis entry |> Chart_data.Datum_id.to_int64 in
+      { (text "") with
+        kind = Container
+      ; structural_key = Some ("radar-label", Int64.to_string axis)
+      ; children = [ Chart_radar_labels.Entry.content entry ]
+      })
+  in
+  { (text ?key ~style "") with
+    kind = Chart_view
+  ; chart = Some { config; on_event }
+  ; children
+  }
 ;;
 
 let canvas ?key ?(style = Style.empty) ?on_event config =

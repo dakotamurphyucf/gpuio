@@ -12,11 +12,15 @@ use gpuio_protocol::{
 #[path = "chart_input.rs"]
 mod input;
 
+#[path = "chart_label_content.rs"]
+mod label_content;
+
 pub(super) struct State {
     input: input::Input,
     node: NodeId,
     window: WindowId,
     config: Arc<Config>,
+    label_slots: Arc<[NodeId]>,
     handler: Option<HandlerId>,
     revision: i64,
     lease: Option<Lease>,
@@ -71,6 +75,10 @@ impl State {
         }
     }
     fn suspend(&mut self, window: &mut Window) {
+        self.input
+            .gate
+            .borrow_mut()
+            .replace_chart_hidden(&self.label_slots, &self.label_slots);
         self.cancel_input(window);
         self.input.clear_selection();
         self.input.data_cursor = None;
@@ -89,6 +97,10 @@ impl State {
     pub(super) fn close(&mut self, window: &mut Window) {
         self.closed = true;
         self.suspend(window);
+        self.input
+            .gate
+            .borrow_mut()
+            .replace_chart_hidden(&self.label_slots, &[]);
     }
     fn configure(&mut self, node: &crate::tree::Node, revision: i64, window: &mut Window) {
         let config = node.chart.as_ref().expect("validated chart");
@@ -99,6 +111,12 @@ impl State {
             self.reported_failure = None;
         }
         self.config = config.clone();
+        let previous = std::mem::replace(&mut self.label_slots, node.children.clone());
+        let hidden = self.hidden_labels();
+        self.input
+            .gate
+            .borrow_mut()
+            .replace_chart_hidden(&previous, &hidden);
         self.handler = node.handler;
         self.revision = revision;
     }
@@ -156,6 +174,7 @@ impl State {
         if snapshot.is_none() {
             self.lease = None;
         }
+        self.sync_label_visibility();
         snapshot
     }
     fn prepare(&mut self, total: paint::Layout, window: &mut Window, cx: &mut App) {
@@ -258,6 +277,7 @@ impl State {
                     self.ready = Some(ready);
                     self.ready_frame = self.requested_frame;
                     self.reported_ready = None;
+                    self.sync_label_visibility();
                 }
                 Err(error) => self.failure = Some(job_error(error)),
             }
@@ -283,7 +303,14 @@ impl State {
             text = text.font(label_style.font.clone());
         }
         let series_names = presentation::legend(ready.snapshot.data());
+        let custom_axes: std::collections::BTreeSet<_> =
+            self.label_positions().iter().map(|p| p.axis).collect();
         for (index, label) in ready.plan.geometry().labels.iter().enumerate() {
+            if let crate::chart_geometry::LabelKind::RadarAxis(axis) = label.kind
+                && custom_axes.contains(&axis)
+            {
+                continue;
+            }
             let placement = frame.label(label);
             let r = placement.rect;
             if r.height <= 0. || r.width <= 0. {
@@ -472,6 +499,7 @@ impl View {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        let visibility = self.focus.borrow().visibility_identity();
         let session = self.session.borrow();
         let Some(tree) = session.tree(self.id) else {
             for state in self.charts.values() {
@@ -502,6 +530,7 @@ impl View {
                         node: *id,
                         window: self.id,
                         config: node.chart.clone().unwrap(),
+                        label_slots: node.children.clone(),
                         handler: node.handler,
                         revision: tree.revision(),
                         lease: None,
@@ -525,7 +554,8 @@ impl View {
                 .configure(node, tree.revision(), window);
         }
         for (id, state) in &self.charts {
-            if !self.focus.borrow().visible(*id) {
+            let visible = self.focus.borrow().visible(*id);
+            if !visible {
                 state.borrow_mut().suspend(window);
             } else {
                 if !self.focus.borrow().allows(*id) || !pointer_enabled(tree, *id) {
@@ -535,6 +565,12 @@ impl View {
                 // immediately and cannot trigger a worker completion redraw.
                 state.borrow_mut().refresh_source(window);
             }
+        }
+        drop(session);
+        let visibility_changed =
+            !Rc::ptr_eq(&visibility, &self.focus.borrow().visibility_identity());
+        if visibility_changed {
+            self.focus.borrow_mut().sync(window, cx);
         }
     }
     pub(super) fn hide_unvisited_charts(&self, window: &mut Window) {
@@ -550,6 +586,7 @@ impl View {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> bool {
+        let visibility = self.focus.borrow().visibility_identity();
         let mut changed = false;
         for (id, state) in &self.charts {
             let mut state = state.borrow_mut();
@@ -561,14 +598,22 @@ impl View {
             }
         }
         if changed {
+            let visibility_changed =
+                !Rc::ptr_eq(&visibility, &self.focus.borrow().visibility_identity());
+            if visibility_changed {
+                self.focus.borrow_mut().sync(window, cx);
+            }
             cx.notify();
         }
         changed
     }
     pub(super) fn chart_element(
         &mut self,
+        tree: &crate::tree::Tree,
         node: &crate::tree::Node,
         interaction: Interaction,
+        window: &mut Window,
+        cx: &mut Context<Self>,
     ) -> gpui::AnyElement {
         self.visited.insert(node.id);
         let config = node.chart.as_ref().expect("validated chart");
@@ -582,6 +627,18 @@ impl View {
             return element.into_any_element();
         };
         let text = state.borrow().text_element(identity);
+        let label_positions = state.borrow().label_positions();
+        let mut label_interaction = interaction;
+        label_interaction.clip_controls = true;
+        let labels = label_positions
+            .into_iter()
+            .map(|position| {
+                let element = self.element(tree, position.node, label_interaction, window, cx);
+                let element = table_view::clip_header_control(position.node, element, &self.focus);
+                (position, element)
+            })
+            .collect();
+        let labels = label_content::element(labels, self.focus.clone());
         let overlay = state.borrow().input_overlay();
         let data_view = input::data_element(state.clone());
         let element = input::keyboard(element, state.clone());
@@ -614,6 +671,7 @@ impl View {
             )
             .children(text)
             .children(overlay)
+            .children(labels)
             .children(data_view);
         crate::semantics::State {
             identity: None,
