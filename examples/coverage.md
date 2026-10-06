@@ -13,18 +13,18 @@ Generated from [coverage.json](coverage.json). Read the [review guide](coverage-
 | [fake_backend.ml](agent_chat/model/fake_backend.ml), [fake_backend.mli](agent_chat/model/fake_backend.mli) | support | [fake_backend.md](agent_chat/model/fake_backend.md) | reviewed |
 | [fake_backend_test.ml](agent_chat/model/fake_backend_test.ml) | test-support | [fake_backend.md](agent_chat/model/fake_backend.md) | reviewed |
 | [annotation_settings.ml](agent_chat/runtime/annotation_settings.ml), [annotation_settings.mli](agent_chat/runtime/annotation_settings.mli) | component | [annotation_settings.md](agent_chat/runtime/annotation_settings.md) | reviewed |
-| [artifact_sidebar.ml](agent_chat/runtime/artifact_sidebar.ml), [artifact_sidebar.mli](agent_chat/runtime/artifact_sidebar.mli) | component | Missing | pending |
-| [artifact_tour.ml](agent_chat/runtime/artifact_tour.ml), [artifact_tour.mli](agent_chat/runtime/artifact_tour.mli) | component | Missing | pending |
+| [artifact_sidebar.ml](agent_chat/runtime/artifact_sidebar.ml), [artifact_sidebar.mli](agent_chat/runtime/artifact_sidebar.mli) | component | [artifact_sidebar.md](agent_chat/runtime/artifact_sidebar.md) | reviewed |
+| [artifact_tour.ml](agent_chat/runtime/artifact_tour.ml), [artifact_tour.mli](agent_chat/runtime/artifact_tour.mli) | component | [artifact_tour.md](agent_chat/runtime/artifact_tour.md) | reviewed |
 | [chat_message.ml](agent_chat/runtime/chat_message.ml), [chat_message.mli](agent_chat/runtime/chat_message.mli) | component | [chat_message.md](agent_chat/runtime/chat_message.md) | reviewed |
 | [chat_motion.ml](agent_chat/runtime/chat_motion.ml), [chat_motion.mli](agent_chat/runtime/chat_motion.mli) | component | [chat_motion.md](agent_chat/runtime/chat_motion.md) | reviewed |
-| [contributor_portrait.ml](agent_chat/runtime/contributor_portrait.ml), [contributor_portrait.mli](agent_chat/runtime/contributor_portrait.mli) | component | Missing | pending |
+| [contributor_portrait.ml](agent_chat/runtime/contributor_portrait.ml), [contributor_portrait.mli](agent_chat/runtime/contributor_portrait.mli) | component | [contributor_portrait.md](agent_chat/runtime/contributor_portrait.md) | reviewed |
 | [conversation.ml](agent_chat/runtime/conversation.ml), [conversation.mli](agent_chat/runtime/conversation.mli) | component | [conversation.md](agent_chat/runtime/conversation.md) | reviewed |
 | [diagram.ml](agent_chat/runtime/diagram.ml), [diagram.mli](agent_chat/runtime/diagram.mli) | component | Missing | pending |
 | [fixture_job.ml](agent_chat/runtime/fixture_job.ml), [fixture_job.mli](agent_chat/runtime/fixture_job.mli) | component | [fixture_job.md](agent_chat/runtime/fixture_job.md) | reviewed |
 | [generation_settings.ml](agent_chat/runtime/generation_settings.ml), [generation_settings.mli](agent_chat/runtime/generation_settings.mli) | component | [generation_settings.md](agent_chat/runtime/generation_settings.md) | reviewed |
-| [icons.ml](agent_chat/runtime/icons.ml), [icons.mli](agent_chat/runtime/icons.mli) | support | Missing | pending |
+| [icons.ml](agent_chat/runtime/icons.ml), [icons.mli](agent_chat/runtime/icons.mli) | support | [icons.md](agent_chat/runtime/icons.md) | reviewed |
 | [inspector.ml](agent_chat/runtime/inspector.ml), [inspector.mli](agent_chat/runtime/inspector.mli) | component | Missing | pending |
-| [palette.ml](agent_chat/runtime/palette.ml), [palette.mli](agent_chat/runtime/palette.mli) | support | Missing | pending |
+| [palette.ml](agent_chat/runtime/palette.ml), [palette.mli](agent_chat/runtime/palette.mli) | support | [palette.md](agent_chat/runtime/palette.md) | reviewed |
 | [query_loading.ml](agent_chat/runtime/query_loading.ml), [query_loading.mli](agent_chat/runtime/query_loading.mli) | component | [query_loading.md](agent_chat/runtime/query_loading.md) | reviewed |
 | [responsive.ml](agent_chat/runtime/responsive.ml), [responsive.mli](agent_chat/runtime/responsive.mli) | component | [responsive.md](agent_chat/runtime/responsive.md) | reviewed |
 | [result_actions.ml](agent_chat/runtime/result_actions.ml), [result_actions.mli](agent_chat/runtime/result_actions.mli) | component | [result_actions.md](agent_chat/runtime/result_actions.md) | reviewed |
@@ -46,12 +46,12 @@ Generated from [coverage.json](coverage.json). Read the [review guide](coverage-
 
 | Source parts | Role | Walkthrough | Review |
 | --- | --- | --- | --- |
-| [main.ml](animation/main.ml) | application-entry | Missing | pending |
+| [main.ml](animation/main.ml) | application-entry | [main.md](animation/main.md) | reviewed |
 ## animation_program
 
 | Source parts | Role | Walkthrough | Review |
 | --- | --- | --- | --- |
-| [main.ml](animation_program/main.ml) | application-entry | [README.md](animation_program/README.md) | pending |
+| [main.ml](animation_program/main.ml) | application-entry | [main.md](animation_program/main.md) | reviewed |
 ## asset_upload
 
 | Source parts | Role | Walkthrough | Review |
@@ -72,8 +72,8 @@ Generated from [coverage.json](coverage.json). Read the [review guide](coverage-
 
 | Source parts | Role | Walkthrough | Review |
 | --- | --- | --- | --- |
-| [main.ml](canvas/main.ml) | application-entry | [README.md](canvas/README.md) | pending |
-| [plot.ml](canvas/plot.ml), [plot.mli](canvas/plot.mli) | component | Missing | pending |
+| [main.ml](canvas/main.ml) | application-entry | [main.md](canvas/main.md) | reviewed |
+| [plot.ml](canvas/plot.ml), [plot.mli](canvas/plot.mli) | component | [plot.md](canvas/plot.md) | reviewed |
 ## canvas_upload
 
 | Source parts | Role | Walkthrough | Review |
@@ -121,7 +121,7 @@ Generated from [coverage.json](coverage.json). Read the [review guide](coverage-
 
 | Source parts | Role | Walkthrough | Review |
 | --- | --- | --- | --- |
-| [main.ml](container_query/main.ml) | application-entry | [README.md](container_query/README.md) | pending |
+| [main.ml](container_query/main.ml) | application-entry | [main.md](container_query/main.md) | reviewed |
 ## controls
 
 | Source parts | Role | Walkthrough | Review |
@@ -184,13 +184,13 @@ Generated from [coverage.json](coverage.json). Read the [review guide](coverage-
 
 | Source parts | Role | Walkthrough | Review |
 | --- | --- | --- | --- |
-| [alert_preview.ml](gallery/alert_preview.ml), [alert_preview.mli](gallery/alert_preview.mli) | component | Missing | pending |
+| [alert_preview.ml](gallery/alert_preview.ml), [alert_preview.mli](gallery/alert_preview.mli) | component | [alert_preview.md](gallery/alert_preview.md) | reviewed |
 | [application.ml](gallery/application.ml), [application.mli](gallery/application.mli) | application-entry | [application.md](gallery/application.md) | reviewed |
-| [aspect_preview.ml](gallery/aspect_preview.ml) | component | Missing | pending |
+| [aspect_preview.ml](gallery/aspect_preview.ml) | component | [aspect_preview.md](gallery/aspect_preview.md) | reviewed |
 | [assets_page.ml](gallery/assets_page.ml), [assets_page.mli](gallery/assets_page.mli) | component | [assets_page.md](gallery/assets_page.md) | reviewed |
-| [attachment_preview.ml](gallery/attachment_preview.ml) | component | Missing | pending |
-| [avatar_preview.ml](gallery/avatar_preview.ml), [avatar_preview.mli](gallery/avatar_preview.mli) | component | Missing | pending |
-| [badge_preview.ml](gallery/badge_preview.ml), [badge_preview.mli](gallery/badge_preview.mli) | component | Missing | pending |
+| [attachment_preview.ml](gallery/attachment_preview.ml) | component | [attachment_preview.md](gallery/attachment_preview.md) | reviewed |
+| [avatar_preview.ml](gallery/avatar_preview.ml), [avatar_preview.mli](gallery/avatar_preview.mli) | component | [avatar_preview.md](gallery/avatar_preview.md) | reviewed |
+| [badge_preview.ml](gallery/badge_preview.ml), [badge_preview.mli](gallery/badge_preview.mli) | component | [badge_preview.md](gallery/badge_preview.md) | reviewed |
 | [binding_preview.ml](gallery/binding_preview.ml), [binding_preview.mli](gallery/binding_preview.mli) | component | Missing | pending |
 | [button_appearance_preview.ml](gallery/button_appearance_preview.ml), [button_appearance_preview.mli](gallery/button_appearance_preview.mli) | component | Missing | pending |
 | [button_preview.ml](gallery/button_preview.ml), [button_preview.mli](gallery/button_preview.mli) | component | Missing | pending |
@@ -231,7 +231,7 @@ Generated from [coverage.json](coverage.json). Read the [review guide](coverage-
 | [input_page.ml](gallery/input_page.ml), [input_page.mli](gallery/input_page.mli) | component | Missing | pending |
 | [journeys_page.ml](gallery/journeys_page.ml), [journeys_page.mli](gallery/journeys_page.mli) | component | Missing | pending |
 | [keyboard_preview.ml](gallery/keyboard_preview.ml), [keyboard_preview.mli](gallery/keyboard_preview.mli) | component | Missing | pending |
-| [label_preview.ml](gallery/label_preview.ml), [label_preview.mli](gallery/label_preview.mli) | component | Missing | pending |
+| [label_preview.ml](gallery/label_preview.ml), [label_preview.mli](gallery/label_preview.mli) | component | [label_preview.md](gallery/label_preview.md) | reviewed |
 | [link_preview.ml](gallery/link_preview.ml), [link_preview.mli](gallery/link_preview.mli) | component | Missing | pending |
 | [main.ml](gallery/main.ml) | application-entry | [application.md](gallery/application.md) | reviewed |
 | [marker_preview.ml](gallery/marker_preview.ml), [marker_preview.mli](gallery/marker_preview.mli) | component | Missing | pending |
@@ -270,7 +270,7 @@ Generated from [coverage.json](coverage.json). Read the [review guide](coverage-
 | [scrollbar_preview.ml](gallery/scrollbar_preview.ml), [scrollbar_preview.mli](gallery/scrollbar_preview.mli) | component | Missing | pending |
 | [selectable_preview.ml](gallery/selectable_preview.ml), [selectable_preview.mli](gallery/selectable_preview.mli) | component | Missing | pending |
 | [selection_preview.ml](gallery/selection_preview.ml), [selection_preview.mli](gallery/selection_preview.mli) | component | Missing | pending |
-| [separator_preview.ml](gallery/separator_preview.ml) | component | Missing | pending |
+| [separator_preview.ml](gallery/separator_preview.ml) | component | [separator_preview.md](gallery/separator_preview.md) | reviewed |
 | [settings_preview.ml](gallery/settings_preview.ml), [settings_preview.mli](gallery/settings_preview.mli) | component | Missing | pending |
 | [shell.ml](gallery/shell.ml), [shell.mli](gallery/shell.mli) | component | [shell.md](gallery/shell.md) | reviewed |
 | [shimmer_preview.ml](gallery/shimmer_preview.ml), [shimmer_preview.mli](gallery/shimmer_preview.mli) | component | Missing | pending |
@@ -497,4 +497,4 @@ Generated from [coverage.json](coverage.json). Read the [review guide](coverage-
 | --- | --- | --- | --- |
 | [main.ml](window_lifecycle/main.ml) | application-entry | Missing | pending |
 
-417 source files in 260 groups; 86 reviewed, 174 pending.
+417 source files in 260 groups; 103 reviewed, 157 pending.

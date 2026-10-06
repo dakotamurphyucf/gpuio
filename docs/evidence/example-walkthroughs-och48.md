@@ -325,3 +325,28 @@ required by its ordinary self-test; the guide documents separate commands rather
 than claiming that combination passed. Settings_state's unlocked demo Custom
 counter uses unsaturated int addition; its theoretical overflow limit is explicit.
 Neither issue was reproduced or repaired in this documentation batch.
+
+## Animation, canvas, presentation primitives and workspace assets
+
+Starting from `efc1711`, seventeen further groups have adjacent reviewed guides:
+animation/main, animation_program/main, container_query/main, canvas/main and
+canvas/plot; gallery alert, aspect, attachment, avatar, badge, label and separator
+previews; Agent Chat artifact_sidebar, artifact_tour, contributor_portrait, icons
+and palette. Each companion is linked from its owning README and the
+[coverage inventory](../../examples/coverage.md).
+
+The three owner-authorized GPT-6.1 Sol agents read the scoped implementations,
+interfaces and relevant callers. Primary review checked the guides against
+implementation contracts. The explanations distinguish native animation clocks
+from Bonsai effects, pure scene construction from scoped publication, carousel
+requests from accepted selection, asset registration from asynchronous decoding,
+and application state from native widget ownership. Exact commands and small
+adaptations are included.
+
+Coverage is **103 reviewed / 157 pending**, still 417 sources in 260 groups.
+Relative file-link checks, the structural inventory audit and whitespace checks
+pass. Commands were reviewed against source/build declarations; no build or GUI
+run was added by this prose batch. Existing acceptance evidence remains separate.
+The animation example's diagnostic event history and canvas selection's fixed-data
+assumption are documented. The separator checkbox is independent demo state,
+and its size bound is not described as an explicit clipping operation.

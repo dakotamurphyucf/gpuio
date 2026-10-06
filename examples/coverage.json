@@ -61,8 +61,10 @@
         "examples/agent_chat/runtime/artifact_sidebar.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/agent_chat/runtime/artifact_sidebar.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -70,8 +72,10 @@
         "examples/agent_chat/runtime/artifact_tour.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/agent_chat/runtime/artifact_tour.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -101,8 +105,10 @@
         "examples/agent_chat/runtime/contributor_portrait.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/agent_chat/runtime/contributor_portrait.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -152,8 +158,10 @@
         "examples/agent_chat/runtime/icons.mli"
       ],
       "role": "support",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/agent_chat/runtime/icons.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -170,8 +178,10 @@
         "examples/agent_chat/runtime/palette.mli"
       ],
       "role": "support",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/agent_chat/runtime/palette.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -355,8 +365,10 @@
         "examples/animation/main.ml"
       ],
       "role": "application-entry",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/animation/main.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -364,9 +376,9 @@
       ],
       "role": "application-entry",
       "walkthroughs": [
-        "examples/animation_program/README.md"
+        "examples/animation_program/main.md"
       ],
-      "review": "pending"
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -410,9 +422,9 @@
       ],
       "role": "application-entry",
       "walkthroughs": [
-        "examples/canvas/README.md"
+        "examples/canvas/main.md"
       ],
-      "review": "pending"
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -420,8 +432,10 @@
         "examples/canvas/plot.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/canvas/plot.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -583,9 +597,9 @@
       ],
       "role": "application-entry",
       "walkthroughs": [
-        "examples/container_query/README.md"
+        "examples/container_query/main.md"
       ],
-      "review": "pending"
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -745,8 +759,10 @@
         "examples/gallery/alert_preview.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/gallery/alert_preview.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -764,8 +780,10 @@
         "examples/gallery/aspect_preview.ml"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/gallery/aspect_preview.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -783,8 +801,10 @@
         "examples/gallery/attachment_preview.ml"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/gallery/attachment_preview.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -792,8 +812,10 @@
         "examples/gallery/avatar_preview.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/gallery/avatar_preview.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -801,8 +823,10 @@
         "examples/gallery/badge_preview.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/gallery/badge_preview.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -1184,8 +1208,10 @@
         "examples/gallery/label_preview.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/gallery/label_preview.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -1569,8 +1595,10 @@
         "examples/gallery/separator_preview.ml"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/gallery/separator_preview.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [

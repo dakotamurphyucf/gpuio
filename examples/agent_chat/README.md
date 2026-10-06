@@ -76,7 +76,12 @@ native drafts/previews from accepted window values. The
 [window-local feedback](runtime/review_feedback.md) explain extension events,
 retained note editing and controlled disclosure. Small supporting guides cover
 [inclusive score bounds](runtime/score_range.md) and
-[native responsive alternatives](runtime/responsive.md).
+[native responsive alternatives](runtime/responsive.md). Navigation/presentation support is explained in
+[artifact destinations](runtime/artifact_sidebar.md), the
+[four-page tour](runtime/artifact_tour.md), and
+[local portrait decoding/fallback](runtime/contributor_portrait.md). The shared
+[SVG icon registrations](runtime/icons.md) and
+[semantic palette](runtime/palette.md) separate resources from pure styling.
 
 These are code walkthroughs, not new platform acceptance evidence. The runtime
 source map below identifies the remaining component boundaries; per-component

@@ -44,6 +44,11 @@ The [section catalog](model/page.md) maps typed navigation identities to titles/
 [formatting state](model/selection_state.md) and [retained settings data](model/settings_state.md)
 explain how requests are validated against current application values.
 
+Small presentation walkthroughs: [alerts](alert_preview.md), [attachments](attachment_preview.md),
+[avatars](avatar_preview.md), [badges](badge_preview.md), [labels](label_preview.md) and
+[separators](separator_preview.md). The Styles page also demonstrates
+[aspect-ratio layout](aspect_preview.md).
+
 Styles → **A theme from your workspace** loads a palette for the current window.
 Read the [theme-loading walkthrough](theme_preview.md), then the independent
 [appearance model](model/appearance.md), [selection identity](model/theme_selection.md),

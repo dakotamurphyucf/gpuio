@@ -1,5 +1,11 @@
 # Canvas Lab
 
+Read the [implementation walkthrough](main.md) for actual model/functions,
+Bonsai syntax, native ownership and diagnostic boundaries. Source: [main.ml](main.ml);
+dependencies: [dune](dune).
+The [typed plot walkthrough](plot.md) covers [plot.ml](plot.ml) and
+[plot.mli](plot.mli).
+
 A native, interactive plot built with public OCaml/Bonsai/Eio APIs. The evaluations
 are deterministic simulated data. No application-specific Rust painting code,
 network service or API key is involved.
