@@ -78,8 +78,6 @@ mod choice_picker_host;
 #[cfg(all(test, feature = "native-image-tests"))]
 #[path = "choice_picker_host_test.rs"]
 mod choice_picker_host_test;
-#[path = "choice_picker_layout.rs"]
-mod choice_picker_layout;
 #[path = "choice_picker_semantics.rs"]
 mod choice_picker_semantics;
 #[path = "choice_picker_view.rs"]
@@ -134,6 +132,8 @@ pub(super) mod list_test;
 mod list_view;
 #[path = "loading.rs"]
 mod loading;
+#[path = "measured_list_layout.rs"]
+mod measured_list_layout;
 #[path = "menu.rs"]
 mod menu;
 #[path = "menu_platform.rs"]
@@ -627,7 +627,7 @@ impl View {
         self.sync_extensions(dirty, window, cx);
         self.sync_animations(dirty, cx);
         self.sync_programs(dirty, cx);
-        self.sync_palettes(window, cx);
+        self.sync_palettes(dirty, window, cx);
         self.sync_toasts(window, cx);
         self.sync_tooltips(window, cx);
         self.sync_carousels(window, cx);

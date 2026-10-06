@@ -271,6 +271,24 @@ val command_palette
   -> unit
   -> 'action t
 
+(** Add ordinary interactive header/footer/empty views and passive command-row
+    content to a direct palette. Row content is keyed by known unique command
+    IDs; the native row retains its registry name, action and keyboard ownership.
+    Rows may have different measured heights. Filtered rows and an inactive empty
+    view cannot receive input. Header/footer controls retain ordinary focus/key
+    behavior; an unhandled Escape dismisses the palette after child handling.
+    Query editing and the captured document target remain native-owned.
+    All slots together are limited to 4096 nodes and 128 levels. Calling this
+    again replaces all content; absent slots use the built-in presentation. *)
+val with_palette_content
+  :  'action t
+  -> ?header:'action t
+  -> ?footer:'action t
+  -> ?empty:'action t
+  -> items:(Command.Id.t * 'action t) list
+  -> unit
+  -> 'action t Core.Or_error.t
+
 (** Native-managed menu navigation resolves the same command registry as buttons
     and shortcuts. The context menu wraps one arbitrary child and opens on right
     click or Shift-F10. Escape restores prior focus. [menu_bar] defaults to the

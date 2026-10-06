@@ -44,6 +44,7 @@ fn allows_children(kind: Kind) -> bool {
             | Kind::Tooltip
             | Kind::HoverCard
             | Kind::CommandScope
+            | Kind::CommandPalette
             | Kind::Menu
             | Kind::Toast
             | Kind::ToastStack
@@ -1395,7 +1396,6 @@ impl Tree {
                         !config.is_valid()
                             || node.handler.is_none()
                             || !node.text.is_empty()
-                            || !node.children.is_empty()
                             || node.control.is_some()
                             || node.choice.is_some()
                     })
@@ -2092,6 +2092,7 @@ impl Plan<'_> {
                 .is_some_and(|config| config.content == gpuio_protocol::button::Content::Rich);
         if !rich_button
             && root.menu.is_none()
+            && root.palette.is_none()
             && !root.choice_menu
             && root.calendar_content.is_none()
             && root.number_presentation.is_none()
@@ -2158,6 +2159,19 @@ impl Plan<'_> {
                 && node.reveal.is_none()
                 && node.choice_appearance.is_none()
         };
+        if let Some(palette) = &root.palette
+            && !root.children.is_empty()
+        {
+            if root.children.len() != 3 + palette.commands.len() {
+                return Err(ErrorCode::InvalidTree);
+            }
+            for id in root.children.iter() {
+                let slot = self.node(*id)?;
+                if !structural(slot) || slot.children.len() > 1 {
+                    return Err(ErrorCode::InvalidTree);
+                }
+            }
+        }
         let menu_children = if let Some(menu) = &root.menu {
             let slots = &root.children[usize::from(menu.presentation.is_context())..];
             if !slots.is_empty() {
@@ -2220,7 +2234,7 @@ impl Plan<'_> {
         } else {
             &root.children[..]
         };
-        if root.tab_trailing || root.tab_content.is_some() {
+        if root.tab_trailing || root.tab_content.is_some() || root.palette.is_some() {
             // Bound all parts, including interactive subtrees and wrappers.
             let mut all: Vec<_> = root.children.iter().map(|id| (*id, 1)).collect();
             let mut count = 0;
@@ -2248,7 +2262,9 @@ impl Plan<'_> {
                 }
             }
         }
-        let skip = if root.number_presentation.is_some() {
+        let skip = if root.palette.is_some() {
+            3
+        } else if root.number_presentation.is_some() {
             2
         } else {
             0

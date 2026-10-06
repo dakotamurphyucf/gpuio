@@ -209,6 +209,7 @@ impl View {
                 .filter(|(_, state)| state.closed)
                 .map(|(id, _)| *id),
         );
+        hidden.extend(self.hidden_palette_content());
         hidden.extend(self.closed_toasts());
         self.focus
             .borrow_mut()

@@ -3391,6 +3391,67 @@ let command_palette
   }
 ;;
 
+let with_palette_content t ?header ?footer ?empty ~items () =
+  let open Or_error.Let_syntax in
+  match t.kind, t.palette with
+  | Command_palette, Some palette ->
+    let commands = Command_palette.Config.commands palette.config in
+    let%bind content =
+      Map.of_alist_or_error
+        (module String)
+        (List.map items ~f:(fun (id, view) -> Ui_command.Id.to_string id, view))
+    in
+    let known = List.map commands ~f:Ui_command.Id.to_string |> String.Set.of_list in
+    let%bind () =
+      match List.find (Map.keys content) ~f:(fun id -> not (Set.mem known id)) with
+      | None -> Ok ()
+      | Some id -> Or_error.errorf "unknown palette content command: %s" id
+    in
+    let slot role name content =
+      { (container [] (Option.to_list content)) with
+        style = Style.empty
+      ; structural_key = Some (role, name)
+      }
+    in
+    let rows =
+      List.map commands ~f:(fun id ->
+        let name = Ui_command.Id.to_string id in
+        slot "palette-command-content" name (Map.find content name))
+    in
+    let%bind () = validate_control_labels rows in
+    let children =
+      if
+        Map.is_empty content
+        && Option.is_none header
+        && Option.is_none footer
+        && Option.is_none empty
+      then []
+      else
+        [ slot "palette-content" "header" header
+        ; slot "palette-content" "footer" footer
+        ; slot "palette-content" "empty" empty
+        ]
+        @ rows
+    in
+    let rec budget count = function
+      | [] -> Ok ()
+      | (node, depth) :: rest ->
+        if count >= 4096 || depth > 128
+        then Or_error.error_string "palette content exceeds 4096 nodes or 128 levels"
+        else if List.length node.children > 4096 - count - List.length rest
+        then Or_error.error_string "palette content exceeds 4096 nodes"
+        else
+          budget
+            (count + 1)
+            (List.rev_append
+               (List.map node.children ~f:(fun child -> child, depth + 1))
+               rest)
+    in
+    let%map () = budget 0 (List.map children ~f:(fun child -> child, 1)) in
+    { t with children }
+  | _ -> Or_error.error_string "palette content requires a direct command palette"
+;;
+
 let slider ?(style = Style.empty) ?appearance ~controller ~config ~initial ~on_event () =
   { (text ~key:controller ~style "") with
     kind = Slider

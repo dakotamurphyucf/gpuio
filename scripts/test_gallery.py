@@ -3239,6 +3239,7 @@ def exercise_feedback(mac, images):
             time.sleep(.025)
 
     def open_palette():
+        raise_gallery(mac)
         mac.press(TITLE, 'Find a command')
         mac.release(mac.wait_find(TITLE, 'Preview commands', 'AXWindow'))
         passive_menu_label('Preview actions')
@@ -3246,6 +3247,30 @@ def exercise_feedback(mac, images):
 
     activate(mac, mac.wait_find(TITLE, 'Clear command query before closing', 'AXCheckBox'))
     open_palette()
+    expect_focus(mac, 'Preview commands', 'AXComboBox')
+    mac.key(48)  # Tab: query -> footer, matching visual order.
+    expect_focus(mac, 'Palette help', 'AXButton')
+    mac.key(48, 1 << 17)
+    expect_focus(mac, 'Preview commands', 'AXComboBox')
+    mac.key(48, 1 << 17)
+    expect_focus(mac, 'Palette note', 'AXTextField')
+    mac.field(TITLE, 'Palette note', 'AXTextField', 'Retained palette note λ')
+    mac.key(36)  # Header Enter belongs to its editor, not command confirmation.
+    mac.release(mac.wait_find(TITLE, 'Preview commands', 'AXWindow'))
+    mac.press(TITLE, 'Palette help')
+    mac.wait_text(TITLE, 'Use keywords to narrow the commands')
+    expect_field(mac, TITLE, 'Palette note', 'Retained palette note λ')
+    deadline = time.monotonic() + 5
+    while True:
+        rich = mac.wait_find(TITLE, 'Advance preview', 'AXStaticText')
+        try:
+            height = element_rect(mac, rich)[3]
+        finally:
+            mac.release(rich)
+        if height > 40:
+            break
+        assert time.monotonic() < deadline, ('rich palette row height', height)
+        time.sleep(.025)
     if images:
         screenshot(mac, images / 'gallery-palette-groups.png', title=TITLE)
     mac.field(TITLE, 'Preview commands', 'AXComboBox', 'STEP next')
@@ -3264,7 +3289,10 @@ def exercise_feedback(mac, images):
     palette_rows([])
     wait_absent(mac, 'Preview actions', 'AXStaticText')
     wait_absent(mac, 'Editing', 'AXStaticText')
+    mac.press(TITLE, 'Help finding a command')
+    mac.wait_text(TITLE, 'Arrow keys to choose · Enter to run')
     mac.field(TITLE, 'Preview commands', 'AXComboBox', '  NEXT STEP  ')
+    wait_absent(mac, 'Help finding a command', 'AXButton')
     palette_rows(['Advance preview'])
     passive_menu_label('Preview actions')
     wait_absent(mac, 'Editing', 'AXStaticText')

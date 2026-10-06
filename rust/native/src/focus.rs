@@ -1713,11 +1713,29 @@ impl Manager {
                 window.focus(&self.scopes[&scope].handle, cx);
                 return;
             }
-            let target = self
-                .entries
-                .iter()
-                .find(|entry| {
-                    entry.tab_stop && self.eligible(entry.node) && self.within(entry.node, scope)
+            // A palette's private query is its opening target even when an
+            // interactive header paints first. Preserve ordinary tab order and
+            // any explicit child focus already honored above.
+            let palette = self
+                .session
+                .borrow()
+                .tree(self.window)
+                .and_then(|tree| tree.get(scope))
+                .is_some_and(|node| node.palette.is_some());
+            let preferred = palette
+                .then(|| {
+                    self.entries.iter().find(|entry| {
+                        entry.node == scope && entry.tab_stop && self.eligible(entry.node)
+                    })
+                })
+                .flatten();
+            let target = preferred
+                .or_else(|| {
+                    self.entries.iter().find(|entry| {
+                        entry.tab_stop
+                            && self.eligible(entry.node)
+                            && self.within(entry.node, scope)
+                    })
                 })
                 .map(|entry| entry.handle.clone())
                 .unwrap_or_else(|| self.scopes[&scope].handle.clone());

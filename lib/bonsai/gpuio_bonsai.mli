@@ -325,6 +325,15 @@ module View : sig
     -> unit
     -> t
 
+  val with_palette_content
+    :  t
+    -> ?header:t
+    -> ?footer:t
+    -> ?empty:t
+    -> items:(Gpuio.Command.Id.t * t) list
+    -> unit
+    -> t Or_error.t
+
   val split_button
     :  ?key:Gpuio.Key.t
     -> ?style:Gpuio.Style.t

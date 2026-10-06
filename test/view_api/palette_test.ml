@@ -299,3 +299,60 @@ let%expect_test "palette grouped presentation validates IDs, emits layout only a
   assert (Option.is_none layout);
   [%expect {| |}]
 ;;
+
+let%expect_test "palette content keeps native ownership and rejects interactive rows" =
+  let plain =
+    View.command_palette
+      ~key:(Key.of_string_exn "palette")
+      ~config
+      ~on_dismiss:(Fn.const "dismiss")
+      ()
+  in
+  let button = View.button ~on_click:(fun () -> "help") "Help" in
+  let rich =
+    View.with_palette_content
+      plain
+      ~header:button
+      ~footer:(View.text "Footer")
+      ~empty:(View.button ~on_click:(fun () -> "retry") "Retry")
+      ~items:[ id "run", View.column [ View.text "Run"; View.text "Details" ] ]
+      ()
+    |> Or_error.ok_exn
+  in
+  List.iter
+    [ [ id "missing", View.text "x" ]
+    ; [ id "run", button ]
+    ; [ id "run", View.text "a"; id "run", View.text "b" ]
+    ]
+    ~f:(fun items -> assert (Result.is_error (View.with_palette_content plain ~items ())));
+  assert (
+    Result.is_error (View.with_palette_content (View.text "Not a palette") ~items:[] ()));
+  let oversized = View.column (List.init 4096 ~f:(Fn.const (View.text "x"))) in
+  assert (Result.is_error (View.with_palette_content plain ~header:oversized ~items:[] ()));
+  let reconciler = Reconciler.create window in
+  let commit palette =
+    let prepared =
+      Reconciler.prepare
+        reconciler
+        ~theme:Theme.default
+        (Some (View.command_scope ~commands [ palette ]))
+      |> Or_error.ok_exn
+    in
+    let message = Reconciler.message prepared in
+    Reconciler.accept reconciler prepared |> Or_error.ok_exn;
+    message
+  in
+  ignore (commit plain : Wire.Message.t option);
+  List.iter
+    [ rich; View.with_palette_content rich ~items:[] () |> Or_error.ok_exn; rich ]
+    ~f:(fun view ->
+      match commit view with
+      | Some (Apply { operations; _ }) ->
+        assert (
+          not
+            (List.exists operations ~f:(function
+               | Wire.Op.Create (_, Command_palette, _, _) | Set_palette _ -> true
+               | _ -> false)))
+      | _ -> assert false);
+  [%expect {| |}]
+;;

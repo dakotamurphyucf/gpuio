@@ -7,6 +7,8 @@ use gpui::{
 };
 use gpui_base::input::InputState;
 use gpuio_protocol::{NodeId, palette_options, v1::*};
+#[path = "palette_content.rs"]
+mod content;
 #[path = "palette_list.rs"]
 mod list;
 use std::{
@@ -18,6 +20,7 @@ use std::{
 
 #[derive(Clone)]
 struct Row {
+    declared_index: usize,
     route: Route,
     enabled: bool,
 }
@@ -43,6 +46,7 @@ pub(super) struct State {
     selected: Option<String>,
     revealed: Option<Reveal>,
     scroll: list::State,
+    layout_cache: super::measured_list_layout::Cache,
     bounds: Rc<Cell<Bounds<Pixels>>>,
     row_bounds: Rc<RefCell<BTreeMap<String, Bounds<Pixels>>>>,
     _subscription: Subscription,
@@ -93,7 +97,12 @@ fn keyword_index(options: Option<&palette_options::Config>) -> BTreeMap<String, 
         .collect()
 }
 impl View {
-    pub(super) fn sync_palettes(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+    pub(super) fn sync_palettes(
+        &mut self,
+        dirty: &[NodeId],
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         let nodes = {
             let session = self.session.borrow();
             let Some(tree) = session.tree(self.id) else {
@@ -212,7 +221,13 @@ impl View {
                         .into_any_element()
                 }));
             });
-            let subscription = cx.observe_in(&query, window, |_, _, _, cx| cx.notify());
+            let subscription = cx.observe_in(&query, window, move |view, _, window, cx| {
+                view.refresh_palette(id, cx);
+                view.sync_tooltips(window, cx);
+                view.suspend_hidden_animations();
+                view.suspend_hidden_programs();
+                cx.notify();
+            });
             self.palettes.insert(
                 id,
                 State {
@@ -228,6 +243,7 @@ impl View {
                     selected: None,
                     revealed: None,
                     scroll: Default::default(),
+                    layout_cache: Default::default(),
                     bounds: Default::default(),
                     row_bounds: Default::default(),
                     _subscription: subscription,
@@ -239,6 +255,13 @@ impl View {
         let ids = self.palettes.keys().copied().collect::<Vec<_>>();
         for id in ids {
             self.refresh_palette(id, cx);
+            if dirty.contains(&id) {
+                let state = &self.palettes[&id];
+                state
+                    .scroll
+                    .handle
+                    .remeasure_items(0..state.scroll.rows().len());
+            }
         }
     }
     fn refresh_palette(&mut self, id: NodeId, cx: &App) -> String {
@@ -260,7 +283,8 @@ impl View {
             let rows = config
                 .commands
                 .iter()
-                .filter_map(|command| {
+                .enumerate()
+                .filter_map(|(declared_index, command)| {
                     let (scope, command) = tree.command(id, command)?;
                     let search = state
                         .options
@@ -278,6 +302,7 @@ impl View {
                             &query,
                         ))
                     .then(|| Row {
+                        declared_index,
                         route: Route::new(tree, scope, command, CommandSource::Palette(id)),
                         enabled: self.palette_available(id, command, cx),
                     })
@@ -453,7 +478,7 @@ impl View {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> bool {
-        if !self.focus.borrow().top_overlay(id) {
+        if !self.focus.borrow().top_overlay(id) || !self.palette_owns_keys(id, window, cx) {
             return false;
         }
         if !matches!(
@@ -589,6 +614,8 @@ impl View {
         let searchable = state.searchable();
         let selected = state.selected.clone();
         let scroll = state.scroll.handle.clone();
+        let layout_handle = scroll.clone();
+        let layout_cache = state.layout_cache.clone();
         let visual_rows = state.scroll.rows();
         let scope_focus = self
             .focus
@@ -604,8 +631,10 @@ impl View {
         };
         let owner = cx.weak_entity();
         let style = appearance.clone();
+        let row_content = self.palette_row_content(node, interaction, cx);
+        let rich_layout = row_content.is_some();
         let count = visual_rows.len();
-        let list = gpui::list(scroll, move |index, _, _| {
+        let list = gpui::list(scroll, move |index, window, cx| {
             let row = match &visual_rows[index] {
                 list::Row::Command { index, .. } => rows[*index].clone(),
                 list::Row::Heading { id, label } => {
@@ -629,6 +658,9 @@ impl View {
                         .into_any_element();
                 }
             };
+            let custom = row_content
+                .as_ref()
+                .and_then(|content| content(row.declared_index, !row.enabled, window, cx));
             let active = Some(&row.route.config.id) == selected.as_ref();
             let mut item = div()
                 .id(gpui::SharedString::from(format!(
@@ -636,7 +668,8 @@ impl View {
                     row.route.config.id
                 )))
                 .w_full()
-                .h(px(style.row_height as f32))
+                .min_h(px(style.row_height as f32))
+                .when(custom.is_none(), |item| item.h(px(style.row_height as f32)))
                 .px(px(8.))
                 .flex()
                 .items_center()
@@ -674,7 +707,11 @@ impl View {
                 } else {
                     ""
                 })
-                .child(gpui::SharedString::from(row.route.config.label.clone()));
+                .child(custom.unwrap_or_else(|| {
+                    div()
+                        .child(gpui::SharedString::from(row.route.config.label.clone()))
+                        .into_any_element()
+                }));
             if row.enabled {
                 let ax_owner = owner.clone();
                 let ax_route = row.route.clone();
@@ -736,14 +773,32 @@ impl View {
             }
             .into_any_element()
         })
-        .h(px(
-            (count.min(appearance.max_visible_rows as usize).max(1) as f64 * appearance.row_height)
-                as f32,
-        )
-        .min((crate::window_frame::content_bounds(window).size.height - px(120.)).max(px(1.))))
+        .with_sizing_behavior(if rich_layout {
+            gpui::ListSizingBehavior::Infer
+        } else {
+            gpui::ListSizingBehavior::Auto
+        })
+        .when(rich_layout, |list| {
+            list.min_h(px(appearance.row_height as f32)).max_h(
+                px((appearance.max_visible_rows as f64 * appearance.row_height) as f32).min(
+                    (crate::window_frame::content_bounds(window).size.height - px(120.))
+                        .max(px(1.)),
+                ),
+            )
+        })
+        .when(!rich_layout, |list| {
+            list.h(px(
+                (count.min(appearance.max_visible_rows as usize).max(1) as f64
+                    * appearance.row_height) as f32,
+            )
+            .min((crate::window_frame::content_bounds(window).size.height - px(120.)).max(px(1.))))
+        })
         .w_full();
+        let list = super::measured_list_layout::observe(list, layout_handle, layout_cache);
         let owner = cx.weak_entity();
         let escape_owner = owner.clone();
+        let bubble_escape_owner = owner.clone();
+        let bubble_key_owner = owner.clone();
         let enter_owner = owner.clone();
         let key_owner = owner.clone();
         let width = px(appearance.popup_width as f32)
@@ -784,10 +839,43 @@ impl View {
                 panel = panel.active(move |_| style);
             }
         }
+        if let Some(header) = self.palette_slot(node, 0, interaction, window, cx) {
+            panel = panel.child(header);
+        }
         if searchable {
             panel = panel.child(query.clone());
         }
+        // Record the private query at its visual position so ordinary Tab
+        // traversal follows header -> query -> empty/footer controls.
         panel = panel
+            .child(
+                canvas(
+                    move |rect, _, _| bounds.set(rect),
+                    move |bounds, _, window, _| {
+                        gate.borrow_mut().record(
+                            id,
+                            record_focus.clone(),
+                            true,
+                            record_focus.is_focused(window),
+                            bounds,
+                        );
+                    },
+                )
+                .absolute()
+                .top_0()
+                .left_0()
+                .size_full(),
+            )
+            .on_action(move |_: &gpui_base::input::Escape, window, cx| {
+                let _ = bubble_escape_owner
+                    .update(cx, |view, cx| view.palette_child_escape(id, window, cx));
+            })
+            .on_key_down(move |event, window, cx| {
+                if event.keystroke.key == "escape" && !event.keystroke.modifiers.modified() {
+                    let _ = bubble_key_owner
+                        .update(cx, |view, cx| view.palette_child_escape(id, window, cx));
+                }
+            })
             .capture_action(move |action: &gpui_base::input::Enter, window, cx| {
                 if action.secondary || action.shift {
                     return;
@@ -830,7 +918,10 @@ impl View {
                 empty.style(),
                 &crate::appearance::refinement(&appearance.empty_style, 0),
             );
-            panel = panel.child(empty);
+            panel = panel.child(
+                self.palette_slot(node, 2, interaction, window, cx)
+                    .unwrap_or_else(|| empty.into_any_element()),
+            );
         } else {
             panel = panel.child(
                 div()
@@ -840,25 +931,10 @@ impl View {
                     .child(list),
             );
         }
+        if let Some(footer) = self.palette_slot(node, 1, interaction, window, cx) {
+            panel = panel.child(footer);
+        }
         panel = panel
-            .child(
-                canvas(
-                    move |rect, _, _| bounds.set(rect),
-                    move |bounds, _, window, _| {
-                        gate.borrow_mut().record(
-                            id,
-                            record_focus.clone(),
-                            true,
-                            record_focus.is_focused(window),
-                            bounds,
-                        );
-                    },
-                )
-                .absolute()
-                .top_0()
-                .left_0()
-                .size_full(),
-            )
             .on_any_mouse_down(|_, _, cx| cx.stop_propagation())
             .on_scroll_wheel(|_, _, cx| cx.stop_propagation());
         let bounds = self.palettes[&id].bounds.clone();

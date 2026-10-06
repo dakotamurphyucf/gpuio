@@ -53,7 +53,10 @@ fn commands() -> Vec<CommandConfig> {
     })
     .collect()
 }
-fn mount(app: &mut TestAppContext) -> (Entity<View>, VisualTestContext, UnixStream) {
+fn mount_extra(
+    app: &mut TestAppContext,
+    extra: Vec<Op>,
+) -> (Entity<View>, VisualTestContext, UnixStream) {
     app.update(gpui_base::init);
     let (reader, writer) = UnixStream::pair().unwrap();
     let transport = Arc::new(Transport::new(writer.as_raw_fd()).unwrap());
@@ -73,37 +76,38 @@ fn mount(app: &mut TestAppContext) -> (Entity<View>, VisualTestContext, UnixStre
     let owner = handle.root(app).unwrap();
     let mut cx = VisualTestContext::from_window(handle.into(), app);
     cx.simulate_resize(gpui::size(px(800.), px(600.)));
-    apply(
-        &owner,
-        &mut cx,
-        vec![
-            Op::Create(
-                id(0),
-                Kind::CommandScope,
-                "".into(),
-                Some(HandlerId::from_parts(0, 1).unwrap()),
-            ),
-            Op::SetCommands(id(0), commands()),
-            Op::Create(
-                id(1),
-                Kind::CommandPalette,
-                "".into(),
-                Some(HandlerId::from_parts(1, 1).unwrap()),
-            ),
-            Op::SetPalette(
-                id(1),
-                PaletteConfig {
-                    label: "Actions".into(),
-                    placeholder: "Find".into(),
-                    commands: commands().into_iter().map(|c| c.id).collect(),
-                    dismiss_on_outside_pointer: true,
-                },
-            ),
-            Op::Splice(id(0), 0, 0, vec![id(1)]),
-            Op::SetRoot(Some(id(0))),
-        ],
-    );
+    let mut operations = vec![
+        Op::Create(
+            id(0),
+            Kind::CommandScope,
+            "".into(),
+            Some(HandlerId::from_parts(0, 1).unwrap()),
+        ),
+        Op::SetCommands(id(0), commands()),
+        Op::Create(
+            id(1),
+            Kind::CommandPalette,
+            "".into(),
+            Some(HandlerId::from_parts(1, 1).unwrap()),
+        ),
+        Op::SetPalette(
+            id(1),
+            PaletteConfig {
+                label: "Actions".into(),
+                placeholder: "Find".into(),
+                commands: commands().into_iter().map(|c| c.id).collect(),
+                dismiss_on_outside_pointer: true,
+            },
+        ),
+        Op::Splice(id(0), 0, 0, vec![id(1)]),
+        Op::SetRoot(Some(id(0))),
+    ];
+    operations.extend(extra);
+    apply(&owner, &mut cx, operations);
     (owner, cx, reader)
+}
+fn mount(app: &mut TestAppContext) -> (Entity<View>, VisualTestContext, UnixStream) {
+    mount_extra(app, vec![])
 }
 fn query(owner: &Entity<View>, cx: &mut VisualTestContext, text: &str) {
     cx.update(|w, cx| {
@@ -429,5 +433,473 @@ fn grouped_layout_retains_query_filters_headings_and_skips_passive_rows() {
             assert_eq!(tree.revision(), revision);
             assert!(tree.get(id(1)).unwrap().palette_layout.is_none());
         })
+    });
+}
+
+fn content_operations() -> Vec<Op> {
+    let mut operations = (2..8)
+        .map(|slot| Op::Create(id(slot), Kind::Container, "".into(), None))
+        .collect::<Vec<_>>();
+    operations.extend([
+        Op::Create(
+            id(8),
+            Kind::Input,
+            "draft".into(),
+            Some(HandlerId::from_parts(8, 1).unwrap()),
+        ),
+        Op::SetEditor(
+            id(8),
+            EditorConfig {
+                label: "Header note".into(),
+                placeholder: "".into(),
+                read_only: false,
+                disabled: false,
+                submit_on_enter: true,
+                auto_focus: false,
+                min_rows: 1,
+                max_rows: 1,
+            },
+        ),
+        Op::Create(
+            id(9),
+            Kind::Button,
+            "Help".into(),
+            Some(HandlerId::from_parts(9, 1).unwrap()),
+        ),
+        Op::Create(
+            id(10),
+            Kind::Button,
+            "Retry".into(),
+            Some(HandlerId::from_parts(10, 1).unwrap()),
+        ),
+        Op::Create(id(11), Kind::Container, "".into(), None),
+        Op::SetStyle(
+            id(11),
+            vec![Style::Fields(vec![
+                Field::Height(Length::Px(100.)),
+                Field::Width(Length::Px(180.)),
+                Field::Background(Fill::Solid(Color::Rgba(0xff00ffff))),
+            ])],
+        ),
+        Op::Create(
+            id(12),
+            Kind::Text,
+            "Decorative command details".into(),
+            None,
+        ),
+        Op::Splice(id(11), 0, 0, vec![id(12)]),
+        Op::Splice(id(2), 0, 0, vec![id(8)]),
+        Op::Splice(id(3), 0, 0, vec![id(9)]),
+        Op::Splice(id(4), 0, 0, vec![id(10)]),
+        Op::Splice(id(5), 0, 0, vec![id(11)]),
+        Op::Splice(id(1), 0, 0, (2..8).map(id).collect()),
+    ]);
+    operations
+}
+fn mount_content(owner: &Entity<View>, cx: &mut VisualTestContext) {
+    apply(owner, cx, content_operations());
+}
+
+#[test]
+fn rich_rows_are_measured_and_header_editor_owns_enter_and_composition_escape() {
+    let mut app = TestAppContext::single();
+    let (owner, mut cx, _reader) = mount_extra(&mut app, content_operations());
+    cx.update(|window, cx| {
+        window.simulate_next_frame(cx);
+    });
+    draw(&mut cx);
+    cx.update(|window, cx| {
+        owner.read_with(cx, |view, cx| {
+            assert!(
+                view.palettes[&id(1)]
+                    .query
+                    .read(cx)
+                    .focus_handle(cx)
+                    .is_focused(window),
+                "palette opens on query before header controls: header={}, scope={}",
+                view.editors[&id(8)].focus_handle(cx).is_focused(window),
+                view.focus
+                    .borrow()
+                    .handle(id(1))
+                    .unwrap()
+                    .is_focused(window)
+            );
+        })
+    });
+    owner.read_with(&cx, |view, _| {
+        let state = &view.palettes[&id(1)];
+        assert!(state.scroll.handle.bounds_for_item(0).unwrap().size.height >= px(100.));
+        assert!(
+            !view.focus.borrow().visible(id(10)),
+            "empty content is gated while results exist"
+        );
+    });
+    query(&owner, &mut cx, "run");
+    owner.read_with(&cx, |view, _| {
+        assert!(
+            view.palettes[&id(1)]
+                .scroll
+                .handle
+                .viewport_bounds()
+                .size
+                .height
+                >= px(100.)
+        )
+    });
+    apply(
+        &owner,
+        &mut cx,
+        vec![Op::SetStyle(
+            id(11),
+            vec![Style::Fields(vec![
+                Field::Height(Length::Px(140.)),
+                Field::Width(Length::Px(180.)),
+            ])],
+        )],
+    );
+    owner.read_with(&cx, |view, _| {
+        let list = &view.palettes[&id(1)].scroll.handle;
+        assert!(list.bounds_for_item(0).unwrap().size.height >= px(140.));
+        assert!(list.viewport_bounds().size.height >= px(140.));
+    });
+    cx.update(|w, cx| {
+        owner.update(cx, |view, cx| {
+            w.focus(&view.editors[&id(8)].focus_handle(cx), cx);
+        })
+    });
+    cx.simulate_keystrokes("enter");
+    draw(&mut cx);
+    owner.read_with(&cx, |view, _| assert!(!view.palettes[&id(1)].closed));
+    cx.update(|w, cx| {
+        owner.update(cx, |view, cx| {
+            view.editors[&id(8)].mark_test_text("λ", w, cx)
+        })
+    });
+    draw(&mut cx);
+    cx.simulate_keystrokes("escape");
+    draw(&mut cx);
+    owner.read_with(&cx, |view, cx| {
+        assert!(!view.editors[&id(8)].is_composing(cx));
+        assert!(
+            !view.palettes[&id(1)].closed,
+            "child composition must consume the first Escape"
+        );
+    });
+    cx.simulate_keystrokes("escape");
+    draw(&mut cx);
+    owner.read_with(&cx, |view, _| assert!(view.palettes[&id(1)].closed));
+}
+
+#[test]
+fn empty_content_rejects_queued_accessibility_action_after_query_results_return() {
+    let mut app = TestAppContext::single();
+    let (owner, mut cx, _reader) = mount(&mut app);
+    cx.simulate_a11y_active(true);
+    mount_content(&owner, &mut cx);
+    query(&owner, &mut cx, "missing");
+    let tree = cx.a11y_tree().unwrap();
+    let target = tree
+        .nodes
+        .iter()
+        .find(|(_, node)| node.label() == Some("Retry"))
+        .unwrap()
+        .0;
+    owner.read_with(&cx, |view, _| assert!(view.focus.borrow().visible(id(10))));
+    let input = owner.read_with(&cx, |view, _| view.palettes[&id(1)].query.clone());
+    cx.update(|w, cx| input.update(cx, |input, cx| input.set_value("run", w, cx)));
+    cx.run_until_parked();
+    owner.read_with(&cx, |view, _| {
+        assert!(!view.focus.borrow().visible(id(10)));
+        view.transport.mailbox.lock().unwrap().drain(128);
+    });
+    cx.simulate_a11y_action(gpui::accesskit::ActionRequest {
+        action: gpui::accesskit::Action::Click,
+        target_node: target,
+        target_tree: gpui::accesskit::TreeId::ROOT,
+        data: None,
+    });
+    cx.run_until_parked();
+    owner.read_with(&cx, |view, _| {
+        assert!(
+            !view
+                .transport
+                .mailbox
+                .lock()
+                .unwrap()
+                .drain(128)
+                .iter()
+                .any(|event| matches!(event,Event::Press(_,node,_,_) if *node==id(10)))
+        )
+    });
+}
+
+#[test]
+fn palette_slots_reject_shape_and_descendant_handler_mutation_atomically() {
+    let mut app = TestAppContext::single();
+    let (owner, mut cx, _reader) = mount(&mut app);
+    mount_content(&owner, &mut cx);
+    for operations in [
+        vec![Op::Splice(id(1), 0, 1, vec![])],
+        vec![Op::Bind(
+            id(12),
+            Some(HandlerId::from_parts(12, 1).unwrap()),
+        )],
+    ] {
+        cx.update(|_, cx| {
+            owner.update(cx, |view, _| {
+                let mut session = view.session.borrow_mut();
+                let revision = session.tree(view.id).unwrap().revision();
+                assert!(
+                    session
+                        .apply(&Transaction {
+                            window: view.id,
+                            base: revision,
+                            revision: revision + 1,
+                            operations
+                        })
+                        .is_err()
+                );
+                assert_eq!(session.tree(view.id).unwrap().revision(), revision);
+            })
+        });
+    }
+}
+
+#[test]
+fn filtered_rich_activity_stops_frames_and_retires_with_content() {
+    let mut app = TestAppContext::single();
+    let (owner, mut cx, _reader) = mount_extra(&mut app, content_operations());
+    apply(
+        &owner,
+        &mut cx,
+        vec![
+            Op::Create(id(13), Kind::Loading, "".into(), None),
+            Op::SetSpinner(
+                id(13),
+                gpuio_protocol::spinner::Config {
+                    label: "Row activity".into(),
+                    animated: true,
+                    period_ms: 1000,
+                    easing: gpuio_protocol::animation::Easing::Linear,
+                    source: None,
+                },
+            ),
+            Op::Splice(id(11), 1, 0, vec![id(13)]),
+        ],
+    );
+    cx.update(|w, cx| {
+        assert!(w.simulate_next_frame(cx) > 0);
+        w.draw(cx).clear(cx);
+    });
+    query(&owner, &mut cx, "other");
+    owner.read_with(&cx, |view, _| {
+        assert!(!view.focus.borrow().visible(id(13)));
+        assert_eq!(view.spinners.len(), 1);
+    });
+    cx.update(|w, cx| {
+        w.simulate_next_frame(cx);
+        w.draw(cx).clear(cx);
+        assert_eq!(w.simulate_next_frame(cx), 0, "filtered row must be idle");
+    });
+    query(&owner, &mut cx, "run");
+    cx.update(|w, cx| {
+        assert!(
+            w.simulate_next_frame(cx) > 0,
+            "visible row resumes activity"
+        );
+        w.draw(cx).clear(cx);
+    });
+    apply(
+        &owner,
+        &mut cx,
+        vec![Op::Splice(id(11), 1, 1, vec![]), Op::Remove(id(13))],
+    );
+    owner.read_with(&cx, |view, _| assert!(view.spinners.is_empty()));
+}
+
+#[test]
+fn nested_header_dialog_consumes_escape_before_the_palette() {
+    let mut app = TestAppContext::single();
+    let (owner, mut cx, _reader) = mount_extra(&mut app, content_operations());
+    apply(
+        &owner,
+        &mut cx,
+        vec![
+            Op::Create(
+                id(13),
+                Kind::FocusScope,
+                "".into(),
+                Some(HandlerId::from_parts(13, 1).unwrap()),
+            ),
+            Op::SetFocusScope(
+                id(13),
+                FocusScopeConfig {
+                    trap: true,
+                    auto_focus: true,
+                    restore_focus: true,
+                },
+            ),
+            Op::SetOverlay(
+                id(13),
+                Some(OverlayConfig {
+                    kind: OverlayKind::Dialog,
+                    label: "Palette help dialog".into(),
+                    width: 300.,
+                    dismiss_on_escape: true,
+                    dismiss_on_outside_pointer: false,
+                }),
+            ),
+            Op::Splice(id(2), 0, 1, vec![id(13)]),
+            Op::Splice(id(13), 0, 0, vec![id(8)]),
+        ],
+    );
+    cx.update(|w, cx| {
+        w.simulate_next_frame(cx);
+        let handle = owner.read_with(cx, |view, cx| view.editors[&id(8)].focus_handle(cx));
+        w.focus(&handle, cx);
+    });
+    draw(&mut cx);
+    owner.read_with(&cx, |view, _| {
+        assert!(!view.focus.borrow().top_overlay(id(1)))
+    });
+    cx.simulate_keystrokes("escape");
+    draw(&mut cx);
+    owner.read_with(&cx, |view, _| {
+        assert!(!view.palettes[&id(1)].closed);
+        assert!(
+            view.transport
+                .mailbox
+                .lock()
+                .unwrap()
+                .drain(128)
+                .iter()
+                .any(
+                    |event| matches!(event, Event::OverlayDismissed(_, node, ..) if *node == id(13))
+                )
+        );
+    });
+}
+
+#[test]
+fn thousand_rich_rows_keep_a_bounded_viewport_and_anchor_during_updates() {
+    let mut app = TestAppContext::single();
+    let commands: Vec<_> = (0..1000)
+        .map(|index| CommandConfig {
+            id: format!("cmd-{index}"),
+            label: format!("Command {index}"),
+            enabled: true,
+            generation: 1,
+            checked: None,
+            shortcuts: vec![],
+            target: CommandTarget::Callback,
+        })
+        .collect();
+    let config = PaletteConfig {
+        label: "Rich commands".into(),
+        placeholder: "Find".into(),
+        commands: commands.iter().map(|c| c.id.clone()).collect(),
+        dismiss_on_outside_pointer: true,
+    };
+    let mut ops = vec![
+        Op::SetCommands(id(0), commands),
+        Op::SetPalette(id(1), config),
+    ];
+    let mut slots = vec![];
+    for index in 2..5 {
+        ops.push(Op::Create(id(index), Kind::Container, "".into(), None));
+        slots.push(id(index));
+    }
+    for index in 0..1000 {
+        let slot = id(5 + 2 * index);
+        let content = id(6 + 2 * index);
+        ops.extend([
+            Op::Create(slot, Kind::Container, "".into(), None),
+            Op::Create(content, Kind::Text, format!("Details {index}"), None),
+            Op::SetStyle(
+                content,
+                vec![Style::Height(Length::Px(40. + (index % 3) as f64 * 10.))],
+            ),
+            Op::Splice(slot, 0, 0, vec![content]),
+        ]);
+        slots.push(slot);
+    }
+    ops.push(Op::Splice(id(1), 0, 0, slots));
+    let (owner, mut cx, _reader) = mount_extra(&mut app, ops);
+    let list = owner.read_with(&cx, |view, _| {
+        let state = &view.palettes[&id(1)];
+        assert!(state.row_bounds.borrow().len() < 30);
+        assert_eq!(state.scroll.handle.item_count(), 1000);
+        state.scroll.handle.clone()
+    });
+    list.scroll_to(gpui::ListOffset {
+        item_ix: 900,
+        offset_in_item: px(7.),
+    });
+    draw(&mut cx);
+    let before = list.logical_scroll_top();
+    assert_eq!(before.item_ix, 900);
+    apply(
+        &owner,
+        &mut cx,
+        vec![Op::SetStyle(id(1806), vec![Style::Height(Length::Px(85.))])],
+    );
+    let after = list.logical_scroll_top();
+    assert_eq!(after.item_ix, before.item_ix);
+    assert_eq!(after.offset_in_item, before.offset_in_item);
+    owner.read_with(&cx, |view, _| {
+        let state = &view.palettes[&id(1)];
+        let rows = state.row_bounds.borrow();
+        assert!(rows.len() < 30);
+        assert!(rows["cmd-900"].size.height >= px(85.));
+    });
+}
+
+#[test]
+fn palette_tab_order_follows_header_query_and_footer() {
+    let mut app = TestAppContext::single();
+    let (owner, mut cx, _reader) = mount_extra(&mut app, content_operations());
+    cx.update(|w, cx| {
+        w.simulate_next_frame(cx);
+    });
+    cx.simulate_a11y_active(true);
+    draw(&mut cx);
+    let tree = cx.a11y_tree().unwrap();
+    let query_node = tree
+        .nodes
+        .iter()
+        .find(|(_, node)| node.role() == gpui::accesskit::Role::EditableComboBox)
+        .unwrap()
+        .0;
+    assert_eq!(tree.focus, query_node, "query accessibility focus on open");
+    cx.simulate_keystrokes("tab");
+    draw(&mut cx);
+    cx.update(|w, cx| {
+        owner.read_with(cx, |view, cx| {
+            assert_eq!(
+                view.focus.borrow().focused_node(w, cx),
+                Some(id(9)),
+                "Tab from query should reach footer"
+            );
+        });
+    });
+    cx.simulate_keystrokes("shift-tab");
+    draw(&mut cx);
+    cx.update(|w, cx| {
+        owner.read_with(cx, |view, cx| {
+            assert!(
+                view.palettes[&id(1)]
+                    .query
+                    .read(cx)
+                    .focus_handle(cx)
+                    .is_focused(w)
+            )
+        });
+    });
+    cx.simulate_keystrokes("shift-tab");
+    draw(&mut cx);
+    cx.update(|w, cx| {
+        owner.read_with(cx, |view, cx| {
+            assert!(view.editors[&id(8)].focus_handle(cx).is_focused(w))
+        });
     });
 }

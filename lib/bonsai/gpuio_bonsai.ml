@@ -274,6 +274,7 @@ module View = struct
   let progress = Gpuio.View.progress
   let progress_circle = Gpuio.View.progress_circle
   let command_palette = Gpuio.View.command_palette
+  let with_palette_content = Gpuio.View.with_palette_content
   let split_button = Gpuio.View.split_button
   let menu_button = Gpuio.View.menu_button
   let context_menu = Gpuio.View.context_menu

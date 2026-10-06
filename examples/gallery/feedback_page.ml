@@ -60,6 +60,16 @@ let component app window palette graph =
       graph
   in
   let chooser, set_chooser = B.state false graph in
+  let palette_help, toggle_palette_help = B.toggle ~default_model:false graph in
+  let palette_note =
+    Gpuio_eio.Text_input.create
+      window
+      ~initial_text:"A private note"
+      ~config:
+        (B.return
+           (Text_input.Config.create ~mode:Single_line ~label:"Palette note" () |> ok))
+      graph
+  in
   let palette_search, next_palette_search =
     B.state_machine0
       ~default_model:0
@@ -110,6 +120,9 @@ let component app window palette graph =
   and toggle_content = toggle_content
   and model = model
   and inject = inject
+  and palette_help = palette_help
+  and toggle_palette_help = toggle_palette_help
+  and palette_note = palette_note
   and chooser = chooser
   and set_chooser = set_chooser
   and palette_search = palette_search
@@ -285,6 +298,53 @@ let component app window palette graph =
       |> ok
     | _ -> view
   in
+  let decorate_palette view =
+    let items =
+      match menu_icon, show_content with
+      | Preview_scope.Ready icon, true ->
+        let item title detail =
+          V.row
+            ~style:(style [ Gap (px 10.); Align_items Center; Padding (px 6.) ])
+            [ V.icon
+                ~style:
+                  (style
+                     [ Width (px 18.); Height (px 18.); Foreground (Palette.accent p) ])
+                icon
+            ; V.column
+                ~style:(style [ Gap (px 4.) ])
+                [ V.text title; V.text ~style:(style [ Font_size 12. ]) detail ]
+            ]
+        in
+        [ advance, item "Advance preview" "Continue to the next step"
+        ; notify, item "Save preview" "Keep this idea for later"
+        ]
+      | _ -> []
+    in
+    V.with_palette_content
+      view
+      ~header:
+        (V.column
+           ~style:(style [ Gap (px 8.) ])
+           [ V.text "Workspace commands"; Gpuio_eio.Text_input.view palette_note ])
+      ~footer:
+        (V.row
+           ~style:(style [ Gap (px 10.); Align_items Center ])
+           [ V.button ~on_click:toggle_palette_help "Palette help"
+           ; V.text
+               (if palette_help
+                then "Use keywords to narrow the commands"
+                else "Arrow keys to choose · Enter to run")
+           ])
+      ~empty:
+        (V.column
+           ~style:(style [ Gap (px 8.); Padding (px 8.) ])
+           [ V.text "No matching commands"
+           ; V.button ~on_click:toggle_palette_help "Help finding a command"
+           ])
+      ~items
+      ()
+    |> ok
+  in
   V.command_scope
     ~commands
     ~style:(style [ Gap (px 20.) ])
@@ -412,6 +472,7 @@ let component app window palette graph =
               |> ok)
            ~on_dismiss:(fun _ -> set_chooser false)
            ()
+         |> decorate_palette
        else V.column [])
     ]
 ;;

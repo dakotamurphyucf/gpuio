@@ -51,7 +51,7 @@ Native filtering produces two projections: matching commands for selection and
 visual rows for rendering. A group heading is absent when none of its commands
 match. Leading/trailing separators and consecutive separators are suppressed
 after filtering. Headings expose passive accessibility text; separators have no
-activation action. Arrow/Page/Home/End navigation continues to use eligible
+activation action. Arrow/Page navigation continues to use eligible
 commands only, including when headings or disabled commands intervene.
 
 GPUI's measured `ListState` retains row measurements and a logical scroll anchor.

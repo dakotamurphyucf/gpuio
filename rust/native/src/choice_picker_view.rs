@@ -13,7 +13,7 @@ pub(super) struct Rows {
     query: String,
     config: Arc<Config>,
     geometry: (f64, f64),
-    layout_cache: super::choice_picker_layout::Cache,
+    layout_cache: super::measured_list_layout::Cache,
     #[cfg(all(test, feature = "native-image-tests"))]
     pub(super) rendered: std::collections::BTreeSet<usize>,
 }
@@ -831,7 +831,7 @@ impl View {
             .min(p.max_height)
             .min(f64::from(crate::window_frame::content_bounds(window).size.height) - 96.)
             .max(1.) as f32));
-        let list = super::choice_picker_layout::observe(list, handle, layout_cache);
+        let list = super::measured_list_layout::observe(list, handle, layout_cache);
         let dark = matches!(
             window.appearance(),
             gpui::WindowAppearance::Dark | gpui::WindowAppearance::VibrantDark
