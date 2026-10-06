@@ -34,6 +34,12 @@ and cleanup when a Bonsai branch activates or deactivates.
 The [example coverage checklist](../coverage.md#gallery) records companion
 coverage for every gallery source part; pending entries remain explicit.
 
+Independent model/support reading: [editor placement visits](model/editor_visit.md)
+fence settings persistence; [extension state](model/extension_state.md) serializes
+counter commands; [feedback state](model/feedback_state.md) handles notification
+identity; [message history](model/message_stream.md) preserves stable row keys;
+[follow overlays](model/message_follow.md) decorate that list without owning scroll.
+
 Styles → **A theme from your workspace** loads a palette for the current window.
 Read the [theme-loading walkthrough](theme_preview.md), then the independent
 [appearance model](model/appearance.md), [selection identity](model/theme_selection.md),

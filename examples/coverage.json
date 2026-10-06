@@ -50,8 +50,10 @@
         "examples/agent_chat/runtime/annotation_settings.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/agent_chat/runtime/annotation_settings.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -139,8 +141,10 @@
         "examples/agent_chat/runtime/generation_settings.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/agent_chat/runtime/generation_settings.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -255,8 +259,10 @@
         "examples/agent_chat/runtime/schedule_data.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/agent_chat/runtime/schedule_data.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -264,8 +270,10 @@
         "examples/agent_chat/runtime/schedule_settings.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/agent_chat/runtime/schedule_settings.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -1247,8 +1255,10 @@
         "examples/gallery/model/editor_visit.mli"
       ],
       "role": "support",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/gallery/model/editor_visit.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -1256,8 +1266,10 @@
         "examples/gallery/model/extension_state.mli"
       ],
       "role": "support",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/gallery/model/extension_state.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -1265,8 +1277,10 @@
         "examples/gallery/model/feedback_state.mli"
       ],
       "role": "support",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/gallery/model/feedback_state.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -1274,8 +1288,10 @@
         "examples/gallery/model/message_follow.mli"
       ],
       "role": "support",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/gallery/model/message_follow.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -1283,8 +1299,10 @@
         "examples/gallery/model/message_stream.mli"
       ],
       "role": "support",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/gallery/model/message_stream.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -1758,8 +1776,10 @@
         "examples/navigation/carousel_lab.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/navigation/carousel_lab.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -1767,17 +1787,19 @@
       ],
       "role": "application-entry",
       "walkthroughs": [
-        "examples/navigation/README.md"
+        "examples/navigation/main.md"
       ],
-      "review": "pending"
+      "review": "reviewed"
     },
     {
       "sources": [
         "examples/navigation/sidebar_icons.ml"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/navigation/sidebar_icons.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [

@@ -66,7 +66,12 @@ with the [source explorer](runtime/sources.md) and its
 [pure tree fixtures/moves](runtime/source_data.md), then the
 [results controller](runtime/results.md) and
 [complete query/data model](runtime/result_data.md). Their guides trace lazy
-loading, current-generation delivery, virtualized rows/cells and accepted moves.
+loading, current-generation delivery, virtualized rows/cells and accepted moves. Settings helpers have separate guides for
+[accepted generation parameters](runtime/generation_settings.md),
+[fixed civil-date fixtures](runtime/schedule_data.md),
+[review dates and follow-up selection](runtime/schedule_settings.md), and
+[confirmed annotation color](runtime/annotation_settings.md). They distinguish
+native drafts/previews from accepted window values.
 
 These are code walkthroughs, not new platform acceptance evidence. The runtime
 source map below identifies the remaining component boundaries; per-component

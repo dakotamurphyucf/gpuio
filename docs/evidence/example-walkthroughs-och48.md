@@ -251,3 +251,39 @@ Local Markdown path checks, the source/table audit and whitespace checks pass.
 Documented commands/flags were checked against source and build declarations.
 This documentation review adds no GUI, accessibility or platform acceptance;
 separate in-progress Sankey implementation checks are not evidence for these guides.
+
+## Navigation, placement guards and accepted settings
+
+Starting from `2afb197`, twelve more source groups are reviewed: navigation's
+[entry point](../../examples/navigation/main.md),
+[carousel](../../examples/navigation/carousel_lab.md) and
+[sidebar icon loader](../../examples/navigation/sidebar_icons.md); gallery models
+[Editor_visit](../../examples/gallery/model/editor_visit.md),
+[Extension_state](../../examples/gallery/model/extension_state.md),
+[Feedback_state](../../examples/gallery/model/feedback_state.md),
+[Message_follow](../../examples/gallery/model/message_follow.md) and
+[Message_stream](../../examples/gallery/model/message_stream.md); and Agent Chat's
+[schedule data](../../examples/agent_chat/runtime/schedule_data.md),
+[schedule UI](../../examples/agent_chat/runtime/schedule_settings.md),
+[generation settings](../../examples/agent_chat/runtime/generation_settings.md) and
+[annotation settings](../../examples/agent_chat/runtime/annotation_settings.md).
+
+The same authorized agents read their complete scoped sources/interfaces and
+relevant callers; primary review checked the prose and representative implementation
+contracts. Local READMEs link each companion. The guides trace native retention,
+Bonsai graph lifetime and scoped I/O separately; revision/generation/session guards;
+message identity and follow overlays; draft versus applied dates/colors; and
+accepted generation parameters captured by a later simulated send. Pure helpers
+are not described as creating reactive graphs or doing I/O.
+
+Coverage is **72 reviewed / 188 pending**, still 417 sources in 260 groups.
+Relative file-link checks, the structural audit and whitespace checks pass.
+Source/manifest/driver review checks command spelling and flags; no new build or
+GUI run is claimed for this documentation batch. Existing tests mentioned by
+these guides retain their separate scope and evidence.
+
+Two implementation limits remain explicit: navigation's combined
+`--carousel --self-test` mode omits editor placements required by the full-lab
+self-test (a likely timeout, not reproduced here), and Extension_state.Depart
+cannot advance an already exhausted Int64 generation. The ordinary navigation
+self-test command is documented. Neither issue was repaired by this prose batch.
