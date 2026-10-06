@@ -169,6 +169,16 @@ fn key(value: &gpui::Keystroke) -> Key {
 }
 
 impl View {
+    pub(super) fn retire_ineligible_input_regions(&self, window: &Window) {
+        for shared in self.input_regions.values() {
+            let mut state = shared.borrow_mut();
+            if !eligible(&state, window, true) {
+                // A source can hide and restore a retained label without a
+                // frame between transitions. Its pending click must not return.
+                state.clear();
+            }
+        }
+    }
     pub(super) fn input_region_element(
         &mut self,
         mut element: Stateful<Div>,

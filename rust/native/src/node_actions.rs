@@ -129,6 +129,7 @@ impl View {
             // applying their own capture/propagation policy.
             && node.pointer.is_none()
             && node.slider.is_none()
+            && node.input_region.is_none()
             && (node.handler.is_some() || node.command_ref.is_some() || node.editor.is_some())
         {
             // Keep the control's default focus/selection behavior, but do not

@@ -2,6 +2,8 @@
 use super::*;
 use crate::host::native_test::{mouse, move_mouse};
 use gpuio_protocol::chart_selection::Selection;
+#[path = "chart_label_input_test.rs"]
+mod labels;
 fn position(x: f32, y: f32) -> gpui::Point<gpui::Pixels> {
     gpui::point(px(x), px(y))
 }
@@ -367,6 +369,7 @@ pub(super) async fn exercise(
     );
     key(cx, handle, "escape");
     draw(cx, handle);
+    labels::exercise(cx, handle, source, &session, &transport).await;
     move_mouse(cx, handle, position(150., 100.), false);
     mouse(cx, handle, position(150., 100.), true);
     cx.update(|cx| dispatch(cx, &transport, 40, Request::Release(source)));

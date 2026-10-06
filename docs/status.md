@@ -15,6 +15,12 @@ Three owner-authorized GPT-6.1 Sol agents contributed scoped walkthroughs in par
 Contributor guidance and a structural CI check keep new sources visible; neither
 file presence nor that check establishes documentation or platform acceptance.
 
+[Radar label InputRegion](evidence/radar-label-input-region-och41.md) now passes
+foreground native event dispatch and stale-click rejection across axis/browser
+hide and return before repaint. The regression exposed consumed mouse-down and
+pending clicks surviving hiding; both are repaired. Existing chart, InputRegion
+and popup harnesses pass. Broader label/catalog/release qualification remains open.
+
 [Radar label sliders](evidence/radar-label-slider-och41.md) now pass native track
 input and immediate source-hide cancellation. The regression exposed inner
 mouse-down suppression and stale slider capture; both are repaired, with
