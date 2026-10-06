@@ -1,5 +1,10 @@
 # Table Lab
 
+Read the [main source walkthrough](main.md) for the Bonsai graph, API calls,
+interaction traces, runtime ownership, and diagnostic commands.
+The [event actions walkthrough](event_actions.md) covers both the helper
+implementation and interface, including delayed-target validation.
+
 A public OCaml/Bonsai/Eio example with 100,000 agent-event rows, a pinned identity
 column, horizontal overflow, native resize/reorder/sort requests, and bounded
 transient cell computations. The application owns accepted column descriptions

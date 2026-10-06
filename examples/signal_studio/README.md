@@ -9,12 +9,12 @@ separate application and is unchanged.
 
 | File | Responsibility |
 | --- | --- |
-| [main.ml](main.ml) | Entry point and package metadata modes. |
+| [entry-point walkthrough](main.md) | Entry point and package metadata modes. |
 | [application.ml](application.ml) | Eio/native resource ownership, model actions, desktop services and windows. |
-| [component.ml](component.ml) | The Bonsai boundary: observe a snapshot and call `Ui.view`. |
-| [ui.ml](ui.ml) | Stateless GPUIO layout from `Snapshot.t` and `Actions.t`; no graph construction or I/O. |
+| [reactive component walkthrough](component.md) | The Bonsai boundary: observe a snapshot and call `Ui.view`. |
+| [layout walkthrough](ui.md) | Stateless GPUIO layout from `Snapshot.t` and `Actions.t`; no graph construction or I/O. |
 | [model walkthrough](model/workspace.md) | Pure workspace values and chart/canvas data. |
-| [document controller walkthrough](documents.md), [files/](files/) and [notifications/](notifications/) | Scoped document and notification behavior. |
+| [document controller walkthrough](documents.md), [file helper/tests walkthrough](files/document_file.md) and [notifications/](notifications/) | Scoped document and notification behavior. |
 | [checks.ml](checks.ml) | Optional self-test and resource-workload assertions, separate from the application. |
 
 `View` is GPUIO presentation, `Bonsai` is reactive wiring, and `Effect` represents

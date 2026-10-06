@@ -410,3 +410,32 @@ timeout ownership: inactive-scope enqueue alone cannot resolve its waiting promi
 Actual application/check callers provide the documented scope and timeout. Document
 reset fences acceptance but does not cancel an in-progress file write. These are
 source-level limitations and semantics, not newly reproduced or repaired bugs.
+
+## Pointer, managed collections and Signal Studio composition
+
+Starting from `9b4c5fd`, sixteen further source groups have reviewed companions:
+pointer, virtual list and window lifecycle entry points; table main and event
+actions; gallery formatting, horizontal lists, pagination, progress, spinner and
+text shimmer; Signal Studio main, component, UI, document-file adapter and its
+expect tests. The file adapter guide owns both implementation and test groups.
+Owning READMEs link all companions.
+
+The three authorized GPT-6.1 Sol agents read complete scoped sources/interfaces
+and relevant callers/contracts. Primary review checked every delivered guide and
+representative implementations. The guides trace concrete native events, effects,
+Bonsai state changes and view derivation. They distinguish durable conversation
+state from transient rows, captured setter values from latest-model reducers,
+editor configuration from guarded replacement, and native ownership from file
+capabilities and deferred close decisions.
+
+Coverage is **151 reviewed / 109 pending**, still 417 sources in 260 groups.
+Primary checks pass 267 relative file targets across 21 guides/READMEs, the
+structural inventory audit and whitespace. Commands were checked against source,
+Dune and driver declarations; this batch adds no native/platform acceptance.
+The separately running chart implementation tests have their own scope.
+
+Pointer's self-test does not inject drags; window lifecycle is scripted even in
+its default mode. Table's direct-effect checks differ from the physical AppKit
+harness. Shimmer's experimental status remains explicit. Document-file tests
+cover actual rename failure and symlink replacement, but not cancellation or
+crash durability. These limits remain visible to new readers.

@@ -1,5 +1,8 @@
 # Managed conversation example
 
+Read the [main source walkthrough](main.md) for the Bonsai graph, API calls,
+interaction traces, runtime ownership, and diagnostic commands.
+
 Run `./scripts/gpuio exec dune exec examples/virtual_list/main.exe`.
 For the automated real-window scenario, append `-- --self-test`.
 

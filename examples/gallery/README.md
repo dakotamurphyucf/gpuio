@@ -58,6 +58,11 @@ Composition walkthroughs: [description lists](description_preview.md),
 [disclosures and retained drafts](disclosure_preview.md), [empty states](empty_preview.md),
 [forms](form_preview.md), [group boxes](group_preview.md) and [composed links](link_preview.md).
 
+State and native rendering walkthroughs: [input formats](format_preview.md),
+[variable-size card lists](horizontal_list_preview.md), [pagination](pagination_preview.md),
+[progress](progress_preview.md), [custom spinners](spinner_preview.md) and
+[selectable text shimmer](shimmer_preview.md).
+
 Styles → **A theme from your workspace** loads a palette for the current window.
 Read the [theme-loading walkthrough](theme_preview.md), then the independent
 [appearance model](model/appearance.md), [selection identity](model/theme_selection.md),
