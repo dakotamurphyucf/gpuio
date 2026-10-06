@@ -94,6 +94,12 @@ standalone `examples/menus` / `examples/palette` expose the currently supported
 APIs. Current consolidated macOS acceptance remains OCH-17; Linux build/unit/
 consumer and deferred desktop evidence remain separate.
 
+The [two-window follow-up](../evidence/menu-multiwindow-och41.md) now qualifies
+independent window dispatch, inactive Show rejection, editor target changes and
+removal, activation-loss cancellation and window-close recovery on an installed
+macOS consumer. Queued-start cancellation and the remaining consolidated native
+menu/palette family coverage remain open.
+
 The remaining native popup lifecycle and consolidated palette/menu family
 qualification are catalog work, not newly approved post-v1 exclusions. Positioned
 Show/Close and decorative native icons now have public implementations and the

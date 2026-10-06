@@ -40,6 +40,8 @@ where a test permits background execution. CI supplies the final platform gates.
 
 - [Positioned menus](menu_controller/README.md): open/close a context menu from
   an OCaml controller, with validated coordinates and stale-definition rejection.
+  [Two-window walkthrough](menu_controller/multiwindow.md) covers independent
+  controllers, activation and native editing targets.
   [Component walkthrough](menu_controller/component.md) separates state, views
   and asynchronous commands from the small window launcher.
 - [Menus](menus/README.md): shared command registries, Bonsai effects, dropdowns

@@ -84,11 +84,12 @@ owned window, keeping them separate from the application's global menu bar.
 Its submenu test waits for actual native selected children, because initial
 highlighting can depend on the previous pointer position.
 
-Still required before closing the native-popup catalog row: native icon qualification,
-multi-window overlap and native editor focus-change cases,
-and consolidated gallery/platform acceptance. Window close, owner removal,
-stale-command rejection and independently installed consumer interaction now
-have local macOS evidence; these do not imply all lifecycle cases are complete.
+Native icons now have [scoped pixel and lifecycle evidence](../evidence/native-menu-icons-och41.md).
+The [two-window follow-up](../evidence/menu-multiwindow-och41.md) qualifies inactive
+Show rejection, independent dispatch, editor target changes/removal, activation
+loss and owner close with recovery on an independently installed macOS consumer.
+Cancellation before queued tracking starts and consolidated gallery/platform
+acceptance remain open; these results do not imply all lifecycle cases are complete.
 
 ## Tracking-loop scheduling correction
 
@@ -118,10 +119,18 @@ records the failure, correction, hashes and remaining scope.
 The [lifecycle follow-up](../evidence/native-popup-och41.md#owner-transition-and-recovery-follow-up)
 also qualifies definition replacement, hidden/disabled ancestors and modal entry,
 including reopening, command delivery and preserved editor content, on a fresh
-installed-library consumer. These checks do not establish multi-window overlap
-or native editor retargeting behavior.
+installed-library consumer. The subsequent [two-window follow-up](../evidence/menu-multiwindow-och41.md)
+adds independent-window ownership and native editor retargeting evidence.
 
-## Decorative icon contract (implementation in progress)
+On macOS, native window activation observation explicitly closes tracking popups
+when their owner becomes inactive. Raising or activating another application
+window does not reliably make AppKit dismiss the existing popup by itself.
+Cancellation drops the captured lease and publishes its closed observation;
+the existing owner disposal schedules AppKit cancellation outside the View borrow.
+It does not restore focus into the inactive window. Checks before and after the
+tracking loop still reject obsolete owners and native editor targets.
+
+## Decorative icon contract
 
 `View.with_menu_item_icons view ~items` accepts item paths paired with registered
 SVG `Asset.Handle.t` values. The receiver is a direct platform context menu.

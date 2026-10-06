@@ -253,6 +253,8 @@ pub(super) fn watch(view: &mut View, window: &mut Window, cx: &mut Context<View>
     cx.observe_window_activation(window, |view, window, cx| {
         if !window.is_window_active() {
             view.cancel_chart_input(window, cx);
+            #[cfg(target_os = "macos")]
+            view.close_platform_popups(window, cx);
         }
         observe(view, window);
     })

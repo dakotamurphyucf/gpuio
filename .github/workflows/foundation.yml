@@ -293,6 +293,12 @@ jobs:
           ./scripts/gpuio build examples/menu_controller/main.exe
           python3 scripts/test_menu_controller_macos.py 2>&1 | tee .cache/ci/macos-menu-controller.log
           python3 scripts/test_native_menu_icons_macos.py --output .cache/ci/native-menu-icons 2>&1 | tee .cache/ci/macos-native-menu-icons.log
+      - name: macOS native popup window and editor ownership
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 3
+        run: |
+          ./scripts/gpuio build examples/menu_controller/main.exe
+          python3 scripts/test_menu_multiwindow_macos.py 2>&1 | tee .cache/ci/macos-menu-multiwindow.log
       - name: macOS cross-application file drop
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
         timeout-minutes: 4

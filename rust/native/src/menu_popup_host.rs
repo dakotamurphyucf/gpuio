@@ -10,6 +10,24 @@ use std::{
 };
 
 impl View {
+    pub(in crate::host) fn close_platform_popups(
+        &mut self,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let tracking: Vec<_> = self
+            .menus
+            .iter()
+            .filter_map(|(id, state)| state.borrow().tracking().then_some(*id))
+            .collect();
+        for id in tracking {
+            // Do not restore focus into a window that just became inactive.
+            // Dropping the owner invalidates selection immediately and queues
+            // AppKit cancellation outside this View borrow.
+            self.close_menu(id, false, window, cx);
+        }
+    }
+
     fn popup_items(
         &self,
         tree: &crate::tree::Tree,

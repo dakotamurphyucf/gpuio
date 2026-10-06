@@ -5,6 +5,13 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **O
 Markdown walkthroughs for every example component; it is planned in this milestone. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
+[Native popup window/editor ownership](evidence/menu-multiwindow-och41.md) now has
+a public two-window example and passing installed-consumer macOS qualification.
+The expanded test exposed a popup remaining open after its owner became inactive;
+the activation observer now cancels that owner's native tracking lease without
+restoring its focus. Independent dispatch, editor focus/removal guards and owner
+close/recovery pass. Queued-start and broader catalog/release acceptance remain open.
+
 [Native popup SVG icons](evidence/native-menu-icons-och41.md) now have typed
 Core/Bonsai APIs, bounded worker rasterization and AppKit template snapshots.
 The native suite passes 985 tests (two existing skips), and an installed public
