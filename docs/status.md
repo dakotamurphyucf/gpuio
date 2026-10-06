@@ -5,12 +5,18 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **O
 Markdown walkthroughs for every example component; its documentation acceptance is complete. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
+[Cursor-following chart cards](evidence/chart-cursor-inspection-och41.md) now track
+native pointer motion within a mark, with anchored keyboard fallback and no hover
+roundtrip. Paired protocol, 1,051 native unit tests, actual pointer/GPU pixels,
+root/fresh-installed gallery interaction, full Dune and strict lint pass locally.
+Style schema is -6. Rich rows/partial guides and wider catalog/release work remain.
+
 [Native chart appearance](evidence/chart-mark-appearance-och41.md) now exposes
 independent path fill/stroke/curve, marker borders/radii, bar corners and
 signed/domain/value gradients through bounded stable-ID overrides. Paired codecs,
 1,050 native tests, actual GPU pixels, the mounted view, full Dune checks and
 root/fresh-installed gallery walkthroughs pass locally, including selection and
-zero-resource cleanup. Style schema is -5; matching packages are required. Dense
+zero-resource cleanup. At that checkpoint, style schema was -5; matching packages are required. Dense
 backgrounds/patterns, baselines, rich inspection and broader release work remain.
 
 [Example walkthrough coverage](evidence/example-walkthroughs-och48.md) now has an

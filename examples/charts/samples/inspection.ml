@@ -7,16 +7,18 @@ type t =
   | Vertical
   | Band
   | Anchored
+  | Cursor
   | Marker_only
 [@@deriving equal]
 
-let all = [ Default; Vertical; Band; Anchored; Marker_only ]
+let all = [ Default; Vertical; Band; Anchored; Cursor; Marker_only ]
 
 let label = function
   | Default -> "Default inspection"
   | Vertical -> "Vertical crosshair"
   | Band -> "Horizontal band"
   | Anchored -> "Anchored details"
+  | Cursor -> "Cursor details"
   | Marker_only -> "Marker only"
 ;;
 
@@ -38,11 +40,11 @@ let config t =
            ()
          |> ok)
       ()
-  | Anchored ->
+  | Anchored | Cursor ->
     I.create
       ~card:
         (I.Card.create
-           ~placement:Anchor
+           ~placement:(if equal t Cursor then Cursor else Anchor)
            ~width:180.
            ~gap:12.
            ~padding:10.

@@ -4,6 +4,7 @@ use binprot::macros::BinProtWrite;
 pub enum Placement {
     Corner,
     Anchor,
+    Cursor,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
 pub enum Axis {

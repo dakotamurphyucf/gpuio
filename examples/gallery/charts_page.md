@@ -267,8 +267,18 @@ The inspection state selects a pure [public preset](../charts/samples/inspection
 It changes `Chart_style.create ~inspection`, independently of the data mode,
 source publication, selected source ID and original-data table. Native hover and
 keyboard previews use the prepared style; a matching Ready notice names the
-preset. Crosshair/marker layout and anchored-card placement run natively. No
-Bonsai update is needed for ordinary pointer movement within a prepared chart.
+preset. Crosshair/marker layout and card placement run natively. **Cursor details**
+uses `Chart_inspection.Placement.Cursor`, sharing Anchored details' card/marker
+style but placing the card beside the latest pointer. Motion within the same mark
+moves that card without a hover roundtrip or Bonsai update; the marker and crosshair
+stay data-anchored. Keyboard inspection, pointer departure and capture cancellation
+fall back to Anchor, including a retained committed selection after leave. No data
+publication or selection identity changes. The [preset guide](../charts/samples/inspection.md#cursor-details)
+traces its setter/`let%arr` path; the
+[cursor contract](../../docs/design/chart-cursor-inspection.md) records boundaries.
+[Scoped local qualification](../../docs/evidence/chart-cursor-inspection-och41.md)
+covers actual pointer pixels and public root/installed gallery behavior; broader
+platform and release acceptance remains separate.
 
 ## Sankey presentation
 

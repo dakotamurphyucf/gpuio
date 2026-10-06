@@ -21,6 +21,7 @@ pub(super) struct Input {
     pub selected: Option<Selection>,
     pub selected_index: Option<usize>,
     hover: Option<usize>,
+    pub(super) pointer: Option<Point>,
     cursor: Option<usize>,
     pub data_cursor: Option<usize>,
     blur: Option<gpui::Subscription>,
@@ -36,6 +37,7 @@ impl Input {
             selected: None,
             selected_index: None,
             hover: None,
+            pointer: None,
             cursor: None,
             data_cursor: None,
             blur: None,
@@ -45,6 +47,7 @@ impl Input {
         self.selected = None;
         self.selected_index = None;
         self.cursor = None;
+        self.pointer = None;
     }
 }
 impl State {
@@ -58,6 +61,7 @@ impl State {
             window.release_pointer();
         }
         self.input.hover = None;
+        self.input.pointer = None;
         self.input.cursor = None;
     }
     fn base_input_allowed(&self, window: &Window, pointer: bool) -> bool {
@@ -199,6 +203,8 @@ impl State {
                 self.input.cursor = Some(next);
             }
         }
+        self.input.pointer = None;
+        self.input.hover = None;
         self.redraw(window, cx);
         window.prevent_default();
         cx.stop_propagation();
@@ -230,7 +236,10 @@ impl State {
             &self.config.radar_labels,
         )?;
         let selected = self.input.capture.is_none() && self.input.selected_index == Some(index);
-        Some(inspection::overlay(ready, frame, details, selected))
+        let pointer = self.input.hover.and(self.input.pointer);
+        Some(inspection::overlay(
+            ready, frame, details, selected, pointer,
+        ))
     }
 }
 pub(super) fn install_blur(state: &Shared, window: &mut Window, cx: &mut App) {
@@ -356,6 +365,7 @@ pub(super) fn paint(state: &Shared, hitbox: Option<Hitbox>, window: &mut Window)
             return;
         }
         state.input.hover = state.target(event.position);
+        state.input.pointer = state.input.hover.map(|_| state.local(event.position));
         state.input.cursor = None;
         state.input.capture = Some(down_hit.id);
         window.capture_pointer(down_hit.id);
@@ -393,7 +403,13 @@ pub(super) fn paint(state: &Shared, hitbox: Option<Hitbox>, window: &mut Window)
         } else {
             None
         };
-        if next != state.input.hover {
+        let pointer = next.map(|_| state.local(event.position));
+        let follows = state.config.style.inspection.card.visible
+            && state.config.style.inspection.card.placement
+                == gpuio_protocol::chart_inspection::Placement::Cursor;
+        let moved_card = follows && pointer != state.input.pointer;
+        state.input.pointer = pointer;
+        if next != state.input.hover || moved_card {
             state.input.hover = next;
             state.input.cursor = None;
             state.redraw(window, cx);
@@ -423,9 +439,11 @@ pub(super) fn paint(state: &Shared, hitbox: Option<Hitbox>, window: &mut Window)
         state.cancel_capture(window);
         if commit {
             state.input.hover = target;
+            state.input.pointer = target.map(|_| state.local(event.position));
             state.commit(target, cx);
         } else {
             state.input.hover = None;
+            state.input.pointer = None;
         }
         state.redraw(window, cx);
         cx.stop_propagation();

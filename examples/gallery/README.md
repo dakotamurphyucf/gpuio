@@ -1118,7 +1118,11 @@ The [ordinal color sample](../charts/samples/ordinal_colors.md) demonstrates sta
 under source reordering and an explicit unknown-key policy.
 
 [Chart inspection presets](../charts/samples/inspection.md) explain native card, crosshair and marker
-configuration and their separation from Bonsai state and scoped source ownership.
+configuration and their separation from Bonsai state and scoped source ownership. Cursor details moves the card with native pointer
+motion even within one mark; marker/crosshair remain data-anchored. Keyboard and
+pointer departure/cancellation use Anchor. No hover roundtrip is required; this
+[scoped evidence](../../docs/evidence/chart-cursor-inspection-och41.md) records
+the native and public-gallery coverage of this placement.
 
 **Charts & data → Flow styling** demonstrates the public Sankey presentation
 options. The [adjacent sample walkthrough](../charts/samples/sankey_presentation.md)

@@ -8,6 +8,7 @@ module Placement : sig
   type t =
     | Corner
     | Anchor
+    | Cursor
   [@@deriving equal, sexp_of]
 end
 
@@ -33,7 +34,10 @@ module Card : sig
   (** Width 96..480, gap 0..64, padding/radius 0..24, font size 8..32,
       line height 8..48, border width 0..8. Line height must be at least font
       size. Corner keeps the top-right card; Anchor places it beside the
-      inspected mark with bounded flipping/clipping. Hiding the card does not
+      inspected mark with bounded flipping/clipping. Cursor follows native pointer
+      motion, falling back to Anchor for keyboard inspection or after pointer
+      departure/cancellation. Marker and crosshair remain on the inspected mark.
+      Hiding the card does not
       hide the original-data control. Title/value flags hide visual children;
       a visible card retains its full accessible summary. *)
   val create

@@ -12,13 +12,15 @@ GPUIO_JOBS=2 ./scripts/gpuio build examples/gallery/main.exe
 
 Choose Charts & data, then one of the inspection buttons. Focus the chart and
 use Home/arrows to preview a value; Enter commits selection. Try Default
-inspection, Vertical crosshair, Horizontal band, Anchored details and Marker only.
+inspection, Vertical crosshair, Horizontal band, Anchored details, Cursor details
+and Marker only.
 The data button remains available in every preset. Current qualification is
 macOS-first; Linux compilation alone does not establish desktop behavior.
 
 Read `type t`, `label`, then `config`. Default uses the library defaults. Vertical
 adds a dashed crosshair. Band shows how solid thickness creates a translucent
-highlight. Anchored combines a smaller card, full crosshair and outlined marker.
+highlight. Anchored and Cursor share a smaller card, full crosshair and outlined
+marker; only their card placement differs.
 Marker only hides the card and status glyph while preserving the source value
 selection. `all` supplies chooser order, `label` supplies its captions and `config`
 constructs the selected immutable value. `[@@deriving equal]` generates typed
@@ -59,3 +61,29 @@ are documented in [chart_inspection.mli](../../../lib/core/chart_inspection.mli)
 and style composition in [chart_style.mli](../../../lib/core/chart_style.mli).
 Existing [inspection evidence](../../../docs/evidence/chart-inspection-och41.md)
 records macOS validation; these edits add documentation review only.
+
+## Cursor details
+
+`Cursor` is a pure preset alongside `Anchored` in `config`. Their shared branch
+uses `I.Card.create ~placement:(if equal t Cursor then Cursor else Anchor)`;
+`I` aliases `Chart_inspection`. Both keep width 180, gap 12, padding/radius 10,
+one-pixel accent border, dark backing and light text. The both-axis solid
+crosshair and 24-pixel outlined marker remain anchored to the inspected data.
+
+Click Cursor details → the page executes `set_inspection Cursor` → Bonsai updates
+the reactive preset → `let%arr` rebuilds its inspection style → native preparation
+adopts Cursor placement. Moving within the same mark then moves the card beside
+the latest native pointer position, without a hover roundtrip to OCaml or a new
+source publication. Gap, edge flipping and clipping still bound placement.
+Keyboard inspection, pointer departure or capture cancellation use Anchor instead;
+a retained committed selection therefore keeps its data-anchored card after leave.
+Focus loss, disabling, source replacement and retirement clear remembered pointer
+state. Release outside the plot still does not commit selection.
+
+To adapt the two presets independently, split their shared branch and change the
+Cursor card gap while preserving the marker/crosshair settings. Card gap must
+remain in `[0, 64]` logical pixels; changing card placement does not change source
+values, selection IDs or ownership. See the
+[cursor design](../../../docs/design/chart-cursor-inspection.md). The [cursor-specific evidence](../../../docs/evidence/chart-cursor-inspection-och41.md)
+records actual native pointer pixels and root/installed gallery checks; it does
+not establish wider platform or release acceptance.

@@ -4610,7 +4610,7 @@ def exercise_chart_inspection(mac, images):
         directory = images or Path(temporary)
         baseline = None
         for label in ['Default inspection', 'Vertical crosshair', 'Horizontal band',
-                      'Anchored details', 'Marker only', 'Default inspection']:
+                      'Anchored details', 'Cursor details', 'Marker only', 'Default inspection']:
             reveal_gallery_control(mac, label, 'AXButton')
             mac.press(TITLE, label)
             mac.wait_text(TITLE, 'Ready: Line · 48 source values · Vertical · ' + label)
@@ -4638,7 +4638,7 @@ def exercise_chart_inspection(mac, images):
                     cx, cy, cw, ch = element_rect(mac, card)
                     assert x - 1 <= cx and cx + cw <= x + w + 1, (label, (x,y,w,h), (cx,cy,cw,ch))
                     assert y - 1 <= cy and cy + ch <= y + h + 1, (label, (x,y,w,h), (cx,cy,cw,ch))
-                    if label == 'Anchored details':
+                    if label in ['Anchored details', 'Cursor details']:
                         assert abs(cw - 180) < 2, (label, cw)
                 finally:
                     mac.release(card)
@@ -4657,7 +4657,7 @@ def exercise_chart_inspection(mac, images):
                 assert len(samples) == len(baseline)
                 changed = sum(max(abs(a-b) for a,b in zip(p,q)) > 8 for p,q in zip(samples,baseline))
                 assert changed > 100, ('Inspection preset did not change chart pixels', label, changed)
-                if label in ['Vertical crosshair', 'Anchored details', 'Marker only']:
+                if label in ['Vertical crosshair', 'Anchored details', 'Cursor details', 'Marker only']:
                     assert rose > 30, ('Inspection accent missing', label, rose)
                 print('CHART_INSPECTION_PIXELS', label, changed, rose, flush=True)
         mac.press(TITLE, 'Update chart samples')
@@ -4665,6 +4665,36 @@ def exercise_chart_inspection(mac, images):
         mac.press(TITLE, 'View data')
         mac.release(mac.wait_find(TITLE, 'Chart preview: Line · original data', 'AXTable'))
         mac.press(TITLE, 'Back to chart')
+        # Use a broad pie wedge so two different pointer coordinates inspect
+        # the same source. The public OCaml preset must move its native AX card.
+        for label in ['Pie', 'Cursor details']:
+            reveal_gallery_control(mac, label, 'AXButton')
+            mac.press(TITLE, label)
+        mac.wait_text(TITLE, 'Ready: Pie · 4 source values · Fit · Uniform radii · Cursor details')
+        reveal_gallery_control(mac, 'Chart preview: Pie', 'AXGroup')
+        chart = mac.wait_find(TITLE, 'Chart preview: Pie', 'AXGroup')
+        try:
+            x, y, w, h = element_rect(mac, chart)
+        finally:
+            mac.release(chart)
+        boxes = []
+        for fraction in [.62, .65]:
+            GalleryMouse(mac).send(5, (x + w * fraction, y + h * .50))
+            time.sleep(.15)
+            card = mac.wait_find(TITLE, 'Reasoning:', 'AXGroup', contains=True)
+            try:
+                boxes.append(element_rect(mac, card))
+            finally:
+                mac.release(card)
+            mac.wait_text(TITLE, 'Select a chart value to inspect it.')
+        assert abs(boxes[1][0] - boxes[0][0] - w * .03) < 3, ('Cursor card did not follow same wedge', boxes, w)
+        focus_gallery_control(mac, 'Chart preview: Pie', 'AXGroup')
+        mac.key(115)
+        mac.key(36)
+        mac.wait_text(TITLE, 'Selected: Reasoning · 44')
+        reveal_gallery_control(mac, 'Default inspection', 'AXButton')
+        mac.press(TITLE, 'Default inspection')
+        print('CHART_CURSOR_PUBLIC_OK: same-wedge native AX movement, no selection during hover, keyboard commit', flush=True)
         reveal_gallery_control(mac, 'Ordinal colors', 'AXButton')
 
 

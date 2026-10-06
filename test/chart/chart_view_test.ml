@@ -17,7 +17,7 @@ let hex bytes =
 
 let style =
   Gpuio.Chart_style.Expert.of_wire
-    { version = -5L
+    { version = -6L
     ; palette = [ 1L; 2L ]
     ; axis_color = 3L
     ; grid_color = 4L

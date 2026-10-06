@@ -10,6 +10,7 @@ impl Decoder<'_> {
                 placement: match self.tag()? {
                     0 => Placement::Corner,
                     1 => Placement::Anchor,
+                    2 => Placement::Cursor,
                     _ => return Err(DecodeError::Malformed),
                 },
                 width: self.float()?,

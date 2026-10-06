@@ -83,7 +83,7 @@ fn axis_and_grid_match_independent_ocaml_bytes_and_current_envelope() {
     let index = bad_utf8.windows(2).position(|v| v == [0xce, 0xbb]).unwrap();
     bad_utf8[index] = 255;
     assert!(decode_chart_style(&bad_utf8).is_err());
-    for version in [-4, -3, -2, -1, 0, 1] {
+    for version in [-5, -4, -3, -2, -1, 0, 1] {
         let mut old = style.clone();
         old.version = version;
         assert_eq!(

@@ -4,6 +4,7 @@ module Placement = struct
   type t =
     | Corner
     | Anchor
+    | Cursor
   [@@deriving bin_io, equal, sexp_of]
 end
 

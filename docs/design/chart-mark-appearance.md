@@ -1,9 +1,9 @@
 # Chart mark appearance
 
-OCH-41 implementation design, 2026-10-06. This is work in progress: constructors
-and wire types alone do not establish rendering support. Native preparation,
-decoding, gallery examples and platform qualification must land before catalog
-acceptance. Existing charts keep their current defaults.
+OCH-41 implementation design, 2026-10-06. Native preparation, codecs and public
+gallery behavior have [scoped local qualification](../evidence/chart-mark-appearance-och41.md).
+Broader catalog and release acceptance remain separate. Existing charts keep
+their current defaults.
 
 ## Ownership and identity
 
@@ -88,8 +88,9 @@ width 0.5..8 logical pixels. Colors resolve even for currently hidden/dormant ID
 missing theme definitions are recoverable errors.
 
 The independent appearance envelope is 192 KiB; the paired maximum encoding is
-173,447 bytes. Attachment advances the chart style schema to -5 and its bounded
-envelope to 384 KiB. A maximally populated parent style, including axis/node/pie
+173,447 bytes. Attachment advanced the chart style schema to -5 and its bounded
+envelope to 384 KiB. The later [cursor extension](chart-cursor-inspection.md)
+advances the schema to -6 without changing these limits. A maximally populated parent style, including axis/node/pie
 captions and all appearance overrides, is tested against this envelope and the
 outer 1 MiB message limit. Matching OCaml and Rust packages are required.
 

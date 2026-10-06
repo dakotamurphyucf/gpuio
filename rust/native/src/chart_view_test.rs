@@ -137,13 +137,13 @@ async fn ready(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, revision: i6
         draw(cx, handle);
         if handle
             .update(cx, |view, _, _| {
-                view.charts[&id(1)]
-                    .borrow()
-                    .ready
-                    .as_ref()
-                    .is_some_and(|r| {
-                        r.snapshot.revision() == revision && r.config.style.palette[0] == color
-                    })
+                let state = view.charts[&id(1)].borrow();
+                state.ready.as_ref().is_some_and(|r| {
+                    r.snapshot.revision() == revision
+                        && r.config.style.palette[0] == color
+                        && r.config == state.config
+                        && state.requested_frame == state.ready_frame
+                })
             })
             .unwrap()
         {

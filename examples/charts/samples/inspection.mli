@@ -7,6 +7,7 @@ type t =
   | Vertical
   | Band
   | Anchored
+  | Cursor
   | Marker_only
 [@@deriving equal]
 

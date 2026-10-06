@@ -58,3 +58,25 @@ let%expect_test "inspection validates lengths and resolves all optional theme co
   print_endline "All six colors resolved; invalid bounds and coupled dimensions rejected.";
   [%expect {| All six colors resolved; invalid bounds and coupled dimensions rejected. |}]
 ;;
+
+let%expect_test
+    "cursor placement appends its wire tag and survives public style resolution"
+  =
+  let module P = Gpuio_protocol.Chart_inspection_wire.Placement in
+  List.iteri [ I.Placement.Corner; Anchor; Cursor ] ~f:(fun tag placement ->
+    let card = I.Card.create ~placement () |> ok in
+    let wire =
+      Gpuio.Chart_style.create ~inspection:(I.create ~card ()) ()
+      |> ok
+      |> Gpuio.Chart_style.Expert.to_wire
+    in
+    let bytes = Bin_prot.Utils.bin_dump P.bin_writer_t wire.inspection.card.placement in
+    assert (Bigstring.length bytes = 1);
+    assert (Char.to_int (Bigstring.get bytes 0) = tag);
+    printf "%d\n" tag);
+  [%expect
+    {|
+    0
+    1
+    2 |}]
+;;

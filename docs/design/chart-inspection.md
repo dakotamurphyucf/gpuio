@@ -20,6 +20,10 @@ including wrapped values. Excess content is clipped; original-data browsing
 remains the complete alternative. The card stays below the data-control header
 and above the legend when space permits; tiny viewports clip the whole overlay.
 
+[`Placement.Cursor`](chart-cursor-inspection.md) extends this with native pointer
+following, including motion within one mark, and Anchor fallback for keyboard or
+retired pointer inspection. Crosshair and marker positions remain data-anchored.
+
 Card options control visibility, title/value presentation, width, gap, padding,
 corner radius, text size/line height, border and text/background/border colors.
 Line height must be at least text size. Title/value visibility controls visual
@@ -45,7 +49,7 @@ The pinned source also exposes custom partial spans, arbitrary tooltip children
 and per-row content. These controls do not claim those APIs. Native summaries
 continue to describe the exact prepared source, including category IDs, aggregate
 sample counts, raw values and stack bounds. Arbitrary rich rows, caller-formatted
-per-datum annotations and cursor-following cards remain separate presentation
+per-datum annotations remain separate presentation
 work. The static extension SDK remains available for custom native plots.
 
 ## Lifetime and wire contract

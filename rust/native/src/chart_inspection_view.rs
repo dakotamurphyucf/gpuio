@@ -57,7 +57,23 @@ fn card_box(frame: Frame, anchor: Point, card: Card) -> CardBox {
     }
 }
 
-pub(super) fn overlay(ready: &Ready, frame: Frame, details: Details, selected: bool) -> AnyElement {
+fn card_anchor(placement: Placement, mark: Point, pointer: Option<Point>) -> Point {
+    if placement == Placement::Cursor {
+        pointer
+            .filter(|p| p.x.is_finite() && p.y.is_finite())
+            .unwrap_or(mark)
+    } else {
+        mark
+    }
+}
+
+pub(super) fn overlay(
+    ready: &Ready,
+    frame: Frame,
+    details: Details,
+    selected: bool,
+    pointer: Option<Point>,
+) -> AnyElement {
     let style = &ready.config.style;
     let inspection = *style.inspection;
     let selection = style.selection_color as u32;
@@ -138,7 +154,11 @@ pub(super) fn overlay(ready: &Ready, frame: Frame, details: Details, selected: b
     }
     let config = inspection.card;
     if config.visible {
-        let box_ = card_box(frame, anchor, config);
+        let box_ = card_box(
+            frame,
+            card_anchor(config.placement, anchor, pointer),
+            config,
+        );
         let color = config
             .text_color
             .map_or(style.label_color as u32, |c| c as u32);
@@ -219,6 +239,34 @@ mod tests {
         }
     }
     #[test]
+    fn cursor_card_tracks_pointer_without_moving_the_mark_and_falls_back() {
+        let mark = Point { x: 10., y: 15. };
+        let first = Point { x: 40., y: 35. };
+        let second = Point { x: 70., y: 35. };
+        let card = Card {
+            placement: Placement::Cursor,
+            width: 96.,
+            ..Default::default()
+        };
+        let a = card_box(
+            frame(),
+            card_anchor(card.placement, mark, Some(first)),
+            card,
+        );
+        let b = card_box(
+            frame(),
+            card_anchor(card.placement, mark, Some(second)),
+            card,
+        );
+        assert_eq!(b.left - a.left, 30.);
+        assert_eq!(card_anchor(Placement::Cursor, mark, None), mark);
+        assert_eq!(card_anchor(Placement::Anchor, mark, Some(second)), mark);
+        assert_eq!(
+            card_anchor(Placement::Cursor, mark, Some(Point { x: f64::NAN, y: 0. })),
+            mark
+        );
+    }
+    #[test]
     fn anchored_card_flips_at_plot_edges_and_reserves_real_content_space() {
         let card = Card {
             placement: Placement::Anchor,
@@ -272,7 +320,7 @@ mod tests {
                     height,
                 };
                 frame.legend.y = height;
-                for placement in [Placement::Corner, Placement::Anchor] {
+                for placement in [Placement::Corner, Placement::Anchor, Placement::Cursor] {
                     for x in [-100., 0., width / 2., width, width + 100.] {
                         for y in [-100., 0., height / 2., height, height + 100.] {
                             let b = card_box(

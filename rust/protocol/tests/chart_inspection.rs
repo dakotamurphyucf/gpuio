@@ -9,7 +9,7 @@ fn encode(style: &Style) -> Vec<u8> {
 fn inspector_controls_roundtrip_all_axes_patterns_and_placements() {
     for axis in [Axis::Off, Axis::Vertical, Axis::Horizontal, Axis::Both] {
         for pattern in [Pattern::Dashed, Pattern::Solid] {
-            for placement in [Placement::Corner, Placement::Anchor] {
+            for placement in [Placement::Corner, Placement::Anchor, Placement::Cursor] {
                 let inspection = Inspection {
                     card: Card {
                         placement,
@@ -212,4 +212,16 @@ fn invalid_inspector_values_are_rejected_at_admission() {
         .map(|s| u8::from_str_radix(std::str::from_utf8(s).unwrap(), 16).unwrap())
         .collect::<Vec<_>>();
     assert!(gpuio_protocol::decode_chart_view_config(&bytes).is_err());
+}
+
+#[test]
+fn cursor_placement_appends_tag_two() {
+    for (tag, placement) in [Placement::Corner, Placement::Anchor, Placement::Cursor]
+        .into_iter()
+        .enumerate()
+    {
+        let mut bytes = Vec::new();
+        placement.binprot_write(&mut bytes).unwrap();
+        assert_eq!(bytes, vec![tag as u8]);
+    }
 }

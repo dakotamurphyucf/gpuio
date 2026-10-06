@@ -71,7 +71,7 @@ let%expect_test "chart styles resolve and validate node overrides" =
   in
   let style = Gpuio.Chart_style.create ~node_labels:labels ~theme () |> ok in
   let wire = Gpuio.Chart_style.Expert.to_wire style in
-  assert (Int64.equal wire.version (-5L));
+  assert (Int64.equal wire.version (-6L));
   assert (W.equal wire.node_labels (L.Expert.to_wire labels ~theme |> ok));
   assert (Result.is_error (Gpuio.Chart_style.create ~node_labels:labels ()));
   assert (
