@@ -1075,3 +1075,7 @@ The adjacent [Canvas page walkthrough](canvas_page.md),
 and [Charts page walkthrough](charts_page.md) explain the actual source owners,
 Bonsai controls, native observations and page-scope cleanup, with concrete
 interaction traces and adaptation examples.
+
+Supporting pure-model walkthroughs explain the [canvas scene](model/canvas_study.md),
+[diff expansion reducer](model/diff_state.md) and [raster fixture](image_samples.md),
+including their distinction from the Bonsai graphs and scoped source owners.

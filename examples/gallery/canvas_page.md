@@ -104,3 +104,6 @@ region and unique identity, then retain that identity across moves. To change zo
 construct a validated viewport and issue a new sequenced command instead of changing
 only the readout. Keep the UI-domain source owner and lifecycle scope together;
 a borrowed handle cannot extend a cancelled registration's lifetime.
+
+The pure model has its own [Canvas study walkthrough](model/canvas_study.md),
+including drawing/hit-region construction and whole-scene transform validation.

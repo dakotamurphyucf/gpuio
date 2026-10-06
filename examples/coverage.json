@@ -128,8 +128,10 @@
         "examples/agent_chat/runtime/fixture_job.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/agent_chat/runtime/fixture_job.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -173,8 +175,10 @@
         "examples/agent_chat/runtime/query_loading.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/agent_chat/runtime/query_loading.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -191,8 +195,10 @@
         "examples/agent_chat/runtime/result_actions.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/agent_chat/runtime/result_actions.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -1112,8 +1118,10 @@
         "examples/gallery/image_samples.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/gallery/image_samples.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -1205,8 +1213,10 @@
         "examples/gallery/model/canvas_study.mli"
       ],
       "role": "support",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/gallery/model/canvas_study.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -1214,8 +1224,10 @@
         "examples/gallery/model/diff_state.mli"
       ],
       "role": "support",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/gallery/model/diff_state.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -1998,8 +2010,10 @@
         "examples/progress/main.ml"
       ],
       "role": "application-entry",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/progress/main.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [

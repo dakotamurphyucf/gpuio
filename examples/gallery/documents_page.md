@@ -169,3 +169,7 @@ fetch it. Preserve source handles, stable keys and revisioned event semantics,
 and keep async acquisition/cancellation in `Preview_scope` rather than tying source
 ownership to a virtual native row. To connect a real feed, acquire explicit Eio
 capabilities and use a scoped producer with deliberate finish/cancel behavior.
+
+Read the [diff-state walkthrough](model/diff_state.md) for the pure reducer
+and managed/controlled observation guards, and the [image fixture walkthrough](image_samples.md)
+for the encoded raster shared by these document previews.

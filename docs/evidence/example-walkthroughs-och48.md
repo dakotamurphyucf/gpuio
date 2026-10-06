@@ -200,3 +200,28 @@ checked command names/flags against code/Dune/drivers and ran no builds or GUI.
 The prior full repository build covers these unchanged implementations; current
 Sankey ribbon-color work is separate and not certified by this prose review.
 No new platform/input/performance acceptance is claimed.
+
+## Pure models, bounded jobs and progress follow-up
+
+Starting from `392dcc9`, seven more source groups are reviewed:
+[Canvas_study](../../examples/gallery/model/canvas_study.md),
+[Diff_state](../../examples/gallery/model/diff_state.md),
+[Image_samples](../../examples/gallery/image_samples.md),
+[Progress](../../examples/progress/main.md), and Agent Chat's
+[Fixture_job](../../examples/agent_chat/runtime/fixture_job.md),
+[Query_loading](../../examples/agent_chat/runtime/query_loading.md) and
+[Result_actions](../../examples/agent_chat/runtime/result_actions.md).
+The guides link their paired interfaces and concrete callers. Parent-page and
+README links make the supporting modules discoverable.
+
+These explain whole-scene validation, absolute transforms, exact managed/controlled
+diff guards (without claiming general revision validation), binary PNM generation,
+progress state/effects versus native motion, newest-pending CPU jobs, query versus
+fixture loading, and row-membership/query/session guards around table actions.
+Existing supporting test files are linked for their actual cases, without counting
+them as newly reviewed source groups or claiming new test execution.
+
+Coverage is **49 reviewed and 211 pending**, with 417 sources still mapped. The
+structural audit, local Markdown paths and whitespace checks pass. Command/flag
+review uses the actual source and manifests. This documentation batch changes no
+implementation and runs no GUI; platform acceptance remains separately evidenced.

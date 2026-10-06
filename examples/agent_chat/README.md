@@ -57,7 +57,11 @@ The model's companion also explains its supporting expect test. Continue with
 [native workspace motion](runtime/chat_motion.md) to see small stateless view
 helpers and their caller-owned Bonsai state. The
 [shared conversation controller](runtime/conversation.md) then explains the full
-acceptance/producer/document lifecycle, history loading and attachments.
+acceptance/producer/document lifecycle, history loading and attachments. For the
+larger fixtures, read [bounded CPU jobs](runtime/fixture_job.md), then
+[native query loading](runtime/query_loading.md) and
+[guarded finding actions](runtime/result_actions.md). These helpers separate
+producer scheduling, pending-state presentation and current-row inspection.
 
 These are code walkthroughs, not new platform acceptance evidence. The runtime
 source map below identifies the remaining component boundaries; per-component

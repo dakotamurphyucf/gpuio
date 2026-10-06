@@ -99,3 +99,6 @@ its handle to the record and view. For file/network input, obtain bytes with exp
 Eio capabilities before evaluating registration on the UI loop; this example has
 no such I/O. To copy another current value, map its reactive model into validated
 `Clipboard.Text` and reuse `Copy.create` instead of capturing stale text in a callback.
+
+The adjacent [image fixture walkthrough](image_samples.md) explains the PNM
+header, RGB byte generation and reuse without sharing native registrations.
