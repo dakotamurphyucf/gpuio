@@ -62,8 +62,11 @@ The [rich inspection contract](../design/chart-inspection-content.md) drafts
 ordinary OCaml View content alongside a title/row convenience API. The current
 foundation supplies validated stable/publication-bound targets, paired metadata
 codecs and [schema -2 parent admission](../evidence/chart-inspection-parent-och41.md).
-`View.chart` attachment, native interactive content and
-gallery qualification remain required; it does not close the Tooltip row above.
+The subsequent [experimental renderer](../evidence/chart-inspection-renderer-och41.md)
+adds `View.chart` attachment and native Card/Overlay children, with button pixels,
+native pointer/keyboard focus, stable-ID reorder and immediate stale-gesture
+retirement evidence. Rich-row helpers, broader child-widget/lifecycle and public
+gallery qualification remain required; this does not close the Tooltip row above.
 
 [`Chart_appearance`](../../lib/core/chart_appearance.mli) now attaches to
 `Chart_style.create`: 128 series overrides and 1,024 unique series/datum pairs,

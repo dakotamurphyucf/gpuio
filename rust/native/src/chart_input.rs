@@ -27,6 +27,9 @@ pub(super) struct Input {
     blur: Option<gpui::Subscription>,
 }
 impl Input {
+    pub(super) fn preview_index(&self) -> Option<usize> {
+        self.hover.or(self.cursor).or(self.selected_index)
+    }
     pub fn new(gate: crate::host::focus::Shared, cx: &mut App) -> Self {
         Self {
             focus: cx.focus_handle().tab_stop(true),
@@ -110,13 +113,17 @@ impl State {
         let frame = self.ready_frame.unwrap();
         p.x >= 0. && p.y >= 0. && p.x <= frame.plot.width && p.y <= frame.plot.height
     }
-    fn redraw(&self, window: &Window, cx: &mut App) {
+    pub(super) fn redraw(&self, window: &Window, cx: &mut App) {
+        let visibility_changed = self.sync_label_visibility();
         let handle = window.window_handle();
         let node = self.node;
         cx.defer(move |cx| {
             let _ = handle.update(cx, |root, window, cx| {
                 if let Ok(view) = root.downcast::<View>() {
                     view.update(cx, |view, cx| {
+                        if visibility_changed {
+                            view.sync_tooltips(window, cx);
+                        }
                         view.invalidate_resource_row(node);
                         cx.notify();
                     });
@@ -158,7 +165,11 @@ impl State {
         }
         let key = event.keystroke.key.as_str();
         if key == "tab" {
-            self.cancel_input(window);
+            if self.inspection_position().is_some() {
+                self.cancel_capture(window);
+            } else {
+                self.cancel_input(window);
+            }
             self.redraw(window, cx);
             return;
         }
@@ -205,28 +216,33 @@ impl State {
         }
         self.input.pointer = None;
         self.input.hover = None;
+        // An explicit command on the chart supersedes an older card's pointer
+        // retention. Keys dispatched to a child never reach this branch.
+        self.content.pointer_inside.set(false);
         self.redraw(window, cx);
         window.prevent_default();
         cx.stop_propagation();
     }
-    fn cancel_capture(&mut self, window: &mut Window) {
+    pub(super) fn cancel_capture(&mut self, window: &mut Window) {
         if let Some(capture) = self.input.capture.take()
             && window.captured_hitbox() == Some(capture)
         {
             window.release_pointer();
         }
     }
-    pub(super) fn input_overlay(&self) -> Option<gpui::AnyElement> {
+    pub(super) fn input_overlay(
+        &self,
+        custom: Option<(super::inspection_content::Position, gpui::AnyElement)>,
+    ) -> Option<gpui::AnyElement> {
         if self.closed || self.config.disabled || self.input.data_cursor.is_some() {
             return None;
         }
         let ready = self.ready.as_ref()?;
         let frame = self.ready_frame?;
-        let index = self
-            .input
-            .hover
-            .or(self.input.cursor)
-            .or(self.input.selected_index)?;
+        let index = custom
+            .as_ref()
+            .map(|(position, _)| position.index)
+            .or(self.input.preview_index())?;
         let details = crate::chart_details::describe_with_radar_labels(
             ready.snapshot.data(),
             &ready.config.sampling,
@@ -236,9 +252,18 @@ impl State {
             &self.config.radar_labels,
         )?;
         let selected = self.input.capture.is_none() && self.input.selected_index == Some(index);
-        let pointer = self.input.hover.and(self.input.pointer);
+        let pointer = custom
+            .as_ref()
+            .and_then(|(position, _)| position.pointer)
+            .or(self.input.hover.and(self.input.pointer));
+        let custom = custom.map(|(position, element)| inspection::Custom {
+            element,
+            container: position.container,
+            bounds: position.bounds,
+            focus: self.content.focus.clone(),
+        });
         Some(inspection::overlay(
-            ready, frame, details, selected, pointer,
+            ready, frame, details, selected, pointer, custom,
         ))
     }
 }
@@ -390,6 +415,10 @@ pub(super) fn paint(state: &Shared, hitbox: Option<Hitbox>, window: &mut Window)
             return;
         }
         let captured = state.input.capture;
+        let was_inside_content = state.content.pointer_inside.get();
+        if captured.is_none() && state.hold_inspection(event.position, window, cx) {
+            return;
+        }
         if captured.is_some_and(|capture| {
             window.captured_hitbox() != Some(capture)
                 || event.pressed_button != Some(MouseButton::Left)
@@ -409,7 +438,7 @@ pub(super) fn paint(state: &Shared, hitbox: Option<Hitbox>, window: &mut Window)
                 == gpuio_protocol::chart_inspection::Placement::Cursor;
         let moved_card = follows && pointer != state.input.pointer;
         state.input.pointer = pointer;
-        if next != state.input.hover || moved_card {
+        if next != state.input.hover || moved_card || was_inside_content {
             state.input.hover = next;
             state.input.cursor = None;
             state.redraw(window, cx);
@@ -425,6 +454,13 @@ pub(super) fn paint(state: &Shared, hitbox: Option<Hitbox>, window: &mut Window)
         }
         let mut state = up.borrow_mut();
         let Some(capture) = state.input.capture else {
+            if state.content.pointer_inside.replace(false) {
+                if !state.hold_inspection(event.position, window, cx) {
+                    state.input.hover = None;
+                    state.input.pointer = None;
+                }
+                state.redraw(window, cx);
+            }
             return;
         };
         let commit = state.valid_callback(&token, window, true)

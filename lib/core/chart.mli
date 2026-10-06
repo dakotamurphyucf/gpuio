@@ -96,8 +96,8 @@ module Expert : sig
   (** Supplies metadata for the ordinary retained children emitted by [View.chart]. *)
   val with_radar_labels : Config.t -> _ Chart_radar_labels.t -> Config.t
 
-  (** Preparatory retained-slot metadata. Rendering and [View.chart] attachment
-      are not yet implemented. Binding preserves the configuration's data owner. *)
+  (** Supplies metadata for [View.chart]'s retained inspection children.
+      Binding preserves the configuration's data owner. *)
   val with_inspection_content : Config.t -> _ Chart_inspection_content.t -> Config.t
 
   val to_wire

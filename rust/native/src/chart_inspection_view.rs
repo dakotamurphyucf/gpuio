@@ -6,6 +6,33 @@ use crate::{
 use gpui::StatefulInteractiveElement;
 use gpui::{AnyElement, InteractiveElement, IntoElement, ParentElement, Styled, div, px};
 use gpuio_protocol::chart_inspection::{Axis, Card, Pattern, Placement, Span};
+use std::{cell::Cell, rc::Rc};
+
+pub(super) struct Custom {
+    pub element: AnyElement,
+    pub container: gpuio_protocol::chart_inspection_content::Container,
+    pub focus: gpui::FocusHandle,
+    pub bounds: Rc<Cell<Option<gpui::Bounds<gpui::Pixels>>>>,
+}
+
+fn track_bounds(bounds: Rc<Cell<Option<gpui::Bounds<gpui::Pixels>>>>) -> AnyElement {
+    gpui::canvas(
+        move |rect, window, _| {
+            let clipped = rect
+                .intersect(&window.content_mask().bounds)
+                .intersect(&window.fully_visible_bounds());
+            bounds.set(
+                (clipped.size.width > px(0.) && clipped.size.height > px(0.)).then_some(clipped),
+            );
+        },
+        |_, _, _, _| {},
+    )
+    .absolute()
+    .top_0()
+    .left_0()
+    .size_full()
+    .into_any_element()
+}
 
 #[derive(Debug)]
 struct CardBox {
@@ -88,6 +115,7 @@ pub(super) fn overlay(
     details: Details,
     selected: bool,
     pointer: Option<Point>,
+    custom: Option<Custom>,
 ) -> AnyElement {
     let style = &ready.config.style;
     let inspection = *style.inspection;
@@ -173,6 +201,63 @@ pub(super) fn overlay(
     }
     let config = inspection.card;
     if config.visible {
+        if let Some(custom) = custom {
+            let mut card = div()
+                .id("gpuio-chart-custom-details")
+                .role(gpui::Role::Group)
+                .aria_label(format!("{}: {}", details.title, details.text))
+                .track_focus(&custom.focus)
+                .absolute()
+                .overflow_hidden()
+                .block_mouse_except_scroll();
+            match custom.container {
+                gpuio_protocol::chart_inspection_content::Container::Overlay => {
+                    card = card
+                        .left(px(frame.plot.x as f32))
+                        .top(px(frame.plot.y as f32))
+                        .w(px(frame.plot.width as f32))
+                        .h(px(frame.plot.height as f32));
+                }
+                gpuio_protocol::chart_inspection_content::Container::Card => {
+                    let box_ = card_box(
+                        frame,
+                        card_anchor(config.placement, anchor, pointer),
+                        config,
+                    );
+                    let color = config
+                        .text_color
+                        .map_or(style.label_color as u32, |c| c as u32);
+                    let background = config
+                        .background
+                        .map_or(crate::chart_presentation::label_backing(color), |c| {
+                            c as u32
+                        });
+                    card = card
+                        .left(px(box_.left as f32))
+                        .w(px(box_.width as f32))
+                        .max_h(px(box_.max_height as f32))
+                        .p(px(config.padding as f32))
+                        .rounded(px(config.radius as f32))
+                        .bg(gpui::rgba(background))
+                        .text_color(gpui::rgba(color))
+                        .text_size(px(config.font_size as f32))
+                        .line_height(px(config.line_height as f32))
+                        .border(px(config.border_width as f32))
+                        .border_color(gpui::rgba(config.border_color.map_or(color, |c| c as u32)));
+                    if let Some(top) = box_.top {
+                        card = card.top(px(top as f32));
+                    }
+                    if let Some(bottom) = box_.bottom {
+                        card = card.bottom(px(bottom as f32));
+                    }
+                }
+            }
+            result = result.child(
+                card.child(track_bounds(custom.bounds))
+                    .child(custom.element),
+            );
+            return result.into_any_element();
+        }
         let box_ = card_box(
             frame,
             card_anchor(config.placement, anchor, pointer),

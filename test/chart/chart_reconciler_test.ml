@@ -185,3 +185,69 @@ let%expect_test "chart reconciliation fences replaced handlers and foreign sourc
   print_endline "callback refresh, config rotation, ownership and unmount fences pass";
   [%expect {| callback refresh, config rotation, ownership and unmount fences pass |}]
 ;;
+
+let%expect_test
+    "inspection wrappers retain identity across order, caption and container changes"
+  =
+  let module C = Gpuio.Chart_inspection_content in
+  let owner = Scene.Expert.Owner.create () in
+  let config = Chart.Config.create ~data:(Scene.Expert.handle ~owner source) () |> ok in
+  let r = R.create ~chart_owner:owner window in
+  let prepare entries =
+    let inspection_content =
+      List.map entries ~f:(fun (id, caption, container) ->
+        C.Entry.create
+          ~target:(C.Target.slice (Gpuio.Chart_data.Datum_id.of_int64 id |> ok))
+          ~container
+          (Gpuio.View.button ~on_click:(fun () -> id) caption))
+      |> C.create
+      |> ok
+    in
+    R.prepare
+      r
+      ~theme:Gpuio.Theme.default
+      (Some (Gpuio.View.chart ~inspection_content config))
+    |> ok
+  in
+  let initial = prepare [ 7L, "same", C.Container.Card; 9L, "same", Overlay ] in
+  let buttons =
+    List.filter_map (operations initial) ~f:(function
+      | Create (node, Button, _, Some handler) ->
+        Some (node, Wire.Event.Press (window, node, handler, 1L))
+      | _ -> None)
+  in
+  assert (List.length buttons = 2);
+  R.accept r initial |> ok;
+  let first, event =
+    List.find_exn buttons ~f:(fun (_, e) ->
+      Option.equal Int64.equal (R.dispatch r e) (Some 7L))
+  in
+  let reordered = prepare [ 9L, "same", Card; 7L, "same", Overlay ] in
+  assert (
+    not
+      (List.exists (operations reordered) ~f:(function
+         | Create _ | Remove _ -> true
+         | _ -> false)));
+  R.accept r reordered |> ok;
+  assert (Option.equal Int64.equal (R.dispatch r event) (Some 7L));
+  let renamed = prepare [ 9L, "same", Card; 7L, "new caption", Overlay ] in
+  assert (
+    List.exists (operations renamed) ~f:(function
+      | Set_text (node, "new caption") -> Gpuio_protocol.Node_id.equal node first
+      | _ -> false));
+  assert (
+    not
+      (List.exists (operations renamed) ~f:(function
+         | Create _ | Remove _ | Set_chart _ -> true
+         | _ -> false)));
+  R.accept r renamed |> ok;
+  let removed = prepare [ 9L, "same", Card ] in
+  R.accept r removed |> ok;
+  assert (Option.is_none (R.dispatch r event));
+  R.close r;
+  print_endline
+    "stable target keys; order/container preserve controls; text-only updates avoid \
+     chart config; removal retires callbacks";
+  [%expect
+    {| stable target keys; order/container preserve controls; text-only updates avoid chart config; removal retires callbacks |}]
+;;

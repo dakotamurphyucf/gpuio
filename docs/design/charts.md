@@ -762,4 +762,7 @@ earlier sections' current-version references, without rewriting their evidence.
 
 This is transport/admission support. Public `View.chart` attachment, arbitrary
 content rendering, interactive lifetime handling and gallery qualification are
-still required. Existing applications submit an empty inspection list.
+still required at that checkpoint. The subsequent [initial renderer](../evidence/chart-inspection-renderer-och41.md)
+adds experimental `View.chart` attachment and native Card/Overlay content with
+ordinary-button/focus/retirement evidence. Broader child-widget and public-gallery
+qualification remains open. Existing applications default to an empty inspection list.

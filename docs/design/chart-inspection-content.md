@@ -1,10 +1,11 @@
 # Rich chart inspection content
 
-OCH-41, 2026-10-06. Implementation contract in progress. The first increment
-introduces validated target/content values and paired metadata codecs. The next
-increment carries them through chart-view schema -2 with retained-tree admission;
-attachment to `View.chart`, native rendering/interaction and gallery qualification remain
-required. This document does not claim those integration steps are implemented.
+OCH-41, 2026-10-06. Implementation contract in progress. Validated target/content
+values and paired metadata codecs use chart-view schema -2 with retained-tree
+admission. `View.chart` attachment and an experimental native Card/Overlay adapter
+are now implemented. [Initial interaction evidence](../evidence/chart-inspection-renderer-och41.md)
+covers ordinary buttons and target/focus retention; broader widget/lifecycle,
+rich-row helpers and public-gallery qualification remain required.
 
 ## Source capability and interface
 
@@ -23,7 +24,7 @@ separate identities. Duplicate targets are rejected, regardless of container.
 The collection never serializes its generic content: ordinary retained-tree
 operations will carry the actual View children.
 
-The intended `View.chart ~inspection_content` attachment will coexist with
+The `View.chart ~inspection_content` attachment coexists with
 `~radar_labels`. Each target owns an internal wrapper keyed by target identity,
 not entry order, caption or current hover index. Normal child keys remain local
 to that wrapper. A convenience function for title/swatch/label/value rows will
@@ -110,12 +111,26 @@ an empty-text Container with one child. Radar wrappers precede inspection wrappe
 The parent can hold at most 64 + 128 wrappers; normal node/depth budgets still apply.
 
 `Chart.Expert.with_inspection_content` binds the generic collection to the config's
-borrowed data identity. This is preparatory transport support, not a public
-`View.chart` content argument. Existing applications submit an empty inspection
-list. The current native label renderer visits only radar wrappers; inspection
-wrappers remain hidden until the full renderer/lifecycle adapter is installed.
-Later attachment must preserve this partition and resource accounting. Neither
-successful metadata decoding nor retained-tree admission qualifies rendering.
+borrowed data identity. `View.chart` emits separately keyed radar and inspection
+wrappers, preserving child identity across collection reorder and container changes.
+Existing applications submit an empty inspection list. The native adapter combines
+eligible radar slots and the one active inspection slot in the chart's visibility
+gate; unmatched inspection wrappers stay retained but hidden. Ordinary child changes
+use normal reconciliation without a chart-data publication or preparation request.
+
+The initial adapter holds a custom target while the pointer is inside its clipped
+container, a child has focus, or an existing child capture continues. Overlay uses
+the entire plot as that container. Explicit navigation on the chart releases pointer
+retention, so a resting pointer cannot prevent arrow/Home/End navigation or Escape.
+Tab can enter an uncommitted preview without emitting a committed selection. Child
+focus routes editing keys through ordinary controls. Source removal overrides
+retention before paint; exact-ID children may remain eligible while new geometry
+for a reordered publication is pending. Aggregate identity remains publication-bound.
+
+These are implemented policies with scoped evidence, not complete acceptance of all
+arbitrary child widgets. Native editor/IME, queued AX/command/popup, clipping,
+aggregate and multi-window interaction combinations still need qualification.
+Neither successful metadata decoding nor retained-tree admission qualifies rendering.
 
 ## Required evidence
 

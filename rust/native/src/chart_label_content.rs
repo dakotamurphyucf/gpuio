@@ -71,8 +71,11 @@ impl State {
     }
 
     pub(super) fn hidden_labels(&self) -> Vec<NodeId> {
-        let shown: std::collections::BTreeSet<_> =
+        let mut shown: std::collections::BTreeSet<_> =
             self.label_positions().iter().map(|p| p.node).collect();
+        if let Some(position) = self.inspection_position() {
+            shown.insert(position.node);
+        }
         self.label_slots
             .iter()
             .copied()

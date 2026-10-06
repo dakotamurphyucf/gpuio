@@ -5,20 +5,28 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **O
 Markdown walkthroughs for every example component; its documentation acceptance is complete. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
+[Initial inspection rendering](evidence/chart-inspection-renderer-och41.md) adds
+experimental `View.chart ~inspection_content` attachment and ordinary child Views
+in Card/Overlay containers. Native button pixels/input, uncommitted Tab navigation,
+focused stable-ID reorder and stale gesture retirement pass locally. The regression
+also exposed and repaired pointer retention overriding chart keyboard navigation.
+Broader child-widget/lifecycle and public-gallery qualification remain open.
+
 [Inspection parent admission](evidence/chart-inspection-parent-och41.md) now
 carries bounded inspection metadata in chart-view schema -2, with combined
 radar/content wrapper validation and retained-memory accounting. Paired expects,
 453 protocol tests, four chart-tree tests, 1,052 native tests, strict lint,
 the existing hidden-window chart regression and full Dune checks pass locally.
-Public View attachment and arbitrary-content rendering/interaction remain open.
+That checkpoint predates the experimental attachment/renderer above; broader
+interaction qualification remains open.
 Current view/options/style/data schemas are -2/9/-7/1; matching packages are required.
 
 [Rich inspection content foundations](evidence/chart-inspection-content-foundation-och41.md)
 add validated OCaml target/content values and paired standalone metadata codecs.
 Exact IDs survive reorder; aggregate content binds the source, application and
 publication. Focused expect tests, 452 protocol tests, strict workspace lint and
-full Dune checks pass. `View.chart` attachment, native interactive content and
-gallery qualification remain required. That checkpoint kept the older parent
+full Dune checks pass. Attachment/native rendering advance in the later checkpoint
+above; broader interaction and gallery qualification remain required. That checkpoint kept the older parent
 schema; the subsequent admission increment above advances it to -2.
 
 [Pie leader density regression](evidence/pie-leader-density-och41.md) reproduces

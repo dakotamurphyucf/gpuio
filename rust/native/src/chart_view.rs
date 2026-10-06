@@ -12,17 +12,19 @@ use gpuio_protocol::{
 #[path = "chart_input.rs"]
 mod input;
 
+#[path = "chart_inspection_content.rs"]
+mod inspection_content;
 #[path = "chart_label_content.rs"]
 mod label_content;
 
 pub(super) struct State {
     input: input::Input,
+    content: inspection_content::Content,
     node: NodeId,
     window: WindowId,
     config: Arc<Config>,
-    // Combined retained wrappers: radar first, then inspection content. The
-    // current label renderer visits only radar slots; remaining slots stay gated
-    // until the inspection content adapter supplies eligible positions.
+    // Combined retained wrappers: radar first, then inspection content. Each
+    // adapter contributes its eligible slots to the chart's shared hidden set.
     label_slots: Arc<[NodeId]>,
     handler: Option<HandlerId>,
     revision: i64,
@@ -78,6 +80,7 @@ impl State {
         }
     }
     fn suspend(&mut self, window: &mut Window) {
+        self.content.clear();
         self.input
             .gate
             .borrow_mut()
@@ -108,7 +111,17 @@ impl State {
     fn configure(&mut self, node: &crate::tree::Node, revision: i64, window: &mut Window) {
         let config = node.chart.as_ref().expect("validated chart");
         if self.handler != node.handler || self.config != *config {
-            self.cancel_input(window);
+            if self.config.source != config.source
+                || self.config.options != config.options
+                || self.config.sampling != config.sampling
+                || self.config.style != config.style
+                || self.config.legend != config.legend
+                || self.config.disabled != config.disabled
+            {
+                self.cancel_input(window);
+            } else {
+                self.cancel_capture(window);
+            }
             self.input.token = Rc::new(());
             self.reported_ready = None;
             self.reported_failure = None;
@@ -554,6 +567,7 @@ impl View {
                 .or_insert_with(|| {
                     let state = Rc::new(RefCell::new(State {
                         input: input::Input::new(self.focus.clone(), cx),
+                        content: inspection_content::Content::new(cx),
                         node: *id,
                         window: self.id,
                         config: node.chart.clone().unwrap(),
@@ -575,6 +589,7 @@ impl View {
                         session: Rc::downgrade(&self.session),
                     }));
                     input::install_blur(&state, window, cx);
+                    inspection_content::install(&state, window, cx);
                     state
                 })
                 .borrow_mut()
@@ -669,7 +684,12 @@ impl View {
             })
             .collect();
         let labels = label_content::element(labels, self.focus.clone());
-        let overlay = state.borrow().input_overlay();
+        let position = state.borrow().inspection_position();
+        let custom = position.map(|position| {
+            let child = inspection_content::element(self, tree, &position, interaction, window, cx);
+            (position, child)
+        });
+        let overlay = state.borrow().input_overlay(custom);
         let data_view = input::data_element(state.clone());
         let element = input::keyboard(element, state.clone());
         let prepaint = state.clone();

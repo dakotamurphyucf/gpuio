@@ -1,0 +1,174 @@
+{
+  "source_base": "97c2d135911ccd3a512deb95a28332d6ec069901",
+  "scope": "Experimental retained inspection Card/Overlay adapter; scoped native button, focus and target-lifetime evidence, broader qualification still open",
+  "source_files": [
+    {
+      "path": "lib/bonsai/gpuio_bonsai.mli",
+      "bytes": 25224,
+      "sha256": "3bd56b0d4278ae4aa8785afbdca40c98905403b2a34ab05c30e95728c10fc0c1"
+    },
+    {
+      "path": "lib/core/chart.mli",
+      "bytes": 4285,
+      "sha256": "9fd701d81a5057c16d79f9914abf84ed31cfdf5c4e696d8c2f0596a54b915699"
+    },
+    {
+      "path": "lib/core/chart_inspection_content.mli",
+      "bytes": 2751,
+      "sha256": "868a414bf3428a8b98e744ff6fc8c3d6a772e2744300d17f9ba11d7f0ccf8dd7"
+    },
+    {
+      "path": "lib/core/view.ml",
+      "bytes": 119364,
+      "sha256": "d3d29ed5b48d4f5a664dcc61c3bbb3ce741830c14643a7b86e77391454f52fb5"
+    },
+    {
+      "path": "lib/core/view.mli",
+      "bytes": 80367,
+      "sha256": "6775e6e0f4bb82e43cd6b92c385396380dcbbccc122606f821470b8791b0f525"
+    },
+    {
+      "path": "rust/native/src/chart_input.rs",
+      "bytes": 18798,
+      "sha256": "58747e4956f24c0130b346dcb78e322e4ef02667480150adf6a00d1738ef0eaf"
+    },
+    {
+      "path": "rust/native/src/chart_input_test.rs",
+      "bytes": 15875,
+      "sha256": "b8a9fde807337b93a2488f0db39bf894941a444c59ce98b075754ca8e590258c"
+    },
+    {
+      "path": "rust/native/src/chart_inspection_content.rs",
+      "bytes": 14450,
+      "sha256": "40e10d44a7e7b65fe761077b475894df90327ac1c003c108f1e03414ddeb474a"
+    },
+    {
+      "path": "rust/native/src/chart_inspection_content_test.rs",
+      "bytes": 10551,
+      "sha256": "2132c68f1c508accc35d3588c0d60bd91de940f46b52cd26aec4d8a3400381c1"
+    },
+    {
+      "path": "rust/native/src/chart_inspection_view.rs",
+      "bytes": 18181,
+      "sha256": "75c29b2f2b0cca914486318a2be09fb29fa2769de8d1ac3537438f07b15a7074"
+    },
+    {
+      "path": "rust/native/src/chart_label_content.rs",
+      "bytes": 5149,
+      "sha256": "ff8a4dd964231af6fb12158e9c054f14c2a3c31c14dfaf02ae75b8f3a3ca0a45"
+    },
+    {
+      "path": "rust/native/src/chart_view.rs",
+      "bytes": 29886,
+      "sha256": "8027c55d063d65eff95a7cd3e28d5c6a804eb85a159b0133dfa6fdc0924cc104"
+    },
+    {
+      "path": "test/chart/chart_reconciler_test.ml",
+      "bytes": 9299,
+      "sha256": "f7a454e0601358b842847fdc8b0224d6c67351b61625ac35332d42bd71f2ca52"
+    }
+  ],
+  "files": [
+    {
+      "path": "chart-expect.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "dune-all.log",
+      "bytes": 705847,
+      "sha256": "37cb8d5a9157d3e57a74e418b224bbf7639382fd2b30fa031e7ede18ca1c02b2"
+    },
+    {
+      "path": "environment.txt",
+      "bytes": 188,
+      "sha256": "9de2cafa516c2b20d2fec18396aff243c3ddb7210252288c2084139d142bd804"
+    },
+    {
+      "path": "final-native-clippy.log",
+      "bytes": 588275,
+      "sha256": "892658b7d1096e6e561883af41309cb1da34d867a92b629dcfe605a00c5daad7"
+    },
+    {
+      "path": "final-native-units.log",
+      "bytes": 700465,
+      "sha256": "e86ad336d8cc8ce86f65e941a26dc8134319e682346cb98a9f3a5c7ce80050aa"
+    },
+    {
+      "path": "final-ocaml-fmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "final-results.json",
+      "bytes": 1028,
+      "sha256": "f4a3c137e9f7f39536043ee40803c5d926ff76fe5292dd359cfbe3f78d735a57"
+    },
+    {
+      "path": "final-rust-fmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "native-check.log",
+      "bytes": 588275,
+      "sha256": "0c68ac1c0fe200efd903ee30ccfe500283960f4ca126e63ab59539fce8920419"
+    },
+    {
+      "path": "native-clippy.log",
+      "bytes": 588275,
+      "sha256": "d75fc32238a6dac8aac5264b508ed21bee956c6577209651207da0d32f971e85"
+    },
+    {
+      "path": "native-input-first-fixture-failure.log",
+      "bytes": 590083,
+      "sha256": "eed509779ca7450875ebb76eff5f858635536620e578d6afd035d068696af904"
+    },
+    {
+      "path": "native-input-keyboard-fix.log",
+      "bytes": 590267,
+      "sha256": "9c0663ed4089a52d4c206afa777e2ac15fad0d4a6b07cba18959df0bbdc6d1ad"
+    },
+    {
+      "path": "native-input-preview.log",
+      "bytes": 590083,
+      "sha256": "c1fe740b1e8a1a39f82cc345085dd1edf1a8570d290e206c97739d080009e1dd"
+    },
+    {
+      "path": "native-input-runs.json",
+      "bytes": 1029,
+      "sha256": "81d821f1ed711f545f8f7dcbdfa7330649210386fd6d36c76c1adecd1b87ab38"
+    },
+    {
+      "path": "native-input-second.log",
+      "bytes": 590267,
+      "sha256": "ad04a9b55ae863c7165b230bd92dc7b1825ddd8d70a4be61f6ee620534ccf5eb"
+    },
+    {
+      "path": "native-units.log",
+      "bytes": 700465,
+      "sha256": "c0ef1975bf27520c5d77c21a00880de55fafb5e4e417dee96b882148b2a02e76"
+    },
+    {
+      "path": "ocaml-fmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "qualification-results.json",
+      "bytes": 860,
+      "sha256": "69f1521eb7d2bd2dada07371cff13c26534c7866658d0f6c38e8101ac41fcac0"
+    },
+    {
+      "path": "results.json",
+      "bytes": 1257,
+      "sha256": "3bc65c38a09dd163a3de0bd0d6af4487c9aa8265aa057eb81d52e8f349197e20"
+    },
+    {
+      "path": "rust-fmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "archive_sha256": "7389d31417941a23b2cccdb285d19d6f90b7aa7c4a9284895e0cfd59e320055e"
+}

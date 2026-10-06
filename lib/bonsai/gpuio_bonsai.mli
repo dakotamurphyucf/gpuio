@@ -70,6 +70,7 @@ module View : sig
     -> ?style:Gpuio.Style.t
     -> ?on_event:(Gpuio.Chart.Event.t -> unit Bonsai.Effect.t)
     -> ?radar_labels:t Gpuio.Chart_radar_labels.t
+    -> ?inspection_content:t Gpuio.Chart_inspection_content.t
     -> Gpuio.Chart.Config.t
     -> t
 

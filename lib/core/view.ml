@@ -628,9 +628,11 @@ let chart
       ?(style = Style.empty)
       ?on_event
       ?(radar_labels = Chart_radar_labels.empty)
+      ?(inspection_content = Chart_inspection_content.empty)
       config
   =
   let config = Chart.Expert.with_radar_labels config radar_labels in
+  let config = Chart.Expert.with_inspection_content config inspection_content in
   let children =
     List.map (Chart_radar_labels.Expert.entries radar_labels) ~f:(fun entry ->
       let axis = Chart_radar_labels.Entry.axis entry |> Chart_data.Datum_id.to_int64 in
@@ -640,10 +642,24 @@ let chart
       ; children = [ Chart_radar_labels.Entry.content entry ]
       })
   in
+  let inspection_children =
+    List.map (Chart_inspection_content.Expert.entries inspection_content) ~f:(fun entry ->
+      let target = Chart_inspection_content.Entry.target entry in
+      let identity =
+        Chart_inspection_content.Target.Expert.to_wire target
+        |> Gpuio_protocol.Chart_inspection_content_wire.Target.sexp_of_t
+        |> Sexp.to_string_mach
+      in
+      { (text "") with
+        kind = Container
+      ; structural_key = Some ("chart-inspection", identity)
+      ; children = [ Chart_inspection_content.Entry.content entry ]
+      })
+  in
   { (text ?key ~style "") with
     kind = Chart_view
   ; chart = Some { config; on_event }
-  ; children
+  ; children = children @ inspection_children
   }
 ;;
 

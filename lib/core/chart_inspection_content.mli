@@ -2,8 +2,8 @@ open Core
 
 (** Declarative content keyed to an inspected chart target. Metadata contains
     source identities but no callback or native pointer; ordinary Views supply
-    the content. These
-    values are preparatory: [View.chart] attachment is not yet implemented. *)
+    the content through [View.chart ~inspection_content]. Native arbitrary-child
+    integration is experimental; broader widget/lifecycle qualification is ongoing. *)
 module Target : sig
   type t [@@deriving equal, sexp_of]
 

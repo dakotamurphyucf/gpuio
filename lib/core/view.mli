@@ -70,12 +70,20 @@ val with_text_shimmer
     natively at natural size. Normal View styles control sizing and wrapping.
     Content clips to the chart; oversized labels may overlap. Missing axes,
     hidden radar labels and the original-data browser hide retained content.
-    Custom content owns its styling; chart label color affects default text only. *)
+    Custom content owns its styling; chart label color affects default text only.
+
+    [inspection_content] retains target-keyed ordinary Views for native inspection.
+    Matched targets replace the native summary with a Card or plot-sized Overlay;
+    unmatched targets retain the native summary. Pointer entry and child focus
+    retain the target, while explicit chart navigation or target retirement ends
+    that retention. Child content changes do not publish chart data.
+    This adapter is experimental and under broader native interaction qualification. *)
 val chart
   :  ?key:Key.t
   -> ?style:Style.t
   -> ?on_event:(Chart.Event.t -> 'action)
   -> ?radar_labels:'action t Chart_radar_labels.t
+  -> ?inspection_content:'action t Chart_inspection_content.t
   -> Chart.Config.t
   -> 'action t
 
