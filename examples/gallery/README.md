@@ -1046,3 +1046,6 @@ resets it. [Evidence](../../docs/evidence/document-profile-scroll-och41.md#publi
 
 The chart page also includes [typed categorical samples](../charts/samples/categorical.md)
 with native point/band layout, equal labels with distinct IDs and missing values.
+
+The [stacked chart sample](../charts/samples/stacked.md) demonstrates aligned bars/areas, signed
+values, missing observations and a Grouped/Stacked presentation toggle.

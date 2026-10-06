@@ -63,6 +63,11 @@ impl CategoryLayout {
         }
     }
 }
+#[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
+pub enum Stacking {
+    Grouped,
+    Stacked,
+}
 #[derive(Clone, Copy, Debug, PartialEq, BinProtWrite)]
 pub struct Cartesian {
     pub curve: Curve,
@@ -70,6 +75,7 @@ pub struct Cartesian {
     pub orientation: Orientation,
     pub bar_width: f64,
     pub category_layout: CategoryLayout,
+    pub stacking: Stacking,
 }
 #[derive(Clone, Copy, Debug, PartialEq, BinProtWrite)]
 pub struct Pie {
@@ -126,7 +132,7 @@ fn fraction(n: f64) -> bool {
 }
 impl Options {
     pub fn is_valid(&self) -> bool {
-        self.version == 2
+        self.version == 3
             && (2..=12).contains(&self.axes.ticks)
             && self.axes.x_format.is_valid()
             && self.axes.y_format.is_valid()
@@ -144,7 +150,7 @@ impl Options {
 impl Default for Options {
     fn default() -> Self {
         Self {
-            version: 2,
+            version: 3,
             axes: Axes {
                 x: true,
                 y: true,
@@ -159,6 +165,7 @@ impl Default for Options {
                 orientation: Orientation::Vertical,
                 bar_width: 0.8,
                 category_layout: CategoryLayout::Auto,
+                stacking: Stacking::Grouped,
             },
             pie: Pie {
                 inner_radius: 0.,

@@ -148,6 +148,73 @@ fn cases() -> Vec<Case> {
             samples,
         );
     }
+    for (orientation, suffix) in [
+        (gpuio_protocol::chart_options::Orientation::Vertical, 0),
+        (gpuio_protocol::chart_options::Orientation::Horizontal, 1),
+        (
+            gpuio_protocol::chart_options::Orientation::VerticalReversed,
+            2,
+        ),
+        (
+            gpuio_protocol::chart_options::Orientation::HorizontalReversed,
+            3,
+        ),
+    ] {
+        for area in [false, true] {
+            let mut a = series();
+            let mut b = series();
+            b.id = 2;
+            for p in &mut a.points {
+                p.y = Some(1.);
+            }
+            for p in &mut b.points {
+                p.y = Some(2.);
+            }
+            let wrap = if area {
+                data::Layer::Area
+            } else {
+                data::Layer::Bar
+            };
+            let mut options = options();
+            options.cartesian.stacking = gpuio_protocol::chart_options::Stacking::Stacked;
+            options.cartesian.orientation = orientation;
+            let names = if area {
+                [
+                    "stack-area-up",
+                    "stack-area-right",
+                    "stack-area-down",
+                    "stack-area-left",
+                ]
+            } else {
+                [
+                    "stack-bar-up",
+                    "stack-bar-right",
+                    "stack-bar-down",
+                    "stack-bar-left",
+                ]
+            };
+            let at = |fraction: f32, red, blue| {
+                let fraction = if orientation.is_reversed() {
+                    1. - fraction
+                } else {
+                    fraction
+                };
+                if orientation.is_horizontal() {
+                    sample(200. * fraction, 80., red, 0, blue)
+                } else {
+                    sample(100., 160. * (1. - fraction), red, 0, blue)
+                }
+            };
+            let value = if area { 64 } else { 255 };
+            add(
+                names[suffix],
+                dataset(data::Contents::Cartesian(vec![wrap(a), wrap(b)])),
+                options,
+                style(),
+                vec![at(0.2, value, 0), at(0.7, 0, value)],
+            );
+        }
+    }
     let category_data = |bar| {
         let categories = [42, 7, 99]
             .into_iter()

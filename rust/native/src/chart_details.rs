@@ -82,7 +82,7 @@ pub(crate) fn describe(
                 return None;
             }
             let value = match plan.summary(index) {
-                Some(Summary::Bar(value)) => value,
+                Some(Summary::Bar(value) | Summary::Stacked { value, .. }) => value,
                 None if count == 1 => first.y?,
                 _ => return None,
             };
@@ -125,6 +125,15 @@ pub(crate) fn describe(
                 } else {
                     format!("{label}x: {}\ny: {}", x(first.x), y(value))
                 }
+            };
+            let text = if let Some(Summary::Stacked { lower, upper, .. }) = plan.summary(index) {
+                format!(
+                    "{text}\nStack baseline: {}\nStack endpoint: {}",
+                    y(lower),
+                    y(upper)
+                )
+            } else {
+                text
             };
             (series.name.to_owned(), text)
         }

@@ -4605,6 +4605,27 @@ def exercise_charts(mac, images):
         mac.release(mac.wait_find(TITLE, f'Row {originals}:', 'AXRow', contains=True, search_files=True))
         mac.press(TITLE, 'Back to chart')
         mac.release(mac.wait_find(TITLE, 'View data', 'AXButton'))
+    for family in ['Stacked bars', 'Stacked areas']:
+        mac.press(TITLE, family)
+        mac.wait_text(TITLE, f'Ready: {family} · 15 source values · Vertical · Stacked')
+        focus_gallery_control(mac, 'Chart preview: ' + family, 'AXGroup')
+        mac.key(115)
+        mac.key(36)
+        mac.wait_text(TITLE, 'Selected: Completed · Mon (category 42) · value 30')
+        activate(mac, mac.wait_find(TITLE, 'Stack layers', 'AXCheckBox'))
+        mac.wait_text(TITLE, f'Ready: {family} · 15 source values · Vertical · Grouped')
+        mac.wait_text(TITLE, 'Selected: Completed · Mon (category 42) · value 30')
+        activate(mac, mac.wait_find(TITLE, 'Stack layers', 'AXCheckBox'))
+        mac.wait_text(TITLE, f'Ready: {family} · 15 source values · Vertical · Stacked')
+        mac.press(TITLE, 'View data')
+        mac.release(mac.wait_find(TITLE, 'Category: Wed (99) · value: Missing', contains=True, search_files=True))
+        mac.key(119)
+        mac.release(mac.wait_find(TITLE, 'Row 15:', 'AXRow', contains=True, search_files=True))
+        mac.press(TITLE, 'Back to chart')
+        mac.press(TITLE, 'Update chart samples')
+        mac.wait_text(TITLE, 'Selected: Completed · Mon (category 42) · value 31')
+        if images:
+            screenshot(mac, images / ('gallery-chart-' + family.lower().replace(' ', '-') + '.png'), title=TITLE)
     mac.press(TITLE, 'Categorical')
     mac.wait_text(TITLE, 'Ready: Categorical · 8 source values · Vertical · Auto categories')
     for layout in ['Point categories', 'Band categories', 'Auto categories']:
@@ -4678,7 +4699,7 @@ def exercise_charts(mac, images):
     wait_for_resource_cleanup(mac)
     mac.wait_text(TITLE, 'Registered source bytes: 0')
     print('GALLERY_CHARTS_OK: seven families plus mixed layers, four Cartesian directions, native keyboard selection, '
-          'categorical point/band layout, missing values and category identity, data updates, bounded original-data pages, styles and scope cleanup', flush=True)
+          'categorical point/band layout, stacked bars/areas with retained selection and raw missing values, category identity, data updates, bounded original-data pages, styles and scope cleanup', flush=True)
 
 
 class GalleryMouse:

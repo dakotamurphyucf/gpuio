@@ -123,3 +123,16 @@ in this page translates Bonsai control state into Auto/Point/Band options. Nativ
 preparation owns their geometry. Changing layout preserves data and selection;
 Update publishes new values with stable IDs. Original-data browsing distinguishes
 the repeated labels by category ID and retains the missing observation.
+
+## Stacking
+
+The Stacked bars and Stacked areas modes share a [pure sample](../charts/samples/stacked.md)
+with stable category/datum IDs, a missing Wednesday value, signed adjustments and
+an independent Target line. A separate Bonsai toggle defaults to stacking; it
+switches `Chart_options.Stacking.Stacked` / `Grouped` only for these modes.
+The existing family and mixed examples retain their default unstacked behavior.
+Raw selection, scoped publication and original-data browsing use the same paths
+as the categorical example. Native tooltips distinguish the value from cumulative
+bounds. The [contract](../../docs/design/stacked-charts.md) explains shared area
+curves and the deliberate difference between signed accumulation and divergent
+positive/negative stacking.

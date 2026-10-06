@@ -33,7 +33,7 @@ let%expect_test "default chart options match independent fixed-width wire fixtur
      |> List.map ~f:(fun c -> sprintf "%02x" (Char.to_int c))
      |> String.concat);
   [%expect
-    {| 020101010500000000009a9999999999e93f000000000000000000000000000000000001040101666666666666e63f0000000000003040000000000000284003000601 |}]
+    {| 030101010500000000009a9999999999e93f00000000000000000000000000000000000001040101666666666666e63f0000000000003040000000000000284003000601 |}]
 ;;
 
 let%expect_test "typed construction rejects invalid geometry and formatting bounds" =
@@ -60,6 +60,7 @@ let%expect_test "typed construction rejects invalid geometry and formatting boun
   let wire = O.Expert.to_wire O.default in
   List.iter
     [ { wire with version = 1L }
+    ; { wire with version = 2L }
     ; { wire with axes = { wire.axes with x_format = Fixed 7L } }
     ; { wire with pie = { wire.pie with inner_radius = Float.nan } }
     ; { wire with sankey = { wire.sankey with iterations = Int64.max_value } }
@@ -122,11 +123,27 @@ let%expect_test "category layout options validate padding and append paired payl
     Bin_prot.Utils.bin_dump W.bin_writer_t (O.Expert.to_wire config)
     |> Bigstring.to_string
   in
-  assert (Char.to_int bytes.[0] = 2);
+  assert (Char.to_int bytes.[0] = 3);
   print_endline
     (String.sub bytes ~pos:18 ~len:9
      |> String.to_list
      |> List.map ~f:(fun c -> sprintf "%02x" (Char.to_int c))
      |> String.concat);
   [%expect {| 01000000000000e03f |}]
+;;
+
+let%expect_test "stacking is opt-in with a paired versioned wire tag" =
+  List.iter
+    [ O.Stacking.Grouped, 0; Stacked, 1 ]
+    ~f:(fun (stacking, tag) ->
+      let options =
+        O.create ~cartesian:(O.Cartesian.create ~stacking () |> Or_error.ok_exn) ()
+      in
+      let wire = O.Expert.to_wire options in
+      assert (O.equal options (O.Expert.of_wire wire |> Or_error.ok_exn));
+      let bytes = Bin_prot.Utils.bin_dump W.bin_writer_t wire |> Bigstring.to_string in
+      assert (Char.to_int bytes.[0] = 3);
+      assert (Char.to_int bytes.[19] = tag));
+  print_endline "options v3: grouped=0 stacked=1; default grouped";
+  [%expect {| options v3: grouped=0 stacked=1; default grouped |}]
 ;;

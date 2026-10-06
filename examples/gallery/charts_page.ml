@@ -17,14 +17,21 @@ module Mode = struct
     | Family of Family.t
     | Mixed
     | Categorical
+    | Stacked_bars
+    | Stacked_areas
   [@@deriving equal]
 
-  let all = List.map Family.all ~f:(fun f -> Family f) @ [ Mixed; Categorical ]
+  let all =
+    List.map Family.all ~f:(fun f -> Family f)
+    @ [ Mixed; Categorical; Stacked_bars; Stacked_areas ]
+  ;;
 
   let label = function
     | Family family -> Family.label family
     | Mixed -> "Mixed layers"
     | Categorical -> "Categorical"
+    | Stacked_bars -> "Stacked bars"
+    | Stacked_areas -> "Stacked areas"
   ;;
 
   let data t phase =
@@ -32,6 +39,8 @@ module Mode = struct
     | Family family -> Samples.data_exn family phase
     | Mixed -> Samples.preset_data_exn Mixed Line phase
     | Categorical -> Samples.Categorical.data_exn phase
+    | Stacked_bars -> Samples.Stacked.data_exn ~area:false phase
+    | Stacked_areas -> Samples.Stacked.data_exn ~area:true phase
   ;;
 end
 
@@ -108,6 +117,7 @@ let component app window palette graph =
   let horizontal, toggle_horizontal = B.toggle ~default_model:false graph in
   let reversed, toggle_reversed = B.toggle ~default_model:false graph in
   let category_layout, set_category_layout = B.state Category_layout.Auto graph in
+  let stacked, toggle_stacked = B.toggle ~default_model:true graph in
   let disabled, toggle_disabled = B.toggle ~default_model:false graph in
   let notice, set_notice = B.state "Preparing chart…" graph in
   let open B.Let_syntax in
@@ -126,6 +136,8 @@ let component app window palette graph =
   and toggle_reversed = toggle_reversed
   and category_layout = category_layout
   and set_category_layout = set_category_layout
+  and stacked = stacked
+  and toggle_stacked = toggle_stacked
   and disabled = disabled
   and toggle_disabled = toggle_disabled
   and notice = notice
@@ -171,6 +183,10 @@ let component app window palette graph =
              metrics.source_values
              (if Mode.equal current_mode Categorical
               then direction ^ " · " ^ Category_layout.label category_layout
+              else if
+                Mode.equal current_mode Stacked_bars
+                || Mode.equal current_mode Stacked_areas
+              then direction ^ if stacked then " · Stacked" else " · Grouped"
               else direction))
       | Failed e -> set_notice (Sexp.to_string_hum [%sexp (e : Chart.Error.t)])
       | Selection_changed target ->
@@ -183,11 +199,17 @@ let component app window palette graph =
           Option.bind selection ~f:(Samples.describe_selection data))
       else None
     in
+    let stack_mode =
+      match current_mode with
+      | Mode.Stacked_bars | Stacked_areas -> true
+      | Family _ | Mixed | Categorical -> false
+    in
     let options =
       Chart_options.create
         ~cartesian:
           (Chart_options.Cartesian.create
              ~orientation
+             ~stacking:(if stack_mode && stacked then Stacked else Grouped)
              ~category_layout:(Category_layout.options category_layout)
              ()
            |> ok)
@@ -241,6 +263,9 @@ let component app window palette graph =
            ; Palette.button p "Update chart samples" update
            ]
        ]
+       @ (if stack_mode
+          then [ V.switch ~checked:stacked ~on_toggle:toggle_stacked "Stack layers" ]
+          else [])
        @ (if Mode.equal current_mode Categorical
           then
             [ V.row

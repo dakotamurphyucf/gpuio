@@ -27,7 +27,8 @@ Cartesian orientation now supports [reversed value directions](chart-directions.
 in addition to the original vertical/horizontal projections. This opt-in change
 preserves source and selection identity. [Categorical data and native point/band
 layout](categorical-charts.md) add explicit ordered category domains, missing
-observations and category-aware original-data access. Stacking remains catalog work.
+observations and category-aware original-data access. Explicit native
+[stacking](stacked-charts.md) adds cumulative bars/areas with preserved raw values.
 
 `Gpuio.Chart_data` contains immutable values, with abstract positive IDs and
 validated constructors. Labels are data, never identity or callbacks. Datum IDs
@@ -265,8 +266,8 @@ No per-point synchronous OCaml callbacks belong in layout, paint or hit testing.
 
 `Gpuio.Chart_options` is a validated, source-independent value with grouped
 options for axes, Cartesian layers, pie/donut, radar, candlesticks and Sankey.
-Irrelevant family options are retained but have no effect. Its version-2 binary
-record (with categorical layout; version 1 is rejected) has a bounded native reader (256 bytes), independent paired fixtures and
+Irrelevant family options are retained but have no effect. Its version-3 binary
+record (with categorical layout and stacking; versions 1 and 2 are rejected) has a bounded native reader (256 bytes), independent paired fixtures and
 validation after decoding. Color/theme, legends, tooltips and the accessible
 description belong to the mounted-view configuration.
 
@@ -281,7 +282,8 @@ description belong to the mounted-view configuration.
   can overshoot and require the mounted plot's clip. Every curve reaches its last
   data point. Missing values split runs, and singleton runs have visible dots
   even when ordinary dots are disabled. Mixed layers share category/value projections;
-  bars are grouped by layer, not implicitly stacked.
+  bars are grouped by default. Explicit [stacking](stacked-charts.md) accumulates
+  bars and areas independently, preserving raw values and matching boundaries.
 - Pie/donut uses a 0–0.95 hole fraction and 0–0.2 radians of padding, clamped per
   slice. Zero slices have no area; all-zero input has no wedges. Labels sit within
   the ring when enabled. Radar uses data-defined axis maxima, 1–12 grid levels,

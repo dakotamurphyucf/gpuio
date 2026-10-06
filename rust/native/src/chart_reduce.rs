@@ -12,6 +12,7 @@ pub enum Error {
     InvalidData,
     InvalidPolicy,
     InvalidWidth,
+    MisalignedStack,
     Cancelled,
 }
 
@@ -63,17 +64,51 @@ pub struct Candle {
     pub low: f64,
     pub close: f64,
 }
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct StackBounds {
+    pub lower: f64,
+    pub upper: f64,
+}
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct StackedBar {
+    pub bar: Bar,
+    pub bounds: StackBounds,
+}
+/// Shared sample positions include missing observations to construct identical
+/// cumulative boundary curves. Only defined observations produce visible marks.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct StackedAreaPoint {
+    pub source: usize,
+    pub defined: bool,
+    pub bounds: StackBounds,
+}
 #[derive(Clone, Debug, PartialEq)]
 pub enum Series {
     Line(Vec<LinePoint>),
     Area(Vec<LinePoint>),
     Bar(Vec<Bar>),
+    StackedBar(Vec<StackedBar>),
+    StackedArea(Vec<StackedAreaPoint>),
 }
 impl Series {
+    pub(crate) fn bars(&self) -> impl Iterator<Item = (Bar, Option<StackBounds>)> + '_ {
+        let (ordinary, stacked): (&[Bar], &[StackedBar]) = match self {
+            Self::Bar(bars) => (bars, &[]),
+            Self::StackedBar(bars) => (&[], bars),
+            _ => (&[], &[]),
+        };
+        ordinary
+            .iter()
+            .map(|b| (*b, None))
+            .chain(stacked.iter().map(|b| (b.bar, Some(b.bounds))))
+    }
+
     pub fn len(&self) -> usize {
         match self {
             Self::Line(points) | Self::Area(points) => points.len(),
             Self::Bar(bars) => bars.len(),
+            Self::StackedBar(bars) => bars.len(),
+            Self::StackedArea(points) => points.iter().filter(|p| p.defined).count(),
         }
     }
     pub fn is_empty(&self) -> bool {
@@ -83,6 +118,8 @@ impl Series {
         match self {
             Self::Line(points) | Self::Area(points) => points.capacity() * size_of::<LinePoint>(),
             Self::Bar(bars) => bars.capacity() * size_of::<Bar>(),
+            Self::StackedBar(bars) => bars.capacity() * size_of::<StackedBar>(),
+            Self::StackedArea(points) => points.capacity() * size_of::<StackedAreaPoint>(),
         }
     }
 }
@@ -409,6 +446,12 @@ pub(crate) fn prepare_with_options(
                         Kind::Line => {
                             Series::Line(line(layer.points, policy.line, domain, width, cancel)?)
                         }
+                        Kind::Area
+                            if options.cartesian.stacking
+                                == gpuio_protocol::chart_options::Stacking::Stacked =>
+                        {
+                            Series::Area(Vec::new())
+                        }
                         Kind::Area => {
                             Series::Area(line(layer.points, policy.line, domain, width, cancel)?)
                         }
@@ -416,6 +459,9 @@ pub(crate) fn prepare_with_options(
                             Series::Bar(bars(layer.points, policy.bars, domain, width, cancel)?)
                         }
                     });
+                }
+                if options.cartesian.stacking == gpuio_protocol::chart_options::Stacking::Stacked {
+                    stacking::apply(layers, &mut output, policy.line, domain, width, cancel)?;
                 }
                 Contents::Cartesian(output)
             }
@@ -442,6 +488,8 @@ pub(crate) fn prepare_with_options(
         rendered_values,
     })
 }
+
+mod stacking;
 
 #[cfg(test)]
 mod tests;

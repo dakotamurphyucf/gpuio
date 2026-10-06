@@ -49,7 +49,7 @@ let%expect_test "chart view owner and append-only envelopes match independent fi
   let bytes = Bin_prot.Utils.bin_dump W.Config.bin_writer_t wire |> Bigstring.to_string in
   Eio_main.run (fun env ->
     let expected =
-      Eio.Path.load Eio.Path.(Eio.Stdenv.cwd env / "chart-v2-view.hex") |> String.strip
+      Eio.Path.load Eio.Path.(Eio.Stdenv.cwd env / "chart-v3-view.hex") |> String.strip
     in
     assert (String.equal (hex bytes) expected));
   let window = Gpuio_protocol.Window_id.create ~slot:0L ~generation:1L |> ok in

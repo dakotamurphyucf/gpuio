@@ -3,7 +3,8 @@
 Local implementation for OCH-41, 2026-10-06. The public data/options APIs,
 paired bridge representations, native preparation and gallery are implemented.
 [Qualification evidence](../evidence/categorical-charts-och41.md) records the
-actual tested scope. Stacking, ordinal colors, additional presentation options,
+actual tested scope. Stacking now has a [separate contract](stacked-charts.md).
+Ordinal colors, additional presentation options,
 VoiceOver and final release acceptance remain separate work.
 
 ## Data and identity
@@ -188,3 +189,6 @@ The relevant code paths are `chart_data` and its wire adapters, `chart_options`,
 and the chart samples/gallery. A passing geometry unit test alone does not complete
 this feature: source admission, native interaction, original-data semantics and
 installed public consumption are required together.
+
+The later [stacking addition](stacked-charts.md) advances the options record to
+version 3. The v2 fixture remains historical rejection evidence.

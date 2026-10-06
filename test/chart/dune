@@ -5,13 +5,13 @@
   (deps
    (sandbox preserve_file_kind)
    chart-v1-data.hex
-   chart-v2-view.hex
+   chart-v3-view.hex
    chart-v1-selection.hex))
  (preprocess
   (pps ppx_jane)))
 
 (copy_files ../fixtures/chart-v1-data.hex)
 
-(copy_files ../fixtures/chart-v2-view.hex)
+(copy_files ../fixtures/chart-v3-view.hex)
 
 (copy_files ../fixtures/chart-v1-selection.hex)

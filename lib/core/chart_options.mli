@@ -77,11 +77,26 @@ module Category_layout : sig
   val band : ?inner_padding:float -> ?outer_padding:float -> unit -> t Or_error.t
 end
 
+module Stacking : sig
+  (** Grouped is the default. Stacked accumulates bars with bars and areas with
+      areas, independently in source layer order; line overlays are unchanged.
+      Values accumulate algebraically, including negatives (no normalization or
+      separate positive/negative stacks). Missing values contribute zero to later
+      baselines but retain their own gaps and original missing observations.
+      Numeric layers within each stack family require identical x positions and
+      lengths; native preparation rejects misalignment. Categorical layers are
+      already aligned to their explicit domain. *)
+  type t =
+    | Grouped
+    | Stacked
+  [@@deriving equal, sexp_of]
+end
+
 module Cartesian : sig
   type t [@@deriving equal, sexp_of]
 
   (** Orientation applies to every layer of a mixed plot. Bars are grouped by
-      layer, never implicitly stacked. [bar_width] in (0,1] is the fraction of
+      layer unless [stacking=Stacked]. [bar_width] in (0,1] is the fraction of
       nearest distinct numeric x spacing occupied by each group. For categorical
       data it is the fraction of the available category band. Curve defaults to
       Linear; Natural is an interpolating cubic spline and can overshoot values.
@@ -93,6 +108,7 @@ module Cartesian : sig
     -> ?orientation:Orientation.t
     -> ?bar_width:float
     -> ?category_layout:Category_layout.t
+    -> ?stacking:Stacking.t
     -> unit
     -> t Or_error.t
 

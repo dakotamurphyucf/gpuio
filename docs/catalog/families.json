@@ -679,14 +679,15 @@
       "id": "charts",
       "owner": "OCH-40",
       "scope": "v1",
-      "audit_status": "All seven pinned chart families and nested plot/scale/shape/axis/tooltip sources reviewed. Four Cartesian value directions and typed categorical point/band layouts have paired data/options codecs, native geometry/provenance/hit/data-table tests and local installed macOS gallery evidence. Categorical domains use explicit IDs/order and missing observations; Auto/Point/Band layout and padding are native. The band formula and aligned-series contract differ explicitly from arbitrary upstream accessors. Options envelope version 2 requires matching packages. Stacking, ordinal colors and richer per-datum/label/tooltip styling remain work; whole plotting parity, VoiceOver, optimized performance and release acceptance are not claimed.",
+      "audit_status": "All seven pinned chart families and nested plot/scale/shape/axis/tooltip sources reviewed. Four Cartesian value directions and typed categorical point/band layouts have paired data/options codecs, native geometry/provenance/hit/data-table tests and local installed macOS gallery evidence. Categorical domains use explicit IDs/order and missing observations; Auto/Point/Band layout and padding are native. The band formula and aligned-series contract differ explicitly from arbitrary upstream accessors. Native stacking now has shared-boundary area envelopes/curves, aligned aggregate bars, raw-value selection and local GPU/installed-gallery evidence. Options envelope version 3 requires matching packages. Ordinal colors and richer per-datum/label/tooltip styling remain work; whole plotting parity, VoiceOver, optimized performance and release acceptance are not claimed.",
       "public_interface": "lib/core/chart.mli",
       "example": "examples/charts",
       "evidence": [
         "docs/evidence/charts-och40.md",
         "docs/catalog/charts-review.md",
         "docs/evidence/chart-directions-och41.md",
-        "docs/evidence/categorical-charts-och41.md"
+        "docs/evidence/categorical-charts-och41.md",
+        "docs/evidence/stacked-charts-och41.md"
       ],
       "gallery_page": "charts",
       "contract": "Seven chart families/mixed layers, bounded source/preparation and original-data accessibility; preserve exact/reduced provenance.",

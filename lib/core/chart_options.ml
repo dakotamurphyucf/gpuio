@@ -80,6 +80,8 @@ module Category_layout = struct
   ;;
 end
 
+module Stacking = Wire.Stacking
+
 module Cartesian = struct
   type t = Wire.Cartesian.t [@@deriving equal, sexp_of]
 
@@ -89,11 +91,12 @@ module Cartesian = struct
         ?(orientation = Orientation.Vertical)
         ?(bar_width = 0.8)
         ?(category_layout = Category_layout.auto)
+        ?(stacking = Stacking.Grouped)
         ()
     =
     checked
       Wire.Cartesian.valid
-      { Wire.Cartesian.curve; dots; orientation; bar_width; category_layout }
+      { Wire.Cartesian.curve; dots; orientation; bar_width; category_layout; stacking }
       "chart bar_width must be finite and in (0,1]"
   ;;
 
@@ -193,7 +196,7 @@ let create
       ?(sankey = Sankey.default)
       ()
   =
-  { Wire.version = 2L; axes; cartesian; pie; radar; candlestick; sankey }
+  { Wire.version = 3L; axes; cartesian; pie; radar; candlestick; sankey }
 ;;
 
 let default = create ()

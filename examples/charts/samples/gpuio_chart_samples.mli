@@ -45,3 +45,7 @@ module Categorical : sig
   val data_exn : float -> Gpuio.Chart_data.t
   val describe_selection : Gpuio.Chart_data.t -> Gpuio.Chart_selection.t -> string option
 end
+
+module Stacked : sig
+  val data_exn : area:bool -> float -> Gpuio.Chart_data.t
+end

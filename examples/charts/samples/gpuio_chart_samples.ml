@@ -1,3 +1,4 @@
+module Stacked = Stacked
 open Core
 module D = Gpuio.Chart_data
 module Categorical = Categorical

@@ -7,7 +7,7 @@ fn bytes(value: &Options) -> Vec<u8> {
 }
 #[test]
 fn default_options_match_independent_ocaml_fixture_and_reject_truncation() {
-    let hex = "020101010500000000009a9999999999e93f000000000000000000000000000000000001040101666666666666e63f0000000000003040000000000000284003000601";
+    let hex = "030101010500000000009a9999999999e93f00000000000000000000000000000000000001040101666666666666e63f0000000000003040000000000000284003000601";
     let expected: Vec<u8> = hex
         .as_bytes()
         .chunks_exact(2)
@@ -23,7 +23,7 @@ fn default_options_match_independent_ocaml_fixture_and_reject_truncation() {
     trailing.push(0);
     assert_eq!(decode_chart_options(&trailing), Err(DecodeError::Malformed));
     // Independently specified enum/boolean field offsets in the default frame.
-    for offset in [1, 2, 3, 5, 6, 7, 8, 9, 18, 35, 37, 38, 63, 64, 66] {
+    for offset in [1, 2, 3, 5, 6, 7, 8, 9, 18, 19, 36, 38, 39, 64, 65, 67] {
         let mut bad = expected.clone();
         bad[offset] = 255;
         assert!(decode_chart_options(&bad).is_err(), "offset {offset}");
@@ -180,4 +180,33 @@ fn categorical_layout_tags_and_padding_bounds_are_paired_and_versioned() {
         .map(|i| u8::from_str_radix(&old[i..i + 2], 16).unwrap())
         .collect::<Vec<_>>();
     assert!(gpuio_protocol::decode_chart_view_config(&old).is_err());
+}
+
+#[test]
+fn stacking_is_explicit_paired_and_old_layouts_are_rejected() {
+    let mut options = Options::default();
+    let mut expected = bytes(&options);
+    assert_eq!(expected[0], 3);
+    assert_eq!(expected[19], 0);
+    options.cartesian.stacking = Stacking::Stacked;
+    expected[19] = 1;
+    assert_eq!(bytes(&options), expected);
+    assert_eq!(decode_chart_options(&expected), Ok(options));
+    expected[19] = 2;
+    assert_eq!(decode_chart_options(&expected), Err(DecodeError::Malformed));
+    for fixture in [
+        include_str!("../../../test/fixtures/chart-v1-view.hex"),
+        include_str!("../../../test/fixtures/chart-v2-view.hex"),
+    ] {
+        let frame = fixture
+            .trim()
+            .as_bytes()
+            .chunks_exact(2)
+            .map(|s| u8::from_str_radix(std::str::from_utf8(s).unwrap(), 16).unwrap())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            gpuio_protocol::decode_chart_view_config(&frame),
+            Err(DecodeError::Malformed)
+        );
+    }
 }

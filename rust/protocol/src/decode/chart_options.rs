@@ -14,7 +14,7 @@ impl Decoder<'_> {
     }
     pub(super) fn chart_options(&mut self) -> Result<Options, DecodeError> {
         let version = self.int()?;
-        if version != 2 {
+        if version != 3 {
             return Err(DecodeError::Malformed);
         }
         let options = Options {
@@ -50,6 +50,11 @@ impl Decoder<'_> {
                         inner: self.float()?,
                         outer: self.float()?,
                     },
+                    _ => return Err(DecodeError::Malformed),
+                },
+                stacking: match self.tag()? {
+                    0 => Stacking::Grouped,
+                    1 => Stacking::Stacked,
                     _ => return Err(DecodeError::Malformed),
                 },
             },

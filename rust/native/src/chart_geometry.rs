@@ -173,6 +173,11 @@ impl Domain {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Summary {
     Bar(f64),
+    Stacked {
+        value: f64,
+        lower: f64,
+        upper: f64,
+    },
     Candle {
         open: f64,
         high: f64,
@@ -301,8 +306,11 @@ impl Coordinates {
         )
     }
     fn rect(self, x: f64, value: f64, offset: f64, width: f64) -> Rect {
+        self.rect_between(x, 0., value, offset, width)
+    }
+    fn rect_between(self, x: f64, lower: f64, value: f64, offset: f64, width: f64) -> Rect {
         let c = self.category(x) + offset;
-        let a = self.value(0.);
+        let a = self.value(lower);
         let b = self.value(value);
         if self.horizontal {
             Rect {
@@ -445,29 +453,32 @@ fn cartesian(
         .any(|l| matches!(l.kind, Kind::Area | Kind::Bar));
     // Include original extrema even when their points were reduced, plus bar
     // aggregates whose sums can exceed the individual source values.
+    let stacked = options.cartesian.stacking == options::Stacking::Stacked;
     let source_y = layers
         .iter()
-        .filter(|layer| !matches!(layer.kind, Kind::Bar))
+        .filter(|layer| layer.kind == Kind::Line || (!stacked && layer.kind == Kind::Area))
         .flat_map(|l| l.points.iter().filter_map(|p| p.y));
     let aggregate_y = reduced
         .iter()
+        .flat_map(|s| s.bars())
+        .flat_map(|(b, bounds)| bounds.map_or([0., b.value], |s| [s.lower, s.upper]));
+    let area_y = reduced
+        .iter()
         .flat_map(|s| match s {
-            reduce::Series::Bar(b) => b.as_slice(),
+            reduce::Series::StackedArea(points) => points.as_slice(),
             _ => &[],
         })
-        .map(|b| b.value);
-    let y = Domain::from(source_y.chain(aggregate_y), zero);
+        .flat_map(|p| [p.bounds.lower, p.bounds.upper]);
+    let y = Domain::from(source_y.chain(aggregate_y).chain(area_y), zero);
     let bars = reduced
         .iter()
-        .filter(|s| matches!(s, reduce::Series::Bar(_)))
+        .filter(|s| matches!(s, reduce::Series::Bar(_) | reduce::Series::StackedBar(_)))
         .count();
+    let groups = if stacked { 1 } else { bars.max(1) };
     let positions = reduced
         .iter()
-        .flat_map(|s| match s {
-            reduce::Series::Bar(b) => b.as_slice(),
-            _ => &[],
-        })
-        .map(|b| b.x)
+        .flat_map(|s| s.bars())
+        .map(|(b, _)| b.x)
         .collect();
     let spacing = minimum_spacing(positions, x);
     let horizontal = options.cartesian.orientation.is_horizontal();
@@ -489,21 +500,34 @@ fn cartesian(
             .map(|c| Projection::new(c.len(), width, options.cartesian.category_layout, bars > 0)),
     };
     c.axes(plan, options.axes, categories);
-    let bar_width = slot * options.cartesian.bar_width / (bars.max(1) as f64);
+    let bar_width = slot * options.cartesian.bar_width / (groups as f64);
     let mut bar_index = 0;
     for (series, (layer, reduction)) in layers.iter().zip(reduced).enumerate() {
         check(cancel)?;
         match reduction {
-            reduce::Series::Bar(values) => {
-                for (i, b) in values.iter().enumerate() {
+            reduce::Series::Bar(_) | reduce::Series::StackedBar(_) => {
+                for (i, (b, bounds)) in reduction.bars().enumerate() {
                     let bar_width = c.categorical.map_or(bar_width, |p| {
                         p.interval_width(b.source.start(), b.source.end() - 1)
                             * options.cartesian.bar_width
-                            / bars.max(1) as f64
+                            / groups as f64
                     });
-                    let offset = (bar_index as f64 - (bars - 1) as f64 / 2.) * bar_width;
+                    let offset = if stacked {
+                        0.
+                    } else {
+                        (bar_index as f64 - (bars - 1) as f64 / 2.) * bar_width
+                    };
                     checkpoint(i, cancel)?;
-                    if b.source.len() > 1 {
+                    if let Some(bounds) = bounds {
+                        plan.summaries.push((
+                            plan.marks.len(),
+                            Summary::Stacked {
+                                value: b.value,
+                                lower: bounds.lower,
+                                upper: bounds.upper,
+                            },
+                        ));
+                    } else if b.source.len() > 1 {
                         plan.summaries
                             .push((plan.marks.len(), Summary::Bar(b.value)));
                     }
@@ -514,10 +538,24 @@ fn cartesian(
                             start: b.source.start(),
                             end: b.source.end(),
                         },
-                        shape: Shape::Bar(c.rect(b.x, b.value, offset, bar_width)),
+                        shape: Shape::Bar(bounds.map_or_else(
+                            || c.rect(b.x, b.value, offset, bar_width),
+                            |s| c.rect_between(b.x, s.lower, s.upper, offset, bar_width),
+                        )),
                     });
                 }
                 bar_index += 1;
+            }
+            reduce::Series::StackedArea(points) => {
+                stacking::area(
+                    plan,
+                    series,
+                    layer.points,
+                    points,
+                    c,
+                    options.cartesian,
+                    cancel,
+                )?;
             }
             reduce::Series::Line(points) | reduce::Series::Area(points) => {
                 let area = matches!(reduction, reduce::Series::Area(_));
@@ -982,3 +1020,5 @@ pub fn prepare(
 
 #[cfg(test)]
 mod tests;
+
+mod stacking;

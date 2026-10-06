@@ -70,6 +70,13 @@ module Category_layout = struct
   ;;
 end
 
+module Stacking = struct
+  type t =
+    | Grouped
+    | Stacked
+  [@@deriving bin_io, equal, sexp_of]
+end
+
 module Cartesian = struct
   type t =
     { curve : Curve.t
@@ -77,6 +84,7 @@ module Cartesian = struct
     ; orientation : Orientation.t
     ; bar_width : float
     ; category_layout : Category_layout.t
+    ; stacking : Stacking.t
     }
   [@@deriving bin_io, equal, sexp_of]
 
@@ -157,7 +165,7 @@ type t =
 [@@deriving bin_io, equal, sexp_of]
 
 let valid t =
-  Int64.equal t.version 2L
+  Int64.equal t.version 3L
   && Axes.valid t.axes
   && Cartesian.valid t.cartesian
   && Pie.valid t.pie

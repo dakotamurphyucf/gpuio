@@ -67,3 +67,6 @@ reaps its child window.
 monochrome/light presentation and actual wheel scrolling in the dense legend.
 It verifies offset retention across a 128-to-129-value update and reset behavior,
 captures screenshots, then closes and reaps the application.
+
+The [stacked chart sample](samples/stacked.md) demonstrates aligned bars/areas, signed
+values, missing observations and a Grouped/Stacked presentation toggle.

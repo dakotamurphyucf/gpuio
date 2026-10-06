@@ -5,6 +5,15 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **O
 Markdown walkthroughs for every example component; it is planned in this milestone. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
+[Stacked Cartesian charts](evidence/stacked-charts-och41.md) now add typed opt-in
+cumulative bars/areas, shared area sampling/curves and raw-value selection with
+explicit stack bounds. Local native/codec/GPU checks and root/fresh-installed
+gallery walkthroughs pass, including signed values, missing observations, all
+four directions, Grouped/Stacked changes and scope teardown. Options envelope 3
+requires matching bridge packages. Ordinal colors, richer presentation options
+and broader catalog/release acceptance remain open. The adjacent
+[sample walkthrough](../examples/charts/samples/stacked.md) adds partial OCH-48 coverage.
+
 Run [37421611438](https://github.com/dakotamurphyucf/gpuio/actions/runs/37421611438)
 is terminal: Linux foundation and the independent fresh macOS extracted-app job
 pass. macOS foundation fails only the GPUI Metal presentation hook and standalone
@@ -20,7 +29,7 @@ and selection spans, and exposes category labels/IDs in tooltips and the origina
 paged table. Local native tests and the fresh installed gallery walkthrough pass;
 source updates, layout changes, missing-value browsing and teardown are covered.
 The options envelope advances to version 2 and requires matching bridge packages.
-Stacking, ordinal colors and richer presentation options remain catalog work.
+Ordinal colors and richer presentation options remain catalog work.
 The [sample walkthrough](../examples/charts/samples/categorical.md) adds OCH-48
 coverage without completing the every-example inventory.
 
@@ -28,7 +37,7 @@ coverage without completing the every-example inventory.
 public OCaml options and a gallery reversal control. Local paired-codec,
 signed mixed geometry/provenance, native hit-index and real GPU pixel checks pass;
 a fresh installed gallery passes all four directions, selection, original-data
-browsing and scope cleanup. Stacking, ordinal colors, richer labels/tooltips and broader chart/catalog/release
+browsing and scope cleanup. Ordinal colors, richer labels/tooltips and broader chart/catalog/release
 qualification remain open. The adjacent
 [chart-page walkthrough](../examples/gallery/charts_page.md) adds partial OCH-48
 coverage; it does not complete the every-example inventory.
