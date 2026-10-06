@@ -1,7 +1,8 @@
 (** Commands share one registry across buttons, menus, shortcuts and the chooser.
     Progress and the bounded toast preview belong to this mounted page. *)
 val component
-  :  Gpuio_eio.App.t
+  :  search_palette:(string -> string list)
+  -> Gpuio_eio.App.t
   -> Gpuio_eio.App.Window.t
   -> Palette.t Bonsai.Cont.t
   -> Bonsai.Cont.graph

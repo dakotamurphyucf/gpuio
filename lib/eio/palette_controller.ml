@@ -91,6 +91,10 @@ let command_if_query_unchanged t ~expected command =
   | Some _ -> send t expected ~if_query_unchanged:true command
 ;;
 
+let publish_results t ~expected results =
+  command_if_query_unchanged t ~expected (Publish_results results)
+;;
+
 let%expect_test "late replies never regress observations or cross subscription/reset" =
   let ok = Or_error.ok_exn in
   let window = Gpuio_protocol.Window_id.create ~slot:0L ~generation:1L |> ok in

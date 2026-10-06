@@ -198,6 +198,26 @@ module Config = struct
   let commands t = t.commands
 end
 
+module Results = struct
+  type t = Gpuio_protocol.Palette_results_wire.t [@@deriving equal, sexp_of]
+
+  let of_config (config : Config.t) : t =
+    { commands = List.map config.commands ~f:Ui_command.Id.to_string
+    ; layout = config.layout
+    }
+  ;;
+
+  let create ~commands () =
+    Config.create ~label:"Results" ~placeholder:"" ~commands ()
+    |> Or_error.map ~f:of_config
+  ;;
+
+  let create_entries ~entries () =
+    Config.create_entries ~label:"Results" ~placeholder:"" ~entries ()
+    |> Or_error.map ~f:of_config
+  ;;
+end
+
 module Dismissal = struct
   type t =
     | Escape
@@ -243,6 +263,7 @@ module Command = struct
     | Set_query of string
     | Highlight of Ui_command.Id.t option
     | Set_loading of bool
+    | Publish_results of Results.t
   [@@deriving equal, sexp_of]
 end
 
@@ -273,6 +294,7 @@ module Expert = struct
     | Focus -> Focus
     | Set_query query -> Set_query query
     | Set_loading loading -> Set_loading loading
+    | Publish_results results -> Publish_results results
     | Highlight selected -> Highlight (Option.map selected ~f:Ui_command.Id.to_string)
   ;;
 

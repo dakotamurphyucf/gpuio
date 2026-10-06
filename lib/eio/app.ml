@@ -1060,6 +1060,13 @@ module Window = struct
     ;;
 
     let palette_command t snapshot ?(if_query_unchanged = false) command =
+      let if_query_unchanged =
+        if_query_unchanged
+        ||
+        match command with
+        | Palette.Command.Publish_results _ -> true
+        | _ -> false
+      in
       Bonsai.Effect.Expert.of_fun ~f:(fun ~callback ->
         check t.app;
         let command = Palette.Expert.command_to_wire command in

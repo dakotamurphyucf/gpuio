@@ -44,7 +44,10 @@ let register_menu_icon app scope =
     | Error error -> Error (Error.create_s [%sexp (error : Gpuio_eio.Asset.Error.t)]))
 ;;
 
-let component app window palette graph =
+let component ~search_palette app window palette graph =
+  let external_palette =
+    External_palette_preview.component ~search:search_palette window palette graph
+  in
   let menu_icon =
     Preview_scope.acquire
       window
@@ -118,6 +121,7 @@ let component app window palette graph =
        Bonsai.Effect.Many [ inject State.Action.Leave; set_chooser false ])
     graph;
   let%arr p = palette
+  and external_palette = external_palette
   and menu_icon = menu_icon
   and show_content = show_content
   and toggle_content = toggle_content
@@ -481,6 +485,7 @@ let component app window palette graph =
              then "Notification visible"
              else "No pending notification")
         ]
+    ; external_palette
     ; V.toast_stack ~config:toast_config notifications |> ok
     ; (if chooser
        then

@@ -8,10 +8,12 @@ pub enum Command {
     SetQuery(String),
     Highlight(Option<String>),
     SetLoading(bool),
+    PublishResults(crate::palette_results::Results),
 }
 impl Command {
     pub fn is_valid(&self) -> bool {
         let (query, selected) = match self {
+            Self::PublishResults(results) => return results.is_valid(),
             Self::ReadSnapshot | Self::Focus | Self::SetLoading(_) => return true,
             Self::SetQuery(query) => (query.clone(), None),
             Self::Highlight(selected) => (String::new(), selected.clone()),
@@ -39,6 +41,7 @@ pub enum Error {
     InvalidQuery,
     Busy,
     NativeFailure,
+    InvalidResults,
 }
 #[derive(Clone, Debug, PartialEq, Eq, BinProtWrite)]
 pub enum Response {

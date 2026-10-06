@@ -157,3 +157,102 @@ fn palette_loading_has_a_checked_boolean_and_independent_command_fixture() {
     *invalid.last_mut().unwrap() = 2;
     assert!(decode(&invalid).is_err());
 }
+
+#[test]
+fn external_results_have_independent_bytes_and_require_bounded_fenced_metadata() {
+    use gpuio_protocol::{palette_command::Command, palette_results::Results};
+    let message = |expected, results| {
+        Message::PaletteCommand(
+            9,
+            WindowId::from_parts(0, 1).unwrap(),
+            NodeId::from_parts(1, 1).unwrap(),
+            HandlerId::from_parts(2, 1).unwrap(),
+            expected,
+            Command::PublishResults(results),
+        )
+    };
+    let results = Results {
+        commands: vec!["run".into()],
+        layout: None,
+    };
+    let valid = message(Some(2), results.clone());
+    let expected = b"\x16\x09\x00\x01\x01\x01\x02\x01\x01\x02\x05\x01\x03run\x00";
+    assert_eq!(bytes(&valid), expected);
+    assert_eq!(decode(expected), Ok(valid));
+    assert!(decode(&bytes(&message(None, results))).is_err());
+    for end in 0..expected.len() {
+        assert!(decode(&expected[..end]).is_err());
+    }
+    for commands in [
+        vec!["run".into(), "run".into()],
+        vec![" ".into()],
+        vec!["x".repeat(257)],
+        vec!["run".into(); 1025],
+    ] {
+        assert!(
+            decode(&bytes(&message(
+                Some(2),
+                Results {
+                    commands,
+                    layout: None
+                }
+            )))
+            .is_err()
+        );
+    }
+}
+
+#[test]
+fn external_group_shape_and_retained_capacity_are_bounded() {
+    use gpuio_protocol::{
+        palette_layout::{Config, Entry},
+        palette_options::{self, Search},
+        palette_results::{RESERVATION_BYTES, Results},
+    };
+    for layout in [
+        Config(vec![Entry::Command(1)]),
+        Config(vec![Entry::Command(0), Entry::Command(0)]),
+        Config(vec![
+            Entry::Group("g".into(), None, vec![0]),
+            Entry::Group("g".into(), None, vec![]),
+        ]),
+        Config(vec![Entry::Group(
+            "g".into(),
+            Some("x".repeat(4097)),
+            vec![0],
+        )]),
+    ] {
+        assert!(
+            !Results {
+                commands: vec!["run".into()],
+                layout: Some(layout)
+            }
+            .is_valid()
+        );
+    }
+    let defaults = palette_options::Config::default();
+    let external = palette_options::Config {
+        search: Search::External,
+        ..Default::default()
+    };
+    assert_eq!(
+        external.retained_bytes() - defaults.retained_bytes(),
+        RESERVATION_BYTES
+    );
+    let ids = (0..1024).map(|i| format!("{i:0256}")).collect::<Vec<_>>();
+    assert!(
+        !Results {
+            commands: ids,
+            layout: None
+        }
+        .is_valid(),
+        "metadata includes envelope label allowance"
+    );
+    assert!(
+        Results {
+            commands: vec![],
+            layout: Some(Config(vec![]))
+        }
+        .is_valid()
+    );
+}

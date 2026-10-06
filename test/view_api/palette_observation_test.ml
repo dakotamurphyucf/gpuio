@@ -214,3 +214,36 @@ let%expect_test "loading is observed without changing query identity" =
   assert (Result.is_error (Wire.Event.decode invalid));
   [%expect {| |}]
 ;;
+
+let%expect_test
+    "external result metadata is bounded and publication requires a native query fence"
+  =
+  let command = Command.Id.of_string "run" |> ok in
+  let results = Command_palette.Results.create ~commands:[ command ] () |> ok in
+  assert (
+    Result.is_error (Command_palette.Results.create ~commands:[ command; command ] ()));
+  let wire = Command_palette.Expert.command_to_wire (Publish_results results) in
+  let message expected =
+    Wire.Message.Palette_command (9L, window, node, handler, expected, wire)
+  in
+  assert (Result.is_error (Wire.Message.encode (message None)));
+  assert (
+    String.equal
+      (Wire.Message.encode (message (Some 2L)) |> ok)
+      "\022\009\000\001\001\001\002\001\001\002\005\001\003run\000");
+  let config =
+    Command_palette.Config.create
+      ~label:"Remote"
+      ~commands:[ command ]
+      ~search:External
+      ()
+    |> ok
+  in
+  assert (
+    Option.value_exn (Command_palette.Expert.options config)
+    |> fun o ->
+    Gpuio_protocol.Palette_options_wire.Search.equal
+      o.Gpuio_protocol.Palette_options_wire.search
+      External);
+  [%expect {| |}]
+;;

@@ -5,6 +5,7 @@ module Search : sig
     | All_terms
     | Substring
     | Unfiltered
+    | External
   [@@deriving equal, sexp_of]
 end
 
@@ -72,6 +73,13 @@ module Config : sig
       follows [Core.String.strip], as for command IDs; non-ASCII spaces remain
       literal keyword text.
 
+      [External] keeps the native query but shows only explicitly published
+      results. Before publication and after a native query edit, no result is
+      eligible. Results bypass local matching and supply their own ordered groups.
+      Changing the configured command IDs invalidates the published result set.
+      Registry labels/content remain ordinary View updates; publication does not
+      turn those separate updates into one atomic transaction.
+
       [searchable=false] hides the query field and bypasses filtering; the private
       query is retained for a later policy change. Native navigation still works.
       [Clear_query_first] clears a nonempty visible query on Escape and dismisses
@@ -107,6 +115,18 @@ module Config : sig
     -> t Core.Or_error.t
 
   val commands : t -> Command.Id.t list
+end
+
+module Results : sig
+  type t [@@deriving equal, sexp_of]
+
+  (** Ordered references to commands staged in this palette's config and enclosing
+      registry. Native publication validates membership atomically. At most 1024
+      unique IDs and 256 KiB of metadata, using the same group rules as [Config].
+      Row content stays keyed to the original configured command position. *)
+  val create : commands:Command.Id.t list -> unit -> t Core.Or_error.t
+
+  val create_entries : entries:Entry.t list -> unit -> t Core.Or_error.t
 end
 
 module Dismissal : sig
@@ -149,9 +169,15 @@ module Command : sig
     | Set_query of string
     | Highlight of Command.Id.t option
     | Set_loading of bool
+    | Publish_results of Results.t
   [@@deriving equal, sexp_of]
 end
 
+(** [Publish_results] requires [Search.External] and a current query fence; the
+    App/controller always attaches one. It atomically installs result order and
+    clears loading, preserves query/undo, retains an enabled surviving highlight
+    or chooses the first enabled result. It rejects composition. Use an accepted
+    View lifecycle effect when staging new registry/config commands first. *)
 module Command_error = Gpuio_protocol.Palette_command_wire.Error
 
 module Expert : sig

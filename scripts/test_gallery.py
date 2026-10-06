@@ -3472,6 +3472,8 @@ def exercise_feedback(mac, images):
     mac.press(TITLE, 'Commands & feedback')
     mac.wait_text(TITLE, 'Everything is in place')
     mac.wait_text(TITLE, 'No pending notification')
+    from gallery_external_palette import exercise as exercise_external_palette
+    exercise_external_palette(mac, images)
 
 
 def expect_enabled(mac, label, expected, role='AXButton'):

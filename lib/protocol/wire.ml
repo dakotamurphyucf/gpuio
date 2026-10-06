@@ -1144,7 +1144,11 @@ module Message = struct
       | Palette_command (correlation, _, _, _, expected, command) ->
         Int64.(correlation <= 0L)
         || Option.exists expected ~f:(fun revision -> Int64.(revision <= 0L))
-        || not (Palette_command_wire.Command.valid command)
+        || (not (Palette_command_wire.Command.valid command))
+        ||
+          (match command with
+          | Publish_results _ -> Option.is_none expected
+          | _ -> false)
       | Notification (correlation, request) ->
         Int64.(correlation <= 0L) || not (Notification.Request.valid request)
       | Desktop (correlation, request) ->

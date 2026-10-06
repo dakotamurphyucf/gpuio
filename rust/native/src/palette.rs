@@ -33,6 +33,12 @@ struct Reveal {
     index: usize,
     viewport: gpui::Size<Pixels>,
 }
+struct PublishedResults {
+    commands: Vec<String>,
+    layout: Option<Arc<gpuio_protocol::palette_layout::Config>>,
+    observer: gpuio_protocol::HandlerId,
+    input_revision: i64,
+}
 pub(super) struct State {
     pub(super) query: Entity<InputState>,
     config: Arc<PaletteConfig>,
@@ -46,6 +52,8 @@ pub(super) struct State {
     selected: Option<String>,
     preserve_no_selection: bool,
     loading: bool,
+    results: Option<PublishedResults>,
+    results_changed: bool,
     #[cfg(feature = "native-tests")]
     loading_probe: super::loading::Probe,
     snapshot: Option<gpuio_protocol::palette_state::Snapshot>,
@@ -86,6 +94,11 @@ impl State {
         self.options
             .as_ref()
             .is_none_or(|options| options.searchable)
+    }
+    fn external(&self) -> bool {
+        self.options
+            .as_ref()
+            .is_some_and(|options| options.search == palette_options::Search::External)
     }
     fn composing(&self, cx: &App) -> bool {
         self.query.read(cx).bridge_composition().is_some()
@@ -130,6 +143,9 @@ impl View {
         };
         for (id, config, options) in nodes {
             if let Some(state) = self.palettes.get_mut(&id) {
+                if state.config.commands != config.commands {
+                    state.results_changed |= state.results.take().is_some();
+                }
                 if state.config != config {
                     state.query.update(cx, |query, cx| {
                         query.set_placeholder(config.placeholder.clone(), window, cx)
@@ -141,6 +157,9 @@ impl View {
                     let was_searchable = state.searchable();
                     state.keywords = keyword_index(options.as_deref());
                     state.options = options;
+                    if !state.external() {
+                        state.results_changed |= state.results.take().is_some();
+                    }
                     let searchable = state.searchable();
                     state.query_visible.set(searchable);
                     if was_searchable != searchable {
@@ -250,6 +269,8 @@ impl View {
                     selected: None,
                     preserve_no_selection: false,
                     loading: false,
+                    results: None,
+                    results_changed: false,
                     #[cfg(feature = "native-tests")]
                     loading_probe: Default::default(),
                     snapshot: None,
@@ -298,7 +319,11 @@ impl View {
             return Response::Failed(Error::StalePalette);
         }
         if !command.is_valid() {
-            return Response::Failed(Error::InvalidQuery);
+            return Response::Failed(if matches!(command, Command::PublishResults(_)) {
+                Error::InvalidResults
+            } else {
+                Error::InvalidQuery
+            });
         }
         // Refresh before comparing the fence: a newer InputState edit may not
         // have emitted its coalesced observer callback yet.
@@ -313,7 +338,21 @@ impl View {
         if expected_query.is_some_and(|r| r != snapshot.query_revision) {
             return Response::Failed(Error::QueryChanged);
         }
-        if !matches!(command, Command::ReadSnapshot | Command::SetLoading(_)) {
+        if matches!(command, Command::PublishResults(_)) {
+            if expected_query.is_none() {
+                return Response::Failed(Error::InvalidResults);
+            }
+            if !state.external() {
+                return Response::Failed(Error::Unavailable);
+            }
+            if state.composing(cx) {
+                return Response::Failed(Error::Composing);
+            }
+        }
+        if !matches!(
+            command,
+            Command::ReadSnapshot | Command::SetLoading(_) | Command::PublishResults(_)
+        ) {
             if !self.focus.borrow().top_overlay(id)
                 || !self.focus.borrow().visible(id)
                 || !self.focus.borrow().interactive(id)
@@ -325,6 +364,29 @@ impl View {
             }
         }
         match command {
+            Command::PublishResults(results) => {
+                let valid = {
+                    let session = self.session.borrow();
+                    let tree = session.tree(self.id).unwrap();
+                    results.commands.iter().all(|command| {
+                        state.config.permits(command) && tree.command(id, command).is_some()
+                    })
+                };
+                if !valid {
+                    return Response::Failed(Error::InvalidResults);
+                }
+                let input_revision = state.query.read(cx).bridge_revision();
+                let state = self.palettes.get_mut(&id).unwrap();
+                state.results = Some(PublishedResults {
+                    commands: results.commands.clone(),
+                    layout: results.layout.clone().map(Arc::new),
+                    observer,
+                    input_revision,
+                });
+                state.results_changed = true;
+                state.loading = false;
+                state.revealed = None;
+            }
             Command::ReadSnapshot => {}
             Command::SetLoading(loading) => {
                 self.palettes.get_mut(&id).unwrap().loading = *loading;
@@ -356,7 +418,7 @@ impl View {
         }
         self.refresh_palette(id, cx);
         cx.notify();
-        if matches!(command, Command::SetLoading(_)) {
+        if matches!(command, Command::SetLoading(_) | Command::PublishResults(_)) {
             self.sync_tooltips(window, cx);
             self.suspend_hidden_animations();
             self.suspend_hidden_programs();
@@ -364,9 +426,24 @@ impl View {
         Response::Applied(self.palettes[&id].snapshot.as_ref().unwrap().clone())
     }
     fn refresh_palette(&mut self, id: NodeId, cx: &App) -> String {
-        let Some(state) = self.palettes.get(&id) else {
+        let observer = self
+            .session
+            .borrow()
+            .tree(self.id)
+            .and_then(|tree| tree.get(id))
+            .and_then(|node| node.handler.filter(|_| node.palette_observed));
+        let Some(state) = self.palettes.get_mut(&id) else {
             return String::new();
         };
+        if state.results.as_ref().is_some_and(|results| {
+            Some(results.observer) != observer
+                || results.input_revision != state.query.read(cx).bridge_revision()
+                || state.composing(cx)
+        }) {
+            state.results = None;
+            state.results_changed = true;
+        }
+        let state = &self.palettes[&id];
         let query = state.query.read(cx).value().to_lowercase();
         let (rows, layout, row_height) = {
             let session = self.session.borrow();
@@ -379,10 +456,27 @@ impl View {
             let Some(config) = node.palette.as_ref() else {
                 return query;
             };
-            let rows = config
-                .commands
-                .iter()
-                .enumerate()
+            let external = state.external();
+            let declared = config.commands.iter().enumerate().collect::<Vec<_>>();
+            let candidates = if external {
+                state.results.as_ref().map_or_else(Vec::new, |results| {
+                    let indices = config
+                        .commands
+                        .iter()
+                        .enumerate()
+                        .map(|(i, id)| (id.as_str(), i))
+                        .collect::<BTreeMap<_, _>>();
+                    results
+                        .commands
+                        .iter()
+                        .filter_map(|id| indices.get(id.as_str()).map(|i| (*i, id)))
+                        .collect()
+                })
+            } else {
+                declared
+            };
+            let rows = candidates
+                .into_iter()
                 .filter_map(|(declared_index, command)| {
                     let (scope, command) = tree.command(id, command)?;
                     let search = state
@@ -393,7 +487,8 @@ impl View {
                         .keywords
                         .get(&command.id)
                         .map_or(&[][..], Vec::as_slice);
-                    (!state.searchable()
+                    (external
+                        || !state.searchable()
                         || search.matches(
                             &command.label.to_lowercase(),
                             &command.id.to_lowercase(),
@@ -409,7 +504,14 @@ impl View {
                 .collect::<Vec<_>>();
             (
                 rows,
-                node.palette_layout.clone(),
+                if external {
+                    state
+                        .results
+                        .as_ref()
+                        .and_then(|results| results.layout.clone())
+                } else {
+                    node.palette_layout.clone()
+                },
                 node.choice_appearance
                     .as_ref()
                     .map_or(32., |appearance| appearance.row_height),
@@ -434,7 +536,15 @@ impl View {
             .map(|row| row.route.config.id.clone())
             .collect::<Vec<_>>();
         state.scroll.replace(
-            list::project(layout.as_deref(), &state.config.commands, &matched),
+            list::project(
+                layout.as_deref(),
+                state
+                    .results
+                    .as_ref()
+                    .filter(|_| state.external())
+                    .map_or(&state.config.commands, |results| &results.commands),
+                &matched,
+            ),
             row_height as f32,
         );
         state.rows = rows;
@@ -459,6 +569,7 @@ impl View {
         let query_changed = state.input_revision != Some(input_revision)
             || previous.is_none_or(|s| s.query != query || s.composing != composing);
         let changed = query_changed
+            || state.results_changed
             || previous.is_none_or(|s| {
                 s.selected != state.selected
                     || s.matched_count != state.rows.len() as i64
@@ -471,6 +582,7 @@ impl View {
                 }
                 return;
             };
+            state.results_changed = false;
             state.input_revision = Some(input_revision);
             state.snapshot = Some(gpuio_protocol::palette_state::Snapshot {
                 sequence,
@@ -575,6 +687,7 @@ impl View {
         }?;
         let state = self.palettes.get_mut(&id).unwrap();
         state.closed = true;
+        state.results = None;
         state.rows.clear();
         state.row_bounds.borrow_mut().clear();
         Some(event)

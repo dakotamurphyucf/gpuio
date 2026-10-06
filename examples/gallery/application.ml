@@ -65,6 +65,19 @@ let run () =
          Gpuio_gallery_files.Theme_file.load
            Eio.Path.(Eio.Stdenv.fs env / Gpuio.File_path.to_string path)
        in
+       let search_palette query =
+         Eio.Time.Mono.sleep
+           (Eio.Stdenv.mono_clock env)
+           (if String.equal query "slow" then 0.8 else 0.18);
+         let query = String.strip query in
+         if String.equal query "missing"
+         then []
+         else if String.is_empty query
+         then [ "Recent notes"; "Recent references" ]
+         else if String.length query > 256
+         then [ "Matching notes"; "Matching references" ]
+         else [ query ^ " notes"; query ^ " references" ]
+       in
        let desktop = Desktop_session.create app in
        let motion = Bonsai.Expert.Var.create Animation.Preference.System in
        let windows = ref [] in
@@ -103,6 +116,7 @@ let run () =
                ~height:820.
                (Component.component
                   ~load_theme
+                  ~search_palette
                   ~save_settings
                   ~searchable
                   ~edit_filters

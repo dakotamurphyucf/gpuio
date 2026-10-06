@@ -845,6 +845,7 @@ impl Decoder<'_> {
             0 => Search::AllTerms,
             1 => Search::Substring,
             2 => Search::Unfiltered,
+            3 => Search::External,
             _ => return Err(DecodeError::Malformed),
         };
         let searchable = self.boolean()?;
@@ -1797,6 +1798,14 @@ pub fn decode(bytes: &[u8]) -> Result<Message, DecodeError> {
                 2 => Command::SetQuery(d.text()?),
                 3 => Command::Highlight(d.option(|d| d.text())?),
                 4 => Command::SetLoading(d.boolean()?),
+                5 => {
+                    let commands = d.list(1024, |d| d.bounded_text(256))?;
+                    let layout = d.option(Decoder::palette_layout)?;
+                    if expected.is_none() {
+                        return Err(DecodeError::Malformed);
+                    }
+                    Command::PublishResults(crate::palette_results::Results { commands, layout })
+                }
                 _ => return Err(DecodeError::Malformed),
             };
             if correlation <= 0 || expected.is_some_and(|r| r <= 0) || !command.is_valid() {

@@ -9,6 +9,7 @@ module Theme_selection = Gpuio_gallery_model.Theme_selection
 let component
       ~save_settings
       ~load_theme
+      ~search_palette
       ~searchable
       ~edit_filters
       ~app
@@ -47,6 +48,7 @@ let component
     graph;
   let content =
     Pages.component
+      ~search_palette
       ~load_theme
       ~theme_selection:appearance
       ~save_settings

@@ -45,3 +45,15 @@ val command_if_query_unchanged
   -> Gpuio.Command_palette.Command.t
   -> (Gpuio.Command_palette.Snapshot.t, Gpuio.Command_palette.Command_error.t) Result.t
        Bonsai.Effect.t
+
+(** Install externally computed results for the captured native query and clear
+    loading in the same native operation. Requires [Search.External]. Stage new
+    config/registry entries first, then call from their accepted View lifecycle
+    (for example [Bonsai.Edge.on_change]); do not use a render callback barrier.
+    Same-query producer supersession remains the application's job/epoch policy. *)
+val publish_results
+  :  t
+  -> expected:Gpuio.Command_palette.Snapshot.t
+  -> Gpuio.Command_palette.Results.t
+  -> (Gpuio.Command_palette.Snapshot.t, Gpuio.Command_palette.Command_error.t) Result.t
+       Bonsai.Effect.t

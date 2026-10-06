@@ -5,6 +5,7 @@ module Search = struct
     | All_terms
     | Substring
     | Unfiltered
+    | External
   [@@deriving bin_io, equal, sexp_of]
 end
 

@@ -173,4 +173,5 @@ pub mod table_presentation;
 pub mod palette_command;
 pub mod palette_layout;
 pub mod palette_options;
+pub mod palette_results;
 pub mod palette_state;

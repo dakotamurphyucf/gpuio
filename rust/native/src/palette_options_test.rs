@@ -1516,3 +1516,334 @@ fn palette_loading_survives_hidden_query_and_covered_overlay_without_editor_muta
         "unmount releases the indicator state"
     );
 }
+
+#[test]
+fn external_results_publish_order_and_loading_atomically_and_reject_stale_query() {
+    use gpuio_protocol::{
+        palette_command::{Command as C, Error as E, Response as R},
+        palette_results::Results,
+    };
+    let mut app = TestAppContext::single();
+    let (owner, mut cx, _reader) = mount_extra(
+        &mut app,
+        vec![
+            Op::SetPaletteObserved(id(1), true),
+            Op::SetPaletteOptions(
+                id(1),
+                Some(palette_options::Config {
+                    search: palette_options::Search::External,
+                    ..Default::default()
+                }),
+            ),
+        ],
+    );
+    let handler = HandlerId::from_parts(1, 1).unwrap();
+    let initial = observations(&owner, &cx).pop().unwrap();
+    assert!(rows(&owner, &cx).is_empty());
+    let results = Results {
+        commands: vec!["other".into(), "run".into()],
+        layout: None,
+    };
+    assert_eq!(
+        palette_command(
+            &owner,
+            &mut cx,
+            handler,
+            None,
+            C::PublishResults(results.clone())
+        ),
+        R::Failed(E::InvalidResults)
+    );
+    palette_command(&owner, &mut cx, handler, None, C::SetLoading(true));
+    let R::Applied(published) = palette_command(
+        &owner,
+        &mut cx,
+        handler,
+        Some(initial.query_revision),
+        C::PublishResults(results.clone()),
+    ) else {
+        panic!("publish failed")
+    };
+    assert!(!published.loading);
+    assert_eq!(published.matched_count, 2);
+    assert_eq!(published.selected.as_deref(), Some("other"));
+    assert_eq!(published.query_revision, initial.query_revision);
+    assert_eq!(rows(&owner, &cx), ["other", "run"]);
+    draw(&mut cx);
+    assert_eq!(rows(&owner, &cx), ["other", "run"]);
+    let reversed = Results {
+        commands: vec!["run".into(), "other".into()],
+        layout: None,
+    };
+    let R::Applied(reordered) = palette_command(
+        &owner,
+        &mut cx,
+        handler,
+        Some(initial.query_revision),
+        C::PublishResults(reversed),
+    ) else {
+        panic!("reorder failed")
+    };
+    assert!(reordered.sequence > published.sequence);
+    assert_eq!(reordered.selected, published.selected);
+    assert_eq!(rows(&owner, &cx), ["run", "other"]);
+    assert_eq!(
+        palette_command(
+            &owner,
+            &mut cx,
+            handler,
+            Some(initial.query_revision),
+            C::PublishResults(Results {
+                commands: vec!["missing".into()],
+                layout: None
+            })
+        ),
+        R::Failed(E::InvalidResults)
+    );
+    assert_eq!(rows(&owner, &cx), ["run", "other"]);
+    cx.update(|w, cx| {
+        owner.update(cx, |view, cx| {
+            let input = view.palettes[&id(1)].query.clone();
+            let queued = view.palettes[&id(1)].rows[0].route.clone();
+            input.update(cx, |input, cx| {
+                input.set_value("new", w, cx);
+                input.set_value("", w, cx);
+            });
+            // No observer delivery/paint between native ABA and queued activation.
+            view.select_palette(id(1), &queued, w, cx);
+            assert!(!view.palettes[&id(1)].closed);
+            assert!(view.palettes[&id(1)].rows.is_empty());
+            assert!(view.palettes[&id(1)].results.is_none());
+            assert_eq!(
+                view.palette_command(
+                    id(1),
+                    handler,
+                    Some(initial.query_revision),
+                    &C::PublishResults(results),
+                    w,
+                    cx
+                ),
+                R::Failed(E::QueryChanged)
+            );
+        })
+    });
+    draw(&mut cx);
+    assert!(rows(&owner, &cx).is_empty());
+}
+
+#[test]
+fn external_group_order_preserves_declared_content_indices_and_retires_on_detach() {
+    use gpuio_protocol::{
+        palette_command::{Command as C, Response as R},
+        palette_layout::{Config, Entry},
+        palette_results::Results,
+    };
+    let mut app = TestAppContext::single();
+    let (owner, mut cx, _reader) = mount_extra(
+        &mut app,
+        vec![
+            Op::SetPaletteObserved(id(1), true),
+            Op::SetPaletteOptions(
+                id(1),
+                Some(palette_options::Config {
+                    search: palette_options::Search::External,
+                    ..Default::default()
+                }),
+            ),
+        ],
+    );
+    let handler = HandlerId::from_parts(1, 1).unwrap();
+    let initial = observations(&owner, &cx).pop().unwrap();
+    let results = Results {
+        commands: vec!["other".into(), "run".into()],
+        layout: Some(Config(vec![
+            Entry::Group("external".into(), Some("Ranked".into()), vec![0]),
+            Entry::Separator,
+            Entry::Command(1),
+        ])),
+    };
+    assert!(matches!(
+        palette_command(
+            &owner,
+            &mut cx,
+            handler,
+            Some(initial.query_revision),
+            C::PublishResults(results)
+        ),
+        R::Applied(_)
+    ));
+    draw(&mut cx);
+    owner.read_with(&cx, |view, _| {
+        let state = &view.palettes[&id(1)];
+        assert_eq!(
+            state
+                .rows
+                .iter()
+                .map(|r| r.declared_index)
+                .collect::<Vec<_>>(),
+            [1, 0]
+        );
+        assert!(matches!(&state.scroll.rows()[0],list::Row::Heading {label,..} if label=="Ranked"));
+        assert!(matches!(&state.scroll.rows()[1],list::Row::Command {id,..} if id=="other"));
+    });
+    admit(&owner, &mut cx, vec![Op::SetPaletteObserved(id(1), false)]);
+    owner.read_with(&cx, |view, _| {
+        assert!(view.palettes[&id(1)].results.is_none());
+        assert!(view.palettes[&id(1)].rows.is_empty());
+    });
+}
+
+#[test]
+fn external_results_reject_composition_and_release_on_config_policy_and_close() {
+    use gpui::EntityInputHandler;
+    use gpuio_protocol::{
+        palette_command::{Command as C, Error as E, Response as R},
+        palette_results::Results,
+    };
+    let mut app = TestAppContext::single();
+    let (owner, mut cx, _reader) = mount_extra(
+        &mut app,
+        vec![
+            Op::SetPaletteObserved(id(1), true),
+            Op::SetPaletteOptions(
+                id(1),
+                Some(palette_options::Config {
+                    search: palette_options::Search::External,
+                    ..Default::default()
+                }),
+            ),
+        ],
+    );
+    let handler = HandlerId::from_parts(1, 1).unwrap();
+    let result = || {
+        C::PublishResults(Results {
+            commands: vec!["disabled".into(), "other".into()],
+            layout: None,
+        })
+    };
+    let current = |cx: &mut VisualTestContext| match palette_command(
+        &owner,
+        cx,
+        handler,
+        None,
+        C::ReadSnapshot,
+    ) {
+        R::Applied(s) => s,
+        other => panic!("{other:?}"),
+    };
+    let before = current(&mut cx);
+    assert!(matches!(
+        palette_command(
+            &owner,
+            &mut cx,
+            handler,
+            Some(before.query_revision),
+            result()
+        ),
+        R::Applied(_)
+    ));
+    assert_eq!(state(&owner, &cx).1.as_deref(), Some("other"));
+    let input = owner.read_with(&cx, |view, _| view.palettes[&id(1)].query.clone());
+    cx.update(|w, cx| {
+        input.update(cx, |q, cx| {
+            q.replace_and_mark_text_in_range(None, "λ", Some(0..1), w, cx)
+        })
+    });
+    let composing = current(&mut cx);
+    assert_eq!(
+        palette_command(
+            &owner,
+            &mut cx,
+            handler,
+            Some(composing.query_revision),
+            result()
+        ),
+        R::Failed(E::Composing)
+    );
+    assert!(
+        input
+            .read_with(&cx, |q, _| q.bridge_composition())
+            .is_some()
+    );
+    assert_eq!(input.read_with(&cx, |q, _| q.value().to_string()), "λ");
+    cx.update(|w, cx| input.update(cx, |q, cx| q.unmark_text(w, cx)));
+    let plain = current(&mut cx);
+    assert!(matches!(
+        palette_command(
+            &owner,
+            &mut cx,
+            handler,
+            Some(plain.query_revision),
+            result()
+        ),
+        R::Applied(_)
+    ));
+    let mut config = owner.read_with(&cx, |view, _| (*view.palettes[&id(1)].config).clone());
+    config.commands.reverse();
+    admit(&owner, &mut cx, vec![Op::SetPalette(id(1), config)]);
+    assert!(rows(&owner, &cx).is_empty());
+    let plain = current(&mut cx);
+    assert!(matches!(
+        palette_command(
+            &owner,
+            &mut cx,
+            handler,
+            Some(plain.query_revision),
+            result()
+        ),
+        R::Applied(_)
+    ));
+    admit(&owner, &mut cx, vec![Op::SetPaletteOptions(id(1), None)]);
+    owner.read_with(&cx, |view, _| {
+        assert!(view.palettes[&id(1)].results.is_none())
+    });
+    assert_eq!(
+        palette_command(
+            &owner,
+            &mut cx,
+            handler,
+            Some(plain.query_revision),
+            result()
+        ),
+        R::Failed(E::Unavailable)
+    );
+    admit(
+        &owner,
+        &mut cx,
+        vec![Op::SetPaletteOptions(
+            id(1),
+            Some(palette_options::Config {
+                search: palette_options::Search::External,
+                ..Default::default()
+            }),
+        )],
+    );
+    assert!(matches!(
+        palette_command(
+            &owner,
+            &mut cx,
+            handler,
+            Some(plain.query_revision),
+            result()
+        ),
+        R::Applied(_)
+    ));
+    cx.update(|w, cx| {
+        owner.update(cx, |view, cx| {
+            view.close_palette(id(1), PaletteDismissal::Escape, w, cx)
+        })
+    });
+    owner.read_with(&cx, |view, _| {
+        assert!(view.palettes[&id(1)].results.is_none())
+    });
+    assert_eq!(
+        palette_command(
+            &owner,
+            &mut cx,
+            handler,
+            Some(plain.query_revision),
+            result()
+        ),
+        R::Failed(E::StalePalette)
+    );
+}

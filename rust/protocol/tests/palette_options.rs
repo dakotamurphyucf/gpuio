@@ -42,7 +42,7 @@ fn palette_options_codec_bounds_and_reset() {
         }
     }
     let valid = encode(&message(Some(config())));
-    for (offset, tag) in [(9, 2), (10, 3), (11, 2), (12, 2)] {
+    for (offset, tag) in [(9, 2), (10, 4), (11, 2), (12, 2)] {
         let mut malformed = valid.clone();
         malformed[offset] = tag;
         assert_eq!(decode(&malformed), Err(DecodeError::Malformed));
@@ -76,6 +76,14 @@ fn palette_options_codec_bounds_and_reset() {
         encode(&message(Some(config()))),
         b"\x03\x00\x01\x00\x01\x01\x7d\x01\x01\x01\x01\x00\x01\x01\x03run\x01\x0aexecute \xce\xbb"
     );
+    let external = message(Some(Config {
+        search: Search::External,
+        ..config()
+    }));
+    let bytes =
+        b"\x03\x00\x01\x00\x01\x01\x7d\x01\x01\x01\x03\x00\x01\x01\x03run\x01\x0aexecute \xce\xbb";
+    assert_eq!(encode(&external), bytes);
+    assert_eq!(decode(bytes), Ok(external));
 }
 #[test]
 fn palette_options_search_and_shared_metadata_budget() {

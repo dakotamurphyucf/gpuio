@@ -504,6 +504,7 @@ let editors edit_filters window palette graph =
 ;;
 
 let component
+      ~search_palette
       ~save_settings
       ~load_theme
       ~theme_selection
@@ -529,7 +530,7 @@ let component
   | Pickers -> Pickers_page.component window palette graph
   | Overlays -> Overlays_page.component palette graph
   | Navigation -> Navigation_page.component app window palette graph
-  | Feedback -> Feedback_page.component app window palette graph
+  | Feedback -> Feedback_page.component ~search_palette app window palette graph
   | Journeys -> Journeys_page.component window palette graph
   | Collections -> Collections_page.component app searchable window palette graph
   | Documents -> Documents_page.component app window palette graph

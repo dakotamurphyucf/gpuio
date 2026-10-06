@@ -8,6 +8,7 @@ pub enum Search {
     AllTerms,
     Substring,
     Unfiltered,
+    External,
 }
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, BinProtWrite)]
 pub enum Escape {
@@ -73,6 +74,11 @@ impl Config {
         // Reserve both wire data and the native lowercase search index. Unicode
         // lowercase can expand UTF-8; four text copies bound original+folded data.
         std::mem::size_of::<Self>()
+            + if self.search == Search::External {
+                crate::palette_results::RESERVATION_BYTES
+            } else {
+                0
+            }
             + self.text_bytes() * 4
             + self
                 .keywords
@@ -97,6 +103,7 @@ impl Search {
                 label.contains(query) || keywords.iter().any(|k| k.contains(query))
             }
             Self::Unfiltered => true,
+            Self::External => false,
         }
     }
 }

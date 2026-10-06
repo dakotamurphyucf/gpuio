@@ -7,9 +7,11 @@ module Command = struct
     | Set_query of string
     | Highlight of string option
     | Set_loading of bool
+    | Publish_results of Palette_results_wire.t
   [@@deriving bin_io, equal, sexp_of]
 
   let valid = function
+    | Publish_results results -> Palette_results_wire.valid results
     | Read_snapshot | Focus | Highlight None | Set_loading _ -> true
     | Set_query query ->
       Palette_state_wire.valid
@@ -45,6 +47,7 @@ module Error = struct
     | Invalid_query
     | Busy
     | Native_failure
+    | Invalid_results
   [@@deriving bin_io, equal, sexp_of]
 end
 
