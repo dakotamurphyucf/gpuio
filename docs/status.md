@@ -5,6 +5,12 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **O
 Markdown walkthroughs for every example component; its documentation acceptance is complete. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
+[Chart appearance values and codecs](evidence/chart-appearance-values-och41.md)
+now have validated OCaml constructors, theme resolution and paired bounded Rust
+decoding, with local chart/protocol tests and strict lint passing. Native chart
+attachment, rendering, hit testing and public gallery qualification remain under
+implementation; this checkpoint adds no rendered capability or release acceptance.
+
 [Example walkthrough coverage](evidence/example-walkthroughs-och48.md) now has an
 explicit inventory of 419 OCaml/Rust source files in 261 groups, with all 261 groups
 reviewed and none pending. The starter, palette/scope/gallery/theme guides,

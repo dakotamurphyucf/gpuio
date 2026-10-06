@@ -36,6 +36,8 @@ pub use highlight::{decode_highlight_config, decode_highlight_observation};
 mod document_diff;
 pub use document_diff::{decode_document_diff_config, decode_document_diff_event};
 mod accessibility;
+mod chart_appearance;
+pub use chart_appearance::decode_chart_appearance;
 mod chart_axis;
 mod chart_data;
 mod chart_inspection;

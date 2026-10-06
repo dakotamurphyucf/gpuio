@@ -16,6 +16,8 @@ pub mod canvas_view;
 pub mod carousel;
 pub mod carousel_track;
 pub use decode::{decode_carousel_track_config, decode_carousel_track_request};
+pub mod chart_appearance;
+pub use decode::decode_chart_appearance;
 pub mod chart_axis;
 pub mod chart_data;
 pub mod chart_grid;
