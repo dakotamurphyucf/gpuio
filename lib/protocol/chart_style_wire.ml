@@ -37,6 +37,7 @@ type t =
   ; bar_radius : float
   ; area_opacity : float
   ; ordinal : Ordinal.t option
+  ; inspection : Chart_inspection_wire.t
   }
 [@@deriving bin_io, equal, sexp_of]
 
@@ -57,7 +58,7 @@ let valid_ordinal (t : Ordinal.t) =
 ;;
 
 let valid t =
-  Int64.equal t.version 0L
+  Int64.equal t.version (-1L)
   && List.length t.palette >= 1
   && List.length t.palette <= 32
   && List.for_all t.palette ~f:color
@@ -70,4 +71,5 @@ let valid t =
   && within t.bar_radius 0. 32.
   && within t.area_opacity 0. 1.
   && Option.for_all t.ordinal ~f:valid_ordinal
+  && Chart_inspection_wire.valid t.inspection
 ;;

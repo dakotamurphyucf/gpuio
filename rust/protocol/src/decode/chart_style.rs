@@ -5,7 +5,7 @@ use std::io::Cursor;
 impl Decoder<'_> {
     pub(super) fn chart_style(&mut self) -> Result<Style, DecodeError> {
         let version = self.int()?;
-        if version != 0 {
+        if version != -1 {
             return Err(DecodeError::Malformed);
         }
         let style = Style {
@@ -36,6 +36,7 @@ impl Decoder<'_> {
                     unknown: d.option(|d| d.int())?,
                 })
             })?,
+            inspection: Box::new(self.chart_inspection()?),
         };
         if style.is_valid() {
             Ok(style)

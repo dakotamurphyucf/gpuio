@@ -117,6 +117,7 @@ let component app window palette graph =
         Source.create app scope (B.Expert.Var.get mode))
       graph
   in
+  let inspection, set_inspection = B.state Samples.Inspection.Default graph in
   let horizontal, toggle_horizontal = B.toggle ~default_model:false graph in
   let reversed, toggle_reversed = B.toggle ~default_model:false graph in
   let category_layout, set_category_layout = B.state Category_layout.Auto graph in
@@ -134,6 +135,8 @@ let component app window palette graph =
   and resources = resources
   and current_mode = B.Expert.Var.value mode
   and selection = B.Expert.Var.value selected
+  and inspection = inspection
+  and set_inspection = set_inspection
   and horizontal = horizontal
   and toggle_horizontal = toggle_horizontal
   and reversed = reversed
@@ -184,7 +187,7 @@ let component app window palette graph =
       | Ready metrics ->
         set_notice
           (sprintf
-             "Ready: %s · %d source values · %s"
+             "Ready: %s · %d source values · %s · %s"
              (Mode.label source.mode)
              metrics.source_values
              (if Mode.equal current_mode Categorical
@@ -197,7 +200,8 @@ let component app window palette graph =
               then
                 direction
                 ^ if unknown_color then " · Explicit unknown" else " · Palette fallback"
-              else direction))
+              else direction)
+             (Samples.Inspection.label inspection))
       | Failed e -> set_notice (Sexp.to_string_hum [%sexp (e : Chart.Error.t)])
       | Selection_changed target ->
         E.of_thunk (fun () -> B.Expert.Var.set selected target)
@@ -232,6 +236,7 @@ let component app window palette graph =
           (Option.some_if
              (Mode.equal current_mode Ordinal_colors)
              (Samples.Ordinal_colors.mapping ~unknown:unknown_color))
+        ~inspection:(Samples.Inspection.config inspection)
         ~label_color:(Palette.foreground p)
         ~axis_color:(Palette.muted p)
         ~grid_color:(Palette.border p)
@@ -305,7 +310,15 @@ let component app window palette graph =
                      (set_category_layout candidate)))
             ]
           else [])
-       @ [ chart
+       @ [ V.row
+             ~style:(style [ Gap (px 6.); Wrap Wrap ])
+             (List.map Samples.Inspection.all ~f:(fun candidate ->
+                Palette.button
+                  p
+                  ~selected:(Samples.Inspection.equal candidate inspection)
+                  (Samples.Inspection.label candidate)
+                  (set_inspection candidate)))
+         ; chart
          ; Palette.text p notice
          ; Palette.text
              p

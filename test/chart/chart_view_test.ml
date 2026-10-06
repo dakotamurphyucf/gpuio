@@ -17,7 +17,7 @@ let hex bytes =
 
 let style =
   Gpuio.Chart_style.Expert.of_wire
-    { version = 0L
+    { version = -1L
     ; palette = [ 1L; 2L ]
     ; axis_color = 3L
     ; grid_color = 4L
@@ -28,6 +28,11 @@ let style =
     ; point_radius = 3.
     ; bar_radius = 4.
     ; area_opacity = 0.5
+    ; inspection =
+        Gpuio.Chart_inspection.Expert.to_wire
+          Gpuio.Chart_inspection.default
+          ~theme:Gpuio.Theme.default
+        |> Or_error.ok_exn
     ; ordinal = None
     }
   |> ok
@@ -51,7 +56,7 @@ let%expect_test "chart view owner and append-only envelopes match independent fi
   let bytes = Bin_prot.Utils.bin_dump W.Config.bin_writer_t wire |> Bigstring.to_string in
   Eio_main.run (fun env ->
     let expected =
-      Eio.Path.load Eio.Path.(Eio.Stdenv.cwd env / "chart-v3-style-v0-view.hex")
+      Eio.Path.load Eio.Path.(Eio.Stdenv.cwd env / "chart-v3-style-inspection-view.hex")
       |> String.strip
     in
     assert (String.equal (hex bytes) expected));

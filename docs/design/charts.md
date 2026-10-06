@@ -701,3 +701,12 @@ CPU/RSS, frame geometry, update latency, bridge bytes and queue/retention charge
 `App.diagnostics.native_command_queue` snapshots accepted native command count,
 current serialized-size charge and lifetime peak under a short mailbox lock.
 It adds no command/wake and excludes executing work/output events.
+
+## Configurable inspection presentation
+
+The [inspection contract](chart-inspection.md) adds typed card, crosshair and
+marker controls through `Chart_style.create ~inspection`, preserving native
+preview and committed-selection ownership. [Local qualification](../evidence/chart-inspection-och41.md)
+includes actual pixels and root/installed OCaml gallery walkthroughs. The current
+style envelope is -1; options/data versions remain 3/1. Broader chart presentation
+options and whole-catalog/release acceptance remain separate.

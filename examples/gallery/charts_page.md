@@ -33,7 +33,8 @@ macOS has local native acceptance; Linux desktop qualification is deferred.
 
 ## Data and lifetime
 
-`Mode.t` is either a named family or Mixed. Its `data` function builds immutable
+`Mode.t` selects a named family, mixed layers, categorical data, stacked bars or
+areas, or the ordinal-color example. Its `data` function builds immutable
 `Chart_data` values with validated numeric domains, source IDs and resource
 bounds. IDs identify values; labels describe them. Missing line/area values are
 explicit gaps. The sample's mode and phase select new data without changing the
@@ -145,3 +146,12 @@ stable colors. The page's `unknown_color` Bonsai toggle chooses an explicit
 unknown color or the ordinary position palette for Review. `Chart_style.create`
 resolves the mapping; the native prepared plan shares its colors with the legend.
 The existing publication guard and ID-based selection remain in force.
+
+## Inspection presentation
+
+The inspection state selects a pure [public preset](../charts/samples/inspection.md).
+It changes `Chart_style.create ~inspection`, independently of the data mode,
+source publication, selected source ID and original-data table. Native hover and
+keyboard previews use the prepared style; a matching Ready notice names the
+preset. Crosshair/marker layout and anchored-card placement run natively. No
+Bonsai update is needed for ordinary pointer movement within a prepared chart.

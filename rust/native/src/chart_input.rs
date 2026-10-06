@@ -4,6 +4,8 @@ use super::*;
 use crate::chart_geometry::Point;
 use gpui::{Hitbox, HitboxId, MouseButton, Pixels};
 use gpuio_protocol::chart_selection::Selection;
+#[path = "chart_inspection_view.rs"]
+mod inspection;
 type Shared = Rc<RefCell<State>>;
 #[path = "chart_data_view.rs"]
 mod data_view;
@@ -227,63 +229,7 @@ impl State {
             index,
         )?;
         let selected = self.input.capture.is_none() && self.input.selected_index == Some(index);
-        let color = ready.config.style.selection_color as u32;
-        let backing = presentation::label_backing(color);
-        let text_color = ready.config.style.label_color as u32;
-        let card = div()
-            .id("gpuio-chart-details")
-            .role(gpui::Role::Group)
-            .aria_label(format!("{}: {}", details.title, details.text))
-            .absolute()
-            .top(px(40.))
-            .right(px(8.))
-            .w(px((frame.width - 16.).clamp(0., 280.) as f32))
-            .max_h(px((frame.legend.y - 48.).max(0.) as f32))
-            .overflow_hidden()
-            .p_2()
-            .rounded_md()
-            .bg(gpui::rgba(presentation::label_backing(text_color)))
-            .text_color(gpui::rgba(text_color))
-            .text_size(px(12.))
-            .line_height(px(17.))
-            .child(
-                div()
-                    .id("gpuio-chart-detail-title")
-                    .role(gpui::Role::Label)
-                    .aria_label(details.title.clone())
-                    .text_ellipsis()
-                    .child(details.title),
-            )
-            .child(
-                div()
-                    .id("gpuio-chart-detail-values")
-                    .role(gpui::Role::Label)
-                    .aria_label(details.text.clone())
-                    .child(details.text),
-            );
-        Some(
-            div()
-                .absolute()
-                .top_0()
-                .left_0()
-                .size_full()
-                .child(
-                    div()
-                        .absolute()
-                        .left(px((frame.plot.x + details.anchor.x - 8.) as f32))
-                        .top(px((frame.plot.y + details.anchor.y - 8.) as f32))
-                        .size(px(16.))
-                        .rounded_full()
-                        .bg(gpui::rgba(color))
-                        .text_color(gpui::rgba(backing))
-                        .text_size(px(12.))
-                        .line_height(px(16.))
-                        .text_center()
-                        .child(if selected { "✓" } else { "○" }),
-                )
-                .child(card)
-                .into_any_element(),
-        )
+        Some(inspection::overlay(ready, frame, details, selected))
     }
 }
 pub(super) fn install_blur(state: &Shared, window: &mut Window, cx: &mut App) {
@@ -340,7 +286,9 @@ pub(super) fn prepaint(
         bounds.origin + gpui::point(px(frame.plot.x as f32), px(frame.plot.y as f32)),
         gpui::size(px(frame.plot.width as f32), px(frame.plot.height as f32)),
     );
-    let hitbox = window.insert_hitbox(plot, gpui::HitboxBehavior::BlockMouse);
+    // Selection owns pointer input, but charts have no wheel gesture. Let the
+    // enclosing scroll view receive wheel events even while inspecting a mark.
+    let hitbox = window.insert_hitbox(plot, gpui::HitboxBehavior::BlockMouseExceptScroll);
     if let Some(old) = state.input.capture {
         if window.captured_hitbox() == Some(old) && state.input_allowed(window, true) {
             window.capture_pointer(hitbox.id);

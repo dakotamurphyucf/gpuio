@@ -4,7 +4,7 @@ module W = Gpuio_protocol.Chart_style_wire
 
 let%expect_test "style has an independent paired byte fixture and validated defaults" =
   let wire : W.t =
-    { version = 0L
+    { version = -1L
     ; palette = [ 1L; 2L ]
     ; axis_color = 3L
     ; grid_color = 4L
@@ -15,6 +15,11 @@ let%expect_test "style has an independent paired byte fixture and validated defa
     ; point_radius = 3.
     ; bar_radius = 4.
     ; area_opacity = 0.5
+    ; inspection =
+        Gpuio.Chart_inspection.Expert.to_wire
+          Gpuio.Chart_inspection.default
+          ~theme:Gpuio.Theme.default
+        |> Or_error.ok_exn
     ; ordinal = None
     }
   in
@@ -27,7 +32,7 @@ let%expect_test "style has an independent paired byte fixture and validated defa
      |> List.map ~f:(fun c -> sprintf "%02x" (Char.to_int c))
      |> String.concat);
   [%expect
-    {| 00020102030405060107000000000000004000000000000008400000000000001040000000000000e03f00 |}]
+    {| ffff020102030405060107000000000000004000000000000008400000000000001040000000000000e03f000101010000000000008071400000000000002040000000000000204000000000000018400000000000002840000000000000314000000000000000000000000000000000000000f03f000101000000000000304000000000000000000000 |}]
 ;;
 
 let%expect_test "theme resolution and style bounds cannot be bypassed" =
@@ -115,7 +120,7 @@ let%expect_test
 
 let%expect_test "ordinal style bytes pair with the independent native fixture" =
   let wire : W.t =
-    { version = 0L
+    { version = -1L
     ; palette = [ 1L; 2L ]
     ; axis_color = 3L
     ; grid_color = 4L
@@ -126,6 +131,11 @@ let%expect_test "ordinal style bytes pair with the independent native fixture" =
     ; point_radius = 3.
     ; bar_radius = 4.
     ; area_opacity = 0.5
+    ; inspection =
+        Gpuio.Chart_inspection.Expert.to_wire
+          Gpuio.Chart_inspection.default
+          ~theme:Gpuio.Theme.default
+        |> Or_error.ok_exn
     ; ordinal =
         Some
           { domain = [ Series 9L; Slice 9L; Node 9L; Rising; Falling ]
@@ -141,5 +151,5 @@ let%expect_test "ordinal style bytes pair with the independent native fixture" =
      |> List.map ~f:(fun c -> sprintf "%02x" (Char.to_int c))
      |> String.concat);
   [%expect
-    {| 00020102030405060107000000000000004000000000000008400000000000001040000000000000e03f01050009010902090304020a14011e |}]
+    {| ffff020102030405060107000000000000004000000000000008400000000000001040000000000000e03f01050009010902090304020a14011e0101010000000000008071400000000000002040000000000000204000000000000018400000000000002840000000000000314000000000000000000000000000000000000000f03f000101000000000000304000000000000000000000 |}]
 ;;

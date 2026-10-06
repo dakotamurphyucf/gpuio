@@ -17,6 +17,7 @@ pub mod carousel;
 pub mod carousel_track;
 pub use decode::{decode_carousel_track_config, decode_carousel_track_request};
 pub mod chart_data;
+pub mod chart_inspection;
 pub mod chart_options;
 pub mod chart_resource;
 pub mod chart_sampling;

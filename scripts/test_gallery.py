@@ -2,6 +2,7 @@
 """Exercise the public gallery's native navigation, editing and window isolation."""
 import argparse
 import ctypes as C
+import hashlib
 from collections import Counter, defaultdict
 import os
 import re
@@ -4554,6 +4555,72 @@ def exercise_assets(mac, images):
           'icon semantics, OS activation and scoped cleanup', flush=True)
 
 
+def exercise_chart_inspection(mac, images):
+    reveal_gallery_control(mac, 'Line', 'AXButton')
+    mac.press(TITLE, 'Line')
+    mac.wait_text(TITLE, 'Ready: Line · 48 source values')
+    with tempfile.TemporaryDirectory(prefix='gpuio-chart-inspection-') as temporary:
+        directory = images or Path(temporary)
+        baseline = None
+        for label in ['Default inspection', 'Vertical crosshair', 'Horizontal band',
+                      'Anchored details', 'Marker only', 'Default inspection']:
+            reveal_gallery_control(mac, label, 'AXButton')
+            mac.press(TITLE, label)
+            mac.wait_text(TITLE, 'Ready: Line · 48 source values · Vertical · ' + label)
+            focus_gallery_control(mac, 'Chart preview: Line', 'AXGroup')
+            mac.key(115)
+            mac.key(36)
+            mac.wait_text(TITLE, 'Selected: Atlas · x 0 · value 30')
+            reveal_gallery_control(mac, 'Chart preview: Line', 'AXGroup')
+            chart = mac.wait_find(TITLE, 'Chart preview: Line', 'AXGroup')
+            window = mac.window(TITLE)
+            try:
+                x, y, w, h = element_rect(mac, chart)
+                wx, wy, ww, wh = element_rect(mac, window)
+            finally:
+                mac.release(chart)
+                mac.release(window)
+            GalleryMouse(mac).send(5, (wx + ww - 25, wy + 110))
+            time.sleep(.1)
+            card = mac.find(TITLE, 'Atlas:', 'AXGroup', contains=True)
+            if label == 'Marker only':
+                assert not card, 'Hidden inspection card remains accessible'
+            else:
+                assert card, ('Missing native inspection card', label)
+                try:
+                    cx, cy, cw, ch = element_rect(mac, card)
+                    assert x - 1 <= cx and cx + cw <= x + w + 1, (label, (x,y,w,h), (cx,cy,cw,ch))
+                    assert y - 1 <= cy and cy + ch <= y + h + 1, (label, (x,y,w,h), (cx,cy,cw,ch))
+                    if label == 'Anchored details':
+                        assert abs(cw - 180) < 2, (label, cw)
+                finally:
+                    mac.release(card)
+            path = directory / ('gallery-chart-inspection-' + label.lower().replace(' ', '-') + '.png')
+            screenshot(mac, path, title=TITLE)
+            pixels = read_png(mac, path)
+            assert wy <= y and y + h <= wy + wh, ('Chart must be visible', (x,y,w,h))
+            samples = [pixels.rgb((x + dx - wx) * pixels.width / ww,
+                                  (y + dy - wy) * pixels.height / wh)
+                       for dy in range(1, int(h)-1) for dx in range(1, int(w)-1)]
+            rose = sum(max(abs(a-b) for a,b in zip(rgb,(250,49,94))) <= 6 for rgb in samples)
+            if label == 'Default inspection':
+                assert rose < 10, ('Unexpected custom inspection color in defaults', rose)
+                baseline = samples
+            else:
+                assert len(samples) == len(baseline)
+                changed = sum(max(abs(a-b) for a,b in zip(p,q)) > 8 for p,q in zip(samples,baseline))
+                assert changed > 100, ('Inspection preset did not change chart pixels', label, changed)
+                if label in ['Vertical crosshair', 'Anchored details', 'Marker only']:
+                    assert rose > 30, ('Inspection accent missing', label, rose)
+                print('CHART_INSPECTION_PIXELS', label, changed, rose, flush=True)
+        mac.press(TITLE, 'Update chart samples')
+        mac.wait_text(TITLE, 'Selected: Atlas · x 0 · value 33')
+        mac.press(TITLE, 'View data')
+        mac.release(mac.wait_find(TITLE, 'Chart preview: Line · original data', 'AXTable'))
+        mac.press(TITLE, 'Back to chart')
+        reveal_gallery_control(mac, 'Ordinal colors', 'AXButton')
+
+
 def exercise_chart_ordinal_colors(mac, images):
     mac.press(TITLE, 'Ordinal colors')
     mac.wait_text(TITLE, 'Ready: Ordinal colors · 3 source values · Vertical · Explicit unknown')
@@ -4677,6 +4744,7 @@ def exercise_charts(mac, images):
         mac.release(mac.wait_find(TITLE, f'Row {originals}:', 'AXRow', contains=True, search_files=True))
         mac.press(TITLE, 'Back to chart')
         mac.release(mac.wait_find(TITLE, 'View data', 'AXButton'))
+    exercise_chart_inspection(mac, images)
     exercise_chart_ordinal_colors(mac, images)
     for family in ['Stacked bars', 'Stacked areas']:
         mac.press(TITLE, family)
@@ -4703,7 +4771,7 @@ def exercise_charts(mac, images):
     mac.wait_text(TITLE, 'Ready: Categorical · 8 source values · Vertical · Auto categories')
     for layout in ['Point categories', 'Band categories', 'Auto categories']:
         mac.press(TITLE, layout)
-        mac.release(mac.wait_find(TITLE, 'Ready: Categorical · 8 source values · Vertical · ' + layout))
+        mac.release(mac.wait_find(TITLE, 'Ready: Categorical · 8 source values · Vertical · ' + layout + ' · Default inspection'))
         focus_gallery_control(mac, 'Chart preview: Categorical', 'AXGroup')
         mac.key(53)
         mac.wait_text(TITLE, 'Select a chart value to inspect it.')
@@ -4729,7 +4797,7 @@ def exercise_charts(mac, images):
         ('Reverse value axis', 'Vertical'),
     ]:
         activate(mac, mac.wait_find(TITLE, control, 'AXCheckBox'))
-        mac.release(mac.wait_find(TITLE, f'Ready: Mixed layers · 72 source values · {direction}'))
+        mac.release(mac.wait_find(TITLE, f'Ready: Mixed layers · 72 source values · {direction} · Default inspection'))
         print('CHART_DIRECTION_READY', direction, flush=True)
         focus_gallery_control(mac, 'Chart preview: Mixed layers', 'AXGroup')
         mac.key(53)
@@ -4740,7 +4808,7 @@ def exercise_charts(mac, images):
         if images:
             screenshot(mac, images / ('gallery-chart-' + direction.lower().replace(' ', '-') + '.png'), title=TITLE)
     activate(mac, mac.wait_find(TITLE, 'Horizontal axes', 'AXCheckBox'))
-    mac.release(mac.wait_find(TITLE, 'Ready: Mixed layers · 72 source values · Horizontal'))
+    mac.release(mac.wait_find(TITLE, 'Ready: Mixed layers · 72 source values · Horizontal · Default inspection'))
     activate(mac, mac.wait_find(TITLE, 'Disable chart input', 'AXCheckBox'))
     expect_enabled(mac, 'Chart preview: Mixed layers', False, 'AXGroup')
     activate(mac, mac.wait_find(TITLE, 'Disable chart input', 'AXCheckBox'))
@@ -4772,7 +4840,7 @@ def exercise_charts(mac, images):
     wait_for_resource_cleanup(mac)
     mac.wait_text(TITLE, 'Registered source bytes: 0')
     print('GALLERY_CHARTS_OK: seven families plus mixed layers, four Cartesian directions, native keyboard selection, '
-          'categorical point/band layout, stable ordinal legend colors through reorder/unknown fallback, stacked bars/areas with retained selection and raw missing values, category identity, data updates, bounded original-data pages, styles and scope cleanup', flush=True)
+          'inspection card/crosshair/marker pixels, categorical point/band layout, stable ordinal legend colors through reorder/unknown fallback, stacked bars/areas with retained selection and raw missing values, category identity, data updates, bounded original-data pages, styles and scope cleanup', flush=True)
 
 
 class GalleryMouse:
@@ -6920,7 +6988,7 @@ def main():
     parser.add_argument('--trace-canvas', action='store_true')
     parser.add_argument('--trace-motion', action='store_true')
     parser.add_argument('--trace-windows', action='store_true')
-    parser.add_argument('--section', choices=['all', 'core', 'shell', 'settings', 'settings-windows', 'settings-composition', 'settings-fields', 'forms', 'editor-groups', 'avatar-groups', 'sliders', 'numbers', 'otp', 'rating', 'spinners', 'progress', 'selection', 'buttons', 'button-appearance', 'menu-observation', 'menu-placement', 'split-buttons', 'split-paint', 'command-tooltip', 'checkable-navigation', 'control-appearance', 'status-regions', 'badges', 'labels', 'shimmer', 'markers', 'alerts', 'tags', 'keyboard-labels', 'binding-observations', 'descriptions', 'chat-composition', 'chat-list', 'attachments', 'attachment-paint', 'groups', 'links', 'empty', 'separators', 'styles', 'borders', 'aspect-ratio', 'pickers', 'color-preview', 'calendar-viewport', 'choice-pickers', 'overlays', 'navigation', 'feedback', 'native-popup', 'journeys', 'collections', 'selectable-lists', 'structural-tables', 'documents', 'document-links', 'document-images', 'highlighting', 'canvas', 'assets', 'clipboard', 'charts', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
+    parser.add_argument('--section', choices=['all', 'core', 'shell', 'settings', 'settings-windows', 'settings-composition', 'settings-fields', 'forms', 'editor-groups', 'avatar-groups', 'sliders', 'numbers', 'otp', 'rating', 'spinners', 'progress', 'selection', 'buttons', 'button-appearance', 'menu-observation', 'menu-placement', 'split-buttons', 'split-paint', 'command-tooltip', 'checkable-navigation', 'control-appearance', 'status-regions', 'badges', 'labels', 'shimmer', 'markers', 'alerts', 'tags', 'keyboard-labels', 'binding-observations', 'descriptions', 'chat-composition', 'chat-list', 'attachments', 'attachment-paint', 'groups', 'links', 'empty', 'separators', 'styles', 'borders', 'aspect-ratio', 'pickers', 'color-preview', 'calendar-viewport', 'choice-pickers', 'overlays', 'navigation', 'feedback', 'native-popup', 'journeys', 'collections', 'selectable-lists', 'structural-tables', 'documents', 'document-links', 'document-images', 'highlighting', 'canvas', 'assets', 'clipboard', 'charts', 'chart-inspection', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
     args = parser.parse_args()
     Mac.require_accessibility()
     if args.images:
@@ -6931,6 +6999,9 @@ def main():
         env['GPUIO_COUNTER_TRACE'] = '1'
     with tempfile.TemporaryFile(mode='w+') as log:
         executable = args.executable.resolve() if args.executable else repo / '_build/default/examples/gallery/main.exe'
+        with executable.open('rb') as binary:
+            identity = hashlib.file_digest(binary, 'sha256').hexdigest()
+        print('GALLERY_EXECUTABLE_SHA256', identity, executable, flush=True)
         child = subprocess.Popen([str(executable),
                                   *(['--background'] if args.background else []),
                                   *(['--trace-canvas'] if args.trace_canvas else []),
@@ -7097,6 +7168,12 @@ def main():
             if args.section in ('all', 'clipboard'):
                 from gallery_clipboard import exercise as exercise_clipboard
                 exercise_clipboard(mac, args.images)
+            if args.section == 'chart-inspection':
+                mac.press(TITLE, 'Charts & data')
+                exercise_chart_inspection(mac, args.images)
+                mac.press(TITLE, 'Runtime & windows')
+                wait_for_resource_cleanup(mac)
+                mac.wait_text(TITLE, 'Registered source bytes: 0')
             if args.section in ('all', 'charts'):
                 exercise_charts(mac, args.images)
             if args.section in ('all', 'motion'):

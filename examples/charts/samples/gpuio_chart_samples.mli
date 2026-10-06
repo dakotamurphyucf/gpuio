@@ -54,3 +54,5 @@ module Ordinal_colors : sig
   val data_exn : float -> Gpuio.Chart_data.t
   val mapping : unknown:bool -> Gpuio.Chart_style.Ordinal.t
 end
+
+module Inspection : module type of Inspection

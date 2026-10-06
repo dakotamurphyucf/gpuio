@@ -50,6 +50,7 @@ type t [@@deriving equal, sexp_of]
 val create
   :  ?palette:Color.t list
   -> ?ordinal:Ordinal.t
+  -> ?inspection:Chart_inspection.t
   -> ?axis_color:Color.t
   -> ?grid_color:Color.t
   -> ?label_color:Color.t

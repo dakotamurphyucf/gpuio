@@ -59,8 +59,8 @@ layout, paint or input callback is added.
 
 ## Wire and compatibility
 
-The formerly unversioned style record now starts with **style version 0**, then
-its existing fields, followed by the optional ordinal record. The zero prefix
+The ordinal-color addition introduced **style version 0**, with
+the existing fields followed by the optional ordinal record. The zero prefix
 unambiguously rejects legacy frames, whose first value was a valid nonempty
 palette length of 1–32. The style reader caps input at 16 KiB; the containing view
 reader caps it at 18 KiB. Domain/range counts are bounded before allocation.
@@ -68,6 +68,11 @@ reader caps it at 18 KiB. Domain/range counts are bounded before allocation.
 Chart-options version 3 and chart-data version 1 are unchanged. The new paired
 view fixture is `chart-v3-style-v0-view.hex`; the earlier v3 view fixture remains a
 legacy-style rejection case. OCaml and Rust bridge packages must match.
+
+Current styles use **version -1**, appending the [inspection configuration](chart-inspection.md)
+after the ordinal field. The historical v0 fixture is now an explicit rejection
+case; the current fixture is `chart-v3-style-inspection-view.hex`. The bounded
+ordinal mapping and the options/data versions remain unchanged.
 
 ## Scope and validation
 

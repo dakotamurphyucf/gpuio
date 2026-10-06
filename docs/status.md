@@ -5,6 +5,16 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **O
 Markdown walkthroughs for every example component; it is planned in this milestone. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
+[Native chart inspection controls](evidence/chart-inspection-och41.md) now expose
+typed card placement/appearance, crosshair axes/dashes/bands and marker styling.
+Clean native/protocol/OCaml/lint checks and full root/fresh-installed macOS chart
+walkthroughs pass, including actual pixels, selection, updates and cleanup. A
+plot hitbox correction lets enclosing views scroll while retaining chart pointer
+selection. Style schema -1 supersedes version 0 and requires matching bridge
+packages. Rich tooltip rows, per-datum annotations and broader catalog/release
+acceptance remain open. The adjacent [preset walkthrough](../examples/charts/samples/inspection.md)
+adds partial OCH-48 coverage.
+
 [Hosted run 37433332134](evidence/hosted-presentation-calibration-och17.md#repeat-on-hosted-run-37433332134)
 is terminal: Linux foundation and all three extracted macOS apps on a separate
 runner pass. The only macOS foundation failures are the two Metal presentation

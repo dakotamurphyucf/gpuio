@@ -328,3 +328,5 @@ let description preset family =
   | Horizontal -> "Comparing evaluation throughput"
   | Dense_legend -> "Channel allocation"
 ;;
+
+module Inspection = Inspection

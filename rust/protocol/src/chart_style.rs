@@ -52,6 +52,7 @@ pub struct Style {
     pub bar_radius: f64,
     pub area_opacity: f64,
     pub ordinal: Option<Ordinal>,
+    pub inspection: Box<crate::chart_inspection::Inspection>,
 }
 fn color(value: i64) -> bool {
     (0..=0xffff_ffff).contains(&value)
@@ -61,7 +62,7 @@ fn within(value: f64, min: f64, max: f64) -> bool {
 }
 impl Style {
     pub fn is_valid(&self) -> bool {
-        self.version == 0
+        self.version == -1
             && (1..=32).contains(&self.palette.len())
             && self.palette.iter().all(|c| color(*c))
             && [
@@ -78,9 +79,11 @@ impl Style {
             && within(self.bar_radius, 0., 32.)
             && within(self.area_opacity, 0., 1.)
             && self.ordinal.as_ref().is_none_or(Ordinal::is_valid)
+            && self.inspection.is_valid()
     }
     pub fn heap_bytes(&self) -> usize {
-        self.palette.capacity() * size_of::<i64>()
+        size_of::<crate::chart_inspection::Inspection>()
+            + self.palette.capacity() * size_of::<i64>()
             + self.ordinal.as_ref().map_or(0, Ordinal::heap_bytes)
     }
     pub fn color(&self, layer: usize) -> u32 {
@@ -90,7 +93,7 @@ impl Style {
 impl Default for Style {
     fn default() -> Self {
         Self {
-            version: 0,
+            version: -1,
             palette: vec![
                 0x818cf8ff, 0x2dd4bfff, 0xfbbf24ff, 0xf472b6ff, 0x38bdf8ff, 0xfb923cff,
             ],
@@ -104,6 +107,7 @@ impl Default for Style {
             bar_radius: 3.,
             area_opacity: 0.2,
             ordinal: None,
+            inspection: Default::default(),
         }
     }
 }
