@@ -20,7 +20,7 @@ impl Decoder<'_> {
     }
 }
 pub fn decode_chart_view_config(bytes: &[u8]) -> Result<Config, DecodeError> {
-    if bytes.len() > 2048 {
+    if bytes.len() > 18 * 1024 {
         return Err(DecodeError::LimitExceeded);
     }
     let mut d = Decoder(Cursor::new(bytes));

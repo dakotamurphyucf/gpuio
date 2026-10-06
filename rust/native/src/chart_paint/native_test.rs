@@ -289,6 +289,56 @@ fn cases() -> Vec<Case> {
         style(),
         vec![sample(140., 80., 255, 0, 0), sample(60., 80., 0, 0, 255)],
     );
+    for (name, ids, unknown, samples) in [
+        (
+            "ordinal-pie-before",
+            [1, 2],
+            Some(0x00ff00ff),
+            vec![sample(140., 80., 0, 0, 255), sample(60., 80., 255, 0, 0)],
+        ),
+        (
+            "ordinal-pie-reordered",
+            [2, 1],
+            Some(0x00ff00ff),
+            vec![sample(140., 80., 255, 0, 0), sample(60., 80., 0, 0, 255)],
+        ),
+        (
+            "ordinal-pie-unknown",
+            [3, 1],
+            Some(0x00ff00ff),
+            vec![sample(140., 80., 0, 255, 0), sample(60., 80., 0, 0, 255)],
+        ),
+        (
+            "ordinal-pie-fallback",
+            [3, 1],
+            None,
+            vec![sample(140., 80., 255, 0, 0), sample(60., 80., 0, 0, 255)],
+        ),
+    ] {
+        let mut style = style();
+        style.ordinal = Some(gpuio_protocol::chart_style::Ordinal {
+            domain: vec![
+                gpuio_protocol::chart_style::Key::Slice(2),
+                gpuio_protocol::chart_style::Key::Slice(1),
+            ],
+            range: vec![0xff0000ff, 0x0000ffff],
+            unknown,
+        });
+        add(
+            name,
+            dataset(data::Contents::Pie(
+                ids.map(|id| data::Slice {
+                    id,
+                    label: format!("Slice {id}"),
+                    value: 1.,
+                })
+                .to_vec(),
+            )),
+            options(),
+            style,
+            samples,
+        );
+    }
     let mut donut = options();
     donut.pie.inner_radius = 0.5;
     add(

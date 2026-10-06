@@ -113,6 +113,7 @@ struct Quad {
 /// Keep the exact immutable chart snapshot beside this plan. Publication/release
 /// invalidation and application-wide admission belong to the mounted owner.
 pub struct Prepared {
+    colors: Vec<u32>,
     geometry: geometry::Plan,
     hit_index: crate::chart_hit::Index,
     stable_index: crate::chart_selection::StableIndex,
@@ -122,6 +123,9 @@ pub struct Prepared {
     vertices: usize,
 }
 impl Prepared {
+    pub(crate) fn series_color(&self, index: usize) -> u32 {
+        self.colors[index]
+    }
     pub fn geometry(&self) -> &geometry::Plan {
         &self.geometry
     }
@@ -141,6 +145,7 @@ impl Prepared {
     }
     pub fn retained_bytes(&self) -> usize {
         size_of::<Self>()
+            + self.colors.capacity() * size_of::<u32>()
             + self.hit_index.retained_bytes()
             + self.stable_index.retained_bytes()
             + self.geometry.retained_bytes()
@@ -437,12 +442,13 @@ pub fn prepare(
             geometry::Error::Cancelled => Error::Cancelled,
             geometry::Error::RenderLimit => Error::RenderLimit,
         })?;
+    let colors = crate::chart_colors::resolve(data, style, cancel)?;
     let mut build = Build {
         meshes: vec![],
         quads: Vec::with_capacity(geometry.marks.len().min(MAX_QUADS)),
         draws: vec![],
         vertices: 0,
-        bytes: geometry.retained_bytes(),
+        bytes: geometry.retained_bytes() + colors.capacity() * size_of::<u32>(),
         tolerance: 0.25 / scale,
         cancel,
     };
@@ -512,7 +518,7 @@ pub fn prepare(
     let passes = if sankey { 2 } else { layers };
     for pass in 0..passes {
         for shape in geometry.paths.iter().filter(|s| s.layer == pass) {
-            let color = style.color(shape.layer);
+            let color = colors[shape.layer];
             build.mesh(
                 &path(&shape.commands),
                 if shape.fill {
@@ -537,7 +543,7 @@ pub fn prepare(
             if index & 255 == 0 {
                 check(cancel)?;
             }
-            let color = style.color(mark.layer);
+            let color = colors[mark.layer];
             match mark.shape {
                 geometry::Shape::Dot {
                     center,
@@ -579,7 +585,7 @@ pub fn prepare(
                     close,
                 } => {
                     let rise = close < open;
-                    let color = style.color(if rise { 0 } else { 1 });
+                    let color = colors[if rise { 0 } else { 1 }];
                     build.quad(
                         geometry::Rect {
                             left: center - 0.5,
@@ -687,6 +693,7 @@ pub fn prepare(
         crate::chart_selection::IndexError::LimitExceeded => Error::RenderLimit,
     })?;
     let prepared = Prepared {
+        colors,
         geometry,
         hit_index,
         stable_index,
@@ -705,3 +712,6 @@ pub fn prepare(
 pub(crate) mod native_test;
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod ordinal_tests;

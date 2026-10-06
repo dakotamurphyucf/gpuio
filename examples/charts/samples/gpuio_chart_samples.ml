@@ -1,3 +1,4 @@
+module Ordinal_colors = Ordinal_colors
 module Stacked = Stacked
 open Core
 module D = Gpuio.Chart_data

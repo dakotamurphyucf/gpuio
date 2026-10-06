@@ -19,11 +19,12 @@ module Mode = struct
     | Categorical
     | Stacked_bars
     | Stacked_areas
+    | Ordinal_colors
   [@@deriving equal]
 
   let all =
     List.map Family.all ~f:(fun f -> Family f)
-    @ [ Mixed; Categorical; Stacked_bars; Stacked_areas ]
+    @ [ Mixed; Categorical; Stacked_bars; Stacked_areas; Ordinal_colors ]
   ;;
 
   let label = function
@@ -32,6 +33,7 @@ module Mode = struct
     | Categorical -> "Categorical"
     | Stacked_bars -> "Stacked bars"
     | Stacked_areas -> "Stacked areas"
+    | Ordinal_colors -> "Ordinal colors"
   ;;
 
   let data t phase =
@@ -41,6 +43,7 @@ module Mode = struct
     | Categorical -> Samples.Categorical.data_exn phase
     | Stacked_bars -> Samples.Stacked.data_exn ~area:false phase
     | Stacked_areas -> Samples.Stacked.data_exn ~area:true phase
+    | Ordinal_colors -> Samples.Ordinal_colors.data_exn phase
   ;;
 end
 
@@ -117,6 +120,7 @@ let component app window palette graph =
   let horizontal, toggle_horizontal = B.toggle ~default_model:false graph in
   let reversed, toggle_reversed = B.toggle ~default_model:false graph in
   let category_layout, set_category_layout = B.state Category_layout.Auto graph in
+  let unknown_color, toggle_unknown_color = B.toggle ~default_model:true graph in
   let stacked, toggle_stacked = B.toggle ~default_model:true graph in
   let disabled, toggle_disabled = B.toggle ~default_model:false graph in
   let notice, set_notice = B.state "Preparing chart…" graph in
@@ -136,6 +140,8 @@ let component app window palette graph =
   and toggle_reversed = toggle_reversed
   and category_layout = category_layout
   and set_category_layout = set_category_layout
+  and unknown_color = unknown_color
+  and toggle_unknown_color = toggle_unknown_color
   and stacked = stacked
   and toggle_stacked = toggle_stacked
   and disabled = disabled
@@ -187,6 +193,10 @@ let component app window palette graph =
                 Mode.equal current_mode Stacked_bars
                 || Mode.equal current_mode Stacked_areas
               then direction ^ if stacked then " · Stacked" else " · Grouped"
+              else if Mode.equal current_mode Ordinal_colors
+              then
+                direction
+                ^ if unknown_color then " · Explicit unknown" else " · Palette fallback"
               else direction))
       | Failed e -> set_notice (Sexp.to_string_hum [%sexp (e : Chart.Error.t)])
       | Selection_changed target ->
@@ -202,7 +212,7 @@ let component app window palette graph =
     let stack_mode =
       match current_mode with
       | Mode.Stacked_bars | Stacked_areas -> true
-      | Family _ | Mixed | Categorical -> false
+      | Family _ | Mixed | Categorical | Ordinal_colors -> false
     in
     let options =
       Chart_options.create
@@ -218,6 +228,10 @@ let component app window palette graph =
     in
     let chart_style =
       Chart_style.create
+        ?ordinal:
+          (Option.some_if
+             (Mode.equal current_mode Ordinal_colors)
+             (Samples.Ordinal_colors.mapping ~unknown:unknown_color))
         ~label_color:(Palette.foreground p)
         ~axis_color:(Palette.muted p)
         ~grid_color:(Palette.border p)
@@ -263,6 +277,19 @@ let component app window palette graph =
            ; Palette.button p "Update chart samples" update
            ]
        ]
+       @ (if Mode.equal current_mode Ordinal_colors
+          then
+            [ V.switch
+                ~checked:unknown_color
+                ~on_toggle:toggle_unknown_color
+                "Explicit unknown color"
+            ; Palette.text
+                p
+                ~muted:true
+                "Update rotates slice order; Build and Research keep their colors. \
+                 Review uses the unknown-key policy."
+            ]
+          else [])
        @ (if stack_mode
           then [ V.switch ~checked:stacked ~on_toggle:toggle_stacked "Stack layers" ]
           else [])

@@ -1,7 +1,40 @@
 open Core
 
+module Key : sig
+  (** Stable, namespaced identity of a chart's color-bearing legend entry.
+      Cartesian/categorical/radar use series IDs, pie uses slice IDs, Sankey
+      uses node IDs (ribbons inherit their source node), candles use movement.
+      This does not assign per-datum colors inside a Cartesian series. *)
+  type t [@@deriving equal, compare, sexp_of]
+
+  val series : Chart_data.Series_id.t -> t
+  val slice : Chart_data.Datum_id.t -> t
+  val node : Chart_data.Node_id.t -> t
+  val rising : t
+  val falling : t
+end
+
+module Ordinal : sig
+  type t [@@deriving equal, sexp_of]
+
+  (** Explicit ordered domain of 0..1024 unique keys and a range of 1..32 colors.
+      Domain position chooses [range[index mod range_length]], independent of
+      current dataset order. An unknown key returns [unknown], or [None]. Native
+      charts fall back to the ordinary position palette when this returns None.
+      Tokens are resolved by [Chart_style.create]'s theme, including unknown
+      colors; changing the theme requires constructing the style again. *)
+  val create
+    :  domain:Key.t list
+    -> range:Color.t list
+    -> ?unknown:Color.t
+    -> unit
+    -> t Or_error.t
+
+  val find : t -> Key.t -> Color.t option
+end
+
 (** Resolved chart styling. The palette follows dataset series/slice/node order
-    and repeats when needed. Call [create] again when the application theme
+    and repeats when needed, unless [ordinal] overrides an entry. Call [create] again when the application theme
     changes; construction resolves all color tokens without native callbacks. *)
 type t [@@deriving equal, sexp_of]
 
@@ -16,6 +49,7 @@ type t [@@deriving equal, sexp_of]
     have numeric identifiers matching legend order; color is not their only cue. *)
 val create
   :  ?palette:Color.t list
+  -> ?ordinal:Ordinal.t
   -> ?axis_color:Color.t
   -> ?grid_color:Color.t
   -> ?label_color:Color.t

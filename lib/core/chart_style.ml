@@ -1,6 +1,49 @@
 open Core
 module Wire = Gpuio_protocol.Chart_style_wire
 
+module Key = struct
+  type t = Wire.Key.t [@@deriving equal, compare, sexp_of]
+
+  let series id = Wire.Key.Series (Chart_data.Series_id.to_int64 id)
+  let slice id = Wire.Key.Slice (Chart_data.Datum_id.to_int64 id)
+  let node id = Wire.Key.Node (Chart_data.Node_id.to_int64 id)
+  let rising = Wire.Key.Rising
+  let falling = Wire.Key.Falling
+end
+
+module Ordinal = struct
+  type t =
+    { domain : Key.t list
+    ; range : Color.t list
+    ; unknown : Color.t option
+    }
+  [@@deriving equal, sexp_of]
+
+  let create ~domain ~range ?unknown () =
+    if List.length domain > 1024 || List.contains_dup domain ~compare:Key.compare
+    then Or_error.error_string "ordinal color domain requires at most 1024 unique keys"
+    else if List.is_empty range || List.length range > 32
+    then Or_error.error_string "ordinal color range requires 1..32 colors"
+    else Ok { domain; range; unknown }
+  ;;
+
+  let find t key =
+    match List.findi t.domain ~f:(fun _ candidate -> Key.equal candidate key) with
+    | None -> t.unknown
+    | Some (index, _) -> List.nth t.range (index % List.length t.range)
+  ;;
+
+  let resolve t theme =
+    let open Or_error.Let_syntax in
+    let%bind range = List.map t.range ~f:(Theme.resolve theme) |> Or_error.all in
+    let%map unknown =
+      Option.value_map t.unknown ~default:(Ok None) ~f:(fun color ->
+        Theme.resolve theme color |> Or_error.map ~f:Option.some)
+    in
+    { Wire.Ordinal.domain = t.domain; range; unknown }
+  ;;
+end
+
 type t = Wire.t [@@deriving equal, sexp_of]
 
 let create
@@ -8,6 +51,7 @@ let create
         List.map
           [ 0x818cf8; 0x2dd4bf; 0xfbbf24; 0xf472b6; 0x38bdf8; 0xfb923c ]
           ~f:Color.rgb_exn)
+      ?ordinal
       ?(axis_color = Color.rgb_exn 0x64748b)
       ?(grid_color =
         Color.rgba ~red:100 ~green:116 ~blue:139 ~alpha:64 |> Or_error.ok_exn)
@@ -34,8 +78,13 @@ let create
       Option.value_map gradient_end ~default:(Ok None) ~f:(fun color ->
         Theme.resolve theme color |> Or_error.map ~f:Option.some)
     in
+    let%bind ordinal =
+      Option.value_map ordinal ~default:(Ok None) ~f:(fun value ->
+        Ordinal.resolve value theme |> Or_error.map ~f:Option.some)
+    in
     let t =
-      { Wire.palette
+      { Wire.version = 0L
+      ; palette
       ; axis_color
       ; grid_color
       ; label_color
@@ -45,6 +94,7 @@ let create
       ; point_radius
       ; bar_radius
       ; area_opacity
+      ; ordinal
       }
     in
     if Wire.valid t

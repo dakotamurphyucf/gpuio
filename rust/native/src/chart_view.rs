@@ -348,7 +348,7 @@ impl State {
                                     .size(px(8.))
                                     .flex_shrink_0()
                                     .rounded_sm()
-                                    .bg(gpui::rgba(style.color(index))),
+                                    .bg(gpui::rgba(ready.plan.series_color(index))),
                             )
                             .child(
                                 div()

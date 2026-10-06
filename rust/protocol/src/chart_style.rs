@@ -1,6 +1,46 @@
 use binprot::macros::BinProtWrite;
+use std::{collections::BTreeSet, mem::size_of};
+
+pub const MAX_COLOR_DOMAIN: usize = 1024;
+pub const MAX_STYLE_BYTES: usize = 16 * 1024;
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, BinProtWrite)]
+pub enum Key {
+    Series(i64),
+    Slice(i64),
+    Node(i64),
+    Rising,
+    Falling,
+}
+impl Key {
+    pub fn is_valid(self) -> bool {
+        match self {
+            Self::Series(id) | Self::Slice(id) | Self::Node(id) => id > 0,
+            Self::Rising | Self::Falling => true,
+        }
+    }
+}
+#[derive(Clone, Debug, PartialEq, BinProtWrite)]
+pub struct Ordinal {
+    pub domain: Vec<Key>,
+    pub range: Vec<i64>,
+    pub unknown: Option<i64>,
+}
+impl Ordinal {
+    pub fn is_valid(&self) -> bool {
+        self.domain.len() <= MAX_COLOR_DOMAIN
+            && self.domain.iter().all(|k| k.is_valid())
+            && self.domain.iter().collect::<BTreeSet<_>>().len() == self.domain.len()
+            && (1..=32).contains(&self.range.len())
+            && self.range.iter().all(|c| color(*c))
+            && self.unknown.is_none_or(color)
+    }
+    pub fn heap_bytes(&self) -> usize {
+        self.domain.capacity() * size_of::<Key>() + self.range.capacity() * size_of::<i64>()
+    }
+}
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]
 pub struct Style {
+    pub version: i64,
     pub palette: Vec<i64>,
     pub axis_color: i64,
     pub grid_color: i64,
@@ -11,6 +51,7 @@ pub struct Style {
     pub point_radius: f64,
     pub bar_radius: f64,
     pub area_opacity: f64,
+    pub ordinal: Option<Ordinal>,
 }
 fn color(value: i64) -> bool {
     (0..=0xffff_ffff).contains(&value)
@@ -20,7 +61,8 @@ fn within(value: f64, min: f64, max: f64) -> bool {
 }
 impl Style {
     pub fn is_valid(&self) -> bool {
-        (1..=32).contains(&self.palette.len())
+        self.version == 0
+            && (1..=32).contains(&self.palette.len())
             && self.palette.iter().all(|c| color(*c))
             && [
                 self.axis_color,
@@ -35,6 +77,11 @@ impl Style {
             && within(self.point_radius, 1., 12.)
             && within(self.bar_radius, 0., 32.)
             && within(self.area_opacity, 0., 1.)
+            && self.ordinal.as_ref().is_none_or(Ordinal::is_valid)
+    }
+    pub fn heap_bytes(&self) -> usize {
+        self.palette.capacity() * size_of::<i64>()
+            + self.ordinal.as_ref().map_or(0, Ordinal::heap_bytes)
     }
     pub fn color(&self, layer: usize) -> u32 {
         self.palette[layer % self.palette.len()] as u32
@@ -43,6 +90,7 @@ impl Style {
 impl Default for Style {
     fn default() -> Self {
         Self {
+            version: 0,
             palette: vec![
                 0x818cf8ff, 0x2dd4bfff, 0xfbbf24ff, 0xf472b6ff, 0x38bdf8ff, 0xfb923cff,
             ],
@@ -55,6 +103,7 @@ impl Default for Style {
             point_radius: 3.5,
             bar_radius: 3.,
             area_opacity: 0.2,
+            ordinal: None,
         }
     }
 }

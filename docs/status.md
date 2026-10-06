@@ -5,6 +5,15 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **O
 Markdown walkthroughs for every example component; it is planned in this milestone. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
+[Stable ordinal chart colors](evidence/chart-ordinal-colors-och41.md) now expose
+explicit namespaced keys, cyclic ranges and unknown-color policies. Full local
+native/protocol/OCaml/lint checks, actual GPU pixels and root/fresh-installed
+gallery walkthroughs pass, including reorder/selection, fallback changes and
+scope teardown. Style envelope 0 requires matching bridge packages. Richer
+chart presentation options and broader catalog/release acceptance remain open.
+The [sample companion](../examples/charts/samples/ordinal_colors.md) adds partial
+OCH-48 coverage; the every-example inventory is still incomplete.
+
 [Stacked Cartesian charts](evidence/stacked-charts-och41.md) now add typed opt-in
 cumulative bars/areas, shared area sampling/curves and raw-value selection with
 explicit stack bounds. Local native/codec/GPU checks and root/fresh-installed

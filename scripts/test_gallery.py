@@ -4554,6 +4554,78 @@ def exercise_assets(mac, images):
           'icon semantics, OS activation and scoped cleanup', flush=True)
 
 
+def exercise_chart_ordinal_colors(mac, images):
+    mac.press(TITLE, 'Ordinal colors')
+    mac.wait_text(TITLE, 'Ready: Ordinal colors · 3 source values · Vertical · Explicit unknown')
+    purple, teal, yellow = (129, 140, 248), (45, 212, 191), (251, 191, 36)
+    with tempfile.TemporaryDirectory(prefix='gpuio-chart-colors-') as temporary:
+        directory = images or Path(temporary)
+        def check_colors(tag, review):
+            reveal_gallery_control(mac, 'Chart legend', 'AXGroup')
+            legend = mac.wait_find(TITLE, 'Chart legend', 'AXGroup')
+            bounds = {}
+            def visit(node, depth=0):
+                assert depth < 12, 'Unexpected chart legend depth'
+                values, children = mac.node_values(node)
+                try:
+                    for name in ['Research', 'Build', 'Review']:
+                        if name in values[1:]:
+                            bounds[name] = element_rect(mac, node)
+                    for child in children:
+                        visit(child, depth + 1)
+                finally:
+                    for child in children:
+                        mac.release(child)
+            try:
+                visit(legend)
+            finally:
+                mac.release(legend)
+            assert set(bounds) == {'Research', 'Build', 'Review'}, bounds
+            window = mac.window(TITLE)
+            try:
+                wx, wy, ww, wh = element_rect(mac, window)
+            finally:
+                mac.release(window)
+            GalleryMouse(mac).send(5, (wx + ww - 25, wy + 110))
+            time.sleep(.1)
+            path = directory / ('gallery-chart-ordinal-' + tag + '.png')
+            screenshot(mac, path, title=TITLE)
+            pixels = read_png(mac, path)
+            for name, expected in [('Research', purple), ('Build', teal), ('Review', review)]:
+                x, y, w, h = bounds[name]
+                assert wy < y and y + h < wy + wh, ('Legend must be visible', name, bounds[name])
+                samples = [pixels.rgb((x - offset - wx) * pixels.width / ww,
+                                      (y + h / 2 - wy) * pixels.height / wh)
+                           for offset in [9, 10, 11, 12, 13, 14, 15]]
+                assert sum(max(abs(a-b) for a,b in zip(rgb, expected)) <= 6
+                           for rgb in samples) >= 2, ('Ordinal legend color', tag, name, samples, expected)
+            print('CHART_ORDINAL_PIXELS', tag, bounds, flush=True)
+        check_colors('before', yellow)
+        focus_gallery_control(mac, 'Chart preview: Ordinal colors', 'AXGroup')
+        mac.key(115)
+        mac.key(36)
+        mac.wait_text(TITLE, 'Selected: Research · 40')
+        reveal_gallery_control(mac, 'Update chart samples', 'AXButton')
+        mac.press(TITLE, 'Update chart samples')
+        mac.wait_text(TITLE, 'Selected: Research · 41')
+        check_colors('reordered', yellow)
+        reveal_gallery_control(mac, 'Explicit unknown color', 'AXCheckBox')
+        activate(mac, mac.wait_find(TITLE, 'Explicit unknown color', 'AXCheckBox'))
+        mac.wait_text(TITLE, 'Ready: Ordinal colors · 3 source values · Vertical · Palette fallback')
+        check_colors('fallback', purple)
+        reveal_gallery_control(mac, 'Explicit unknown color', 'AXCheckBox')
+        activate(mac, mac.wait_find(TITLE, 'Explicit unknown color', 'AXCheckBox'))
+        mac.wait_text(TITLE, 'Ready: Ordinal colors · 3 source values · Vertical · Explicit unknown')
+        mac.wait_text(TITLE, 'Selected: Research · 41')
+        check_colors('restored', yellow)
+        reveal_gallery_control(mac, 'View data', 'AXButton')
+        mac.press(TITLE, 'View data')
+        mac.key(119)
+        mac.release(mac.wait_find(TITLE, 'Row 3:', 'AXRow', contains=True, search_files=True))
+        mac.press(TITLE, 'Back to chart')
+        reveal_gallery_control(mac, 'Stacked bars', 'AXButton')
+
+
 def exercise_charts(mac, images):
     mac.press(TITLE, 'Charts & data')
     cases = [
@@ -4605,6 +4677,7 @@ def exercise_charts(mac, images):
         mac.release(mac.wait_find(TITLE, f'Row {originals}:', 'AXRow', contains=True, search_files=True))
         mac.press(TITLE, 'Back to chart')
         mac.release(mac.wait_find(TITLE, 'View data', 'AXButton'))
+    exercise_chart_ordinal_colors(mac, images)
     for family in ['Stacked bars', 'Stacked areas']:
         mac.press(TITLE, family)
         mac.wait_text(TITLE, f'Ready: {family} · 15 source values · Vertical · Stacked')
@@ -4699,7 +4772,7 @@ def exercise_charts(mac, images):
     wait_for_resource_cleanup(mac)
     mac.wait_text(TITLE, 'Registered source bytes: 0')
     print('GALLERY_CHARTS_OK: seven families plus mixed layers, four Cartesian directions, native keyboard selection, '
-          'categorical point/band layout, stacked bars/areas with retained selection and raw missing values, category identity, data updates, bounded original-data pages, styles and scope cleanup', flush=True)
+          'categorical point/band layout, stable ordinal legend colors through reorder/unknown fallback, stacked bars/areas with retained selection and raw missing values, category identity, data updates, bounded original-data pages, styles and scope cleanup', flush=True)
 
 
 class GalleryMouse:

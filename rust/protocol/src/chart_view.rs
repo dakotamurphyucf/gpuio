@@ -11,6 +11,10 @@ pub struct Config {
     pub disabled: bool,
 }
 impl Config {
+    pub fn retained_bytes(&self) -> usize {
+        std::mem::size_of::<Self>() + self.label.capacity() + self.style.heap_bytes()
+    }
+
     pub fn is_valid(&self) -> bool {
         self.label.len() <= 1024
             && self.label.bytes().any(|b| !matches!(b, 9..=13 | 32))

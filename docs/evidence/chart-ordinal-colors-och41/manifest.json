@@ -1,0 +1,347 @@
+{
+  "base_commit": "746b29b332630da574cac1538ea8a9377dcf95f9",
+  "scope": "Local stable ordinal color integration qualification",
+  "archive_sha256": "399ee5eb4bda30d4184a11d67cc016bcd523373db412905407cf1dc10f74f687",
+  "files": [
+    {
+      "path": "binary.json",
+      "bytes": 128,
+      "sha256": "9033a156a622879b50b33f9cacca482e83008344b4fa754ca7572a689589e156"
+    },
+    {
+      "path": "commands.txt",
+      "bytes": 925,
+      "sha256": "32e0b67771af6f412883185bc2c3440f2760fb3ece741629bc598fc709d31d58"
+    },
+    {
+      "path": "environment.txt",
+      "bytes": 82,
+      "sha256": "6e1453ea9c1ef0c20b76675b08f9e8c930bf10a19af1097d06b47b389abcaa58"
+    },
+    {
+      "path": "final-results.json",
+      "bytes": 532,
+      "sha256": "b8dbb62c905675d3414af497183bb02879e68f4a5ac85c5ad10d0af96b97a850"
+    },
+    {
+      "path": "images/gallery-chart-auto-categories.png",
+      "bytes": 392430,
+      "sha256": "8f841c1819bc85d3582e1dd8892e0c294dcc1afb0d257ea62be1bd352d2d1c20"
+    },
+    {
+      "path": "images/gallery-chart-band-categories.png",
+      "bytes": 394782,
+      "sha256": "6b52c34f5c950888e36998c4e3ee13fa66421c9854009b5dc18ae8e036892a34"
+    },
+    {
+      "path": "images/gallery-chart-horizontal-reversed.png",
+      "bytes": 406851,
+      "sha256": "686322136defc913aeeae467259a7157e3cfaff33fb9f2298ead542cfab627e6"
+    },
+    {
+      "path": "images/gallery-chart-horizontal.png",
+      "bytes": 407069,
+      "sha256": "217e6a29faae26e6d6b6707855f5667ad0a126adf22779685936f5b5300667dc"
+    },
+    {
+      "path": "images/gallery-chart-ordinal-before.png",
+      "bytes": 374065,
+      "sha256": "27c5572182d5dce03c17af26da9f811a24780509a8820b0a11b12bf5a182aad1"
+    },
+    {
+      "path": "images/gallery-chart-ordinal-fallback.png",
+      "bytes": 380078,
+      "sha256": "200c0e6e0b114db9ac9b32d6d90e1e09d1474ecf353754609a5bd5ac11a0f570"
+    },
+    {
+      "path": "images/gallery-chart-ordinal-reordered.png",
+      "bytes": 381703,
+      "sha256": "b4c23f2cd4a154e4ce5c8933ebd2b9b463b555e2538bde36e1e889ae5e38c23a"
+    },
+    {
+      "path": "images/gallery-chart-ordinal-restored.png",
+      "bytes": 381703,
+      "sha256": "b4c23f2cd4a154e4ce5c8933ebd2b9b463b555e2538bde36e1e889ae5e38c23a"
+    },
+    {
+      "path": "images/gallery-chart-point-categories.png",
+      "bytes": 389325,
+      "sha256": "66119f4ca1bcb427a8957edf9eae852938e3a7f7611de7315c9f5964a6578f69"
+    },
+    {
+      "path": "images/gallery-chart-stacked-areas.png",
+      "bytes": 405864,
+      "sha256": "bf968008b467a1982386416b046ce5223953d26c1b0a00e6d9e07fbed4720d3e"
+    },
+    {
+      "path": "images/gallery-chart-stacked-bars.png",
+      "bytes": 392466,
+      "sha256": "79c526c13ccdb2de3e8e3fe0d8030e20d2561f55500fdc4f0680581493f58b4c"
+    },
+    {
+      "path": "images/gallery-chart-vertical-reversed.png",
+      "bytes": 403482,
+      "sha256": "6bd07265d0fd3e688bc4bcc0814754bb923615d6a8a69c550dd4546f7ec28778"
+    },
+    {
+      "path": "images/gallery-chart-vertical.png",
+      "bytes": 400727,
+      "sha256": "acef467d6a4e5bdc933c8342db065b2e8e6e15290127819e637223243a4fec67"
+    },
+    {
+      "path": "images/gallery-charts.png",
+      "bytes": 402639,
+      "sha256": "27be25eb0a2dbccbc6d423255f0632f7313b638a9a6ea87a6a5dacea6fd8816d"
+    },
+    {
+      "path": "logs/chart-ordinal-clippy.log",
+      "bytes": 588635,
+      "sha256": "704fcf306eac20a0309b2b7e523550c431bbff57097c9eee276f084d6aed4eb9"
+    },
+    {
+      "path": "logs/chart-ordinal-consumer.log",
+      "bytes": 108229,
+      "sha256": "fc2bfd43b20886ca20f663b770e03de03e1c9ed45ad6a2d0713365287f858df3"
+    },
+    {
+      "path": "logs/chart-ordinal-dune-final.log",
+      "bytes": 705713,
+      "sha256": "4e1b640401b8ede5ad62eae386670ec60c09c0239b5a2ac7a04cfd542aedcd77"
+    },
+    {
+      "path": "logs/chart-ordinal-gallery.log",
+      "bytes": 7401,
+      "sha256": "17f6dc320cebdd3a64acb4052ad2fecbe115d79b8465fad8a24d6942bdb2d67d"
+    },
+    {
+      "path": "logs/chart-ordinal-gpu.log",
+      "bytes": 598889,
+      "sha256": "9583374d5326699b258f897501a033c8c7ccab0a975e474013eb0eeb1211e492"
+    },
+    {
+      "path": "logs/chart-ordinal-native-final.log",
+      "bytes": 695326,
+      "sha256": "7a1b29ef2fddadf2b0c9d5a8938694106e93705007a40d87ad49f7a00454212d"
+    },
+    {
+      "path": "logs/chart-ordinal-native-focused.log",
+      "bytes": 588907,
+      "sha256": "a3dd5663248c33ac7e80987346cee28ad0181b7942d06316a717556bc1ab5ce3"
+    },
+    {
+      "path": "logs/chart-ordinal-native.log",
+      "bytes": 695881,
+      "sha256": "84b44a999460c6130e88254bcedabe4b0bfcf89746b88ec93093cbd5626f83ae"
+    },
+    {
+      "path": "logs/chart-ordinal-ocaml-focused-final.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "logs/chart-ordinal-ocaml-focused.log",
+      "bytes": 101167,
+      "sha256": "68f96854bf1905815380f1e2d8ce1f6655b2581596e501236e1db64f2ef932e7"
+    },
+    {
+      "path": "logs/chart-ordinal-ocaml.log",
+      "bytes": 703231,
+      "sha256": "ab0ac5c239a5540dcbf7e933f3e184f319e19bd5fac8ca2cbb4d5a631e924dbd"
+    },
+    {
+      "path": "logs/chart-ordinal-protocol-final.log",
+      "bytes": 55272,
+      "sha256": "ea5aced4f22795582c6f9981cd33e07277375404b9f025819318f5c1b56c5dbf"
+    },
+    {
+      "path": "logs/chart-ordinal-protocol.log",
+      "bytes": 55110,
+      "sha256": "aef30124b6ae2dcfd8776c75dc4b1ae469553dbb2590b450e0ff86d2fd9c6805"
+    },
+    {
+      "path": "source/docs/catalog/charts-review.md",
+      "bytes": 10992,
+      "sha256": "6fa99d9fe935888a5881bcc234a01cc3c70e0955e9cab404dd145c3d29bd98af"
+    },
+    {
+      "path": "source/docs/catalog/families.json",
+      "bytes": 71883,
+      "sha256": "4a741e1428c6276a4d07460e64617d4f0313af9d4dfb69d8880cd06a955b060c"
+    },
+    {
+      "path": "source/docs/design/chart-ordinal-colors.md",
+      "bytes": 4884,
+      "sha256": "adeb70142ae21b33c58196a518000929c37c3e7aa63cee2f67fad4dcad99a602"
+    },
+    {
+      "path": "source/docs/evidence/chart-ordinal-colors-och41.md",
+      "bytes": 5440,
+      "sha256": "30083bb6d1b7b14056937922fba9ccd2ecd81bb77cfcaa964e6b335933c81c80"
+    },
+    {
+      "path": "source/docs/status.md",
+      "bytes": 49864,
+      "sha256": "677751cfd576d8549c83e0309668ae8d1700062426e3177ed85990bc65fa8d05"
+    },
+    {
+      "path": "source/examples/charts/README.md",
+      "bytes": 4319,
+      "sha256": "ca8a4f417ab31cbb8152bb3cbcdb4cd0193a60b8d6415f7a7cbd2c48433e81db"
+    },
+    {
+      "path": "source/examples/charts/samples/gpuio_chart_samples.ml",
+      "bytes": 10209,
+      "sha256": "7d1681660a561fe23511783aca7de25bc2163d89998899d6dbe4720c2ea0ae9e"
+    },
+    {
+      "path": "source/examples/charts/samples/gpuio_chart_samples.mli",
+      "bytes": 1630,
+      "sha256": "2bd8618d224268c5b4ae31315702124a4acd395709008042f9a781e53615952d"
+    },
+    {
+      "path": "source/examples/charts/samples/ordinal_colors.md",
+      "bytes": 3710,
+      "sha256": "80715294d088402fb178f08b44db7dd49bbcb2a86c00631152b38d3c2381af76"
+    },
+    {
+      "path": "source/examples/charts/samples/ordinal_colors.ml",
+      "bytes": 926,
+      "sha256": "93221f9b490ddb7d8a47f9dce22c750d2ed87afec49ae3806e4a903722c5f44a"
+    },
+    {
+      "path": "source/examples/charts/samples/ordinal_colors.mli",
+      "bytes": 331,
+      "sha256": "427168327e75cc6b847b3bd37076bdaffd54d8da544ad05b42fb41a3d1df39d0"
+    },
+    {
+      "path": "source/examples/gallery/README.md",
+      "bytes": 70405,
+      "sha256": "4e341d1e88bc06c9bd798819ccfbbe11dab0796acbf7c1cbbcb7ff361e543f09"
+    },
+    {
+      "path": "source/examples/gallery/charts_page.md",
+      "bytes": 8526,
+      "sha256": "8249044066aa444c6d2b8da13edd21050c36456b117038f2984036a93f0bec31"
+    },
+    {
+      "path": "source/examples/gallery/charts_page.ml",
+      "bytes": 10816,
+      "sha256": "81b760aa829a4fc0b4f0c11937e8bb29f050fd635726170c6ba1f86152e90de9"
+    },
+    {
+      "path": "source/lib/core/chart_style.ml",
+      "bytes": 3574,
+      "sha256": "6e96b8964b2f1d33494aa21423b3b50e6580e1448f0a83b35b80c65497a32233"
+    },
+    {
+      "path": "source/lib/core/chart_style.mli",
+      "bytes": 2776,
+      "sha256": "b645774f6808f44eec3f23539057598d02ef8a0859d0454b7ece441498fe213b"
+    },
+    {
+      "path": "source/lib/protocol/chart_style_wire.ml",
+      "bytes": 1776,
+      "sha256": "9272adb1eb00bbd92f81cfdcf99b32205cf1538058801ed475bf14cc992d50f7"
+    },
+    {
+      "path": "source/rust/native/src/chart_colors.rs",
+      "bytes": 2072,
+      "sha256": "7365f9fbe83d25112acccff2adf2445ba389093db77a96b8314b4069c1073c52"
+    },
+    {
+      "path": "source/rust/native/src/chart_jobs.rs",
+      "bytes": 18606,
+      "sha256": "3dad47c1f81bec8281c5f548e664fcfb464ae6a3a1e212d8a0a29a5e0f82712c"
+    },
+    {
+      "path": "source/rust/native/src/chart_paint.rs",
+      "bytes": 24053,
+      "sha256": "636d584ab1d155896d8fffa622613652bed56d35f51e41d4ad5d9d3e0bdc10ce"
+    },
+    {
+      "path": "source/rust/native/src/chart_paint/native_test.rs",
+      "bytes": 19621,
+      "sha256": "c69ba9b82ae78fecfe0636e8948644ba3b8ba544e21ba2f01f44ac961d5e5947"
+    },
+    {
+      "path": "source/rust/native/src/chart_paint/ordinal_tests.rs",
+      "bytes": 8223,
+      "sha256": "55a27589272ace0416630cbea2a5ebb54736688ad55bc67746ec12895031e6b7"
+    },
+    {
+      "path": "source/rust/native/src/chart_view.rs",
+      "bytes": 23223,
+      "sha256": "97044a4ef8da06622a163dc8ef77086a815652b4cac8072fd1e34e9a8ac6680b"
+    },
+    {
+      "path": "source/rust/native/src/lib.rs",
+      "bytes": 10928,
+      "sha256": "147aa34272b9f29a1f366af4948db82aef3a1305fa741a691c6e574ae38f7bbe"
+    },
+    {
+      "path": "source/rust/native/src/tree.rs",
+      "bytes": 191940,
+      "sha256": "293ee49038b98d5865fb858f0aa3c38226a147e6df44e697d25f2c1af333c066"
+    },
+    {
+      "path": "source/rust/protocol/src/chart_style.rs",
+      "bytes": 3385,
+      "sha256": "aee3a4fe980424ce8899dd8999fc64435a574ff542314579d171cef2341654b7"
+    },
+    {
+      "path": "source/rust/protocol/src/chart_view.rs",
+      "bytes": 2041,
+      "sha256": "bd5c3b8db786dbd0bbe9950c2bfebef4edab6f7a8d2b9b3848e096e5bc24e58c"
+    },
+    {
+      "path": "source/rust/protocol/src/decode/chart_style.rs",
+      "bytes": 1986,
+      "sha256": "00b57b79307d068db6f630276211fa545a75808ce834a599e0e985a8413b4da6"
+    },
+    {
+      "path": "source/rust/protocol/src/decode/chart_view.rs",
+      "bytes": 1001,
+      "sha256": "2a5cdcc7582ed804f1baf2f6c5ca415986eebf8a7aed0bb4497113074969454f"
+    },
+    {
+      "path": "source/rust/protocol/tests/chart_style.rs",
+      "bytes": 6679,
+      "sha256": "6d1586eda4427b8671cd66864ae5d0dea3f2cc88f5146413fb0bb62495d2c80d"
+    },
+    {
+      "path": "source/rust/protocol/tests/chart_view.rs",
+      "bytes": 4456,
+      "sha256": "c5576b0a379a4c931b9073521aac3a184209874e38ce2959b21a6ac169019671"
+    },
+    {
+      "path": "source/scripts/test_gallery.py",
+      "bytes": 349432,
+      "sha256": "4f3860af4c290d9c43348f530a813e3103a7185a045f7c96f19531ff15e98eb5"
+    },
+    {
+      "path": "source/test/chart/chart_style_test.ml",
+      "bytes": 5563,
+      "sha256": "d24a6c017fe90f5b85dfad89481928323ef99cb7355cca188514c97108a26ffd"
+    },
+    {
+      "path": "source/test/chart/chart_view_test.ml",
+      "bytes": 5137,
+      "sha256": "6b2d70736ad649fd9a4a7dbd317ef4e9f9b61e10d5275cf96fc95b375a2dc786"
+    },
+    {
+      "path": "source/test/chart/dune",
+      "bytes": 395,
+      "sha256": "d61d18bfb335a6bfdbbeac1287d9b5a4b7a03efbae1a1378c9fe3b3b29eb2f35"
+    },
+    {
+      "path": "source/test/fixtures/chart-v3-style-v0-view.hex",
+      "bytes": 269,
+      "sha256": "c2b1299ad358cd04bb0c6f024dd33cad986c5b00b68a8b688675b953ffc70a9d"
+    },
+    {
+      "path": "tracked.patch",
+      "bytes": 58582,
+      "sha256": "54574a36559134dd6d2d2fc903d5276a56ffa757ea49948a71be25d94795b499"
+    }
+  ]
+}

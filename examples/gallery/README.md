@@ -1049,3 +1049,6 @@ with native point/band layout, equal labels with distinct IDs and missing values
 
 The [stacked chart sample](../charts/samples/stacked.md) demonstrates aligned bars/areas, signed
 values, missing observations and a Grouped/Stacked presentation toggle.
+
+The [ordinal color sample](../charts/samples/ordinal_colors.md) demonstrates stable typed slice colors
+under source reordering and an explicit unknown-key policy.

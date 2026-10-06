@@ -358,7 +358,7 @@ impl Node {
             + self
                 .chart
                 .as_ref()
-                .map_or(0, |config| config.label.len() + 512)
+                .map_or(0, |config| config.retained_bytes())
             + self.extension.as_ref().map_or(0, |config| {
                 256 + config.schema.name.len()
                     + config.schema.fingerprint.len()

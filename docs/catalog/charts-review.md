@@ -25,14 +25,19 @@ validation and resource bounds; OCH-41 must not infer parity solely from names.
 | Pie | Named ID-stable nonnegative slices, donut-hole fraction, padding, palette, labels and original-value selection | Per-slice inner/outer radius functions, leader-line colors and custom label gaps are not exposed. Outer radius is fitted natively; data cannot encode a rose chart merely by changing values. |
 | Radar | Named axes with individual positive maxima, multiple series, grid levels, dots, labels and alpha fill | Source global maximum/outer-radius/label-gap options and rich `RadarLabel` presentation are not identical to the typed per-axis domain and native labels. |
 | Candlestick | Increasing numeric x, validated OHLC, body width, axes/grid and exact/OHLC reduction | Native hollow rising/filled falling/equal-price marks preserve meaning without color alone. Source point-spacing/tick-margin behavior is not claimed identical. |
-| Sankey | Bounded acyclic graph, stable node/edge IDs, parallel edges and zero/isolated values, four alignments, relaxation, node width/padding, linear/sqrt weights | Source per-node colors, custom multi-line labels with per-line font/color, node corners, link opacity/minimum thickness and label gap are not all public options. Sqrt affects geometry while raw values remain available. |
+| Sankey | Bounded acyclic graph, stable node/edge IDs, parallel edges and zero/isolated values, four alignments, relaxation, node width/padding, linear/sqrt weights | Stable per-node colors now use the ordinal mapping. Source custom multi-line labels with per-line font/color, node corners, link opacity/minimum thickness and label gap are not all public options. Sqrt affects geometry while raw values remain available. |
 
 Applications may precompute serializable data/labels in OCaml before publication;
 they do not supply Rust accessors that call OCaml during layout/paint. Data IDs
 are distinct from labels and source positions. Missing y values are explicit
 gaps, not NaNs. Invalid domains are rejected rather than sorted, normalized or
-silently repaired. Series/slice/node palette cycling is order-based, not an
-implicit color map keyed by datum ID.
+silently repaired. Default series/slice/node palette cycling remains order-based. The optional
+[ordinal mapping](../design/chart-ordinal-colors.md) now assigns stable colors to
+explicit namespaced IDs, with a cyclic range and explicit unknown-color policy.
+It covers series, pie slices, Sankey nodes/source ribbons and candle movement;
+per-datum colors within a Cartesian series remain separate presentation work.
+[Local paired-codec, native/GPU and installed-gallery qualification](../evidence/chart-ordinal-colors-och41.md)
+passes without establishing whole-catalog or release acceptance.
 
 [Categorical data and layouts](../design/categorical-charts.md) now use explicit
 typed IDs, domain order and labels. Point/band spacing is native, and sampled marks
@@ -46,7 +51,7 @@ records scoped qualification and remaining limits.
 | Nested source surface | Owner / status |
 | --- | --- |
 | `Plot`, `IntoPlot`, `paint`, `tooltip_state` and `tooltip` | Native retained preparation, painter, hit index and tooltip own these operations. `View.chart` receives an application-scoped resource and validated options; it does not expose synchronous OCaml paint/tooltip closures. Custom native plots belong to the static extension SDK. |
-| `ScaleLinear`, `ScalePoint`, `ScaleBand`, `ScaleOrdinal` and sealed scale trait | Numeric linear domain handling is native in the existing chart preparation. Typed categorical datasets now have native Point/Band/Auto layout options. IDs are explicitly unique; the standard band formula differs from the source's 30-pixel cap/padding formula. Standalone generic scales and ordinal palette/unknown-value behavior remain separate work. |
+| `ScaleLinear`, `ScalePoint`, `ScaleBand`, `ScaleOrdinal` and sealed scale trait | Numeric linear domain handling is native in the existing chart preparation. Typed categorical datasets now have native Point/Band/Auto layout options. IDs are explicitly unique; the standard band formula differs from the source's 30-pixel cap/padding formula. Typed `Chart_style.Ordinal` now provides an explicit bounded domain/range, cyclic lookup and optional unknown color, resolved once in native preparation. Duplicate keys and empty ranges are rejected deliberately; generic plotting scales remain outside this API. |
 | `PlotAxis`, `AxisText`, `Grid`, label measurement/truncation | Public Axes selects x/y/grid, bounded tick count and typed number formats; style supplies axis/grid/label colors and the view font. Arbitrary explicit tick positions, label sides/alignment, grid dash arrays and per-label font styles are not exposed by these options. Text measurement helpers map to native rendering ownership, not OCaml layout callbacks. |
 | Arc, pie, line, area, bar and radial-line shapes | Prepared family geometry supplies the existing widgets. Lower-level arbitrary angle ranges, per-datum baselines, independent marker fill/stroke and path-specific style builders are not a public general-purpose plot API. Canvas offers separate retained drawing; it does not grant chart selection/data-table semantics automatically. |
 | `Stack` | Source computes cumulative lower/upper values, substituting zero for missing values. Typed opt-in Stacked now implements natural signed accumulation, bars after explicit aggregation and areas with matching cumulative curves. Raw source IDs/values remain intact. Numeric layers must align within each kind; own missing observations retain gaps. [Local native, GPU and installed-gallery qualification](../evidence/stacked-charts-och41.md) passes; no whole-catalog acceptance is implied. |

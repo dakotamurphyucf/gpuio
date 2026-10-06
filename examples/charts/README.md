@@ -70,3 +70,6 @@ captures screenshots, then closes and reaps the application.
 
 The [stacked chart sample](samples/stacked.md) demonstrates aligned bars/areas, signed
 values, missing observations and a Grouped/Stacked presentation toggle.
+
+The [ordinal color sample](samples/ordinal_colors.md) demonstrates stable typed slice colors
+under source reordering and an explicit unknown-key policy.

@@ -136,3 +136,12 @@ as the categorical example. Native tooltips distinguish the value from cumulativ
 bounds. The [contract](../../docs/design/stacked-charts.md) explains shared area
 curves and the deliberate difference between signed accumulation and divergent
 positive/negative stacking.
+
+## Stable ordinal colors
+
+The [Ordinal colors sample](../charts/samples/ordinal_colors.md) rotates pie-slice
+source order on update, while a fixed typed domain assigns Build and Research
+stable colors. The page's `unknown_color` Bonsai toggle chooses an explicit
+unknown color or the ordinary position palette for Review. `Chart_style.create`
+resolves the mapping; the native prepared plan shares its colors with the legend.
+The existing publication guard and ID-based selection remain in force.
