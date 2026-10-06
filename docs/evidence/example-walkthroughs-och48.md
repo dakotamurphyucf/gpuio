@@ -527,3 +527,31 @@ The follow-up diagnostic correction changes `view_api`'s marker to
 `native_selection=not_exercised`, matching the walkthrough and actual self-test
 scope. This changes reporting only; no new selection test or GUI acceptance is
 claimed. Consumers of the existing `TYPED_VIEW_PASS` prefix remain unchanged.
+
+## Page composition and runtime diagnostics
+
+Source base `5acfb5f`: 18 further groups bring coverage to **225 reviewed / 35
+pending** of 260 groups (417 sources). The three authorized agents wrote six
+guides each; primary review read every guide and checked representative source/
+interface/native contracts. All owning READMEs link their component guides.
+
+This batch covers bridge/runtime main and both benches, Agent Chat self-test and
+metrics, and gallery Collections, Feedback, Journeys, Navigation, Overlays,
+Pickers, Highlight, Input, Motion, Numeric, Observations and Responsive pages.
+The guides explain actual independent models/controllers and composition, native
+versus application-owned behavior, event/effect traces, runnable entry points and
+adaptations. Runtime benchmarks explicitly distinguish simulated acknowledgement,
+CPU/allocation counters and frame notifications from physical input/presentation
+or whole-process memory. Diagnostic success markers are qualified by their actual
+assertions and terminal cleanup. The chat README's workload delay is corrected to
+the application's current five-second configuration.
+
+Review also corrected two stale Highlight/View interface comments: native text/
+document highlighting is implemented, as the existing host paths and recorded
+native evidence demonstrate. No separate highlight capability is advertised; this
+comment correction adds no capability, runtime behavior or platform acceptance.
+
+Structural inventory, local file links in changed example Markdown, whitespace,
+and ocamlformat checks on the two comment-only interfaces pass. No GUI execution
+was repeated for this prose batch. OCH-48 remains open, with extension-author,
+performance/resource and remaining gallery source groups visible as pending.

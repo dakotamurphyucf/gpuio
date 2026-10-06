@@ -1,7 +1,8 @@
 open Core
 
-(** Subtree highlighting configuration. Mounted rendering is still in development;
-    these constructors alone do not change a view. *)
+(** Subtree highlighting configuration for native text and document renderers.
+    Apply it through [View.highlight_scope]; these constructors alone do not
+    change a view. *)
 module Query : sig
   type t [@@deriving equal, sexp_of]
 

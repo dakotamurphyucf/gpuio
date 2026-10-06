@@ -1408,9 +1408,9 @@ val command_binding_scope
   -> 'action t list
   -> 'action t
 
-(** Retained highlight declaration. Empty config overrides an ancestor. Children
-    retain their identities; updates are asynchronous. Native painting integration
-    is in development and no highlight capability is advertised yet. *)
+(** Retained highlight declaration for native text and document renderers. Empty
+    config overrides an ancestor. Children retain their identities; updates are
+    asynchronous. No separate highlight capability is advertised yet. *)
 val highlight_scope
   :  ?key:Key.t
   -> ?style:Style.t

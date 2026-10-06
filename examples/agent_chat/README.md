@@ -104,8 +104,11 @@ review status is explicit in the [coverage inventory](../coverage.md).
 - [Application walkthrough](application.md), with [`application.ml`](application.ml)
   and [`application.mli`](application.mli): Eio capabilities, conversation ownership,
   window creation and resource cleanup. Start here to see how the app is assembled.
-- [`self_test.ml`](self_test.ml) and [`workload_metrics.ml`](workload_metrics.ml):
-  optional acceptance/diagnostic runners, kept out of the ordinary startup path.
+- [Self-test walkthrough](self_test.md), with [`self_test.ml`](self_test.ml) and
+  [`self_test.mli`](self_test.mli): optional programmatic integration driver.
+- [Workload metrics walkthrough](workload_metrics.md), with
+  [`workload_metrics.ml`](workload_metrics.ml) and [`workload_metrics.mli`](workload_metrics.mli):
+  opt-in sampled diagnostics, kept out of ordinary startup.
 
 For the UI, follow `runtime/workspace.ml`'s `component` function: `Bonsai` owns
 reactive observations, `Effect` describes deferred actions, and `View` creates
@@ -334,7 +337,7 @@ columns. [Responsive evidence](../../docs/evidence/agent-chat-m5.md#responsive-i
 
 For local workload measurements, launch with `--workload-metrics --full-motion`.
 This opt-in mode prints `App.diagnostics` snapshots twice per second through Eio
-and streams seven-byte chunks two seconds apart. Use **Cancel** to stop the long
+and configures seven-byte chunks five seconds apart. Use **Cancel** to stop the long
 fixture. The sampling task is included in its own task count; normal operation
 has no metrics task. The records distinguish accepted messages/events from empty
 clock-driven bridge drains and report OCaml resource reservations, not GPU memory.

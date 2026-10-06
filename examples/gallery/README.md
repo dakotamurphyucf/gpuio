@@ -77,6 +77,10 @@ Choice and display walkthroughs: [grouped capability pickers](choice_picker_prev
 [picker cases](choice_picker_cases.md), [native control indicators](control_appearance_preview.md),
 [keyboard labels](keyboard_preview.md), [typed markers](marker_preview.md) and [rich tags](tag_preview.md).
 
+Page composition walkthroughs: [collections](collections_page.md), [feedback](feedback_page.md),
+[carousels and journeys](journeys_page.md), [navigation](navigation_page.md),
+[overlays](overlays_page.md) and [date/color pickers](pickers_page.md).
+
 Styles → **A theme from your workspace** loads a palette for the current window.
 Read the [theme-loading walkthrough](theme_preview.md), then the independent
 [appearance model](model/appearance.md), [selection identity](model/theme_selection.md),
@@ -1135,3 +1139,9 @@ The [popup placement](placement_preview.md), [searchable list](selectable_previe
 [controlled toolbar selection](selection_preview.md) and
 [window text selection](window_selection_preview.md) guides trace native requests
 and application state separately.
+
+Page guides also cover [Find & highlight](highlight_page.md),
+[captured input and transfers](input_page.md), [Motion & rhythm](motion_page.md),
+[Numbers & codes](numeric_page.md), [input observations](observations_page.md) and
+[responsive layouts](responsive_page.md). Each follows the implementation's state,
+native ownership and event flow, including diagnostic and platform limits.
