@@ -13,8 +13,12 @@ impl Decoder<'_> {
         })
     }
     pub(super) fn chart_options(&mut self) -> Result<Options, DecodeError> {
+        let version = self.int()?;
+        if version != 2 {
+            return Err(DecodeError::Malformed);
+        }
         let options = Options {
-            version: self.int()?,
+            version,
             axes: Axes {
                 x: self.boolean()?,
                 y: self.boolean()?,
@@ -39,6 +43,15 @@ impl Decoder<'_> {
                     _ => return Err(DecodeError::Malformed),
                 },
                 bar_width: self.float()?,
+                category_layout: match self.tag()? {
+                    0 => CategoryLayout::Auto,
+                    1 => CategoryLayout::Point(self.float()?),
+                    2 => CategoryLayout::Band {
+                        inner: self.float()?,
+                        outer: self.float()?,
+                    },
+                    _ => return Err(DecodeError::Malformed),
+                },
             },
             pie: Pie {
                 inner_radius: self.float()?,

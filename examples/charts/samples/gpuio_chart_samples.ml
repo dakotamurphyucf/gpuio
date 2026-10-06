@@ -1,5 +1,6 @@
 open Core
 module D = Gpuio.Chart_data
+module Categorical = Categorical
 
 let ok = Or_error.ok_exn
 let datum n = D.Datum_id.of_int64 (Int64.of_int n) |> ok
@@ -164,6 +165,7 @@ let describe_selection data (selection : Gpuio.Chart_selection.t) =
         sprintf "%s · x %.3g · value %.3g" (D.Series.name series) (D.Point.x first) value
       | Sum | Mean ->
         Some (sprintf "%s · %d samples selected" (D.Series.name series) span.length))
+  | Categorical _, _ -> Categorical.describe_selection data selection
   | Pie slices, Slice id ->
     let%map slice = List.find slices ~f:(fun s -> D.Datum_id.equal (D.Slice.id s) id) in
     sprintf "%s · %.3g" (D.Slice.label slice) (D.Slice.value slice)

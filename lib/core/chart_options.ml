@@ -60,6 +60,26 @@ module Orientation = struct
   [@@deriving equal, sexp_of]
 end
 
+module Category_layout = struct
+  type t = Wire.Category_layout.t [@@deriving equal, sexp_of]
+
+  let auto = Wire.Category_layout.Auto
+
+  let point ?(padding = 0.) () =
+    checked
+      Wire.Category_layout.valid
+      (Wire.Category_layout.Point padding)
+      "category point padding must be in [0,1]"
+  ;;
+
+  let band ?(inner_padding = 0.2) ?(outer_padding = 0.1) () =
+    checked
+      Wire.Category_layout.valid
+      (Wire.Category_layout.Band { inner = inner_padding; outer = outer_padding })
+      "category band inner padding must be in [0,1), outer padding in [0,1]"
+  ;;
+end
+
 module Cartesian = struct
   type t = Wire.Cartesian.t [@@deriving equal, sexp_of]
 
@@ -68,11 +88,12 @@ module Cartesian = struct
         ?(dots = false)
         ?(orientation = Orientation.Vertical)
         ?(bar_width = 0.8)
+        ?(category_layout = Category_layout.auto)
         ()
     =
     checked
       Wire.Cartesian.valid
-      { Wire.Cartesian.curve; dots; orientation; bar_width }
+      { Wire.Cartesian.curve; dots; orientation; bar_width; category_layout }
       "chart bar_width must be finite and in (0,1]"
   ;;
 
@@ -172,7 +193,7 @@ let create
       ?(sankey = Sankey.default)
       ()
   =
-  { Wire.version = 1L; axes; cartesian; pie; radar; candlestick; sankey }
+  { Wire.version = 2L; axes; cartesian; pie; radar; candlestick; sankey }
 ;;
 
 let default = create ()

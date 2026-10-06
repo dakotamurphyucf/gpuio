@@ -1043,3 +1043,6 @@ when it is visible and leaves the reader when that control is clipped.
 The action uses the existing typed `Open_card` event; scrolling stays native.
 Property updates preserve the mounted offset; disabling/remounting the profile
 resets it. [Evidence](../../docs/evidence/document-profile-scroll-och41.md#public-scroll-profile--2026-10-05).
+
+The chart page also includes [typed categorical samples](../charts/samples/categorical.md)
+with native point/band layout, equal labels with distinct IDs and missing values.

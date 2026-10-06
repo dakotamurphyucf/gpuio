@@ -1,5 +1,6 @@
 //! Pure, bounded source reduction performed before geometry preparation. No
 //! drawing, text shaping, callbacks or source mutation occurs in this module.
+use crate::chart_cartesian::{Kind, Layers, Points, Projection};
 use gpuio_protocol::{chart_data as data, chart_sampling as policy};
 use std::{
     mem::size_of,
@@ -168,7 +169,7 @@ fn flush_line(envelope: &mut Option<Envelope>, output: &mut Vec<LinePoint>, star
     }
 }
 fn line(
-    points: &[data::Point],
+    points: Points<'_>,
     policy: policy::Line,
     domain: Domain,
     width: f64,
@@ -202,10 +203,20 @@ fn line(
         }
         if let Some(e) = &mut envelope {
             e.last = index;
-            if y < points[e.low].y.expect("defined envelope point") {
+            if y < points
+                .get(e.low)
+                .unwrap()
+                .y
+                .expect("defined envelope point")
+            {
                 e.low = index;
             }
-            if y > points[e.high].y.expect("defined envelope point") {
+            if y > points
+                .get(e.high)
+                .unwrap()
+                .y
+                .expect("defined envelope point")
+            {
                 e.high = index;
             }
         } else {
@@ -244,7 +255,7 @@ impl Sum {
     }
 }
 fn bars(
-    points: &[data::Point],
+    points: Points<'_>,
     policy: policy::Bar,
     domain: Domain,
     width: f64,
@@ -261,24 +272,27 @@ fn bars(
         checkpoint(start, cancel)?;
         let mut end = start + 1;
         let mut sum = Sum::default();
-        sum.add(points[start].y.expect("validated bar"));
+        sum.add(points.get(start).unwrap().y.unwrap_or(0.));
+        let mut present = usize::from(points.get(start).unwrap().y.is_some());
         if let Some(buckets) = buckets {
-            let bucket = domain.bucket(points[start].x, buckets);
-            while end < points.len() && domain.bucket(points[end].x, buckets) == bucket {
+            let bucket = domain.bucket(points.get(start).unwrap().x, buckets);
+            while end < points.len() && domain.bucket(points.get(end).unwrap().x, buckets) == bucket
+            {
                 checkpoint(end, cancel)?;
-                sum.add(points[end].y.expect("validated bar"));
+                sum.add(points.get(end).unwrap().y.unwrap_or(0.));
+                present += usize::from(points.get(end).unwrap().y.is_some());
                 end += 1;
             }
         }
         let value = sum.value();
+        if present == 0 {
+            start = end;
+            continue;
+        }
         output.push(Bar {
             source: SourceSpan { start, end },
-            x: midpoint(points[start].x, points[end - 1].x),
-            value: if mean {
-                value / (end - start) as f64
-            } else {
-                value
-            },
+            x: midpoint(points.get(start).unwrap().x, points.get(end - 1).unwrap().x),
+            value: if mean { value / present as f64 } else { value },
         });
         start = end;
     }
@@ -336,8 +350,24 @@ pub fn prepare(
     width: f64,
     cancel: &AtomicBool,
 ) -> Result<Reduction, Error> {
+    prepare_with_options(
+        data,
+        policy,
+        width,
+        &gpuio_protocol::chart_options::Options::default(),
+        cancel,
+    )
+}
+
+pub(crate) fn prepare_with_options(
+    data: &data::Data,
+    policy: policy::Policy,
+    width: f64,
+    options: &gpuio_protocol::chart_options::Options,
+    cancel: &AtomicBool,
+) -> Result<Reduction, Error> {
     cancelled(cancel)?;
-    if !policy.is_valid() {
+    if !policy.is_valid() || !options.is_valid() {
         return Err(Error::InvalidPolicy);
     }
     if !width.is_finite() || width <= 0. || width > 32768. {
@@ -346,32 +376,44 @@ pub fn prepare(
     let stats = data.validate().map_err(|_| Error::InvalidData)?;
     let contents =
         match &data.contents {
-            data::Contents::Cartesian(layers) => {
-                let domain = layers
-                    .iter()
-                    .filter_map(|layer| {
-                        let points = &layer.series().points;
-                        Some(Domain {
-                            min: points.first()?.x,
-                            max: points.last()?.x,
+            data::Contents::Cartesian(_) | data::Contents::Categorical(..) => {
+                let layers = Layers::of(data).expect("Cartesian source");
+                let domain = match &data.contents {
+                    data::Contents::Categorical(categories, _) => {
+                        let projection = Projection::new(
+                            categories.len(),
+                            width,
+                            options.cartesian.category_layout,
+                            layers.iter().any(|l| l.kind == Kind::Bar),
+                        );
+                        let (min, max) = projection.sampling_domain(width);
+                        Domain { min, max }
+                    }
+                    _ => layers
+                        .iter()
+                        .filter_map(|l| {
+                            Some(Domain {
+                                min: l.points.first()?.x,
+                                max: l.points.last()?.x,
+                            })
                         })
-                    })
-                    .reduce(|a, b| Domain {
-                        min: a.min.min(b.min),
-                        max: a.max.max(b.max),
-                    })
-                    .unwrap_or(Domain { min: 0., max: 1. });
+                        .reduce(|a, b| Domain {
+                            min: a.min.min(b.min),
+                            max: a.max.max(b.max),
+                        })
+                        .unwrap_or(Domain { min: 0., max: 1. }),
+                };
                 let mut output = Vec::with_capacity(layers.len());
-                for layer in layers {
-                    output.push(match layer {
-                        data::Layer::Line(series) => {
-                            Series::Line(line(&series.points, policy.line, domain, width, cancel)?)
+                for layer in layers.iter() {
+                    output.push(match layer.kind {
+                        Kind::Line => {
+                            Series::Line(line(layer.points, policy.line, domain, width, cancel)?)
                         }
-                        data::Layer::Area(series) => {
-                            Series::Area(line(&series.points, policy.line, domain, width, cancel)?)
+                        Kind::Area => {
+                            Series::Area(line(layer.points, policy.line, domain, width, cancel)?)
                         }
-                        data::Layer::Bar(series) => {
-                            Series::Bar(bars(&series.points, policy.bars, domain, width, cancel)?)
+                        Kind::Bar => {
+                            Series::Bar(bars(layer.points, policy.bars, domain, width, cancel)?)
                         }
                     });
                 }

@@ -472,6 +472,7 @@ pub fn prepare(
         && matches!(
             data.contents,
             gpuio_protocol::chart_data::Contents::Cartesian(_)
+                | gpuio_protocol::chart_data::Contents::Categorical(..)
         );
     if geometry.x_domain.is_some() {
         let a = geometry::Point { x: 0., y: height };

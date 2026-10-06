@@ -33,7 +33,7 @@ let%expect_test "default chart options match independent fixed-width wire fixtur
      |> List.map ~f:(fun c -> sprintf "%02x" (Char.to_int c))
      |> String.concat);
   [%expect
-    {| 010101010500000000009a9999999999e93f0000000000000000000000000000000001040101666666666666e63f0000000000003040000000000000284003000601 |}]
+    {| 020101010500000000009a9999999999e93f000000000000000000000000000000000001040101666666666666e63f0000000000003040000000000000284003000601 |}]
 ;;
 
 let%expect_test "typed construction rejects invalid geometry and formatting bounds" =
@@ -59,7 +59,7 @@ let%expect_test "typed construction rejects invalid geometry and formatting boun
     assert (Result.is_error (O.Sankey.create ~node_padding:value ())));
   let wire = O.Expert.to_wire O.default in
   List.iter
-    [ { wire with version = 2L }
+    [ { wire with version = 1L }
     ; { wire with axes = { wire.axes with x_format = Fixed 7L } }
     ; { wire with pie = { wire.pie with inner_radius = Float.nan } }
     ; { wire with sankey = { wire.sankey with iterations = Int64.max_value } }
@@ -102,4 +102,31 @@ let%expect_test "typed construction rejects invalid geometry and formatting boun
     "all seven families share validated options; invalid decoded records are rejected";
   [%expect
     {| all seven families share validated options; invalid decoded records are rejected |}]
+;;
+
+let%expect_test "category layout options validate padding and append paired payload" =
+  List.iter [ Float.nan; Float.infinity; -0.1; 1.1 ] ~f:(fun padding ->
+    assert (Result.is_error (O.Category_layout.point ~padding ()));
+    assert (Result.is_error (O.Category_layout.band ~outer_padding:padding ())));
+  assert (Result.is_error (O.Category_layout.band ~inner_padding:1. ()));
+  let config =
+    O.create
+      ~cartesian:
+        (O.Cartesian.create
+           ~category_layout:(O.Category_layout.point ~padding:0.5 () |> Or_error.ok_exn)
+           ()
+         |> Or_error.ok_exn)
+      ()
+  in
+  let bytes =
+    Bin_prot.Utils.bin_dump W.bin_writer_t (O.Expert.to_wire config)
+    |> Bigstring.to_string
+  in
+  assert (Char.to_int bytes.[0] = 2);
+  print_endline
+    (String.sub bytes ~pos:18 ~len:9
+     |> String.to_list
+     |> List.map ~f:(fun c -> sprintf "%02x" (Char.to_int c))
+     |> String.concat);
+  [%expect {| 01000000000000e03f |}]
 ;;

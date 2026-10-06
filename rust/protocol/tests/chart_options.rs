@@ -7,7 +7,7 @@ fn bytes(value: &Options) -> Vec<u8> {
 }
 #[test]
 fn default_options_match_independent_ocaml_fixture_and_reject_truncation() {
-    let hex = "010101010500000000009a9999999999e93f0000000000000000000000000000000001040101666666666666e63f0000000000003040000000000000284003000601";
+    let hex = "020101010500000000009a9999999999e93f000000000000000000000000000000000001040101666666666666e63f0000000000003040000000000000284003000601";
     let expected: Vec<u8> = hex
         .as_bytes()
         .chunks_exact(2)
@@ -23,7 +23,7 @@ fn default_options_match_independent_ocaml_fixture_and_reject_truncation() {
     trailing.push(0);
     assert_eq!(decode_chart_options(&trailing), Err(DecodeError::Malformed));
     // Independently specified enum/boolean field offsets in the default frame.
-    for offset in [1, 2, 3, 5, 6, 7, 8, 9, 34, 36, 37, 62, 63, 65] {
+    for offset in [1, 2, 3, 5, 6, 7, 8, 9, 18, 35, 37, 38, 63, 64, 66] {
         let mut bad = expected.clone();
         bad[offset] = 255;
         assert!(decode_chart_options(&bad).is_err(), "offset {offset}");
@@ -108,7 +108,7 @@ fn all_option_variants_roundtrip_and_invalid_records_fail_validation() {
     o.sankey.iterations = 33;
     reject(o);
     reject(Options {
-        version: 2,
+        version: 1,
         ..Options::default()
     });
 }
@@ -130,4 +130,54 @@ fn reversed_value_directions_append_tags_without_changing_existing_frames() {
     let mut unknown = original;
     unknown[9] = 4;
     assert_eq!(decode_chart_options(&unknown), Err(DecodeError::Malformed));
+}
+
+#[test]
+fn categorical_layout_tags_and_padding_bounds_are_paired_and_versioned() {
+    for layout in [
+        CategoryLayout::Auto,
+        CategoryLayout::Point(0.),
+        CategoryLayout::Point(1.),
+        CategoryLayout::Band {
+            inner: 0.,
+            outer: 1.,
+        },
+        CategoryLayout::Band {
+            inner: 0.2,
+            outer: 0.1,
+        },
+    ] {
+        let mut o = Options::default();
+        o.cartesian.category_layout = layout;
+        assert_eq!(decode_chart_options(&bytes(&o)), Ok(o));
+    }
+    for layout in [
+        CategoryLayout::Point(f64::NAN),
+        CategoryLayout::Point(-0.1),
+        CategoryLayout::Point(1.1),
+        CategoryLayout::Band {
+            inner: 1.,
+            outer: 0.,
+        },
+        CategoryLayout::Band {
+            inner: 0.,
+            outer: f64::INFINITY,
+        },
+    ] {
+        let mut o = Options::default();
+        o.cartesian.category_layout = layout;
+        assert!(!o.is_valid());
+        assert!(decode_chart_options(&bytes(&o)).is_err());
+    }
+    let mut o = Options::default();
+    o.cartesian.category_layout = CategoryLayout::Point(0.5);
+    let mut expected = bytes(&Options::default());
+    expected.splice(18..19, [1, 0, 0, 0, 0, 0, 0, 224, 63]);
+    assert_eq!(bytes(&o), expected);
+    let old = include_str!("../../../test/fixtures/chart-v1-view.hex").trim();
+    let old = (0..old.len())
+        .step_by(2)
+        .map(|i| u8::from_str_radix(&old[i..i + 2], 16).unwrap())
+        .collect::<Vec<_>>();
+    assert!(gpuio_protocol::decode_chart_view_config(&old).is_err());
 }

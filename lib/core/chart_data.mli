@@ -17,6 +17,7 @@ module Datum_id : Id
 module Series_id : Id
 module Node_id : Id
 module Edge_id : Id
+module Category_id : Id
 
 module Point : sig
   type t [@@deriving equal, sexp_of]
@@ -56,6 +57,55 @@ module Layer : sig
     | Line of Series.t
     | Area of Series.t
     | Bar of Series.t
+  [@@deriving equal, sexp_of]
+end
+
+(** Categorical identity is independent of label text and position. Labels are
+    nonblank, <=256 UTF-8 bytes without NUL/CR/LF. Equal labels are permitted. *)
+module Category : sig
+  type t [@@deriving equal, sexp_of]
+
+  val create : id:Category_id.t -> label:string -> t Or_error.t
+  val id : t -> Category_id.t
+  val label : t -> string
+end
+
+module Categorical_point : sig
+  type t [@@deriving equal, sexp_of]
+
+  (** [None] is a missing observation, including for categorical bars. Present
+      values have the same finite numeric bounds as [Point]. *)
+  val create
+    :  id:Datum_id.t
+    -> category:Category_id.t
+    -> value:float option
+    -> ?label:string
+    -> unit
+    -> t Or_error.t
+
+  val id : t -> Datum_id.t
+  val category : t -> Category_id.t
+  val value : t -> float option
+  val label : t -> string
+end
+
+module Categorical_series : sig
+  type t [@@deriving equal, sexp_of]
+
+  (** Bounded nonblank name, unique datum IDs and unique category IDs. Domain
+      membership/order is validated when constructing the whole dataset. *)
+  val create : id:Series_id.t -> name:string -> Categorical_point.t list -> t Or_error.t
+
+  val id : t -> Series_id.t
+  val name : t -> string
+  val points : t -> Categorical_point.t list
+end
+
+module Categorical_layer : sig
+  type t =
+    | Line of Categorical_series.t
+    | Area of Categorical_series.t
+    | Bar of Categorical_series.t
   [@@deriving equal, sexp_of]
 end
 
@@ -155,6 +205,13 @@ val bar : Series.t list -> t Or_error.t
     remain unique across layers. Zero is the area/bar baseline. *)
 val cartesian : Layer.t list -> t Or_error.t
 
+(** The explicit category list defines order, not numeric ID or label ordering.
+    Every series supplies one point per category in that order; [None] explicitly
+    records a missing value. No sorting, zero-filling or insertion occurs.
+    <=100,000 categories, <=32 series, <=100,000 points across all series and
+    <=8 MiB total text, including category labels. *)
+val categorical : categories:Category.t list -> Categorical_layer.t list -> t Or_error.t
+
 (** At most 256 slices with unique IDs and nonblank labels <=256 UTF-8 bytes. *)
 val pie : Slice.t list -> t Or_error.t
 
@@ -187,6 +244,7 @@ module Expert : sig
     | Radar of Radar_axis.t list * Radar_series.t list
     | Candlestick of Candle.t list
     | Sankey of Node.t list * Edge.t list
+    | Categorical of Category.t list * Categorical_layer.t list
   [@@deriving equal, sexp_of]
 
   val contents : t -> contents

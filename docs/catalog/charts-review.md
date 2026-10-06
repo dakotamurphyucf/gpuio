@@ -19,9 +19,9 @@ validation and resource bounds; OCH-41 must not infer parity solely from names.
 
 | Pinned family | Existing public behavior | Difference to retain in the ledger |
 | --- | --- | --- |
-| Line | Named ID-stable series, explicit gaps, Linear/Natural/Step_after curves, dots, axes/grid, legend, tooltip, native selection | Source uses evenly spaced `ScalePoint` x categories; GPUIO uses strictly increasing numeric x with linear spacing. Source point labels are not an implicit categorical axis API. |
+| Line | Named ID-stable series, explicit gaps, Linear/Natural/Step_after curves, dots, axes/grid, legend, tooltip, native selection | Numeric series retain linear x spacing; explicit typed categorical series now support native point/band projection. Categorical series are aligned to their declared domain with explicit missing values. |
 | Area | Same typed series and curves; zero-baseline fill, negative values, alpha and mixed layers | Arbitrary lower/upper area accessors from the low-level shape API are not exposed; the public area baseline remains zero. |
-| Bar | Grouped series, four Cartesian value directions, numeric x, negative values, width fraction, corner radius and two-color value-axis gradient | [Reversed directions](../design/chart-directions.md) now support positive bars growing from top/right as well as bottom/left; category order and existing axis gutters remain unchanged. Source categorical bands, independent corners, axis-side customization and arbitrary per-datum/chart-aware backgrounds remain broader than these options. |
+| Bar | Grouped series, four Cartesian value directions, numeric or categorical x, negative values, width fraction, corner radius and two-color value-axis gradient | [Reversed directions](../design/chart-directions.md) now support positive bars growing from top/right as well as bottom/left; category order and existing axis gutters remain unchanged. Categorical bands now have native preparation and source-provenance support. Independent corners, axis-side customization and arbitrary per-datum/chart-aware backgrounds remain broader than these options. |
 | Pie | Named ID-stable nonnegative slices, donut-hole fraction, padding, palette, labels and original-value selection | Per-slice inner/outer radius functions, leader-line colors and custom label gaps are not exposed. Outer radius is fitted natively; data cannot encode a rose chart merely by changing values. |
 | Radar | Named axes with individual positive maxima, multiple series, grid levels, dots, labels and alpha fill | Source global maximum/outer-radius/label-gap options and rich `RadarLabel` presentation are not identical to the typed per-axis domain and native labels. |
 | Candlestick | Increasing numeric x, validated OHLC, body width, axes/grid and exact/OHLC reduction | Native hollow rising/filled falling/equal-price marks preserve meaning without color alone. Source point-spacing/tick-margin behavior is not claimed identical. |
@@ -34,19 +34,19 @@ gaps, not NaNs. Invalid domains are rejected rather than sorted, normalized or
 silently repaired. Series/slice/node palette cycling is order-based, not an
 implicit color map keyed by datum ID.
 
-Categorical data can be assigned numeric positions by an application, but doing
-so changes the data model and does not install category axis labels. This is an
-important remaining surface difference, not complete categorical-scale parity.
-The [categorical implementation draft](../design/categorical-charts.md) specifies
-typed identity, point/band placement, sampling and original-data requirements;
-it is planning evidence, not an implemented capability.
+[Categorical data and layouts](../design/categorical-charts.md) now use explicit
+typed IDs, domain order and labels. Point/band spacing is native, and sampled marks
+retain original source ranges. Equal labels do not merge IDs. Missing observations
+remain in the original-data table. This is an aligned dataset interface, not an
+arbitrary sparse accessor API. [Evidence](../evidence/categorical-charts-och41.md)
+records scoped qualification and remaining limits.
 
 ## Plot helpers and styling
 
 | Nested source surface | Owner / status |
 | --- | --- |
 | `Plot`, `IntoPlot`, `paint`, `tooltip_state` and `tooltip` | Native retained preparation, painter, hit index and tooltip own these operations. `View.chart` receives an application-scoped resource and validated options; it does not expose synchronous OCaml paint/tooltip closures. Custom native plots belong to the static extension SDK. |
-| `ScaleLinear`, `ScalePoint`, `ScaleBand`, `ScaleOrdinal` and sealed scale trait | Numeric linear domain handling is native in the existing chart preparation. Point/band/ordinal scales are not standalone public chart APIs. The source's band deduplication/padding and ordinal unknown-value fallback are not inferred from numeric plots. |
+| `ScaleLinear`, `ScalePoint`, `ScaleBand`, `ScaleOrdinal` and sealed scale trait | Numeric linear domain handling is native in the existing chart preparation. Typed categorical datasets now have native Point/Band/Auto layout options. IDs are explicitly unique; the standard band formula differs from the source's 30-pixel cap/padding formula. Standalone generic scales and ordinal palette/unknown-value behavior remain separate work. |
 | `PlotAxis`, `AxisText`, `Grid`, label measurement/truncation | Public Axes selects x/y/grid, bounded tick count and typed number formats; style supplies axis/grid/label colors and the view font. Arbitrary explicit tick positions, label sides/alignment, grid dash arrays and per-label font styles are not exposed by these options. Text measurement helpers map to native rendering ownership, not OCaml layout callbacks. |
 | Arc, pie, line, area, bar and radial-line shapes | Prepared family geometry supplies the existing widgets. Lower-level arbitrary angle ranges, per-datum baselines, independent marker fill/stroke and path-specific style builders are not a public general-purpose plot API. Canvas offers separate retained drawing; it does not grant chart selection/data-table semantics automatically. |
 | `Stack` | Source computes cumulative lower/upper values, substituting zero for missing values. GPUIO bars are explicitly grouped and areas use zero baseline; neither is a stacked-series renderer. Do not relabel mixed layers or ordinary preprocessing as complete stacked plotting support. |

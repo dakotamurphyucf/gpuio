@@ -1,6 +1,7 @@
 //! Retained logical-pixel plotting geometry. Prepare on a bounded worker, then
 //! paint/hit-test the plan against the exact source snapshot used to build it.
 //! This module has no GPUI window or OCaml callbacks.
+use crate::chart_cartesian::{Kind, Layers, Projection};
 use crate::chart_reduce::{self as reduce, SourceSpan};
 use gpuio_protocol::{chart_data as data, chart_options as options, chart_sampling::Policy};
 use std::{
@@ -273,6 +274,7 @@ struct Coordinates {
     inset: f64,
     horizontal: bool,
     reversed: bool,
+    categorical: Option<Projection>,
 }
 impl Coordinates {
     fn value(self, value: f64) -> f64 {
@@ -284,7 +286,7 @@ impl Coordinates {
         }) * self.height
     }
     fn point(self, x: f64, y: f64) -> Point {
-        let category = self.inset + self.x.unit(x) * (self.width - 2. * self.inset);
+        let category = self.category(x);
         let value = self.value(y);
         if self.horizontal {
             Point::new(value, category)
@@ -293,7 +295,10 @@ impl Coordinates {
         }
     }
     fn category(self, x: f64) -> f64 {
-        self.inset + self.x.unit(x) * (self.width - 2. * self.inset)
+        self.categorical.map_or_else(
+            || self.inset + self.x.unit(x) * (self.width - 2. * self.inset),
+            |p| p.center(x),
+        )
     }
     fn rect(self, x: f64, value: f64, offset: f64, width: f64) -> Rect {
         let c = self.category(x) + offset;
@@ -315,10 +320,31 @@ impl Coordinates {
             }
         }
     }
-    fn axes(self, plan: &mut Plan, axes: options::Axes) {
-        plan.x_domain = Some(self.x);
+    fn axes(self, plan: &mut Plan, axes: options::Axes, categories: Option<&[data::Category]>) {
+        plan.x_domain = categories.is_none().then_some(self.x);
         plan.y_domain = Some(self.y);
-        for v in self.x.ticks(axes.ticks) {
+        let ticks = match categories {
+            None => self
+                .x
+                .ticks(axes.ticks)
+                .into_iter()
+                .map(|v| (v, format_number(v, axes.x_format)))
+                .collect::<Vec<_>>(),
+            Some(categories) => {
+                let count = categories.len().min(axes.ticks as usize);
+                (0..count)
+                    .map(|i| {
+                        let index = if count <= 1 {
+                            0
+                        } else {
+                            i * (categories.len() - 1) / (count - 1)
+                        };
+                        (index as f64, categories[index].label.clone())
+                    })
+                    .collect()
+            }
+        };
+        for (v, text) in ticks {
             let c = self.category(v);
             let (start, end) = if self.horizontal {
                 (Point::new(0., c), Point::new(self.height, c))
@@ -331,7 +357,7 @@ impl Coordinates {
             if axes.x {
                 plan.labels.push(Label {
                     position: if self.horizontal { start } else { end },
-                    text: format_number(v, axes.x_format),
+                    text,
                     kind: LabelKind::X,
                 });
             }
@@ -404,26 +430,25 @@ fn curve(points: &[Point], style: options::Curve, horizontal: bool) -> Vec<Comma
 }
 fn cartesian(
     plan: &mut Plan,
-    layers: &[data::Layer],
+    layers: Layers<'_>,
+    categories: Option<&[data::Category]>,
     reduced: &[reduce::Series],
     options: &options::Options,
     cancel: &AtomicBool,
 ) -> Result<(), Error> {
     let x = Domain::from(
-        layers
-            .iter()
-            .flat_map(|l| l.series().points.iter().map(|p| p.x)),
+        layers.iter().flat_map(|l| l.points.iter().map(|p| p.x)),
         false,
     );
     let zero = layers
         .iter()
-        .any(|l| matches!(l, data::Layer::Area(_) | data::Layer::Bar(_)));
+        .any(|l| matches!(l.kind, Kind::Area | Kind::Bar));
     // Include original extrema even when their points were reduced, plus bar
     // aggregates whose sums can exceed the individual source values.
     let source_y = layers
         .iter()
-        .filter(|layer| !matches!(layer, data::Layer::Bar(_)))
-        .flat_map(|l| l.series().points.iter().filter_map(|p| p.y));
+        .filter(|layer| !matches!(layer.kind, Kind::Bar))
+        .flat_map(|l| l.points.iter().filter_map(|p| p.y));
     let aggregate_y = reduced
         .iter()
         .flat_map(|s| match s {
@@ -460,16 +485,23 @@ fn cartesian(
         inset: if bars > 0 { slot / 2. } else { 0. },
         horizontal,
         reversed: options.cartesian.orientation.is_reversed(),
+        categorical: categories
+            .map(|c| Projection::new(c.len(), width, options.cartesian.category_layout, bars > 0)),
     };
-    c.axes(plan, options.axes);
+    c.axes(plan, options.axes, categories);
     let bar_width = slot * options.cartesian.bar_width / (bars.max(1) as f64);
     let mut bar_index = 0;
     for (series, (layer, reduction)) in layers.iter().zip(reduced).enumerate() {
         check(cancel)?;
         match reduction {
             reduce::Series::Bar(values) => {
-                let offset = (bar_index as f64 - (bars - 1) as f64 / 2.) * bar_width;
                 for (i, b) in values.iter().enumerate() {
+                    let bar_width = c.categorical.map_or(bar_width, |p| {
+                        p.interval_width(b.source.start(), b.source.end() - 1)
+                            * options.cartesian.bar_width
+                            / bars.max(1) as f64
+                    });
+                    let offset = (bar_index as f64 - (bars - 1) as f64 / 2.) * bar_width;
                     checkpoint(i, cancel)?;
                     if b.source.len() > 1 {
                         plan.summaries
@@ -500,7 +532,7 @@ fn cartesian(
                     let mut coordinates = Vec::with_capacity(run.len());
                     for (i, p) in run.iter().enumerate() {
                         checkpoint(i, cancel)?;
-                        let datum = &layer.series().points[p.source];
+                        let datum = layer.points.get(p.source).expect("reduced source index");
                         let center = c.point(datum.x, datum.y.expect("reduced defined point"));
                         coordinates.push(center);
                         plan.marks.push(Mark {
@@ -520,11 +552,12 @@ fn cartesian(
                         let commands = curve(&coordinates, options.cartesian.curve, horizontal);
                         if area {
                             let mut fill = commands.clone();
+                            fill.push(Command::Line(c.point(
+                                layer.points.get(run.last().unwrap().source).unwrap().x,
+                                0.,
+                            )));
                             fill.push(Command::Line(
-                                c.point(layer.series().points[run.last().unwrap().source].x, 0.),
-                            ));
-                            fill.push(Command::Line(
-                                c.point(layer.series().points[run[0].source].x, 0.),
+                                c.point(layer.points.get(run[0].source).unwrap().x, 0.),
                             ));
                             fill.push(Command::Close);
                             plan.paths.push(Path {
@@ -669,8 +702,9 @@ fn candles(
         inset: slot / 2.,
         horizontal: false,
         reversed: false,
+        categorical: None,
     };
-    c.axes(plan, options.axes);
+    c.axes(plan, options.axes, None);
     for candle in values {
         let center = c.category(candle.x);
         let half = slot * options.candlestick.body_width / 2.;
@@ -876,16 +910,15 @@ pub fn prepare(
     {
         return Err(Error::InvalidInput);
     }
-    let reduction = reduce::prepare(
+    let reduction = reduce::prepare_with_options(
         data,
         policy,
-        if options.cartesian.orientation.is_horizontal()
-            && matches!(data.contents, data::Contents::Cartesian(_))
-        {
+        if options.cartesian.orientation.is_horizontal() && Layers::of(data).is_some() {
             height
         } else {
             width
         },
+        options,
         cancel,
     )
     .map_err(|e| {
@@ -909,9 +942,20 @@ pub fn prepare(
         rendered_values: reduction.rendered_values,
     };
     match (&data.contents, &reduction.contents) {
-        (data::Contents::Cartesian(layers), reduce::Contents::Cartesian(series)) => {
-            cartesian(&mut plan, layers, series, options, cancel)?
-        }
+        (
+            data::Contents::Cartesian(_) | data::Contents::Categorical(..),
+            reduce::Contents::Cartesian(series),
+        ) => cartesian(
+            &mut plan,
+            Layers::of(data).unwrap(),
+            match &data.contents {
+                data::Contents::Categorical(c, _) => Some(c.as_slice()),
+                _ => None,
+            },
+            series,
+            options,
+            cancel,
+        )?,
         (data::Contents::Candlestick(source), reduce::Contents::Candlestick(values)) => {
             candles(&mut plan, source, values, options)
         }
@@ -923,7 +967,9 @@ pub fn prepare(
         _ => return Err(Error::InvalidInput),
     }
     match &data.contents {
-        data::Contents::Cartesian(layers) => series_identifiers(&mut plan, layers.len(), cancel)?,
+        data::Contents::Cartesian(_) | data::Contents::Categorical(..) => {
+            series_identifiers(&mut plan, Layers::of(data).unwrap().len(), cancel)?
+        }
         data::Contents::Radar(_, series) => series_identifiers(&mut plan, series.len(), cancel)?,
         _ => (),
     }

@@ -26,7 +26,8 @@ module Axes : sig
   (** Numeric linear domains come from the complete displayed dataset, including
       explicitly aggregated values. Bar/area include zero. Empty domains use
       [0,1]; constant domains place the value in the center. [ticks] is 2..12.
-      Source labels are used for tooltips/data access, not categorical spacing. *)
+      Numeric point labels do not determine spacing. Categorical datasets use
+      their explicit domain labels/positions instead of [x_format]. *)
   val create
     :  ?x:bool
     -> ?y:bool
@@ -60,12 +61,29 @@ module Orientation : sig
   [@@deriving equal, sexp_of]
 end
 
+(** Native categorical projection. Ignored for numeric datasets. Auto uses
+    point spacing without bars and band spacing with any bar layer. *)
+module Category_layout : sig
+  type t [@@deriving equal, sexp_of]
+
+  val auto : t
+
+  (** Padding in [0,1] step units, default 0. Singleton categories are centered.
+      With bars, effective padding is at least 0.5 to fit endpoint groups. *)
+  val point : ?padding:float -> unit -> t Or_error.t
+
+  (** Inner padding in [0,1), default 0.2; outer in [0,1], default 0.1.
+      Mixed line/area layers use band centers; bars group within each band. *)
+  val band : ?inner_padding:float -> ?outer_padding:float -> unit -> t Or_error.t
+end
+
 module Cartesian : sig
   type t [@@deriving equal, sexp_of]
 
   (** Orientation applies to every layer of a mixed plot. Bars are grouped by
       layer, never implicitly stacked. [bar_width] in (0,1] is the fraction of
-      nearest distinct x spacing occupied by each group. Curve defaults to
+      nearest distinct numeric x spacing occupied by each group. For categorical
+      data it is the fraction of the available category band. Curve defaults to
       Linear; Natural is an interpolating cubic spline and can overshoot values.
       Missing values always split paths. Singleton runs remain visible even
       when [dots=false]. *)
@@ -74,6 +92,7 @@ module Cartesian : sig
     -> ?dots:bool
     -> ?orientation:Orientation.t
     -> ?bar_width:float
+    -> ?category_layout:Category_layout.t
     -> unit
     -> t Or_error.t
 

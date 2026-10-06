@@ -5,12 +5,23 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **O
 Markdown walkthroughs for every example component; it is planned in this milestone. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
+[Typed categorical charts](evidence/categorical-charts-och41.md) now add explicit
+category IDs/order, missing observations and native Auto/Point/Band layouts.
+The shared preparation path borrows source data, preserves category-aware sampling
+and selection spans, and exposes category labels/IDs in tooltips and the original
+paged table. Local native tests and the fresh installed gallery walkthrough pass;
+source updates, layout changes, missing-value browsing and teardown are covered.
+The options envelope advances to version 2 and requires matching bridge packages.
+Stacking, ordinal colors and richer presentation options remain catalog work.
+The [sample walkthrough](../examples/charts/samples/categorical.md) adds OCH-48
+coverage without completing the every-example inventory.
+
 [Four Cartesian value directions](evidence/chart-directions-och41.md) now have
 public OCaml options and a gallery reversal control. Local paired-codec,
 signed mixed geometry/provenance, native hit-index and real GPU pixel checks pass;
 a fresh installed gallery passes all four directions, selection, original-data
-browsing and scope cleanup. Categorical scales, stacking, richer labels/tooltips
-and broader chart/catalog/release qualification remain open. The adjacent
+browsing and scope cleanup. Stacking, ordinal colors, richer labels/tooltips and broader chart/catalog/release
+qualification remain open. The adjacent
 [chart-page walkthrough](../examples/gallery/charts_page.md) adds partial OCH-48
 coverage; it does not complete the every-example inventory.
 

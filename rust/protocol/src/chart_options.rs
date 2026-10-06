@@ -47,11 +47,29 @@ impl Orientation {
     }
 }
 #[derive(Clone, Copy, Debug, PartialEq, BinProtWrite)]
+pub enum CategoryLayout {
+    Auto,
+    Point(f64),
+    Band { inner: f64, outer: f64 },
+}
+impl CategoryLayout {
+    pub fn is_valid(self) -> bool {
+        match self {
+            Self::Auto => true,
+            Self::Point(p) => between(p, 0., 1.),
+            Self::Band { inner, outer } => {
+                between(inner, 0., 1.) && inner < 1. && between(outer, 0., 1.)
+            }
+        }
+    }
+}
+#[derive(Clone, Copy, Debug, PartialEq, BinProtWrite)]
 pub struct Cartesian {
     pub curve: Curve,
     pub dots: bool,
     pub orientation: Orientation,
     pub bar_width: f64,
+    pub category_layout: CategoryLayout,
 }
 #[derive(Clone, Copy, Debug, PartialEq, BinProtWrite)]
 pub struct Pie {
@@ -108,11 +126,12 @@ fn fraction(n: f64) -> bool {
 }
 impl Options {
     pub fn is_valid(&self) -> bool {
-        self.version == 1
+        self.version == 2
             && (2..=12).contains(&self.axes.ticks)
             && self.axes.x_format.is_valid()
             && self.axes.y_format.is_valid()
             && fraction(self.cartesian.bar_width)
+            && self.cartesian.category_layout.is_valid()
             && between(self.pie.inner_radius, 0., 0.95)
             && between(self.pie.pad_angle, 0., 0.2)
             && (1..=12).contains(&self.radar.levels)
@@ -125,7 +144,7 @@ impl Options {
 impl Default for Options {
     fn default() -> Self {
         Self {
-            version: 1,
+            version: 2,
             axes: Axes {
                 x: true,
                 y: true,
@@ -139,6 +158,7 @@ impl Default for Options {
                 dots: false,
                 orientation: Orientation::Vertical,
                 bar_width: 0.8,
+                category_layout: CategoryLayout::Auto,
             },
             pie: Pie {
                 inner_radius: 0.,

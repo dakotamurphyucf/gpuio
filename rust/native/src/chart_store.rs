@@ -28,7 +28,8 @@ const FIXED_CHARGE: usize = 4096;
 const _: () = assert!(
     FIXED_CHARGE
         + chart_data::MAX_TEXT_BYTES
-        + chart_data::MAX_POINTS * (size_of::<chart_data::Candle>() + 256)
+        + chart_data::MAX_POINTS
+            * (size_of::<chart_data::Candle>() + size_of::<chart_data::Category>() + 256)
         + 2048 * 256
         < DECODE_WORKSPACE_BYTES
 );
@@ -201,6 +202,20 @@ fn data_charge(data: &Data) -> usize {
                         let s = l.series();
                         s.name.capacity()
                             + s.points.capacity() * size_of::<Point>()
+                            + s.points.iter().map(|p| p.label.capacity()).sum::<usize>()
+                    })
+                    .sum::<usize>()
+        }
+        Contents::Categorical(categories, layers) => {
+            categories.capacity() * size_of::<Category>()
+                + categories.iter().map(|c| c.label.capacity()).sum::<usize>()
+                + layers.capacity() * size_of::<CategoricalLayer>()
+                + layers
+                    .iter()
+                    .map(|l| {
+                        let s = l.series();
+                        s.name.capacity()
+                            + s.points.capacity() * size_of::<CategoricalPoint>()
                             + s.points.iter().map(|p| p.label.capacity()).sum::<usize>()
                     })
                     .sum::<usize>()

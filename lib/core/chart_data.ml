@@ -41,6 +41,7 @@ module Datum_id = Make_id ()
 module Series_id = Make_id ()
 module Node_id = Make_id ()
 module Edge_id = Make_id ()
+module Category_id = Make_id ()
 
 let unique values ~key =
   let seen = Hash_set.create (module Int64) in
@@ -125,6 +126,90 @@ module Layer = struct
 
   let series = function
     | Line t | Area t | Bar t -> t
+  ;;
+end
+
+module Category = struct
+  type t =
+    { id : Category_id.t
+    ; label : string
+    }
+  [@@deriving equal, sexp_of]
+
+  let create ~id ~label =
+    let%map.Or_error () = text ~name:"category label" ~limit:256 ~nonblank:true label in
+    { id; label }
+  ;;
+
+  let id t = t.id
+  let label t = t.label
+end
+
+module Categorical_point = struct
+  type t =
+    { id : Datum_id.t
+    ; category : Category_id.t
+    ; value : float option
+    ; label : string
+    }
+  [@@deriving equal, sexp_of]
+
+  let create ~id ~category ~value ?(label = "") () =
+    let%bind.Or_error () =
+      require
+        (Option.for_all value ~f:valid_number)
+        "category values must be finite and within +/-1e100"
+    in
+    let%map.Or_error () =
+      text ~name:"categorical point label" ~limit:256 ~nonblank:false label
+    in
+    { id; category; value; label }
+  ;;
+
+  let id t = t.id
+  let category t = t.category
+  let value t = t.value
+  let label t = t.label
+end
+
+module Categorical_series = struct
+  type t =
+    { id : Series_id.t
+    ; name : string
+    ; points : Categorical_point.t list
+    }
+  [@@deriving equal, sexp_of]
+
+  let create ~id ~name points =
+    let%bind.Or_error () =
+      text ~name:"categorical series name" ~limit:128 ~nonblank:true name
+    in
+    let%bind.Or_error () =
+      require (List.length points <= max_points) "chart point limit exceeded"
+    in
+    let%bind.Or_error () =
+      unique points ~key:(fun p -> Datum_id.to_int64 (Categorical_point.id p))
+    in
+    let%map.Or_error () =
+      unique points ~key:(fun p -> Category_id.to_int64 (Categorical_point.category p))
+    in
+    { id; name; points }
+  ;;
+
+  let id t = t.id
+  let name t = t.name
+  let points t = t.points
+end
+
+module Categorical_layer = struct
+  type t =
+    | Line of Categorical_series.t
+    | Area of Categorical_series.t
+    | Bar of Categorical_series.t
+  [@@deriving equal, sexp_of]
+
+  let series = function
+    | Line s | Area s | Bar s -> s
   ;;
 end
 
@@ -281,6 +366,7 @@ type contents =
   | Radar of Radar_axis.t list * Radar_series.t list
   | Candlestick of Candle.t list
   | Sankey of Node.t list * Edge.t list
+  | Categorical of Category.t list * Categorical_layer.t list
 [@@deriving equal, sexp_of]
 
 type t =
@@ -299,6 +385,48 @@ let finish contents ~value_count ~text_bytes =
     require (text_bytes <= max_text_bytes) "chart text budget exceeded"
   in
   { contents; value_count; text_bytes }
+;;
+
+let categorical ~categories layers =
+  let%bind.Or_error () =
+    require
+      (List.length categories <= max_points && List.length layers <= max_series)
+      "categorical chart domain/series limit exceeded"
+  in
+  let%bind.Or_error () =
+    unique categories ~key:(fun c -> Category_id.to_int64 (Category.id c))
+  in
+  let series = List.map layers ~f:Categorical_layer.series in
+  let%bind.Or_error () =
+    unique series ~key:(fun s -> Series_id.to_int64 (Categorical_series.id s))
+  in
+  let value_count =
+    List.sum (module Int) series ~f:(fun s -> List.length (Categorical_series.points s))
+  in
+  let%bind.Or_error () =
+    require (value_count <= max_points) "chart point limit exceeded"
+  in
+  let%bind.Or_error () =
+    require
+      (List.for_all series ~f:(fun s ->
+         match
+           List.for_all2 categories (Categorical_series.points s) ~f:(fun c p ->
+             Category_id.equal (Category.id c) (Categorical_point.category p))
+         with
+         | Ok valid -> valid
+         | Unequal_lengths -> false))
+      "categorical series must cover the domain exactly in its declared order"
+  in
+  let text_bytes =
+    sum_bytes categories ~text:Category.label
+    + List.sum
+        (module Int)
+        series
+        ~f:(fun s ->
+          String.length (Categorical_series.name s)
+          + sum_bytes (Categorical_series.points s) ~text:Categorical_point.label)
+  in
+  finish (Categorical (categories, layers)) ~value_count ~text_bytes
 ;;
 
 let value_count t = t.value_count
@@ -463,10 +591,19 @@ module Expert = struct
     | Radar of Radar_axis.t list * Radar_series.t list
     | Candlestick of Candle.t list
     | Sankey of Node.t list * Edge.t list
+    | Categorical of Category.t list * Categorical_layer.t list
   [@@deriving equal, sexp_of]
 
   let contents t = t.contents
-  let retained_bytes t = 65_536 + (512 * t.value_count) + (4 * t.text_bytes)
+
+  let retained_bytes t =
+    let categories =
+      match t.contents with
+      | Categorical (categories, _) -> List.length categories
+      | _ -> 0
+    in
+    65_536 + (512 * t.value_count) + (128 * categories) + (4 * t.text_bytes)
+  ;;
 
   module Wire = Gpuio_protocol.Chart_data_wire
 
@@ -607,10 +744,66 @@ module Expert = struct
       Or_error.map (series_of_wire series) ~f:(fun s -> Layer.Bar s)
   ;;
 
+  let category_to_wire (t : Category.t) : Wire.Category.t =
+    { id = Category_id.to_int64 (Category.id t); label = Category.label t }
+  ;;
+
+  let category_of_wire (w : Wire.Category.t) =
+    let%bind.Or_error id = Category_id.of_int64 w.id in
+    Category.create ~id ~label:w.label
+  ;;
+
+  let categorical_point_to_wire (t : Categorical_point.t) : Wire.Categorical_point.t =
+    { id = Datum_id.to_int64 (Categorical_point.id t)
+    ; category = Category_id.to_int64 (Categorical_point.category t)
+    ; value = Categorical_point.value t
+    ; label = Categorical_point.label t
+    }
+  ;;
+
+  let categorical_point_of_wire (w : Wire.Categorical_point.t) =
+    let%bind.Or_error id = Datum_id.of_int64 w.id in
+    let%bind.Or_error category = Category_id.of_int64 w.category in
+    Categorical_point.create ~id ~category ~value:w.value ~label:w.label ()
+  ;;
+
+  let categorical_series_to_wire (t : Categorical_series.t) : Wire.Categorical_series.t =
+    { id = Series_id.to_int64 (Categorical_series.id t)
+    ; name = Categorical_series.name t
+    ; points = List.map (Categorical_series.points t) ~f:categorical_point_to_wire
+    }
+  ;;
+
+  let categorical_series_of_wire (w : Wire.Categorical_series.t) =
+    let%bind.Or_error id = Series_id.of_int64 w.id in
+    let%bind.Or_error points = convert w.points ~f:categorical_point_of_wire in
+    Categorical_series.create ~id ~name:w.name points
+  ;;
+
+  let categorical_layer_to_wire = function
+    | Categorical_layer.Line s ->
+      Wire.Categorical_layer.Line (categorical_series_to_wire s)
+    | Area s -> Wire.Categorical_layer.Area (categorical_series_to_wire s)
+    | Bar s -> Wire.Categorical_layer.Bar (categorical_series_to_wire s)
+  ;;
+
+  let categorical_layer_of_wire = function
+    | Wire.Categorical_layer.Line s ->
+      Or_error.map (categorical_series_of_wire s) ~f:(fun s -> Categorical_layer.Line s)
+    | Area s ->
+      Or_error.map (categorical_series_of_wire s) ~f:(fun s -> Categorical_layer.Area s)
+    | Bar s ->
+      Or_error.map (categorical_series_of_wire s) ~f:(fun s -> Categorical_layer.Bar s)
+  ;;
+
   let to_wire t =
     let contents =
       match t.contents with
       | Cartesian layers -> Wire.Contents.Cartesian (List.map layers ~f:layer_to_wire)
+      | Categorical (categories, layers) ->
+        Wire.Contents.Categorical
+          ( List.map categories ~f:category_to_wire
+          , List.map layers ~f:categorical_layer_to_wire )
       | Pie slices -> Wire.Contents.Pie (List.map slices ~f:slice_to_wire)
       | Radar (axes, series) ->
         Wire.Contents.Radar
@@ -635,6 +828,10 @@ module Expert = struct
     | Cartesian layers ->
       let%bind.Or_error layers = convert layers ~f:layer_of_wire in
       cartesian layers
+    | Categorical (categories, layers) ->
+      let%bind.Or_error categories = convert categories ~f:category_of_wire in
+      let%bind.Or_error layers = convert layers ~f:categorical_layer_of_wire in
+      categorical ~categories layers
     | Pie slices ->
       let%bind.Or_error slices = convert slices ~f:slice_of_wire in
       pie slices

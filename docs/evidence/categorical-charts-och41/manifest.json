@@ -1,0 +1,432 @@
+{
+  "base_commit": "1d96d3d5af7ca6c76049f56af2c32db92c29c96e",
+  "scope": "Local categorical data/point-band integration qualification",
+  "archive_sha256": "ce1523cf397959c5fd93e6a860395b7ac79f29182150e3bb5a1c3849ba89dcb1",
+  "files": [
+    {
+      "path": "binary.json",
+      "bytes": 126,
+      "sha256": "e98b5210875f46c9a6655089120d4e18c5c3d5f060d0f53d4dfa7db5b376acfd"
+    },
+    {
+      "path": "commands.txt",
+      "bytes": 933,
+      "sha256": "a3b3606778ff2a1bd09c91a8c9b88135f7b90ace1803e665e561e7712aba265f"
+    },
+    {
+      "path": "environment.txt",
+      "bytes": 82,
+      "sha256": "6e1453ea9c1ef0c20b76675b08f9e8c930bf10a19af1097d06b47b389abcaa58"
+    },
+    {
+      "path": "final-results.json",
+      "bytes": 531,
+      "sha256": "7b51e9a4dfb6625033e3a58ebe4b6914c6f7a87f3a329ea8e3bcfbaa7f10a8b5"
+    },
+    {
+      "path": "images/gallery-chart-auto-categories.png",
+      "bytes": 408114,
+      "sha256": "209349900214018b7707563da93504b810b17ada88ce6db98f22277158e2db1c"
+    },
+    {
+      "path": "images/gallery-chart-band-categories.png",
+      "bytes": 410247,
+      "sha256": "31a391d0dda949cf926f3307477bf6bc12d81f3efa4d438181cb5edbb8f1d570"
+    },
+    {
+      "path": "images/gallery-chart-horizontal-reversed.png",
+      "bytes": 397125,
+      "sha256": "f58020bb7522f05322308be46888ddff421ebce9741075f3027ed7add0313cbd"
+    },
+    {
+      "path": "images/gallery-chart-horizontal.png",
+      "bytes": 397281,
+      "sha256": "9eb73ae870850a1bd0fabef209f7fdda64d9a5a0e3b2f45d0e67f2ac40a9cc8d"
+    },
+    {
+      "path": "images/gallery-chart-point-categories.png",
+      "bytes": 405009,
+      "sha256": "b61975c45b3cd970480e71f4c42e89a0a1495da3904fd76978c1ee11b6784402"
+    },
+    {
+      "path": "images/gallery-chart-vertical-reversed.png",
+      "bytes": 393733,
+      "sha256": "b6a70620f02bc3ffb674dad5dd42090bc8d0d9ce3ec1c20e922e6d686136cca1"
+    },
+    {
+      "path": "images/gallery-chart-vertical.png",
+      "bytes": 391322,
+      "sha256": "f1c3900b607112f62429acc55b7b40441da33ac1dc17209363389611c6a90e27"
+    },
+    {
+      "path": "images/gallery-charts.png",
+      "bytes": 393156,
+      "sha256": "b9c87fcd8d7949382b21545577523d19e27c47059c4736ce59a2bb067e79c379"
+    },
+    {
+      "path": "logs/chart-categorical-catalog.log",
+      "bytes": 640,
+      "sha256": "ec7f045757abb1d7e2907d8e645fbd6c7fa3e9b0e1e808e2fdc2dd20215b9a75"
+    },
+    {
+      "path": "logs/chart-categorical-clippy-final.log",
+      "bytes": 588275,
+      "sha256": "6f66bb8c92d451edadcafe4f3855143a051afcfe4ff008068a0f15260f779a2b"
+    },
+    {
+      "path": "logs/chart-categorical-clippy.log",
+      "bytes": 588425,
+      "sha256": "9af23ad3ef61fc2557041199b06cd6ee71a8085824b8634c3f015a3767b51f98"
+    },
+    {
+      "path": "logs/chart-categorical-core.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "logs/chart-categorical-fmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "logs/chart-categorical-gallery-build.log",
+      "bytes": 100172,
+      "sha256": "b6df11164ae0ae6b37984c937b379c2022bafd8ed261a38811acc42a2986a411"
+    },
+    {
+      "path": "logs/chart-categorical-gallery-native.log",
+      "bytes": 5102,
+      "sha256": "840d59567de17064cdeae82e9233ba10215071362fb619169e21424dca23a6b2"
+    },
+    {
+      "path": "logs/chart-categorical-gpu.log",
+      "bytes": 594509,
+      "sha256": "af27a4ec547823faf59a40231669b35de7cc6b63d63ea4b9d7055866e50a1d73"
+    },
+    {
+      "path": "logs/chart-categorical-installed.log",
+      "bytes": 206070,
+      "sha256": "6269ef4fc7433e4b2d93d3bfebbb7082b211f445f914b1b3769bf0d0031dd040"
+    },
+    {
+      "path": "logs/chart-categorical-interface-format.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "logs/chart-categorical-native-check.log",
+      "bytes": 589242,
+      "sha256": "721c83cc98989ad8f43a9bf43d5210acf740c4648dbbb95acf707d84d93f4e39"
+    },
+    {
+      "path": "logs/chart-categorical-native-final.log",
+      "bytes": 594853,
+      "sha256": "f538277f45a5cd9cc600640bda237cc8341c587d94c72245877bb553c19da496"
+    },
+    {
+      "path": "logs/chart-categorical-native-full-final.log",
+      "bytes": 693964,
+      "sha256": "2390a5434c58c5482eb3297552b6f8d13841b33137bf1cace0ab026449a8cd81"
+    },
+    {
+      "path": "logs/chart-categorical-native-full.log",
+      "bytes": 693735,
+      "sha256": "f2147caf7df04893779b449e4068d5346365f626c366f8cddabffa059bd6cdc6"
+    },
+    {
+      "path": "logs/chart-categorical-native-second.log",
+      "bytes": 594886,
+      "sha256": "2f7ccc5a547c880d4da9088b62cc026d659e35d1bd6daa93b940320f1ef64503"
+    },
+    {
+      "path": "logs/chart-categorical-native.log",
+      "bytes": 594556,
+      "sha256": "db9941bb3d84522d6513fa621dfda72386b2bf2f287e2806625b998139063486"
+    },
+    {
+      "path": "logs/chart-categorical-ocaml-full.log",
+      "bytes": 605763,
+      "sha256": "698e0de4f2d3f68e1ad4aac00743580c52d9a6bc36cd13e211f1a0030adc5c1e"
+    },
+    {
+      "path": "logs/chart-categorical-ocaml-tests.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "logs/chart-categorical-ocamlformat-final.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "logs/chart-categorical-ocamlformat.log",
+      "bytes": 1616,
+      "sha256": "10ab00551aa2b729f1fa72803114909345657badf06b1a5d9a567d7b5c7aaa12"
+    },
+    {
+      "path": "logs/chart-categorical-options-format.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "logs/chart-categorical-protocol-final.log",
+      "bytes": 1331,
+      "sha256": "4aa19c0b135826cd156ea13a1e885734eb6ea19fe29cfdf84cbaadd7ecc1fe7c"
+    },
+    {
+      "path": "logs/chart-categorical-protocol-full.log",
+      "bytes": 55095,
+      "sha256": "3b791e9d063b9f44da65dd549b8d37a32c0ca3813ba7fb59dc12e0ba8d9490f2"
+    },
+    {
+      "path": "logs/chart-categorical-protocol.log",
+      "bytes": 1735,
+      "sha256": "d01e74a491837aba22ddfdaf53b9db00ed38bd94f8d273b03b175066b123915f"
+    },
+    {
+      "path": "logs/chart-categorical-sample-format.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "source/docs/catalog/charts-review.md",
+      "bytes": 9885,
+      "sha256": "7981c4803bf108aaa06e45f8893325f3029113ef1afdc63cdffeaa0d442e4817"
+    },
+    {
+      "path": "source/docs/catalog/families.json",
+      "bytes": 71526,
+      "sha256": "0f3cec187aac19c7a77558871f50fec1654b1687262f310f06509fa436f34563"
+    },
+    {
+      "path": "source/docs/design/categorical-charts.md",
+      "bytes": 9834,
+      "sha256": "225cbc6905aa1317c4fe90dfbedcc7dac6f3140c244f3db29d449e5701b0ddc9"
+    },
+    {
+      "path": "source/docs/design/chart-directions.md",
+      "bytes": 2253,
+      "sha256": "038a2fe264e3e6603eb6ef4104a9faaf16494b0b1115de65b77666754900807c"
+    },
+    {
+      "path": "source/docs/design/charts.md",
+      "bytes": 46184,
+      "sha256": "2a9231b0f8944684795644b390ff485d5150b1988c65334ea2e3fa5c5da9184a"
+    },
+    {
+      "path": "source/docs/evidence/categorical-charts-och41.md",
+      "bytes": 6457,
+      "sha256": "cc38e4fd2a85eba45c5a1f8bf0d3b229be6f7cc1fe7332f8d0c88aa566c6a1de"
+    },
+    {
+      "path": "source/docs/status.md",
+      "bytes": 48023,
+      "sha256": "53b3ba02b0e74e4588173ad153ee5e1701dd23c4afee0f3470cb1121e41aeee3"
+    },
+    {
+      "path": "source/examples/charts/samples/categorical.md",
+      "bytes": 4363,
+      "sha256": "bf42b8506090137649334f0056ae2421462e7be08e9bfd73f0ac5fe6b5df422f"
+    },
+    {
+      "path": "source/examples/charts/samples/categorical.ml",
+      "bytes": 2578,
+      "sha256": "136d0cc01a36122e2399fd5be0fc7aabb3a0fc231f7177d64425cdf67fbe965f"
+    },
+    {
+      "path": "source/examples/charts/samples/categorical.mli",
+      "bytes": 296,
+      "sha256": "a4add27d7c7fd89ce9cdf0624f0d61adfc545331a0ad9f9f5a5667e0c5c761c6"
+    },
+    {
+      "path": "source/examples/charts/samples/gpuio_chart_samples.ml",
+      "bytes": 10145,
+      "sha256": "4de6e2ab27b9c0f65d882ad31cd2aaf35c0edbc2559222844a506b0df0a9307e"
+    },
+    {
+      "path": "source/examples/charts/samples/gpuio_chart_samples.mli",
+      "bytes": 1408,
+      "sha256": "51e577d7b73f8b33a788f19c11652fa91f097d99e4997cce1acee88ac8545fcb"
+    },
+    {
+      "path": "source/examples/gallery/README.md",
+      "bytes": 70071,
+      "sha256": "f285dc56f2d73d3245aa5083548ef744a9ab029cc40a52b02c8c2fd503b4eb84"
+    },
+    {
+      "path": "source/examples/gallery/charts_page.md",
+      "bytes": 7256,
+      "sha256": "74d92c1cd25db0783590918d017c16f42b29fcf5d864e759f6e7059e665d13b1"
+    },
+    {
+      "path": "source/examples/gallery/charts_page.ml",
+      "bytes": 8671,
+      "sha256": "b8a285081cf1e33972af6807fe4a6f14f910ba2b898ec66b8a14127a657d30d9"
+    },
+    {
+      "path": "source/lib/core/chart_data.ml",
+      "bytes": 25699,
+      "sha256": "4c401b270d18bd6ae17dff2d46484dad8cdfaaab546e6c2cc7952322552608d0"
+    },
+    {
+      "path": "source/lib/core/chart_data.mli",
+      "bytes": 8669,
+      "sha256": "38e1a86f6389130af9ace7be58b9b5eccb7f975c73cc1c4b82d7eeae2a5529e4"
+    },
+    {
+      "path": "source/lib/core/chart_options.ml",
+      "bytes": 4994,
+      "sha256": "2ff49d1ecfce985128fc97c3c3d6be81161d7b0395f71a5870e7a6b828691081"
+    },
+    {
+      "path": "source/lib/core/chart_options.mli",
+      "bytes": 5800,
+      "sha256": "509c5f1ac719cb9d00e04da9525ab16635d03de2b15aa5e555efebfd298f5bf5"
+    },
+    {
+      "path": "source/lib/protocol/chart_data_wire.ml",
+      "bytes": 10105,
+      "sha256": "39da7dcccb311c8ab633919c4dae59c346eb429d99f4fc8898217eb81dc6db5e"
+    },
+    {
+      "path": "source/lib/protocol/chart_options_wire.ml",
+      "bytes": 3369,
+      "sha256": "0035b5963ae3a49074b4e9819bb2eb49dece31f9bcb58610dcbf7ac62b1658bb"
+    },
+    {
+      "path": "source/rust/native/src/chart_cartesian.rs",
+      "bytes": 5539,
+      "sha256": "196b54596ede6cd04ce38f8c5da3caab10727679d0b694375d5acd4b2e8dca6c"
+    },
+    {
+      "path": "source/rust/native/src/chart_cartesian/tests.rs",
+      "bytes": 14825,
+      "sha256": "719ff3bc25c9a4827011a4a4f3f8536ec440c7e368adbab78eda8fd6616bb280"
+    },
+    {
+      "path": "source/rust/native/src/chart_details.rs",
+      "bytes": 12249,
+      "sha256": "efe761c308a4f12a9781f0117a56cc36e1462313c08422a75218198f12af236d"
+    },
+    {
+      "path": "source/rust/native/src/chart_geometry.rs",
+      "bytes": 32862,
+      "sha256": "b8023c5ba9d5fd6a9106852aaa990f9bf23ff79d56c4ff0db73f41c62e31805e"
+    },
+    {
+      "path": "source/rust/native/src/chart_paint.rs",
+      "bytes": 23739,
+      "sha256": "2a9039ea63c183e2df523c0f9094037a6911e0a3ee7a0a71d72c8ac22157e7c6"
+    },
+    {
+      "path": "source/rust/native/src/chart_paint/native_test.rs",
+      "bytes": 15898,
+      "sha256": "5ac772a10d645171904ee85fd4016e82eb86be7290c3b42fe428ee6dc3109581"
+    },
+    {
+      "path": "source/rust/native/src/chart_presentation.rs",
+      "bytes": 11915,
+      "sha256": "7020de9a088ee2b7011560f4956393d8efe8b04e6f0dfaf40e9550e847c0a5b3"
+    },
+    {
+      "path": "source/rust/native/src/chart_reduce.rs",
+      "bytes": 14195,
+      "sha256": "c67a8508c0f19c44897178eec34d1efbab33bedbf0439b986cab91b994a80e7c"
+    },
+    {
+      "path": "source/rust/native/src/chart_selection.rs",
+      "bytes": 15733,
+      "sha256": "17ebf2ae9342942f7271082f22d81e3dcab006ca3ccae93b751055e47fec7f8f"
+    },
+    {
+      "path": "source/rust/native/src/chart_store.rs",
+      "bytes": 16767,
+      "sha256": "350ae3694f5c6a181d7d7d1089cc9e015d2ee141afa9b3e0b20e6272fd294c18"
+    },
+    {
+      "path": "source/rust/native/src/chart_table.rs",
+      "bytes": 10684,
+      "sha256": "21711f10e488bfef76c34830ab565294f24e38637c1b5263462db0590b66113d"
+    },
+    {
+      "path": "source/rust/native/src/lib.rs",
+      "bytes": 10910,
+      "sha256": "5823b0f6a36f5d1f371d35cad82f413e2f65b65a9e3d0f72562a03ffec0c4b4d"
+    },
+    {
+      "path": "source/rust/protocol/src/chart_data.rs",
+      "bytes": 11377,
+      "sha256": "dc33ee1615260cac0703d3baaaecf254519cc9952021bab0688cc449561ef4b6"
+    },
+    {
+      "path": "source/rust/protocol/src/chart_options.rs",
+      "bytes": 5104,
+      "sha256": "783ed8ea0c6b637c35ce2d8b58a885295aae144a4d466989ad9670c45dac399e"
+    },
+    {
+      "path": "source/rust/protocol/src/decode/chart_data.rs",
+      "bytes": 5702,
+      "sha256": "8d60afffb26f9fed04a537375ab437ee8361b2ca2841ab63c54042d6522e95bd"
+    },
+    {
+      "path": "source/rust/protocol/src/decode/chart_options.rs",
+      "bytes": 3778,
+      "sha256": "8758a7163cc214eb5ba48783be8e0ac0ef2aa1a32ba1614b067dd4f4d046827b"
+    },
+    {
+      "path": "source/rust/protocol/tests/chart_categorical.rs",
+      "bytes": 2505,
+      "sha256": "cc2e17690723ba8318266ef2ed50a6b460b1875aa5c04cf175b4b05451ef780a"
+    },
+    {
+      "path": "source/rust/protocol/tests/chart_options.rs",
+      "bytes": 6292,
+      "sha256": "60e332157d58591c5c2f42a37c0afb8884953d31188c246e8c6acde716a03ffe"
+    },
+    {
+      "path": "source/rust/protocol/tests/chart_view.rs",
+      "bytes": 4387,
+      "sha256": "e28d375593a9976bf2199a0c82d914709935f8732810c72aa5024e6791967fbc"
+    },
+    {
+      "path": "source/scripts/test_gallery.py",
+      "bytes": 344006,
+      "sha256": "43ab5bc7e24a0d0c31364f12031d8fc15de8fa0e18e3febdb5e22c2479b9e2d8"
+    },
+    {
+      "path": "source/test/chart/chart_categorical_test.ml",
+      "bytes": 3419,
+      "sha256": "18dd33477ad41431174536754e7ee660116c50c74409b5851d4bc56a0d104517"
+    },
+    {
+      "path": "source/test/chart/chart_options_test.ml",
+      "bytes": 5302,
+      "sha256": "21e4864b0d1ff23f45bf1f68dcf47b86058847ea0e4e2a0948ffbb219adbd9c2"
+    },
+    {
+      "path": "source/test/chart/chart_view_test.ml",
+      "bytes": 5082,
+      "sha256": "e6de970418bc4e379123405f63bdbf02db31edadd45d79cf35421dbafd760fff"
+    },
+    {
+      "path": "source/test/chart/dune",
+      "bytes": 377,
+      "sha256": "837b23847becf87eefc373eb6d989782738a5a042238d2db2f3fbfd588d889bc"
+    },
+    {
+      "path": "source/test/fixtures/chart-v1-categorical.hex",
+      "bytes": 119,
+      "sha256": "c257830cf410ecd2b7874b123b94dd15acc43d436b2d3a84a1a49fbe0a2b7eb9"
+    },
+    {
+      "path": "source/test/fixtures/chart-v2-view.hex",
+      "bytes": 263,
+      "sha256": "d75c026fb8382f9072b8abdf1c4e644a3eb122febf0e4860fd276a601199ba5b"
+    },
+    {
+      "path": "tracked.patch",
+      "bytes": 105664,
+      "sha256": "34f82fd6abf6cc380a19300aeaeac645527d10ff08a1975db35d312126888978"
+    }
+  ]
+}

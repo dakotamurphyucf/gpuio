@@ -1,21 +1,21 @@
 # Categorical chart implementation plan
 
-Status: implementation draft for the remaining OCH-41 chart work, 2026-10-06.
-This is not a shipped API or acceptance report. The current public constructors
-still use numeric x coordinates. [The catalog review](../catalog/charts-review.md)
-records that gap. The names below are an interface proposal to implement and
-validate together, not a claim that these modules already exist.
+Local implementation for OCH-41, 2026-10-06. The public data/options APIs,
+paired bridge representations, native preparation and gallery are implemented.
+[Qualification evidence](../evidence/categorical-charts-och41.md) records the
+actual tested scope. Stacking, ordinal colors, additional presentation options,
+VoiceOver and final release acceptance remain separate work.
 
 ## Data and identity
 
-Add a categorical Cartesian dataset alongside the existing numeric Cartesian
+A categorical Cartesian dataset sits alongside the existing numeric Cartesian
 variant. A category has a positive, typed `Category_id.t` and a bounded UTF-8
 label. The explicit domain list defines order; neither integer magnitude nor
 lexical label order determines placement. Duplicate category IDs are rejected.
 Duplicate labels are allowed because labels are not identity. Unknown categories
 must fail admission rather than map to a default slot.
 
-Draft additions under `Chart_data`:
+Public construction interfaces under `Chart_data` (accessors are in the `.mli`):
 
 ```ocaml
 module Category_id : Id
@@ -75,7 +75,7 @@ even for an empty set of series. Empty domain/empty series is valid; nonempty
 points against an empty domain are invalid. Existing numeric constructors and
 validation retain their behavior.
 
-The wire schema needs an explicit appended categorical contents variant containing
+The wire schema appends categorical contents tag 5, containing
 category metadata and categorical layers/points. Do not disguise it as ordinary
 numeric Cartesian data. Bound aggregate categories, points and strings before
 allocating in both readers, and repeat semantic validation at native admission.
@@ -83,7 +83,8 @@ Existing contents tags retain their meanings; old readers reject the new tag.
 
 ## Point and band placement
 
-Add a validated category-layout option to `Chart_options.Cartesian`:
+`Chart_options.Cartesian.create ~category_layout` accepts validated
+`Chart_options.Category_layout` values:
 
 - `Auto`: point spacing for line/area-only data, band spacing when any bar layer
   exists. All layers share one category projection in a mixed chart.
@@ -110,17 +111,17 @@ geometry testable. No implicit category deduplication is needed after validated
 unique IDs. `ScaleOrdinal` palette lookup remains a distinct feature; point/band
 placement does not satisfy it.
 
-Extend the chart-options envelope deliberately when adding fields. Increment its
-version and update both paired readers/writers and independent fixtures. Do not
-silently reinterpret the existing version-1 record layout. GPUIO ships the two
+The chart-options envelope is now version 2, with the category-layout field
+after bar width. Both paired readers/writers and independent fixtures change
+together. The old version-1 record layout is explicitly rejected. GPUIO ships the two
 bridge packages together; unsupported option versions must fail explicitly.
 
 ## Native preparation and sampling
 
-Keep the original categorical dataset immutable in the chart registration.
-Create a borrowed preparation view with point accessors for value, category rank,
+The original categorical dataset remains immutable in the chart registration.
+Native preparation uses a borrowed view with point accessors for value, category rank,
 source index, datum ID and label. Share the Cartesian reduction/geometry path
-through that view rather than cloning every label or publishing a second numeric
+through that view without cloning every label or publishing a second numeric
 dataset. Category rank is an internal coordinate, never a substitute public ID.
 The complete domain defines spacing even when points are missing or sampling
 omits most values. Recompute the projection for size/direction changes; do not
@@ -163,7 +164,7 @@ category ranges. Axis hiding, themes and all four value directions retain those
 semantics. This is accessibility data plumbing; actual VoiceOver acceptance still
 requires physical testing.
 
-## Implementation order and acceptance
+## Qualification requirements
 
 1. Add domain modules/constructors, explicit wire representation, bounded readers,
    independent OCaml/Rust fixtures and malformed-domain tests. Exercise reordered

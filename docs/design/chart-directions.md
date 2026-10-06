@@ -12,7 +12,9 @@
 The two existing variants retain their behavior and wire tags 0/1. Reversed
 variants append tags 2/3 in the existing options envelope. Both bridge packages
 must support the selected variant; an older reader rejects the unknown tag.
-Default options encode to the same bytes as before.
+The direction-only change preserved default bytes. The later [categorical
+layout addition](categorical-charts.md) advances the options envelope to version
+2; orientation tags remain unchanged.
 
 Direction is a native value-coordinate transform for all Cartesian layers,
 including mixed line/area/bar plots. It does not mutate source values, IDs,
@@ -29,7 +31,7 @@ to the same source datum/publication and uses the actual mirrored hit geometry.
 
 Non-Cartesian families retain their existing layouts even when these options
 are present: pie, radar, candlestick and Sankey do not inherit the Cartesian
-direction setting. Other source plotting options—including categorical scales,
+direction setting. Other source plotting options—including ordinal colors,
 stacking, independent bar corners, richer labels and tooltip styling—remain
 separate catalog work. This addition does not certify whole-family parity.
 

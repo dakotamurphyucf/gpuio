@@ -20,6 +20,7 @@ pub mod canvas_paint;
 pub mod canvas_plan;
 pub mod canvas_state;
 pub mod canvas_store;
+mod chart_cartesian;
 mod chart_details;
 pub mod chart_geometry;
 mod chart_hit;

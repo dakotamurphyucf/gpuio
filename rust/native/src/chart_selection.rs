@@ -1,8 +1,11 @@
 //! Resolve private geometry provenance against its exact immutable dataset.
 //! Never pass a newer publication here, even when it reuses the same stable IDs.
-use crate::chart_geometry::Source;
+use crate::{
+    chart_cartesian::{Kind, Layers},
+    chart_geometry::Source,
+};
 use gpuio_protocol::{
-    chart_data::{Contents, Data, Layer},
+    chart_data::{Contents, Data},
     chart_sampling::{Bar, Candlestick, Policy},
     chart_selection::{Aggregation, Selection, Span},
 };
@@ -21,20 +24,33 @@ fn span<T>(values: &[T], start: usize, end: usize, id: impl Fn(&T) -> i64) -> Op
 /// checks here also reject malformed/stale internal provenance without panicking.
 pub fn resolve(data: &Data, policy: &Policy, source: Source) -> Option<Selection> {
     let target = match (&data.contents, source) {
-        (Contents::Cartesian(layers), Source::Cartesian { series, start, end }) => {
-            let layer = layers.get(series)?;
-            let series = layer.series();
-            let span = span(&series.points, start, end, |p| p.id)?;
-            let aggregation = match layer {
-                Layer::Line(_) | Layer::Area(_) => Aggregation::Exact,
-                Layer::Bar(_) => match policy.bars {
+        (
+            Contents::Cartesian(_) | Contents::Categorical(..),
+            Source::Cartesian { series, start, end },
+        ) => {
+            let layer = Layers::of(data)?.get(series)?;
+            if end > layer.points.len() || start >= end {
+                return None;
+            }
+            let span = Span {
+                start_index: start as i64,
+                length: (end - start) as i64,
+                first: layer.points.get(start)?.id,
+                last: layer.points.get(end - 1)?.id,
+            };
+            if !span.is_valid() {
+                return None;
+            }
+            let aggregation = match layer.kind {
+                Kind::Line | Kind::Area => Aggregation::Exact,
+                Kind::Bar => match policy.bars {
                     Bar::Exact => Aggregation::Exact,
                     Bar::Sum(_) => Aggregation::Sum,
                     Bar::Mean(_) => Aggregation::Mean,
                 },
             };
             Selection::Cartesian {
-                series: series.id,
+                series: layer.id,
                 span,
                 aggregation,
             }

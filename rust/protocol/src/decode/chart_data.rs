@@ -93,6 +93,40 @@ impl Decoder<'_> {
                     })
                 })?,
             ),
+            5 => Contents::Categorical(
+                self.list(MAX_POINTS, |d| {
+                    Ok(Category {
+                        id: d.int()?,
+                        label: d.chart_text(256, budget)?,
+                    })
+                })?,
+                self.list(MAX_SERIES, |d| {
+                    let tag = d.tag()?;
+                    if tag > 2 {
+                        return Err(DecodeError::Malformed);
+                    }
+                    let id = d.int()?;
+                    let name = d.chart_text(128, budget)?;
+                    let count = d.count(budget.points)?;
+                    budget.points -= count;
+                    let mut points = Vec::with_capacity(count);
+                    for _ in 0..count {
+                        points.push(CategoricalPoint {
+                            id: d.int()?,
+                            category: d.int()?,
+                            value: d.option(|d| d.float())?,
+                            label: d.chart_text(256, budget)?,
+                        });
+                    }
+                    let series = CategoricalSeries { id, name, points };
+                    Ok(match tag {
+                        0 => CategoricalLayer::Line(series),
+                        1 => CategoricalLayer::Area(series),
+                        2 => CategoricalLayer::Bar(series),
+                        _ => unreachable!(),
+                    })
+                })?,
+            ),
             _ => return Err(DecodeError::Malformed),
         })
     }

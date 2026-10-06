@@ -148,6 +148,61 @@ fn cases() -> Vec<Case> {
             samples,
         );
     }
+    let category_data = |bar| {
+        let categories = [42, 7, 99]
+            .into_iter()
+            .map(|id| data::Category {
+                id,
+                label: format!("Category {id}"),
+            })
+            .collect();
+        let points = [42, 7, 99]
+            .into_iter()
+            .enumerate()
+            .map(|(i, category)| data::CategoricalPoint {
+                id: i as i64 + 1,
+                category,
+                value: if bar {
+                    [Some(1.), None, Some(2.)][i]
+                } else {
+                    Some([0., 1., 0.][i])
+                },
+                label: String::new(),
+            })
+            .collect();
+        let series = data::CategoricalSeries {
+            id: 1,
+            name: "Categories".into(),
+            points,
+        };
+        dataset(data::Contents::Categorical(
+            categories,
+            vec![if bar {
+                data::CategoricalLayer::Bar(series)
+            } else {
+                data::CategoricalLayer::Line(series)
+            }],
+        ))
+    };
+    add(
+        "categorical-point",
+        category_data(false),
+        options(),
+        style(),
+        vec![sample(50., 80., 255, 0, 0), sample(100., 80., 0, 0, 0)],
+    );
+    add(
+        "categorical-band-missing",
+        category_data(true),
+        options(),
+        style(),
+        vec![
+            sample(33., 120., 255, 0, 0),
+            sample(33., 40., 0, 0, 0),
+            sample(100., 120., 0, 0, 0),
+            sample(167., 40., 255, 0, 0),
+        ],
+    );
     let slices = vec![
         data::Slice {
             id: 1,

@@ -35,7 +35,7 @@ fn bounded_chart_view_and_transaction_match_independent_fixture() {
     use gpuio_protocol::{HandlerId, NodeId, WindowId, decode, v1::*};
     let config = config();
     let bytes = encode(&config);
-    let fixture = include_str!("../../../test/fixtures/chart-v1-view.hex").trim();
+    let fixture = include_str!("../../../test/fixtures/chart-v2-view.hex").trim();
     assert_eq!(hex(&bytes), fixture);
     assert_eq!(decode_chart_view_config(&bytes), Ok(config.clone()));
     for end in 0..bytes.len() {
@@ -126,7 +126,7 @@ fn invalid_nested_configuration_and_label_cannot_reach_native_tree() {
         assert!(decode_chart_view_config(&encode(&value)).is_err());
     }
     let mut value = config();
-    value.options.version = 2;
+    value.options.version = 1;
     assert!(decode_chart_view_config(&encode(&value)).is_err());
     let mut value = config();
     value.sampling.line = gpuio_protocol::chart_sampling::Line::Envelope(0);

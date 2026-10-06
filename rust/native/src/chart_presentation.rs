@@ -40,6 +40,9 @@ pub(crate) struct Placement {
 pub(crate) fn legend(data: &Data) -> Vec<&str> {
     match &data.contents {
         Contents::Cartesian(layers) => layers.iter().map(|l| l.series().name.as_str()).collect(),
+        Contents::Categorical(_, layers) => {
+            layers.iter().map(|l| l.series().name.as_str()).collect()
+        }
         Contents::Pie(slices) => slices.iter().map(|s| s.label.as_str()).collect(),
         Contents::Radar(_, series) => series.iter().map(|s| s.name.as_str()).collect(),
         Contents::Candlestick(_) => vec!["Rise · hollow", "Fall · filled"],
@@ -93,6 +96,7 @@ impl Frame {
         let rows = if config.legend {
             let count = match &data.contents {
                 Contents::Cartesian(layers) => layers.len(),
+                Contents::Categorical(_, layers) => layers.len(),
                 Contents::Pie(slices) => slices.len(),
                 Contents::Radar(_, series) => series.len(),
                 Contents::Candlestick(_) => 2,
@@ -104,11 +108,13 @@ impl Frame {
         };
         let legend_height = (rows as f64 * LEGEND_ROW).min(height * 0.3);
         let body_height = height - legend_height;
-        let horizontal = matches!(data.contents, Contents::Cartesian(_))
-            && config.options.cartesian.orientation.is_horizontal();
+        let horizontal = matches!(
+            data.contents,
+            Contents::Cartesian(_) | Contents::Categorical(..)
+        ) && config.options.cartesian.orientation.is_horizontal();
         let numeric = matches!(
             data.contents,
-            Contents::Cartesian(_) | Contents::Candlestick(_)
+            Contents::Cartesian(_) | Contents::Categorical(..) | Contents::Candlestick(_)
         );
         let (left_axis, bottom_axis) = if horizontal {
             (config.options.axes.x, config.options.axes.y)

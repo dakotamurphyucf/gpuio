@@ -25,8 +25,9 @@ delivery record supersedes those states.
 
 Cartesian orientation now supports [reversed value directions](chart-directions.md)
 in addition to the original vertical/horizontal projections. This opt-in change
-preserves source and selection identity; categorical scales and stacking remain
-separate catalog work.
+preserves source and selection identity. [Categorical data and native point/band
+layout](categorical-charts.md) add explicit ordered category domains, missing
+observations and category-aware original-data access. Stacking remains catalog work.
 
 `Gpuio.Chart_data` contains immutable values, with abstract positive IDs and
 validated constructors. Labels are data, never identity or callbacks. Datum IDs
@@ -41,6 +42,7 @@ substitute for identity.
 | Area | The same series contract, with zero baseline; negative values remain valid |
 | Bar | Numeric x, required y, zero baseline; negative values remain valid |
 | Mixed Cartesian | Line/area/bar layers share numeric coordinates and unique series IDs |
+| Categorical Cartesian | Ordered category IDs/labels, aligned line/area/bar layers, explicit missing observations and native point/band spacing |
 | Pie | Unique labeled slices with nonnegative values; all-zero input is valid |
 | Radar | 3–64 unique named axes with positive maxima; each named series provides exactly one value in each axis's domain |
 | Candlestick | Increasing numeric x and unique IDs; finite OHLC with low <= open,close <= high; negative/zero-height candles are valid |
@@ -185,9 +187,11 @@ the pending selection/input work.
 | Pie, radar, Sankey | Exact bounded source data | No implicit aggregation |
 
 `max_buckets` is in [1,8192]. Effective bucket count is the smaller of this limit
-and the plot's rounded-up logical-pixel width. Buckets divide the numeric x domain,
-shared across Cartesian layers; they do not divide array indices or derive
-identity from labels. The pure reducer accepts finite widths in (0,32768].
+and the plot's rounded-up category-axis extent (height for horizontal charts).
+Numeric buckets divide the shared numeric x domain; categorical buckets use
+projected category positions, including padding. Neither derives identity from
+labels. Categorical Sum/Mean spans preserve missing observations in provenance
+and exclude them from arithmetic; Mean divides by present-value count. The pure reducer accepts finite widths in (0,32768].
 
 Line/area envelopes retain each bucket's first, minimum-y, maximum-y and last
 source point, deduplicated and ordered by source position. Every contiguous
@@ -261,21 +265,22 @@ No per-point synchronous OCaml callbacks belong in layout, paint or hit testing.
 
 `Gpuio.Chart_options` is a validated, source-independent value with grouped
 options for axes, Cartesian layers, pie/donut, radar, candlesticks and Sankey.
-Irrelevant family options are retained but have no effect. Its version-1 binary
-record has a bounded native reader (256 bytes), independent paired fixtures and
+Irrelevant family options are retained but have no effect. Its version-2 binary
+record (with categorical layout; version 1 is rejected) has a bounded native reader (256 bytes), independent paired fixtures and
 validation after decoding. Color/theme, legends, tooltips and the accessible
 description belong to the mounted-view configuration.
 
 - Axes use linear numeric domains, 2–12 ticks and native Compact/Fixed/Scientific/
   Percent formatting with 0–6 decimal places. Percent changes labels only.
-  Empty domains use [0,1]; constant domains center their value. Source x extents
+  Categorical axes instead use the explicit domain labels and point/band positions.
+  Empty numeric domains use [0,1]; constant domains center their value. Source x extents
   survive aggregation; bar values use the selected exact/sum/mean policy. Bar and
   area domains include zero. Tiny domains deduplicate ticks after f64 rounding.
 - Cartesian options select Linear, Natural (uniform Catmull–Rom) or StepAfter,
-  dots, vertical/horizontal orientation and grouped bar width. Natural curves
+  dots, four value-axis directions, category layout and grouped bar width. Natural curves
   can overshoot and require the mounted plot's clip. Every curve reaches its last
   data point. Missing values split runs, and singleton runs have visible dots
-  even when ordinary dots are disabled. Mixed layers share both numeric domains;
+  even when ordinary dots are disabled. Mixed layers share category/value projections;
   bars are grouped by layer, not implicitly stacked.
 - Pie/donut uses a 0–0.95 hole fraction and 0–0.2 radians of padding, clamped per
   slice. Zero slices have no area; all-zero input has no wedges. Labels sit within

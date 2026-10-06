@@ -1,7 +1,8 @@
 # Charts: application data, Bonsai controls and native plotting
 
 The Charts & data page demonstrates seven chart families, mixed area/bar/line
-layers, source publication, selection, and a complete original-data table.
+layers, typed categorical data, source publication, selection, and a complete
+original-data table.
 The Cartesian examples support vertical or horizontal categories and either
 direction for the numeric value axis. This page is ordinary OCaml application
 code; it does not require a Rust plotting callback.
@@ -112,3 +113,13 @@ native keyboard selection, source updates, original-data paging, all four
 Cartesian directions, theme/size changes and page-scope cleanup. GPU direction
 and gradient pixels are checked separately by `native_chart_paint`; neither test
 is a complete VoiceOver or performance qualification.
+
+## Categorical data
+
+The Categorical mode uses the separate [sample module](../charts/samples/categorical.ml)
+and its [walkthrough](../charts/samples/categorical.md). Two Research labels have
+different IDs; Code has a missing bar and a present line value. `Category_layout`
+in this page translates Bonsai control state into Auto/Point/Band options. Native
+preparation owns their geometry. Changing layout preserves data and selection;
+Update publishes new values with stable IDs. Original-data browsing distinguishes
+the repeated labels by category ID and retains the missing observation.

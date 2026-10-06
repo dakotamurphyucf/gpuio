@@ -16,19 +16,45 @@ module Mode = struct
   type t =
     | Family of Family.t
     | Mixed
+    | Categorical
   [@@deriving equal]
 
-  let all = List.map Family.all ~f:(fun f -> Family f) @ [ Mixed ]
+  let all = List.map Family.all ~f:(fun f -> Family f) @ [ Mixed; Categorical ]
 
   let label = function
     | Family family -> Family.label family
     | Mixed -> "Mixed layers"
+    | Categorical -> "Categorical"
   ;;
 
   let data t phase =
     match t with
     | Family family -> Samples.data_exn family phase
     | Mixed -> Samples.preset_data_exn Mixed Line phase
+    | Categorical -> Samples.Categorical.data_exn phase
+  ;;
+end
+
+module Category_layout = struct
+  type t =
+    | Auto
+    | Point
+    | Band
+  [@@deriving equal]
+
+  let all = [ Auto; Point; Band ]
+
+  let label = function
+    | Auto -> "Auto categories"
+    | Point -> "Point categories"
+    | Band -> "Band categories"
+  ;;
+
+  let options = function
+    | Auto -> Chart_options.Category_layout.auto
+    | Point -> Chart_options.Category_layout.point ~padding:0.75 () |> ok
+    | Band ->
+      Chart_options.Category_layout.band ~inner_padding:0.35 ~outer_padding:0.25 () |> ok
   ;;
 end
 
@@ -81,6 +107,7 @@ let component app window palette graph =
   in
   let horizontal, toggle_horizontal = B.toggle ~default_model:false graph in
   let reversed, toggle_reversed = B.toggle ~default_model:false graph in
+  let category_layout, set_category_layout = B.state Category_layout.Auto graph in
   let disabled, toggle_disabled = B.toggle ~default_model:false graph in
   let notice, set_notice = B.state "Preparing chart…" graph in
   let open B.Let_syntax in
@@ -97,6 +124,8 @@ let component app window palette graph =
   and toggle_horizontal = toggle_horizontal
   and reversed = reversed
   and toggle_reversed = toggle_reversed
+  and category_layout = category_layout
+  and set_category_layout = set_category_layout
   and disabled = disabled
   and toggle_disabled = toggle_disabled
   and notice = notice
@@ -140,7 +169,9 @@ let component app window palette graph =
              "Ready: %s · %d source values · %s"
              (Mode.label source.mode)
              metrics.source_values
-             direction)
+             (if Mode.equal current_mode Categorical
+              then direction ^ " · " ^ Category_layout.label category_layout
+              else direction))
       | Failed e -> set_notice (Sexp.to_string_hum [%sexp (e : Chart.Error.t)])
       | Selection_changed target ->
         E.of_thunk (fun () -> B.Expert.Var.set selected target)
@@ -154,7 +185,12 @@ let component app window palette graph =
     in
     let options =
       Chart_options.create
-        ~cartesian:(Chart_options.Cartesian.create ~orientation () |> ok)
+        ~cartesian:
+          (Chart_options.Cartesian.create
+             ~orientation
+             ~category_layout:(Category_layout.options category_layout)
+             ()
+           |> ok)
         ~pie:(Chart_options.Pie.create ~inner_radius:0.5 () |> ok)
         ()
     in
@@ -189,33 +225,46 @@ let component app window palette graph =
     Palette.card
       p
       ~title:"Find the story in your data"
-      [ V.row
-          ~style:(style [ Gap (px 6.); Wrap Wrap ])
-          (List.map Mode.all ~f:(fun candidate ->
-             Palette.button
-               p
-               ~selected:(Mode.equal candidate current_mode)
-               (Mode.label candidate)
-               (choose candidate)))
-      ; V.row
-          ~style:(style [ Gap (px 12.); Wrap Wrap ])
-          [ V.switch ~checked:horizontal ~on_toggle:toggle_horizontal "Horizontal axes"
-          ; V.switch ~checked:reversed ~on_toggle:toggle_reversed "Reverse value axis"
-          ; V.switch ~checked:disabled ~on_toggle:toggle_disabled "Disable chart input"
-          ; Palette.button p "Update chart samples" update
-          ]
-      ; chart
-      ; Palette.text p notice
-      ; Palette.text
-          p
-          (Option.value_map
-             description
-             ~default:"Select a chart value to inspect it."
-             ~f:(fun description -> "Selected: " ^ description))
-      ; Palette.text
-          p
-          ~muted:true
-          "Use arrows to explore and Enter to select. View data opens the original \
-           values, including any values omitted from the picture."
-      ]
+      ([ V.row
+           ~style:(style [ Gap (px 6.); Wrap Wrap ])
+           (List.map Mode.all ~f:(fun candidate ->
+              Palette.button
+                p
+                ~selected:(Mode.equal candidate current_mode)
+                (Mode.label candidate)
+                (choose candidate)))
+       ; V.row
+           ~style:(style [ Gap (px 12.); Wrap Wrap ])
+           [ V.switch ~checked:horizontal ~on_toggle:toggle_horizontal "Horizontal axes"
+           ; V.switch ~checked:reversed ~on_toggle:toggle_reversed "Reverse value axis"
+           ; V.switch ~checked:disabled ~on_toggle:toggle_disabled "Disable chart input"
+           ; Palette.button p "Update chart samples" update
+           ]
+       ]
+       @ (if Mode.equal current_mode Categorical
+          then
+            [ V.row
+                ~style:(style [ Gap (px 6.); Wrap Wrap ])
+                (List.map Category_layout.all ~f:(fun candidate ->
+                   Palette.button
+                     p
+                     ~selected:(Category_layout.equal candidate category_layout)
+                     (Category_layout.label candidate)
+                     (set_category_layout candidate)))
+            ]
+          else [])
+       @ [ chart
+         ; Palette.text p notice
+         ; Palette.text
+             p
+             (Option.value_map
+                description
+                ~default:"Select a chart value to inspect it."
+                ~f:(fun description -> "Selected: " ^ description))
+         ; Palette.text
+             p
+             ~muted:true
+             "Use arrows to explore and Enter to select. View data opens the original \
+              values, including any values omitted from the picture."
+         ])
 ;;

@@ -72,12 +72,44 @@ impl Layer {
     }
 }
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]
+pub struct Category {
+    pub id: i64,
+    pub label: String,
+}
+#[derive(Clone, Debug, PartialEq, BinProtWrite)]
+pub struct CategoricalPoint {
+    pub id: i64,
+    pub category: i64,
+    pub value: Option<f64>,
+    pub label: String,
+}
+#[derive(Clone, Debug, PartialEq, BinProtWrite)]
+pub struct CategoricalSeries {
+    pub id: i64,
+    pub name: String,
+    pub points: Vec<CategoricalPoint>,
+}
+#[derive(Clone, Debug, PartialEq, BinProtWrite)]
+pub enum CategoricalLayer {
+    Line(CategoricalSeries),
+    Area(CategoricalSeries),
+    Bar(CategoricalSeries),
+}
+impl CategoricalLayer {
+    pub fn series(&self) -> &CategoricalSeries {
+        match self {
+            Self::Line(s) | Self::Area(s) | Self::Bar(s) => s,
+        }
+    }
+}
+#[derive(Clone, Debug, PartialEq, BinProtWrite)]
 pub enum Contents {
     Cartesian(Vec<Layer>),
     Pie(Vec<Slice>),
     Radar(Vec<RadarAxis>, Vec<RadarSeries>),
     Candlestick(Vec<Candle>),
     Sankey(Vec<Node>, Vec<Edge>),
+    Categorical(Vec<Category>, Vec<CategoricalLayer>),
 }
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]
 pub struct Data {
@@ -160,6 +192,26 @@ impl Data {
                             point.y.is_none_or(number)
                                 && (!matches!(layer, Layer::Bar(_)) || point.y.is_some()),
                         )?;
+                        stats.text(&point.label, 256, false)?;
+                    }
+                }
+            }
+            Contents::Categorical(categories, layers) => {
+                limit(categories.len() <= MAX_POINTS && layers.len() <= MAX_SERIES)?;
+                require(unique(categories.iter().map(|c| c.id)))?;
+                require(unique(layers.iter().map(|l| l.series().id)))?;
+                for category in categories {
+                    stats.text(&category.label, 256, true)?;
+                }
+                for layer in layers {
+                    let series = layer.series();
+                    stats.values += series.points.len();
+                    limit(stats.values <= MAX_POINTS)?;
+                    require(series.points.len() == categories.len())?;
+                    require(unique(series.points.iter().map(|p| p.id)))?;
+                    stats.text(&series.name, 128, true)?;
+                    for (point, category) in series.points.iter().zip(categories) {
+                        require(point.category == category.id && point.value.is_none_or(number))?;
                         stats.text(&point.label, 256, false)?;
                     }
                 }

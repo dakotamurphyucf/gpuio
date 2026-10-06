@@ -40,3 +40,8 @@ val description : Preset.t -> Family.t -> string
 (** Resolve a selection only against its published source revision. This checks
     IDs at source-span endpoints but does not infer publication identity. *)
 val describe_selection : Gpuio.Chart_data.t -> Gpuio.Chart_selection.t -> string option
+
+module Categorical : sig
+  val data_exn : float -> Gpuio.Chart_data.t
+  val describe_selection : Gpuio.Chart_data.t -> Gpuio.Chart_selection.t -> string option
+end

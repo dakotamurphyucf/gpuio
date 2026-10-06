@@ -92,6 +92,41 @@ module Layer = struct
   [@@deriving bin_io, equal, sexp_of]
 end
 
+module Category = struct
+  type t =
+    { id : int64
+    ; label : string
+    }
+  [@@deriving bin_io, equal, sexp_of]
+end
+
+module Categorical_point = struct
+  type t =
+    { id : int64
+    ; category : int64
+    ; value : float option
+    ; label : string
+    }
+  [@@deriving bin_io, equal, sexp_of]
+end
+
+module Categorical_series = struct
+  type t =
+    { id : int64
+    ; name : string
+    ; points : Categorical_point.t list
+    }
+  [@@deriving bin_io, equal, sexp_of]
+end
+
+module Categorical_layer = struct
+  type t =
+    | Line of Categorical_series.t
+    | Area of Categorical_series.t
+    | Bar of Categorical_series.t
+  [@@deriving bin_io, equal, sexp_of]
+end
+
 module Contents = struct
   type t =
     | Cartesian of Layer.t list
@@ -99,6 +134,7 @@ module Contents = struct
     | Radar of Radar_axis.t list * Radar_series.t list
     | Candlestick of Candle.t list
     | Sankey of Node.t list * Edge.t list
+    | Categorical of Category.t list * Categorical_layer.t list
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -217,6 +253,28 @@ let bin_read_t buffer ~pos_ref =
     | 2 -> Layer.Bar (series ())
     | _ -> fail ()
   in
+  let categorical_layer () =
+    let kind = tag () in
+    if kind > 2 then fail ();
+    let id = int () in
+    let name = text 128 in
+    let count = count !points_remaining in
+    points_remaining := !points_remaining - count;
+    let points =
+      read_count count (fun () ->
+        let id = int () in
+        let category = int () in
+        let value = option float in
+        let label = text 256 in
+        { Categorical_point.id; category; value; label })
+    in
+    let series = { Categorical_series.id; name; points } in
+    match kind with
+    | 0 -> Categorical_layer.Line series
+    | 1 -> Categorical_layer.Area series
+    | 2 -> Categorical_layer.Bar series
+    | _ -> fail ()
+  in
   let version = int () in
   if not (Int64.equal version 1L) then fail ();
   let contents =
@@ -232,6 +290,15 @@ let bin_read_t buffer ~pos_ref =
       let nodes = list 256 node in
       let edges = list 2048 edge in
       Contents.Sankey (nodes, edges)
+    | 5 ->
+      let categories =
+        list max_points (fun () ->
+          let id = int () in
+          let label = text 256 in
+          { Category.id; label })
+      in
+      let layers = list max_series categorical_layer in
+      Contents.Categorical (categories, layers)
     | _ -> fail ()
   in
   { version; contents }
@@ -284,6 +351,18 @@ let within_bounds t =
       points series.points
       && text 128 series.name
       && List.for_all series.points ~f:(fun p -> text 256 p.Point.label))
+  | Categorical (categories, layers) ->
+    List.length categories <= max_points
+    && List.length layers <= max_series
+    && List.for_all categories ~f:(fun c -> text 256 c.Category.label)
+    && List.for_all layers ~f:(fun layer ->
+      let series =
+        match layer with
+        | Categorical_layer.Line s | Area s | Bar s -> s
+      in
+      points series.points
+      && text 128 series.name
+      && List.for_all series.points ~f:(fun p -> text 256 p.Categorical_point.label))
   | Pie slices ->
     List.length slices <= 256 && List.for_all slices ~f:(fun s -> text 256 s.Slice.label)
   | Radar (axes, series) ->

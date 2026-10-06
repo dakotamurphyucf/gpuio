@@ -52,16 +52,35 @@ end
 let between n lo hi = Float.is_finite n && Float.(n >= lo && n <= hi)
 let fraction n = between n 0. 1. && Float.(n > 0.)
 
+module Category_layout = struct
+  type t =
+    | Auto
+    | Point of float
+    | Band of
+        { inner : float
+        ; outer : float
+        }
+  [@@deriving bin_io, equal, sexp_of]
+
+  let valid = function
+    | Auto -> true
+    | Point p -> between p 0. 1.
+    | Band { inner; outer } ->
+      between inner 0. 1. && Float.(inner < 1.) && between outer 0. 1.
+  ;;
+end
+
 module Cartesian = struct
   type t =
     { curve : Curve.t
     ; dots : bool
     ; orientation : Orientation.t
     ; bar_width : float
+    ; category_layout : Category_layout.t
     }
   [@@deriving bin_io, equal, sexp_of]
 
-  let valid t = fraction t.bar_width
+  let valid t = fraction t.bar_width && Category_layout.valid t.category_layout
 end
 
 module Pie = struct
@@ -138,7 +157,7 @@ type t =
 [@@deriving bin_io, equal, sexp_of]
 
 let valid t =
-  Int64.equal t.version 1L
+  Int64.equal t.version 2L
   && Axes.valid t.axes
   && Cartesian.valid t.cartesian
   && Pie.valid t.pie

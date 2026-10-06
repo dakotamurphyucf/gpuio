@@ -1,5 +1,6 @@
 //! Bounded tooltip descriptions of the exact prepared source. Aggregate values
 //! are retained during worker reduction, never recomputed from a large span here.
+use crate::chart_cartesian::Layers;
 use crate::chart_geometry::{self as geometry, Plan, Point, Shape, Source, Summary};
 use gpuio_protocol::{
     chart_data::{Contents, Data},
@@ -69,8 +70,11 @@ pub(crate) fn describe(
     let x = |n| geometry::format_number(n, options.axes.x_format);
     let y = |n| geometry::format_number(n, options.axes.y_format);
     let (title, text) = match (&data.contents, mark.source) {
-        (Contents::Cartesian(layers), Source::Cartesian { series, start, end }) => {
-            let series = layers.get(series)?.series();
+        (
+            Contents::Cartesian(_) | Contents::Categorical(..),
+            Source::Cartesian { series, start, end },
+        ) => {
+            let series = Layers::of(data)?.get(series)?;
             let first = series.points.get(start)?;
             let count = end.checked_sub(start)?;
             let last = series.points.get(end.checked_sub(1)?)?;
@@ -84,27 +88,45 @@ pub(crate) fn describe(
             };
             let aggregate =
                 matches!(mark.shape, Shape::Bar(_)) && !matches!(policy.bars, Bar::Exact);
+            let category = |index: usize| match &data.contents {
+                Contents::Categorical(categories, _) => categories
+                    .get(index)
+                    .map(|c| format!("{} (category {})", c.label, c.id)),
+                _ => None,
+            };
             let text = if aggregate {
                 let operation = match policy.bars {
                     Bar::Sum(_) => "Sum",
                     Bar::Mean(_) => "Mean",
                     Bar::Exact => return None,
                 };
-                format!(
-                    "{operation} of {count} samples\nx: {} – {}\ny: {}",
-                    x(first.x),
-                    x(last.x),
-                    y(value)
-                )
+                if let Some(first_category) = category(start) {
+                    format!(
+                        "{operation} across {count} categories (missing values excluded)\nCategories: {first_category} – {}\ny: {}",
+                        category(end - 1)?,
+                        y(value)
+                    )
+                } else {
+                    format!(
+                        "{operation} of {count} samples\nx: {} – {}\ny: {}",
+                        x(first.x),
+                        x(last.x),
+                        y(value)
+                    )
+                }
             } else {
                 let label = if first.label.is_empty() {
                     String::new()
                 } else {
                     format!("{}\n", first.label)
                 };
-                format!("{label}x: {}\ny: {}", x(first.x), y(value))
+                if let Some(category) = category(start) {
+                    format!("{label}Category: {category}\ny: {}", y(value))
+                } else {
+                    format!("{label}x: {}\ny: {}", x(first.x), y(value))
+                }
             };
-            (series.name.clone(), text)
+            (series.name.to_owned(), text)
         }
         (Contents::Pie(values), Source::Slice(index)) => {
             let slice = values.get(index)?;
