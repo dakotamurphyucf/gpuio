@@ -122,3 +122,42 @@ source-node legend still explains each node's color. To combine the gradient
 with quieter ribbons, add `~link_opacity:0.25` to that preset's constructor.
 See [ribbon color policies](../../../docs/design/sankey-link-colors.md) for the
 wire compatibility, opacity and ownership contract.
+
+## Three-column outside labels
+
+Choose **Flow labels** for `placement_data_exn`. It validates the same phase range
+and creates Input → Processing → Output, with the main/tiny/zero incoming edges
+and one outgoing edge equal to their sum. The node array deliberately stores
+Processing, Output, Input; layout follows typed topology, not array position.
+Four edges and three nodes remain available in the seven-row original-data view.
+
+`options ?label_placement ?labels` lets the caller select
+`Chart_options.Sankey.Label_placement.Outside` or `Inside`, and independently hide
+all captions. Defaults remain Inside and visible. `node_labels ~middle:true`
+adds the Processing override; `~long:true` adds a deliberately wide Unicode
+headline. An explicitly hidden target remains hidden even with long captions.
+These are pure configuration arguments, not callbacks into the native renderer.
+
+The page's five Bonsai toggles control placement, long captions, font weight,
+plot width and global visibility. It passes placement/visibility to `options`,
+rich text to `node_labels`, and width/font weight to `Style.create_exn`. Outside
+starts enabled in this mode; the other four switches start false except Show
+flow labels, which starts true. Switching back to Flow styling uses its original
+inside layout and full width.
+
+Native preparation captures the current font and measures caption lines before
+reserving bounded margins. First-column labels go left, last-column labels right,
+and middle labels above their node. Each explicit rich-text line stays one line;
+long content ellipsizes within its width while accessible text remains complete.
+A font/width change requests new native preparation without republishing the
+source. Application code does not measure fonts or run a per-frame layout effect.
+See the [placement contract](../../../docs/design/sankey-label-placement.md).
+
+Try **Rich flow labels**, then **Outside flow labels** and **Narrow flow plot**.
+The first control's effect changes the preset; subsequent toggle effects change
+reactive option/style values. Bonsai derives the chart configuration and native
+preparation produces the new layout. Selection still reports Input → Processing
+and the original value; Update changes 100 to 101 independently of captions.
+To adapt this to four stages, add typed nodes/edges and corresponding overrides,
+keeping distinct IDs and balanced values. Do not rely on source array order or
+assume arbitrary dense graphs guarantee nonoverlapping captions.

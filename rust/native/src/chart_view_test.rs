@@ -348,6 +348,7 @@ async fn exercise(
             })
             .unwrap();
     }
+    labels::exercise(cx, handle, next, &session, &transport).await;
     apply(
         cx,
         handle,
@@ -363,6 +364,8 @@ async fn exercise(
 }
 #[path = "chart_input_test.rs"]
 mod interaction;
+#[path = "chart_label_view_test.rs"]
+mod labels;
 #[path = "chart_stream_test.rs"]
 mod streaming;
 pub(crate) fn run() {

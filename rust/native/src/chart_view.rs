@@ -305,7 +305,9 @@ impl State {
                     ready.snapshot.data().contents,
                     gpuio_protocol::chart_data::Contents::Pie(_)
                 ));
-            let mut content = div().min_w_0().text_ellipsis().child(label.text.clone());
+            // Each prepared caption owns one line; wrapping would hide later
+            // words behind its fixed-height clipping rectangle.
+            let mut content = div().min_w_0().truncate().child(label.text.clone());
             if backed {
                 content = if let Some(label_style) = &ready.label_style {
                     content.px(px(label_style.padding))
@@ -327,8 +329,7 @@ impl State {
                 .text_size(px(font_size as f32))
                 .line_height(px((font_size + 4.).max(presentation::TEXT_HEIGHT) as f32))
                 .text_color(gpui::rgba(foreground))
-                .overflow_hidden()
-                .text_ellipsis()
+                .truncate()
                 .aria_label(match label.kind {
                     crate::chart_geometry::LabelKind::Series(series) => {
                         format!("Series {} · {}", series + 1, series_names[series])

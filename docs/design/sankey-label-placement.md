@@ -1,11 +1,11 @@
 # Sankey outside-label placement
 
-**Draft implementation plan, OCH-41, 2026-10-06. Not shipped or qualified.**
-The [pure internal geometry engine](../evidence/sankey-label-layout-engine.md) now
-accepts supplied measurements. Public options and the native worker path are
-implemented, and [actual macOS worker measurement](../evidence/sankey-label-worker.md)
-passes without opening a window. Three-column rendered gallery and independently
-installed consumer validation remain pending; this is not feature acceptance.
+**Implemented with scoped local macOS validation, OCH-41, 2026-10-06.**
+The [pure internal geometry engine](../evidence/sankey-label-layout-engine.md),
+[actual worker font measurement](../evidence/sankey-label-worker.md) and
+[three-column native/root/installed gallery checks](../evidence/sankey-label-gallery.md)
+cover the public option and its mounted rendering path. Current-source hosted
+Linux checks and broader catalog/release qualification remain open.
 The default remains the [inside-label presentation](sankey-presentation.md), with
 [ID-keyed rich label values](chart-node-labels.md) supported in either policy.
 
@@ -55,7 +55,7 @@ Keep the actual measurement on the existing bounded chart worker:
    layout against the remaining extent. Text-system types stay out of pure geometry.
 4. Retain explicit placement metadata with each label: horizontal alignment,
    width budget and vertical center/above anchor. Rich expansion preserves that
-   placement across all lines of a coherent block. Rendering uses native ellipsis
+   placement across all lines of a coherent block. Each caption line explicitly disables wrapping. Rendering uses native ellipsis
    and clipping rather than silently deleting source/accessibility text.
 5. Paint labels with the same captured font used for measurement. A pending new
    font/layout request must not paint an old prepared extent with a different font.
@@ -93,8 +93,9 @@ Font and owned text into `std::thread::spawn`, constructing a private
 API/type boundary compiles; it did **not execute measurement**, open a window or
 qualify any platform behavior. PlatformTextSystem is explicitly Send + Sync in
 the pin. [Probe source and command log](../evidence/sankey-label-measurement-probe.md)
-retain the exact limited evidence. The later worker harness now executes measurement; it does not qualify rendered
-label geometry or stale-request behavior on a mounted view.
+retain the exact limited evidence. The later worker harness executes measurement. The subsequent mounted native
+harness checks rendered text pixels and superseded font requests; its evidence is
+separate from this historical compile-only probe.
 
 Implementation acceptance must cover:
 

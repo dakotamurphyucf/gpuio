@@ -206,7 +206,7 @@ Bonsai update is needed for ordinary pointer movement within a prepared chart.
 Flow styling uses the [Sankey presentation sample](../charts/samples/sankey_presentation.md):
 main, tiny and zero parallel flows with separate node/edge IDs. A separate Bonsai
 state selects node radius, ribbon opacity, minimum width, label gap or rich-label presets.
-Only this mode applies those sample options; other modes retain Sankey defaults.
+Flow styling and Flow labels apply these sample options; other modes retain Sankey defaults.
 The usual source generation, selection and original-data paths stay in use.
 Minimum width changes native paint/hit geometry without changing the value 0.01;
 zero flows remain available only through original data.
@@ -226,7 +226,7 @@ Rich labels are presentation overrides keyed by `Chart_data.Node_id`; their
 validated constructors and limits are in
 [chart_node_labels.mli](../../lib/core/chart_node_labels.mli). The main view's
 `Chart_style.create` receives the complete override collection, restoring empty
-overrides outside Flow styling. For example, click **Rich flow labels** in that
+overrides outside the two flow presentation modes. For example, click **Rich flow labels** in that
 mode: its native button runs `set_flow_style`, `let%arr` rebuilds the options/style,
 and native preparation produces styled label lines while preserving original
 node names in the data table. **Hide target label** submits an explicit empty
@@ -239,3 +239,32 @@ Gradient flows and Target-colored flows use the same preset state/effect path.
 `Target`; source data and rich-label overrides remain separate. Color changes
 need no dataset publication, and Ready names the selected preset. The sample
 walkthrough explains endpoint colors and opacity.
+
+## Measured outside labels
+
+`Mode.Flow_labels` uses `Samples.Sankey_presentation.placement_data_exn`, a three-stage
+source with nodes intentionally stored out of topology order. The
+[sample guide](../charts/samples/sankey_presentation.md#three-column-outside-labels)
+explains the source IDs, four edges and seven original-data rows.
+
+`outside`, `narrow_flow`, `show_labels`, `long_labels` and `bold_labels` are
+independent `B.toggle` state cells. `let%arr` reads them and builds GPUIO values:
+placement/visibility become `Sankey` options, long/middle captions become ID-keyed
+label metadata, and narrow/bold become view width and inherited font weight.
+The plot's stable key and source owner stay the same. Outside and Show flow labels
+start true; long, bold and narrow start false.
+
+A toggle runs a Bonsai effect, derives new immutable options/style and triggers
+native preparation. Rust captures font context for measured outside labels and
+keeps matching geometry/text together; no OCaml font measurement or per-frame
+callback is needed. Ready notices identify Inside/Outside but do not certify
+physical presentation. Native selection/update/data browsing use the same guarded
+publication path as other modes. Only choosing a different mode resets source
+identity. Removing the page retires the scoped source.
+
+`python3 scripts/test_gallery.py --section chart-labels` drives rich/long/hidden
+captions, theme and inside/outside changes, 420-pixel width, bold text, keyboard
+selection, publication, original-data browsing and resource cleanup. The native
+chart-view harness separately reads actual text pixels and checks a multiword
+caption stays on its prepared line. These checks do not establish Linux desktop,
+VoiceOver or 120 FPS acceptance.

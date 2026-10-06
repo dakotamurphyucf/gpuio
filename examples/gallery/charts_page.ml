@@ -21,11 +21,19 @@ module Mode = struct
     | Stacked_areas
     | Ordinal_colors
     | Flow_styling
+    | Flow_labels
   [@@deriving equal]
 
   let all =
     List.map Family.all ~f:(fun f -> Family f)
-    @ [ Mixed; Categorical; Stacked_bars; Stacked_areas; Ordinal_colors; Flow_styling ]
+    @ [ Mixed
+      ; Categorical
+      ; Stacked_bars
+      ; Stacked_areas
+      ; Ordinal_colors
+      ; Flow_styling
+      ; Flow_labels
+      ]
   ;;
 
   let label = function
@@ -36,6 +44,7 @@ module Mode = struct
     | Stacked_areas -> "Stacked areas"
     | Ordinal_colors -> "Ordinal colors"
     | Flow_styling -> "Flow styling"
+    | Flow_labels -> "Flow labels"
   ;;
 
   let data t phase =
@@ -47,6 +56,7 @@ module Mode = struct
     | Stacked_areas -> Samples.Stacked.data_exn ~area:true phase
     | Ordinal_colors -> Samples.Ordinal_colors.data_exn phase
     | Flow_styling -> Samples.Sankey_presentation.data_exn phase
+    | Flow_labels -> Samples.Sankey_presentation.placement_data_exn phase
   ;;
 end
 
@@ -122,6 +132,11 @@ let component app window palette graph =
   in
   let inspection, set_inspection = B.state Samples.Inspection.Default graph in
   let flow_style, set_flow_style = B.state Samples.Sankey_presentation.Default graph in
+  let narrow_flow, toggle_narrow_flow = B.toggle ~default_model:false graph in
+  let outside, toggle_outside = B.toggle ~default_model:true graph in
+  let long_labels, toggle_long_labels = B.toggle ~default_model:false graph in
+  let bold_labels, toggle_bold_labels = B.toggle ~default_model:false graph in
+  let show_labels, toggle_show_labels = B.toggle ~default_model:true graph in
   let horizontal, toggle_horizontal = B.toggle ~default_model:false graph in
   let reversed, toggle_reversed = B.toggle ~default_model:false graph in
   let category_layout, set_category_layout = B.state Category_layout.Auto graph in
@@ -143,6 +158,16 @@ let component app window palette graph =
   and set_flow_style = set_flow_style
   and inspection = inspection
   and set_inspection = set_inspection
+  and narrow_flow = narrow_flow
+  and toggle_narrow_flow = toggle_narrow_flow
+  and outside = outside
+  and toggle_outside = toggle_outside
+  and long_labels = long_labels
+  and toggle_long_labels = toggle_long_labels
+  and bold_labels = bold_labels
+  and toggle_bold_labels = toggle_bold_labels
+  and show_labels = show_labels
+  and toggle_show_labels = toggle_show_labels
   and horizontal = horizontal
   and toggle_horizontal = toggle_horizontal
   and reversed = reversed
@@ -161,6 +186,8 @@ let component app window palette graph =
   | Preview_scope.Loading -> Palette.text p "Preparing chart…"
   | Failed e -> Palette.text p ("Chart unavailable: " ^ Error.to_string_hum e)
   | Ready source ->
+    let placement_mode = Mode.equal current_mode Flow_labels in
+    let flow_mode = placement_mode || Mode.equal current_mode Flow_styling in
     let orientation, direction =
       match horizontal, reversed with
       | false, false -> Chart_options.Orientation.Vertical, "Vertical"
@@ -206,8 +233,15 @@ let component app window palette graph =
               then
                 direction
                 ^ if unknown_color then " · Explicit unknown" else " · Palette fallback"
-              else if Mode.equal current_mode Flow_styling
-              then direction ^ " · " ^ Samples.Sankey_presentation.label flow_style
+              else if flow_mode
+              then
+                direction
+                ^ " · "
+                ^ Samples.Sankey_presentation.label flow_style
+                ^
+                if placement_mode
+                then if outside then " · Outside" else " · Inside"
+                else ""
               else direction)
              (Samples.Inspection.label inspection))
       | Failed e -> set_notice (Sexp.to_string_hum [%sexp (e : Chart.Error.t)])
@@ -224,13 +258,18 @@ let component app window palette graph =
     let stack_mode =
       match current_mode with
       | Mode.Stacked_bars | Stacked_areas -> true
-      | Family _ | Mixed | Categorical | Ordinal_colors | Flow_styling -> false
+      | Family _ | Mixed | Categorical | Ordinal_colors | Flow_styling | Flow_labels ->
+        false
     in
     let options =
       Chart_options.create
         ~sankey:
-          (if Mode.equal current_mode Flow_styling
-           then Samples.Sankey_presentation.options flow_style
+          (if flow_mode
+           then
+             Samples.Sankey_presentation.options
+               ~label_placement:(if placement_mode && outside then Outside else Inside)
+               ~labels:((not placement_mode) || show_labels)
+               flow_style
            else Chart_options.Sankey.default)
         ~cartesian:
           (Chart_options.Cartesian.create
@@ -250,8 +289,12 @@ let component app window palette graph =
              (Samples.Ordinal_colors.mapping ~unknown:unknown_color))
         ~inspection:(Samples.Inspection.config inspection)
         ~node_labels:
-          (if Mode.equal current_mode Flow_styling
-           then Samples.Sankey_presentation.node_labels flow_style
+          (if flow_mode
+           then
+             Samples.Sankey_presentation.node_labels
+               ~middle:placement_mode
+               ~long:(placement_mode && long_labels)
+               flow_style
            else Chart_node_labels.empty)
         ~label_color:(Palette.foreground p)
         ~axis_color:(Palette.muted p)
@@ -266,9 +309,14 @@ let component app window palette graph =
         ~on_event
         ~style:
           (style
-             [ Width (Length.percent_exn 100.)
+             [ Width
+                 (if placement_mode && narrow_flow
+                  then px 420.
+                  else Length.percent_exn 100.)
+             ; Max_width (Length.percent_exn 100.)
              ; Height (px (Palette.size p 300.))
              ; Font_size (Palette.size p 12.)
+             ; Font_weight (if placement_mode && bold_labels then 700 else 400)
              ])
         (Chart.Config.create
            ~data:(Registered.handle source.chart)
@@ -326,7 +374,7 @@ let component app window palette graph =
                      (set_category_layout candidate)))
             ]
           else [])
-       @ (if Mode.equal current_mode Flow_styling
+       @ (if flow_mode
           then
             [ V.row
                 ~style:(style [ Gap (px 6.); Wrap Wrap ])
@@ -336,6 +384,33 @@ let component app window palette graph =
                      ~selected:(Samples.Sankey_presentation.equal candidate flow_style)
                      (Samples.Sankey_presentation.label candidate)
                      (set_flow_style candidate)))
+            ]
+          else [])
+       @ (if placement_mode
+          then
+            [ V.row
+                ~style:(style [ Gap (px 12.); Wrap Wrap ])
+                [ V.switch
+                    ~checked:outside
+                    ~on_toggle:toggle_outside
+                    "Outside flow labels"
+                ; V.switch
+                    ~checked:long_labels
+                    ~on_toggle:toggle_long_labels
+                    "Long flow captions"
+                ; V.switch
+                    ~checked:bold_labels
+                    ~on_toggle:toggle_bold_labels
+                    "Bold flow captions"
+                ; V.switch
+                    ~checked:narrow_flow
+                    ~on_toggle:toggle_narrow_flow
+                    "Narrow flow plot"
+                ; V.switch
+                    ~checked:show_labels
+                    ~on_toggle:toggle_show_labels
+                    "Show flow labels"
+                ]
             ]
           else [])
        @ [ V.row
