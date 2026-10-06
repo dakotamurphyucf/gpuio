@@ -1,5 +1,10 @@
 # Native review profile
 
+Read the [OCaml consumer API](ocaml/gpuio_example_document.md),
+[Rust factory](rust/src/lib.md), [native scroll plugin](rust/src/scroll_card.md),
+and [OCaml expect test](test/document_profile_example_test.md) for source-level
+walkthroughs, ownership, exact commands, and evidence limits.
+
 An independent static document profile built only against `gpuio-document-sdk`
 and the public OCaml `Gpuio.Document.Profile` API. The gallery Documents page
 links it alongside the separate counter component. Enable **Native document
@@ -75,7 +80,8 @@ GPUIO_JOBS=2 python3 scripts/test_extension_consumer.py --example gallery --work
 The consumer workspace must be new. Without `--run`, the last command builds an
 outside-checkout application against staged installed OCaml libraries, without
 modifying any opam switch. It does not claim native input/VoiceOver/GPU acceptance.
-The application-default API and full release/platform qualification remain open.
+Application-default profiles and release/platform qualification are separate
+from these package tests; use the current public contracts and evidence for status.
 
 
 The [real macOS gallery walkthrough](../../docs/evidence/document-profile-macos-och41.md)

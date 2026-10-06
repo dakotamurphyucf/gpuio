@@ -6,8 +6,11 @@ Set review=reviewed only after the OCH-48 content review in coverage-guide.md.
 """
 import argparse
 import json
+from functools import lru_cache
 from pathlib import Path
+import re
 import subprocess
+from urllib.parse import unquote
 
 ROOT = Path(__file__).resolve().parent.parent
 EXAMPLES = ROOT / 'examples'
@@ -28,6 +31,32 @@ def inventory():
 def link(name):
     path = Path(name)
     return f'[{path.name}]({path.relative_to("examples").as_posix()})'
+
+
+@lru_cache(maxsize=None)
+def reachable_guides(directory):
+    """Follow example prose links; the generated coverage table is not onboarding."""
+    pending = [directory / 'README.md']
+    seen = set()
+    excluded = {EXAMPLES / 'coverage.md', EXAMPLES / 'coverage-guide.md'}
+    while pending:
+        path = pending.pop().resolve()
+        if (path in seen or path in excluded or not path.is_relative_to(directory)
+                or path.suffix != '.md' or not path.is_file()):
+            continue
+        seen.add(path)
+        # Repository guides use inline Markdown links. Ignore example code blocks.
+        prose = re.sub(r'^```.*?^```[^\n]*$', '', path.read_text(),
+                       flags=re.MULTILINE | re.DOTALL)
+        for target in re.findall(r'\]\(([^)]+)\)', prose):
+            target = unquote(target.strip('<>').split('#')[0])
+            if not target or re.match(r'[a-zA-Z][a-zA-Z0-9+.-]*:', target):
+                continue
+            destination = (path.parent / target).resolve()
+            if destination.is_dir():
+                destination /= 'README.md'
+            pending.append(destination)
+    return seen
 
 
 def audit():
@@ -64,6 +93,12 @@ def audit():
         app = Path(sources[0]).parts[1]
         if any(Path(name).parts[1] != app for name in sources):
             raise ValueError(f'Cross-application source group: {sources}')
+        if row['review'] == 'reviewed':
+            for directory in (EXAMPLES, EXAMPLES / app):
+                for doc in docs:
+                    if (ROOT / doc).resolve() not in reachable_guides(directory):
+                        raise ValueError(f'{doc} is not reachable through prose links '
+                                         f'from {directory.relative_to(ROOT)}/README.md')
         if app != application:
             application = app
             lines.extend([f'## {app}', '',

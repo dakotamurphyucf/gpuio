@@ -1,7 +1,7 @@
 # Consuming a native component from OCaml
 
-`main.ml` is a Bonsai application using `Gpuio_example_counter`. `native.json`
-selects the Rust package and factory. The generated `backend/` links that package
+The [main walkthrough](main.md) explains `main.ml`, a Bonsai application using `Gpuio_example_counter`. `native.json`
+selects the Rust package and factory. The generated [OCaml bridge](backend/backend.md) and [Rust registration](backend/registration.md) link that package
 and GPUIO through a single Cargo graph and supplies the `gpuio.native` Dune
 implementation. The consumer does not author Rust or access private host modules.
 

@@ -1,5 +1,9 @@
 # A separately packaged native counter
 
+Read the [OCaml consumer API](ocaml/gpuio_example_counter.md) and
+[Rust component factory](rust/src/lib.md) for the paired codecs, native lifecycle,
+static composition, commands, and diagnostic limitations.
+
 This example contains an ordinary OCaml library in `ocaml/` and an independently
 consumable Rust crate in `rust/`. The Rust implementation imports only the public
 `gpuio-extension-sdk` and its pinned GPUI re-export. `schema.txt` is the exact

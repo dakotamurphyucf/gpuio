@@ -647,32 +647,40 @@
         "examples/document_profile_package/ocaml/gpuio_example_document.mli"
       ],
       "role": "extension-author",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/document_profile_package/ocaml/gpuio_example_document.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
         "examples/document_profile_package/rust/src/lib.rs"
       ],
       "role": "extension-author",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/document_profile_package/rust/src/lib.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
         "examples/document_profile_package/rust/src/scroll_card.rs"
       ],
       "role": "extension-author",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/document_profile_package/rust/src/scroll_card.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
         "examples/document_profile_package/test/document_profile_example_test.ml"
       ],
       "role": "test-support",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/document_profile_package/test/document_profile_example_test.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -709,16 +717,20 @@
         "examples/extension_consumer/backend/backend.ml"
       ],
       "role": "generated-registration",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/extension_consumer/backend/backend.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
         "examples/extension_consumer/backend/registration.rs"
       ],
       "role": "generated-registration",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/extension_consumer/backend/registration.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -726,9 +738,9 @@
       ],
       "role": "application-entry",
       "walkthroughs": [
-        "examples/extension_consumer/README.md"
+        "examples/extension_consumer/main.md"
       ],
-      "review": "pending"
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -736,16 +748,20 @@
         "examples/extension_package/ocaml/gpuio_example_counter.mli"
       ],
       "role": "extension-author",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/extension_package/ocaml/gpuio_example_counter.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
         "examples/extension_package/rust/src/lib.rs"
       ],
       "role": "extension-author",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/extension_package/rust/src/lib.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -1347,8 +1363,10 @@
         "examples/gallery/menu_preview.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/gallery/menu_preview.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -1684,8 +1702,10 @@
         "examples/gallery/runtime_page.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/gallery/runtime_page.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -1833,8 +1853,10 @@
         "examples/gallery/styles_page.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/gallery/styles_page.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -1885,8 +1907,10 @@
         "examples/gallery/window_input_preview.ml"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/gallery/window_input_preview.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -1925,8 +1949,10 @@
         "examples/lifecycle_workload/gpuio_lifecycle_workload.mli"
       ],
       "role": "benchmark",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/lifecycle_workload/gpuio_lifecycle_workload.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -2164,9 +2190,9 @@
       ],
       "role": "benchmark",
       "walkthroughs": [
-        "examples/performance_streaming/README.md"
+        "examples/performance_streaming/main.md"
       ],
-      "review": "pending"
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -2174,8 +2200,10 @@
         "examples/performance_streaming/stream_model.mli"
       ],
       "role": "benchmark",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/performance_streaming/stream_model.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -2183,9 +2211,9 @@
       ],
       "role": "benchmark",
       "walkthroughs": [
-        "examples/performance_table/README.md"
+        "examples/performance_table/main.md"
       ],
-      "review": "pending"
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -2193,8 +2221,10 @@
         "examples/performance_table/page_cache.mli"
       ],
       "role": "benchmark",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/performance_table/page_cache.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [

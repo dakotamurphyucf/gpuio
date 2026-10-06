@@ -1,5 +1,7 @@
 # Logical paged-table measurement
 
+Read the [driver walkthrough](main.md) and [pure cache walkthrough](page_cache.md) for implementation and ownership.
+
 This public-API workload keeps 100,000 stable logical row identities and 64
 columns. Its application-owned cache retains at most four 128-row pages (512
 payload rows), evicting payloads through `Table_data.set` without resetting source

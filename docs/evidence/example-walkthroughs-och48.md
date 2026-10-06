@@ -555,3 +555,28 @@ Structural inventory, local file links in changed example Markdown, whitespace,
 and ocamlformat checks on the two comment-only interfaces pass. No GUI execution
 was repeated for this prose batch. OCH-48 remains open, with extension-author,
 performance/resource and remaining gallery source groups visible as pending.
+
+## Extension packages, final gallery pages and workload ownership
+
+Source base `8441661`: another 18 source groups reviewed, for **243 reviewed / 17
+pending** of 260 groups (417 sources). Three authorized agents read full scoped
+sources/interfaces/callers/contracts; primary review read all guides and inspected
+representative package/viewport/cache interfaces and implementations.
+
+New guides cover the counter/document profile author packages and profile expect
+test, extension consumer and generated backend, remaining four gallery components,
+paged-table driver/cache, streaming driver/model and shared lifecycle workload.
+Each distinguishes ordinary OCaml consumers from native extension authors or
+qualification instrumentation, and defines actual measurement/ownership limits.
+
+A discovery audit found 53 already-reviewed guides reachable from their own README
+but not the main examples index without using the inventory. The index now links
+all existing example families by purpose. The structural audit now requires prose
+link paths from both root and owning README, excluding generated coverage/code
+blocks. Replaying the previous index finds those 53 omissions; the current index
+passes. This strengthens discoverability without pretending to check prose quality.
+
+Inventory/discovery, local Markdown file links and whitespace pass. Both example
+package schema fingerprints were compared with OCaml and Rust declarations. No
+new builds or graphical runs were performed for the prose-only changes; existing
+scoped evidence and build declarations retain their limits. OCH-48 stays open.

@@ -50,7 +50,7 @@ where a test permits background execution. CI supplies the final platform gates.
 
 - [`presentation`](presentation/README.md): public stateless presentation helpers,
   settings/form semantics and reusable chat cards, with light/dark appearances
-  and native keyboard/accessibility checks. OCH-33's stateful families remain pending.
+  and native keyboard/accessibility checks, with coverage limits in its README.
 
 - [Positioned menus](menu_controller/README.md): open/close a context menu from
   an OCaml controller, with validated coordinates and stale-definition rejection.
@@ -61,3 +61,46 @@ where a test permits background execution. CI supplies the final platform gates.
 - [Menus](menus/README.md): shared command registries, Bonsai effects, dropdowns
   and optional native OS context popups. The adjacent [walkthrough](menus/main.md)
   traces the complete interaction and explains the optional self-test.
+
+## Browse by purpose
+
+These entry points link to each application's adjacent implementation walkthroughs.
+Start with the small examples above before reading diagnostics or extension internals.
+
+- **Controls and editing:** [controls](controls/README.md),
+  [text input](text_input/README.md), [editable combobox](combobox/README.md),
+  [numeric input and OTP](numeric/README.md), [calendar/date picker](calendar/README.md),
+  [color input/picker](color_input/README.md), [commands](commands/README.md),
+  [command palette](palette/README.md), [menus](menus/README.md),
+  [positioned menus](menu_controller/README.md).
+- **Layout and presentation:** [presentation](presentation/README.md),
+  [navigation](navigation/README.md), [container queries](container_query/README.md),
+  [overlays](overlays/README.md), [tooltips](tooltips/README.md),
+  [toasts](toasts/README.md), [progress](progress/README.md),
+  [target animations](animation/README.md), [animation programs](animation_program/README.md),
+  [typed view API](view_api/README.md).
+- **Data and graphics:** [virtual lists](virtual_list/README.md),
+  [trees](tree/README.md), [tables](table/README.md), [charts](charts/README.md),
+  [documents](documents/README.md), [images](images/README.md),
+  [canvas](canvas/README.md).
+- **Desktop interaction:** [window lifecycle](window_lifecycle/README.md),
+  [desktop services](desktop/README.md), [notifications](notification/README.md),
+  [file dialogs](file_dialogs/README.md), [pointer capture](pointer/README.md),
+  [internal drag/drop](drag_drop/README.md), [desktop file drag/drop](drag_drop_desktop/README.md).
+- **Static extension packages:** [counter author](extension_package/README.md),
+  [document-profile author](document_profile_package/README.md),
+  [OCaml extension consumer](extension_consumer/README.md). Author guides identify
+  the Rust work; application consumers use the packaged OCaml interface.
+- **Framework diagnostics:** [historical foundation](foundation/README.md),
+  [transaction bridge](bridge/README.md), [runtime/scopes](runtime/README.md),
+  [asset upload](asset_upload/README.md), [canvas upload](canvas_upload/README.md),
+  [chart upload](chart_upload/README.md), [chart stream](chart_stream/README.md).
+  Publication, synthetic input and frame acknowledgement each prove different things.
+- **Performance and resources:** [frame workload](performance/README.md),
+  [large documents](performance_document/README.md), [idle](performance_idle/README.md),
+  [window lifecycle](performance_lifecycle/README.md),
+  [shared lifecycle workload](lifecycle_workload/README.md),
+  [presentation timing](performance_presented/README.md),
+  [streaming](performance_streaming/README.md),
+  [paged table history](performance_table/README.md), [resource audit](resource_audit/README.md).
+  Read the measurement contract before running or interpreting a benchmark.

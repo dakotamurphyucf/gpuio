@@ -1,5 +1,7 @@
 # Concurrent streaming and typing qualification
 
+Read the [runtime/collector walkthrough](main.md) and the [pure model/test walkthrough](stream_model.md) before adapting the workload.
+
 OCH-17 qualification driver. The native four-second smoke passes content,
 typing, source restoration and teardown, with 40 input-to-submitted-frame samples
 for 40 dispatched keys after the optional native-text profiler repair. All three full

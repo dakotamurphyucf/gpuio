@@ -85,3 +85,10 @@ missing/duplicate source ownership, invalid paths and a stale generated table.
 Run it when adding, moving or removing an example source. It deliberately allows
 explicit pending rows while OCH-48 is in progress. Completion requires **zero
 pending maintained components** plus the content/link/command reviews above.
+
+The audit also follows inline Markdown links from `examples/README.md` and each
+application's own README to every reviewed companion. It excludes the generated
+coverage table and review guide from these paths: an inventory entry alone is
+not a newcomer reading path. Keep links in ordinary prose, not just code blocks,
+and link a new family from the examples index. This checks discovery, not prose
+quality, heading anchors, external URLs or runtime acceptance.

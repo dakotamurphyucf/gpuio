@@ -136,10 +136,10 @@ Generated from [coverage.json](coverage.json). Read the [review guide](coverage-
 
 | Source parts | Role | Walkthrough | Review |
 | --- | --- | --- | --- |
-| [gpuio_example_document.ml](document_profile_package/ocaml/gpuio_example_document.ml), [gpuio_example_document.mli](document_profile_package/ocaml/gpuio_example_document.mli) | extension-author | Missing | pending |
-| [lib.rs](document_profile_package/rust/src/lib.rs) | extension-author | Missing | pending |
-| [scroll_card.rs](document_profile_package/rust/src/scroll_card.rs) | extension-author | Missing | pending |
-| [document_profile_example_test.ml](document_profile_package/test/document_profile_example_test.ml) | test-support | Missing | pending |
+| [gpuio_example_document.ml](document_profile_package/ocaml/gpuio_example_document.ml), [gpuio_example_document.mli](document_profile_package/ocaml/gpuio_example_document.mli) | extension-author | [gpuio_example_document.md](document_profile_package/ocaml/gpuio_example_document.md) | reviewed |
+| [lib.rs](document_profile_package/rust/src/lib.rs) | extension-author | [lib.md](document_profile_package/rust/src/lib.md) | reviewed |
+| [scroll_card.rs](document_profile_package/rust/src/scroll_card.rs) | extension-author | [scroll_card.md](document_profile_package/rust/src/scroll_card.md) | reviewed |
+| [document_profile_example_test.ml](document_profile_package/test/document_profile_example_test.ml) | test-support | [document_profile_example_test.md](document_profile_package/test/document_profile_example_test.md) | reviewed |
 ## documents
 
 | Source parts | Role | Walkthrough | Review |
@@ -159,15 +159,15 @@ Generated from [coverage.json](coverage.json). Read the [review guide](coverage-
 
 | Source parts | Role | Walkthrough | Review |
 | --- | --- | --- | --- |
-| [backend.ml](extension_consumer/backend/backend.ml) | generated-registration | Missing | pending |
-| [registration.rs](extension_consumer/backend/registration.rs) | generated-registration | Missing | pending |
-| [main.ml](extension_consumer/main.ml) | application-entry | [README.md](extension_consumer/README.md) | pending |
+| [backend.ml](extension_consumer/backend/backend.ml) | generated-registration | [backend.md](extension_consumer/backend/backend.md) | reviewed |
+| [registration.rs](extension_consumer/backend/registration.rs) | generated-registration | [registration.md](extension_consumer/backend/registration.md) | reviewed |
+| [main.ml](extension_consumer/main.ml) | application-entry | [main.md](extension_consumer/main.md) | reviewed |
 ## extension_package
 
 | Source parts | Role | Walkthrough | Review |
 | --- | --- | --- | --- |
-| [gpuio_example_counter.ml](extension_package/ocaml/gpuio_example_counter.ml), [gpuio_example_counter.mli](extension_package/ocaml/gpuio_example_counter.mli) | extension-author | Missing | pending |
-| [lib.rs](extension_package/rust/src/lib.rs) | extension-author | Missing | pending |
+| [gpuio_example_counter.ml](extension_package/ocaml/gpuio_example_counter.ml), [gpuio_example_counter.mli](extension_package/ocaml/gpuio_example_counter.mli) | extension-author | [gpuio_example_counter.md](extension_package/ocaml/gpuio_example_counter.md) | reviewed |
+| [lib.rs](extension_package/rust/src/lib.rs) | extension-author | [lib.md](extension_package/rust/src/lib.md) | reviewed |
 ## file_dialogs
 
 | Source parts | Role | Walkthrough | Review |
@@ -235,7 +235,7 @@ Generated from [coverage.json](coverage.json). Read the [review guide](coverage-
 | [link_preview.ml](gallery/link_preview.ml), [link_preview.mli](gallery/link_preview.mli) | component | [link_preview.md](gallery/link_preview.md) | reviewed |
 | [main.ml](gallery/main.ml) | application-entry | [application.md](gallery/application.md) | reviewed |
 | [marker_preview.ml](gallery/marker_preview.ml), [marker_preview.mli](gallery/marker_preview.mli) | component | [marker_preview.md](gallery/marker_preview.md) | reviewed |
-| [menu_preview.ml](gallery/menu_preview.ml), [menu_preview.mli](gallery/menu_preview.mli) | component | Missing | pending |
+| [menu_preview.ml](gallery/menu_preview.ml), [menu_preview.mli](gallery/menu_preview.mli) | component | [menu_preview.md](gallery/menu_preview.md) | reviewed |
 | [appearance.ml](gallery/model/appearance.ml), [appearance.mli](gallery/model/appearance.mli) | support | [appearance.md](gallery/model/appearance.md) | reviewed |
 | [canvas_study.ml](gallery/model/canvas_study.ml), [canvas_study.mli](gallery/model/canvas_study.mli) | support | [canvas_study.md](gallery/model/canvas_study.md) | reviewed |
 | [diff_state.ml](gallery/model/diff_state.ml), [diff_state.mli](gallery/model/diff_state.mli) | support | [diff_state.md](gallery/model/diff_state.md) | reviewed |
@@ -266,7 +266,7 @@ Generated from [coverage.json](coverage.json). Read the [review guide](coverage-
 | [preview_scope.ml](gallery/preview_scope.ml), [preview_scope.mli](gallery/preview_scope.mli) | component | [preview_scope.md](gallery/preview_scope.md) | reviewed |
 | [progress_preview.ml](gallery/progress_preview.ml), [progress_preview.mli](gallery/progress_preview.mli) | component | [progress_preview.md](gallery/progress_preview.md) | reviewed |
 | [responsive_page.ml](gallery/responsive_page.ml), [responsive_page.mli](gallery/responsive_page.mli) | component | [responsive_page.md](gallery/responsive_page.md) | reviewed |
-| [runtime_page.ml](gallery/runtime_page.ml), [runtime_page.mli](gallery/runtime_page.mli) | component | Missing | pending |
+| [runtime_page.ml](gallery/runtime_page.ml), [runtime_page.mli](gallery/runtime_page.mli) | component | [runtime_page.md](gallery/runtime_page.md) | reviewed |
 | [scrollbar_preview.ml](gallery/scrollbar_preview.ml), [scrollbar_preview.mli](gallery/scrollbar_preview.mli) | component | [scrollbar_preview.md](gallery/scrollbar_preview.md) | reviewed |
 | [selectable_preview.ml](gallery/selectable_preview.ml), [selectable_preview.mli](gallery/selectable_preview.mli) | component | [selectable_preview.md](gallery/selectable_preview.md) | reviewed |
 | [selection_preview.ml](gallery/selection_preview.ml), [selection_preview.mli](gallery/selection_preview.mli) | component | [selection_preview.md](gallery/selection_preview.md) | reviewed |
@@ -280,12 +280,12 @@ Generated from [coverage.json](coverage.json). Read the [review guide](coverage-
 | [split_preview.ml](gallery/split_preview.ml), [split_preview.mli](gallery/split_preview.mli) | component | [split_preview.md](gallery/split_preview.md) | reviewed |
 | [stepper_preview.ml](gallery/stepper_preview.ml), [stepper_preview.mli](gallery/stepper_preview.mli) | component | [stepper_preview.md](gallery/stepper_preview.md) | reviewed |
 | [structural_table_preview.ml](gallery/structural_table_preview.ml), [structural_table_preview.mli](gallery/structural_table_preview.mli) | component | [structural_table_preview.md](gallery/structural_table_preview.md) | reviewed |
-| [styles_page.ml](gallery/styles_page.ml), [styles_page.mli](gallery/styles_page.mli) | component | Missing | pending |
+| [styles_page.ml](gallery/styles_page.ml), [styles_page.mli](gallery/styles_page.mli) | component | [styles_page.md](gallery/styles_page.md) | reviewed |
 | [tab_content_preview.ml](gallery/tab_content_preview.ml), [tab_content_preview.mli](gallery/tab_content_preview.mli) | component | [tab_content_preview.md](gallery/tab_content_preview.md) | reviewed |
 | [tag_preview.ml](gallery/tag_preview.ml), [tag_preview.mli](gallery/tag_preview.mli) | component | [tag_preview.md](gallery/tag_preview.md) | reviewed |
 | [textarea_preview.ml](gallery/textarea_preview.ml), [textarea_preview.mli](gallery/textarea_preview.mli) | component | [textarea_preview.md](gallery/textarea_preview.md) | reviewed |
 | [theme_preview.ml](gallery/theme_preview.ml), [theme_preview.mli](gallery/theme_preview.mli) | component | [theme_preview.md](gallery/theme_preview.md) | reviewed |
-| [window_input_preview.ml](gallery/window_input_preview.ml) | component | Missing | pending |
+| [window_input_preview.ml](gallery/window_input_preview.ml) | component | [window_input_preview.md](gallery/window_input_preview.md) | reviewed |
 | [window_selection_preview.ml](gallery/window_selection_preview.ml), [window_selection_preview.mli](gallery/window_selection_preview.mli) | component | [window_selection_preview.md](gallery/window_selection_preview.md) | reviewed |
 ## getting_started
 
@@ -301,7 +301,7 @@ Generated from [coverage.json](coverage.json). Read the [review guide](coverage-
 
 | Source parts | Role | Walkthrough | Review |
 | --- | --- | --- | --- |
-| [gpuio_lifecycle_workload.ml](lifecycle_workload/gpuio_lifecycle_workload.ml), [gpuio_lifecycle_workload.mli](lifecycle_workload/gpuio_lifecycle_workload.mli) | benchmark | Missing | pending |
+| [gpuio_lifecycle_workload.ml](lifecycle_workload/gpuio_lifecycle_workload.ml), [gpuio_lifecycle_workload.mli](lifecycle_workload/gpuio_lifecycle_workload.mli) | benchmark | [gpuio_lifecycle_workload.md](lifecycle_workload/gpuio_lifecycle_workload.md) | reviewed |
 ## menu_controller
 
 | Source parts | Role | Walkthrough | Review |
@@ -382,14 +382,14 @@ Generated from [coverage.json](coverage.json). Read the [review guide](coverage-
 
 | Source parts | Role | Walkthrough | Review |
 | --- | --- | --- | --- |
-| [main.ml](performance_streaming/main.ml) | benchmark | [README.md](performance_streaming/README.md) | pending |
-| [stream_model.ml](performance_streaming/stream_model.ml), [stream_model.mli](performance_streaming/stream_model.mli) | benchmark | Missing | pending |
+| [main.ml](performance_streaming/main.ml) | benchmark | [main.md](performance_streaming/main.md) | reviewed |
+| [stream_model.ml](performance_streaming/stream_model.ml), [stream_model.mli](performance_streaming/stream_model.mli) | benchmark | [stream_model.md](performance_streaming/stream_model.md) | reviewed |
 ## performance_table
 
 | Source parts | Role | Walkthrough | Review |
 | --- | --- | --- | --- |
-| [main.ml](performance_table/main.ml) | benchmark | [README.md](performance_table/README.md) | pending |
-| [page_cache.ml](performance_table/page_cache.ml), [page_cache.mli](performance_table/page_cache.mli) | benchmark | Missing | pending |
+| [main.ml](performance_table/main.ml) | benchmark | [main.md](performance_table/main.md) | reviewed |
+| [page_cache.ml](performance_table/page_cache.ml), [page_cache.mli](performance_table/page_cache.mli) | benchmark | [page_cache.md](performance_table/page_cache.md) | reviewed |
 ## pointer
 
 | Source parts | Role | Walkthrough | Review |
@@ -497,4 +497,4 @@ Generated from [coverage.json](coverage.json). Read the [review guide](coverage-
 | --- | --- | --- | --- |
 | [main.ml](window_lifecycle/main.ml) | application-entry | [main.md](window_lifecycle/main.md) | reviewed |
 
-417 source files in 260 groups; 225 reviewed, 35 pending.
+417 source files in 260 groups; 243 reviewed, 17 pending.

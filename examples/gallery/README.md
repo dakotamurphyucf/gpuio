@@ -81,6 +81,9 @@ Page composition walkthroughs: [collections](collections_page.md), [feedback](fe
 [carousels and journeys](journeys_page.md), [navigation](navigation_page.md),
 [overlays](overlays_page.md) and [date/color pickers](pickers_page.md).
 
+Runtime and style walkthroughs: [menu observations](menu_preview.md), [runtime diagnostics](runtime_page.md),
+[styling composition](styles_page.md) and [focused-input metadata](window_input_preview.md).
+
 Styles → **A theme from your workspace** loads a palette for the current window.
 Read the [theme-loading walkthrough](theme_preview.md), then the independent
 [appearance model](model/appearance.md), [selection identity](model/theme_selection.md),
