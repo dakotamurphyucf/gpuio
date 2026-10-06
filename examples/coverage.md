@@ -26,16 +26,16 @@ Generated from [coverage.json](coverage.json). Read the [review guide](coverage-
 | [inspector.ml](agent_chat/runtime/inspector.ml), [inspector.mli](agent_chat/runtime/inspector.mli) | component | Missing | pending |
 | [palette.ml](agent_chat/runtime/palette.ml), [palette.mli](agent_chat/runtime/palette.mli) | support | Missing | pending |
 | [query_loading.ml](agent_chat/runtime/query_loading.ml), [query_loading.mli](agent_chat/runtime/query_loading.mli) | component | [query_loading.md](agent_chat/runtime/query_loading.md) | reviewed |
-| [responsive.ml](agent_chat/runtime/responsive.ml), [responsive.mli](agent_chat/runtime/responsive.mli) | component | Missing | pending |
+| [responsive.ml](agent_chat/runtime/responsive.ml), [responsive.mli](agent_chat/runtime/responsive.mli) | component | [responsive.md](agent_chat/runtime/responsive.md) | reviewed |
 | [result_actions.ml](agent_chat/runtime/result_actions.ml), [result_actions.mli](agent_chat/runtime/result_actions.mli) | component | [result_actions.md](agent_chat/runtime/result_actions.md) | reviewed |
 | [result_data.ml](agent_chat/runtime/result_data.ml), [result_data.mli](agent_chat/runtime/result_data.mli) | component | [result_data.md](agent_chat/runtime/result_data.md) | reviewed |
 | [results.ml](agent_chat/runtime/results.ml), [results.mli](agent_chat/runtime/results.mli) | component | [results.md](agent_chat/runtime/results.md) | reviewed |
-| [review.ml](agent_chat/runtime/review.ml), [review.mli](agent_chat/runtime/review.mli) | component | Missing | pending |
-| [review_feedback.ml](agent_chat/runtime/review_feedback.ml), [review_feedback.mli](agent_chat/runtime/review_feedback.mli) | component | Missing | pending |
+| [review.ml](agent_chat/runtime/review.ml), [review.mli](agent_chat/runtime/review.mli) | component | [review.md](agent_chat/runtime/review.md) | reviewed |
+| [review_feedback.ml](agent_chat/runtime/review_feedback.ml), [review_feedback.mli](agent_chat/runtime/review_feedback.mli) | component | [review_feedback.md](agent_chat/runtime/review_feedback.md) | reviewed |
 | [run_diagram.ml](agent_chat/runtime/run_diagram.ml), [run_diagram.mli](agent_chat/runtime/run_diagram.mli) | component | Missing | pending |
 | [schedule_data.ml](agent_chat/runtime/schedule_data.ml), [schedule_data.mli](agent_chat/runtime/schedule_data.mli) | component | [schedule_data.md](agent_chat/runtime/schedule_data.md) | reviewed |
 | [schedule_settings.ml](agent_chat/runtime/schedule_settings.ml), [schedule_settings.mli](agent_chat/runtime/schedule_settings.mli) | component | [schedule_settings.md](agent_chat/runtime/schedule_settings.md) | reviewed |
-| [score_range.ml](agent_chat/runtime/score_range.ml), [score_range.mli](agent_chat/runtime/score_range.mli) | component | Missing | pending |
+| [score_range.ml](agent_chat/runtime/score_range.ml), [score_range.mli](agent_chat/runtime/score_range.mli) | component | [score_range.md](agent_chat/runtime/score_range.md) | reviewed |
 | [settings.ml](agent_chat/runtime/settings.ml), [settings.mli](agent_chat/runtime/settings.mli) | component | Missing | pending |
 | [source_data.ml](agent_chat/runtime/source_data.ml), [source_data.mli](agent_chat/runtime/source_data.mli) | component | [source_data.md](agent_chat/runtime/source_data.md) | reviewed |
 | [sources.ml](agent_chat/runtime/sources.ml), [sources.mli](agent_chat/runtime/sources.mli) | component | [sources.md](agent_chat/runtime/sources.md) | reviewed |
@@ -244,11 +244,11 @@ Generated from [coverage.json](coverage.json). Read the [review guide](coverage-
 | [feedback_state.ml](gallery/model/feedback_state.ml), [feedback_state.mli](gallery/model/feedback_state.mli) | support | [feedback_state.md](gallery/model/feedback_state.md) | reviewed |
 | [message_follow.ml](gallery/model/message_follow.ml), [message_follow.mli](gallery/model/message_follow.mli) | support | [message_follow.md](gallery/model/message_follow.md) | reviewed |
 | [message_stream.ml](gallery/model/message_stream.ml), [message_stream.mli](gallery/model/message_stream.mli) | support | [message_stream.md](gallery/model/message_stream.md) | reviewed |
-| [numeric_state.ml](gallery/model/numeric_state.ml), [numeric_state.mli](gallery/model/numeric_state.mli) | support | Missing | pending |
-| [page.ml](gallery/model/page.ml), [page.mli](gallery/model/page.mli) | support | Missing | pending |
-| [picker_state.ml](gallery/model/picker_state.ml), [picker_state.mli](gallery/model/picker_state.mli) | support | Missing | pending |
-| [selection_state.ml](gallery/model/selection_state.ml), [selection_state.mli](gallery/model/selection_state.mli) | support | Missing | pending |
-| [settings_state.ml](gallery/model/settings_state.ml), [settings_state.mli](gallery/model/settings_state.mli) | support | Missing | pending |
+| [numeric_state.ml](gallery/model/numeric_state.ml), [numeric_state.mli](gallery/model/numeric_state.mli) | support | [numeric_state.md](gallery/model/numeric_state.md) | reviewed |
+| [page.ml](gallery/model/page.ml), [page.mli](gallery/model/page.mli) | support | [page.md](gallery/model/page.md) | reviewed |
+| [picker_state.ml](gallery/model/picker_state.ml), [picker_state.mli](gallery/model/picker_state.mli) | support | [picker_state.md](gallery/model/picker_state.md) | reviewed |
+| [selection_state.ml](gallery/model/selection_state.ml), [selection_state.mli](gallery/model/selection_state.mli) | support | [selection_state.md](gallery/model/selection_state.md) | reviewed |
+| [settings_state.ml](gallery/model/settings_state.ml), [settings_state.mli](gallery/model/settings_state.mli) | support | [settings_state.md](gallery/model/settings_state.md) | reviewed |
 | [theme_profile.ml](gallery/model/theme_profile.ml), [theme_profile.mli](gallery/model/theme_profile.mli) | support | [theme_profile.md](gallery/model/theme_profile.md) | reviewed |
 | [theme_selection.ml](gallery/model/theme_selection.ml), [theme_selection.mli](gallery/model/theme_selection.mli) | support | [theme_selection.md](gallery/model/theme_selection.md) | reviewed |
 | [motion_page.ml](gallery/motion_page.ml), [motion_page.mli](gallery/motion_page.mli) | component | Missing | pending |
@@ -399,11 +399,11 @@ Generated from [coverage.json](coverage.json). Read the [review guide](coverage-
 
 | Source parts | Role | Walkthrough | Review |
 | --- | --- | --- | --- |
-| [avatar_assets.ml](presentation/avatar_assets.ml) | component | Missing | pending |
-| [avatar_mode.ml](presentation/avatar_mode.ml) | component | Missing | pending |
-| [content_cases.ml](presentation/content_cases.ml), [content_cases.mli](presentation/content_cases.mli) | component | Missing | pending |
-| [main.ml](presentation/main.ml) | application-entry | [README.md](presentation/README.md) | pending |
-| [rating_action.ml](presentation/rating_action.ml) | component | Missing | pending |
+| [avatar_assets.ml](presentation/avatar_assets.ml) | component | [avatar_assets.md](presentation/avatar_assets.md) | reviewed |
+| [avatar_mode.ml](presentation/avatar_mode.ml) | component | [avatar_mode.md](presentation/avatar_mode.md) | reviewed |
+| [content_cases.ml](presentation/content_cases.ml), [content_cases.mli](presentation/content_cases.mli) | component | [content_cases.md](presentation/content_cases.md) | reviewed |
+| [main.ml](presentation/main.ml) | application-entry | [main.md](presentation/main.md) | reviewed |
+| [rating_action.ml](presentation/rating_action.ml) | component | [rating_action.md](presentation/rating_action.md) | reviewed |
 ## progress
 
 | Source parts | Role | Walkthrough | Review |
@@ -497,4 +497,4 @@ Generated from [coverage.json](coverage.json). Read the [review guide](coverage-
 | --- | --- | --- | --- |
 | [main.ml](window_lifecycle/main.ml) | application-entry | Missing | pending |
 
-417 source files in 260 groups; 72 reviewed, 188 pending.
+417 source files in 260 groups; 86 reviewed, 174 pending.

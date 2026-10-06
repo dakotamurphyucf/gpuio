@@ -39,6 +39,10 @@ fence settings persistence; [extension state](model/extension_state.md) serializ
 counter commands; [feedback state](model/feedback_state.md) handles notification
 identity; [message history](model/message_stream.md) preserves stable row keys;
 [follow overlays](model/message_follow.md) decorate that list without owning scroll.
+The [section catalog](model/page.md) maps typed navigation identities to titles/keys;
+[rating state](model/numeric_state.md), [controlled choice state](model/picker_state.md),
+[formatting state](model/selection_state.md) and [retained settings data](model/settings_state.md)
+explain how requests are validated against current application values.
 
 Styles → **A theme from your workspace** loads a palette for the current window.
 Read the [theme-loading walkthrough](theme_preview.md), then the independent

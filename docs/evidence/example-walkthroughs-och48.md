@@ -287,3 +287,40 @@ Two implementation limits remain explicit: navigation's combined
 self-test (a likely timeout, not reproduced here), and Extension_state.Depart
 cannot advance an already exhausted Int64 generation. The ordinary navigation
 self-test command is documented. Neither issue was repaired by this prose batch.
+
+## Presentation composition, settings models and review controls
+
+Starting from `72f4026`, fourteen more groups are reviewed: presentation's
+[main](../../examples/presentation/main.md),
+[avatar assets](../../examples/presentation/avatar_assets.md),
+[avatar mode](../../examples/presentation/avatar_mode.md),
+[content fixture](../../examples/presentation/content_cases.md) and
+[rating reducer](../../examples/presentation/rating_action.md); gallery models
+[Numeric_state](../../examples/gallery/model/numeric_state.md),
+[Page](../../examples/gallery/model/page.md),
+[Picker_state](../../examples/gallery/model/picker_state.md),
+[Selection_state](../../examples/gallery/model/selection_state.md) and
+[Settings_state](../../examples/gallery/model/settings_state.md); Agent Chat's
+[Review](../../examples/agent_chat/runtime/review.md),
+[Review_feedback](../../examples/agent_chat/runtime/review_feedback.md),
+[Score_range](../../examples/agent_chat/runtime/score_range.md) and
+[Responsive](../../examples/agent_chat/runtime/responsive.md).
+
+The three authorized GPT-6.1 Sol agents read scoped sources/interfaces and
+relevant callers. Primary review checked the guides and representative code/API
+contracts. Explanations distinguish native retained editor state, application
+intent and observations, committed versus draft settings, pure reducers, actual
+Bonsai syntax/effects and native container-query selection. Extension consumption
+is distinguished from extension authoring. READMEs link every companion.
+
+Coverage is **86 reviewed / 174 pending**, still 417 sources in 260 groups.
+Relative file links, the structural inventory audit and whitespace checks pass.
+Command/flag review uses source/build/driver declarations. No fresh native or
+platform acceptance is claimed by this prose batch. The separate document-page
+repair has its own validation.
+
+Presentation's combined `--content-check --self-test` similarly omits observations
+required by its ordinary self-test; the guide documents separate commands rather
+than claiming that combination passed. Settings_state's unlocked demo Custom
+counter uses unsaturated int addition; its theoretical overflow limit is explicit.
+Neither issue was reproduced or repaired in this documentation batch.

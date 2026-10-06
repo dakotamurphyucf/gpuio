@@ -190,8 +190,10 @@
         "examples/agent_chat/runtime/responsive.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/agent_chat/runtime/responsive.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -232,8 +234,10 @@
         "examples/agent_chat/runtime/review.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/agent_chat/runtime/review.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -241,8 +245,10 @@
         "examples/agent_chat/runtime/review_feedback.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/agent_chat/runtime/review_feedback.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -281,8 +287,10 @@
         "examples/agent_chat/runtime/score_range.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/agent_chat/runtime/score_range.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -1310,8 +1318,10 @@
         "examples/gallery/model/numeric_state.mli"
       ],
       "role": "support",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/gallery/model/numeric_state.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -1319,8 +1329,10 @@
         "examples/gallery/model/page.mli"
       ],
       "role": "support",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/gallery/model/page.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -1328,8 +1340,10 @@
         "examples/gallery/model/picker_state.mli"
       ],
       "role": "support",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/gallery/model/picker_state.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -1337,8 +1351,10 @@
         "examples/gallery/model/selection_state.mli"
       ],
       "role": "support",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/gallery/model/selection_state.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -1346,8 +1362,10 @@
         "examples/gallery/model/settings_state.mli"
       ],
       "role": "support",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/gallery/model/settings_state.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -2005,16 +2023,20 @@
         "examples/presentation/avatar_assets.ml"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/presentation/avatar_assets.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
         "examples/presentation/avatar_mode.ml"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/presentation/avatar_mode.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -2022,8 +2044,10 @@
         "examples/presentation/content_cases.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/presentation/content_cases.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -2031,17 +2055,19 @@
       ],
       "role": "application-entry",
       "walkthroughs": [
-        "examples/presentation/README.md"
+        "examples/presentation/main.md"
       ],
-      "review": "pending"
+      "review": "reviewed"
     },
     {
       "sources": [
         "examples/presentation/rating_action.ml"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/presentation/rating_action.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [

@@ -71,7 +71,12 @@ loading, current-generation delivery, virtualized rows/cells and accepted moves.
 [fixed civil-date fixtures](runtime/schedule_data.md),
 [review dates and follow-up selection](runtime/schedule_settings.md), and
 [confirmed annotation color](runtime/annotation_settings.md). They distinguish
-native drafts/previews from accepted window values.
+native drafts/previews from accepted window values. The
+[native review counter](runtime/review.md) and
+[window-local feedback](runtime/review_feedback.md) explain extension events,
+retained note editing and controlled disclosure. Small supporting guides cover
+[inclusive score bounds](runtime/score_range.md) and
+[native responsive alternatives](runtime/responsive.md).
 
 These are code walkthroughs, not new platform acceptance evidence. The runtime
 source map below identifies the remaining component boundaries; per-component
