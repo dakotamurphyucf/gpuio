@@ -235,11 +235,42 @@ module Snapshot = struct
   ;;
 end
 
+module Command = struct
+  type t =
+    | Read_snapshot
+    | Focus
+    | Set_query of string
+    | Highlight of Ui_command.Id.t option
+  [@@deriving equal, sexp_of]
+end
+
+module Command_error = Gpuio_protocol.Palette_command_wire.Error
+
 module Expert = struct
   let snapshot_of_wire ~window ~node ~observer wire =
     if Gpuio_protocol.Palette_state_wire.valid wire
     then Ok Snapshot.{ window; node; observer; wire }
     else Or_error.error_string "invalid palette snapshot"
+  ;;
+
+  let window (t : Snapshot.t) = t.window
+  let node (t : Snapshot.t) = t.node
+  let observer (t : Snapshot.t) = t.observer
+  let sequence (t : Snapshot.t) = t.wire.sequence
+  let query_revision (t : Snapshot.t) = t.wire.query_revision
+
+  let same_owner (a : Snapshot.t) (b : Snapshot.t) =
+    Gpuio_protocol.Window_id.equal a.window b.window
+    && Gpuio_protocol.Node_id.equal a.node b.node
+    && Gpuio_protocol.Handler_id.equal a.observer b.observer
+  ;;
+
+  let command_to_wire : Command.t -> Gpuio_protocol.Palette_command_wire.Command.t =
+    function
+    | Read_snapshot -> Read_snapshot
+    | Focus -> Focus
+    | Set_query query -> Set_query query
+    | Highlight selected -> Highlight (Option.map selected ~f:Ui_command.Id.to_string)
   ;;
 
   let options (t : Config.t) = t.options

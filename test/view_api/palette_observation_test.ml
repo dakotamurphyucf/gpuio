@@ -147,3 +147,39 @@ let%expect_test
   assert (Option.is_none (Reconciler.dispatch r (event ~handler:fresh ~revision:3L 8L)));
   [%expect {| |}]
 ;;
+
+let%expect_test "palette command wire request/reply and malformed boundaries" =
+  let command =
+    Wire.Message.Palette_command (9L, window, node, handler, Some 2L, Set_query "λ")
+  in
+  assert (
+    String.equal
+      (Wire.Message.encode command |> ok)
+      "\022\009\000\001\001\001\002\001\001\002\002\002\206\187");
+  let reply state =
+    Wire.Event.Palette_result (9L, window, node, handler, Applied state)
+  in
+  let bytes = encode [ reply state ] in
+  assert (
+    String.equal
+      bytes
+      "\001\080\009\000\001\001\001\002\001\000\003\002\002\206\187\000\001\003run\002");
+  assert (List.equal Wire.Event.equal (Wire.Event.decode bytes |> ok) [ reply state ]);
+  List.iter
+    [ Some 0L, Palette_command_wire.Command.Focus
+    ; None, Set_query "x\n"
+    ; None, Set_query (String.make 4097 'x')
+    ; None, Highlight (Some " ")
+    ]
+    ~f:(fun (expected, command) ->
+      assert (
+        Result.is_error
+          (Wire.Message.encode
+             (Palette_command (9L, window, node, handler, expected, command)))));
+  assert (
+    Result.is_error (Wire.Event.decode (encode [ reply { state with sequence = 0L } ])));
+  for length = 0 to String.length bytes - 1 do
+    assert (Result.is_error (Wire.Event.decode (String.prefix bytes length)))
+  done;
+  [%expect {| |}]
+;;

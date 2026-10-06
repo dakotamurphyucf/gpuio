@@ -1129,11 +1129,22 @@ module Message = struct
     | Desktop of int64 * Desktop.Request.t
     | Notification of int64 * Notification.Request.t
     | Chart of int64 * Chart.Request.t
+    | Palette_command of
+        int64
+        * Window_id.t
+        * Node_id.t
+        * Handler_id.t
+        * int64 option
+        * Palette_command_wire.Command.t
   [@@deriving bin_io, equal, sexp_of]
 
   let encode t =
     let invalid_asset =
       match t with
+      | Palette_command (correlation, _, _, _, expected, command) ->
+        Int64.(correlation <= 0L)
+        || Option.exists expected ~f:(fun revision -> Int64.(revision <= 0L))
+        || not (Palette_command_wire.Command.valid command)
       | Notification (correlation, request) ->
         Int64.(correlation <= 0L) || not (Notification.Request.valid request)
       | Desktop (correlation, request) ->
@@ -1395,6 +1406,8 @@ module Event = struct
         * Document_profile_wire.Event.t
     | Palette_observed of
         Window_id.t * Node_id.t * Handler_id.t * int64 * Palette_state_wire.t
+    | Palette_result of
+        int64 * Window_id.t * Node_id.t * Handler_id.t * Palette_command_wire.Response.t
   [@@deriving bin_io, equal, sexp_of]
 
   let valid_snapshot (t : Editor.Snapshot.t) =
@@ -1577,6 +1590,8 @@ module Event = struct
       && List.for_all
            [ sample.window_x; sample.window_y; sample.local_x; sample.local_y ]
            ~f:Float.is_finite
+    | Palette_result (request, _, _, _, result) ->
+      Int64.(request > 0L) && Palette_command_wire.Response.valid result
     | Palette_observed (_, _, _, revision, snapshot) ->
       Int64.(revision >= 0L) && Palette_state_wire.valid snapshot
     | Palette_dismissed (window, node, handler, revision, Selected id) ->

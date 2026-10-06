@@ -21,11 +21,10 @@ observer detach/reattach is a different lifetime. Applications should avoid star
 
 This comparison supports application-side cancellation and stale-result checks
 against the newest **received** snapshot. It does not atomically admit results
-against current native text: a newer native input may still be queued. Native
-query/highlight commands and revision-checked external-result publication need
-their own request/response contracts. They, loading and persistent embedding
-remain required follow-up work; the observation API alone does not close those
-catalog rows.
+against current native text: a newer native input may still be queued. [Native query/highlight commands](palette-commands.md) now use their own correlated
+request/response contract and optional native query check. Atomic external-result
+publication, loading and persistent embedding remain required follow-up work;
+the observation API alone does not close those catalog rows.
 
 ## Delivery and limits
 

@@ -3,6 +3,7 @@ open Gpuio_protocol
 module Guard = Gpuio_runtime_core.Domain_guard
 module Driver = Gpuio_runtime_core.Window_driver
 module Input = Gpuio.Text_input
+module Palette = Gpuio.Command_palette
 module Slider = Gpuio.Slider
 module Number_input = Gpuio.Number_input
 module Otp_input = Gpuio.Otp_input
@@ -15,6 +16,11 @@ type editor_request =
   { window : Window_id.t
   ; node : Node_id.t
   ; complete : Wire.Editor.Result.t -> unit
+  }
+
+type palette_request =
+  { expected : Palette.Snapshot.t
+  ; complete : (Palette.Snapshot.t, Palette.Command_error.t) Result.t -> unit
   }
 
 type slider_request =
@@ -98,6 +104,7 @@ type t =
   ; mutable closes : Window_id.t Int64.Map.t
   ; mutable frames : (Window_id.t * (revision:int64 -> unit Bonsai.Effect.t)) Int64.Map.t
   ; mutable editors : editor_request Int64.Map.t
+  ; mutable palettes : palette_request Int64.Map.t
   ; mutable sliders : slider_request Int64.Map.t
   ; mutable number_inputs : number_input_request Int64.Map.t
   ; mutable otp_inputs : otp_input_request Int64.Map.t
@@ -216,6 +223,7 @@ let diagnostics t : Diagnostics.t =
       + Map.length t.closes
       + Map.length t.frames
       + Map.length t.editors
+      + Map.length t.palettes
       + Map.length t.sliders
       + Map.length t.number_inputs
       + Map.length t.otp_inputs
@@ -586,6 +594,13 @@ let release_window window =
       in
       window.app.calendars <- remaining_calendars;
       Map.iter cancelled_calendars ~f:(fun request ->
+        attempt (fun () -> request.complete (Error Closed)));
+      let cancelled_palettes, remaining_palettes =
+        Map.partition_tf window.app.palettes ~f:(fun request ->
+          Window_id.equal (Palette.Expert.window request.expected) window.id)
+      in
+      window.app.palettes <- remaining_palettes;
+      Map.iter cancelled_palettes ~f:(fun request ->
         attempt (fun () -> request.complete (Error Closed)));
       let cancelled_color_inputs, remaining_color_inputs =
         Map.partition_tf window.app.color_inputs ~f:(fun request ->
@@ -1042,6 +1057,38 @@ module Window = struct
                  ; complete = callback
                  };
           queue t.app (Color_input_command (request, t.id, node, command))))
+    ;;
+
+    let palette_command t snapshot ?(if_query_unchanged = false) command =
+      Bonsai.Effect.Expert.of_fun ~f:(fun ~callback ->
+        check t.app;
+        let command = Palette.Expert.command_to_wire command in
+        if is_closed t || t.app.stopping
+        then callback (Error Palette.Command_error.Closed)
+        else if not (Window_id.equal t.id (Palette.Expert.window snapshot))
+        then callback (Error Stale_palette)
+        else if not (Palette_command_wire.Command.valid command)
+        then callback (Error Invalid_query)
+        else if Map.length t.app.palettes >= 64
+        then callback (Error Busy)
+        else (
+          let request = correlation t.app in
+          t.app.palettes
+          <- Map.set
+               t.app.palettes
+               ~key:request
+               ~data:{ expected = snapshot; complete = callback };
+          queue
+            t.app
+            (Palette_command
+               ( request
+               , t.id
+               , Palette.Expert.node snapshot
+               , Palette.Expert.observer snapshot
+               , (if if_query_unchanged
+                  then Some (Palette.Expert.query_revision snapshot)
+                  else None)
+               , command ))))
     ;;
 
     let request_editor t snapshot ?invalid_text command =
@@ -1789,6 +1836,28 @@ let process t = function
        in
        pending.complete result
      | Some _ | None -> ())
+  | Palette_result (request, id, node, observer, result) ->
+    (match Map.find t.palettes request with
+     | Some pending
+       when Window_id.equal (Palette.Expert.window pending.expected) id
+            && Node_id.equal (Palette.Expert.node pending.expected) node
+            && Handler_id.equal (Palette.Expert.observer pending.expected) observer ->
+       t.palettes <- Map.remove t.palettes request;
+       let result =
+         match result with
+         | Palette_command_wire.Response.Failed error -> Error error
+         | Applied wire ->
+           (match Palette.Expert.snapshot_of_wire ~window:id ~node ~observer wire with
+            | Ok snapshot
+              when Int64.(
+                     Palette.Expert.sequence snapshot
+                     >= Palette.Expert.sequence pending.expected
+                     && Palette.Expert.query_revision snapshot
+                        >= Palette.Expert.query_revision pending.expected) -> Ok snapshot
+            | Ok _ | Error _ -> Error Palette.Command_error.Native_failure)
+       in
+       pending.complete result
+     | Some _ | None -> ())
   | Editor_result (request, id, node, result) ->
     (match Map.find t.editors request with
      | Some pending
@@ -1930,6 +1999,24 @@ let process t = function
       | Stale_handle -> Stale_color_input
       | Busy | Overloaded -> Busy
       | Limit_exceeded -> Limit_exceeded
+      | Unsupported_version
+      | Unsupported_capability
+      | Malformed
+      | Not_ready
+      | Invalid_revision
+      | Invalid_tree
+      | Native_failure -> Native_failure
+    in
+    pending.complete (Error error)
+  | Failed (request, code) when Map.mem t.palettes request ->
+    let pending = Map.find_exn t.palettes request in
+    t.palettes <- Map.remove t.palettes request;
+    let error : Palette.Command_error.t =
+      match code with
+      | Closed -> Closed
+      | Stale_handle -> Stale_palette
+      | Busy | Overloaded -> Busy
+      | Limit_exceeded
       | Unsupported_version
       | Unsupported_capability
       | Malformed
@@ -2154,6 +2241,7 @@ let create_runtime ~document_defaults ~native ~inbox ~scope ~now ~motion ~deskto
   ; number_inputs = Int64.Map.empty
   ; otp_inputs = Int64.Map.empty
   ; calendars = Int64.Map.empty
+  ; palettes = Int64.Map.empty
   ; color_inputs = Int64.Map.empty
   ; dialogs = Int64.Map.empty
   ; window_requests = Int64.Map.empty
@@ -2578,6 +2666,96 @@ let%test_module "pending picker command lifecycle" =
         Input.Expert.snapshot_of_wire ~window:window.id ~node:query wire |> ok
       in
       window, snapshot, wire
+    ;;
+
+    let%expect_test
+        "palette replies are correlated, monotone, bounded and closed exactly once"
+      =
+      with_runtime (fun _ app ->
+        let window, editor, _ = open_picker app in
+        let node = Input.Expert.node editor in
+        let observer = Handler_id.create ~slot:9L ~generation:1L |> ok in
+        let wire : Palette_state_wire.t =
+          { sequence = 3L
+          ; query_revision = 2L
+          ; query = "run"
+          ; composing = false
+          ; selected = None
+          ; matched_count = 0
+          }
+        in
+        let snapshot =
+          Palette.Expert.snapshot_of_wire ~window:window.id ~node ~observer wire |> ok
+        in
+        let start ?(command = Palette.Command.Read_snapshot) () =
+          let result = ref None
+          and calls = ref 0 in
+          E.Expert.handle
+            (E.map (Window.Expert.palette_command window snapshot command) ~f:(fun next ->
+               incr calls;
+               result := Some next));
+          app.correlation, result, calls
+        in
+        let request, result, calls = start () in
+        let wrong = Handler_id.create ~slot:9L ~generation:2L |> ok in
+        process app (Palette_result (request, window.id, node, wrong, Applied wire));
+        assert (Option.is_none !result && !calls = 0);
+        process
+          app
+          (Palette_result
+             (request, window.id, node, observer, Applied { wire with sequence = 2L }));
+        assert (
+          Option.equal
+            (Result.equal Palette.Snapshot.equal Palette.Command_error.equal)
+            !result
+            (Some (Error Native_failure)));
+        assert (!calls = 1);
+        process app (Palette_result (request, window.id, node, observer, Applied wire));
+        assert (!calls = 1);
+        let _, invalid, invalid_calls = start ~command:(Set_query "x\n") () in
+        assert (
+          Option.equal
+            (Result.equal Palette.Snapshot.equal Palette.Command_error.equal)
+            !invalid
+            (Some (Error Invalid_query))
+          && !invalid_calls = 1);
+        assert (Map.is_empty app.palettes);
+        let pending = List.init 64 ~f:(fun _ -> start ()) in
+        let _, busy, busy_calls = start () in
+        assert (
+          Option.equal
+            (Result.equal Palette.Snapshot.equal Palette.Command_error.equal)
+            !busy
+            (Some (Error Busy))
+          && !busy_calls = 1);
+        let request, result, calls = List.hd_exn pending in
+        process app (Palette_result (request, window.id, node, observer, Applied wire));
+        assert (
+          Option.equal
+            (Result.equal Palette.Snapshot.equal Palette.Command_error.equal)
+            !result
+            (Some (Ok snapshot))
+          && !calls = 1);
+        release_window window;
+        assert (Map.is_empty app.palettes);
+        List.iter (List.tl_exn pending) ~f:(fun (_, result, calls) ->
+          assert (
+            Option.equal
+              (Result.equal Palette.Snapshot.equal Palette.Command_error.equal)
+              !result
+              (Some (Error Closed))
+            && !calls = 1));
+        let _, closed, closed_calls = start () in
+        assert (
+          Option.equal
+            (Result.equal Palette.Snapshot.equal Palette.Command_error.equal)
+            !closed
+            (Some (Error Closed))
+          && !closed_calls = 1));
+      print_endline
+        "wrong observer ignored; regression rejected; 64 bounded; closure completes once";
+      [%expect
+        {| wrong observer ignored; regression rejected; 64 bounded; closure completes once |}]
     ;;
 
     let start window snapshot =

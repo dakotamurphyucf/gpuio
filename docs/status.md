@@ -97,7 +97,7 @@ including passive accessibility text, keyboard navigation and context-menu focus
 restoration. Platform bars reject labels explicitly. [Passive rich menu content](evidence/menu-content-och41.md)
 now adds registered SVGs and composed labels, with paired transaction admission,
 paint/animation lifecycle checks and an installed macOS pixel/interaction walkthrough.
-Palette search/visibility/Escape policies now have [API, native lifecycle and installed macOS evidence](evidence/palette-policies-och41.md). [Grouped palette presentation](evidence/palette-layout-och41.md) now adds stable groups, filtered passive headings and separators with retained measured scrolling, paired codecs, native regressions and an installed macOS walkthrough. [Rich palette content](evidence/palette-content-och41.md) now adds measured command rows and interactive header/footer/empty Views, with native lifecycle/1,000-row/focus tests and a passing installed macOS walkthrough. Query/highlight controllers, loading/persistent embedding and OS popup menus remain open catalog work.
+Palette search/visibility/Escape policies now have [API, native lifecycle and installed macOS evidence](evidence/palette-policies-och41.md). [Grouped palette presentation](evidence/palette-layout-och41.md) now adds stable groups, filtered passive headings and separators with retained measured scrolling, paired codecs, native regressions and an installed macOS walkthrough. [Rich palette content](evidence/palette-content-och41.md) now adds measured command rows and interactive header/footer/empty Views, with native lifecycle/1,000-row/focus tests and a passing installed macOS walkthrough. Query/highlight controls now have [local controller qualification](evidence/palette-commands-och41.md); loading/persistent embedding, atomic external results and OS popup menus remain open catalog work.
 The current unmodified table smoke at `5c3956d` fails the 100 ms startup gate
 at approximately 147.364 ms. A separate paced replay also reproduces the owner's
 reported table flicker: three overlapping rows remain populated while newly
@@ -156,8 +156,10 @@ This onboarding improvement does not close release or catalog acceptance.
 
 Palettes now expose [asynchronous query/highlight snapshots](evidence/palette-observation-och41.md)
 with subscription/query identity, bounded delivery and a passing installed macOS
-typing/navigation walkthrough. Programmatic query/highlight, atomic external
-results, loading and persistent embedding remain open controller work.
+typing/navigation walkthrough. [Native query/highlight commands](evidence/palette-commands-och41.md) now have
+correlated subscription checks and an optional current-native-query fence, with
+full native/OCaml and installed macOS evidence. Atomic external results, loading
+and persistent embedding remain open controller work.
 
 The public gallery and reference applications exist, with public Core/Bonsai/Eio
 APIs and native Rust ownership. Local source reviews and behavior evidence cover

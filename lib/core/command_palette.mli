@@ -138,7 +138,26 @@ module Snapshot : sig
   val same_query : t -> t -> bool
 end
 
+module Command : sig
+  type t =
+    | Read_snapshot
+    | Focus
+    | Set_query of string
+    | Highlight of Command.Id.t option
+  [@@deriving equal, sexp_of]
+end
+
+module Command_error = Gpuio_protocol.Palette_command_wire.Error
+
 module Expert : sig
+  val window : Snapshot.t -> Gpuio_protocol.Window_id.t
+  val node : Snapshot.t -> Gpuio_protocol.Node_id.t
+  val observer : Snapshot.t -> Gpuio_protocol.Handler_id.t
+  val sequence : Snapshot.t -> int64
+  val query_revision : Snapshot.t -> int64
+  val same_owner : Snapshot.t -> Snapshot.t -> bool
+  val command_to_wire : Command.t -> Gpuio_protocol.Palette_command_wire.Command.t
+
   val snapshot_of_wire
     :  window:Gpuio_protocol.Window_id.t
     -> node:Gpuio_protocol.Node_id.t

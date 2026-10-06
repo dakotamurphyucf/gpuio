@@ -44,6 +44,7 @@ pub(super) struct State {
     editor: Option<NodeId>,
     rows: Vec<Row>,
     selected: Option<String>,
+    preserve_no_selection: bool,
     snapshot: Option<gpuio_protocol::palette_state::Snapshot>,
     input_revision: Option<i64>,
     published: Option<(gpuio_protocol::HandlerId, i64)>,
@@ -244,6 +245,7 @@ impl View {
                     editor,
                     rows: vec![],
                     selected: None,
+                    preserve_no_selection: false,
                     snapshot: None,
                     input_revision: None,
                     published: None,
@@ -269,6 +271,83 @@ impl View {
                     .remeasure_items(0..state.scroll.rows().len());
             }
         }
+    }
+    pub(super) fn palette_command(
+        &mut self,
+        id: NodeId,
+        observer: gpuio_protocol::HandlerId,
+        expected_query: Option<i64>,
+        command: &gpuio_protocol::palette_command::Command,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> gpuio_protocol::palette_command::Response {
+        use gpuio_protocol::palette_command::{Command, Error, Response};
+        let live = self
+            .session
+            .borrow()
+            .tree(self.id)
+            .and_then(|t| t.get(id))
+            .is_some_and(|n| n.palette_observed && n.handler == Some(observer));
+        if !live || self.palettes.get(&id).is_none_or(|s| s.closed) {
+            return Response::Failed(Error::StalePalette);
+        }
+        if !command.is_valid() {
+            return Response::Failed(Error::InvalidQuery);
+        }
+        // Refresh before comparing the fence: a newer InputState edit may not
+        // have emitted its coalesced observer callback yet.
+        self.refresh_palette(id, cx);
+        let state = &self.palettes[&id];
+        let Some(snapshot) = state.snapshot.as_ref() else {
+            return Response::Failed(Error::NativeFailure);
+        };
+        if snapshot.sequence == i64::MAX {
+            return Response::Failed(Error::NativeFailure);
+        }
+        if expected_query.is_some_and(|r| r != snapshot.query_revision) {
+            return Response::Failed(Error::QueryChanged);
+        }
+        if !matches!(command, Command::ReadSnapshot) {
+            if !self.focus.borrow().top_overlay(id)
+                || !self.focus.borrow().visible(id)
+                || !self.focus.borrow().interactive(id)
+            {
+                return Response::Failed(Error::Unavailable);
+            }
+            if state.composing(cx) {
+                return Response::Failed(Error::Composing);
+            }
+        }
+        match command {
+            Command::ReadSnapshot => {}
+            Command::Focus => {
+                if !state.searchable() {
+                    return Response::Failed(Error::Unavailable);
+                }
+                window.focus(&state.query.read(cx).focus_handle(cx), cx);
+            }
+            Command::SetQuery(text) => {
+                let query = state.query.clone();
+                query.update(cx, |input, cx| input.set_value(text.clone(), window, cx));
+            }
+            Command::Highlight(selected) => {
+                if selected.as_ref().is_some_and(|id| {
+                    !state
+                        .rows
+                        .iter()
+                        .any(|row| row.enabled && &row.route.config.id == id)
+                }) {
+                    return Response::Failed(Error::Unavailable);
+                }
+                let state = self.palettes.get_mut(&id).unwrap();
+                state.selected = selected.clone();
+                state.preserve_no_selection = selected.is_none();
+                state.revealed = None;
+            }
+        }
+        self.refresh_palette(id, cx);
+        cx.notify();
+        Response::Applied(self.palettes[&id].snapshot.as_ref().unwrap().clone())
     }
     fn refresh_palette(&mut self, id: NodeId, cx: &App) -> String {
         let Some(state) = self.palettes.get(&id) else {
@@ -323,9 +402,13 @@ impl View {
             )
         };
         let state = self.palettes.get_mut(&id).unwrap();
-        if !rows
-            .iter()
-            .any(|row| row.enabled && Some(&row.route.config.id) == state.selected.as_ref())
+        if state.input_revision != Some(state.query.read(cx).bridge_revision()) {
+            state.preserve_no_selection = false;
+        }
+        if !state.preserve_no_selection
+            && !rows
+                .iter()
+                .any(|row| row.enabled && Some(&row.route.config.id) == state.selected.as_ref())
         {
             state.selected = rows
                 .iter()
@@ -622,7 +705,9 @@ impl View {
             let current = enabled
                 .iter()
                 .position(|id| Some(id) == state.selected.as_ref())
-                .unwrap_or(0) as isize;
+                .map(|index| index as isize)
+                .unwrap_or(if delta > 0 { -1 } else { 0 });
+            state.preserve_no_selection = false;
             state.selected = Some(
                 enabled[(current + delta).rem_euclid(enabled.len() as isize) as usize].clone(),
             );

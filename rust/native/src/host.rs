@@ -2050,6 +2050,13 @@ pub fn run(transport: Arc<Transport>) {
                                 Err(error) => transport.respond(Event::Failed(correlation, error)),
                             }
                         }
+                        Message::PaletteCommand(correlation, id, node, observer, expected, command) => {
+                            use gpuio_protocol::palette_command::{Error, Response};
+                            let result = windows.get(&id).and_then(|handle| handle.update(cx, |view, window, cx| {
+                                view.palette_command(node, observer, expected, &command, window, cx)
+                            }).ok()).unwrap_or(Response::Failed(Error::Closed));
+                            transport.respond(Event::PaletteResult(correlation, id, node, observer, result));
+                        }
                         Message::ColorInputCommand(correlation, id, node, command) => {
                             use gpuio_protocol::color_input::{Error, Response};
                             let result = windows.get(&id).and_then(|handle| handle.update(cx, |view, window, cx| {

@@ -3,6 +3,7 @@ open Gpuio
 module B = Bonsai.Cont
 module V = Gpuio_bonsai.View
 module State = Gpuio_gallery_model.Feedback_state
+module Palette_controller = Gpuio_eio.Palette_controller
 
 let ok = Or_error.ok_exn
 let style = Style.create_exn
@@ -60,7 +61,8 @@ let component app window palette graph =
       graph
   in
   let chooser, set_chooser = B.state false graph in
-  let palette_snapshot, set_palette_snapshot = B.state None graph in
+  let palette_controller = Palette_controller.create window graph in
+  let palette_command_status, set_palette_command_status = B.state "" graph in
   let palette_help, toggle_palette_help = B.toggle ~default_model:false graph in
   let palette_note =
     Gpuio_eio.Text_input.create
@@ -126,8 +128,9 @@ let component app window palette graph =
   and palette_note = palette_note
   and chooser = chooser
   and set_chooser = set_chooser
-  and palette_snapshot = palette_snapshot
-  and set_palette_snapshot = set_palette_snapshot
+  and palette_controller = palette_controller
+  and palette_command_status = palette_command_status
+  and set_palette_command_status = set_palette_command_status
   and palette_search = palette_search
   and next_palette_search = next_palette_search
   and palette_searchable = palette_searchable
@@ -302,7 +305,7 @@ let component app window palette graph =
     | _ -> view
   in
   let palette_status =
-    match palette_snapshot with
+    match Palette_controller.snapshot palette_controller with
     | None -> "Finding commands…"
     | Some snapshot ->
       let selected =
@@ -316,6 +319,15 @@ let component app window palette graph =
         "%d matching commands · %s"
         (Command_palette.Snapshot.matched_count snapshot)
         selected
+  in
+  let palette_command command =
+    let open Bonsai.Effect.Let_syntax in
+    let%bind result = Palette_controller.command palette_controller command in
+    set_palette_command_status
+      (match result with
+       | Ok _ -> "Native command applied"
+       | Error error ->
+         Sexp.to_string_hum ([%sexp_of: Command_palette.Command_error.t] error))
   in
   let decorate_palette view =
     let items =
@@ -350,6 +362,17 @@ let component app window palette graph =
            ~style:(style [ Gap (px 8.) ])
            [ V.text ~style:(style [ Font_size 12. ]) palette_status
            ; V.button ~on_click:toggle_palette_help "Palette help"
+           ; V.row
+               ~style:(style [ Gap (px 8.); Wrap Wrap ])
+               [ V.button ~on_click:(palette_command (Set_query "store")) "Find saves"
+               ; V.button ~on_click:(palette_command (Set_query "")) "Clear search"
+               ; V.button
+                   ~on_click:(palette_command (Highlight (Some notify)))
+                   "Highlight save"
+               ; V.button ~on_click:(palette_command (Highlight None)) "Clear highlight"
+               ; V.button ~on_click:(palette_command Focus) "Focus search"
+               ]
+           ; V.text palette_command_status
            ; V.text
                (if palette_help
                 then "Use keywords to narrow the commands"
@@ -459,6 +482,7 @@ let component app window palette graph =
     ; (if chooser
        then
          V.command_palette
+           ~key:(Palette_controller.key palette_controller)
            ~config:
              (Command_palette.Config.create_entries
                 ~label:"Preview commands"
@@ -490,9 +514,13 @@ let component app window palette graph =
                 ~placeholder:"Find a preview action…"
                 ()
               |> ok)
-           ~on_change:(fun snapshot -> set_palette_snapshot (Some snapshot))
+           ~on_change:(Palette_controller.observe palette_controller)
            ~on_dismiss:(fun _ ->
-             Bonsai.Effect.Many [ set_palette_snapshot None; set_chooser false ])
+             Bonsai.Effect.Many
+               [ Palette_controller.reset palette_controller
+               ; set_palette_command_status ""
+               ; set_chooser false
+               ])
            ()
          |> decorate_palette
        else V.column [])

@@ -100,6 +100,18 @@ module Window : sig
       -> (Gpuio.File_dialog.Capabilities.t, Gpuio.File_dialog.Error.t) Result.t
            Bonsai.Effect.t
 
+    (** Captures the exact observed palette subscription. An optional query
+        fence is checked against current native input before executing. *)
+    val palette_command
+      :  t
+      -> Gpuio.Command_palette.Snapshot.t
+      -> ?if_query_unchanged:bool
+      -> Gpuio.Command_palette.Command.t
+      -> ( Gpuio.Command_palette.Snapshot.t
+           , Gpuio.Command_palette.Command_error.t )
+           Result.t
+           Bonsai.Effect.t
+
     (** Correlated native commands for controller adapters. Captures the exact
         editor lease; a delayed effect never targets a remounted replacement. *)
     val editor_command

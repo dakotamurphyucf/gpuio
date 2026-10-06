@@ -4211,6 +4211,7 @@ let dispatch t = function
   | Pointer_event _
   | Toast_dismissed _
   | Palette_dismissed _
+  | Palette_result _
   | Palette_observed _
   | Command_invoked _
   | Calendar_viewport_changed _

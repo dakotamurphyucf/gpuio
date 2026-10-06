@@ -1783,6 +1783,26 @@ pub fn decode(bytes: &[u8]) -> Result<Message, DecodeError> {
     }
     let d = &mut Decoder(Cursor::new(bytes));
     let value = match d.tag()? {
+        22 => {
+            use crate::palette_command::Command;
+            let correlation = d.int()?;
+            let window = d.window()?;
+            let node = d.node()?;
+            let handler =
+                HandlerId::from_parts(d.int()?, d.int()?).ok_or(DecodeError::Malformed)?;
+            let expected = d.option(|d| d.int())?;
+            let command = match d.tag()? {
+                0 => Command::ReadSnapshot,
+                1 => Command::Focus,
+                2 => Command::SetQuery(d.text()?),
+                3 => Command::Highlight(d.option(|d| d.text())?),
+                _ => return Err(DecodeError::Malformed),
+            };
+            if correlation <= 0 || expected.is_some_and(|r| r <= 0) || !command.is_valid() {
+                return Err(DecodeError::Malformed);
+            }
+            Message::PaletteCommand(correlation, window, node, handler, expected, command)
+        }
         0 => Message::Hello(d.int()?, d.int()?),
         1 => Message::Open(d.int()?, d.window()?, d.text()?, d.float()?, d.float()?),
         2 => Message::Close(d.int()?, d.window()?),

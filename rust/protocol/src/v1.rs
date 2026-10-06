@@ -879,6 +879,14 @@ pub enum Message {
     Desktop(i64, crate::desktop::Request),
     Notification(i64, crate::notification::Request),
     Chart(i64, crate::chart_resource::Request),
+    PaletteCommand(
+        i64,
+        WindowId,
+        NodeId,
+        HandlerId,
+        Option<i64>,
+        crate::palette_command::Command,
+    ),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
@@ -1145,5 +1153,12 @@ pub enum Event {
         HandlerId,
         i64,
         crate::palette_state::Snapshot,
+    ),
+    PaletteResult(
+        i64,
+        WindowId,
+        NodeId,
+        HandlerId,
+        crate::palette_command::Response,
     ),
 }

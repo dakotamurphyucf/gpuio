@@ -1060,3 +1060,195 @@ fn coalesced_query_edits_do_not_reuse_identity_when_text_returns() {
     assert_eq!(after.last().unwrap().query, "Run");
     assert!(after.last().unwrap().query_revision > before.query_revision);
 }
+
+fn palette_command(
+    owner: &Entity<View>,
+    cx: &mut VisualTestContext,
+    observer: HandlerId,
+    expected: Option<i64>,
+    command: gpuio_protocol::palette_command::Command,
+) -> gpuio_protocol::palette_command::Response {
+    cx.update(|w, cx| {
+        owner.update(cx, |view, cx| {
+            view.palette_command(id(1), observer, expected, &command, w, cx)
+        })
+    })
+}
+
+#[test]
+fn palette_commands_clear_highlight_retain_it_and_never_activate() {
+    use gpuio_protocol::palette_command::{Command as C, Error as E, Response as R};
+    let mut app = TestAppContext::single();
+    let (owner, mut cx, _reader) = mount_extra(&mut app, vec![Op::SetPaletteObserved(id(1), true)]);
+    let handler = HandlerId::from_parts(1, 1).unwrap();
+    let initial = observations(&owner, &cx).pop().unwrap();
+    let result = palette_command(
+        &owner,
+        &mut cx,
+        handler,
+        Some(initial.query_revision),
+        C::Highlight(None),
+    );
+    let R::Applied(cleared) = result else {
+        panic!("{result:?}")
+    };
+    assert_eq!(cleared.selected, None);
+    assert_eq!(cleared.query_revision, initial.query_revision);
+    draw(&mut cx);
+    draw(&mut cx);
+    apply(&owner, &mut cx, vec![Op::SetCommands(id(0), commands())]);
+    assert_eq!(state(&owner, &cx).1, None);
+    assert_eq!(
+        palette_command(
+            &owner,
+            &mut cx,
+            handler,
+            None,
+            C::Highlight(Some("disabled".into()))
+        ),
+        R::Failed(E::Unavailable)
+    );
+    assert_eq!(state(&owner, &cx).1, None);
+    assert!(matches!(
+        palette_command(&owner, &mut cx, handler, None, C::Focus),
+        R::Applied(_)
+    ));
+    cx.simulate_keystrokes("down");
+    draw(&mut cx);
+    assert_eq!(state(&owner, &cx).1.as_deref(), Some("run"));
+    palette_command(&owner, &mut cx, handler, None, C::Highlight(None));
+    cx.simulate_keystrokes("up");
+    draw(&mut cx);
+    assert_eq!(state(&owner, &cx).1.as_deref(), Some("other"));
+    let result = palette_command(&owner, &mut cx, handler, None, C::SetQuery("Run".into()));
+    let R::Applied(queried) = result else {
+        panic!("{result:?}")
+    };
+    assert_eq!(queried.query, "Run");
+    assert_eq!(queried.matched_count, 1);
+    assert_eq!(queried.selected.as_deref(), Some("run"));
+    assert!(queried.query_revision > initial.query_revision);
+    assert_eq!(
+        palette_command(
+            &owner,
+            &mut cx,
+            handler,
+            None,
+            C::Highlight(Some("other".into()))
+        ),
+        R::Failed(E::Unavailable)
+    );
+    assert!(!state(&owner, &cx).0);
+    owner.read_with(&cx, |view, _| {
+        assert!(
+            !view
+                .transport
+                .mailbox
+                .lock()
+                .unwrap()
+                .drain(128)
+                .iter()
+                .any(|e| matches!(e, Event::CommandInvoked(..) | Event::PaletteDismissed(..)))
+        );
+    });
+}
+
+#[test]
+fn palette_command_fence_reads_unnotified_edits_and_subscription_retirement() {
+    use gpuio_protocol::palette_command::{Command as C, Error as E, Response as R};
+    let mut app = TestAppContext::single();
+    let (owner, mut cx, _reader) = mount_extra(&mut app, vec![Op::SetPaletteObserved(id(1), true)]);
+    let handler = HandlerId::from_parts(1, 1).unwrap();
+    let initial = observations(&owner, &cx).pop().unwrap();
+    // No run_until_parked between the ABA edits and request: comparing a cached
+    // observer snapshot here would admit the stale request.
+    let result = cx.update(|w, cx| {
+        owner.update(cx, |view, cx| {
+            view.palettes[&id(1)].query.update(cx, |q, cx| {
+                q.set_value("Run", w, cx);
+                q.set_value("", w, cx);
+            });
+            view.palette_command(
+                id(1),
+                handler,
+                Some(initial.query_revision),
+                &C::SetQuery("bad".into()),
+                w,
+                cx,
+            )
+        })
+    });
+    assert_eq!(result, R::Failed(E::QueryChanged));
+    assert_eq!(
+        palette_command(&owner, &mut cx, handler, None, C::SetQuery("x\n".into())),
+        R::Failed(E::InvalidQuery)
+    );
+    let replacement = HandlerId::from_parts(1, 2).unwrap();
+    apply(&owner, &mut cx, vec![Op::Bind(id(1), Some(replacement))]);
+    assert_eq!(
+        palette_command(&owner, &mut cx, handler, None, C::ReadSnapshot),
+        R::Failed(E::StalePalette)
+    );
+    assert!(matches!(
+        palette_command(&owner, &mut cx, replacement, None, C::ReadSnapshot),
+        R::Applied(_)
+    ));
+    apply(&owner, &mut cx, vec![Op::SetPaletteObserved(id(1), false)]);
+    assert_eq!(
+        palette_command(&owner, &mut cx, replacement, None, C::Focus),
+        R::Failed(E::StalePalette)
+    );
+}
+
+#[test]
+fn palette_commands_preserve_composition_and_reject_hidden_query_focus() {
+    use gpui::EntityInputHandler;
+    use gpuio_protocol::palette_command::{Command as C, Error as E, Response as R};
+    let mut app = TestAppContext::single();
+    let (owner, mut cx, _reader) = mount_extra(&mut app, vec![Op::SetPaletteObserved(id(1), true)]);
+    let handler = HandlerId::from_parts(1, 1).unwrap();
+    let input = owner.read_with(&cx, |view, _| view.palettes[&id(1)].query.clone());
+    cx.update(|w, cx| {
+        w.focus(&input.read(cx).focus_handle(cx), cx);
+        input.update(cx, |q, cx| {
+            q.replace_and_mark_text_in_range(None, "λ", Some(0..1), w, cx)
+        });
+    });
+    for command in [C::Focus, C::SetQuery("bad".into()), C::Highlight(None)] {
+        assert_eq!(
+            palette_command(&owner, &mut cx, handler, None, command),
+            R::Failed(E::Composing)
+        );
+    }
+    let R::Applied(snapshot) = palette_command(&owner, &mut cx, handler, None, C::ReadSnapshot)
+    else {
+        panic!()
+    };
+    assert_eq!(snapshot.query, "λ");
+    assert!(snapshot.composing);
+    cx.update(|w, cx| input.update(cx, |q, cx| q.unmark_text(w, cx)));
+    let options = gpuio_protocol::palette_options::Config {
+        searchable: false,
+        ..Default::default()
+    };
+    apply(
+        &owner,
+        &mut cx,
+        vec![Op::SetPaletteOptions(id(1), Some(options))],
+    );
+    assert_eq!(
+        palette_command(&owner, &mut cx, handler, None, C::Focus),
+        R::Failed(E::Unavailable)
+    );
+    assert!(matches!(
+        palette_command(&owner, &mut cx, handler, None, C::SetQuery("Run".into())),
+        R::Applied(_)
+    ));
+}
+
+fn state(
+    owner: &Entity<View>,
+    cx: &VisualTestContext,
+) -> (bool, Option<String>, Vec<(String, bool)>) {
+    owner.read_with(cx, |view, _| view.palettes[&id(1)].probe())
+}
