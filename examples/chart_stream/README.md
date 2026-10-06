@@ -1,5 +1,8 @@
 # Public chart streaming workload
 
+Read the [main source walkthrough](main.md) for API calls, runtime ownership,
+interaction traces, commands, and diagnostic limits.
+
 This executable measures the public Core/Bonsai/Eio chart API. It opens one
 foreground 800×400 chart and closes after the workload. It does not contact a
 network service or mutate a global toolchain.

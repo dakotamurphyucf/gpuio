@@ -469,3 +469,31 @@ is intentionally unconditional; notice epochs do not undo native commands;
 notification handlers depend on serial delivery; a receipt is not proof of a
 visible banner. These are documented contracts/limitations, not claims of newly
 reproduced or fixed bugs.
+
+## Standalone, retained-layout and desktop walkthroughs
+
+Source base `f170dd3`: 18 further groups reviewed, for **189 reviewed / 71 pending**
+of 260 groups (417 sources). Three authorized GPT-6.1 Sol agents wrote the guides;
+primary review checked the prose and representative source/interface contracts.
+
+- Standalone `view_api` entry point, shared views and compiled Bonsai sample;
+  palette, desktop and finite chart-stream entry points.
+- Gallery split/group, carousel track, scrollbar, structural table and retained
+  tab content previews.
+- Desktop page/session, settings preview, Eio settings writer and its expect tests,
+  and the packaged counter's extensions page.
+
+Each guide explains actual aliases, reactive syntax, event/effect flow, native
+ownership, launch prerequisites and a concrete adaptation. Owning READMEs link the
+guides. The settings writer guide also owns its independent test source row.
+
+Review found that `view_api`'s `native_selection=true` self-test marker is not
+supported by a generated selection action/assertion. Its walkthrough explicitly
+limits the self-test to bridge/frame updates; correcting that legacy diagnostic
+marker remains an OCH-17 evidence task. The compiled `Bonsai_component` is not
+mounted by this entry point. Neither compilation nor those markers establishes
+interactive Bonsai, selection, IME or platform acceptance.
+
+Structural inventory, local Markdown file links and whitespace checks pass.
+No executable command or GUI test was repeated for this documentation batch;
+concurrent chart validation is recorded separately. OCH-48 remains incomplete.

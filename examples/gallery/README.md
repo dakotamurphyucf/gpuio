@@ -68,6 +68,11 @@ Editing and controlled-input walkthroughs: [sliders](slider_preview.md),
 [password privacy](password_preview.md), [multiline geometry](textarea_preview.md) and
 [prepared edit filters](edit_filter_preview.md).
 
+Native composition walkthroughs: [split actions](split_preview.md),
+[retained split panels](split_group_preview.md), [measured card tracks](carousel_track_preview.md),
+[shared scrollbar descriptions](scrollbar_preview.md), [independent tab parts](tab_content_preview.md)
+and [structural tables](structural_table_preview.md).
+
 Styles → **A theme from your workspace** loads a palette for the current window.
 Read the [theme-loading walkthrough](theme_preview.md), then the independent
 [appearance model](model/appearance.md), [selection identity](model/theme_selection.md),
@@ -1113,3 +1118,9 @@ interaction traces and adaptation examples.
 Supporting pure-model walkthroughs explain the [canvas scene](model/canvas_study.md),
 [diff expansion reducer](model/diff_state.md) and [raster fixture](image_samples.md),
 including their distinction from the Bonsai graphs and scoped source owners.
+
+Desktop and persistence guides explain the [Desktop page](desktop_page.md),
+[application-owned desktop session](desktop_session.md), [Settings preview](settings_preview.md)
+and [Eio settings writer and expect tests](files/settings_file.md).
+The [Extensions page](extensions_page.md) traces the packaged counter's typed
+OCaml interface and native lifetime.
