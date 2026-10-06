@@ -1,6 +1,15 @@
 use super::{DecodeError, Decoder};
 use crate::chart_inspection::*;
 impl Decoder<'_> {
+    fn chart_guide_span(&mut self) -> Result<Span, DecodeError> {
+        match self.tag()? {
+            0 => Ok(Span::Full),
+            1 => Ok(Span::Pixels(self.float()?, self.float()?)),
+            2 => Ok(Span::Fraction(self.float()?, self.float()?)),
+            _ => Err(DecodeError::Malformed),
+        }
+    }
+
     pub(super) fn chart_inspection(&mut self) -> Result<Inspection, DecodeError> {
         let value = Inspection {
             card: Card {
@@ -39,6 +48,8 @@ impl Decoder<'_> {
                 },
                 thickness: self.float()?,
                 color: self.option(|d| d.int())?,
+                vertical_span: self.chart_guide_span()?,
+                horizontal_span: self.chart_guide_span()?,
             },
             marker: Marker {
                 visible: self.boolean()?,

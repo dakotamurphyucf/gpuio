@@ -9,6 +9,7 @@ type t =
   | Anchored
   | Cursor
   | Marker_only
+  | Partial_guides
 [@@deriving equal]
 
 val all : t list

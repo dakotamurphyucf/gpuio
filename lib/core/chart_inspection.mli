@@ -61,10 +61,28 @@ module Card : sig
   val default : t
 end
 
+module Span : sig
+  type t [@@deriving equal, sexp_of]
+
+  val full : t
+
+  (** Physical start and nonnegative length in logical pixels. Start is finite
+      in [-32768,32768], length in [0,65536]. Layout clips to the plot extent;
+      an empty intersection draws no guide. *)
+  val pixels : start:float -> length:float -> t Or_error.t
+
+  (** Fractions of plot height for a vertical guide, width for a horizontal
+      guide. Start is finite in [-1,1], length in [0,2]. Fractions follow resize.
+      Both representations run top-to-bottom/left-to-right regardless of chart
+      value direction. Neither changes the inspected mark or source values. *)
+  val fraction : start:float -> length:float -> t Or_error.t
+end
+
 module Crosshair : sig
   type t [@@deriving equal, sexp_of]
 
-  (** Thickness 0.5..64. Full prepared plot extents only. Solid thickness
+  (** Thickness 0.5..64. Spans default to the full prepared plot extent.
+      Vertical/horizontal spans are independent. Solid thickness
       supports highlight bands; dashed uses native dashed borders. Endpoint
       guides stay inside the plot; narrow plots clip the configured thickness. *)
   val create
@@ -72,6 +90,8 @@ module Crosshair : sig
     -> ?pattern:Pattern.t
     -> ?thickness:float
     -> ?color:Color.t
+    -> ?vertical_span:Span.t
+    -> ?horizontal_span:Span.t
     -> unit
     -> t Or_error.t
 

@@ -1,0 +1,87 @@
+{
+  "base_commit": "17cd961b3d8ae07324fcf3016eb81c2947e9abd2",
+  "scope": "Local macOS independent chart guide spans; no whole catalog, Linux desktop, VoiceOver or release acceptance",
+  "archive_sha256": "689ca110ef266bb98af1d46563dd2f60ca893c509325041b5740bcebcb4ec868",
+  "files": [
+    {
+      "path": "binaries.json",
+      "bytes": 164,
+      "sha256": "17f066cd2183ab2dcd187269f9072f0bf547a59d28c9defbe22df9ebc2bc0b46"
+    },
+    {
+      "path": "commands.py",
+      "bytes": 1204,
+      "sha256": "5fa7f16286511fe6ff7010a7ed2b871a66c67bb68b6df6f096515ac06797e2d0"
+    },
+    {
+      "path": "environment.txt",
+      "bytes": 69,
+      "sha256": "c1201d2f8119b24a5acfa8471316a1719c5b6d9fbbe878ea93031f4318078c71"
+    },
+    {
+      "path": "images/gallery-chart-inspection-default-inspection.png",
+      "bytes": 394855,
+      "sha256": "717f36ed4ebb250a30e982275e2398b3ff51e8005d00c4c758fc9aaef33647bd"
+    },
+    {
+      "path": "images/gallery-chart-inspection-partial-guides.png",
+      "bytes": 390963,
+      "sha256": "0236b9d8bae95643d42ee16abdf3059c8e32e432d02ac468b42075255f724023"
+    },
+    {
+      "path": "logs/chart-expect.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "logs/clippy.log",
+      "bytes": 588425,
+      "sha256": "f6040883862b50f89d568aa8a2d8e71160f39b7973da3b2d005bf394d39f8cd1"
+    },
+    {
+      "path": "logs/consumer.log",
+      "bytes": 104096,
+      "sha256": "3e87d97e97437cb23e2549e2fe081a558630f1b02f83ddff2c88dbf293fcf611"
+    },
+    {
+      "path": "logs/dune.log",
+      "bytes": 605632,
+      "sha256": "fc624ab31da3b6bf2437e5f8ee04861ea5572bf90fc4c6b6547397616579adb8"
+    },
+    {
+      "path": "logs/feature-clippy.log",
+      "bytes": 588348,
+      "sha256": "f67faf9e53d6650c6e19f8aaa9c4f56eb3dbc54ae6a440b962ba058ccc2c972d"
+    },
+    {
+      "path": "logs/gallery.log",
+      "bytes": 3224,
+      "sha256": "f825f6f0ba220263f1a9dea397b73b73d0b68aefe3487200b4b84d8ebdeb96fd"
+    },
+    {
+      "path": "logs/native-input.log",
+      "bytes": 590103,
+      "sha256": "d00ecf290090f4e6b6bfd63296a17eae4ce8b40ab7558ff1393640fcff092591"
+    },
+    {
+      "path": "logs/native-view.log",
+      "bytes": 589905,
+      "sha256": "d7497f3c0bc52137c3e68325240dcf5a20074590fabeb8c31295a0b4a73f0f12"
+    },
+    {
+      "path": "logs/native.log",
+      "bytes": 700498,
+      "sha256": "d3d276202b0538fa3d3e39a7c597d225a2dc2001f1e2c3d05bf2dac564564c7b"
+    },
+    {
+      "path": "logs/protocol.log",
+      "bytes": 57966,
+      "sha256": "bbc9dd89909e9aa01d7cd5561ced9df11312b32621a8fccfa7bfe0af17a11a7c"
+    },
+    {
+      "path": "public-commands.py",
+      "bytes": 1435,
+      "sha256": "15787554f7fd7cba6026a1ecc9f8aacd0d993ab32f2f2e62f728493b7af71a86"
+    }
+  ]
+}

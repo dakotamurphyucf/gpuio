@@ -5,7 +5,7 @@ use crate::{
 };
 use gpui::StatefulInteractiveElement;
 use gpui::{AnyElement, InteractiveElement, IntoElement, ParentElement, Styled, div, px};
-use gpuio_protocol::chart_inspection::{Axis, Card, Pattern, Placement};
+use gpuio_protocol::chart_inspection::{Axis, Card, Pattern, Placement, Span};
 
 #[derive(Debug)]
 struct CardBox {
@@ -67,6 +67,21 @@ fn card_anchor(placement: Placement, mark: Point, pointer: Option<Point>) -> Poi
     }
 }
 
+// Coordinates are physical plot axes, independent of value orientation.
+fn guide_span(span: Span, extent: f64) -> Option<(f64, f64)> {
+    if !extent.is_finite() || extent <= 0. || !span.is_valid() {
+        return None;
+    }
+    let (start, length) = match span {
+        Span::Full => (0., extent),
+        Span::Pixels(start, length) => (start, length),
+        Span::Fraction(start, length) => (start * extent, length * extent),
+    };
+    let end = (start + length).clamp(0., extent);
+    let start = start.clamp(0., extent);
+    (end > start).then_some((start, end - start))
+}
+
 pub(super) fn overlay(
     ready: &Ready,
     frame: Frame,
@@ -94,14 +109,16 @@ pub(super) fn overlay(
             .h(px(frame.plot.height as f32))
             .overflow_hidden();
         let thickness = px(cross.thickness as f32);
-        if matches!(cross.axis, Axis::Vertical | Axis::Both) {
+        if matches!(cross.axis, Axis::Vertical | Axis::Both)
+            && let Some((start, length)) = guide_span(cross.vertical_span, frame.plot.height)
+        {
             let line = div()
                 .absolute()
                 .left(px((anchor.x - cross.thickness / 2.)
                     .clamp(0., (frame.plot.width - cross.thickness).max(0.))
                     as f32))
-                .top_0()
-                .h_full();
+                .top(px(start as f32))
+                .h(px(length as f32));
             lines = lines.child(if cross.pattern == Pattern::Dashed {
                 line.w(thickness)
                     .border_l(thickness)
@@ -111,14 +128,16 @@ pub(super) fn overlay(
                 line.w(thickness).bg(color)
             });
         }
-        if matches!(cross.axis, Axis::Horizontal | Axis::Both) {
+        if matches!(cross.axis, Axis::Horizontal | Axis::Both)
+            && let Some((start, length)) = guide_span(cross.horizontal_span, frame.plot.width)
+        {
             let line = div()
                 .absolute()
                 .top(px((anchor.y - cross.thickness / 2.)
                     .clamp(0., (frame.plot.height - cross.thickness).max(0.))
                     as f32))
-                .left_0()
-                .w_full();
+                .left(px(start as f32))
+                .w(px(length as f32));
             lines = lines.child(if cross.pattern == Pattern::Dashed {
                 line.h(thickness)
                     .border_t(thickness)
@@ -237,6 +256,38 @@ mod tests {
             legend_columns: 2,
             horizontal: false,
         }
+    }
+    #[test]
+    fn guide_intervals_clip_and_fractions_follow_physical_extent() {
+        for extent in [1., 100., 1000.] {
+            assert_eq!(guide_span(Span::Full, extent), Some((0., extent)));
+            assert_eq!(
+                guide_span(Span::Fraction(0.25, 0.5), extent),
+                Some((extent / 4., extent / 2.))
+            );
+            assert_eq!(
+                guide_span(Span::Fraction(-0.25, 0.5), extent),
+                Some((0., extent / 4.))
+            );
+            assert_eq!(
+                guide_span(Span::Fraction(0.75, 0.5), extent),
+                Some((extent * 0.75, extent / 4.))
+            );
+            assert_eq!(
+                guide_span(Span::Fraction(-1., 2.), extent),
+                Some((0., extent))
+            );
+            assert_eq!(guide_span(Span::Fraction(1., 0.5), extent), None);
+            assert_eq!(guide_span(Span::Pixels(0., 0.), extent), None);
+        }
+        assert_eq!(guide_span(Span::Pixels(24., 120.), 200.), Some((24., 120.)));
+        assert_eq!(guide_span(Span::Pixels(24., 120.), 100.), Some((24., 76.)));
+        assert_eq!(guide_span(Span::Pixels(-20., 40.), 100.), Some((0., 20.)));
+        assert_eq!(guide_span(Span::Pixels(-20., 10.), 100.), None);
+        for extent in [0., -1., f64::NAN, f64::INFINITY] {
+            assert_eq!(guide_span(Span::Full, extent), None);
+        }
+        assert_eq!(guide_span(Span::Pixels(f64::NAN, 10.), 100.), None);
     }
     #[test]
     fn cursor_card_tracks_pointer_without_moving_the_mark_and_falls_back() {

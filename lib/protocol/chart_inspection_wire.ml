@@ -61,16 +61,37 @@ module Card = struct
   ;;
 end
 
+module Span = struct
+  type t =
+    | Full
+    | Pixels of float * float
+    | Fraction of float * float
+  [@@deriving bin_io, equal, sexp_of]
+
+  let valid = function
+    | Full -> true
+    | Pixels (start, length) -> within start (-32768.) 32768. && within length 0. 65536.
+    | Fraction (start, length) -> within start (-1.) 1. && within length 0. 2.
+  ;;
+end
+
 module Crosshair = struct
   type t =
     { axis : Axis.t
     ; pattern : Pattern.t
     ; thickness : float
     ; color : int64 option
+    ; vertical_span : Span.t
+    ; horizontal_span : Span.t
     }
   [@@deriving bin_io, equal, sexp_of]
 
-  let valid t = within t.thickness 0.5 64.0 && Option.for_all t.color ~f:color
+  let valid t =
+    within t.thickness 0.5 64.0
+    && Option.for_all t.color ~f:color
+    && Span.valid t.vertical_span
+    && Span.valid t.horizontal_span
+  ;;
 end
 
 module Marker = struct

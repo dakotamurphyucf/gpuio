@@ -76,16 +76,39 @@ impl Default for Card {
         }
     }
 }
+#[derive(Clone, Copy, Debug, Default, PartialEq, BinProtWrite)]
+pub enum Span {
+    #[default]
+    Full,
+    Pixels(f64, f64),
+    Fraction(f64, f64),
+}
+impl Span {
+    pub fn is_valid(self) -> bool {
+        match self {
+            Self::Full => true,
+            Self::Pixels(start, length) => {
+                within(start, -32768., 32768.) && within(length, 0., 65536.)
+            }
+            Self::Fraction(start, length) => within(start, -1., 1.) && within(length, 0., 2.),
+        }
+    }
+}
 #[derive(Clone, Copy, Debug, PartialEq, BinProtWrite)]
 pub struct Crosshair {
     pub axis: Axis,
     pub pattern: Pattern,
     pub thickness: f64,
     pub color: Option<i64>,
+    pub vertical_span: Span,
+    pub horizontal_span: Span,
 }
 impl Crosshair {
     pub fn is_valid(self) -> bool {
-        within(self.thickness, 0.5, 64.0) && self.color.is_none_or(color)
+        within(self.thickness, 0.5, 64.0)
+            && self.color.is_none_or(color)
+            && self.vertical_span.is_valid()
+            && self.horizontal_span.is_valid()
     }
 }
 impl Default for Crosshair {
@@ -95,6 +118,8 @@ impl Default for Crosshair {
             pattern: Pattern::Dashed,
             thickness: 1.,
             color: None,
+            vertical_span: Span::Full,
+            horizontal_span: Span::Full,
         }
     }
 }

@@ -4610,7 +4610,7 @@ def exercise_chart_inspection(mac, images):
         directory = images or Path(temporary)
         baseline = None
         for label in ['Default inspection', 'Vertical crosshair', 'Horizontal band',
-                      'Anchored details', 'Cursor details', 'Marker only', 'Default inspection']:
+                      'Anchored details', 'Cursor details', 'Marker only', 'Partial guides', 'Default inspection']:
             reveal_gallery_control(mac, label, 'AXButton')
             mac.press(TITLE, label)
             mac.wait_text(TITLE, 'Ready: Line · 48 source values · Vertical · ' + label)
@@ -4657,7 +4657,7 @@ def exercise_chart_inspection(mac, images):
                 assert len(samples) == len(baseline)
                 changed = sum(max(abs(a-b) for a,b in zip(p,q)) > 8 for p,q in zip(samples,baseline))
                 assert changed > 100, ('Inspection preset did not change chart pixels', label, changed)
-                if label in ['Vertical crosshair', 'Anchored details', 'Cursor details', 'Marker only']:
+                if label in ['Vertical crosshair', 'Anchored details', 'Cursor details', 'Marker only', 'Partial guides']:
                     assert rose > 30, ('Inspection accent missing', label, rose)
                 print('CHART_INSPECTION_PIXELS', label, changed, rose, flush=True)
         mac.press(TITLE, 'Update chart samples')

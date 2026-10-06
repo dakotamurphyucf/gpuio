@@ -32,6 +32,8 @@ fn inspector_controls_roundtrip_all_axes_patterns_and_placements() {
                         pattern,
                         thickness: 64.,
                         color: Some(2),
+                        vertical_span: Span::Pixels(-12., 30.),
+                        horizontal_span: Span::Fraction(0.25, 0.5),
                     },
                     marker: Marker {
                         visible: false,
@@ -223,5 +225,92 @@ fn cursor_placement_appends_tag_two() {
         let mut bytes = Vec::new();
         placement.binprot_write(&mut bytes).unwrap();
         assert_eq!(bytes, vec![tag as u8]);
+    }
+}
+
+#[test]
+fn guide_span_paired_bytes_and_independent_fields() {
+    for (span, hex) in [
+        (Span::Full, "00"),
+        (
+            Span::Pixels(-12., 30.),
+            "0100000000000028c00000000000003e40",
+        ),
+        (
+            Span::Fraction(0.25, 0.5),
+            "02000000000000d03f000000000000e03f",
+        ),
+    ] {
+        let mut bytes = Vec::new();
+        span.binprot_write(&mut bytes).unwrap();
+        assert_eq!(
+            bytes.iter().map(|b| format!("{b:02x}")).collect::<String>(),
+            hex
+        );
+        for horizontal in [
+            Span::Full,
+            Span::Pixels(32768., 65536.),
+            Span::Fraction(-1., 2.),
+        ] {
+            let mut style = Style::default();
+            style.inspection.crosshair.vertical_span = span;
+            style.inspection.crosshair.horizontal_span = horizontal;
+            assert_eq!(decode_chart_style(&encode(&style)), Ok(style));
+        }
+    }
+}
+
+#[test]
+fn invalid_guide_spans_reject_either_axis_and_unknown_tags() {
+    for span in [
+        Span::Pixels(f64::NAN, 0.),
+        Span::Pixels(f64::INFINITY, 0.),
+        Span::Pixels(-32769., 1.),
+        Span::Pixels(32769., 1.),
+        Span::Pixels(0., -0.01),
+        Span::Pixels(0., 65537.),
+        Span::Pixels(0., f64::NEG_INFINITY),
+        Span::Fraction(-1.01, 1.),
+        Span::Fraction(1.01, 1.),
+        Span::Fraction(0., -0.01),
+        Span::Fraction(0., 2.01),
+        Span::Fraction(f64::NAN, 0.),
+        Span::Fraction(0., f64::INFINITY),
+    ] {
+        for vertical in [true, false] {
+            let mut style = Style::default();
+            if vertical {
+                style.inspection.crosshair.vertical_span = span;
+            } else {
+                style.inspection.crosshair.horizontal_span = span;
+            }
+            assert!(!style.is_valid());
+            assert!(decode_chart_style(&encode(&style)).is_err());
+        }
+    }
+    let mut style = Style::default();
+    style.inspection.crosshair.vertical_span = Span::Pixels(-12., 30.);
+    let bytes = encode(&style);
+    let mut needle = vec![];
+    style
+        .inspection
+        .crosshair
+        .vertical_span
+        .binprot_write(&mut needle)
+        .unwrap();
+    let offsets = bytes
+        .windows(needle.len())
+        .enumerate()
+        .filter_map(|(i, v)| (v == needle).then_some(i))
+        .collect::<Vec<_>>();
+    assert_eq!(offsets.len(), 1);
+    let offset = offsets[0];
+    for tag in [3, 255] {
+        let mut bad = bytes.clone();
+        bad[offset] = tag;
+        assert!(decode_chart_style(&bad).is_err());
+    }
+    for end in offset + 1..offset + needle.len() {
+        assert!(decode_chart_style(&bytes[..end]).is_err());
     }
 }

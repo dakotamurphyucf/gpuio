@@ -5,11 +5,24 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **O
 Markdown walkthroughs for every example component; its documentation acceptance is complete. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
+[Independent chart guide spans](evidence/chart-guide-spans-och41.md) now expose
+validated pixel/fractional intervals with native clipping and resize behavior.
+Paired codecs, 1,052 native unit tests, 72 actual GPU cases, root/fresh-installed
+gallery walkthroughs, strict lint and full Dune checks pass locally. Style schema
+is -7. Rich rows/annotations and broader catalog/release qualification remain.
+
+[Hosted run 37523471664](evidence/hosted-presentation-calibration-och17.md#hosted-run-37523471664)
+is terminal at tree-equivalent `f22abd8`: Linux and all three extracted macOS apps
+pass. macOS foundation fails a pie leader-line pixel assertion and the two Metal
+presentation probes. The pie failure needs investigation; no gate is waived.
+This run predates appearance, cursor and guide-span changes.
+
 [Cursor-following chart cards](evidence/chart-cursor-inspection-och41.md) now track
 native pointer motion within a mark, with anchored keyboard fallback and no hover
 roundtrip. Paired protocol, 1,051 native unit tests, actual pointer/GPU pixels,
 root/fresh-installed gallery interaction, full Dune and strict lint pass locally.
-Style schema is -6. Rich rows/partial guides and wider catalog/release work remain.
+That checkpoint used style schema -6; the guide-span extension above advances it
+to -7. Rich rows and wider catalog/release work remain.
 
 [Native chart appearance](evidence/chart-mark-appearance-och41.md) now exposes
 independent path fill/stroke/curve, marker borders/radii, bar corners and

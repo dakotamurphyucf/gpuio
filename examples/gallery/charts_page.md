@@ -280,6 +280,15 @@ traces its setter/`let%arr` path; the
 covers actual pointer pixels and public root/installed gallery behavior; broader
 platform and release acceptance remains separate.
 
+**Partial guides** is the seventh inspection preset. The same `set_inspection`
+effect and `let%arr` style path submits a four-pixel solid both-axis crosshair,
+with vertical fraction start 0.25/length 0.5 and horizontal pixel start 24/length
+120. Native layout clips these physical extents to plot height/width; reversal
+does not reverse them. Mark anchors, card placement, source values and selection
+remain independent. See the [preset walkthrough](../charts/samples/inspection.md#partial-guides)
+for validated constructors and adaptation, and the
+[scoped evidence](../../docs/evidence/chart-guide-spans-och41.md) for local validation.
+
 ## Sankey presentation
 
 Flow styling uses the [Sankey presentation sample](../charts/samples/sankey_presentation.md):

@@ -68,6 +68,19 @@ module Card = struct
   ;;
 end
 
+module Span = struct
+  type t = Wire.Span.t [@@deriving equal, sexp_of]
+
+  let full = Wire.Span.Full
+
+  let validate t =
+    if Wire.Span.valid t then Ok t else Or_error.error_string "invalid chart guide span"
+  ;;
+
+  let pixels ~start ~length = validate (Wire.Span.Pixels (start, length))
+  let fraction ~start ~length = validate (Wire.Span.Fraction (start, length))
+end
+
 module Crosshair = struct
   type t =
     { config : Wire.Crosshair.t
@@ -75,8 +88,24 @@ module Crosshair = struct
     }
   [@@deriving equal, sexp_of]
 
-  let create ?(axis = Axis.Off) ?(pattern = Pattern.Dashed) ?(thickness = 1.) ?color () =
-    let config = { Wire.Crosshair.axis; pattern; thickness; color = None } in
+  let create
+        ?(axis = Axis.Off)
+        ?(pattern = Pattern.Dashed)
+        ?(thickness = 1.)
+        ?color
+        ?(vertical_span = Span.full)
+        ?(horizontal_span = Span.full)
+        ()
+    =
+    let config =
+      { Wire.Crosshair.axis
+      ; pattern
+      ; thickness
+      ; color = None
+      ; vertical_span
+      ; horizontal_span
+      }
+    in
     if Wire.Crosshair.valid config
     then Ok { config; color }
     else Or_error.error_string "invalid chart crosshair dimensions"

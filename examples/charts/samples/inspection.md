@@ -12,8 +12,8 @@ GPUIO_JOBS=2 ./scripts/gpuio build examples/gallery/main.exe
 
 Choose Charts & data, then one of the inspection buttons. Focus the chart and
 use Home/arrows to preview a value; Enter commits selection. Try Default
-inspection, Vertical crosshair, Horizontal band, Anchored details, Cursor details
-and Marker only.
+inspection, Vertical crosshair, Horizontal band, Anchored details, Cursor details,
+Marker only and Partial guides.
 The data button remains available in every preset. Current qualification is
 macOS-first; Linux compilation alone does not establish desktop behavior.
 
@@ -45,10 +45,11 @@ moves ownership into a row. Leaving the page retires the view and its native wor
 through the existing scope. See the [page walkthrough](../../gallery/charts_page.md)
 for source publication, selection identity and teardown.
 
-The current `Crosshair.create` accepts axis, pattern, thickness and color only.
-Its guides use full prepared plot extents; the solid Horizontal band is 12 logical
-pixels thick with translucent accent color, not a partial guide segment. Thickness
-is bounded to `[0.5, 64]` and clips in narrow plots.
+`Crosshair.create` accepts independent vertical/horizontal spans as well as axis,
+pattern, thickness and color. Omitted spans keep full prepared plot extents.
+The Horizontal band remains 12 logical pixels thick with translucent accent color;
+its thickness does not shorten the guide. Thickness is bounded to `[0.5, 64]`
+and clips in narrow plots. Partial guides is the separate span example below.
 
 To make Anchored use a larger readable card, change `width`, `font_size` and
 `line_height` in that branch. Keep line height at least font size. To create a
@@ -95,3 +96,36 @@ values, selection IDs or ownership. See the
 [cursor design](../../../docs/design/chart-cursor-inspection.md). The [cursor-specific evidence](../../../docs/evidence/chart-cursor-inspection-och41.md)
 records actual native pointer pixels and root/installed gallery checks; it does
 not establish wider platform or release acceptance.
+
+## Partial guides
+
+`all` now orders seven presets. `config Partial_guides` builds `I.create` with
+`I.Crosshair.create ~axis:Both ~pattern:Solid ~thickness:4. ~color:accent`.
+`I.Span.fraction ~start:0.25 ~length:0.5` supplies the vertical extent: the middle
+half of plot height, from 25% to 75%. `I.Span.pixels ~start:24. ~length:120.`
+supplies the horizontal extent: logical-pixel positions 24 through 144 from the
+plot's left edge. Both validated results are unwrapped with the fixture's `ok`.
+Card and marker arguments are omitted, retaining their defaults independently.
+
+Span coordinates are physical: vertical runs top-to-bottom, horizontal left-to-right,
+regardless of numeric reversal or chart orientation. The perpendicular coordinate
+still comes from the inspected mark. Native layout intersects each requested
+`[start, start + length]` with its plot extent; an empty intersection draws no
+guide. This applies to solid bands and dashed patterns too. Fractions follow
+resize without a source publication or an OCaml measurement callback; pixel
+lengths remain literal logical pixels, subject to clipping.
+
+Click Partial guides → execute `set_inspection Partial_guides` → Bonsai updates
+its preset → `let%arr` calls the pure `config` and rebuilds resolved chart style
+→ native preparation/inspection applies the new guide extents. Hover stays native;
+selection still uses original source IDs/values. Spans do not reposition the card,
+move the marker or change the selected mark. Ready acknowledges preparation, not
+physical presentation or platform acceptance.
+
+To adapt it, use `Span.fraction ~start:0.1 ~length:0.8` for a resize-relative
+horizontal guide, or `Span.full` to restore one complete extent. Pixel starts
+must be finite in `[-32768, 32768]`, lengths in `[0, 65536]`; fractional starts
+in `[-1, 1]`, lengths in `[0, 2]`. Handle constructor errors for editable values.
+See the [span contract](../../../docs/design/chart-guide-spans.md). The [scoped evidence](../../../docs/evidence/chart-guide-spans-och41.md) records
+local pixel, codec and root/installed-gallery checks; broader platform acceptance
+remains separate.

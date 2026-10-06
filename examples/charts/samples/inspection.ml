@@ -9,9 +9,10 @@ type t =
   | Anchored
   | Cursor
   | Marker_only
+  | Partial_guides
 [@@deriving equal]
 
-let all = [ Default; Vertical; Band; Anchored; Cursor; Marker_only ]
+let all = [ Default; Vertical; Band; Anchored; Cursor; Marker_only; Partial_guides ]
 
 let label = function
   | Default -> "Default inspection"
@@ -20,6 +21,7 @@ let label = function
   | Anchored -> "Anchored details"
   | Cursor -> "Cursor details"
   | Marker_only -> "Marker only"
+  | Partial_guides -> "Partial guides"
 ;;
 
 let config t =
@@ -62,6 +64,19 @@ let config t =
            ~stroke_width:3.
            ~fill:(Color.rgb_exn 0x0f172a)
            ~stroke:accent
+           ()
+         |> ok)
+      ()
+  | Partial_guides ->
+    I.create
+      ~crosshair:
+        (I.Crosshair.create
+           ~axis:Both
+           ~pattern:Solid
+           ~thickness:4.
+           ~color:accent
+           ~vertical_span:(I.Span.fraction ~start:0.25 ~length:0.5 |> ok)
+           ~horizontal_span:(I.Span.pixels ~start:24. ~length:120. |> ok)
            ()
          |> ok)
       ()

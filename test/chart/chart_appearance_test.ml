@@ -20,7 +20,7 @@ let%expect_test "chart style resolves appearance and rejects forged nested value
   let theme = Gpuio.Theme.create [ "chart-appearance-style", alpha 7 ] |> ok in
   let style = S.create ~appearance ~theme () |> ok |> S.Expert.to_wire in
   assert (W.equal style.appearance (A.Expert.to_wire appearance ~theme |> ok));
-  assert (Int64.equal style.version (-6L));
+  assert (Int64.equal style.version (-7L));
   let first = List.hd_exn style.appearance.series in
   assert (
     Result.is_error
@@ -38,9 +38,9 @@ let%expect_test "chart style resolves appearance and rejects forged nested value
   in
   assert (String.equal bytes "\001\004");
   print_s
-    [%sexp "style schema -6; resolved nested colors; invalid config observation 01 04"];
+    [%sexp "style schema -7; resolved nested colors; invalid config observation 01 04"];
   [%expect
-    {| "style schema -6; resolved nested colors; invalid config observation 01 04" |}]
+    {| "style schema -7; resolved nested colors; invalid config observation 01 04" |}]
 ;;
 
 let%expect_test "appearance independently paired bytes preserve omission and variants" =

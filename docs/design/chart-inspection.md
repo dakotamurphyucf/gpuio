@@ -40,13 +40,14 @@ identity semantics remain unchanged.
 ## Crosshair
 
 Axis is Off, Vertical, Horizontal or Both. Pattern is Dashed or Solid; thickness
-is 0.5–64 pixels, so a solid crosshair can be a highlight band. The crosshair spans
-the prepared plot and uses the inspected mark's anchor. At plot endpoints it
+is 0.5–64 pixels, so a solid crosshair can be a highlight band. The crosshair uses the inspected mark's anchor and defaults to the full prepared
+plot. Independent [vertical/horizontal spans](chart-guide-spans.md) accept bounded
+physical pixel or fractional intervals; empty intersections draw no guide. At plot endpoints it
 stays inside the plotting rectangle; the containing element clips narrow plots.
 Dashed borders have nonzero layout area so native painting includes them.
 
-The pinned source also exposes custom partial spans, arbitrary tooltip children
-and per-row content. These controls do not claim those APIs. Native summaries
+The pinned source also exposes arbitrary tooltip children and per-row content.
+These controls do not claim those APIs. Native summaries
 continue to describe the exact prepared source, including category IDs, aggregate
 sample counts, raw values and stack bounds. Arbitrary rich rows, caller-formatted
 per-datum annotations remain separate presentation

@@ -2,6 +2,8 @@
 use super::*;
 use crate::host::native_test::{mouse, move_mouse};
 use gpuio_protocol::chart_selection::Selection;
+#[path = "chart_guide_span_test.rs"]
+mod guide_spans;
 #[path = "chart_label_input_test.rs"]
 mod labels;
 fn position(x: f32, y: f32) -> gpui::Point<gpui::Pixels> {
@@ -103,6 +105,7 @@ pub(super) async fn exercise(
             .update(cx, |_, window, _| window.is_window_active())
             .unwrap()
     );
+    guide_spans::exercise(cx, handle, source, &transport).await;
     observations(&transport);
     // Moving inside the same pie wedge must repaint a cursor card without
     // publishing selection or rerunning source preparation.

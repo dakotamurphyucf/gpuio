@@ -80,3 +80,44 @@ let%expect_test
     1
     2 |}]
 ;;
+
+let%expect_test "guide spans validate independently and have paired wire bytes" =
+  let module S = Gpuio_protocol.Chart_inspection_wire.Span in
+  let spans =
+    [ I.Span.full
+    ; I.Span.pixels ~start:(-12.) ~length:30. |> ok
+    ; I.Span.fraction ~start:0.25 ~length:0.5 |> ok
+    ]
+  in
+  List.iter spans ~f:(fun span ->
+    let crosshair =
+      I.Crosshair.create ~vertical_span:span ~horizontal_span:span () |> ok
+    in
+    let wire =
+      I.Expert.to_wire (I.create ~crosshair ()) ~theme:(Gpuio.Theme.create [] |> ok) |> ok
+    in
+    assert (S.equal wire.crosshair.vertical_span wire.crosshair.horizontal_span);
+    let bytes = Bin_prot.Utils.bin_dump S.bin_writer_t wire.crosshair.vertical_span in
+    String.iter (Bigstring.to_string bytes) ~f:(fun c -> printf "%02x" (Char.to_int c));
+    print_endline "");
+  List.iter
+    [ Float.nan; Float.infinity; Float.neg_infinity; -32769.; 32769. ]
+    ~f:(fun start -> assert (Result.is_error (I.Span.pixels ~start ~length:0.)));
+  List.iter [ Float.nan; Float.infinity; -0.01; 65537. ] ~f:(fun length ->
+    assert (Result.is_error (I.Span.pixels ~start:0. ~length)));
+  List.iter [ Float.nan; Float.infinity; -1.01; 1.01 ] ~f:(fun start ->
+    assert (Result.is_error (I.Span.fraction ~start ~length:0.)));
+  List.iter [ Float.nan; Float.infinity; -0.01; 2.01 ] ~f:(fun length ->
+    assert (Result.is_error (I.Span.fraction ~start:0. ~length)));
+  List.iter [ -32768.; 32768. ] ~f:(fun start ->
+    List.iter [ 0.; 65536. ] ~f:(fun length ->
+      ignore (I.Span.pixels ~start ~length |> ok : I.Span.t)));
+  List.iter [ -1.; 1. ] ~f:(fun start ->
+    List.iter [ 0.; 2. ] ~f:(fun length ->
+      ignore (I.Span.fraction ~start ~length |> ok : I.Span.t)));
+  [%expect
+    {|
+    00
+    0100000000000028c00000000000003e40
+    02000000000000d03f000000000000e03f |}]
+;;

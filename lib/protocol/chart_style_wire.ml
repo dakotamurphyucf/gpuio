@@ -65,7 +65,7 @@ let valid_ordinal (t : Ordinal.t) =
 ;;
 
 let valid t =
-  Int64.equal t.version (-6L)
+  Int64.equal t.version (-7L)
   && List.length t.palette >= 1
   && List.length t.palette <= 32
   && List.for_all t.palette ~f:color

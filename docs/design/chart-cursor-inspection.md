@@ -19,10 +19,11 @@ pointer departure, its card uses the anchor until a new pointer preview begins.
 Captured motion outside the plot follows existing preview rules and clamps the
 card position; release outside still does not commit selection.
 
-The placement discriminator appends Cursor as tag 2. Parent chart style advances
-to schema -6, rejecting earlier style schemas; envelope sizes do not change.
+The placement discriminator appends Cursor as tag 2. This feature originally advanced parent chart style
+to schema -6; [guide spans](chart-guide-spans.md) subsequently advance it to -7.
+Earlier schemas are rejected; envelope sizes do not change.
 Matching packages are required. Constructors retain existing defaults and bounds.
 
-This extends card placement only. Rich custom rows, partial guide spans and
-per-datum annotations remain explicit catalog work. Do not infer those capabilities
+This extends card placement only. Rich custom rows and per-datum annotations remain explicit catalog work.
+Independent guide spans are documented in the separate contract above. Do not infer those capabilities
 or platform qualification from the new constructor.

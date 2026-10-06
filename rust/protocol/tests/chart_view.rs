@@ -11,7 +11,7 @@ fn config() -> Config {
         options: Default::default(),
         sampling: Default::default(),
         style: gpuio_protocol::chart_style::Style {
-            version: -6,
+            version: -7,
             palette: vec![1, 2],
             axis_color: 3,
             grid_color: 4,
@@ -362,6 +362,10 @@ fn independently_full_chart_captions_fit_the_config_envelope_and_are_charged() {
     value.style.inspection.card.background = Some(color);
     value.style.inspection.card.border_color = Some(color);
     value.style.inspection.crosshair.color = Some(color);
+    value.style.inspection.crosshair.vertical_span =
+        gpuio_protocol::chart_inspection::Span::Pixels(-32768., 65536.);
+    value.style.inspection.crosshair.horizontal_span =
+        gpuio_protocol::chart_inspection::Span::Fraction(-1., 2.);
     value.style.inspection.marker.fill = Some(color);
     value.style.inspection.marker.stroke = Some(color);
     assert!(value.is_valid());

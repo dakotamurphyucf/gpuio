@@ -1123,6 +1123,10 @@ motion even within one mark; marker/crosshair remain data-anchored. Keyboard and
 pointer departure/cancellation use Anchor. No hover roundtrip is required; this
 [scoped evidence](../../docs/evidence/chart-cursor-inspection-och41.md) records
 the native and public-gallery coverage of this placement.
+Partial guides adds independently clipped vertical fraction and horizontal pixel
+spans through the same inspection preset flow. Physical spans leave source values,
+selection and card placement unchanged. [Scoped local evidence](../../docs/evidence/chart-guide-spans-och41.md)
+covers its native pixels and root/installed walkthrough.
 
 **Charts & data → Flow styling** demonstrates the public Sankey presentation
 options. The [adjacent sample walkthrough](../charts/samples/sankey_presentation.md)

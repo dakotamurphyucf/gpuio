@@ -90,7 +90,8 @@ missing theme definitions are recoverable errors.
 The independent appearance envelope is 192 KiB; the paired maximum encoding is
 173,447 bytes. Attachment advanced the chart style schema to -5 and its bounded
 envelope to 384 KiB. The later [cursor extension](chart-cursor-inspection.md)
-advances the schema to -6 without changing these limits. A maximally populated parent style, including axis/node/pie
+advanced the schema to -6; [guide spans](chart-guide-spans.md) advance it to -7,
+without changing these limits. A maximally populated parent style, including axis/node/pie
 captions and all appearance overrides, is tested against this envelope and the
 outer 1 MiB message limit. Matching OCaml and Rust packages are required.
 
