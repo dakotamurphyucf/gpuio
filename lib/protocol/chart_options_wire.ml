@@ -103,14 +103,47 @@ module Pie = struct
 end
 
 module Radar = struct
+  module Scale = struct
+    type t =
+      | Per_axis
+      | Data_max
+      | Maximum of float
+    [@@deriving bin_io, equal, sexp_of]
+
+    let valid = function
+      | Per_axis | Data_max -> true
+      | Maximum n -> between n 0. 1e100 && Float.(n > 0.)
+    ;;
+  end
+
+  module Radius = struct
+    type t =
+      | Fit
+      | Pixels of float
+    [@@deriving bin_io, equal, sexp_of]
+
+    let valid = function
+      | Fit -> true
+      | Pixels n -> between n 0. 32768. && Float.(n > 0.)
+    ;;
+  end
+
   type t =
     { levels : int64
     ; dots : bool
     ; labels : bool
+    ; scale : Scale.t
+    ; radius : Radius.t
+    ; label_gap : float
     }
   [@@deriving bin_io, equal, sexp_of]
 
-  let valid t = Int64.(t.levels >= 1L && t.levels <= 12L)
+  let valid t =
+    Int64.(t.levels >= 1L && t.levels <= 12L)
+    && Scale.valid t.scale
+    && Radius.valid t.radius
+    && between t.label_gap 0. 64.
+  ;;
 end
 
 module Candlestick = struct
@@ -190,7 +223,7 @@ type t =
 [@@deriving bin_io, equal, sexp_of]
 
 let valid t =
-  Int64.equal t.version 6L
+  Int64.equal t.version 7L
   && Axes.valid t.axes
   && Cartesian.valid t.cartesian
   && Pie.valid t.pie

@@ -268,3 +268,26 @@ selection, publication, original-data browsing and resource cleanup. The native
 chart-view harness separately reads actual text pixels and checks a multiword
 caption stays on its prepared line. These checks do not establish Linux desktop,
 VoiceOver or 120 FPS acceptance.
+
+
+## Radar projection controls
+
+The Radar family adds a small `Radar_scale` model: its values are the public
+`Chart_options.Radar.Scale` variants. `B.state` retains the selected mode; two
+`B.toggle` values retain fixed radius and extra label spacing. Their effects only
+change options in the `let%arr` view; they do not republish or mutate the dataset.
+
+Choose **Shared data maximum** to normalize both series by their largest source
+value (94 in this fixture). **Shared maximum 50** deliberately puts larger values
+outside the grid. **Fixed radar radius 80** makes the ring 80 logical pixels;
+**Radar label gap 24** moves labels outward and reserves gutters. The native worker
+prepares geometry for the new options and returns Ready before the status reports
+the selected settings. Home/Enter still selects Atlas / Quality / 88 out of its
+source maximum 100; scaling does not rewrite its accessible original data.
+
+To adapt this example, change the explicit maximum in `Radar_scale.all` and its
+label together, or pass a different `Radius.Pixels` value in `component`. Keep
+values inside the public option bounds; extreme data/scale combinations may
+report Render_limit instead of drawing a distorted clamped polygon. See the
+[radar contract](../../docs/design/radar-presentation.md). Default Per_axis/Fit/gap 0
+preserves previous behavior. These controls do not add rich axis-label elements.

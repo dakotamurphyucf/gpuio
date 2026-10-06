@@ -28,7 +28,9 @@ measurement. No user layout closure or per-frame OCaml callback is introduced.
 Options schema 6 appends Inside=0 / Outside=1, keeps style/data -2/1 and uses
 `chart-v6-label-placement-view.hex` for the paired view fixture. Default options
 are 102 bytes. Both sides reject old options versions; Rust rejects unknown tags.
-Matching bridge packages are required.
+Matching bridge packages are required. The subsequent [radar options](radar-presentation.md)
+advance the current options schema to 7 (112 default bytes); the v6 fixture
+remains a legacy-rejection case.
 
 ## Native measurement before geometry
 

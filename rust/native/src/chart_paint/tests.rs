@@ -257,3 +257,63 @@ fn chart_allowance_does_not_relax_the_canvas_wire_or_mesh_contract() {
     ));
     assert!(mesh::prepare_chart(&path, mesh::Style::Stroke(1.), 0.25, &cancel).is_ok());
 }
+
+#[test]
+fn radar_projection_prepares_meshes_and_preserves_off_plot_selection() {
+    use gpuio_protocol::{
+        chart_options::{RadarRadius, RadarScale},
+        chart_selection::Selection,
+    };
+    let source = Data {
+        version: 1,
+        contents: data::Contents::Radar(
+            (1..=3)
+                .map(|id| data::RadarAxis {
+                    id,
+                    label: format!("Axis {id}"),
+                    maximum: 100.,
+                })
+                .collect(),
+            vec![data::RadarSeries {
+                id: 1,
+                name: "Series".into(),
+                values: vec![(1, 100.), (2, 50.), (3, 25.)],
+            }],
+        ),
+    };
+    for scale in [0.5, 1., 2., 8.] {
+        let mut options = Options::default();
+        options.radar.radius = RadarRadius::Pixels(80.);
+        options.radar.scale = RadarScale::Maximum(25.);
+        let plan = prepare(
+            &source,
+            Policy::default(),
+            &options,
+            &Style::default(),
+            Layout::new(400., 400., scale).unwrap(),
+            &AtomicBool::new(false),
+        )
+        .unwrap();
+        assert!(plan.mesh_count() > 0 && plan.vertices() > 0);
+        assert!(plan.retained_bytes() < MAX_BYTES);
+        // First vertex is above the plot; original-data selection remains valid.
+        assert_eq!(
+            plan.selection_index(Selection::Radar { series: 1, axis: 1 }),
+            Some(0)
+        );
+        assert!(matches!(plan.geometry().marks[0].shape,
+            geometry::Shape::Dot { center, .. } if center.y < 0.));
+        options.radar.scale = RadarScale::Maximum(f64::from_bits(1));
+        assert!(matches!(
+            prepare(
+                &source,
+                Policy::default(),
+                &options,
+                &Style::default(),
+                Layout::new(400., 400., scale).unwrap(),
+                &AtomicBool::new(false)
+            ),
+            Err(Error::RenderLimit)
+        ));
+    }
+}

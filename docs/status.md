@@ -15,6 +15,12 @@ Three owner-authorized GPT-6.1 Sol agents contributed scoped walkthroughs in par
 Contributor guidance and a structural CI check keep new sources visible; neither
 file presence nor that check establishes documentation or platform acceptance.
 
+[Radar projection options](evidence/radar-projection-och41.md) now expose shared
+maxima, fixed radius and label spacing from OCaml, preserving per-axis defaults
+and original source values. Paired codecs, worker/mesh tests, full local checks,
+and root/fresh-installed macOS gallery walkthroughs pass. Options schema is 7;
+style/data remain -2/1. Rich radar labels and broader chart/catalog work remain.
+
 [Hosted run 37460415879](evidence/hosted-presentation-calibration-och17.md#hosted-run-37460415879-and-local-input-synchronization-repairs)
 is terminal: Linux and all three independently extracted macOS apps pass. The
 macOS foundation job failed Signal Studio input, Agent Workspace Diagram and both

@@ -712,3 +712,13 @@ style envelope is -2 after [rich Sankey node labels](chart-node-labels.md);
 options/data versions are 5/1 following the
 [Sankey ribbon-color addition](sankey-link-colors.md). Broader chart presentation
 options and whole-catalog/release acceptance remain separate.
+
+
+## Radar scale, radius and spacing — options schema 7
+
+See [radar presentation](radar-presentation.md) for the shared-data/shared-explicit
+maximum, fixed logical-pixel radius and label gap additions. Per-axis scaling and
+fitted radius remain defaults. Explicit maxima can extrapolate outside the grid;
+source IDs/values and original-data selection remain unchanged. Extreme projected
+coordinates return Render_limit before tessellation. Rich axis-label content is
+still unfinished catalog work, separate from these projection options.

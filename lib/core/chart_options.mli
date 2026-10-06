@@ -134,8 +134,41 @@ end
 module Radar : sig
   type t [@@deriving equal, sexp_of]
 
-  (** Axis maxima come from the dataset. [levels] is 1..12. *)
-  val create : ?levels:int -> ?dots:bool -> ?labels:bool -> unit -> t Or_error.t
+  module Scale : sig
+    type t =
+      | Per_axis
+      | Data_max
+      | Maximum of float
+    [@@deriving equal, sexp_of]
+  end
+
+  module Radius : sig
+    type t =
+      | Fit
+      | Pixels of float
+    [@@deriving equal, sexp_of]
+  end
+
+  (** [Per_axis] preserves dataset maxima. [Data_max] uses the largest value
+      across all series (all-zero data stays at the center). [Maximum m] uses a
+      shared finite [m] in (0,1e100]. Values above [m] extend beyond the outer
+      ring, without clamping or changing source values. Extreme projections
+      beyond the native coordinate budget report [Render_limit].
+
+      [Fit] fits the available plot after native label gutters. [Pixels r] fixes
+      the radius in logical pixels, finite and in (0,32768]; oversized geometry
+      is clipped to the plot. [label_gap] is finite in [0,64] logical pixels and
+      reserves additional label gutters when labels are shown. Defaults are
+      [Per_axis], [Fit], gap 0, preserving the previous layout. [levels] is 1..12. *)
+  val create
+    :  ?levels:int
+    -> ?dots:bool
+    -> ?labels:bool
+    -> ?scale:Scale.t
+    -> ?radius:Radius.t
+    -> ?label_gap:float
+    -> unit
+    -> t Or_error.t
 
   val default : t
 end

@@ -1,0 +1,87 @@
+{
+  "source_base": "00f43c8",
+  "platform": "macOS 14.5 arm64",
+  "archive_sha256": "63397e14c8909e1b60ab8cd130d6f8c86eb39fa702ac72df996c15307973e62e",
+  "files": [
+    {
+      "path": "radar-chart-all.log",
+      "bytes": 597999,
+      "sha256": "64b43f98ea730f047e3c76758d031d16bd55681bbbfc0015721b069af0b1105f"
+    },
+    {
+      "path": "radar-clippy.log",
+      "bytes": 588425,
+      "sha256": "069d0cbb81126d03973ca360501dc8a920dc1bafd04bbf5917990b89d79521bb"
+    },
+    {
+      "path": "radar-dune-all.log",
+      "bytes": 705847,
+      "sha256": "87ef9e083c284dbf28d27597f3e3dfcbf70fbfcaf511bbed72d3b78bcfd2d985"
+    },
+    {
+      "path": "radar-gallery-fixed-images/gallery-radar-shared-50.png",
+      "bytes": 423194,
+      "sha256": "163e399571059c06a6226587e4db9b097fbcc63f8fbd9cb212215c4dfdbe1a44"
+    },
+    {
+      "path": "radar-gallery-fixed.log",
+      "bytes": 2126,
+      "sha256": "d5f8c7ba4019e579ce27e9eb1f794c2f550bd9fd725c5e604138f9d9d303d7b1"
+    },
+    {
+      "path": "radar-gallery-images/gallery-failure.png",
+      "bytes": 433600,
+      "sha256": "7076c45c62ab73a58fb5e111d1220bb5178d11f64525e1c63d8f88f4501f9d6d"
+    },
+    {
+      "path": "radar-gallery-images/gallery-radar-shared-50.png",
+      "bytes": 423194,
+      "sha256": "163e399571059c06a6226587e4db9b097fbcc63f8fbd9cb212215c4dfdbe1a44"
+    },
+    {
+      "path": "radar-gallery.log",
+      "bytes": 9613,
+      "sha256": "cc483c03860ae46560d4e5a96ba445f76370c15a7699d0c18abca4e53be41f89"
+    },
+    {
+      "path": "radar-installed.log",
+      "bytes": 103302,
+      "sha256": "7039ad974a71c8be0fcd6cfacf005525aba5607dd7a37ea6d75c5305ce353759"
+    },
+    {
+      "path": "radar-native.log",
+      "bytes": 589084,
+      "sha256": "ae38dbbd0c653108640cd7614c627ebb1f9573cd28c9f4773b43a5b2a4a851fd"
+    },
+    {
+      "path": "radar-ocaml.log",
+      "bytes": 100172,
+      "sha256": "b6df11164ae0ae6b37984c937b379c2022bafd8ed261a38811acc42a2986a411"
+    },
+    {
+      "path": "radar-protocol-all.log",
+      "bytes": 56344,
+      "sha256": "f7ea3205e1892d88e459d7074b4e5558013d41732b285e20e3bf9e8f16d3059e"
+    },
+    {
+      "path": "radar-protocol.log",
+      "bytes": 1380,
+      "sha256": "ba9a3bd0416b9fd85669fddb94d39c1a141b81543eac55754cc23a9c48feaabc"
+    },
+    {
+      "path": "sources/lib/core/chart_options.mli",
+      "bytes": 9369,
+      "sha256": "9e7b8b45127801a10263844c6ac55fe17023a023300b2904b45190f5fcfe0db7"
+    },
+    {
+      "path": "sources/scripts/gallery_radar.py",
+      "bytes": 3126,
+      "sha256": "0a9a14374a4f30d4c1efae54f9bb4f82dd5554cf9d63bfe4cf2c749404b24fa9"
+    },
+    {
+      "path": "sources/test/fixtures/chart-v7-radar-view.hex",
+      "bytes": 549,
+      "sha256": "9bab9ce3d5219727f2688d68288a684024fee04ebe4237908ea799ed60b8dd60"
+    }
+  ]
+}

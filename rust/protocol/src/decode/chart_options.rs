@@ -14,7 +14,7 @@ impl Decoder<'_> {
     }
     pub(super) fn chart_options(&mut self) -> Result<Options, DecodeError> {
         let version = self.int()?;
-        if version != 6 {
+        if version != 7 {
             return Err(DecodeError::Malformed);
         }
         let options = Options {
@@ -67,6 +67,18 @@ impl Decoder<'_> {
                 levels: self.int()?,
                 dots: self.boolean()?,
                 labels: self.boolean()?,
+                scale: match self.tag()? {
+                    0 => RadarScale::PerAxis,
+                    1 => RadarScale::DataMax,
+                    2 => RadarScale::Maximum(self.float()?),
+                    _ => return Err(DecodeError::Malformed),
+                },
+                radius: match self.tag()? {
+                    0 => RadarRadius::Fit,
+                    1 => RadarRadius::Pixels(self.float()?),
+                    _ => return Err(DecodeError::Malformed),
+                },
+                label_gap: self.float()?,
             },
             candlestick: Candlestick {
                 body_width: self.float()?,

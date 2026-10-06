@@ -49,7 +49,7 @@ fn bounded_chart_view_and_transaction_match_independent_fixture() {
         Err(DecodeError::Malformed)
     );
     let bytes = encode(&config);
-    let fixture = include_str!("../../../test/fixtures/chart-v6-label-placement-view.hex").trim();
+    let fixture = include_str!("../../../test/fixtures/chart-v7-radar-view.hex").trim();
     assert_eq!(hex(&bytes), fixture);
     assert_eq!(decode_chart_view_config(&bytes), Ok(config.clone()));
     for end in 0..bytes.len() {

@@ -1148,3 +1148,8 @@ Page guides also cover [Find & highlight](highlight_page.md),
 [Numbers & codes](numeric_page.md), [input observations](observations_page.md) and
 [responsive layouts](responsive_page.md). Each follows the implementation's state,
 native ownership and event flow, including diagnostic and platform limits.
+
+
+The [Charts & data walkthrough](charts_page.md#radar-projection-controls) explains
+Radar's shared maximum, fixed radius and label spacing controls, including why
+the original-data table and selection values remain unchanged.

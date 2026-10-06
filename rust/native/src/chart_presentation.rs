@@ -123,15 +123,20 @@ impl Frame {
         };
         let radar_labels =
             matches!(data.contents, Contents::Radar(..)) && config.options.radar.labels;
+        let radar_gap = if radar_labels {
+            config.options.radar.label_gap
+        } else {
+            0.
+        };
         let left: f64 = if numeric && left_axis {
             76.
         } else if radar_labels {
-            64.
+            64. + radar_gap
         } else {
             0.
         };
         let right: f64 = if radar_labels {
-            64.
+            64. + radar_gap
         } else if numeric && bottom_axis {
             28.
         } else {
@@ -145,10 +150,11 @@ impl Frame {
             } else {
                 0.
             };
+        let top = top + radar_gap;
         let bottom: f64 = if numeric && bottom_axis {
             28.
         } else if radar_labels {
-            24.
+            24. + radar_gap
         } else {
             0.
         };
@@ -303,6 +309,28 @@ mod tests {
             legend: true,
             disabled: false,
         }
+    }
+    #[test]
+    fn radar_label_gap_reserves_gutters_only_for_visible_labels() {
+        let data = Data {
+            version: 1,
+            contents: Contents::Radar(vec![], vec![]),
+        };
+        let mut config = config();
+        let original = Frame::new(800., 400., &data, &config);
+        config.options.radar.label_gap = 24.;
+        let spaced = Frame::new(800., 400., &data, &config);
+        assert_eq!(spaced.plot.x, original.plot.x + 24.);
+        assert_eq!(spaced.plot.y, original.plot.y + 24.);
+        assert_eq!(spaced.plot.width, original.plot.width - 48.);
+        assert_eq!(spaced.plot.height, original.plot.height - 48.);
+        let tiny = Frame::new(1., 1., &data, &config);
+        assert!(tiny.plot.width > 0. && tiny.plot.height > 0.);
+        config.options.radar.labels = false;
+        let hidden = Frame::new(800., 400., &data, &config);
+        config.options.radar.label_gap = 0.;
+        let no_gap = Frame::new(800., 400., &data, &config);
+        assert_eq!(hidden.plot, no_gap.plot);
     }
     #[test]
     fn axes_follow_orientation_and_tiny_views_stay_bounded() {

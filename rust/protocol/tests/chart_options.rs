@@ -7,7 +7,7 @@ fn bytes(value: &Options) -> Vec<u8> {
 }
 #[test]
 fn default_options_match_independent_ocaml_fixture_and_reject_truncation() {
-    let hex = "060101010500000000009a9999999999e93f00000000000000000000000000000000000001040101666666666666e63f0000000000003040000000000000284003000601000000000000f03f000000000000e03f000000000000000000000000000018400000";
+    let hex = "070101010500000000009a9999999999e93f0000000000000000000000000000000000000104010100000000000000000000666666666666e63f0000000000003040000000000000284003000601000000000000f03f000000000000e03f000000000000000000000000000018400000";
     let expected: Vec<u8> = hex
         .as_bytes()
         .chunks_exact(2)
@@ -23,7 +23,9 @@ fn default_options_match_independent_ocaml_fixture_and_reject_truncation() {
     trailing.push(0);
     assert_eq!(decode_chart_options(&trailing), Err(DecodeError::Malformed));
     // Independently specified enum/boolean field offsets in the default frame.
-    for offset in [1, 2, 3, 5, 6, 7, 8, 9, 18, 19, 36, 38, 39, 64, 65, 67] {
+    for offset in [
+        1, 2, 3, 5, 6, 7, 8, 9, 18, 19, 36, 38, 39, 40, 41, 74, 75, 77,
+    ] {
         let mut bad = expected.clone();
         bad[offset] = 255;
         assert!(decode_chart_options(&bad).is_err(), "offset {offset}");
@@ -186,7 +188,7 @@ fn categorical_layout_tags_and_padding_bounds_are_paired_and_versioned() {
 fn stacking_is_explicit_paired_and_old_layouts_are_rejected() {
     let mut options = Options::default();
     let mut expected = bytes(&options);
-    assert_eq!(expected[0], 6);
+    assert_eq!(expected[0], 7);
     assert_eq!(expected[19], 0);
     options.cartesian.stacking = Stacking::Stacked;
     expected[19] = 1;
@@ -250,36 +252,95 @@ fn sankey_link_color_tags_preserve_default_and_reject_unknown_variants() {
         let mut value = Options::default();
         value.sankey.link_color = mode;
         let encoded = bytes(&value);
-        assert_eq!(encoded.len(), 102);
-        assert_eq!(encoded[100], tag);
+        assert_eq!(encoded.len(), 112);
+        assert_eq!(encoded[110], tag);
         assert_eq!(decode_chart_options(&encoded), Ok(value));
     }
     let mut encoded = bytes(&Options::default());
-    assert_eq!(encoded[100], 0);
-    encoded[100] = 3;
+    assert_eq!(encoded[110], 0);
+    encoded[110] = 3;
     assert_eq!(decode_chart_options(&encoded), Err(DecodeError::Malformed));
-    encoded[100] = 0;
+    encoded[110] = 0;
     encoded[0] = 4;
     assert_eq!(decode_chart_options(&encoded), Err(DecodeError::Malformed));
 }
 
 #[test]
-fn measured_label_placement_is_explicit_and_version_six_rejects_old_options() {
+fn measured_label_placement_is_explicit_and_version_seven_rejects_old_options() {
     let mut value = Options::default();
     let original = bytes(&value);
-    assert_eq!(original.len(), 102);
-    assert_eq!(original[0], 6);
-    assert_eq!(original[101], 0);
+    assert_eq!(original.len(), 112);
+    assert_eq!(original[0], 7);
+    assert_eq!(original[111], 0);
     value.sankey.label_placement = LabelPlacement::Outside;
     let mut expected = original.clone();
-    expected[101] = 1;
+    expected[111] = 1;
     assert_eq!(bytes(&value), expected);
     assert_eq!(decode_chart_options(&expected), Ok(value));
-    expected[101] = 2;
+    expected[111] = 2;
     assert_eq!(decode_chart_options(&expected), Err(DecodeError::Malformed));
-    for version in 0..6 {
+    for version in 0..7 {
         let mut old = original.clone();
         old[0] = version;
         assert_eq!(decode_chart_options(&old), Err(DecodeError::Malformed));
     }
+}
+
+#[test]
+fn radar_scale_radius_gap_tags_and_invalid_wire_are_paired() {
+    let mut value = Options::default();
+    value.radar.scale = RadarScale::DataMax;
+    value.radar.radius = RadarRadius::Pixels(80.);
+    value.radar.label_gap = 10.;
+    let mut expected = bytes(&Options::default());
+    expected.splice(
+        40..50,
+        [1, 1, 0, 0, 0, 0, 0, 0, 84, 64, 0, 0, 0, 0, 0, 0, 36, 64],
+    );
+    assert_eq!(bytes(&value), expected);
+    assert_eq!(decode_chart_options(&expected), Ok(value));
+    for maximum in [f64::from_bits(1), 1., 1e100] {
+        value.radar.scale = RadarScale::Maximum(maximum);
+        assert_eq!(decode_chart_options(&bytes(&value)), Ok(value));
+    }
+    for n in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY, -1., 0., 1.1e100] {
+        value.radar.scale = RadarScale::Maximum(n);
+        assert_eq!(
+            decode_chart_options(&bytes(&value)),
+            Err(DecodeError::Malformed)
+        );
+    }
+    value = Options::default();
+    for n in [f64::NAN, f64::INFINITY, -1., 0., 32768.01] {
+        value.radar.radius = RadarRadius::Pixels(n);
+        assert_eq!(
+            decode_chart_options(&bytes(&value)),
+            Err(DecodeError::Malformed)
+        );
+    }
+    value.radar.radius = RadarRadius::Pixels(32768.);
+    value.radar.label_gap = 64.;
+    assert_eq!(decode_chart_options(&bytes(&value)), Ok(value));
+    for n in [f64::NAN, f64::INFINITY, -1., 64.01] {
+        value.radar.label_gap = n;
+        assert_eq!(
+            decode_chart_options(&bytes(&value)),
+            Err(DecodeError::Malformed)
+        );
+    }
+    for (offset, tag) in [(40, 3), (41, 2)] {
+        let mut invalid = bytes(&Options::default());
+        invalid[offset] = tag;
+        assert_eq!(decode_chart_options(&invalid), Err(DecodeError::Malformed));
+    }
+    let old = include_str!("../../../test/fixtures/chart-v6-label-placement-view.hex").trim();
+    let old: Vec<_> = old
+        .as_bytes()
+        .chunks_exact(2)
+        .map(|s| u8::from_str_radix(std::str::from_utf8(s).unwrap(), 16).unwrap())
+        .collect();
+    assert_eq!(
+        gpuio_protocol::decode_chart_view_config(&old),
+        Err(DecodeError::Malformed)
+    );
 }

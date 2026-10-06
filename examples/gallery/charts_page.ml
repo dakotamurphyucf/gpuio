@@ -83,6 +83,22 @@ module Category_layout = struct
   ;;
 end
 
+module Radar_scale = struct
+  type t = Chart_options.Radar.Scale.t =
+    | Per_axis
+    | Data_max
+    | Maximum of float
+  [@@deriving equal]
+
+  let all = [ Per_axis; Data_max; Maximum 50. ]
+
+  let label = function
+    | Per_axis -> "Per-axis maxima"
+    | Data_max -> "Shared data maximum"
+    | Maximum _ -> "Shared maximum 50"
+  ;;
+end
+
 module Source = struct
   type t =
     { chart : Registered.t
@@ -142,6 +158,9 @@ let component app window palette graph =
   let category_layout, set_category_layout = B.state Category_layout.Auto graph in
   let unknown_color, toggle_unknown_color = B.toggle ~default_model:true graph in
   let stacked, toggle_stacked = B.toggle ~default_model:true graph in
+  let radar_scale, set_radar_scale = B.state Radar_scale.Per_axis graph in
+  let fixed_radius, toggle_fixed_radius = B.toggle ~default_model:false graph in
+  let spaced_radar, toggle_spaced_radar = B.toggle ~default_model:false graph in
   let disabled, toggle_disabled = B.toggle ~default_model:false graph in
   let notice, set_notice = B.state "Preparing chart…" graph in
   let open B.Let_syntax in
@@ -178,6 +197,12 @@ let component app window palette graph =
   and toggle_unknown_color = toggle_unknown_color
   and stacked = stacked
   and toggle_stacked = toggle_stacked
+  and radar_scale = radar_scale
+  and set_radar_scale = set_radar_scale
+  and fixed_radius = fixed_radius
+  and toggle_fixed_radius = toggle_fixed_radius
+  and spaced_radar = spaced_radar
+  and toggle_spaced_radar = toggle_spaced_radar
   and disabled = disabled
   and toggle_disabled = toggle_disabled
   and notice = notice
@@ -242,6 +267,13 @@ let component app window palette graph =
                 if placement_mode
                 then if outside then " · Outside" else " · Inside"
                 else ""
+              else if Mode.equal current_mode (Family Radar)
+              then
+                sprintf
+                  "%s · %s · gap %d"
+                  (Radar_scale.label radar_scale)
+                  (if fixed_radius then "80 px" else "Fit")
+                  (if spaced_radar then 24 else 0)
               else direction)
              (Samples.Inspection.label inspection))
       | Failed e -> set_notice (Sexp.to_string_hum [%sexp (e : Chart.Error.t)])
@@ -279,6 +311,13 @@ let component app window palette graph =
              ()
            |> ok)
         ~pie:(Chart_options.Pie.create ~inner_radius:0.5 () |> ok)
+        ~radar:
+          (Chart_options.Radar.create
+             ~scale:radar_scale
+             ~radius:(if fixed_radius then Pixels 80. else Fit)
+             ~label_gap:(if spaced_radar then 24. else 0.)
+             ()
+           |> ok)
         ()
     in
     let chart_style =
@@ -346,6 +385,34 @@ let component app window palette graph =
            ; Palette.button p "Update chart samples" update
            ]
        ]
+       @ (if Mode.equal current_mode (Family Radar)
+          then
+            [ V.row
+                ~style:(style [ Gap (px 6.); Wrap Wrap ])
+                (List.map Radar_scale.all ~f:(fun candidate ->
+                   Palette.button
+                     p
+                     ~selected:(Radar_scale.equal candidate radar_scale)
+                     (Radar_scale.label candidate)
+                     (set_radar_scale candidate)))
+            ; V.row
+                ~style:(style [ Gap (px 12.); Wrap Wrap ])
+                [ V.switch
+                    ~checked:fixed_radius
+                    ~on_toggle:toggle_fixed_radius
+                    "Fixed radar radius 80"
+                ; V.switch
+                    ~checked:spaced_radar
+                    ~on_toggle:toggle_spaced_radar
+                    "Radar label gap 24"
+                ]
+            ; Palette.text
+                p
+                ~muted:true
+                "Scale changes geometry, not source values. Values above 50 extend \
+                 beyond the grid."
+            ]
+          else [])
        @ (if Mode.equal current_mode Ordinal_colors
           then
             [ V.switch

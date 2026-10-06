@@ -696,19 +696,34 @@ fn radar(
     axes: &[data::RadarAxis],
     series: &[data::RadarSeries],
     options: options::Radar,
-) {
+) -> Result<(), Error> {
     if axes.is_empty() {
-        return;
+        return Ok(());
     }
     let center = Point::new(plan.width / 2., plan.height / 2.);
-    let radius = plan.width.min(plan.height) / 2.;
+    let radius = match options.radius {
+        options::RadarRadius::Fit => plan.width.min(plan.height) / 2.,
+        options::RadarRadius::Pixels(radius) => radius,
+    };
+    let shared_maximum = match options.scale {
+        options::RadarScale::PerAxis => None,
+        options::RadarScale::Maximum(maximum) => Some(maximum),
+        options::RadarScale::DataMax => {
+            let maximum = series
+                .iter()
+                .flat_map(|s| &s.values)
+                .map(|(_, value)| *value)
+                .fold(0_f64, f64::max);
+            Some(if maximum > 0. { maximum } else { 1. })
+        }
+    };
     let angle = |i: usize| i as f64 / axes.len() as f64 * TAU - PI / 2.;
     for (i, axis) in axes.iter().enumerate() {
         let endpoint = Point::polar(center, radius, angle(i));
         plan.grid.push((center, endpoint));
         if options.labels {
             plan.labels.push(Label {
-                position: endpoint,
+                position: Point::polar(center, radius + options.label_gap, angle(i)),
                 text: axis.label.clone(),
                 kind: LabelKind::Radial,
             });
@@ -725,8 +740,18 @@ fn radar(
         let values: BTreeMap<_, _> = s.values.iter().copied().collect();
         let mut points = Vec::with_capacity(axes.len() + 1);
         for (i, axis) in axes.iter().enumerate() {
-            let position =
-                Point::polar(center, radius * (values[&axis.id] / axis.maximum), angle(i));
+            let maximum = shared_maximum.unwrap_or(axis.maximum);
+            let position = Point::polar(center, radius * (values[&axis.id] / maximum), angle(i));
+            // Reject excessive extrapolation before f32 mesh conversion; never
+            // clamp data or vertices into a different polygon.
+            let limit = gpuio_protocol::canvas::COORDINATE_LIMIT;
+            if !position.x.is_finite()
+                || !position.y.is_finite()
+                || position.x.abs() > limit
+                || position.y.abs() > limit
+            {
+                return Err(Error::RenderLimit);
+            }
             points.push(position);
             plan.marks.push(Mark {
                 layer: index,
@@ -754,6 +779,7 @@ fn radar(
             commands,
         });
     }
+    Ok(())
 }
 fn candles(
     plan: &mut Plan,
@@ -1166,7 +1192,7 @@ pub fn prepare_with_flow_labels(
             candles(&mut plan, source, values, options)
         }
         (data::Contents::Pie(slices), _) => pie(&mut plan, slices, options.pie),
-        (data::Contents::Radar(axes, series), _) => radar(&mut plan, axes, series, options.radar),
+        (data::Contents::Radar(axes, series), _) => radar(&mut plan, axes, series, options.radar)?,
         (data::Contents::Sankey(nodes, edges), _) => {
             sankey(&mut plan, nodes, edges, options.sankey, labels, cancel)?
         }

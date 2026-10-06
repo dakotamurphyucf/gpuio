@@ -83,11 +83,41 @@ pub struct Pie {
     pub pad_angle: f64,
     pub labels: bool,
 }
-#[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
+#[derive(Clone, Copy, Debug, PartialEq, BinProtWrite)]
+pub enum RadarScale {
+    PerAxis,
+    DataMax,
+    Maximum(f64),
+}
+impl RadarScale {
+    pub fn is_valid(self) -> bool {
+        match self {
+            Self::PerAxis | Self::DataMax => true,
+            Self::Maximum(n) => between(n, 0., 1e100) && n > 0.,
+        }
+    }
+}
+#[derive(Clone, Copy, Debug, PartialEq, BinProtWrite)]
+pub enum RadarRadius {
+    Fit,
+    Pixels(f64),
+}
+impl RadarRadius {
+    pub fn is_valid(self) -> bool {
+        match self {
+            Self::Fit => true,
+            Self::Pixels(n) => between(n, 0., 32768.) && n > 0.,
+        }
+    }
+}
+#[derive(Clone, Copy, Debug, PartialEq, BinProtWrite)]
 pub struct Radar {
     pub levels: i64,
     pub dots: bool,
     pub labels: bool,
+    pub scale: RadarScale,
+    pub radius: RadarRadius,
+    pub label_gap: f64,
 }
 #[derive(Clone, Copy, Debug, PartialEq, BinProtWrite)]
 pub struct Candlestick {
@@ -149,7 +179,7 @@ fn fraction(n: f64) -> bool {
 }
 impl Options {
     pub fn is_valid(&self) -> bool {
-        self.version == 6
+        self.version == 7
             && (2..=12).contains(&self.axes.ticks)
             && self.axes.x_format.is_valid()
             && self.axes.y_format.is_valid()
@@ -158,6 +188,9 @@ impl Options {
             && between(self.pie.inner_radius, 0., 0.95)
             && between(self.pie.pad_angle, 0., 0.2)
             && (1..=12).contains(&self.radar.levels)
+            && self.radar.scale.is_valid()
+            && self.radar.radius.is_valid()
+            && between(self.radar.label_gap, 0., 64.)
             && fraction(self.candlestick.body_width)
             && between(self.sankey.node_width, 1., 64.)
             && between(self.sankey.node_padding, 0., 64.)
@@ -171,7 +204,7 @@ impl Options {
 impl Default for Options {
     fn default() -> Self {
         Self {
-            version: 6,
+            version: 7,
             axes: Axes {
                 x: true,
                 y: true,
@@ -197,6 +230,9 @@ impl Default for Options {
                 levels: 4,
                 dots: true,
                 labels: true,
+                scale: RadarScale::PerAxis,
+                radius: RadarRadius::Fit,
+                label_gap: 0.,
             },
             candlestick: Candlestick { body_width: 0.7 },
             sankey: Sankey {

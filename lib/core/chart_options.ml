@@ -119,11 +119,35 @@ end
 module Radar = struct
   type t = Wire.Radar.t [@@deriving equal, sexp_of]
 
-  let create ?(levels = 4) ?(dots = true) ?(labels = true) () =
+  module Scale = struct
+    type t = Wire.Radar.Scale.t =
+      | Per_axis
+      | Data_max
+      | Maximum of float
+    [@@deriving equal, sexp_of]
+  end
+
+  module Radius = struct
+    type t = Wire.Radar.Radius.t =
+      | Fit
+      | Pixels of float
+    [@@deriving equal, sexp_of]
+  end
+
+  let create
+        ?(levels = 4)
+        ?(dots = true)
+        ?(labels = true)
+        ?(scale = Scale.Per_axis)
+        ?(radius = Radius.Fit)
+        ?(label_gap = 0.)
+        ()
+    =
     checked
       Wire.Radar.valid
-      { Wire.Radar.levels = Int64.of_int levels; dots; labels }
-      "chart radar levels must be in [1,12]"
+      { Wire.Radar.levels = Int64.of_int levels; dots; labels; scale; radius; label_gap }
+      "chart radar requires levels [1,12], maximum (0,1e100], radius (0,32768], gap \
+       [0,64]; all floats finite"
   ;;
 
   let default = create () |> Or_error.ok_exn
@@ -224,7 +248,7 @@ let create
       ?(sankey = Sankey.default)
       ()
   =
-  { Wire.version = 6L; axes; cartesian; pie; radar; candlestick; sankey }
+  { Wire.version = 7L; axes; cartesian; pie; radar; candlestick; sankey }
 ;;
 
 let default = create ()

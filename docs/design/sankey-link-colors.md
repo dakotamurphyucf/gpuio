@@ -27,8 +27,9 @@ Options schema **4 → 5** appends one enum tag after label gap: Source=0, Targe
 Gradient=2. The default options fixture is 101 bytes and the 256-byte options
 bound remains unchanged. Style/data versions remain -2/1. The original paired
 view fixture was `chart-v5-link-colors-view.hex`. The subsequent
-[outside-label option](sankey-label-placement.md) advances current options to 6
-(102 bytes) and requires its matching fixture. Old versions and unknown policy
+[outside-label option](sankey-label-placement.md) advanced options to 6
+(102 bytes); [radar presentation](radar-presentation.md) now advances them to 7
+(112 default bytes) with its matching fixture. Old versions and unknown policy
 tags are rejected; both bridge packages must match.
 
 The pinned source always paints endpoint gradients. GPUIO exposes that behavior

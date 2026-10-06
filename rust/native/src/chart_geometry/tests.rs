@@ -908,3 +908,123 @@ fn radar_series_identifiers_follow_axes_and_do_not_require_colored_fills() {
         }
     }
 }
+
+#[test]
+fn radar_shared_scales_extrapolate_without_changing_source_identity() {
+    let axes = vec![
+        data::RadarAxis {
+            id: 1,
+            label: "A".into(),
+            maximum: 10.,
+        },
+        data::RadarAxis {
+            id: 2,
+            label: "B".into(),
+            maximum: 100.,
+        },
+        data::RadarAxis {
+            id: 3,
+            label: "C".into(),
+            maximum: 20.,
+        },
+    ];
+    let source = dataset(data::Contents::Radar(
+        axes,
+        vec![
+            data::RadarSeries {
+                id: 8,
+                name: "First".into(),
+                values: vec![(1, 5.), (2, 50.), (3, 10.)],
+            },
+            data::RadarSeries {
+                id: 9,
+                name: "Second".into(),
+                values: vec![(1, 10.), (2, 100.), (3, 20.)],
+            },
+        ],
+    ));
+    let make = |scale, radius, label_gap| {
+        let mut o = options();
+        o.radar.scale = scale;
+        o.radar.radius = radius;
+        o.radar.label_gap = label_gap;
+        prepare(
+            &source,
+            Policy::default(),
+            &o,
+            800.,
+            400.,
+            &AtomicBool::new(false),
+        )
+    };
+    let distance = |mark: &Mark| match mark.shape {
+        Shape::Dot { center, .. } => (center.x - 400.).hypot(center.y - 200.),
+        _ => panic!("expected radar vertex"),
+    };
+    let per_axis = make(options::RadarScale::PerAxis, options::RadarRadius::Fit, 0.).unwrap();
+    let auto = make(options::RadarScale::DataMax, options::RadarRadius::Fit, 0.).unwrap();
+    let fixed = make(
+        options::RadarScale::Maximum(25.),
+        options::RadarRadius::Pixels(80.),
+        10.,
+    )
+    .unwrap();
+    for (plan, expected) in [
+        (&per_axis, [100., 100., 100., 200., 200., 200.]),
+        (&auto, [10., 100., 20., 20., 200., 40.]),
+        (&fixed, [16., 160., 32., 32., 320., 64.]),
+    ] {
+        for (mark, radius) in plan.marks.iter().zip(expected) {
+            assert!((distance(mark) - radius).abs() < 1e-9);
+        }
+        assert_eq!(
+            plan.marks.iter().map(|m| m.source).collect::<Vec<_>>(),
+            per_axis.marks.iter().map(|m| m.source).collect::<Vec<_>>()
+        );
+        assert_eq!(plan.source_values, 6);
+    }
+    // Gap moves only label anchors in this fixed-size geometry plan.
+    assert_eq!(fixed.labels[0].position, Point::new(400., 110.));
+    assert_eq!(fixed.grid[0].1, Point::new(400., 120.));
+    assert!(matches!(
+        make(
+            options::RadarScale::Maximum(f64::from_bits(1)),
+            options::RadarRadius::Fit,
+            0.
+        ),
+        Err(Error::RenderLimit)
+    ));
+    let mut zeros = source.clone();
+    if let data::Contents::Radar(_, series) = &mut zeros.contents {
+        for series in series {
+            for (_, value) in &mut series.values {
+                *value = 0.;
+            }
+        }
+    }
+    let mut o = options();
+    o.radar.scale = options::RadarScale::DataMax;
+    let zero_plan = prepare(
+        &zeros,
+        Policy::default(),
+        &o,
+        800.,
+        400.,
+        &AtomicBool::new(false),
+    )
+    .unwrap();
+    assert!(zero_plan.marks.iter().all(|mark| distance(mark) == 0.));
+    if let data::Contents::Radar(_, series) = &mut zeros.contents {
+        series.clear();
+    }
+    let empty = prepare(
+        &zeros,
+        Policy::default(),
+        &o,
+        800.,
+        400.,
+        &AtomicBool::new(false),
+    )
+    .unwrap();
+    assert!(empty.marks.is_empty());
+}
