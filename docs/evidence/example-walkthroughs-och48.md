@@ -522,3 +522,8 @@ is inferred from these examples or this review.
 The structural inventory, changed Markdown local file links and whitespace checks
 pass. Documentation-only commands were checked against source/build declarations;
 no new example GUI executions were run for this batch. OCH-48 remains open.
+
+The follow-up diagnostic correction changes `view_api`'s marker to
+`native_selection=not_exercised`, matching the walkthrough and actual self-test
+scope. This changes reporting only; no new selection test or GUI acceptance is
+claimed. Consumers of the existing `TYPED_VIEW_PASS` prefix remain unchanged.

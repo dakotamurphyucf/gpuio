@@ -51,7 +51,7 @@ _build/default/examples/view_api/main.exe --self-test
 The graphical self-test has a 30-second worker timeout. After each Accepted it
 requests a frame; the frame event increments count and changes theme every fourth
 increment until revision 20, then submits Shutdown. It prints `TYPED_VIEW_PASS`.
-Despite the marker's `native_selection=true` field, this sequence does not generate
+The marker explicitly reports `native_selection=not_exercised`: this sequence does not generate
 selection or physical button/keyboard/clipboard input. Those native interactions
 need separate tests. A frame is not physical presentation evidence.
 

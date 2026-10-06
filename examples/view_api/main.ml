@@ -175,7 +175,7 @@ let worker native notification_read ~self_test =
     if self_test
     then
       Eio.Flow.copy_string
-        "TYPED_VIEW_PASS revisions=20 themes=true native_selection=true\n"
+        "TYPED_VIEW_PASS revisions=20 themes=true native_selection=not_exercised\n"
         (Eio.Stdenv.stdout env))
 ;;
 
