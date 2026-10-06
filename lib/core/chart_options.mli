@@ -176,6 +176,13 @@ module Sankey : sig
     [@@deriving equal, sexp_of]
   end
 
+  module Label_placement : sig
+    type t =
+      | Inside
+      | Outside
+    [@@deriving equal, sexp_of]
+  end
+
   type t [@@deriving equal, sexp_of]
 
   (** Node width 1..64 logical pixels, padding 0..64, relaxation iterations
@@ -191,6 +198,14 @@ module Sankey : sig
       color and Gradient blends source to target across the full ribbon. Both
       endpoints use resolved ordinal/palette colors multiplied by [link_opacity].
       These choices do not change source values or hit geometry.
+      [label_placement] defaults to Inside. Outside reserves measured native-font
+      margins: first-column labels appear left, last-column labels right, and
+      middle-column blocks above nodes. A single column uses first-column policy.
+      Each side is capped at 20% of plot width; combined vertical margins at 60%
+      of height. Long labels ellipsize, and tiny views may clip them. Rich label
+      overrides participate in measurement; hidden labels reserve no space.
+      Dense layouts may still need shorter or hidden labels. Native workers own
+      measurement; no synchronous OCaml layout callback is used.
       All dimensions are logical pixels. *)
   val create
     :  ?node_width:float
@@ -204,6 +219,7 @@ module Sankey : sig
     -> ?min_link_width:float
     -> ?label_gap:float
     -> ?link_color:Link_color.t
+    -> ?label_placement:Label_placement.t
     -> unit
     -> t Or_error.t
 

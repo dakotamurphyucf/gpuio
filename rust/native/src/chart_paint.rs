@@ -446,6 +446,18 @@ pub fn prepare(
     layout: Layout,
     cancel: &AtomicBool,
 ) -> Result<Prepared, Error> {
+    prepare_with_text(data, policy, options, style, layout, None, cancel)
+}
+/// Native mounted views provide a captured font context for measured labels.
+pub fn prepare_with_text(
+    data: &Data,
+    policy: Policy,
+    options: &Options,
+    style: &Style,
+    layout: Layout,
+    text: Option<&crate::chart_label_metrics::Context>,
+    cancel: &AtomicBool,
+) -> Result<Prepared, Error> {
     check(cancel)?;
     let Layout {
         width,
@@ -455,12 +467,32 @@ pub fn prepare(
     if !style.is_valid() {
         return Err(Error::InvalidInput);
     }
-    let mut geometry =
-        geometry::prepare(data, policy, options, width, height, cancel).map_err(|e| match e {
-            geometry::Error::InvalidInput => Error::InvalidInput,
-            geometry::Error::Cancelled => Error::Cancelled,
-            geometry::Error::RenderLimit => Error::RenderLimit,
-        })?;
+    let measured = if matches!(
+        data.contents,
+        gpuio_protocol::chart_data::Contents::Sankey(..)
+    ) && options.sankey.labels
+        && options.sankey.label_placement == gpuio_protocol::chart_options::LabelPlacement::Outside
+    {
+        Some(
+            text.ok_or(Error::InvalidInput)?
+                .measure(data, style, cancel)?,
+        )
+    } else {
+        None
+    };
+    let mut geometry = geometry::prepare_with_flow_labels(
+        data,
+        policy,
+        options,
+        (width, height),
+        measured.as_deref(),
+        cancel,
+    )
+    .map_err(|e| match e {
+        geometry::Error::InvalidInput => Error::InvalidInput,
+        geometry::Error::Cancelled => Error::Cancelled,
+        geometry::Error::RenderLimit => Error::RenderLimit,
+    })?;
     crate::chart_node_labels::apply(&mut geometry, data, style, cancel).map_err(|e| match e {
         geometry::Error::InvalidInput => Error::InvalidInput,
         geometry::Error::Cancelled => Error::Cancelled,

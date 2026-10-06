@@ -85,6 +85,11 @@ harness = false
 required-features = ["native-canvas-tests"]
 
 [[test]]
+name = "native_chart_labels"
+harness = false
+required-features = ["native-canvas-tests"]
+
+[[test]]
 name = "native_chart_paint"
 harness = false
 required-features = ["native-canvas-tests"]

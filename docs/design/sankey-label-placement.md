@@ -2,14 +2,16 @@
 
 **Draft implementation plan, OCH-41, 2026-10-06. Not shipped or qualified.**
 The [pure internal geometry engine](../evidence/sankey-label-layout-engine.md) now
-accepts supplied measurements and has unit coverage. Its public/worker wiring is
-still pending; no outside-label feature is exposed yet. Current behavior remains the [inside-label presentation](sankey-presentation.md)
-and [ID-keyed rich label values](chart-node-labels.md). This document makes the
-next catalog gap concrete without claiming it is implemented.
+accepts supplied measurements. Public options and the native worker path are
+implemented, and [actual macOS worker measurement](../evidence/sankey-label-worker.md)
+passes without opening a window. Three-column rendered gallery and independently
+installed consumer validation remain pending; this is not feature acceptance.
+The default remains the [inside-label presentation](sankey-presentation.md), with
+[ID-keyed rich label values](chart-node-labels.md) supported in either policy.
 
-## Public contract to add
+## Public contract
 
-Extend `Chart_options.Sankey` with `Label_placement.t = Inside | Outside` and
+`Chart_options.Sankey` exposes `Label_placement.t = Inside | Outside` and
 optional `?label_placement`, default Inside. Existing applications keep their
 current layout. Outside places the first column's labels to the left, the last
 column's labels to the right, and middle-column blocks above their nodes.
@@ -23,9 +25,10 @@ paint and hit testing must use the same new extent and prepared source revision.
 Rich font/color and label gap compose with the new policy. Colors do not affect
 measurement. No user layout closure or per-frame OCaml callback is introduced.
 
-The implementation would advance options schema 5 to 6 with a bounded enum tag,
-keep style/data -2/1, add an independent paired view fixture, and reject unsupported
-versions/invalid tags. These are planned schema changes, not current wire values.
+Options schema 6 appends Inside=0 / Outside=1, keeps style/data -2/1 and uses
+`chart-v6-label-placement-view.hex` for the paired view fixture. Default options
+are 102 bytes. Both sides reject old options versions; Rust rejects unknown tags.
+Matching bridge packages are required.
 
 ## Native measurement before geometry
 
@@ -90,7 +93,8 @@ Font and owned text into `std::thread::spawn`, constructing a private
 API/type boundary compiles; it did **not execute measurement**, open a window or
 qualify any platform behavior. PlatformTextSystem is explicitly Send + Sync in
 the pin. [Probe source and command log](../evidence/sankey-label-measurement-probe.md)
-retain the exact limited evidence. Real worker execution remains required.
+retain the exact limited evidence. The later worker harness now executes measurement; it does not qualify rendered
+label geometry or stale-request behavior on a mounted view.
 
 Implementation acceptance must cover:
 

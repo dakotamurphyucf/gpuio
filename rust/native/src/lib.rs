@@ -27,6 +27,7 @@ pub mod chart_geometry;
 mod chart_hit;
 mod chart_host;
 pub mod chart_jobs;
+pub mod chart_label_metrics;
 mod chart_node_labels;
 pub mod chart_paint;
 mod chart_presentation;
@@ -34,6 +35,10 @@ pub mod chart_render_host;
 mod chart_table;
 #[cfg(all(test, feature = "native-image-tests"))]
 mod image_mask_test;
+#[cfg(feature = "native-canvas-tests")]
+pub fn run_native_chart_labels_test() {
+    chart_label_metrics::native_test::run();
+}
 #[cfg(feature = "native-canvas-tests")]
 pub fn run_native_chart_paint_test() {
     chart_paint::native_test::run();

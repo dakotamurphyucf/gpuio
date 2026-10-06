@@ -7,7 +7,7 @@ fn bytes(value: &Options) -> Vec<u8> {
 }
 #[test]
 fn default_options_match_independent_ocaml_fixture_and_reject_truncation() {
-    let hex = "050101010500000000009a9999999999e93f00000000000000000000000000000000000001040101666666666666e63f0000000000003040000000000000284003000601000000000000f03f000000000000e03f0000000000000000000000000000184000";
+    let hex = "060101010500000000009a9999999999e93f00000000000000000000000000000000000001040101666666666666e63f0000000000003040000000000000284003000601000000000000f03f000000000000e03f000000000000000000000000000018400000";
     let expected: Vec<u8> = hex
         .as_bytes()
         .chunks_exact(2)
@@ -186,7 +186,7 @@ fn categorical_layout_tags_and_padding_bounds_are_paired_and_versioned() {
 fn stacking_is_explicit_paired_and_old_layouts_are_rejected() {
     let mut options = Options::default();
     let mut expected = bytes(&options);
-    assert_eq!(expected[0], 5);
+    assert_eq!(expected[0], 6);
     assert_eq!(expected[19], 0);
     options.cartesian.stacking = Stacking::Stacked;
     expected[19] = 1;
@@ -250,7 +250,7 @@ fn sankey_link_color_tags_preserve_default_and_reject_unknown_variants() {
         let mut value = Options::default();
         value.sankey.link_color = mode;
         let encoded = bytes(&value);
-        assert_eq!(encoded.len(), 101);
+        assert_eq!(encoded.len(), 102);
         assert_eq!(encoded[100], tag);
         assert_eq!(decode_chart_options(&encoded), Ok(value));
     }
@@ -261,4 +261,25 @@ fn sankey_link_color_tags_preserve_default_and_reject_unknown_variants() {
     encoded[100] = 0;
     encoded[0] = 4;
     assert_eq!(decode_chart_options(&encoded), Err(DecodeError::Malformed));
+}
+
+#[test]
+fn measured_label_placement_is_explicit_and_version_six_rejects_old_options() {
+    let mut value = Options::default();
+    let original = bytes(&value);
+    assert_eq!(original.len(), 102);
+    assert_eq!(original[0], 6);
+    assert_eq!(original[101], 0);
+    value.sankey.label_placement = LabelPlacement::Outside;
+    let mut expected = original.clone();
+    expected[101] = 1;
+    assert_eq!(bytes(&value), expected);
+    assert_eq!(decode_chart_options(&expected), Ok(value));
+    expected[101] = 2;
+    assert_eq!(decode_chart_options(&expected), Err(DecodeError::Malformed));
+    for version in 0..6 {
+        let mut old = original.clone();
+        old[0] = version;
+        assert_eq!(decode_chart_options(&old), Err(DecodeError::Malformed));
+    }
 }

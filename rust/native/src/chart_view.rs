@@ -181,9 +181,23 @@ impl State {
             snapshot: snapshot.clone(),
             config: self.config.clone(),
             layout,
+            text: (matches!(
+                snapshot.data().contents,
+                gpuio_protocol::chart_data::Contents::Sankey(..)
+            ) && self.config.options.sankey.labels
+                && self.config.options.sankey.label_placement
+                    == gpuio_protocol::chart_options::LabelPlacement::Outside)
+                .then(|| crate::chart_label_metrics::Context {
+                    system: cx.text_system().clone(),
+                    style: crate::chart_label_metrics::LabelStyle::new(
+                        window.text_style().font(),
+                        f32::from(window.rem_size()) * 0.25,
+                    ),
+                }),
         };
         let changed = self.requested.as_ref().is_none_or(|old| {
-            !Arc::ptr_eq(&old.snapshot, &snapshot)
+            old.text != request.text
+                || !Arc::ptr_eq(&old.snapshot, &snapshot)
                 || old.layout != layout
                 || old.config.options != self.config.options
                 || old.config.sampling != self.config.sampling
@@ -265,6 +279,9 @@ impl State {
             .text_size(px(11.))
             .line_height(px(presentation::TEXT_HEIGHT as f32))
             .text_color(gpui::rgba(style.label_color as u32));
+        if let Some(label_style) = &ready.label_style {
+            text = text.font(label_style.font.clone());
+        }
         let series_names = presentation::legend(ready.snapshot.data());
         for (index, label) in ready.plan.geometry().labels.iter().enumerate() {
             let placement = frame.label(label);
@@ -290,8 +307,12 @@ impl State {
                 ));
             let mut content = div().min_w_0().text_ellipsis().child(label.text.clone());
             if backed {
+                content = if let Some(label_style) = &ready.label_style {
+                    content.px(px(label_style.padding))
+                } else {
+                    content.px_1()
+                };
                 content = content
-                    .px_1()
                     .rounded_sm()
                     .bg(gpui::rgba(presentation::label_backing(foreground)));
             }

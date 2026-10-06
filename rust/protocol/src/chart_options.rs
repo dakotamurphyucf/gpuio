@@ -111,6 +111,11 @@ pub enum LinkColor {
     Target,
     Gradient,
 }
+#[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
+pub enum LabelPlacement {
+    Inside,
+    Outside,
+}
 #[derive(Clone, Copy, Debug, PartialEq, BinProtWrite)]
 pub struct Sankey {
     pub node_width: f64,
@@ -124,6 +129,7 @@ pub struct Sankey {
     pub min_link_width: f64,
     pub label_gap: f64,
     pub link_color: LinkColor,
+    pub label_placement: LabelPlacement,
 }
 #[derive(Clone, Copy, Debug, PartialEq, BinProtWrite)]
 pub struct Options {
@@ -143,7 +149,7 @@ fn fraction(n: f64) -> bool {
 }
 impl Options {
     pub fn is_valid(&self) -> bool {
-        self.version == 5
+        self.version == 6
             && (2..=12).contains(&self.axes.ticks)
             && self.axes.x_format.is_valid()
             && self.axes.y_format.is_valid()
@@ -165,7 +171,7 @@ impl Options {
 impl Default for Options {
     fn default() -> Self {
         Self {
-            version: 5,
+            version: 6,
             axes: Axes {
                 x: true,
                 y: true,
@@ -205,6 +211,7 @@ impl Default for Options {
                 min_link_width: 0.,
                 label_gap: 6.,
                 link_color: LinkColor::Source,
+                label_placement: LabelPlacement::Inside,
             },
         }
     }

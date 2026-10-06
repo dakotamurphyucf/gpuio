@@ -1,0 +1,103 @@
+{
+  "date": "2026-10-06",
+  "platform": "macOS 14.5 arm64",
+  "source_base": "ba02d7267ca7d8fbd475d4c48719ca5131a4608e",
+  "scope": "Feature edits in this commit; no rendered-label or installed-consumer acceptance.",
+  "archive_sha256": "cfa81c0cf70e112217b6903a34d5920bd330c2d476c64668b00b0bf0d64ee07a",
+  "logs": [
+    {
+      "path": "sankey-outside-protocol.log",
+      "bytes": 17023,
+      "sha256": "140add5dc7b990bc5520096cf086a9047bc13990050c96b97d88039c3d12baf9"
+    },
+    {
+      "path": "sankey-outside-protocol-final.log",
+      "bytes": 56273,
+      "sha256": "cdf71fc4a443ef0711c66b7c7feba1e13d7e782195116b82c736870def1ff136"
+    },
+    {
+      "path": "sankey-outside-native-final.log",
+      "bytes": 653615,
+      "sha256": "a881a695dcec8815ac7c55778cd2b5b2b21896e16ec4c0ee3e5fad10e4e41b16"
+    },
+    {
+      "path": "sankey-outside-ocaml.log",
+      "bytes": 708847,
+      "sha256": "1cbc8147c69bcb3564a146b9453d997880119cba8ff775bba75537d878830d44"
+    },
+    {
+      "path": "sankey-outside-ocaml-final.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "sankey-outside-font-runtime.log",
+      "bytes": 588537,
+      "sha256": "e6f23b70478002188321ae405f4f278d261b921108b43ce94828d67fe09a4b29"
+    },
+    {
+      "path": "sankey-outside-clippy.log",
+      "bytes": 588745,
+      "sha256": "7f3ca5117706b225c6c0b359869ac528127fa2c1560c628b68c8d3787693fea9"
+    },
+    {
+      "path": "sankey-outside-rustfmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "sources": [
+    {
+      "path": "rust/native/src/chart_label_metrics.rs",
+      "sha256": "95cc0be706680aac91440c985a0ba0cbff628050369a3a728f60a536ca8755fd"
+    },
+    {
+      "path": "rust/native/src/chart_label_metrics/native_test.rs",
+      "sha256": "f302ca2a09ddb14a444a2d095bfc58a7cf3fe398fa119d2aa1372430996f15e3"
+    },
+    {
+      "path": "rust/native/src/chart_jobs.rs",
+      "sha256": "46a3f731d30e4d6aa371a9adadd45d1fa3b54bd09a48efaf264e553853f0cdbd"
+    },
+    {
+      "path": "rust/native/src/chart_view.rs",
+      "sha256": "c36f6159f461c6f0b37879b097e6eac39bbb6dda2a63a3187ec7c541fc8cb433"
+    },
+    {
+      "path": "rust/native/src/chart_paint.rs",
+      "sha256": "90e60a627fdc6fb082cfae8039e1713a21bce98287a4ddc6e1ebbd0865ae7805"
+    },
+    {
+      "path": "lib/core/chart_options.ml",
+      "sha256": "c28411adbb33faf9101b70fb2b12121458e9cb6499fd8126262f22fd855d3e64"
+    },
+    {
+      "path": "lib/core/chart_options.mli",
+      "sha256": "3ddbb5d2768422c20062ad5b213fda122d07b1cf606724acfaf2b0f0dc9c90e1"
+    },
+    {
+      "path": "lib/protocol/chart_options_wire.ml",
+      "sha256": "7f413b94d6edbda2f37857467ab9108417498f22d3b7bf4342d5b5dac37f6b49"
+    },
+    {
+      "path": "rust/protocol/src/chart_options.rs",
+      "sha256": "45e9aa02b369ac0aad6c55c193a0b276ae012f56d640afcdbdca001ea986fd9f"
+    },
+    {
+      "path": "rust/protocol/src/decode/chart_options.rs",
+      "sha256": "6abb3bfe027f2298c57ba2760f2a3ba3db91907cacbc1605852907dc1617a4f3"
+    },
+    {
+      "path": "test/chart/chart_options_test.ml",
+      "sha256": "5bfa3c2639d688df44fd691ace86c6abefcc690ead58859b666a4dafc04687fb"
+    },
+    {
+      "path": "rust/protocol/tests/chart_options.rs",
+      "sha256": "cce211f829a616c2cdaf3f12342cfe95532625f747003120a9cacad6ee779270"
+    },
+    {
+      "path": "test/fixtures/chart-v6-label-placement-view.hex",
+      "sha256": "aa2ff01851bc9e639dc352792c2c476bcab9b100a878c2e49cb0c381c0b013df"
+    }
+  ]
+}

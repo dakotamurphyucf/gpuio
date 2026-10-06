@@ -57,7 +57,7 @@ let%expect_test "chart view owner and append-only envelopes match independent fi
   let bytes = Bin_prot.Utils.bin_dump W.Config.bin_writer_t wire |> Bigstring.to_string in
   Eio_main.run (fun env ->
     let expected =
-      Eio.Path.load Eio.Path.(Eio.Stdenv.cwd env / "chart-v5-link-colors-view.hex")
+      Eio.Path.load Eio.Path.(Eio.Stdenv.cwd env / "chart-v6-label-placement-view.hex")
       |> String.strip
     in
     assert (String.equal (hex bytes) expected));

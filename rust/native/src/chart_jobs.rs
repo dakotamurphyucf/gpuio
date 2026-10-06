@@ -74,6 +74,7 @@ pub struct Request {
     pub snapshot: Arc<Snapshot>,
     pub config: Arc<Config>,
     pub layout: Layout,
+    pub text: Option<crate::chart_label_metrics::Context>,
 }
 impl Request {
     fn equal(&self, other: &Self) -> bool {
@@ -84,6 +85,7 @@ impl Request {
             && self.config.style == other.config.style
             && self.config.legend == other.config.legend
             && self.layout == other.layout
+            && self.text == other.text
     }
 }
 
@@ -92,6 +94,7 @@ pub struct Ready {
     pub config: Arc<Config>,
     pub layout: Layout,
     pub plan: Prepared,
+    pub label_style: Option<crate::chart_label_metrics::LabelStyle>,
     _charge: Charge,
 }
 
@@ -167,12 +170,13 @@ impl Work {
         let start = Instant::now();
         let result = self.output_charge.and_then(|mut charge| {
             let plan = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                paint::prepare(
+                paint::prepare_with_text(
                     &self.request.snapshot.data,
                     self.request.config.sampling,
                     &self.request.config.options,
                     &self.request.config.style,
                     self.request.layout,
+                    self.request.text.as_ref(),
                     &self.cancel,
                 )
             }))
@@ -193,6 +197,7 @@ impl Work {
                 config: self.request.config,
                 layout: self.request.layout,
                 plan,
+                label_style: self.request.text.as_ref().map(|text| text.style.clone()),
                 _charge: charge,
             })
         });
@@ -407,6 +412,7 @@ mod tests {
                 style: Default::default(),
             }),
             layout: Layout::new(200., 150., 1.).unwrap(),
+            text: None,
         }
     }
     #[test]

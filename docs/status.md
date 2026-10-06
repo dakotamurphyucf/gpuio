@@ -21,11 +21,12 @@ the two Metal presentation probes fail, again with 180/120 zero-time callbacks o
 Apple Paravirtual. Evidence covers tree-equivalent `548bcde`, not newer Sankey or
 Code document-control changes. No gate is waived; current-source checks remain due.
 
-[Measured Sankey geometry](evidence/sankey-label-layout-engine.md) now reserves
-bounded margins and preserves multiline placement and source hit identity in the
-internal engine. Native library tests and strict lint pass. Public options, paired
-wire changes, actual worker font measurement and native/consumer validation remain
-pending; this is not yet an exposed outside-label feature.
+[Sankey label worker measurement](evidence/sankey-label-worker.md) now connects the
+public Inside/Outside option (options schema 6) to captured native font/padding and
+bounded prepared geometry. Actual macOS background font shaping passes without a
+window, alongside paired protocol and native library tests. Rendered three-column
+gallery, font/layout transitions and installed-consumer validation remain pending;
+this is an implementation checkpoint, not outside-label feature acceptance.
 
 [Code document controls](evidence/document-code-controls-och41.md) now append/reset
 the displayed code source independently of Markdown. Focused build/tests/format and

@@ -144,6 +144,13 @@ module Sankey = struct
     [@@deriving bin_io, equal, sexp_of]
   end
 
+  module Label_placement = struct
+    type t =
+      | Inside
+      | Outside
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
   type t =
     { node_width : float
     ; node_padding : float
@@ -156,6 +163,7 @@ module Sankey = struct
     ; min_link_width : float
     ; label_gap : float
     ; link_color : Link_color.t
+    ; label_placement : Label_placement.t
     }
   [@@deriving bin_io, equal, sexp_of]
 
@@ -182,7 +190,7 @@ type t =
 [@@deriving bin_io, equal, sexp_of]
 
 let valid t =
-  Int64.equal t.version 5L
+  Int64.equal t.version 6L
   && Axes.valid t.axes
   && Cartesian.valid t.cartesian
   && Pie.valid t.pie

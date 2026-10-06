@@ -167,6 +167,13 @@ module Sankey = struct
     [@@deriving equal, sexp_of]
   end
 
+  module Label_placement = struct
+    type t = Wire.Sankey.Label_placement.t =
+      | Inside
+      | Outside
+    [@@deriving equal, sexp_of]
+  end
+
   type t = Wire.Sankey.t [@@deriving equal, sexp_of]
 
   let create
@@ -181,6 +188,7 @@ module Sankey = struct
         ?(min_link_width = 0.)
         ?(label_gap = 6.)
         ?(link_color = Link_color.Source)
+        ?(label_placement = Label_placement.Inside)
         ()
     =
     checked
@@ -196,6 +204,7 @@ module Sankey = struct
       ; min_link_width
       ; label_gap
       ; link_color
+      ; label_placement
       }
       "invalid Sankey options: width [1,64], padding/gap/minimum link width [0,64], \
        iterations/radius [0,32], opacity [0,1]"
@@ -215,7 +224,7 @@ let create
       ?(sankey = Sankey.default)
       ()
   =
-  { Wire.version = 5L; axes; cartesian; pie; radar; candlestick; sankey }
+  { Wire.version = 6L; axes; cartesian; pie; radar; candlestick; sankey }
 ;;
 
 let default = create ()
