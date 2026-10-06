@@ -210,6 +210,14 @@ The build job is responsible for building those inputs at that revision: a hash
 alone cannot identify a binary's source. Failed staging or verification leaves
 an incomplete manifest.
 
+Staging requires the macOS Build step to pass, but runs even if a later native
+or presentation check fails. Upload requires successful staging. Unless the run
+is cancelled, the receiver attempts its own qualification after the foundation
+jobs finish; missing archives fail download admission, and changed/incomplete
+archives fail verification before any application starts. This keeps independent
+distribution evidence observable. A passing receiver does not override either
+foundation job or establish performance, accessibility or release acceptance.
+
 The receiver installs no project dependencies, restores no dependency cache and
 performs no project build. It checks that `_build`, `target` and `.opam-root` are
 absent, verifies the transferred identity and hashes, then uses the extracted-app

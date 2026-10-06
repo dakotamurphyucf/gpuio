@@ -13,6 +13,11 @@ include a passing local all-example build and formatting check at `282daf0`
 plus the explicit event-match patch. Corrected hosted validation remains pending.
 No gates are waived.
 
+Fresh-machine package qualification now has [independent receiver scheduling](evidence/package-runtime-och17.md#independent-receiver-scheduling--2026-10-06-utc):
+a later native/timing failure no longer suppresses staging from a successful
+build. Artifact checks and both foundation gates remain required. Local lint and
+eight transfer/admission tests pass; the changed scheduling awaits hosted execution.
+
 The [window-placement follow-up](evidence/window-readiness-och17.md#owned-window-placement-follow-up--2026-10-06-utc)
 now passes both complete local window walkthroughs. It moves only the test window
 away from the usual notification area and records display/placement geometry;

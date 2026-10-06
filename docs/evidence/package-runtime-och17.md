@@ -1,5 +1,35 @@
 # Extracted macOS application runtime — OCH-17 / OCH-41
 
+## Independent receiver scheduling — 2026-10-06 UTC
+
+Repeated hosted presentation failures have suppressed the fresh receiver even
+when the application executables built successfully. Foundation now stages
+qualification archives after a successful macOS Build regardless of later test
+results, and uploads only after successful staging. Unless cancelled, the fresh
+receiver attempts its own admission after both foundation jobs finish. Missing
+archives fail download; incomplete, wrong-revision/run or changed archives fail
+verification before any application starts. Both foundation jobs and both Metal
+probes retain their existing failure behavior; receiver success cannot override
+them. These internal ad-hoc archives remain unsuitable for release distribution.
+
+Local validation at base `2e9cd54` plus the archived workflow/documentation patch:
+
+- Actionlint 1.7.12 accepts `.github/workflows/foundation.yml`.
+- `python3 scripts/test_package_transfer.py`: five tests pass, covering exact
+  source/application membership, metadata/archive tampering, cross-run reuse,
+  staging failure and failed final verification revoking completion.
+- `python3 scripts/test_package_runtime_inputs.py`: three tests pass, covering
+  incomplete/tampered inputs, unsafe archive entries and isolation environment.
+- `git diff --check` passes.
+
+[Exact patch and logs](package-runtime-och17/independent-receiver/validation.tar.gz)
+have a [verified four-file manifest](package-runtime-och17/independent-receiver/manifest.json).
+These checks validate syntax and existing artifact-admission behavior; hosted
+execution of the new job scheduling is still required. Run 37400903839 at
+`2e9cd54` predates this change and must not be cited as scheduling qualification.
+
+## Earlier local runtime qualification
+
 All three reference apps pass real desktop walkthroughs from extracted ad-hoc
 signed archives with development-directory access denied. This closes the local
 runtime dependency-isolation check; it does not establish fresh-machine,

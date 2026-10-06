@@ -99,6 +99,7 @@ jobs:
       - name: Offline Bonsai reconstruction admission
         run: python3 scripts/test_vendor_bonsai.py 2>&1 | tee .cache/ci/bonsai-vendor-inputs.log
       - name: Build
+        id: build
         run: ./scripts/gpuio build 2>&1 | tee .cache/ci/build.log
       - name: Preserve successful dependency build
         if: ${{ !inputs.clean_build && steps.dependency-cache.outputs.cache-hit != 'true' }}
@@ -769,14 +770,18 @@ jobs:
           uname -a > .cache/ci/platform.txt
           opam list --root .opam-root --switch gpuio --installed --columns=name,version --short > .cache/ci/packages.txt || true
       - name: Assemble macOS runtime qualification inputs
-        if: runner.os == 'macOS' && success()
+        id: runtime-inputs
+        # Independent qualification: a failed timing/behavior check must not
+        # suppress fresh-machine evidence for successfully built executables.
+        # The failed foundation check still blocks overall acceptance.
+        if: runner.os == 'macOS' && !cancelled() && steps.build.outcome == 'success'
         timeout-minutes: 5
         run: |
           python3 scripts/ci_macos_package_transfer.py stage \
             --directory .cache/macos-runtime-inputs --revision "$GITHUB_SHA" \
             2>&1 | tee .cache/ci/macos-package-transfer.log
       - name: Transfer macOS qualification archives
-        if: runner.os == 'macOS' && success()
+        if: runner.os == 'macOS' && !cancelled() && steps.runtime-inputs.outcome == 'success'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: macos-runtime-qualification-inputs
@@ -801,6 +806,9 @@ jobs:
   macos-package-runtime:
     name: macOS extracted apps (fresh runner)
     needs: foundation
+    # Run independently of foundation's result. Missing/unverified archives
+    # fail admission rather than looking like passing runtime qualification.
+    if: ${{ !cancelled() }}
     runs-on: macos-15
     timeout-minutes: 20
     # No dependency cache, opam bootstrap, Rust build or project installation.
