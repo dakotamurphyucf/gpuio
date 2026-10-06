@@ -42,3 +42,34 @@ performance/resources, VoiceOver and other release gates remain open.
 
 [Commands, source patch, portable/native logs and reports](window-readiness-och17/validation.tar.gz)
 are retained with a [checksum manifest](window-readiness-och17/manifest.json).
+
+## Owned-window placement follow-up — 2026-10-06 UTC
+
+Hosted run 37387307992 identified `NotificationCenter` at the Fullscreen
+pointer target `(1321.5, 235.5)` after the title-bar drag. The button was never
+clicked. The later AX lookup returned no target; that observation alone does
+not establish why the target disappeared. The original failed report remains
+in the [hosted archive](hosted-presentation-calibration-och17.md#repeat-on-hosted-run-37387307992).
+
+The fixture now places only its own window near the main display's upper left
+before creating any transition baseline. It constrains size to the display,
+leaves room for the later right/down drag, and records display bounds plus
+requested/actual window geometry. It waits for each AX size/position operation
+to settle. The existing foreground, stable-target, physical ownership and
+native-window-control guards remain required. Notification settings are unchanged;
+this placement reduces likely overlap and does not guarantee absence of occluders.
+
+At `cf3023c` plus the archived harness patch, nine portable readiness/placement
+tests and five AX traversal tests pass. Both complete installed-gallery window
+walkthroughs pass on macOS 14.5 arm64, with a 1728×1117 logical display. The custom
+window starts at `(20, 60, 1120, 820)` and the actual drag moves it to
+`(52, 82, 1120, 820)`. The Fullscreen target is app-owned at `(1101.5, 105.5)`;
+readiness takes 128 ms. Fullscreen restoration, border resize, double-click zoom,
+selection/delete/undo, three minimize/restore cycles and second-window cleanup
+all pass. Both child processes are reaped. Binary SHA-256:
+`057501a21aae024f0cbdf86e4e756aea8c3fae75f4949af5a7d4edecceef0ee3`.
+
+[Exact commands, patch, reports, screenshots and logs](window-readiness-och17/placement/validation.tar.gz)
+have a [verified checksum manifest](window-readiness-och17/placement/manifest.json).
+The hosted notification overlap was not reproduced locally. Hosted confirmation
+and the separate Metal/performance/accessibility/distribution gates remain open.

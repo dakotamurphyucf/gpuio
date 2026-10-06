@@ -69,6 +69,57 @@ def settled_geometry(mac):
     raise RuntimeError('Window geometry did not settle')
 
 
+def fixture_geometry(display):
+    """Leave room for the later right/down drag and AppKit borders."""
+    x, y, width, height = display
+    width, height = min(1120., width-100.), min(820., height-140.)
+    if width < 960 or height < 650:
+        raise RuntimeError(f'Window fixture needs at least a 1060x790 display: {display}')
+    return x+20., y+60., width, height
+
+
+def prepare_window(mac, report):
+    # Centered hosted windows put the custom Fullscreen button under notification
+    # banners. Move only our window before establishing any transition baseline.
+    # This reduces overlap; ready_pointer still refuses any actual occlusion.
+    class Point(C.Structure):
+        _fields_ = [('x', C.c_double), ('y', C.c_double)]
+
+    class Rect(C.Structure):
+        _fields_ = [('origin', Point), ('size', Point)]
+
+    main = mac.cg.CGMainDisplayID
+    main.restype, main.argtypes = C.c_uint32, []
+    bounds = mac.cg.CGDisplayBounds
+    bounds.restype, bounds.argtypes = Rect, [C.c_uint32]
+    display = bounds(main())
+    screen = (display.origin.x, display.origin.y, display.size.x, display.size.y)
+    target = fixture_geometry(screen)
+    placement = {'display': screen, 'before': geometry(mac), 'requested': target}
+    report['fixture_placement'] = placement
+    create = mac.ax.AXValueCreate
+    create.restype, create.argtypes = C.c_void_p, [C.c_int, C.c_void_p]
+    window = mac.window(TITLE)
+    assert window
+    try:
+        for attribute, kind, pair in [('AXSize', 2, target[2:]),
+                                     ('AXPosition', 1, target[:2])]:
+            data = Point(*pair)
+            value = create(kind, C.byref(data))
+            assert value
+            try:
+                mac.set(window, attribute, value)
+            finally:
+                mac.release(value)
+            indices = slice(2, 4) if kind == 2 else slice(0, 2)
+            wait_for(lambda: geometry(mac)[indices],
+                     lambda actual: all(abs(a-b) < 2 for a, b in zip(actual, pair)),
+                     f'Fixture {attribute} did not settle')
+    finally:
+        mac.release(window)
+    placement['actual'] = settled_geometry(mac)
+
+
 def drag(mouse, start, finish):
     mouse.check_owner(start)
     mouse.send(5, start)
@@ -190,6 +241,7 @@ def main():
             mac = Mac(child.pid, child)
             foreground_keys(mac)
             mac.wait_text(TITLE, 'A little context goes a long way')
+            prepare_window(mac, report)
             mac.press(TITLE, 'Runtime & windows')
             focus(mac, TITLE, DRAFT_LABEL)
             mac.field(TITLE, DRAFT_LABEL, 'AXTextField', DRAFT)

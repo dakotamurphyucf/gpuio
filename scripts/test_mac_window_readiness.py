@@ -35,6 +35,22 @@ class Pointer(GalleryMouse):
 
 
 class ReadinessTests(unittest.TestCase):
+    def test_fixture_fits_display_including_later_drag(self):
+        for display in [(0, 0, 1600, 1200), (0, 0, 1440, 900),
+                        (-1600, -900, 1060, 790)]:
+            x, y, width, height = lifecycle.fixture_geometry(display)
+            self.assertGreaterEqual(x, display[0])
+            self.assertGreaterEqual(y, display[1])
+            self.assertLess(x+width+35, display[0]+display[2])
+            self.assertLess(y+height+25, display[1]+display[3])
+            self.assertGreaterEqual(width, 960)
+            self.assertGreaterEqual(height, 650)
+
+    def test_fixture_rejects_display_too_small_for_the_walkthrough(self):
+        for display in [(0, 0, 1059, 900), (0, 0, 1440, 789)]:
+            with self.assertRaisesRegex(RuntimeError, '1060x790'):
+                lifecycle.fixture_geometry(display)
+
     def wait(self, clock, mouse, report, *, point=lambda: (10., 20.), timeout=.5, foreground=True):
         deadlines = []
 

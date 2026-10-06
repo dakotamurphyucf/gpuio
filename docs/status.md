@@ -12,6 +12,11 @@ identify NotificationCenter at the Fullscreen pointer target and preserve the
 continued paravirtual presentation-clock failures. Newer source remains outside
 this run's coverage. No gates are waived.
 
+The [window-placement follow-up](evidence/window-readiness-och17.md#owned-window-placement-follow-up--2026-10-06-utc)
+now passes both complete local window walkthroughs. It moves only the test window
+away from the usual notification area and records display/placement geometry;
+physical pointer ownership remains mandatory. Hosted confirmation remains open.
+
 Work is tracked on branch `milestone-07-gallery-release` and draft PR #16.
 Latest fully passing hosted checkpoint: [37286788836](https://github.com/dakotamurphyucf/gpuio/actions/runs/37286788836)
 passes both foundation jobs and all three extracted apps on a fresh macOS runner.
