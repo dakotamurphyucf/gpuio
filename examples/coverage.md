@@ -8,15 +8,15 @@ Generated from [coverage.json](coverage.json). Read the [review guide](coverage-
 
 | Source parts | Role | Walkthrough | Review |
 | --- | --- | --- | --- |
-| [application.ml](agent_chat/application.ml), [application.mli](agent_chat/application.mli) | application-entry | Missing | pending |
-| [main.ml](agent_chat/main.ml) | application-entry | [README.md](agent_chat/README.md) | pending |
-| [fake_backend.ml](agent_chat/model/fake_backend.ml), [fake_backend.mli](agent_chat/model/fake_backend.mli) | support | Missing | pending |
-| [fake_backend_test.ml](agent_chat/model/fake_backend_test.ml) | test-support | Missing | pending |
+| [application.ml](agent_chat/application.ml), [application.mli](agent_chat/application.mli) | application-entry | [application.md](agent_chat/application.md) | reviewed |
+| [main.ml](agent_chat/main.ml) | application-entry | [main.md](agent_chat/main.md) | reviewed |
+| [fake_backend.ml](agent_chat/model/fake_backend.ml), [fake_backend.mli](agent_chat/model/fake_backend.mli) | support | [fake_backend.md](agent_chat/model/fake_backend.md) | reviewed |
+| [fake_backend_test.ml](agent_chat/model/fake_backend_test.ml) | test-support | [fake_backend.md](agent_chat/model/fake_backend.md) | reviewed |
 | [annotation_settings.ml](agent_chat/runtime/annotation_settings.ml), [annotation_settings.mli](agent_chat/runtime/annotation_settings.mli) | component | Missing | pending |
 | [artifact_sidebar.ml](agent_chat/runtime/artifact_sidebar.ml), [artifact_sidebar.mli](agent_chat/runtime/artifact_sidebar.mli) | component | Missing | pending |
 | [artifact_tour.ml](agent_chat/runtime/artifact_tour.ml), [artifact_tour.mli](agent_chat/runtime/artifact_tour.mli) | component | Missing | pending |
-| [chat_message.ml](agent_chat/runtime/chat_message.ml), [chat_message.mli](agent_chat/runtime/chat_message.mli) | component | Missing | pending |
-| [chat_motion.ml](agent_chat/runtime/chat_motion.ml), [chat_motion.mli](agent_chat/runtime/chat_motion.mli) | component | Missing | pending |
+| [chat_message.ml](agent_chat/runtime/chat_message.ml), [chat_message.mli](agent_chat/runtime/chat_message.mli) | component | [chat_message.md](agent_chat/runtime/chat_message.md) | reviewed |
+| [chat_motion.ml](agent_chat/runtime/chat_motion.ml), [chat_motion.mli](agent_chat/runtime/chat_motion.mli) | component | [chat_motion.md](agent_chat/runtime/chat_motion.md) | reviewed |
 | [contributor_portrait.ml](agent_chat/runtime/contributor_portrait.ml), [contributor_portrait.mli](agent_chat/runtime/contributor_portrait.mli) | component | Missing | pending |
 | [conversation.ml](agent_chat/runtime/conversation.ml), [conversation.mli](agent_chat/runtime/conversation.mli) | component | Missing | pending |
 | [diagram.ml](agent_chat/runtime/diagram.ml), [diagram.mli](agent_chat/runtime/diagram.mli) | component | Missing | pending |
@@ -93,14 +93,14 @@ Generated from [coverage.json](coverage.json). Read the [review guide](coverage-
 
 | Source parts | Role | Walkthrough | Review |
 | --- | --- | --- | --- |
-| [gallery.ml](charts/gallery.ml) | component | Missing | pending |
-| [main.ml](charts/main.ml) | application-entry | [README.md](charts/README.md) | pending |
-| [categorical.ml](charts/samples/categorical.ml), [categorical.mli](charts/samples/categorical.mli) | component | [categorical.md](charts/samples/categorical.md) | pending |
-| [gpuio_chart_samples.ml](charts/samples/gpuio_chart_samples.ml), [gpuio_chart_samples.mli](charts/samples/gpuio_chart_samples.mli) | support | Missing | pending |
-| [inspection.ml](charts/samples/inspection.ml), [inspection.mli](charts/samples/inspection.mli) | component | [inspection.md](charts/samples/inspection.md) | pending |
-| [ordinal_colors.ml](charts/samples/ordinal_colors.ml), [ordinal_colors.mli](charts/samples/ordinal_colors.mli) | component | [ordinal_colors.md](charts/samples/ordinal_colors.md) | pending |
-| [sankey_presentation.ml](charts/samples/sankey_presentation.ml), [sankey_presentation.mli](charts/samples/sankey_presentation.mli) | component | [sankey_presentation.md](charts/samples/sankey_presentation.md) | pending |
-| [stacked.ml](charts/samples/stacked.ml), [stacked.mli](charts/samples/stacked.mli) | component | [stacked.md](charts/samples/stacked.md) | pending |
+| [gallery.ml](charts/gallery.ml) | component | [gallery.md](charts/gallery.md) | reviewed |
+| [main.ml](charts/main.ml) | application-entry | [main.md](charts/main.md) | reviewed |
+| [categorical.ml](charts/samples/categorical.ml), [categorical.mli](charts/samples/categorical.mli) | component | [categorical.md](charts/samples/categorical.md) | reviewed |
+| [gpuio_chart_samples.ml](charts/samples/gpuio_chart_samples.ml), [gpuio_chart_samples.mli](charts/samples/gpuio_chart_samples.mli) | support | [gpuio_chart_samples.md](charts/samples/gpuio_chart_samples.md) | reviewed |
+| [inspection.ml](charts/samples/inspection.ml), [inspection.mli](charts/samples/inspection.mli) | component | [inspection.md](charts/samples/inspection.md) | reviewed |
+| [ordinal_colors.ml](charts/samples/ordinal_colors.ml), [ordinal_colors.mli](charts/samples/ordinal_colors.mli) | component | [ordinal_colors.md](charts/samples/ordinal_colors.md) | reviewed |
+| [sankey_presentation.ml](charts/samples/sankey_presentation.ml), [sankey_presentation.mli](charts/samples/sankey_presentation.mli) | component | [sankey_presentation.md](charts/samples/sankey_presentation.md) | reviewed |
+| [stacked.ml](charts/samples/stacked.ml), [stacked.mli](charts/samples/stacked.mli) | component | [stacked.md](charts/samples/stacked.md) | reviewed |
 ## color_input
 
 | Source parts | Role | Walkthrough | Review |
@@ -111,7 +111,7 @@ Generated from [coverage.json](coverage.json). Read the [review guide](coverage-
 
 | Source parts | Role | Walkthrough | Review |
 | --- | --- | --- | --- |
-| [main.ml](combobox/main.ml) | application-entry | [README.md](combobox/README.md) | pending |
+| [main.ml](combobox/main.ml) | application-entry | [main.md](combobox/main.md) | reviewed |
 ## commands
 
 | Source parts | Role | Walkthrough | Review |
@@ -126,7 +126,7 @@ Generated from [coverage.json](coverage.json). Read the [review guide](coverage-
 
 | Source parts | Role | Walkthrough | Review |
 | --- | --- | --- | --- |
-| [main.ml](controls/main.ml) | application-entry | Missing | pending |
+| [main.ml](controls/main.ml) | application-entry | [main.md](controls/main.md) | reviewed |
 ## desktop
 
 | Source parts | Role | Walkthrough | Review |
@@ -313,7 +313,7 @@ Generated from [coverage.json](coverage.json). Read the [review guide](coverage-
 
 | Source parts | Role | Walkthrough | Review |
 | --- | --- | --- | --- |
-| [main.ml](menus/main.ml) | application-entry | [main.md](menus/main.md) | pending |
+| [main.ml](menus/main.ml) | application-entry | [main.md](menus/main.md) | reviewed |
 ## navigation
 
 | Source parts | Role | Walkthrough | Review |
@@ -456,7 +456,7 @@ Generated from [coverage.json](coverage.json). Read the [review guide](coverage-
 
 | Source parts | Role | Walkthrough | Review |
 | --- | --- | --- | --- |
-| [main.ml](text_input/main.ml) | application-entry | [README.md](text_input/README.md) | pending |
+| [main.ml](text_input/main.ml) | application-entry | [main.md](text_input/main.md) | reviewed |
 ## toasts
 
 | Source parts | Role | Walkthrough | Review |
@@ -497,4 +497,4 @@ Generated from [coverage.json](coverage.json). Read the [review guide](coverage-
 | --- | --- | --- | --- |
 | [main.ml](window_lifecycle/main.ml) | application-entry | Missing | pending |
 
-417 source files in 260 groups; 16 reviewed, 244 pending.
+417 source files in 260 groups; 34 reviewed, 226 pending.

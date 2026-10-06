@@ -62,25 +62,29 @@ layout, paint or input callback is added.
 The ordinal-color addition introduced **style version 0**, with
 the existing fields followed by the optional ordinal record. The zero prefix
 unambiguously rejects legacy frames, whose first value was a valid nonempty
-palette length of 1–32. The style reader caps input at 16 KiB; the containing view
-reader caps it at 18 KiB. Domain/range counts are bounded before allocation.
+palette length of 1–32. That style reader capped input at 16 KiB and the containing
+view at 18 KiB. Domain/range counts are bounded before allocation.
 
 Chart-options version 3 and chart-data version 1 are unchanged. The new paired
 view fixture is `chart-v3-style-v0-view.hex`; the earlier v3 view fixture remains a
 legacy-style rejection case. OCaml and Rust bridge packages must match.
 
-Current styles use **version -1**, appending the [inspection configuration](chart-inspection.md)
+Style **version -1** appended the [inspection configuration](chart-inspection.md)
 after the ordinal field. The historical v0 fixture is now an explicit rejection
-case; the current fixture is `chart-v3-style-inspection-view.hex`. The bounded
+case; that addition's fixture is `chart-v3-style-inspection-view.hex`. The bounded
 ordinal mapping remains unchanged. [Sankey presentation](sankey-presentation.md)
 subsequently advances options to version 4; data remains version 1.
+
+Current styles use **version -2**, appending [rich node labels](chart-node-labels.md),
+with bounded decoder caps of 64 KiB for style and 66 KiB for view. The current
+paired fixture is `chart-v4-node-labels-view.hex`; options/data remain 4/1.
 
 ## Scope and validation
 
 This maps the chart's existing color-bearing series/slice/node/movement entries.
 It does not add category-specific colors within a Cartesian series, independent
-Sankey link colors, arbitrary gradients, per-datum radii or rich label styling.
-Those remain separately named presentation work in the catalog review.
+Sankey link colors, arbitrary gradients or per-datum radii. Rich node-label styling
+has its own contract; other gaps remain named in the catalog review.
 
 Qualification must cover paired bytes, domain/key/unknown validation, theme
 resolution, stable colors and names after reordering in every family, actual

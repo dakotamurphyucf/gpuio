@@ -126,3 +126,48 @@ No implementation or tests changed. Earlier actual parser/filesystem/native
 results retain the scope recorded in [theme-file evidence](gallery-theme-files-och41.md).
 No GUI window was opened, and no additional IME, accessibility, performance or
 Linux desktop acceptance is claimed by this documentation review.
+
+## Parallel beginner walkthrough review
+
+Starting from `1d623f7`, the owner authorized GPT-6.1 Sol agents to write separate
+example guides in parallel. Three agents read their assigned implementation and
+public interfaces, kept independent ticket notes and edited only their scoped
+documentation. The primary agent reviewed their delivered guides and maintained
+the shared source inventory. No agent ran competing builds or GUI tests.
+
+Eighteen additional source groups are reviewed:
+
+- Chart Studio's [application](../../examples/charts/main.md) and
+  [index adapter](../../examples/charts/gallery.md), plus six pure sample pairs:
+  [catalog](../../examples/charts/samples/gpuio_chart_samples.md),
+  [categorical](../../examples/charts/samples/categorical.md),
+  [stacked](../../examples/charts/samples/stacked.md),
+  [ordinal](../../examples/charts/samples/ordinal_colors.md),
+  [inspection](../../examples/charts/samples/inspection.md) and
+  [Sankey presentation](../../examples/charts/samples/sankey_presentation.md).
+- The [controls](../../examples/controls/main.md),
+  [text input](../../examples/text_input/main.md),
+  [combobox](../../examples/combobox/main.md) and
+  [menus](../../examples/menus/main.md) applications.
+- Agent Chat's [CLI](../../examples/agent_chat/main.md),
+  [application](../../examples/agent_chat/application.md),
+  [fake backend and its separate test group](../../examples/agent_chat/model/fake_backend.md),
+  [message composition](../../examples/agent_chat/runtime/chat_message.md) and
+  [motion](../../examples/agent_chat/runtime/chat_motion.md).
+
+The guides teach concrete function/type/API names, state construction and
+reactive syntax, effect execution, native ownership and representative event
+traces. They distinguish synchronous Option syntax from Bonsai syntax, editor
+seeds from guarded live commands, native query from application selection, and
+conversation-scoped streams from mounted row views. Diagnostic flags and expert
+hooks are identified rather than recommended as ordinary application structure.
+Each companion is discoverable from its local README and provides an adaptation.
+
+Coverage is **34 reviewed groups and 226 pending**, still covering all 417 source
+files. This is documentation review, not a percentage of feature implementation.
+Source/table audit, changed-Markdown local file links and `git diff --check` pass.
+Agents checked documented commands against source/Dune/driver options; the
+primary agent's full `dune build -j2 @all @runtest @fmt` also passes at this source
+checkpoint. Native runs performed for the separate rich-label implementation are
+recorded in [their own evidence](chart-node-labels-och41.md), not generalized to
+these prose changes. Existing recorded platform limits remain in force.

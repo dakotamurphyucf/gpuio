@@ -436,12 +436,17 @@ pub fn prepare(
     if !style.is_valid() {
         return Err(Error::InvalidInput);
     }
-    let geometry =
+    let mut geometry =
         geometry::prepare(data, policy, options, width, height, cancel).map_err(|e| match e {
             geometry::Error::InvalidInput => Error::InvalidInput,
             geometry::Error::Cancelled => Error::Cancelled,
             geometry::Error::RenderLimit => Error::RenderLimit,
         })?;
+    crate::chart_node_labels::apply(&mut geometry, data, style, cancel).map_err(|e| match e {
+        geometry::Error::InvalidInput => Error::InvalidInput,
+        geometry::Error::Cancelled => Error::Cancelled,
+        geometry::Error::RenderLimit => Error::RenderLimit,
+    })?;
     let colors = crate::chart_colors::resolve(data, style, cancel)?;
     let mut build = Build {
         meshes: vec![],

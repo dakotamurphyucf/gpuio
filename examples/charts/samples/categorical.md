@@ -66,5 +66,19 @@ The sample owns no resources to dispose. The gallery's `Preview_scope` owns the
 registration, cancels it on departure, and reacquires it on return. Do not attach
 a long-lived external data feed to a virtual mark's lifetime. See the
 [categorical contract](../../../docs/design/categorical-charts.md) for bounds,
-wire compatibility, projection and aggregation rules. Local macOS tests cover
-this sample; full Linux desktop and VoiceOver acceptance remain separate work.
+wire compatibility, projection and aggregation rules. Existing [categorical evidence](../../../docs/evidence/categorical-charts-och41.md)
+records local macOS checks; this documentation review adds no desktop or VoiceOver
+acceptance.
+
+`describe_selection` uses `Option.Let_syntax`: `let%bind` unwraps a successful
+lookup or returns `None`, and `let%map` wraps the final description in `Some`.
+These are synchronous optional lookups, not Bonsai graph operations. In the
+consumer, `B.state` and `B.toggle` instead produce reactive values and update
+effects; `let%arr` reads current values to derive the chart view. For example,
+select the first Research bar at phase zero: its series is Completed, category
+ID is 42 and raw value is 30. The native committed-selection event updates the
+page's `selected` variable through an effect, then the description becomes
+“Completed · Research (category 42) · value 30”. Choosing the other Research bar
+resolves category 99 independently despite the equal label. Public constructor
+and event contracts are in [chart_data.mli](../../../lib/core/chart_data.mli)
+and [chart_selection.mli](../../../lib/core/chart_selection.mli).

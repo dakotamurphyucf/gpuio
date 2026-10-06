@@ -708,6 +708,7 @@ The [inspection contract](chart-inspection.md) adds typed card, crosshair and
 marker controls through `Chart_style.create ~inspection`, preserving native
 preview and committed-selection ownership. [Local qualification](../evidence/chart-inspection-och41.md)
 includes actual pixels and root/installed OCaml gallery walkthroughs. The current
-style envelope is -1; options/data versions are 4/1 following the
+style envelope is -2 after [rich Sankey node labels](chart-node-labels.md);
+options/data versions are 4/1 following the
 [Sankey presentation addition](sankey-presentation.md). Broader chart presentation
 options and whole-catalog/release acceptance remain separate.

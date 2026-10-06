@@ -3,6 +3,11 @@
 A public Core/Bonsai/Eio application showing line, area, bar, pie/donut, radar,
 candlestick and Sankey data through `Gpuio_bonsai.View.chart`.
 
+Read the [application walkthrough](main.md) for state, controller effects, Bonsai
+view construction, scoped registration and the optional self-test. The
+[index adapter walkthrough](gallery.md) explains `Gallery`'s pure numeric-to-typed
+family conversion; then follow the [shared fixture catalog](samples/gpuio_chart_samples.md).
+
 ```sh
 ./scripts/gpuio build examples/charts/main.exe
 ./_build/default/examples/charts/main.exe
@@ -80,3 +85,9 @@ configuration and their separation from Bonsai state and scoped source ownership
 The gallery's **Flow styling** mode uses the pure [Sankey presentation
 sample](samples/sankey_presentation.md). It demonstrates node rounding, ribbon
 opacity, minimum visible thickness and label spacing, including tiny/zero flows.
+
+The shared [fixture catalog](samples/gpuio_chart_samples.md) explains family and
+preset types, deterministic data, edge cases and semantic-selection descriptions.
+The [categorical sample](samples/categorical.md) explains explicit category order,
+equal labels with distinct IDs and missing observations. These modules are pure;
+the gallery or Chart Studio owns the Bonsai graph and scoped native registration.

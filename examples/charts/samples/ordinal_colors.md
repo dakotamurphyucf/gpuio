@@ -63,3 +63,23 @@ To give Review a permanent explicit domain color, add its slice key to the domai
 and a third range color. If only the key is added, the two-color range cycles and
 Review receives teal. To preserve colors under source changes, keep the domain
 order fixed. This example does not precompute colors from current source indices.
+
+A concrete reorder starts at phase zero: Research/Build/Review have values
+40/35/25. At phase one their values become 41/36/26 and the source order is
+Review/Research/Build. Build remains teal and Research remains purple because
+`mapping` pairs its fixed typed domain with its range. The gallery bounds its
+phase to 0–12; `data_exn` itself accepts only finite phases in [0,1000]. The odd/even
+rotation uses `Float.to_int phase`, so fractional phases follow the truncated
+integer's parity.
+
+Click **Explicit unknown color** to turn it off: the effect returned by
+`B.toggle` changes a reactive Boolean, and the consumer's `let%arr` derives
+`mapping ~unknown:false`, omitting the optional unknown color. `let%arr` operates
+on Bonsai inputs; `Option.some_if` in this pure helper just returns `Some color`
+or `None` immediately. The same chart handle now uses Review's ordinary palette
+fallback without republishing its source. See
+[chart_style.mli](../../../lib/core/chart_style.mli) for `Ordinal.create` and
+`Key.slice`, and [chart_data.mli](../../../lib/core/chart_data.mli) for validated
+slices. Existing macOS checks appear in the
+[ordinal evidence](../../../docs/evidence/chart-ordinal-colors-och41.md); this
+documentation review claims no new input or pixel validation.

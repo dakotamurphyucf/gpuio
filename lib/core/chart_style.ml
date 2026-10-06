@@ -53,6 +53,7 @@ let create
           ~f:Color.rgb_exn)
       ?ordinal
       ?(inspection = Chart_inspection.default)
+      ?(node_labels = Chart_node_labels.empty)
       ?(axis_color = Color.rgb_exn 0x64748b)
       ?(grid_color =
         Color.rgba ~red:100 ~green:116 ~blue:139 ~alpha:64 |> Or_error.ok_exn)
@@ -84,8 +85,9 @@ let create
         Ordinal.resolve value theme |> Or_error.map ~f:Option.some)
     in
     let%bind inspection = Chart_inspection.Expert.to_wire inspection ~theme in
+    let%bind node_labels = Chart_node_labels.Expert.to_wire node_labels ~theme in
     let t =
-      { Wire.version = -1L
+      { Wire.version = -2L
       ; palette
       ; axis_color
       ; grid_color
@@ -98,6 +100,7 @@ let create
       ; area_opacity
       ; ordinal
       ; inspection
+      ; node_labels
       }
     in
     if Wire.valid t

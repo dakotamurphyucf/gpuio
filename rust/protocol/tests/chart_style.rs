@@ -8,7 +8,7 @@ fn bytes(style: &Style) -> Vec<u8> {
 #[test]
 fn paired_style_fixture_and_decoder_bounds() {
     let value = Style {
-        version: -1,
+        version: -2,
         palette: vec![1, 2],
         axis_color: 3,
         grid_color: 4,
@@ -21,8 +21,9 @@ fn paired_style_fixture_and_decoder_bounds() {
         area_opacity: 0.5,
         ordinal: None,
         inspection: Default::default(),
+        node_labels: vec![],
     };
-    let hex = "ffff020102030405060107000000000000004000000000000008400000000000001040000000000000e03f000101010000000000008071400000000000002040000000000000204000000000000018400000000000002840000000000000314000000000000000000000000000000000000000f03f000101000000000000304000000000000000000000";
+    let hex = "fffe020102030405060107000000000000004000000000000008400000000000001040000000000000e03f000101010000000000008071400000000000002040000000000000204000000000000018400000000000002840000000000000314000000000000000000000000000000000000000f03f00010100000000000030400000000000000000000000";
     let expected: Vec<u8> = hex
         .as_bytes()
         .chunks_exact(2)
@@ -37,7 +38,7 @@ fn paired_style_fixture_and_decoder_bounds() {
     trailing.push(0);
     assert_eq!(decode_chart_style(&trailing), Err(DecodeError::Malformed));
     assert_eq!(
-        decode_chart_style(&[0; 16 * 1024 + 1]),
+        decode_chart_style(&[0; 64 * 1024 + 1]),
         Err(DecodeError::LimitExceeded)
     );
     assert!(Style::default().is_valid());
@@ -95,7 +96,7 @@ fn invalid_raw_styles_cannot_reach_paint() {
 fn explicit_ordinal_namespaces_match_independent_bytes_and_reject_legacy_style() {
     use gpuio_protocol::chart_style::{Key, Ordinal};
     let mut style = Style {
-        version: -1,
+        version: -2,
         palette: vec![1, 2],
         axis_color: 3,
         grid_color: 4,
@@ -118,8 +119,9 @@ fn explicit_ordinal_namespaces_match_independent_bytes_and_reject_legacy_style()
             unknown: Some(30),
         }),
         inspection: Default::default(),
+        node_labels: vec![],
     };
-    let hex = "ffff020102030405060107000000000000004000000000000008400000000000001040000000000000e03f01050009010902090304020a14011e0101010000000000008071400000000000002040000000000000204000000000000018400000000000002840000000000000314000000000000000000000000000000000000000f03f000101000000000000304000000000000000000000";
+    let hex = "fffe020102030405060107000000000000004000000000000008400000000000001040000000000000e03f01050009010902090304020a14011e0101010000000000008071400000000000002040000000000000204000000000000018400000000000002840000000000000314000000000000000000000000000000000000000f03f00010100000000000030400000000000000000000000";
     let expected = hex
         .as_bytes()
         .chunks_exact(2)
@@ -131,7 +133,7 @@ fn explicit_ordinal_namespaces_match_independent_bytes_and_reject_legacy_style()
         assert!(decode_chart_style(&expected[..end]).is_err());
     }
     let mut unknown_tag = expected.clone();
-    // -1 schema (2), palette (3), four colors (4), gradient (2), floats (32).
+    // -2 schema (2), palette (3), four colors (4), gradient (2), floats (32).
     let ordinal_start = 43;
     unknown_tag[ordinal_start + 2] = 5;
     assert!(decode_chart_style(&unknown_tag).is_err());

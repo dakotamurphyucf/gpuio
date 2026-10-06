@@ -109,12 +109,22 @@ pub struct Mark {
     pub layer: usize,
     pub shape: Shape,
 }
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum LabelKind {
     X,
     Y,
     Radial,
-    Flow { align_right: bool },
+    Flow {
+        align_right: bool,
+        node_index: usize,
+    },
+    FlowLine {
+        align_right: bool,
+        font_size: f64,
+        color: Option<u32>,
+        block_height: f64,
+        offset: f64,
+    },
     Series(usize),
 }
 #[derive(Clone, Debug, PartialEq)]
@@ -882,7 +892,10 @@ fn sankey(
                     (bounds.top + bounds.bottom) / 2.,
                 ),
                 text: nodes[node.index].label.clone(),
-                kind: LabelKind::Flow { align_right },
+                kind: LabelKind::Flow {
+                    align_right,
+                    node_index: node.index,
+                },
             });
         }
     }

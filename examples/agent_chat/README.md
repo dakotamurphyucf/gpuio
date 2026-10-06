@@ -44,16 +44,34 @@ closing the application discards it. A real application supplies persistence,
 provider integration, credentials and orchestration through its own Eio services.
 This example is not a provider client or a storage layer.
 
+## Read the code
+
+Begin with the [small counter](../getting_started/README.md) if Bonsai is new to
+you. For this larger app, read the [CLI and package metadata](main.md), then
+[application assembly](application.md), then the
+[deterministic response model](model/fake_backend.md). The assembly guide explains
+which resources belong to the application and which belong to each window; the
+model guide follows a send through acceptance, byte chunks, completion and retry.
+The model's companion also explains its supporting expect test. Continue with
+[transcript message composition](runtime/chat_message.md) and
+[native workspace motion](runtime/chat_motion.md) to see small stateless view
+helpers and their caller-owned Bonsai state.
+
+These are code walkthroughs, not new platform acceptance evidence. The runtime
+source map below identifies the remaining component boundaries; per-component
+review status is explicit in the [coverage inventory](../coverage.md).
+
 ## Implementation map
 
-- `model/fake_backend`: pure chunk/delay/failure configuration and fixtures.
+- [Model/fake backend](model/fake_backend.md): pure chunk/delay/failure configuration and fixtures.
 - `runtime/icons` and `runtime/palette`: original SVG assets and semantic light/dark colors.
 - `runtime/conversation`: shared conversation scopes, paging, response documents,
   bounded attachments, cancellation and retry.
 - `runtime/workspace`: one window's tabs, editors, list views, commands and close
   decision; composed entirely through public view/controller APIs.
-- [`main.ml`](main.ml): command-line options and package metadata only.
-- [`application.ml`](application.ml): Eio capabilities, conversation ownership,
+- [CLI walkthrough](main.md), with [`main.ml`](main.ml): command-line options and package metadata only.
+- [Application walkthrough](application.md), with [`application.ml`](application.ml)
+  and [`application.mli`](application.mli): Eio capabilities, conversation ownership,
   window creation and resource cleanup. Start here to see how the app is assembled.
 - [`self_test.ml`](self_test.ml) and [`workload_metrics.ml`](workload_metrics.ml):
   optional acceptance/diagnostic runners, kept out of the ordinary startup path.
@@ -84,7 +102,8 @@ Accessibility permission and reaps its child on success or failure. It exercises
 actual native UI activation, Return, the picker, tab/window/theme/palette controls
 and OS close decisions. `--native-test` only lengthens fake send acceptance to
 make the newer-draft race observable and prints a marker after `App.run` returns.
-Linux GUI execution remains informational under OCH-17; Linux build/unit checks
+Linux GUI execution remains informational, with full desktop qualification deferred
+to OCH-47 under the [platform release policy](../../docs/platform-release-policy.md); Linux build/unit checks
 remain required. See [milestone evidence](../../docs/evidence/agent-workspace-m4.md).
 
 ## Milestone 5 workspace showcase

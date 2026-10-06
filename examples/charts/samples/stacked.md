@@ -69,3 +69,17 @@ every category. To add a category, extend every series at the same position.
 Do not precompute cumulative values in the source and then also enable stacking:
 that would add them twice and misrepresent the raw-data view. Ordinal colors,
 custom stack order and percentage/divergent stacking are separate capabilities.
+
+For a concrete configuration trace, uncheck **Stack layers**. The GPUIO toggle
+runs the effect returned by `B.toggle`; its Boolean reactive value becomes false.
+The page's `let%arr` then derives `Chart_options.Cartesian.create ~stacking:Grouped`,
+and `V.chart` submits the changed configuration using the same source handle and
+stable chart key. Monday's two raw bars now appear grouped. Rechecking derives
+Stacked and makes Adjustment occupy 30→40 again at phase zero. No data update is
+needed for this presentation change. `let%arr` combines current Bonsai inputs;
+the plain `Option.map` inside `data_exn` merely adjusts a present optional number,
+preserving `None`. See [chart_data.mli](../../../lib/core/chart_data.mli) and
+[chart_options.mli](../../../lib/core/chart_options.mli) for validated data and
+presentation constructors. Existing macOS checks are recorded in the
+[stacked evidence](../../../docs/evidence/stacked-charts-och41.md); no new native
+validation was performed for this documentation review.

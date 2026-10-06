@@ -12,9 +12,11 @@ type t =
   | Muted
   | Minimum
   | Spaced
+  | Rich_labels
+  | Hidden_target
 [@@deriving equal]
 
-let all = [ Default; Rounded; Muted; Minimum; Spaced ]
+let all = [ Default; Rounded; Muted; Minimum; Spaced; Rich_labels; Hidden_target ]
 
 let label = function
   | Default -> "Default flows"
@@ -22,14 +24,40 @@ let label = function
   | Muted -> "Muted ribbons"
   | Minimum -> "Visible small flows"
   | Spaced -> "Spaced flow labels"
+  | Rich_labels -> "Rich flow labels"
+  | Hidden_target -> "Hide target label"
 ;;
 
 let options = function
-  | Default -> O.Sankey.default
+  | Default | Rich_labels | Hidden_target -> O.Sankey.default
   | Rounded -> O.Sankey.create ~node_corner_radius:8. () |> ok
   | Muted -> O.Sankey.create ~link_opacity:0.12 () |> ok
   | Minimum -> O.Sankey.create ~min_link_width:12. () |> ok
   | Spaced -> O.Sankey.create ~label_gap:32. () |> ok
+;;
+
+let node_labels = function
+  | Default | Rounded | Muted | Minimum | Spaced -> Gpuio.Chart_node_labels.empty
+  | (Rich_labels | Hidden_target) as preset ->
+    let module L = Gpuio.Chart_node_labels in
+    let line ?color ?font_size text = L.Line.create ?color ?font_size text |> ok in
+    let entry id lines = L.Node.create ~node:(node_id id) lines |> ok in
+    L.create
+      [ entry
+          10L
+          [ line ~color:(Gpuio.Color.rgb_exn 0x2dd4bf) ~font_size:22. "Intake"
+          ; line "Recorded activity"
+          ]
+      ; entry
+          20L
+          (match preset with
+           | Hidden_target -> []
+           | _ ->
+             [ line ~color:(Gpuio.Color.rgb_exn 0xfbbf24) ~font_size:18. "Outcome"
+             ; line "Delivered locally"
+             ])
+      ]
+    |> ok
 ;;
 
 let data_exn phase =

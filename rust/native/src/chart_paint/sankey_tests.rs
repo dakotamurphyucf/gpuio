@@ -133,10 +133,14 @@ fn opacity_rounding_node_corners_and_edge_relative_labels_use_configuration() {
             panic!("node")
         };
         match label.kind {
-            LabelKind::Flow { align_right: true } => {
+            LabelKind::Flow {
+                align_right: true, ..
+            } => {
                 assert_eq!(label.position.x, bounds.left - 24.)
             }
-            LabelKind::Flow { align_right: false } => {
+            LabelKind::Flow {
+                align_right: false, ..
+            } => {
                 assert_eq!(label.position.x, bounds.right + 24.)
             }
             _ => panic!("flow label"),

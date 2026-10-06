@@ -160,8 +160,19 @@ Bonsai update is needed for ordinary pointer movement within a prepared chart.
 
 Flow styling uses the [Sankey presentation sample](../charts/samples/sankey_presentation.md):
 main, tiny and zero parallel flows with separate node/edge IDs. A separate Bonsai
-state selects node radius, ribbon opacity, minimum width or label gap presets.
+state selects node radius, ribbon opacity, minimum width, label gap or rich-label presets.
 Only this mode applies those sample options; other modes retain Sankey defaults.
 The usual source generation, selection and original-data paths stay in use.
 Minimum width changes native paint/hit geometry without changing the value 0.01;
 zero flows remain available only through original data.
+
+`flow_style` and `set_flow_style` come from `B.state`; the preset buttons receive
+the setter's effects, while `let%arr` reads the current choice. The pure sample
+function `node_labels` supplies `Chart_style.create ~node_labels`, separately from
+`options`, which supplies `Chart_options.create ~sankey`. Rich flow labels creates
+two styled lines per node. Hide target label supplies an empty line list for the
+target ID; other presets supply an empty override collection and restore source
+labels. `V.chart` keeps its stable key and borrowed source handle. These changes
+affect presentation only: source publication, original names and selection IDs
+retain their existing ownership. The sample's walkthrough traces the actual
+button effect through Bonsai and the native Ready observation.

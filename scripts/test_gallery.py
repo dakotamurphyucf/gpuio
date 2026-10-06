@@ -4701,7 +4701,8 @@ def exercise_sankey_presentation(mac, images):
         directory = images or Path(temporary)
         baseline = None
         for label in ['Default flows', 'Rounded nodes', 'Muted ribbons',
-                      'Visible small flows', 'Spaced flow labels', 'Default flows']:
+                      'Visible small flows', 'Spaced flow labels', 'Rich flow labels',
+                      'Hide target label', 'Default flows']:
             reveal_gallery_control(mac, label, 'AXButton')
             mac.press(TITLE, label)
             mac.wait_text(TITLE, 'Ready: Flow styling · 3 source values · Vertical · '
@@ -4717,6 +4718,17 @@ def exercise_sankey_presentation(mac, images):
             mac.key(53)
             mac.wait_text(TITLE, 'Select a chart value to inspect it.')
             reveal_gallery_control(mac, 'Chart preview: Flow styling', 'AXGroup')
+            if label in ['Rich flow labels', 'Hide target label']:
+                mac.wait_text(TITLE, 'Recorded activity')
+                if label == 'Rich flow labels':
+                    mac.wait_text(TITLE, 'Delivered locally')
+                else:
+                    absent = mac.find(TITLE, 'Delivered locally', 'AXStaticText')
+                    try:
+                        assert absent is None, 'Hidden node still exposes a custom label'
+                    finally:
+                        if absent is not None:
+                            mac.release(absent)
             chart = mac.wait_find(TITLE, 'Chart preview: Flow styling', 'AXGroup')
             window = mac.window(TITLE)
             try:

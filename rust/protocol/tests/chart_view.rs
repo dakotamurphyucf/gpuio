@@ -9,7 +9,7 @@ fn config() -> Config {
         options: Default::default(),
         sampling: Default::default(),
         style: gpuio_protocol::chart_style::Style {
-            version: -1,
+            version: -2,
             palette: vec![1, 2],
             axis_color: 3,
             grid_color: 4,
@@ -22,6 +22,7 @@ fn config() -> Config {
             area_opacity: 0.5,
             ordinal: None,
             inspection: Default::default(),
+            node_labels: vec![],
         },
     }
 }
@@ -37,8 +38,18 @@ fn hex(bytes: &[u8]) -> String {
 fn bounded_chart_view_and_transaction_match_independent_fixture() {
     use gpuio_protocol::{HandlerId, NodeId, WindowId, decode, v1::*};
     let config = config();
+    let legacy = include_str!("../../../test/fixtures/chart-v4-style-inspection-view.hex")
+        .trim()
+        .as_bytes()
+        .chunks_exact(2)
+        .map(|s| u8::from_str_radix(std::str::from_utf8(s).unwrap(), 16).unwrap())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        decode_chart_view_config(&legacy),
+        Err(DecodeError::Malformed)
+    );
     let bytes = encode(&config);
-    let fixture = include_str!("../../../test/fixtures/chart-v4-style-inspection-view.hex").trim();
+    let fixture = include_str!("../../../test/fixtures/chart-v4-node-labels-view.hex").trim();
     assert_eq!(hex(&bytes), fixture);
     assert_eq!(decode_chart_view_config(&bytes), Ok(config.clone()));
     for end in 0..bytes.len() {
@@ -70,7 +81,7 @@ fn bounded_chart_view_and_transaction_match_independent_fixture() {
         Err(DecodeError::Malformed)
     );
     assert_eq!(
-        decode_chart_view_config(&[0; 18 * 1024 + 1]),
+        decode_chart_view_config(&[0; gpuio_protocol::chart_style::MAX_STYLE_BYTES + 2 * 1024 + 1]),
         Err(DecodeError::LimitExceeded)
     );
     let window = WindowId::from_parts(0, 1).unwrap();

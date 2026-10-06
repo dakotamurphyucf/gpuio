@@ -1065,6 +1065,7 @@ configuration and their separation from Bonsai state and scoped source ownership
 
 **Charts & data → Flow styling** demonstrates the public Sankey presentation
 options. The [adjacent sample walkthrough](../charts/samples/sankey_presentation.md)
-explains typed node/edge IDs, option-only changes, tiny/zero flows and native
-selection versus raw values. The [page guide](charts_page.md) connects it to
+explains typed node/edge IDs, option-only changes, tiny/zero flows, styled multiline
+labels and native selection versus raw values. It traces the actual preset button
+through Bonsai state and the GPUIO configuration APIs. The [page guide](charts_page.md) connects it to
 Bonsai state and the scoped source owner.

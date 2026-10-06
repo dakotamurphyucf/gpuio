@@ -2,23 +2,34 @@
 
 Current handoff: 2026-10-06. Milestone **07 — Expanded v1 macOS validation and
 release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **OCH-48** adds adjacent
-Markdown walkthroughs for every example component; it is planned in this milestone. This page separates
+Markdown walkthroughs for every example component; it is in progress in this milestone. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
 [Example walkthrough coverage](evidence/example-walkthroughs-och48.md) now has an
-explicit inventory of 417 OCaml/Rust source files in 260 groups, with sixteen groups
-reviewed and 244 still pending. The starter, embedded/external palettes,
-scope helper, gallery application/layout/routing and theme-loading guides explain
-application, Bonsai, GPUIO and Eio responsibilities.
+explicit inventory of 417 OCaml/Rust source files in 260 groups, with 34 groups
+reviewed and 226 still pending. The starter, palette/scope/gallery/theme guides,
+chart samples and application, controls/editors/menus, and Agent Chat startup/model/
+message/motion guides explain actual application, Bonsai, GPUIO and Eio code.
+Three owner-authorized GPT-6.1 Sol agents contributed scoped walkthroughs in parallel.
 Contributor guidance and a structural CI check keep new sources visible; neither
 file presence nor that check establishes documentation or platform acceptance.
+
+[Rich Sankey labels](evidence/chart-node-labels-och41.md) now provide bounded
+ID-keyed multiline captions, per-line font/color and explicit hiding through the
+public OCaml API. Native/protocol/Core/lint checks, the root gallery and a rerun
+of the fresh installed binary pass. The first installed launch exposed no AX
+window and remains unexplained; it is recorded as failed, not erased by retry.
+Style schema -2 requires matching bridge packages. Original names/values and
+selection remain intact. Broader label placement, ribbon gradients and catalog/
+release gates remain open.
 
 [Sankey presentation controls](evidence/sankey-presentation-och41.md) now expose
 validated node corners, ribbon opacity/minimum thickness and label spacing.
 Native/protocol/OCaml/lint checks and root/fresh-installed macOS chart walkthroughs
 pass. Widened tiny flows retain their raw value and identity; zero flows remain
-absent. Options schema 4 requires matching bridge packages. Rich multiline labels,
-ribbon gradients and broader catalog/release acceptance remain open. The adjacent
+absent. Options schema 4 requires matching bridge packages. Rich multiline labels
+are covered by the subsequent entry above; ribbon gradients and broader catalog/
+release acceptance remain open. The adjacent
 [sample walkthrough](../examples/charts/samples/sankey_presentation.md) adds partial
 OCH-48 coverage.
 

@@ -20,7 +20,12 @@ Read `type t`, `label`, then `config`. Default uses the library defaults. Vertic
 adds a dashed crosshair. Band shows how solid thickness creates a translucent
 highlight. Anchored combines a smaller card, full crosshair and outlined marker.
 Marker only hides the card and status glyph while preserving the source value
-selection. All dimensions/colors are validated public constructor inputs.
+selection. `all` supplies chooser order, `label` supplies its captions and `config`
+constructs the selected immutable value. `[@@deriving equal]` generates typed
+equality used to highlight the selected button. `Chart_inspection.create`
+combines `Card.create`, `Crosshair.create` and `Marker.create` results;
+`Or_error.ok_exn` is used only for known fixture inputs. All dimensions/colors
+are validated public constructor inputs.
 
 The [gallery page](../../gallery/charts_page.ml) owns a Bonsai state value for the
 selected preset. Clicking a button applies its state effect. The resulting
@@ -41,3 +46,16 @@ horizontal dashed guide, combine Axis.Horizontal with Pattern.Dashed. Theme
 color tokens are resolved by the style constructor, so rebuild the style when
 the theme changes. [The inspection contract](../../../docs/design/chart-inspection.md)
 explains clipping, accessibility and remaining presentation limits.
+
+For a concrete trace, click **Anchored details**: `set_inspection Anchored` is the
+Bonsai effect returned by `B.state`. It changes that reactive value, and the
+page's `let%arr` recomputes `Samples.Inspection.config inspection` and the chart
+style. The native inspection now uses a 180-pixel card, a both-axis solid crosshair
+and a 24-pixel outlined marker. Moving the pointer updates the native preview
+without an OCaml state update; committing a value emits `Selection_changed`,
+which the page stores and resolves against published source data. This preset
+does not change the value, ID or data revision. Constructors and their bounds
+are documented in [chart_inspection.mli](../../../lib/core/chart_inspection.mli)
+and style composition in [chart_style.mli](../../../lib/core/chart_style.mli).
+Existing [inspection evidence](../../../docs/evidence/chart-inspection-och41.md)
+records macOS validation; these edits add documentation review only.

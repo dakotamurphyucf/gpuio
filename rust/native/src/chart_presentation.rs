@@ -179,6 +179,37 @@ impl Frame {
     pub fn label(&self, label: &Label) -> Placement {
         let x = self.plot.x + label.position.x;
         let y = self.plot.y + label.position.y;
+        if let LabelKind::FlowLine {
+            align_right,
+            font_size,
+            block_height,
+            offset,
+            ..
+        } = label.kind
+        {
+            // Clip one coherent block, rather than clamping each line onto its
+            // neighbor when the viewport is shorter than the label.
+            let bottom = self.plot.y + self.plot.height;
+            let top = (y - block_height / 2.).clamp(
+                self.plot.y,
+                self.plot.y + (self.plot.height - block_height).max(0.),
+            );
+            let row_y = (top + offset).min(bottom);
+            let width = 140_f64.min(self.width);
+            return Placement {
+                rect: Rect {
+                    x: (if align_right { x - width } else { x }).clamp(0., self.width - width),
+                    y: row_y,
+                    width,
+                    height: (font_size + 4.).max(TEXT_HEIGHT).min(bottom - row_y),
+                },
+                align: if align_right {
+                    Align::Right
+                } else {
+                    Align::Left
+                },
+            };
+        }
         let left_axis = matches!(label.kind, LabelKind::Y) && !self.horizontal
             || matches!(label.kind, LabelKind::X) && self.horizontal;
         let bottom_axis = matches!(label.kind, LabelKind::X | LabelKind::Y) && !left_axis;
@@ -193,7 +224,7 @@ impl Frame {
             (80., x - 40., y + 6., Align::Center)
         } else if matches!(label.kind, LabelKind::Series(_)) {
             (22., x - 11., y - TEXT_HEIGHT / 2., Align::Center)
-        } else if let LabelKind::Flow { align_right } = label.kind {
+        } else if let LabelKind::Flow { align_right, .. } = label.kind {
             if align_right {
                 (140., x - 140., y - TEXT_HEIGHT / 2., Align::Right)
             } else {
@@ -253,8 +284,14 @@ mod tests {
                     LabelKind::X,
                     LabelKind::Y,
                     LabelKind::Radial,
-                    LabelKind::Flow { align_right: false },
-                    LabelKind::Flow { align_right: true },
+                    LabelKind::Flow {
+                        align_right: false,
+                        node_index: 0,
+                    },
+                    LabelKind::Flow {
+                        align_right: true,
+                        node_index: 0,
+                    },
                     LabelKind::Series(0),
                 ] {
                     let placement = frame.label(&Label {

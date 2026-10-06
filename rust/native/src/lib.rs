@@ -27,6 +27,7 @@ pub mod chart_geometry;
 mod chart_hit;
 mod chart_host;
 pub mod chart_jobs;
+mod chart_node_labels;
 pub mod chart_paint;
 mod chart_presentation;
 pub mod chart_render_host;

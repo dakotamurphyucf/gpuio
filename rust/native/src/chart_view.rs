@@ -269,9 +269,19 @@ impl State {
         for (index, label) in ready.plan.geometry().labels.iter().enumerate() {
             let placement = frame.label(label);
             let r = placement.rect;
+            if r.height <= 0. || r.width <= 0. {
+                continue;
+            }
+            let (font_size, foreground) = match label.kind {
+                crate::chart_geometry::LabelKind::FlowLine {
+                    font_size, color, ..
+                } => (font_size, color.unwrap_or(style.label_color as u32)),
+                _ => (11., style.label_color as u32),
+            };
             let backed = matches!(
                 label.kind,
                 crate::chart_geometry::LabelKind::Flow { .. }
+                    | crate::chart_geometry::LabelKind::FlowLine { .. }
                     | crate::chart_geometry::LabelKind::Series(_)
             ) || (matches!(label.kind, crate::chart_geometry::LabelKind::Radial)
                 && matches!(
@@ -283,9 +293,7 @@ impl State {
                 content = content
                     .px_1()
                     .rounded_sm()
-                    .bg(gpui::rgba(presentation::label_backing(
-                        style.label_color as u32,
-                    )));
+                    .bg(gpui::rgba(presentation::label_backing(foreground)));
             }
             let element = div()
                 .id(("gpuio-chart-label", index as u64))
@@ -295,6 +303,9 @@ impl State {
                 .top(px(r.y as f32))
                 .w(px(r.width as f32))
                 .h(px(r.height as f32))
+                .text_size(px(font_size as f32))
+                .line_height(px((font_size + 4.).max(presentation::TEXT_HEIGHT) as f32))
+                .text_color(gpui::rgba(foreground))
                 .overflow_hidden()
                 .text_ellipsis()
                 .aria_label(match label.kind {

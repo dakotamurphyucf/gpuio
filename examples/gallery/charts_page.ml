@@ -249,6 +249,10 @@ let component app window palette graph =
              (Mode.equal current_mode Ordinal_colors)
              (Samples.Ordinal_colors.mapping ~unknown:unknown_color))
         ~inspection:(Samples.Inspection.config inspection)
+        ~node_labels:
+          (if Mode.equal current_mode Flow_styling
+           then Samples.Sankey_presentation.node_labels flow_style
+           else Chart_node_labels.empty)
         ~label_color:(Palette.foreground p)
         ~axis_color:(Palette.muted p)
         ~grid_color:(Palette.border p)

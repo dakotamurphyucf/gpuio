@@ -67,4 +67,6 @@ version namespace disjoint from valid legacy unversioned palette lengths 1–32.
 Previous style/version-0 view frames are explicitly rejected; matching OCaml and
 Rust bridge packages are required. [Sankey presentation](sankey-presentation.md) subsequently advances options to
 version 4; data version 1 remains unchanged. The inspection record follows the optional ordinal field; the existing
-16 KiB style and 18 KiB view caps still cover the bounded maximum.
+16 KiB style and 18 KiB view caps covered that bounded maximum. The subsequent
+[rich node-label addition](chart-node-labels.md) advances style to -2 and raises
+the caps to 64/66 KiB; options/data remain 4/1.

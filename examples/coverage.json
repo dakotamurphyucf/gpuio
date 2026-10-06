@@ -8,8 +8,10 @@
         "examples/agent_chat/application.mli"
       ],
       "role": "application-entry",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/agent_chat/application.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -17,9 +19,9 @@
       ],
       "role": "application-entry",
       "walkthroughs": [
-        "examples/agent_chat/README.md"
+        "examples/agent_chat/main.md"
       ],
-      "review": "pending"
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -27,16 +29,20 @@
         "examples/agent_chat/model/fake_backend.mli"
       ],
       "role": "support",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/agent_chat/model/fake_backend.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
         "examples/agent_chat/model/fake_backend_test.ml"
       ],
       "role": "test-support",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/agent_chat/model/fake_backend.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -71,8 +77,10 @@
         "examples/agent_chat/runtime/chat_message.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/agent_chat/runtime/chat_message.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -80,8 +88,10 @@
         "examples/agent_chat/runtime/chat_motion.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/agent_chat/runtime/chat_motion.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -414,8 +424,10 @@
         "examples/charts/gallery.ml"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/charts/gallery.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -423,9 +435,9 @@
       ],
       "role": "application-entry",
       "walkthroughs": [
-        "examples/charts/README.md"
+        "examples/charts/main.md"
       ],
-      "review": "pending"
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -436,7 +448,7 @@
       "walkthroughs": [
         "examples/charts/samples/categorical.md"
       ],
-      "review": "pending"
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -444,8 +456,10 @@
         "examples/charts/samples/gpuio_chart_samples.mli"
       ],
       "role": "support",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/charts/samples/gpuio_chart_samples.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -456,7 +470,7 @@
       "walkthroughs": [
         "examples/charts/samples/inspection.md"
       ],
-      "review": "pending"
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -467,7 +481,7 @@
       "walkthroughs": [
         "examples/charts/samples/ordinal_colors.md"
       ],
-      "review": "pending"
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -478,7 +492,7 @@
       "walkthroughs": [
         "examples/charts/samples/sankey_presentation.md"
       ],
-      "review": "pending"
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -489,7 +503,7 @@
       "walkthroughs": [
         "examples/charts/samples/stacked.md"
       ],
-      "review": "pending"
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -515,9 +529,9 @@
       ],
       "role": "application-entry",
       "walkthroughs": [
-        "examples/combobox/README.md"
+        "examples/combobox/main.md"
       ],
-      "review": "pending"
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -542,8 +556,10 @@
         "examples/controls/main.ml"
       ],
       "role": "application-entry",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/controls/main.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -1702,7 +1718,7 @@
       "walkthroughs": [
         "examples/menus/main.md"
       ],
-      "review": "pending"
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -2217,9 +2233,9 @@
       ],
       "role": "application-entry",
       "walkthroughs": [
-        "examples/text_input/README.md"
+        "examples/text_input/main.md"
       ],
-      "review": "pending"
+      "review": "reviewed"
     },
     {
       "sources": [

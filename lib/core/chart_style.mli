@@ -38,7 +38,12 @@ end
     changes; construction resolves all color tokens without native callbacks. *)
 type t [@@deriving equal, sexp_of]
 
-(** Palette length 1..32; stroke width 0.5..8, point radius 1..12 and bar corner
+(** [node_labels] supplies ID-keyed Sankey presentation overrides. Missing node
+    entries retain their original labels; unknown IDs are ignored. Empty line
+    lists suppress individual labels, while [Sankey.labels=false] hides all.
+    Overrides do not change original-data names or selection values.
+
+    Palette length 1..32; stroke width 0.5..8, point radius 1..12 and bar corner
     radius 0..32 logical pixels. Area opacity is 0..1. Optional [gradient_end]
     makes bars fade from their palette color to that color along the value axis.
     Corner radii clamp to each bar's size. Other filled families use palette
@@ -51,6 +56,7 @@ val create
   :  ?palette:Color.t list
   -> ?ordinal:Ordinal.t
   -> ?inspection:Chart_inspection.t
+  -> ?node_labels:Chart_node_labels.t
   -> ?axis_color:Color.t
   -> ?grid_color:Color.t
   -> ?label_color:Color.t

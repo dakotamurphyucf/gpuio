@@ -40,9 +40,12 @@ callback, extra resource or hover-driven publication is introduced.
 The options envelope advances **3 → 4**, appending four float64 fields after the
 Sankey `labels` flag. The default options fixture is 100 bytes, with the existing
 256-byte decoder bound unchanged. Old options-3 view frames are rejected; the
-current paired view fixture is `chart-v4-style-inspection-view.hex`. Style schema
--1 and chart data version 1 are unchanged. OCaml and Rust packages must match.
+paired view fixture for that addition is `chart-v4-style-inspection-view.hex`.
+The subsequent [rich label contract](chart-node-labels.md) advances style -1 to -2;
+the current fixture is `chart-v4-node-labels-view.hex`. Options/data remain 4/1.
+OCaml and Rust packages must match.
 
-Rich per-node multiline labels, per-line font/color and source-to-target ribbon
-color gradients remain separate catalog work. This contract does not claim full
+Rich per-node multiline labels and per-line font/color have a separate
+[contract](chart-node-labels.md). Outer-column margins/above-middle label placement
+and source-to-target ribbon color gradients remain catalog work. This does not claim full
 upstream plotting-builder parity, VoiceOver or performance qualification.
