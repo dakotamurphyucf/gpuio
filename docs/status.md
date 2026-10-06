@@ -164,8 +164,9 @@ Palettes now expose [asynchronous query/highlight snapshots](evidence/palette-ob
 with subscription/query identity, bounded delivery and a passing installed macOS
 typing/navigation walkthrough. [Native query/highlight commands](evidence/palette-commands-och41.md) now have
 correlated subscription checks and an optional current-native-query fence, with
-full native/OCaml and installed macOS evidence. Atomic external results, loading
-and persistent embedding remain open controller work.
+full native/OCaml and installed macOS evidence. [Native loading](evidence/palette-loading-och41.md)
+now has retained editing/undo, empty-content gating and reduced-motion/cleanup
+coverage. Atomic external results and persistent embedding remain open controller work.
 
 The public gallery and reference applications exist, with public Core/Bonsai/Eio
 APIs and native Rust ownership. Local source reviews and behavior evidence cover
