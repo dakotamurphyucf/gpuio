@@ -440,3 +440,9 @@ and [verified manifest](hosted-presentation-calibration-och17/run-37523471664/ma
 retain the failures and scoped package results. Neither presentation gate is
 waived. Internal ad-hoc extracted-app checks do not establish clean-machine
 release signing or distribution acceptance; Linux GUI remains deferred OCH-47.
+
+The subsequent [local density reproduction and probe repair](pie-leader-density-och41.md)
+identifies the pie test's minimum-intensity assumption and validates hue coverage at
+four synthetic scales with neutral negative controls. Production rendering is
+unchanged; the recorded hosted failure remains a failure until current-source
+revalidation passes.

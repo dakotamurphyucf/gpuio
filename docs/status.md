@@ -5,6 +5,12 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **O
 Markdown walkthroughs for every example component; its documentation acceptance is complete. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
+[Pie leader density regression](evidence/pie-leader-density-och41.md) reproduces
+the hosted failure locally at 1×: the original test required excessive channel intensity from a thin partially covered stroke. Expected-hue column coverage
+and neutral negative controls now pass at four synthetic scales, with strict
+lint and the complete mounted chart suite. Production rendering is unchanged;
+current-source hosted confirmation and release gates remain open.
+
 [Independent chart guide spans](evidence/chart-guide-spans-och41.md) now expose
 validated pixel/fractional intervals with native clipping and resize behavior.
 Paired codecs, 1,052 native unit tests, 72 actual GPU cases, root/fresh-installed
@@ -14,7 +20,7 @@ is -7. Rich rows/annotations and broader catalog/release qualification remain.
 [Hosted run 37523471664](evidence/hosted-presentation-calibration-och17.md#hosted-run-37523471664)
 is terminal at tree-equivalent `f22abd8`: Linux and all three extracted macOS apps
 pass. macOS foundation fails a pie leader-line pixel assertion and the two Metal
-presentation probes. The pie failure needs investigation; no gate is waived.
+presentation probes. The pie assertion is repaired locally as described above; no gate is waived.
 This run predates appearance, cursor and guide-span changes.
 
 [Cursor-following chart cards](evidence/chart-cursor-inspection-och41.md) now track

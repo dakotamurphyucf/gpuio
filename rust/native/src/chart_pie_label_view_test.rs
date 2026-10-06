@@ -38,78 +38,86 @@ pub(super) async fn exercise(
     );
     let revision = snapshot.revision() + 1;
     cx.update(|cx| dispatch(cx, transport, 80, Request::Publish(source, revision)));
-    for (placement, labels, hidden, width, weight) in [
-        (LabelPlacement::Outside, true, false, 200., 400),
-        (LabelPlacement::Outside, true, false, 200., 700),
-        (LabelPlacement::Outside, true, true, 120., 400),
-        (LabelPlacement::Inside, true, false, 200., 400),
-        (LabelPlacement::Outside, false, false, 200., 400),
-    ] {
-        let mut config = config(source, 0x444444ff);
-        config.options.pie.labels = labels;
-        config.options.pie.label_placement = placement;
-        config.options.pie.slice_radii = vec![SliceRadii {
-            slice: 7,
-            inner: 10.,
-            outer: 30.,
-        }];
-        config.style.label_color = 0x00ff00ff;
-        config.style.pie_label_line_color = Some(0x0000ffff);
-        config.style.pie_labels = vec![
-            Entry {
-                slice: 7,
-                text: Some(if hidden { "" } else { "RIGHT" }.into()),
-                line_color: Some(0xff0000ff),
-            },
-            Entry {
-                slice: 3,
-                text: Some("LEFT".into()),
-                line_color: None,
-            },
-        ];
-        apply(
-            cx,
-            handle,
-            vec![
-                Op::SetChart(id(1), Box::new(config.clone())),
-                Op::SetStyle(
-                    id(1),
-                    vec![Style::Fields(vec![
-                        Field::Width(Length::Px(width)),
-                        Field::Height(Length::Px(200.)),
-                        Field::FontWeight(weight),
-                    ])],
-                ),
-            ],
-        );
-        let mut complete = false;
-        for _ in 0..300 {
-            draw(cx, handle);
-            complete = handle
-                .update(cx, |view, _, _| {
-                    let state = view.charts[&id(1)].borrow();
-                    state.ready.as_ref().is_some_and(|r| {
-                        r.snapshot.revision() == revision
-                            && r.config.as_ref() == &config
-                            && state.ready_frame.is_some_and(|f| f.width == width)
-                            && (placement != LabelPlacement::Outside
-                                || !labels
-                                || r.label_style.as_ref().is_some_and(|s| {
-                                    s.font.weight == gpui::FontWeight(weight as f32)
-                                }))
-                    })
-                })
-                .unwrap();
-            if complete {
-                break;
-            }
-            cx.background_executor()
-                .timer(Duration::from_millis(10))
-                .await;
-        }
-        assert!(complete, "pie label request failed to settle");
-        draw(cx, handle);
+    let original_scale = handle
+        .update(cx, |_, window, _| window.scale_factor())
+        .unwrap();
+    for density in [1., 1.25, 1.5, 2.] {
         handle
+            .update(cx, |_, window, _| window.set_scale_factor(density))
+            .unwrap();
+        for (placement, labels, hidden, width, weight, muted) in [
+            (LabelPlacement::Outside, true, false, 200., 400, false),
+            (LabelPlacement::Outside, true, false, 200., 700, false),
+            (LabelPlacement::Outside, true, true, 120., 400, false),
+            (LabelPlacement::Inside, true, false, 200., 400, false),
+            (LabelPlacement::Outside, false, false, 200., 400, false),
+            (LabelPlacement::Outside, true, false, 200., 400, true),
+        ] {
+            let mut config = config(source, 0x444444ff);
+            config.options.pie.labels = labels;
+            config.options.pie.label_placement = placement;
+            config.options.pie.slice_radii = vec![SliceRadii {
+                slice: 7,
+                inner: 10.,
+                outer: 30.,
+            }];
+            config.style.label_color = 0x00ff00ff;
+            config.style.pie_label_line_color = Some(if muted { 0x444444ff } else { 0x0000ffff });
+            config.style.pie_labels = vec![
+                Entry {
+                    slice: 7,
+                    text: Some(if hidden { "" } else { "RIGHT" }.into()),
+                    line_color: Some(if muted { 0x444444ff } else { 0xff0000ff }),
+                },
+                Entry {
+                    slice: 3,
+                    text: Some("LEFT".into()),
+                    line_color: None,
+                },
+            ];
+            apply(
+                cx,
+                handle,
+                vec![
+                    Op::SetChart(id(1), Box::new(config.clone())),
+                    Op::SetStyle(
+                        id(1),
+                        vec![Style::Fields(vec![
+                            Field::Width(Length::Px(width)),
+                            Field::Height(Length::Px(200.)),
+                            Field::FontWeight(weight),
+                        ])],
+                    ),
+                ],
+            );
+            let mut complete = false;
+            for _ in 0..300 {
+                draw(cx, handle);
+                complete = handle
+                    .update(cx, |view, _, _| {
+                        let state = view.charts[&id(1)].borrow();
+                        state.ready.as_ref().is_some_and(|r| {
+                            r.snapshot.revision() == revision
+                                && r.config.as_ref() == &config
+                                && state.ready_frame.is_some_and(|f| f.width == width)
+                                && (placement != LabelPlacement::Outside
+                                    || !labels
+                                    || r.label_style.as_ref().is_some_and(|s| {
+                                        s.font.weight == gpui::FontWeight(weight as f32)
+                                    }))
+                        })
+                    })
+                    .unwrap();
+                if complete {
+                    break;
+                }
+                cx.background_executor()
+                    .timer(Duration::from_millis(10))
+                    .await;
+            }
+            assert!(complete, "pie label request failed to settle");
+            draw(cx, handle);
+            handle
             .update(cx, |view, window, _| {
                 let state = view.charts[&id(1)].borrow();
                 let ready = state.ready.as_ref().unwrap();
@@ -165,24 +173,58 @@ pub(super) async fn exercise(
                         // sample between gray wedge edge and green text.
                         let x = frame.plot.x + (p.edge.x + p.bend.x) / 2.;
                         let y = frame.plot.y + (p.edge.y + p.bend.y) / 2.;
-                        assert!(
-                            count_color(
-                                x - 2.,
-                                y - 2.,
-                                x + 2.,
-                                y + 2.,
-                                if slice_index == 0 { 0 } else { 2 }
-                            ) > 0,
-                            "missing independently colored pie leader for {slice_index}"
-                        );
+                        let channel = if slice_index == 0 { 0 } else { 2 };
+                        // A one-logical-pixel stroke can be split by rasterization:
+                        // at scale 1 a blue sample is [8,8,136], not opaque blue.
+                        // Require the right hue across multiple physical columns,
+                        // and reject both other hues in the same isolated region.
+                        // Gray wedge/background and green caption pixels cannot pass.
+                        let mut columns = [0_usize; 3];
+                        for xx in ((x - 2.) * scale).floor().max(0.) as u32
+                            ..((x + 2.) * scale).ceil().min(f64::from(image.width())) as u32 {
+                            let mut found = [false; 3];
+                            for yy in ((y - 2.) * scale).floor().max(0.) as u32
+                                ..((y + 2.) * scale).ceil().min(f64::from(image.height())) as u32 {
+                                let pixel = image.get_pixel(xx, yy).0;
+                                for candidate in 0..3 {
+                                    found[candidate] |= (0..3).filter(|c| *c != candidate)
+                                        .all(|c| pixel[candidate].saturating_sub(pixel[c]) > 80);
+                                }
+                            }
+                            for (count, found) in columns.iter_mut().zip(found) {
+                                *count += usize::from(found);
+                            }
+                        }
+                        let minimum = (2. * scale).ceil() as usize;
+                        let valid = if muted {
+                            // Actual neutral leaders are the negative control: neither
+                            // gray geometry/background nor green text may satisfy hue.
+                            columns == [0; 3]
+                        } else {
+                            columns[channel] >= minimum
+                                && (0..3).filter(|c| *c != channel).all(|c| columns[c] == 0)
+                        };
+                        eprintln!("PIE_LEADER_COVERAGE scale={scale} slice={slice_index} width={width} weight={weight} muted={muted} channel={channel} columns={columns:?} minimum={minimum}");
+                        if !valid {
+                            eprintln!("PIE_LEADER_FAILURE placement={p:?} plot={:?} sample={x},{y}", frame.plot);
+                            if let Some(path) = std::env::var_os("GPUIO_PIE_LABEL_DIAGNOSTIC")
+                                && let Err(error) = image.save(path) {
+                                eprintln!("Could not save pie diagnostic: {error}");
+                            }
+                        }
+                        assert!(valid, "missing or wrong independently colored pie leader for {slice_index}");
                     }
                 }
                 assert_eq!(ready.snapshot.data(), &data);
             })
             .unwrap();
-        transport.mailbox.lock().unwrap().drain(128);
+            transport.mailbox.lock().unwrap().drain(128);
+        }
     }
+    handle
+        .update(cx, |_, window, _| window.set_scale_factor(original_scale))
+        .unwrap();
     eprintln!(
-        "GPUIO_PIE_LABEL_VIEW_OK: measured text pixels, ID captions, per-slice/default leader colors, variable radius, hidden captions, inside/outside, narrow/font changes and unchanged data"
+        "GPUIO_PIE_LABEL_VIEW_OK: four synthetic scales (1/1.25/1.5/2), measured text pixels, ID captions, per-slice/default leader colors and neutral negative controls, variable radius, hidden captions, inside/outside, narrow/font changes and unchanged data"
     );
 }

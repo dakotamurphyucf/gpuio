@@ -386,6 +386,8 @@ jobs:
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
         run: python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-canvas-tests", "--test", "native_chart_paint"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-chart-paint.log
       - name: macOS mounted charts and public chart gallery
+        env:
+          GPUIO_PIE_LABEL_DIAGNOSTIC: ${{ github.workspace }}/.cache/ci/pie-leader-failure.png
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
         run: |
           python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-canvas-tests", "--test", "native_chart_view", "--test", "native_chart_input"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-chart-view.log

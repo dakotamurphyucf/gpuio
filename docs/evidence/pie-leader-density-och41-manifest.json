@@ -1,0 +1,47 @@
+{
+  "source_base": "2b91fdb",
+  "scope": "Local synthetic display scale, pie caption/leader GPU test repair; no new production rendering or platform acceptance",
+  "archive_sha256": "776ff7bf881c1a4486f2f9098c5d5fbe67881634e1632d45695d816906d11c2a",
+  "files": [
+    {
+      "path": "after.log",
+      "bytes": 591869,
+      "sha256": "a9079b5bb086a7448e4118640c4af8cd321accd8342849e7ec7b061472ed5909"
+    },
+    {
+      "path": "before.log",
+      "bytes": 589504,
+      "sha256": "33df2131fef6fe1136c316fd0e4d14211916dd8f79654f30ca6ea544d64b3415"
+    },
+    {
+      "path": "clippy.log",
+      "bytes": 588275,
+      "sha256": "92f6447a7580c8aa97e4920f3e664971f6ccc53351e6e4fe68361041d1309933"
+    },
+    {
+      "path": "commands.txt",
+      "bytes": 1150,
+      "sha256": "73c8ab2dcae034af8fc8d04f53244ac078ad8f182144617bb53a3e04de8bff16"
+    },
+    {
+      "path": "environment.txt",
+      "bytes": 69,
+      "sha256": "c1201d2f8119b24a5acfa8471316a1719c5b6d9fbbe878ea93031f4318078c71"
+    },
+    {
+      "path": "failure.png",
+      "bytes": 8938,
+      "sha256": "73228f14d9a481c9d3637a201691cb260ca9dc8282e12272c42921e8d157f78e"
+    },
+    {
+      "path": "final.log",
+      "bytes": 592997,
+      "sha256": "495f51853f187df978883d3b85fd812a924bc0de322e13309b2bb7dcdd8c0f30"
+    },
+    {
+      "path": "reproduction.log",
+      "bytes": 589354,
+      "sha256": "0e6af56dafd0def35f8ed1a3604ab87e05eba7386a6c957a6399e7f91823d256"
+    }
+  ]
+}
