@@ -2050,6 +2050,13 @@ pub fn run(transport: Arc<Transport>) {
                                 Err(error) => transport.respond(Event::Failed(correlation, error)),
                             }
                         }
+                        Message::MenuCommand(correlation, id, node, observer, command) => {
+                            use gpuio_protocol::menu_command::{Error, Response};
+                            let result = windows.get(&id).and_then(|handle| handle.update(cx, |view, window, cx| {
+                                view.menu_command(node, observer, &command, window, cx)
+                            }).ok()).unwrap_or(Response::Failed(Error::Closed));
+                            transport.respond(Event::MenuResult(correlation, id, node, observer, result));
+                        }
                         Message::PaletteCommand(correlation, id, node, observer, expected, command) => {
                             use gpuio_protocol::palette_command::{Error, Response};
                             let result = windows.get(&id).and_then(|handle| handle.update(cx, |view, window, cx| {

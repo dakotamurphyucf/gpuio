@@ -94,7 +94,60 @@ let label t = t.label
 
 module Appearance = Choice.Appearance
 
+module Position = struct
+  type t = Gpuio_protocol.Menu_command_wire.Position.t [@@deriving equal, sexp_of]
+
+  let create ~x ~y =
+    let t : t = { x; y } in
+    if Gpuio_protocol.Menu_command_wire.Position.valid t
+    then Ok t
+    else
+      Or_error.error_string
+        "menu position must be finite and within +/-1,000,000 logical pixels"
+  ;;
+
+  let x t = t.Gpuio_protocol.Menu_command_wire.Position.x
+  let y t = t.Gpuio_protocol.Menu_command_wire.Position.y
+end
+
+module Snapshot = struct
+  type t =
+    { window : Gpuio_protocol.Window_id.t
+    ; node : Gpuio_protocol.Node_id.t
+    ; observer : Gpuio_protocol.Handler_id.t
+    ; is_open : bool
+    }
+  [@@deriving equal, sexp_of]
+
+  let is_open t = t.is_open
+end
+
+module Command = struct
+  type t = Gpuio_protocol.Menu_command_wire.Command.t =
+    | Show of Position.t
+    | Close
+  [@@deriving equal, sexp_of]
+end
+
+module Command_error = Gpuio_protocol.Menu_command_wire.Error
+
 module Expert = struct
+  let snapshot ~window ~node ~observer ~is_open : Snapshot.t =
+    { window; node; observer; is_open }
+  ;;
+
+  let window t = t.Snapshot.window
+  let node t = t.Snapshot.node
+  let observer t = t.Snapshot.observer
+
+  let same_owner a b =
+    Gpuio_protocol.Window_id.equal a.Snapshot.window b.Snapshot.window
+    && Gpuio_protocol.Node_id.equal a.node b.node
+    && Gpuio_protocol.Handler_id.equal a.observer b.observer
+  ;;
+
+  let command_to_wire (command : Command.t) = command
+
   type presentation =
     | Button
     | Context

@@ -1137,11 +1137,15 @@ module Message = struct
         * Handler_id.t
         * int64 option
         * Palette_command_wire.Command.t
+    | Menu_command of
+        int64 * Window_id.t * Node_id.t * Handler_id.t * Menu_command_wire.Command.t
   [@@deriving bin_io, equal, sexp_of]
 
   let encode t =
     let invalid_asset =
       match t with
+      | Menu_command (correlation, _, _, _, command) ->
+        Int64.(correlation <= 0L) || not (Menu_command_wire.Command.valid command)
       | Palette_command (correlation, _, _, _, expected, command) ->
         Int64.(correlation <= 0L)
         || Option.exists expected ~f:(fun revision -> Int64.(revision <= 0L))
@@ -1413,6 +1417,8 @@ module Event = struct
         Window_id.t * Node_id.t * Handler_id.t * int64 * Palette_state_wire.t
     | Palette_result of
         int64 * Window_id.t * Node_id.t * Handler_id.t * Palette_command_wire.Response.t
+    | Menu_result of
+        int64 * Window_id.t * Node_id.t * Handler_id.t * Menu_command_wire.Response.t
   [@@deriving bin_io, equal, sexp_of]
 
   let valid_snapshot (t : Editor.Snapshot.t) =
@@ -1595,6 +1601,7 @@ module Event = struct
       && List.for_all
            [ sample.window_x; sample.window_y; sample.local_x; sample.local_y ]
            ~f:Float.is_finite
+    | Menu_result (request, _, _, _, _) -> Int64.(request > 0L)
     | Palette_result (request, _, _, _, result) ->
       Int64.(request > 0L) && Palette_command_wire.Response.valid result
     | Palette_observed (_, _, _, revision, snapshot) ->

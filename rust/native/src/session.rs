@@ -1409,7 +1409,12 @@ impl Session {
             && revision >= 0
             && revision <= window.tree.revision()
             && window.tree.accepts_handler(node, handler)
-            && menu.presentation == MenuPresentation::Button
+            && matches!(
+                menu.presentation,
+                MenuPresentation::Button
+                    | MenuPresentation::Context
+                    | MenuPresentation::PlatformContext
+            )
             && (!open || !menu.menus.first()?.disabled))
             .then_some(Event::MenuOpenChanged(id, node, handler, revision, open))
     }

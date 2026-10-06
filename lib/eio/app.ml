@@ -4,6 +4,7 @@ module Guard = Gpuio_runtime_core.Domain_guard
 module Driver = Gpuio_runtime_core.Window_driver
 module Input = Gpuio.Text_input
 module Palette = Gpuio.Command_palette
+module Menu = Gpuio.Menu
 module Slider = Gpuio.Slider
 module Number_input = Gpuio.Number_input
 module Otp_input = Gpuio.Otp_input
@@ -16,6 +17,11 @@ type editor_request =
   { window : Window_id.t
   ; node : Node_id.t
   ; complete : Wire.Editor.Result.t -> unit
+  }
+
+type menu_request =
+  { expected : Menu.Snapshot.t
+  ; complete : (unit, Menu.Command_error.t) Result.t -> unit
   }
 
 type palette_request =
@@ -105,6 +111,7 @@ type t =
   ; mutable frames : (Window_id.t * (revision:int64 -> unit Bonsai.Effect.t)) Int64.Map.t
   ; mutable editors : editor_request Int64.Map.t
   ; mutable palettes : palette_request Int64.Map.t
+  ; mutable menus : menu_request Int64.Map.t
   ; mutable sliders : slider_request Int64.Map.t
   ; mutable number_inputs : number_input_request Int64.Map.t
   ; mutable otp_inputs : otp_input_request Int64.Map.t
@@ -224,6 +231,7 @@ let diagnostics t : Diagnostics.t =
       + Map.length t.frames
       + Map.length t.editors
       + Map.length t.palettes
+      + Map.length t.menus
       + Map.length t.sliders
       + Map.length t.number_inputs
       + Map.length t.otp_inputs
@@ -601,6 +609,13 @@ let release_window window =
       in
       window.app.palettes <- remaining_palettes;
       Map.iter cancelled_palettes ~f:(fun request ->
+        attempt (fun () -> request.complete (Error Closed)));
+      let cancelled_menus, remaining_menus =
+        Map.partition_tf window.app.menus ~f:(fun request ->
+          Window_id.equal (Menu.Expert.window request.expected) window.id)
+      in
+      window.app.menus <- remaining_menus;
+      Map.iter cancelled_menus ~f:(fun request ->
         attempt (fun () -> request.complete (Error Closed)));
       let cancelled_color_inputs, remaining_color_inputs =
         Map.partition_tf window.app.color_inputs ~f:(fun request ->
@@ -1057,6 +1072,35 @@ module Window = struct
                  ; complete = callback
                  };
           queue t.app (Color_input_command (request, t.id, node, command))))
+    ;;
+
+    let menu_command t snapshot command =
+      Bonsai.Effect.Expert.of_fun ~f:(fun ~callback ->
+        check t.app;
+        let command = Menu.Expert.command_to_wire command in
+        if is_closed t || t.app.stopping
+        then callback (Error Menu.Command_error.Closed)
+        else if not (Window_id.equal t.id (Menu.Expert.window snapshot))
+        then callback (Error Stale_menu)
+        else if not (Menu_command_wire.Command.valid command)
+        then callback (Error Invalid_position)
+        else if Map.length t.app.menus >= 64
+        then callback (Error Busy)
+        else (
+          let request = correlation t.app in
+          t.app.menus
+          <- Map.set
+               t.app.menus
+               ~key:request
+               ~data:{ expected = snapshot; complete = callback };
+          queue
+            t.app
+            (Menu_command
+               ( request
+               , t.id
+               , Menu.Expert.node snapshot
+               , Menu.Expert.observer snapshot
+               , command ))))
     ;;
 
     let palette_command t snapshot ?(if_query_unchanged = false) command =
@@ -1843,6 +1887,18 @@ let process t = function
        in
        pending.complete result
      | Some _ | None -> ())
+  | Menu_result (request, id, node, observer, result) ->
+    (match Map.find t.menus request with
+     | Some pending
+       when Window_id.equal (Menu.Expert.window pending.expected) id
+            && Node_id.equal (Menu.Expert.node pending.expected) node
+            && Handler_id.equal (Menu.Expert.observer pending.expected) observer ->
+       t.menus <- Map.remove t.menus request;
+       pending.complete
+         (match result with
+          | Menu_command_wire.Response.Applied -> Ok ()
+          | Failed error -> Error error)
+     | Some _ | None -> ())
   | Palette_result (request, id, node, observer, result) ->
     (match Map.find t.palettes request with
      | Some pending
@@ -2022,6 +2078,24 @@ let process t = function
       match code with
       | Closed -> Closed
       | Stale_handle -> Stale_palette
+      | Busy | Overloaded -> Busy
+      | Limit_exceeded
+      | Unsupported_version
+      | Unsupported_capability
+      | Malformed
+      | Not_ready
+      | Invalid_revision
+      | Invalid_tree
+      | Native_failure -> Native_failure
+    in
+    pending.complete (Error error)
+  | Failed (request, code) when Map.mem t.menus request ->
+    let pending = Map.find_exn t.menus request in
+    t.menus <- Map.remove t.menus request;
+    let error : Menu.Command_error.t =
+      match code with
+      | Closed -> Closed
+      | Stale_handle -> Stale_menu
       | Busy | Overloaded -> Busy
       | Limit_exceeded
       | Unsupported_version
@@ -2249,6 +2323,7 @@ let create_runtime ~document_defaults ~native ~inbox ~scope ~now ~motion ~deskto
   ; otp_inputs = Int64.Map.empty
   ; calendars = Int64.Map.empty
   ; palettes = Int64.Map.empty
+  ; menus = Int64.Map.empty
   ; color_inputs = Int64.Map.empty
   ; dialogs = Int64.Map.empty
   ; window_requests = Int64.Map.empty
@@ -2673,6 +2748,51 @@ let%test_module "pending picker command lifecycle" =
         Input.Expert.snapshot_of_wire ~window:window.id ~node:query wire |> ok
       in
       window, snapshot, wire
+    ;;
+
+    let%expect_test
+        "menu commands correlate identity, bound requests and close exactly once"
+      =
+      with_runtime (fun _ app ->
+        let window, editor, _ = open_picker app in
+        let node = Input.Expert.node editor in
+        let observer = Handler_id.create ~slot:9L ~generation:1L |> ok in
+        let snapshot =
+          Menu.Expert.snapshot ~window:window.id ~node ~observer ~is_open:false
+        in
+        let start () =
+          let result = ref None
+          and calls = ref 0 in
+          E.Expert.handle
+            (E.map (Window.Expert.menu_command window snapshot Close) ~f:(fun next ->
+               incr calls;
+               result := Some next));
+          app.correlation, result, calls
+        in
+        let equal = Option.equal (Result.equal Unit.equal Menu.Command_error.equal) in
+        let request, result, calls = start () in
+        let wrong = Handler_id.create ~slot:9L ~generation:2L |> ok in
+        process app (Menu_result (request, window.id, node, wrong, Applied));
+        assert (Option.is_none !result && !calls = 0);
+        process app (Menu_result (request, window.id, node, observer, Applied));
+        assert (equal !result (Some (Ok ())) && !calls = 1);
+        process app (Menu_result (request, window.id, node, observer, Applied));
+        assert (!calls = 1);
+        let pending = List.init 64 ~f:(fun _ -> start ()) in
+        let _, busy, calls = start () in
+        assert (equal !busy (Some (Error Busy)) && !calls = 1);
+        release_window window;
+        assert (Map.is_empty app.menus);
+        List.iter pending ~f:(fun (request, result, calls) ->
+          assert (equal !result (Some (Error Closed)) && !calls = 1);
+          process app (Menu_result (request, window.id, node, observer, Applied));
+          assert (!calls = 1));
+        let _, result, calls = start () in
+        assert (equal !result (Some (Error Closed)) && !calls = 1));
+      print_endline
+        "wrong subscription ignored; 64 bounded; duplicate and post-close replies ignored";
+      [%expect
+        {| wrong subscription ignored; 64 bounded; duplicate and post-close replies ignored |}]
     ;;
 
     let%expect_test

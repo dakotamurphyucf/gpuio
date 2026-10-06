@@ -1791,6 +1791,32 @@ pub fn decode(bytes: &[u8]) -> Result<Message, DecodeError> {
     }
     let d = &mut Decoder(Cursor::new(bytes));
     let value = match d.tag()? {
+        23 => {
+            use crate::menu_command::{Command, Position};
+            let correlation = d.int()?;
+            let window = d.window()?;
+            let node = d.node()?;
+            let handler =
+                HandlerId::from_parts(d.int()?, d.int()?).ok_or(DecodeError::Malformed)?;
+            let command = match d.tag()? {
+                0 => {
+                    let position = Position {
+                        x: d.float()?,
+                        y: d.float()?,
+                    };
+                    if !position.is_valid() {
+                        return Err(DecodeError::Malformed);
+                    }
+                    Command::Show(position)
+                }
+                1 => Command::Close,
+                _ => return Err(DecodeError::Malformed),
+            };
+            if correlation <= 0 {
+                return Err(DecodeError::Malformed);
+            }
+            Message::MenuCommand(correlation, window, node, handler, command)
+        }
         22 => {
             use crate::palette_command::Command;
             let correlation = d.int()?;

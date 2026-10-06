@@ -1,3 +1,5 @@
+module Ui_command = Command
+
 (** An immutable, labeled menu of command references. Command labels, checked
     state and availability come from the enclosing command registry. *)
 type t [@@deriving equal, sexp_of]
@@ -41,7 +43,48 @@ val label : t -> string
 (** Popup, row and empty-state styles/geometry use the same vocabulary as choices. *)
 module Appearance = Choice.Appearance
 
+module Position : sig
+  type t [@@deriving equal, sexp_of]
+
+  (** Finite logical window coordinates in [-1,000,000,1,000,000], measured
+      from the content area's upper-left. Native placement may be adjusted. *)
+  val create : x:float -> y:float -> t Core.Or_error.t
+
+  val x : t -> float
+  val y : t -> float
+end
+
+module Snapshot : sig
+  type t [@@deriving equal, sexp_of]
+
+  (** Accepted native open state, including a queued OS tracking lease.
+      This is not proof of physical presentation. *)
+  val is_open : t -> bool
+end
+
+module Command : sig
+  type t =
+    | Show of Position.t
+    | Close
+  [@@deriving equal, sexp_of]
+end
+
+module Command_error = Gpuio_protocol.Menu_command_wire.Error
+
 module Expert : sig
+  val snapshot
+    :  window:Gpuio_protocol.Window_id.t
+    -> node:Gpuio_protocol.Node_id.t
+    -> observer:Gpuio_protocol.Handler_id.t
+    -> is_open:bool
+    -> Snapshot.t
+
+  val window : Snapshot.t -> Gpuio_protocol.Window_id.t
+  val node : Snapshot.t -> Gpuio_protocol.Node_id.t
+  val observer : Snapshot.t -> Gpuio_protocol.Handler_id.t
+  val same_owner : Snapshot.t -> Snapshot.t -> bool
+  val command_to_wire : Command.t -> Gpuio_protocol.Menu_command_wire.Command.t
+
   type presentation =
     | Button
     | Context
@@ -51,7 +94,7 @@ module Expert : sig
     | Platform_context
   [@@deriving equal, sexp_of]
 
-  val command_ids : t -> Command.Id.t list
+  val command_ids : t -> Ui_command.Id.t list
   val item_paths : t list -> (Item_path.t * Item.t) list
   val validate_collection : t list -> unit Core.Or_error.t
   val validate_platform_collection : t list -> unit Core.Or_error.t

@@ -359,6 +359,7 @@ module View : sig
     -> ?style:Gpuio.Style.t
     -> ?appearance:Gpuio.Menu.Appearance.t
     -> ?platform:bool
+    -> ?on_change:(Gpuio.Menu.Snapshot.t -> unit Bonsai.Effect.t)
     -> menu:Gpuio.Menu.t
     -> t
     -> t

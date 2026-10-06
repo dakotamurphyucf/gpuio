@@ -1,6 +1,6 @@
 # Implementation status
 
-Current handoff: 2026-10-05. Milestone **07 — Expanded v1 macOS validation and
+Current handoff: 2026-10-06. Milestone **07 — Expanded v1 macOS validation and
 release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **OCH-48** adds adjacent
 Markdown walkthroughs for every example component; it is planned in this milestone. This page separates
 current work from historical checkpoints; it does not certify release readiness.
@@ -10,15 +10,22 @@ The [native OS context-popup slice](evidence/native-popup-och41.md) now adds
 Local and independently installed macOS tests pass physical opening, outside-window
 bounds, nested selection, Escape, native Copy, owner removal, stale-command
 rejection and window close during tracking. The close test first exposed main-queue
-starvation; a main-run-loop callback now keeps native work progressing. Programmatic
-show-at-position, native icons, additional lifecycle cases and consolidated gallery
-acceptance remain open. No Linux GUI or VoiceOver acceptance is claimed.
+starvation; a main-run-loop callback now keeps native work progressing. Native
+icons, additional lifecycle cases and consolidated gallery acceptance remain open. No Linux GUI or VoiceOver acceptance is claimed.
 The [owner-transition follow-up](evidence/native-popup-och41.md#owner-transition-and-recovery-follow-up)
 now passes definition replacement, hidden/disabled ancestors and modal entry,
 including actual keyboard recovery and retained editor content. A fresh installed
 consumer passes the complete eight-run popup matrix. The added CI step awaits
-hosted execution; positioned operations, native icons, overlap/editor-target
+hosted execution; native icons, multi-window/editor-target
 qualification and consolidated acceptance remain open.
+
+[Positioned menu commands](evidence/menu-commands-och41.md) now add a public
+OCaml `Menu_controller`, validated logical coordinates and correlated Show/Close.
+A fresh installed consumer passes actual AppKit placement, same/different-owner
+Busy, explicit close, selection, observer detach/recovery and stale-definition
+rejection. Native/protocol suites pass 981/416 tests (two existing native skips);
+full OCaml checks and strict lint pass. Native icon metadata, multi-window/editor
+focus coverage and consolidated catalog/release acceptance remain open.
 
 Run [37400903839](https://github.com/dakotamurphyucf/gpuio/actions/runs/37400903839)
 at older branch `2e9cd54` is terminal: Linux passes; macOS fails native navigation

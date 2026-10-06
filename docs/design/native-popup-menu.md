@@ -19,11 +19,11 @@ AppKit controls; reject `with_menu_item_content` for platform context menus on
 both platforms so a portable program cannot silently lose content. Passive
 section labels remain disabled, non-actionable native rows.
 
-This opt-in route is one part of the catalog requirement. Completion also needs
-a typed programmatic show-at-position operation with correlated completion and
-bounded ownership, plus explicit native image/icon support. Those APIs must
-share this adapter and command validation; neither a menu bar nor right-click
-support alone establishes `NativeMenu.show(position)` equivalence.
+This opt-in route also supports [positioned commands](menu-commands.md) through
+`Gpuio_eio.Menu_controller`: typed Show/Close requests use the exact observed
+subscription and the same adapter/command validation. [Local installed evidence](../evidence/menu-commands-och41.md)
+covers positioning, overlap rejection, close and stale ownership. Native image/icon
+metadata and broader platform acceptance remain required catalog work.
 
 ## Ownership and dispatch
 
@@ -82,8 +82,8 @@ owned window, keeping them separate from the application's global menu bar.
 Its submenu test waits for actual native selected children, because initial
 highlighting can depend on the previous pointer position.
 
-Still required before closing the native-popup catalog row: programmatic
-positioned operations, icon metadata, overlap and native editor focus-change cases,
+Still required before closing the native-popup catalog row: native icon metadata,
+multi-window overlap and native editor focus-change cases,
 and consolidated gallery/platform acceptance. Window close, owner removal,
 stale-command rejection and independently installed consumer interaction now
 have local macOS evidence; these do not imply all lifecycle cases are complete.

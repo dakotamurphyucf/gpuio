@@ -119,19 +119,22 @@ impl Runner {
     }
 }
 
+pub(super) fn busy() -> bool {
+    ACTIVE.with(|active| {
+        active
+            .borrow()
+            .upgrade()
+            .is_some_and(|state| !state.finished.get())
+    })
+}
+
 pub(super) fn prepare(
     items: &[Item],
     window: &Window,
     executor: ForegroundExecutor,
 ) -> Option<(Owner, Runner)> {
     let marker = MainThreadMarker::new()?;
-    let busy = ACTIVE.with(|active| {
-        active
-            .borrow()
-            .upgrade()
-            .is_some_and(|state| !state.finished.get())
-    });
-    if busy {
+    if busy() {
         return None;
     }
     let handle = HasWindowHandle::window_handle(window).ok()?;

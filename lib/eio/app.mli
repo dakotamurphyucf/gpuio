@@ -100,6 +100,15 @@ module Window : sig
       -> (Gpuio.File_dialog.Capabilities.t, Gpuio.File_dialog.Error.t) Result.t
            Bonsai.Effect.t
 
+    (** Captures the exact context-menu subscription. Successful replies mean
+        native admission, not paint or selection. At most 64 requests may be
+        pending per application; closing completes pending requests once. *)
+    val menu_command
+      :  t
+      -> Gpuio.Menu.Snapshot.t
+      -> Gpuio.Menu.Command.t
+      -> (unit, Gpuio.Menu.Command_error.t) Result.t Bonsai.Effect.t
+
     (** Captures the exact observed palette subscription. An optional query
         fence is checked against current native input before executing. *)
     val palette_command

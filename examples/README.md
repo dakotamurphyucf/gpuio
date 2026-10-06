@@ -38,6 +38,10 @@ where a test permits background execution. CI supplies the final platform gates.
   settings/form semantics and reusable chat cards, with light/dark appearances
   and native keyboard/accessibility checks. OCH-33's stateful families remain pending.
 
+- [Positioned menus](menu_controller/README.md): open/close a context menu from
+  an OCaml controller, with validated coordinates and stale-definition rejection.
+  [Component walkthrough](menu_controller/component.md) separates state, views
+  and asynchronous commands from the small window launcher.
 - [Menus](menus/README.md): shared command registries, Bonsai effects, dropdowns
   and optional native OS context popups. The adjacent [walkthrough](menus/main.md)
   traces the complete interaction and explains the optional self-test.

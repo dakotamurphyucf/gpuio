@@ -887,6 +887,13 @@ pub enum Message {
         Option<i64>,
         crate::palette_command::Command,
     ),
+    MenuCommand(
+        i64,
+        WindowId,
+        NodeId,
+        HandlerId,
+        crate::menu_command::Command,
+    ),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
@@ -1160,5 +1167,12 @@ pub enum Event {
         NodeId,
         HandlerId,
         crate::palette_command::Response,
+    ),
+    MenuResult(
+        i64,
+        WindowId,
+        NodeId,
+        HandlerId,
+        crate::menu_command::Response,
     ),
 }

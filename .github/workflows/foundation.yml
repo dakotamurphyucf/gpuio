@@ -290,6 +290,8 @@ jobs:
           for mode in close retire invalidate replace hide disable modal; do
             python3 scripts/test_native_popup_macos.py --lifecycle "$mode" 2>&1 | tee ".cache/ci/macos-native-popup-$mode.log"
           done
+          ./scripts/gpuio build examples/menu_controller/main.exe
+          python3 scripts/test_menu_controller_macos.py 2>&1 | tee .cache/ci/macos-menu-controller.log
       - name: macOS cross-application file drop
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
         timeout-minutes: 4

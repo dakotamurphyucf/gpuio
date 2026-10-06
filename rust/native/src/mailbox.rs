@@ -928,6 +928,7 @@ impl Mailbox {
             | Event::SliderResult(_, id, ..)
             | Event::NumberInputResult(_, id, ..)
             | Event::CalendarResult(_, id, ..)
+            | Event::MenuResult(_, id, _, _, _)
             | Event::PaletteResult(_, id, ..)
             | Event::ColorInputResult(_, id, ..)
             | Event::OtpInputResult(_, id, ..)

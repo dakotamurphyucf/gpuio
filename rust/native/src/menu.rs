@@ -20,6 +20,9 @@ mod popup;
 #[path = "menu_popup_host.rs"]
 mod popup_host;
 
+#[path = "menu_command_host.rs"]
+mod command_host;
+
 type Geometry = Rc<Cell<Bounds<Pixels>>>;
 #[cfg(all(test, feature = "native-image-tests"))]
 #[path = "editor_menu_test.rs"]
@@ -305,7 +308,7 @@ impl View {
             }
             let observed = node
                 .handler
-                .map(|handler| (handler, !state.path.is_empty()));
+                .map(|handler| (handler, !state.path.is_empty() || state.tracking()));
             if state.observed == observed {
                 return;
             }
@@ -446,7 +449,7 @@ impl View {
         }
         #[cfg(target_os = "macos")]
         if state.borrow().config.presentation == MenuPresentation::PlatformContext {
-            self.open_platform_popup(id, state.clone(), position, window, cx);
+            let _ = self.open_platform_popup(id, state.clone(), position, window, cx);
             return;
         }
         let editor_target = if state.borrow().config.presentation == MenuPresentation::EditorContext
@@ -759,6 +762,7 @@ impl View {
                     .resize_with(config.menus.len(), Default::default);
             }
             if !visible
+                || (state.tracking() && state.observed.map(|(handler, _)| handler) != node.handler)
                 || (!state.tracking() && !state.focus.is_focused(window))
                 || !self.focus.borrow().interactive(id)
                 || !self.focus.borrow().allows(id)
@@ -1396,3 +1400,7 @@ impl View {
 #[cfg(all(test, feature = "native-image-tests"))]
 #[path = "placement_menu_test.rs"]
 mod placement_geometry_test;
+
+#[cfg(all(test, feature = "native-image-tests"))]
+#[path = "menu_command_test.rs"]
+mod command_tests;

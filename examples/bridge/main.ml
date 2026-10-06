@@ -127,6 +127,7 @@ let worker native notification_read =
       | Toast_dismissed _
       | Palette_dismissed _
       | Palette_observed _
+      | Menu_result _
       | Palette_result _
       | List_retained _
       | List_viewport _

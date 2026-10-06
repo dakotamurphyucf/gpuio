@@ -1,0 +1,6 @@
+(** Public controller, registry invocation and stale-definition demonstration. *)
+val create
+  :  platform:bool
+  -> Gpuio_eio.App.Window.t
+  -> Bonsai.Cont.graph
+  -> Gpuio_bonsai.View.t Bonsai.Cont.t

@@ -120,6 +120,7 @@ type 'a callback =
   | Commands of 'a Ui_command.Registry.t * Wire.Command.t list
   | Dismiss of Overlay.Config.t * (Overlay.Dismissal.t -> 'a)
   | Menu of (bool -> 'a)
+  | Menu_snapshot of (Menu.Snapshot.t -> 'a)
   | Tooltip of Tooltip.Config.t * (bool -> 'a)
   | Editor of Text_input.Config.t * (Text_input.Event.t -> 'a)
   | Choice of Choice.Config.t * (Choice.Id.t -> 'a)
@@ -843,7 +844,10 @@ let rec mount builder ~depth previous view =
     let callback =
       match description.menu, callback with
       | Some menu, None ->
-        Option.map menu.on_open_change ~f:(fun callback -> Menu callback)
+        (match menu.on_change, menu.on_open_change with
+         | Some callback, None -> Some (Menu_snapshot callback)
+         | None, callback -> Option.map callback ~f:(fun callback -> Menu callback)
+         | Some _, Some _ -> fail "menu cannot combine two observation handlers")
       | None, callback -> callback
       | Some _, Some _ -> fail "menu cannot combine another handler"
     in
@@ -3670,6 +3674,7 @@ let dispatch t = function
         | Choice_picker _
         | Picker_query
         | Dismiss _
+        | Menu_snapshot _
         | Menu _
         | Tooltip _
         | Commands _
@@ -4028,6 +4033,14 @@ let dispatch t = function
      | Some { node = expected; handler = expected_handler; callback = Menu callback }
        when Node_id.equal node expected && Handler_id.equal handler expected_handler ->
        Some (callback open_)
+     | Some
+         { node = expected
+         ; handler = expected_handler
+         ; callback = Menu_snapshot callback
+         }
+       when Node_id.equal node expected && Handler_id.equal handler expected_handler ->
+       Some
+         (callback (Menu.Expert.snapshot ~window ~node ~observer:handler ~is_open:open_))
      | Some _ | None -> None)
   | Tooltip_open_changed (window, node, handler, revision, open_)
     when (not t.closed)
@@ -4212,6 +4225,7 @@ let dispatch t = function
   | Pointer_event _
   | Toast_dismissed _
   | Palette_dismissed _
+  | Menu_result _
   | Palette_result _
   | Palette_observed _
   | Command_invoked _

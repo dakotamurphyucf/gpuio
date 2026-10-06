@@ -1407,7 +1407,12 @@ impl Tree {
                     || node.menu.as_ref().is_some_and(|menu| {
                         !menu.is_valid()
                             || (node.handler.is_some()
-                                && menu.presentation != MenuPresentation::Button)
+                                && !matches!(
+                                    menu.presentation,
+                                    MenuPresentation::Button
+                                        | MenuPresentation::Context
+                                        | MenuPresentation::PlatformContext
+                                ))
                             || node.control.is_some()
                             || node.choice.is_some()
                             || node.children.len() < usize::from(menu.presentation.is_context())

@@ -22,13 +22,13 @@ parser.add_argument("--run", action="store_true")
 parser.add_argument("--workspace", type=Path)
 parser.add_argument("--cleanup", action="store_true",
                     help="Remove the generated workspace on interpreter exit, including build failures")
-parser.add_argument("--example", choices=["getting_started", "menus", "extension_consumer", "signal_studio", "gallery"], default="extension_consumer")
+parser.add_argument("--example", choices=["getting_started", "menus", "menu_controller", "extension_consumer", "signal_studio", "gallery"], default="extension_consumer")
 parser.add_argument("--gallery-section", default="all", help="Section passed to the macOS gallery acceptance driver with --example gallery --run")
 args = parser.parse_args()
 if args.cleanup and args.workspace:
     parser.error("--cleanup is limited to an automatically created temporary workspace")
-if args.example in ("getting_started", "menus") and args.run:
-    parser.error("Omit --run for this independent build. For menus, run test_native_popup_macos.py --binary with the resulting executable on macOS.")
+if args.example in ("getting_started", "menus", "menu_controller") and args.run:
+    parser.error("Omit --run for this independent build. For menus or menu_controller, use test_native_popup_macos.py or test_menu_controller_macos.py with --binary on macOS.")
 if args.example == "gallery" and args.run and sys.platform != "darwin":
     parser.error("Gallery --run uses the macOS AX driver; omit --run for the required cross-platform consumer build")
 workspace = (args.workspace or Path(tempfile.mkdtemp(prefix="gpuio-extension-consumer-"))).resolve()
@@ -56,7 +56,7 @@ install_targets = [str(path.relative_to(root).with_suffix(".install")) for path 
 run(["dune", "build", "-j", env["GPUIO_JOBS"], "@install", *install_targets])
 run(["dune", "install", "--prefix", str(prefix), "gpuio", *packages])
 example = root / "examples" / args.example
-composed_backend = args.example not in ("getting_started", "menus")
+composed_backend = args.example not in ("getting_started", "menus", "menu_controller")
 if composed_backend:
     shutil.copytree(root / "examples/extension_package", consumer / "component")
     backend_example = root / "examples/extension_consumer" if args.example == "gallery" else example

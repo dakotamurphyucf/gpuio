@@ -197,6 +197,7 @@ type 'action menu =
   ; appearance : Menu.Appearance.t
   ; placement : Placement.t option
   ; on_open_change : (bool -> 'action) option
+  ; on_change : (Menu.Snapshot.t -> 'action) option
   }
 
 type 'action palette =
@@ -1278,7 +1279,13 @@ let menu_button
     kind = Menu
   ; menu =
       Some
-        { presentation = Button; menus = [ menu ]; appearance; placement; on_open_change }
+        { presentation = Button
+        ; menus = [ menu ]
+        ; appearance
+        ; placement
+        ; on_open_change
+        ; on_change = None
+        }
   }
 ;;
 
@@ -1287,6 +1294,7 @@ let context_menu
       ?(style = Style.empty)
       ?(appearance = Menu.Appearance.default)
       ?(platform = false)
+      ?on_change
       ~menu
       child
   =
@@ -1299,6 +1307,7 @@ let context_menu
         ; appearance
         ; placement = None
         ; on_open_change = None
+        ; on_change
         }
   ; children = [ child ]
   }
@@ -1325,6 +1334,7 @@ let menu_bar
         ; appearance
         ; placement = None
         ; on_open_change = None
+        ; on_change = None
         }
   }
 ;;
@@ -4114,6 +4124,7 @@ module Expert = struct
     ; appearance : Menu.Appearance.t
     ; placement : Placement.t option
     ; on_open_change : (bool -> 'action) option
+    ; on_change : (Menu.Snapshot.t -> 'action) option
     }
 
   type 'action description = 'action t =

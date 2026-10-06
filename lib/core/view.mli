@@ -328,12 +328,17 @@ val menu_button
 (** [platform=true] uses an AppKit popup on macOS and the drawn menu on Linux.
     The default is [false]. The OS popup can extend outside the window and owns
     its appearance; [appearance] configures only the drawn fallback. Rich View
-    row content is rejected for this presentation on both platforms. *)
+    row content is rejected for this presentation on both platforms.
+    [on_change] observes native accepted visibility and captures the exact menu
+    subscription for positioned commands. Replacing the definition/presentation
+    retires it; style and callback changes preserve identity. The initial closed
+    snapshot does not imply physical presentation. *)
 val context_menu
   :  ?key:Key.t
   -> ?style:Style.t
   -> ?appearance:Menu.Appearance.t
   -> ?platform:bool
+  -> ?on_change:(Menu.Snapshot.t -> 'action)
   -> menu:Menu.t
   -> 'action t
   -> 'action t
@@ -1824,6 +1829,7 @@ module Expert : sig
     ; appearance : Menu.Appearance.t
     ; placement : Placement.t option
     ; on_open_change : (bool -> 'action) option
+    ; on_change : (Menu.Snapshot.t -> 'action) option
     }
 
   type 'action description =
