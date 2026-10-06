@@ -15,6 +15,13 @@ Three owner-authorized GPT-6.1 Sol agents contributed scoped walkthroughs in par
 Contributor guidance and a structural CI check keep new sources visible; neither
 file presence nor that check establishes documentation or platform acceptance.
 
+[Radar label resources](evidence/radar-label-resources-och41.md) now have native
+SVG pixel, intrinsic-size, inherited tint/font, hide/return and unmount evidence.
+All eight anchors pass independently calculated placement checks at test densities;
+label-only styling preserves the completed chart-plan count. Existing foreground
+input/AX regressions and strict lint pass. This adds tests, not runtime behavior;
+broader label interaction isolation, catalog and release work remains open.
+
 [Radar label clipping](evidence/radar-label-clipping-och41.md) now retires native
 focus and stale AppKit actions when resize clips a child inside a partly visible
 composite, without a tree/source update. Zero/oversized bounds and recovery pass.

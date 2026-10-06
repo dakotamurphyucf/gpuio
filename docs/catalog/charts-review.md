@@ -71,6 +71,12 @@ captions. [Local evidence](../evidence/radar-label-content-och41.md) covers unit
 actual GPU layout and foreground input. Remaining qualification is listed there;
 this does not complete whole-catalog acceptance.
 
+[Resource/layout qualification](../evidence/radar-label-resources-och41.md) adds
+ordinary SVG icon pixels and lease cleanup, intrinsic/explicit sizing, inherited
+foreground/font-size changes and eight cardinal/diagonal anchors at test densities.
+It does not establish physical monitor transitions, VoiceOver or cross-window
+label interaction isolation.
+
 ## Interaction, accessibility and resource evidence
 
 [`Chart.Config`](../../lib/core/chart.mli) supports native pointer/drag selection,

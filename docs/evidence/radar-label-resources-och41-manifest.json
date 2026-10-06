@@ -1,0 +1,47 @@
+{
+  "source_base": "328267a",
+  "platform": "macOS 14.5 arm64",
+  "archive_sha256": "7dd2525e4f4a0a0ff6cc8b3ad3577c81f6b417730bb6be61340605c4bd2de25d",
+  "files": [
+    {
+      "path": "radar-resource-clippy.log",
+      "bytes": 588275,
+      "sha256": "fcf2bbb69570978f6cd2a5ddbfd45b0e6a42a6cbca815034cf7b4362b4cdfe51"
+    },
+    {
+      "path": "radar-resource-first.log",
+      "bytes": 589151,
+      "sha256": "e21a2261d5aabfcec03dceff44fda21bb61865f743d3ccdb5ce3f4c680f0565b"
+    },
+    {
+      "path": "radar-resource-format-check.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "radar-resource-format.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "radar-resource-input.log",
+      "bytes": 589524,
+      "sha256": "4d0a0687124c8a26f5611978a796546a32928f736427f54e81de48cff8730415"
+    },
+    {
+      "path": "radar-resource-intrinsic.log",
+      "bytes": 589576,
+      "sha256": "8d109b4330acc99a19866bd997f75b0997b078b8508cf4419e6688d13740be42"
+    },
+    {
+      "path": "radar-resource-layout.log",
+      "bytes": 589126,
+      "sha256": "e6505f5de3bc8956e52b8428df4d56368d4afa138c7d4fa9f9f713f4b2c7e2f7"
+    },
+    {
+      "path": "radar-resource-pixels.log",
+      "bytes": 589560,
+      "sha256": "b0772dd223e182688ee429737ac3982341e2a3477c096434af658c7d760a81b2"
+    }
+  ]
+}

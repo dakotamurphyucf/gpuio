@@ -5,6 +5,8 @@ use gpuio_protocol::chart_data::RadarAxis;
 
 #[path = "chart_label_capture_test.rs"]
 mod capture;
+#[path = "chart_label_resource_test.rs"]
+mod resource;
 #[path = "chart_label_slider_test.rs"]
 mod slider;
 
@@ -291,6 +293,7 @@ pub(super) async fn exercise(
     }
     capture::exercise(cx, handle, source, session, transport, &absent).await;
     slider::exercise(cx, handle, source, session, transport, &absent).await;
+    resource::exercise(cx, handle, source, session).await;
     apply(
         cx,
         handle,

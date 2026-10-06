@@ -457,6 +457,7 @@ fn run_mode(interactive: bool) {
             });
             crate::chart_host::shutdown(cx).await;
             renderer::shutdown(cx).await;
+            crate::image_host::shutdown(cx).await;
             if result.is_ok() {
                 assert_eq!(session.borrow().chart_bytes(), 0);
                 cx.update(|cx| {
