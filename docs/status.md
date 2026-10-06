@@ -5,6 +5,13 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **O
 Markdown walkthroughs for every example component; it is planned in this milestone. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
+[Hosted run 37433332134](evidence/hosted-presentation-calibration-och17.md#repeat-on-hosted-run-37433332134)
+is terminal: Linux foundation and all three extracted macOS apps on a separate
+runner pass. The only macOS foundation failures are the two Metal presentation
+probes (180/120 zero timestamps on Apple Paravirtual). The tested tree matches
+`746b29b`, including stacked charts; newer ordinal/inspection changes remain
+outside its coverage. No gate is waived.
+
 [Stable ordinal chart colors](evidence/chart-ordinal-colors-och41.md) now expose
 explicit namespaced keys, cyclic ranges and unknown-color policies. Full local
 native/protocol/OCaml/lint checks, actual GPU pixels and root/fresh-installed
