@@ -49,6 +49,11 @@ Small presentation walkthroughs: [alerts](alert_preview.md), [attachments](attac
 [separators](separator_preview.md). The Styles page also demonstrates
 [aspect-ratio layout](aspect_preview.md).
 
+Action and input policy walkthroughs: [live bindings](binding_preview.md),
+[button appearance](button_appearance_preview.md), [rich command buttons](button_preview.md),
+[standalone radio navigation](checkable_navigation_preview.md),
+[command shortcut tooltips](command_tooltip_preview.md) and [native content hints](content_hint_preview.md).
+
 Styles → **A theme from your workspace** loads a palette for the current window.
 Read the [theme-loading walkthrough](theme_preview.md), then the independent
 [appearance model](model/appearance.md), [selection identity](model/theme_selection.md),

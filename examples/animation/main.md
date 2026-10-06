@@ -39,10 +39,10 @@ and effects, opening a 640×260 window. Ordinary motion policy is System and no
 application producer is started. --self-test forces Full initially, starts a
 window-scoped Eio fiber with explicit clock and 15-second timeout, and polls
 diagnostic refs every 5 ms. It waits for graph activation and a native render
-callback bridged through Eio.Promise, retargets phase1, then requires run 1 either
-finished or cancelled and run2 finished. It changes theme, sets Reduce and phase2;
+callback bridged through Eio.Promise, retargets phase 1, then requires run 1 either
+finished or cancelled and run 2 finished. It changes theme, sets Reduce and phase 2;
 that phase uses a 60-second duration so immediate reduced-motion settlement is
-observable. It requires run3 finished and exactly three events, then force-closes
+observable. It requires run 3 finished and exactly three events, then force-closes
 through App.Window.close. Success prints GPUIO_ANIMATION_PUBLIC_OK.
 
 This diagnostic checks native events and runtime policy, not pixel trajectories,

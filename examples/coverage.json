@@ -127,8 +127,10 @@
         "examples/agent_chat/runtime/diagram.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/agent_chat/runtime/diagram.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -169,8 +171,10 @@
         "examples/agent_chat/runtime/inspector.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/agent_chat/runtime/inspector.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -266,8 +270,10 @@
         "examples/agent_chat/runtime/run_diagram.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/agent_chat/runtime/run_diagram.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -308,8 +314,10 @@
         "examples/agent_chat/runtime/settings.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/agent_chat/runtime/settings.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -339,8 +347,10 @@
         "examples/agent_chat/runtime/workspace.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/agent_chat/runtime/workspace.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -588,8 +598,10 @@
         "examples/commands/main.ml"
       ],
       "role": "application-entry",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/commands/main.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -659,24 +671,30 @@
         "examples/documents/main.ml"
       ],
       "role": "application-entry",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/documents/main.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
         "examples/drag_drop/main.ml"
       ],
       "role": "application-entry",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/drag_drop/main.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
         "examples/drag_drop_desktop/main.ml"
       ],
       "role": "application-entry",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/drag_drop_desktop/main.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -726,8 +744,10 @@
         "examples/file_dialogs/main.ml"
       ],
       "role": "application-entry",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/file_dialogs/main.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -834,8 +854,10 @@
         "examples/gallery/binding_preview.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/gallery/binding_preview.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -843,8 +865,10 @@
         "examples/gallery/button_appearance_preview.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/gallery/button_appearance_preview.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -852,8 +876,10 @@
         "examples/gallery/button_preview.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/gallery/button_preview.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -910,8 +936,10 @@
         "examples/gallery/checkable_navigation_preview.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/gallery/checkable_navigation_preview.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -945,8 +973,10 @@
         "examples/gallery/command_tooltip_preview.ml"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/gallery/command_tooltip_preview.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -965,8 +995,10 @@
         "examples/gallery/content_hint_preview.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/gallery/content_hint_preview.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [

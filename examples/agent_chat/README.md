@@ -81,7 +81,12 @@ retained note editing and controlled disclosure. Small supporting guides cover
 [four-page tour](runtime/artifact_tour.md), and
 [local portrait decoding/fallback](runtime/contributor_portrait.md). The shared
 [SVG icon registrations](runtime/icons.md) and
-[semantic palette](runtime/palette.md) separate resources from pure styling.
+[semantic palette](runtime/palette.md) separate resources from pure styling. The main composition guides are
+[workspace panels, commands and close handling](runtime/workspace.md),
+[artifact navigation/lifetimes](runtime/inspector.md), and
+[settings epochs/native drafts](runtime/settings.md). For the canvas, read the
+[pure stage/scene model](runtime/run_diagram.md), then its
+[scoped diagram controller](runtime/diagram.md).
 
 These are code walkthroughs, not new platform acceptance evidence. The runtime
 source map below identifies the remaining component boundaries; per-component
@@ -90,10 +95,10 @@ review status is explicit in the [coverage inventory](../coverage.md).
 ## Implementation map
 
 - [Model/fake backend](model/fake_backend.md): pure chunk/delay/failure configuration and fixtures.
-- `runtime/icons` and `runtime/palette`: original SVG assets and semantic light/dark colors.
+- [Icons](runtime/icons.md) and [palette](runtime/palette.md): original SVG assets and semantic light/dark colors.
 - [Shared conversation](runtime/conversation.md): conversation scopes, paging, response documents,
   bounded attachments, cancellation and retry.
-- `runtime/workspace`: one window's tabs, editors, list views, commands and close
+- [Workspace](runtime/workspace.md): one window's tabs, editors, list views, commands and close
   decision; composed entirely through public view/controller APIs.
 - [CLI walkthrough](main.md), with [`main.ml`](main.ml): command-line options and package metadata only.
 - [Application walkthrough](application.md), with [`application.ml`](application.ml)

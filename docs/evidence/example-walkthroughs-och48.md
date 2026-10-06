@@ -350,3 +350,34 @@ run was added by this prose batch. Existing acceptance evidence remains separate
 The animation example's diagnostic event history and canvas selection's fixed-data
 assumption are documented. The separator checkbox is independent demo state,
 and its size bound is not described as an explicit clipping operation.
+
+## Desktop input, command policies and complete workspace composition
+
+Starting from `a9f7994`, sixteen further groups have reviewed adjacent guides:
+commands, documents, drag_drop, drag_drop_desktop and file_dialogs entry points;
+gallery binding, button appearance, rich button, checkable navigation, command
+tooltip and content hint previews; Agent Chat diagram, run_diagram, inspector,
+settings and workspace. Owning READMEs link each companion. A small spacing
+correction also improves the existing animation diagnostic explanation.
+
+The same three authorized GPT-6.1 Sol agents read their complete scoped source/
+interfaces, callers and relevant contracts. Primary review checked all guides and
+representative implementations. Gallery explanations were expanded during review
+to define reactive state, latest-model reducers and deferred effects, with concrete
+native-event → effect → model → view → native-update traces. The workspace guide
+separates shared conversations from retained per-window composers/lists, native
+submission/conditional clear, attachment scopes and deferred close decisions.
+
+Coverage is **119 reviewed / 141 pending**, still 417 sources in 260 groups.
+Primary validation passes 346 relative file targets across 23 guide/README files,
+the structural inventory audit and whitespace checks. Agents also checked scoped
+links/anchors. Build/run and harness commands were reviewed against declarations
+and drivers; no new build, native window or platform acceptance run was performed.
+
+Desktop drag and picker-read diagnostics explicitly require their real macOS
+drivers. File picker selection is distinct from filesystem authority or save
+writing. The simple file reader has no latest-request guard for overlapping reads;
+the drag fixture's two self-test flags start independent tasks and are documented
+separately. Diagram local scene admission is distinguished from later native
+rejection, which this helper does not poll/retry. These limits were documented,
+not repaired or newly reproduced by the prose review.
