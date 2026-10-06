@@ -154,6 +154,11 @@ Agent notes belong in separate ignored `scratch/agents/<session>/<ticket>.md` fi
 
 ## Current implementation and evidence
 
+An [isolated production-codec diagnostic](evidence/bridge-codec-diagnostic-och17.md)
+now records optimized local encode/decode timings and reproducible inputs. It
+excludes FFI/queueing/native admission/rendering and does not qualify end-to-end
+bridge latency or close performance acceptance.
+
 The reference examples now have [clearer application/state/view boundaries and
 local validation](evidence/example-readability-och17.md). Begin with the small
 counter, then follow the gallery's Application → Component → Shell reading map.

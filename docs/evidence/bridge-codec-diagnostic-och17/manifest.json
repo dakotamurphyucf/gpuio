@@ -1,0 +1,74 @@
+{
+  "binaries-sha256.json": {
+    "bytes": 262,
+    "sha256": "9ec82a778d807ed06cc5f5a3f388c5b8111f6a074133d6bb002d3db3e1292ef3"
+  },
+  "bridge-codec-probe-build.log": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "bridge-codec-probe-rust-build.log": {
+    "bytes": 727,
+    "sha256": "03276db892c4674525aec8ca3701072efe05c03f3e0b80521ef341977558b4cf"
+  },
+  "decode-run-1.log": {
+    "bytes": 392,
+    "sha256": "cc25f98a5e4fbe4702329f1fc81e0449c382f334f0154f02c6d12156b06597e6"
+  },
+  "decode-run-2.log": {
+    "bytes": 391,
+    "sha256": "b3ff24d16819bce0b8f9fc25dc0cabdf69d3643b745da9b5cbda617572e04992"
+  },
+  "dune": {
+    "bytes": 110,
+    "sha256": "9f23a5c0f81ac01e67e67e79bc7ceb8fa54dc855c951971c1a25dd653976940a"
+  },
+  "dune-project": {
+    "bytes": 43,
+    "sha256": "bf1369f2119c5c13264f8c34151defc80438b982ab582355ae04a93cffb0e2d3"
+  },
+  "encode-run-1.log": {
+    "bytes": 395,
+    "sha256": "c04a779fa50f2554f1830c00559bc16e0fae116d85284a2ffcda90aae3964350"
+  },
+  "encode-run-2.log": {
+    "bytes": 394,
+    "sha256": "5513cc0cf93fd64aa5a2a3b0b2e13db8110bddbe8ef2f38d7d7efdd966287f5b"
+  },
+  "label8.bin": {
+    "bytes": 18,
+    "sha256": "d7bb3866d5c251b21f7c51ac7ec7a0489251b9274561f72af1611c6734687b5e"
+  },
+  "labels100.bin": {
+    "bytes": 6806,
+    "sha256": "665eee0c88a716c9ceaa8fe616f32c410d59460aace7d725cf073e543a65973f"
+  },
+  "labels1000.bin": {
+    "bytes": 69752,
+    "sha256": "f3917ed5f933ccca85dfc57e51e9f5706d7994856e78ccb7ae7285f25553d42e"
+  },
+  "main.ml": {
+    "bytes": 1618,
+    "sha256": "ced91b8c69c7bbca805bb93fd8498250c47b49d0f7ea7ef5689425e73acf5bae"
+  },
+  "protocol-source-sha256.json": {
+    "bytes": 10089,
+    "sha256": "8a9f209e79e2535351a373f66f6adb1e433ece35439e3cf7687a19189f238fd4"
+  },
+  "rust/Cargo.lock": {
+    "bytes": 2297,
+    "sha256": "0085102aceaad4a7036512b2b14c7b3278c35122b27583cc9036e625a073a379"
+  },
+  "rust/Cargo.toml": {
+    "bytes": 157,
+    "sha256": "546934ae7f06c7c9cad8f4ac98ccce01bf4df88e15bd91e4a3a519609b51102f"
+  },
+  "rust/src/main.rs": {
+    "bytes": 824,
+    "sha256": "87e9cc4ceb93491255507a377ed3da0390b21410c744f3189b4950670cff336c"
+  },
+  "text256k.bin": {
+    "bytes": 262158,
+    "sha256": "dea0eda9d82121f74f21d67e394d33d385b2415dd3975d903e0a8edb2d56e7f3"
+  }
+}
