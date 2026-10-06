@@ -4,6 +4,8 @@ use crate::{session::Session, transport::Transport};
 use gpui::{TestAppContext, VisualTestContext, WindowOptions};
 use gpuio_protocol::{HandlerId, WindowId};
 use std::os::{fd::AsRawFd, unix::net::UnixStream};
+#[path = "palette_embedded_test.rs"]
+mod embedded_tests;
 fn id(slot: i64) -> NodeId {
     NodeId::from_parts(slot, 1).unwrap()
 }
@@ -133,6 +135,7 @@ fn options(searchable: bool) -> palette_options::Config {
         search: palette_options::Search::Substring,
         searchable,
         escape: palette_options::Escape::ClearQueryFirst,
+        presentation: palette_options::Presentation::Modal,
         keywords: vec![palette_options::Keywords {
             command: "run".into(),
             words: vec!["Execute λ".into()],

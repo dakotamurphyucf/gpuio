@@ -2,6 +2,7 @@ module Ui_command = Command
 open Core
 module Wire = Gpuio_protocol.Wire
 module Options = Gpuio_protocol.Palette_options_wire
+module Presentation = Options.Presentation
 module Search = Options.Search
 module Escape = Options.Escape
 module Layout = Gpuio_protocol.Palette_layout_wire
@@ -78,6 +79,7 @@ module Config = struct
         ?(searchable = true)
         ?(escape = Escape.Dismiss)
         ?(keywords = [])
+        ?(presentation = Presentation.Modal)
         ()
     =
     let text value =
@@ -90,6 +92,7 @@ module Config = struct
       { search
       ; searchable
       ; escape
+      ; presentation
       ; keywords =
           List.map keywords ~f:(fun (command, words) ->
             { Options.Keywords.command = Ui_command.Id.to_string command; words })
@@ -137,6 +140,7 @@ module Config = struct
         ?searchable
         ?escape
         ?keywords
+        ?presentation
         ()
     =
     let commands =
@@ -166,6 +170,7 @@ module Config = struct
           ?searchable
           ?escape
           ?keywords
+          ?presentation
           ()
       in
       let _, layout =

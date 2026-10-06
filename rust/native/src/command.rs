@@ -384,9 +384,9 @@ impl View {
                 }
             }
             CommandSource::Palette(_) => {
-                // Selection closes the palette before dispatch so editing
-                // commands target its restored owner. Check current disability,
-                // not the now-retired palette's rendering visibility.
+                // Modal selection closes before dispatch; embedded selection
+                // keeps ordinary editor routing. Check current disability,
+                // not a spent modal palette's rendering visibility.
                 !self.focus.borrow().disabled(source)
                     && !self.focus.borrow().blocks_pointer(route.scope)
             }

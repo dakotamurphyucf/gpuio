@@ -527,6 +527,7 @@ pub(super) struct Manager {
     last_command_target: Option<NodeId>,
     order: u64,
     enter: Option<NodeId>,
+    enter_needs_paint: bool,
     entering_overlay: bool,
     pending: bool,
     navigation: BTreeMap<NodeId, Navigation>,
@@ -561,6 +562,7 @@ impl Manager {
             last_command_target: None,
             order: 0,
             enter: None,
+            enter_needs_paint: false,
             entering_overlay: false,
             pending: false,
             navigation: BTreeMap::new(),
@@ -1145,10 +1147,16 @@ impl Manager {
                     let config = node
                         .focus_scope
                         .or_else(|| {
-                            node.palette.as_ref().map(|_| FocusScopeConfig {
-                                trap: true,
-                                auto_focus: true,
-                                restore_focus: true,
+                            node.palette.as_ref().map(|_| {
+                                let modal = node.palette_options.as_ref().is_none_or(|options| {
+                                    options.presentation
+                                        == gpuio_protocol::palette_options::Presentation::Modal
+                                });
+                                FocusScopeConfig {
+                                    trap: modal,
+                                    auto_focus: modal,
+                                    restore_focus: modal,
+                                }
                             })
                         })
                         .or_else(|| {
@@ -1186,7 +1194,11 @@ impl Manager {
                             node.overlay
                                 .as_ref()
                                 .map(|config| config.kind)
-                                .or_else(|| node.palette.as_ref().map(|_| OverlayKind::Dialog)),
+                                .or_else(|| node.palette.as_ref().filter(|_| {
+                                    node.palette_options.as_ref().is_none_or(|options| {
+                                        options.presentation == gpuio_protocol::palette_options::Presentation::Modal
+                                    })
+                                }).map(|_| OverlayKind::Dialog)),
                             restore_trigger,
                         ));
                     }
@@ -1225,6 +1237,13 @@ impl Manager {
         for (id, config, overlay, restore_trigger) in configs {
             if let Some(scope) = self.scopes.get_mut(&id) {
                 if !scope.config.trap && config.trap {
+                    // A retained inline scope can become modal long after it
+                    // mounted. Remember the outside focus at that transition,
+                    // but do not replace its return target with its own child
+                    // when toggling presentation while the query stays focused.
+                    if !scope.handle.contains_focused(window, cx) {
+                        scope.restore = window.focused(cx).map(|handle| handle.downgrade());
+                    }
                     enter = Some(id);
                 }
                 scope.config = config;
@@ -1286,6 +1305,7 @@ impl Manager {
         }
         if let Some(id) = enter.filter(|id| self.allows(*id)) {
             self.enter = Some(id);
+            self.enter_needs_paint = true;
             window.focus(&self.scopes[&id].handle, cx);
         }
         // A retained panel can become hidden without removing its editor or
@@ -1373,6 +1393,7 @@ impl Manager {
         }
     }
     pub(super) fn begin_frame(&mut self, viewport: Bounds<Pixels>) {
+        self.enter_needs_paint = false;
         std::mem::swap(&mut self.track_clipped, &mut self.previous_track_clipped);
         self.track_clipped.clear();
         self.entries.clear();
@@ -1693,6 +1714,14 @@ impl Manager {
         // parts of native compound controls. Never probe focus to discover order.
         if self.entries.iter().any(|entry| entry.tab_index != 0) {
             self.entries.sort_by_key(|entry| entry.tab_index);
+        }
+        // A callback queued by an earlier render can run after admission of a
+        // new scope but before that scope's first paint. Its entries still
+        // describe the previous frame; consuming `enter` now strands focus on
+        // the trap. Keep the request for reconciliation after the pending paint.
+        if self.enter_needs_paint && self.enter.is_some() {
+            self.pending = true;
+            return;
         }
         if let Some(scope) = self
             .enter

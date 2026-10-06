@@ -183,7 +183,33 @@ let%expect_test "palette policies validate keywords and keep default wire unchan
   assert (
     String.equal
       bytes
-      "\003\000\001\000\001\001\125\001\001\001\001\000\001\001\003run\001\010execute λ");
+      "\003\000\001\000\001\001\125\001\001\001\001\000\001\001\003run\001\010execute \
+       λ\000");
+  [%expect {| |}]
+;;
+
+let%expect_test "embedded palette is an explicit paired presentation option" =
+  let config =
+    Command_palette.Config.create
+      ~label:"Commands"
+      ~commands:[ id "run" ]
+      ~presentation:Embedded
+      ()
+    |> Or_error.ok_exn
+  in
+  let message =
+    Wire.Message.Apply
+      { window
+      ; base = 0L
+      ; revision = 1L
+      ; operations =
+          [ Set_palette_options (node 1L, Command_palette.Expert.options config) ]
+      }
+  in
+  assert (
+    String.equal
+      (Wire.Message.encode message |> Or_error.ok_exn)
+      "\003\000\001\000\001\001\125\001\001\001\000\001\000\000\001");
   [%expect {| |}]
 ;;
 

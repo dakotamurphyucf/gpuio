@@ -1,8 +1,16 @@
 # Implementation status
 
 Current handoff: 2026-10-05. Milestone **07 — Expanded v1 macOS validation and
-release** is in progress. **OCH-41 and OCH-17 remain open.** This page separates
+release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **OCH-48** adds adjacent
+Markdown walkthroughs for every example component; it is planned in this milestone. This page separates
 current work from historical checkpoints; it does not certify release readiness.
+
+Run [37400903839](https://github.com/dakotamurphyucf/gpuio/actions/runs/37400903839)
+at older branch `2e9cd54` is terminal: Linux passes; macOS fails native navigation
+resize and both presentation probes; the fresh receiver is skipped. The viewport
+wait passed but child width remained 500 rather than 400. [Raw reports](evidence/hosted-presentation-calibration-och17.md#repeat-on-hosted-run-37400903839)
+retain that failure and the repeated zero presentation timestamps. Current-source
+qualification and the newer receiver scheduling remain pending; no gate is waived.
 
 Run [37398392336](https://github.com/dakotamurphyucf/gpuio/actions/runs/37398392336)
 at branch `c0694a2` is terminal: both platform builds fail on missing palette
@@ -103,7 +111,7 @@ including passive accessibility text, keyboard navigation and context-menu focus
 restoration. Platform bars reject labels explicitly. [Passive rich menu content](evidence/menu-content-och41.md)
 now adds registered SVGs and composed labels, with paired transaction admission,
 paint/animation lifecycle checks and an installed macOS pixel/interaction walkthrough.
-Palette search/visibility/Escape policies now have [API, native lifecycle and installed macOS evidence](evidence/palette-policies-och41.md). [Grouped palette presentation](evidence/palette-layout-och41.md) now adds stable groups, filtered passive headings and separators with retained measured scrolling, paired codecs, native regressions and an installed macOS walkthrough. [Rich palette content](evidence/palette-content-och41.md) now adds measured command rows and interactive header/footer/empty Views, with native lifecycle/1,000-row/focus tests and a passing installed macOS walkthrough. Query/highlight controls now have [local controller qualification](evidence/palette-commands-och41.md); [Native loading](evidence/palette-loading-och41.md) now preserves editing/undo and query identity with native lifecycle/reduced-motion and installed macOS typing/undo/pixel evidence. [External results](evidence/palette-external-results-och41.md) now have local query-fenced publication and installed delayed-search/typing evidence. Persistent embedding and OS popup menus remain open catalog work.
+Palette search/visibility/Escape policies now have [API, native lifecycle and installed macOS evidence](evidence/palette-policies-och41.md). [Grouped palette presentation](evidence/palette-layout-och41.md) now adds stable groups, filtered passive headings and separators with retained measured scrolling, paired codecs, native regressions and an installed macOS walkthrough. [Rich palette content](evidence/palette-content-och41.md) now adds measured command rows and interactive header/footer/empty Views, with native lifecycle/1,000-row/focus tests and a passing installed macOS walkthrough. Query/highlight controls now have [local controller qualification](evidence/palette-commands-och41.md); [Native loading](evidence/palette-loading-och41.md) now preserves editing/undo and query identity with native lifecycle/reduced-motion and installed macOS typing/undo/pixel evidence. [External results](evidence/palette-external-results-och41.md) now have local query-fenced publication and installed delayed-search/typing evidence. [Persistent embedding](evidence/palette-embedded-och41.md) now has normal-layout/focus, repeated dispatch, nested scrolling, transition restoration and installed macOS keyboard/document evidence. OS popup menus and consolidated family acceptance remain open catalog work.
 The current unmodified table smoke at `5c3956d` fails the 100 ms startup gate
 at approximately 147.364 ms. A separate paced replay also reproduces the owner's
 reported table flicker: three overlapping rows remain populated while newly
@@ -171,7 +179,7 @@ typing/navigation walkthrough. [Native query/highlight commands](evidence/palett
 correlated subscription checks and an optional current-native-query fence, with
 full native/OCaml and installed macOS evidence. [Native loading](evidence/palette-loading-och41.md)
 now has retained editing/undo, empty-content gating and reduced-motion/cleanup
-coverage. [External results](evidence/palette-external-results-och41.md) now support bounded query-fenced publication after accepted command staging, with local native/OCaml and installed macOS evidence. Persistent embedding remains open controller work.
+coverage. [External results](evidence/palette-external-results-och41.md) now support bounded query-fenced publication after accepted command staging, with local native/OCaml and installed macOS evidence. [Persistent embedding](evidence/palette-embedded-och41.md) now reuses the controller with normal layout and retained native state; a reproduced modal entry callback race is corrected. Consolidated family/release acceptance remains open.
 
 The public gallery and reference applications exist, with public Core/Bonsai/Eio
 APIs and native Rust ownership. Local source reviews and behavior evidence cover

@@ -1,7 +1,7 @@
 use binprot::BinProtWrite;
 use gpuio_protocol::{
     DecodeError, NodeId, WindowId, decode,
-    palette_options::{Config, Escape, Keywords, Search},
+    palette_options::{Config, Escape, Keywords, Presentation, Search},
     v1::*,
 };
 fn config() -> Config {
@@ -9,6 +9,7 @@ fn config() -> Config {
         search: Search::Substring,
         searchable: false,
         escape: Escape::ClearQueryFirst,
+        presentation: Presentation::Modal,
         keywords: vec![Keywords {
             command: "run".into(),
             words: vec!["execute λ".into()],
@@ -74,16 +75,26 @@ fn palette_options_codec_bounds_and_reset() {
     // node1/generation1, Some, substring/false/clear, one ID with one UTF-8 word.
     assert_eq!(
         encode(&message(Some(config()))),
-        b"\x03\x00\x01\x00\x01\x01\x7d\x01\x01\x01\x01\x00\x01\x01\x03run\x01\x0aexecute \xce\xbb"
+        b"\x03\x00\x01\x00\x01\x01\x7d\x01\x01\x01\x01\x00\x01\x01\x03run\x01\x0aexecute \xce\xbb\x00"
     );
     let external = message(Some(Config {
         search: Search::External,
         ..config()
     }));
     let bytes =
-        b"\x03\x00\x01\x00\x01\x01\x7d\x01\x01\x01\x03\x00\x01\x01\x03run\x01\x0aexecute \xce\xbb";
+        b"\x03\x00\x01\x00\x01\x01\x7d\x01\x01\x01\x03\x00\x01\x01\x03run\x01\x0aexecute \xce\xbb\x00";
     assert_eq!(encode(&external), bytes);
     assert_eq!(decode(bytes), Ok(external));
+    let embedded = message(Some(Config {
+        presentation: Presentation::Embedded,
+        ..Default::default()
+    }));
+    let bytes = b"\x03\x00\x01\x00\x01\x01\x7d\x01\x01\x01\x00\x01\x00\x00\x01";
+    assert_eq!(encode(&embedded), bytes);
+    assert_eq!(decode(bytes), Ok(embedded));
+    let mut unknown = bytes.to_vec();
+    *unknown.last_mut().unwrap() = 2;
+    assert_eq!(decode(&unknown), Err(DecodeError::Malformed));
 }
 #[test]
 fn palette_options_search_and_shared_metadata_budget() {

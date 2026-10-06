@@ -3474,6 +3474,8 @@ def exercise_feedback(mac, images):
     mac.wait_text(TITLE, 'No pending notification')
     from gallery_external_palette import exercise as exercise_external_palette
     exercise_external_palette(mac, images)
+    from gallery_embedded_palette import exercise as exercise_embedded_palette
+    exercise_embedded_palette(mac, images)
 
 
 def expect_enabled(mac, label, expected, role='AXButton'):

@@ -840,7 +840,7 @@ impl Decoder<'_> {
         Ok(config)
     }
     fn palette_options(&mut self) -> Result<crate::palette_options::Config, DecodeError> {
-        use crate::palette_options::{Config, Escape, Keywords, Search};
+        use crate::palette_options::{Config, Escape, Keywords, Presentation, Search};
         let search = match self.tag()? {
             0 => Search::AllTerms,
             1 => Search::Substring,
@@ -866,11 +866,17 @@ impl Decoder<'_> {
             }
             keywords.push(Keywords { command, words });
         }
+        let presentation = match self.tag()? {
+            0 => Presentation::Modal,
+            1 => Presentation::Embedded,
+            _ => return Err(DecodeError::Malformed),
+        };
         let config = Config {
             search,
             searchable,
             escape,
             keywords,
+            presentation,
         };
         if !config.is_valid() {
             return Err(DecodeError::Malformed);

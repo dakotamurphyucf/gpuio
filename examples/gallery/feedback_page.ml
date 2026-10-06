@@ -45,6 +45,7 @@ let register_menu_icon app scope =
 ;;
 
 let component ~search_palette app window palette graph =
+  let embedded_palette = Embedded_palette_preview.component window palette graph in
   let external_palette =
     External_palette_preview.component ~search:search_palette window palette graph
   in
@@ -122,6 +123,7 @@ let component ~search_palette app window palette graph =
     graph;
   let%arr p = palette
   and external_palette = external_palette
+  and embedded_palette = embedded_palette
   and menu_icon = menu_icon
   and show_content = show_content
   and toggle_content = toggle_content
@@ -486,6 +488,7 @@ let component ~search_palette app window palette graph =
              else "No pending notification")
         ]
     ; external_palette
+    ; embedded_palette
     ; V.toast_stack ~config:toast_config notifications |> ok
     ; (if chooser
        then

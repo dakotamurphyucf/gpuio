@@ -1,0 +1,22 @@
+{
+  "metal-presentation-calibration.json": {
+    "bytes": 63567,
+    "sha256": "716b52a32069d82a779051a1c94ecc065239beff79dcd83ce9f6c91e49b6b1d6"
+  },
+  "metal-presentation-display.json": {
+    "bytes": 35,
+    "sha256": "0e2a2e10de1b28c2c98b9bf2faadb16610de1aad4b8308e92b54c13e74402c3c"
+  },
+  "run.json": {
+    "bytes": 63073,
+    "sha256": "5377d8bef2319fabe0ed35ab7cce5272022458b2bf4bff4673fee2d3039f0d49"
+  },
+  "metal-presentation-hook/report.json": {
+    "bytes": 76214,
+    "sha256": "9c08a06663c7afb57e3e3cbddd3db61e8bcf0619c83951a4c7934f8f0a09156a"
+  },
+  "navigation-failure.log": {
+    "bytes": 4268,
+    "sha256": "4815bc7f024c255a2805199c5b6350a21456c6f9c1d6371d68cec450e4520579"
+  }
+}

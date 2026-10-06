@@ -164,3 +164,28 @@ have a [verified four-file manifest](hosted-presentation-calibration-och17/run-3
 This proves local default-target compilation, including the standalone examples
 omitted from the earlier targeted gallery build. It does not establish a Linux
 pass, new native behavior coverage or hosted window-placement acceptance.
+
+
+## Repeat on hosted run 37400903839
+
+[Run 37400903839](https://github.com/dakotamurphyucf/gpuio/actions/runs/37400903839)
+is terminal with failure at branch `2e9cd54`. Linux passes; macOS fails native
+navigation and both presentation probes. The fresh extracted-app receiver was
+skipped by that older workflow. The newer receiver-scheduling change is outside
+this run's coverage.
+
+The native navigation workload reaches all earlier navigation/disclosure/inert
+markers, but its resized button bounds remain 500 points when 400 are required
+(`navigation_lifecycle_test.rs:421`). The preceding actual-viewport wait passed;
+that wait and the existing frame callback barrier did not establish updated
+child geometry in this hosted run. The cause remains under investigation.
+
+The GPUI hook again records 180 admitted callbacks with zero presentation times,
+no missing callbacks and zero pending submissions at retirement. Independent
+Metal records 120 active, visible, GPU-completed frames, all with zero presentation
+times on Apple Paravirtual. Display inventory remains empty. Neither probe passes;
+no presentation threshold or release gate changed.
+
+[Raw reports, terminal metadata and navigation failure](hosted-presentation-calibration-och17/run-37400903839/reports.tar.gz)
+are retained with a [verified manifest](hosted-presentation-calibration-och17/run-37400903839/manifest.json).
+Later palette changes require their own current-source hosted qualification.

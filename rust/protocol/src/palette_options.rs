@@ -3,6 +3,12 @@ use crate::v1::{CommandConfig, PaletteConfig};
 use binprot::macros::BinProtWrite;
 use std::collections::BTreeSet;
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, BinProtWrite)]
+pub enum Presentation {
+    #[default]
+    Modal,
+    Embedded,
+}
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, BinProtWrite)]
 pub enum Search {
     #[default]
     AllTerms,
@@ -27,6 +33,7 @@ pub struct Config {
     pub searchable: bool,
     pub escape: Escape,
     pub keywords: Vec<Keywords>,
+    pub presentation: Presentation,
 }
 impl Default for Config {
     fn default() -> Self {
@@ -35,6 +42,7 @@ impl Default for Config {
             searchable: true,
             escape: Escape::Dismiss,
             keywords: vec![],
+            presentation: Presentation::Modal,
         }
     }
 }

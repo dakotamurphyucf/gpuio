@@ -1,5 +1,5 @@
-//! A one-shot, native-managed command chooser. The query is not an application
-//! editor: native edit commands restore their original document target on close.
+//! Native-managed modal or embedded command chooser. The private query is not
+//! an application document editor.
 use super::{Interaction, View, command::Route};
 use gpui::{
     App, AppContext, Bounds, Context, Entity, EntityInputHandler, Focusable, Pixels, Subscription,
@@ -41,6 +41,7 @@ struct PublishedResults {
 }
 pub(super) struct State {
     pub(super) query: Entity<InputState>,
+    inactive_focus: gpui::FocusHandle,
     config: Arc<PaletteConfig>,
     options: Option<Arc<palette_options::Config>>,
     keywords: BTreeMap<String, Vec<String>>,
@@ -95,6 +96,11 @@ impl State {
             .as_ref()
             .is_none_or(|options| options.searchable)
     }
+    fn embedded(&self) -> bool {
+        self.options
+            .as_ref()
+            .is_some_and(|options| options.presentation == palette_options::Presentation::Embedded)
+    }
     fn external(&self) -> bool {
         self.options
             .as_ref()
@@ -117,6 +123,13 @@ fn keyword_index(options: Option<&palette_options::Config>) -> BTreeMap<String, 
         .collect()
 }
 impl View {
+    fn palette_interactive(&self, id: NodeId) -> bool {
+        self.focus.borrow().allows(id)
+            && self
+                .palettes
+                .get(&id)
+                .is_some_and(|state| state.embedded() || self.focus.borrow().top_overlay(id))
+    }
     pub(super) fn sync_palettes(
         &mut self,
         dirty: &[NodeId],
@@ -142,7 +155,18 @@ impl View {
             nodes
         };
         for (id, config, options) in nodes {
+            // An inline chooser may have existed before any document editor.
+            // Capture the current target while its old nonmodal gate still
+            // permits outside editors, before focus sync enters the new trap.
+            let becoming_modal = self.palettes.get(&id).is_some_and(State::embedded)
+                && options.as_ref().is_none_or(|options| {
+                    options.presentation == palette_options::Presentation::Modal
+                });
+            let editor = becoming_modal.then(|| self.command_editor(window, cx));
             if let Some(state) = self.palettes.get_mut(&id) {
+                if let Some(editor) = editor {
+                    state.editor = editor;
+                }
                 if state.config.commands != config.commands {
                     state.results_changed |= state.results.take().is_some();
                 }
@@ -171,7 +195,8 @@ impl View {
                                 .update(cx, |query, cx| query.unmark_text(window, cx));
                         }
                         if !state.closed
-                            && self.focus.borrow().top_overlay(id)
+                            && (state.embedded() && self.focus.borrow().allows(id)
+                                || self.focus.borrow().top_overlay(id))
                             && let Some(scope_focus) = scope_focus
                         {
                             if !searchable && query_focus.is_focused(window) {
@@ -248,7 +273,7 @@ impl View {
                 }));
             });
             let subscription = cx.observe_in(&query, window, move |view, _, window, cx| {
-                view.refresh_palette(id, cx);
+                view.refresh_palette(id, window, cx);
                 view.sync_tooltips(window, cx);
                 view.suspend_hidden_animations();
                 view.suspend_hidden_programs();
@@ -258,6 +283,7 @@ impl View {
                 id,
                 State {
                     query,
+                    inactive_focus: cx.focus_handle(),
                     config,
                     keywords: keyword_index(options.as_deref()),
                     options,
@@ -289,7 +315,7 @@ impl View {
         // window will not render. Retained data must follow its budgeted tree.
         let ids = self.palettes.keys().copied().collect::<Vec<_>>();
         for id in ids {
-            self.refresh_palette(id, cx);
+            self.refresh_palette(id, window, cx);
             if dirty.contains(&id) {
                 let state = &self.palettes[&id];
                 state
@@ -327,7 +353,7 @@ impl View {
         }
         // Refresh before comparing the fence: a newer InputState edit may not
         // have emitted its coalesced observer callback yet.
-        self.refresh_palette(id, cx);
+        self.refresh_palette(id, window, cx);
         let state = &self.palettes[&id];
         let Some(snapshot) = state.snapshot.as_ref() else {
             return Response::Failed(Error::NativeFailure);
@@ -353,7 +379,7 @@ impl View {
             command,
             Command::ReadSnapshot | Command::SetLoading(_) | Command::PublishResults(_)
         ) {
-            if !self.focus.borrow().top_overlay(id)
+            if !self.palette_interactive(id)
                 || !self.focus.borrow().visible(id)
                 || !self.focus.borrow().interactive(id)
             {
@@ -416,7 +442,7 @@ impl View {
                 state.revealed = None;
             }
         }
-        self.refresh_palette(id, cx);
+        self.refresh_palette(id, window, cx);
         cx.notify();
         if matches!(command, Command::SetLoading(_) | Command::PublishResults(_)) {
             self.sync_tooltips(window, cx);
@@ -425,7 +451,7 @@ impl View {
         }
         Response::Applied(self.palettes[&id].snapshot.as_ref().unwrap().clone())
     }
-    fn refresh_palette(&mut self, id: NodeId, cx: &App) -> String {
+    fn refresh_palette(&mut self, id: NodeId, window: &Window, cx: &App) -> String {
         let observer = self
             .session
             .borrow()
@@ -498,7 +524,7 @@ impl View {
                     .then(|| Row {
                         declared_index,
                         route: Route::new(tree, scope, command, CommandSource::Palette(id)),
-                        enabled: self.palette_available(id, command, cx),
+                        enabled: self.palette_available(id, command, window, cx),
                     })
                 })
                 .collect::<Vec<_>>();
@@ -621,7 +647,16 @@ impl View {
             self.publish_palette_dismissal(event);
         }
     }
-    fn palette_available(&self, id: NodeId, config: &CommandConfig, cx: &App) -> bool {
+    fn palette_available(
+        &self,
+        id: NodeId,
+        config: &CommandConfig,
+        window: &Window,
+        cx: &App,
+    ) -> bool {
+        if self.palettes.get(&id).is_some_and(State::embedded) {
+            return self.command_available(config, window, cx);
+        }
         if !config.enabled {
             return false;
         }
@@ -645,7 +680,7 @@ impl View {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Option<Event> {
-        if !self.focus.borrow().top_overlay(id) {
+        if !self.palette_interactive(id) {
             return None;
         }
         let event = self.take_palette_dismissal(id, reason)?;
@@ -659,7 +694,9 @@ impl View {
         let hidden = self
             .palettes
             .iter()
-            .filter(|(id, state)| !state.closed && !self.focus.borrow().interactive(**id))
+            .filter(|(id, state)| {
+                !state.embedded() && !state.closed && !self.focus.borrow().interactive(**id)
+            })
             .map(|(id, _)| *id)
             .collect::<Vec<_>>();
         hidden
@@ -676,7 +713,10 @@ impl View {
     }
     fn take_palette_dismissal(&mut self, id: NodeId, reason: PaletteDismissal) -> Option<Event> {
         let state = self.palettes.get(&id)?;
-        if state.closed || !state.config.allows(&reason) {
+        if state.closed
+            || !state.config.allows(&reason)
+            || (state.embedded() && reason != PaletteDismissal::Escape)
+        {
             return None;
         }
         let event = {
@@ -686,6 +726,9 @@ impl View {
             session.palette_dismissed(self.id, id, handler, tree.revision(), reason)
         }?;
         let state = self.palettes.get_mut(&id).unwrap();
+        if state.embedded() {
+            return Some(event);
+        }
         state.closed = true;
         state.results = None;
         state.rows.clear();
@@ -715,15 +758,15 @@ impl View {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.refresh_palette(id, cx);
+        self.refresh_palette(id, window, cx);
         let Some(state) = self.palettes.get(&id) else {
             return;
         };
         if state.closed
             || state.composing(cx)
-            || !self.focus.borrow().top_overlay(id)
+            || !self.palette_interactive(id)
             || !self.focus.borrow().visible(id)
-            || !self.palette_available(id, &route.config, cx)
+            || !self.palette_available(id, &route.config, window, cx)
         {
             return;
         }
@@ -741,6 +784,15 @@ impl View {
             .command_target(self.id, route.request())
             .is_none()
         {
+            return;
+        }
+        if state.embedded() {
+            let state = self.palettes.get_mut(&id).unwrap();
+            state.selected = Some(route.config.id.clone());
+            state.preserve_no_selection = false;
+            self.observe_palette(id, cx);
+            self.invoke_command(route, window, cx);
+            cx.notify();
             return;
         }
         // Native close releases this scope before edit-target validation. The
@@ -763,7 +815,7 @@ impl View {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> bool {
-        if !self.focus.borrow().top_overlay(id) || !self.palette_owns_keys(id, window, cx) {
+        if !self.palette_interactive(id) || !self.palette_owns_keys(id, window, cx) {
             return false;
         }
         if !matches!(
@@ -772,7 +824,7 @@ impl View {
         ) {
             return false;
         }
-        self.refresh_palette(id, cx);
+        self.refresh_palette(id, window, cx);
         let Some(state) = self.palettes.get(&id) else {
             return false;
         };
@@ -799,7 +851,7 @@ impl View {
                 state
                     .query
                     .update(cx, |query, cx| query.set_value("", window, cx));
-                self.refresh_palette(id, cx);
+                self.refresh_palette(id, window, cx);
                 cx.notify();
                 return true;
             }
@@ -857,10 +909,11 @@ impl View {
         let Some(state) = self.palettes.get(&id) else {
             return div().into_any_element();
         };
-        if state.closed || self.focus.borrow().hidden(id) {
+        if state.closed || !self.focus.borrow().visible(id) {
             return div().into_any_element();
         }
-        if !self.focus.borrow().interactive(id) {
+        let embedded = state.embedded();
+        if !embedded && !self.focus.borrow().interactive(id) {
             return div().into_any_element();
         }
         for style in node.style.iter() {
@@ -873,7 +926,7 @@ impl View {
             }
         }
         let config = node.palette.as_ref().unwrap().clone();
-        let query_text = self.refresh_palette(id, cx);
+        let query_text = self.refresh_palette(id, window, cx);
         let appearance = node
             .choice_appearance
             .clone()
@@ -899,20 +952,18 @@ impl View {
         let bounds = state.bounds.clone();
         let row_bounds = state.row_bounds.clone();
         let query = state.query.clone();
+        let inactive_focus = state.inactive_focus.clone();
         let searchable = state.searchable();
         let loading = state.loading;
         #[cfg(feature = "native-tests")]
         let loading_probe = state.loading_probe.clone();
         let selected = state.selected.clone();
         let scroll = state.scroll.handle.clone();
+        let wheel_handle = scroll.clone();
         let layout_handle = scroll.clone();
         let layout_cache = state.layout_cache.clone();
         let visual_rows = state.scroll.rows();
-        let scope_focus = self
-            .focus
-            .borrow()
-            .handle(id)
-            .expect("mounted palette scope");
+        let scope_focus = self.focus.borrow().handle(id).unwrap_or(inactive_focus);
         let query_focus = query.read(cx).focus_handle(cx).tab_stop(true);
         let gate = self.focus.clone();
         let record_focus = if searchable {
@@ -1098,6 +1149,7 @@ impl View {
             .id(("palette", id.slot()))
             .track_focus(&scope_focus)
             .w(width)
+            .when(embedded, |panel| panel.w_full())
             .flex()
             .flex_col()
             .p(px(8.))
@@ -1105,9 +1157,13 @@ impl View {
             .bg(rgba(0x20242aff))
             .text_color(rgba(0xffffffff))
             .rounded(px(6.))
-            .role(gpui::Role::Dialog)
+            .role(if embedded {
+                gpui::Role::Group
+            } else {
+                gpui::Role::Dialog
+            })
             .aria_label(config.label.clone())
-            .occlude();
+            .when(!embedded, |panel| panel.occlude());
         gpui::Refineable::refine(
             panel.style(),
             &crate::appearance::refinement(&appearance.popup_style, 0),
@@ -1181,6 +1237,31 @@ impl View {
                             record_focus.is_focused(window),
                             bounds,
                         );
+                        if embedded {
+                            // Registered before the list paints: capture reads
+                            // each event's starting offset; bubble runs after
+                            // the list. Only consumed movement blocks ancestors.
+                            let handle = wheel_handle.clone();
+                            let mut before = None;
+                            window.on_mouse_event(
+                                move |event: &gpui::ScrollWheelEvent, phase, _, cx| {
+                                    if !bounds.contains(&event.position) {
+                                        before = None;
+                                        return;
+                                    }
+                                    let current = handle.logical_scroll_top();
+                                    let current = (current.item_ix, current.offset_in_item);
+                                    match phase {
+                                        gpui::DispatchPhase::Capture => before = Some(current),
+                                        gpui::DispatchPhase::Bubble => {
+                                            if before.take().is_some_and(|old| old != current) {
+                                                cx.stop_propagation();
+                                            }
+                                        }
+                                    }
+                                },
+                            );
+                        }
                     },
                 )
                 .absolute()
@@ -1258,7 +1339,9 @@ impl View {
         }
         panel = panel
             .on_any_mouse_down(|_, _, cx| cx.stop_propagation())
-            .on_scroll_wheel(|_, _, cx| cx.stop_propagation());
+            .when(!embedded, |panel| {
+                panel.on_scroll_wheel(|_, _, cx| cx.stop_propagation())
+            });
         let bounds = self.palettes[&id].bounds.clone();
         let outside = owner;
         let panel = crate::semantics::State {
@@ -1270,8 +1353,11 @@ impl View {
             element: panel,
             disabled: false,
             read_only: false,
-            modal: true,
+            modal: !embedded,
         };
+        if embedded {
+            return panel.into_any_element();
+        }
         let backdrop = div()
             .w(crate::window_frame::content_bounds(window).size.width)
             .h(crate::window_frame::content_bounds(window).size.height)

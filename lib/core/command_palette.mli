@@ -1,5 +1,12 @@
 (** A native searchable command chooser. Application commands and callbacks
     remain in the enclosing [Command.Registry]. *)
+module Presentation : sig
+  type t =
+    | Modal
+    | Embedded
+  [@@deriving equal, sexp_of]
+end
+
 module Search : sig
   type t =
     | All_terms
@@ -82,9 +89,17 @@ module Config : sig
 
       [searchable=false] hides the query field and bypasses filtering; the private
       query is retained for a later policy change. Native navigation still works.
-      [Clear_query_first] clears a nonempty visible query on Escape and dismisses
-      on a subsequent Escape. IME composition consumes Escape before either
-      policy. Changing policy retains the chooser's owner and captured editor. *)
+      [Embedded] occupies normal layout without a backdrop, autofocus or focus
+      trap. Selection invokes its command and keeps the chooser mounted; it does
+      not emit [Selected]. [on_dismiss Escape] is an application cancellation
+      request and does not hide embedded state. Outside clicks never dismiss it.
+      Hiding retains state. Native edit actions use the current/last eligible
+      document target. [Modal] retains its one-shot dismissal behavior.
+      [Clear_query_first] clears a nonempty visible query on Escape and requests
+      cancellation on a subsequent Escape. IME composition consumes Escape before
+      either policy. Search/Escape changes retain the chooser's owner and captured
+      editor. Changing [Embedded] to [Modal] retains the query and captures the
+      current eligible document target before entering the focus trap. *)
   val create
     :  label:string
     -> commands:Command.Id.t list
@@ -94,6 +109,7 @@ module Config : sig
     -> ?searchable:bool
     -> ?escape:Escape.t
     -> ?keywords:(Command.Id.t * string list) list
+    -> ?presentation:Presentation.t
     -> unit
     -> t Core.Or_error.t
 
@@ -111,6 +127,7 @@ module Config : sig
     -> ?searchable:bool
     -> ?escape:Escape.t
     -> ?keywords:(Command.Id.t * string list) list
+    -> ?presentation:Presentation.t
     -> unit
     -> t Core.Or_error.t
 

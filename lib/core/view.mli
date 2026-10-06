@@ -255,11 +255,15 @@ val command_button
   -> unit
   -> 'action t
 
-(** Mounting opens a modal, native-owned search session. Search/navigation do not
+(** By default mounting opens a modal, native-owned search session. Search/navigation do not
     roundtrip through OCaml. Escape, permitted outside clicks, or selecting a
     command close it natively and restore the prior eligible focus. [on_dismiss]
     should remove the view. A closed session stays closed until unmounted and
     mounted again, or replaced with a new key; metadata updates do not reopen it.
+    [Config.presentation=Embedded] instead stays in normal layout, without
+    autofocus/trapping. Selecting commands keeps it mounted and does not emit
+    [Selected]. Escape requests cancellation through [on_dismiss] without hiding
+    the embedded session; outside clicks do not dismiss it.
     The query is independent of document editors and never becomes the target of
     registry native-edit commands. Commands resolve at the palette's tree location.
     [on_change] receives initial and changed native query/highlight snapshots

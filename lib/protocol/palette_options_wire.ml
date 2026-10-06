@@ -1,5 +1,12 @@
 open Core
 
+module Presentation = struct
+  type t =
+    | Modal
+    | Embedded
+  [@@deriving bin_io, equal, sexp_of]
+end
+
 module Search = struct
   type t =
     | All_terms
@@ -29,10 +36,18 @@ type t =
   ; searchable : bool
   ; escape : Escape.t
   ; keywords : Keywords.t list
+  ; presentation : Presentation.t
   }
 [@@deriving bin_io, equal, sexp_of]
 
-let default = { search = All_terms; searchable = true; escape = Dismiss; keywords = [] }
+let default =
+  { search = All_terms
+  ; searchable = true
+  ; escape = Dismiss
+  ; keywords = []
+  ; presentation = Modal
+  }
+;;
 
 let text_bytes t =
   List.sum

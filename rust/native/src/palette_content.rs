@@ -111,7 +111,10 @@ impl View {
     ) {
         if !self.palette_owns_keys(id, window, cx)
             && self.focus.borrow().top_overlay(id)
-            && self.palettes.get(&id).is_some_and(|state| !state.closed)
+            && self
+                .palettes
+                .get(&id)
+                .is_some_and(|state| !state.closed && !state.embedded())
         {
             self.close_palette(id, PaletteDismissal::Escape, window, cx);
             cx.stop_propagation();

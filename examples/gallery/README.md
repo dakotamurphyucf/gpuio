@@ -21,6 +21,15 @@ File operations are supplied by the application and invoked through scoped page
 controllers. Native editor/list state remains in GPUIO's public controllers.
 The component pages are demonstrations, not required application boilerplate.
 
+Feedback → **Commands in your workspace** demonstrates a persistent inline
+command chooser beside an ordinary native editor. Add steps repeatedly, clear
+then cancel with Escape, hide/show while retaining the query, and select the
+workspace note through a native edit command. Read
+[embedded_palette_preview.ml](embedded_palette_preview.ml) and the
+[ownership contract](../../docs/design/palette-embedded.md). The adjacent
+[external_palette_preview.ml](external_palette_preview.ml) demonstrates dynamic
+asynchronous search in a modal instead.
+
 Styles → **A theme from your workspace** loads a palette for the current window.
 Choose [the Aurora sample](themes/aurora.sexp), edit its hex colors in your editor,
 save, then use **Reload file**. Type into **Theme preview draft** before reloading
