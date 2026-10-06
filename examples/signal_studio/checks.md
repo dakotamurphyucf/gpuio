@@ -23,7 +23,9 @@ removes its destination; use the disposable harness fixture, never a user docume
 The unavailable check is only meaningful on an actually unavailable backend (such
 as unbundled macOS); it asserts that specific condition, not general permission
 denial. The [README](README.md#local-checks) describes full native input/platform
-limits. Commands here were statically reviewed, not newly run.
+limits. Dated [readiness and workload evidence](../../docs/evidence/window-readiness-and-pie-backing-och17.md)
+records the checks actually run; listing a command here does not qualify every
+diagnostic mode.
 
 ## Await observations without blocking UI processing
 
@@ -35,10 +37,62 @@ revision>0 and at least one extension mount; ordinary mode does not. run returns
 whether a requested diagnostic completed; no flags returns false normally.
 
 workload's sample reads App.diagnostics and tracks peak combined chart/canvas
-source charges and pending requests. frame requests App.Window.request_frame,
-then awaits a promise from its on_rendered effect. It observes native rendering,
-not a screenshot assertion or real keyboard/IME input. settled means Scene and
-Chart published plus no pending requests, distinct from a frame callback.
+source charges and pending requests. Its await helper calls sample and the
+predicate inside until's UI turn; the Eio task sleeps between failed attempts,
+leaving UI event processing free to receive native acknowledgements.
+
+At the start of every workload cycle, the actual code is:
+
+```ocaml
+let window = ui (fun () -> ensure_window ()) in
+await (fun () -> App.Window.is_open window);
+frame window;
+```
+
+ensure_window returns an existing window or creates a handle whose native opening
+can still be in progress. [App.Window.is_open](../../lib/eio/app.mli) queries that
+lifecycle on the OCaml UI domain: it becomes true only after the native Opened
+acknowledgement, while closing has not begun and the app is not stopping. Both
+is_open and is_closed are false during Opening, so testing not is_closed would
+not establish readiness. A Window.snapshot can already be Some after an early
+Window_changed event during Opening; snapshot presence is therefore also an
+incorrect barrier before request_frame. Neither is_open nor a snapshot proves
+focus, visibility, resource publication or a completed frame. A later operation
+can still encounter closure after the query.
+
+The frame helper creates an Eio promise, submits this request on the UI domain,
+then awaits the promise in the Eio task:
+
+```ocaml
+App.Window.request_frame window ~on_rendered:(fun ~revision:_ ->
+  E.of_thunk (fun () -> Eio.Promise.resolve resolver ()))
+|> ok
+```
+
+E aliases Bonsai.Effect. E.of_thunk builds a unit effect describing work to run;
+the on_rendered callback returns that effect to resolve the promise when the
+native render callback arrives. ~revision:_ explicitly ignores the callback's
+revision. The pipe passes the request's unit Or_error.t to ok (Or_error.ok_exn),
+so rejection fails this diagnostic rather than silently waiting. request_frame
+requires an open window and permits at most one pending request per window.
+The Eio.Promise.await belongs outside the UI thunk: waiting there would prevent
+the UI from handling the callback needed to resolve it.
+
+For example, a reopened cycle can receive window metadata while is_open is still
+false. The next poll after Opened sees true; only then does frame submit its
+request. Later batches use set_run/update callbacks to change the application's
+Bonsai Var on the UI domain, letting its reactive view rebuild; checks read that
+same Var with B.Expert.Var.get. This file uses effects and Var reads rather than
+building a Bonsai computation with let%arr. See [Application](application.md) and
+the [Component walkthrough](component.md) for the state-to-view wiring.
+
+settled separately means Scene and Chart are published and no requests are
+pending. Changed chart data also requires a later observed chart Ready revision
+before the batch requests its frame. A render callback establishes native render
+observation; it does not establish resource/data readiness by itself or physical
+screen presentation. Occlusion can defer it because the pinned macOS backend
+stops its display link while a window is occluded. Screenshot assertions and
+real keyboard/IME validation require their separate harness evidence.
 
 ## Workload batches and resource lifetimes
 

@@ -6,6 +6,29 @@ use gpuio_protocol::{
     chart_pie_labels::Entry,
 };
 
+async fn resize_backing(
+    cx: &mut gpui::AsyncApp,
+    handle: WindowHandle<View>,
+    extent: gpui::Size<gpui::Pixels>,
+) {
+    handle
+        .update(cx, |_, window, _| window.resize(extent))
+        .unwrap();
+    for _ in 0..100 {
+        draw(cx, handle);
+        if handle
+            .update(cx, |_, window, _| window.viewport_size() == extent)
+            .unwrap()
+        {
+            return;
+        }
+        cx.background_executor()
+            .timer(Duration::from_millis(10))
+            .await;
+    }
+    panic!("pie test backing resize was not acknowledged: {extent:?}");
+}
+
 pub(super) async fn exercise(
     cx: &mut gpui::AsyncApp,
     handle: WindowHandle<View>,
@@ -38,9 +61,16 @@ pub(super) async fn exercise(
     );
     let revision = snapshot.revision() + 1;
     cx.update(|cx| dispatch(cx, transport, 80, Request::Publish(source, revision)));
-    let original_scale = handle
-        .update(cx, |_, window, _| window.scale_factor())
+    let (original_scale, original_size) = handle
+        .update(cx, |_, window, _| {
+            (window.scale_factor(), window.viewport_size())
+        })
         .unwrap();
+    // The test-only scale override changes scene coordinates, not AppKit's
+    // CAMetalLayer drawable size. Reserve a 480px backing even on a 1x screen
+    // before drawing the fixed 240px root at synthetic densities up to 2x.
+    // Otherwise a valid caption at logical x=149 can lie outside a 240px image.
+    resize_backing(cx, handle, gpui::size(px(480.), px(480.))).await;
     for density in [1., 1.25, 1.5, 2.] {
         handle
             .update(cx, |_, window, _| window.set_scale_factor(density))
@@ -124,6 +154,10 @@ pub(super) async fn exercise(
                 let frame = state.ready_frame.unwrap();
                 let image = window.render_to_image().unwrap();
                 let scale = f64::from(window.scale_factor());
+                assert_eq!(scale, f64::from(density), "synthetic scale retained");
+                assert!(image.width() >= 480 && image.height() >= 480,
+                    "synthetic density requires a complete backing: actual={}x{}, scale={scale}",
+                    image.width(), image.height());
                 let geometry = ready.plan.geometry();
                 assert_eq!(
                     geometry.labels.len(),
@@ -157,13 +191,15 @@ pub(super) async fn exercise(
                 };
                 for label in &geometry.labels {
                     let rect = frame.label(label).rect;
-                    assert!(
-                        count_color(rect.x, rect.y, rect.x + rect.width, rect.y + rect.height, 1)
-                            > 4,
-                        "missing green pie caption {:?} at {:?}",
-                        label.text,
-                        rect
-                    );
+                    let green = count_color(rect.x, rect.y, rect.x + rect.width, rect.y + rect.height, 1);
+                    if green <= 4 {
+                        if let Some(path) = std::env::var_os("GPUIO_PIE_LABEL_DIAGNOSTIC")
+                            && let Err(error) = image.save(path) {
+                            eprintln!("Could not save pie diagnostic: {error}");
+                        }
+                        panic!("missing green pie caption {:?} at {rect:?}; green={green}, scale={scale}, image={}x{}",
+                            label.text, image.width(), image.height());
+                    }
                     if let LabelKind::Pie {
                         slice_index,
                         placement: Some(p),
@@ -224,6 +260,7 @@ pub(super) async fn exercise(
     handle
         .update(cx, |_, window, _| window.set_scale_factor(original_scale))
         .unwrap();
+    resize_backing(cx, handle, original_size).await;
     eprintln!(
         "GPUIO_PIE_LABEL_VIEW_OK: four synthetic scales (1/1.25/1.5/2), measured text pixels, ID captions, per-slice/default leader colors and neutral negative controls, variable radius, hidden captions, inside/outside, narrow/font changes and unchanged data"
     );

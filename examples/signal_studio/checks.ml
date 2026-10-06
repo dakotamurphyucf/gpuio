@@ -108,7 +108,7 @@ let run context ~env ~app ~self_test ~workload ~unavailable_check ~document_path
     let counter_sequence = ref 0L in
     for cycle = 0 to 11 do
       let window = ui (fun () -> ensure_window ()) in
-      await (fun () -> Option.is_some (App.Window.snapshot window));
+      await (fun () -> App.Window.is_open window);
       frame window;
       for batch = 0 to 7 do
         let before = ui sample in

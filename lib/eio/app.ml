@@ -682,6 +682,14 @@ module Window = struct
     | Opening | Open -> false
   ;;
 
+  let is_open t =
+    check t.app;
+    (match t.phase with
+     | Open -> true
+     | Opening | Closing_before_open | Closing | Closed -> false)
+    && not t.app.stopping
+  ;;
+
   let close t =
     check t.app;
     match t.phase with
@@ -818,11 +826,7 @@ module Window = struct
 
   let request_frame t ~on_rendered =
     check t.app;
-    if
-      (match t.phase with
-       | Open -> false
-       | Opening | Closing_before_open | Closing | Closed -> true)
-      || t.app.stopping
+    if not (is_open t)
     then Or_error.error_string "window is not open or application is stopping"
     else if Map.exists t.app.frames ~f:(fun (id, _) -> Window_id.equal id t.id)
     then Or_error.error_string "frame request already pending"
@@ -2639,6 +2643,89 @@ let%test_module "pending picker command lifecycle" =
                 ~finally:(fun () -> dispose_runtime app)
                 ~f:(fun () ->
                   Eio.Time.with_timeout_exn (Eio.Stdenv.clock env) 5. (fun () -> f sw app)))))
+    ;;
+
+    let%expect_test "window observations can precede command readiness" =
+      with_runtime (fun _ app ->
+        let open_test_window () =
+          open_window
+            app
+            ~focus:false
+            ~title:"Readiness"
+            ~width:400.
+            ~height:300.
+            (fun _ _ -> Bonsai.Cont.return (Gpuio.View.text "Ready"))
+          |> ok
+        in
+        let window = open_test_window () in
+        let request = app.correlation in
+        let inspect label window =
+          let frame_admitted =
+            Window.request_frame window ~on_rendered:(fun ~revision:_ -> E.Ignore)
+            |> Result.is_ok
+          in
+          print_s
+            [%sexp
+              (label : string)
+            , (Window.is_open window : bool)
+            , (Window.is_closed window : bool)
+            , (Option.is_some (Window.snapshot window) : bool)
+            , (frame_admitted : bool)]
+        in
+        inspect "opening" window;
+        let snapshot : Native_window.Snapshot.t =
+          { title = "Readiness"
+          ; appearance = Light
+          ; x = 0.
+          ; y = 0.
+          ; width = 400.
+          ; height = 300.
+          ; content_width = 400.
+          ; content_height = 300.
+          ; active = false
+          ; fullscreen = false
+          ; maximized = false
+          ; document = None
+          ; presentation =
+              { decorations = Server
+              ; controls =
+                  { fullscreen = true
+                  ; minimize = true
+                  ; maximize = true
+                  ; window_menu = true
+                  }
+              ; resizable = true
+              }
+          }
+        in
+        process app (Window_changed (window.id, snapshot));
+        inspect "early snapshot" window;
+        process app (Opened (request, window.id));
+        inspect "acknowledged" window;
+        app.stopping <- true;
+        inspect "application stopping" window;
+        app.stopping <- false;
+        Window.close window;
+        inspect "closing" window;
+        process app (Closed (app.correlation, window.id));
+        inspect "closed" window;
+        let canceled = open_test_window () in
+        let request = app.correlation in
+        Window.close canceled;
+        inspect "closed before opening" canceled;
+        process app (Opened (request, canceled.id));
+        inspect "late opening acknowledgement" canceled);
+      [%expect
+        {|
+        (opening false false false false)
+        ("early snapshot" false false true false)
+        (acknowledged true false true true)
+        ("application stopping" false false true false)
+        (closing false true true false)
+        (closed false true true false)
+        ("closed before opening" false true false false)
+        ("late opening acknowledgement" false true false false)
+        |}]
     ;;
 
     let%expect_test "document defaults reach later windows and remain application-local" =

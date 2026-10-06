@@ -446,3 +446,49 @@ identifies the pie test's minimum-intensity assumption and validates hue coverag
 four synthetic scales with neutral negative controls. Production rendering is
 unchanged; the recorded hosted failure remains a failure until current-source
 revalidation passes.
+
+## Hosted run 37538145025
+
+[Run 37538145025](https://github.com/dakotamurphyucf/gpuio/actions/runs/37538145025)
+is terminal. Linux foundation and all three independently extracted macOS apps
+pass. macOS foundation fails four steps: Signal Studio streaming/lifetimes,
+mounted charts/public gallery, and both Metal presentation probes. The other
+executed macOS checks, including full-history table retention, pass. A failed
+multi-command step does not qualify its later commands.
+
+Checkout is merge `e5b52b967da5ca1c95dc70ae81f88c558c9104aa`, whose tree
+`288bb2e694929e24e1f367a94a1fc2174f6353df` matches branch
+`e41b7d6643d85b6b3209535067704d48befc0ea4`. This includes the pie leader hue
+assertion repair, appearance, cursor and guide-span work. It predates retained
+inspection content and the later local CI repairs; it is not current-source
+release acceptance.
+
+Signal Studio closes cycle 2 and requests a frame after reopening, then fails
+with `window is not open or application is stopping`. Source inspection identifies
+a readiness race: `Window_changed` may supply a snapshot during `Opening`, before
+`Opened` makes frame requests admissible. The workload used snapshot presence as
+its readiness barrier. The local repair and deterministic regression are recorded
+separately; this hosted failure is not reclassified as passing.
+
+The chart test passes leader hue checks through its first scale-2 sample, then
+fails to find the green `RIGHT` caption at logical x=149. GPUI's test scale override
+changes scene coordinates without resizing AppKit's Metal drawable. On a 1×,
+240-pixel backing, that caption would start at physical x=298 outside the image.
+This is a source-backed explanation of the density-specific failure; the failed
+run did not retain caption pixels or image dimensions. The subsequent repair
+reserves sufficient backing before overriding scale and checks the image bounds,
+without relaxing the caption or leader assertions. Hosted confirmation remains
+required.
+
+Each GPUI hook window receives 90 zero-time presentation callbacks, no missing
+callbacks and no pending submissions at closure. Standalone Metal submits 120
+frames and receives 120 zero presentation times on Apple Paravirtual / macOS
+15.7.9. Neither probe qualifies physical display timing; neither gate is waived.
+
+[Primary reports, failed-step excerpts and exact source identity](hosted-presentation-calibration-och17/run-37538145025/reports.tar.gz)
+and the [verified manifest](hosted-presentation-calibration-och17/run-37538145025/manifest.json)
+retain 12 files (241,886 uncompressed bytes). The extracted-app reports explicitly
+qualify an existing Mac with development directories denied, not clean-machine
+or release approval. Their packaging revision is recorded; they do not attest
+the binary build revision. Release signing, clean-machine distribution, physical
+presentation and broader catalog/accessibility/performance requirements remain.

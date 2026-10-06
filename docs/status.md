@@ -5,6 +5,16 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **O
 Markdown walkthroughs for every example component; its documentation acceptance is complete. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
+[Hosted run 37538145025](evidence/hosted-presentation-calibration-och17.md#hosted-run-37538145025)
+is terminal at tree-equivalent `e41b7d6`: Linux and all three extracted macOS apps
+pass. macOS foundation fails Signal Studio's reopening readiness check, a pie
+caption assertion at synthetic 2×, and the two Metal presentation probes.
+[Local repairs](evidence/window-readiness-and-pie-backing-och17.md) now pass a
+deterministic readiness regression, the actual 12-cycle Signal Studio workload,
+the full hidden chart suite, strict lint and full Dune checks. These repairs and
+inspection-content changes postdate that run; hosted confirmation and required
+release gates remain open.
+
 [Inspection editor and aggregate checks](evidence/chart-inspection-editors-och41.md)
 now pass retained Input/Textarea drafts, AppKit marked-text composition across
 reorder, immediate hiding/reset retirement and late-input rejection. Sum/Mean/OHLC

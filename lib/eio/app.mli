@@ -34,7 +34,10 @@ module Window : sig
     -> (Gpuio.Window.Close_reason.t -> Gpuio.Window.Close_decision.t Bonsai.Effect.t)
     -> unit
 
+  (** Last observed native state. It can arrive before the opening acknowledgement;
+      [Some _] does not imply [is_open] or frame-request readiness. *)
   val snapshot : t -> Gpuio.Window.Snapshot.t option
+
   val on_change : t -> (Gpuio.Window.Snapshot.t -> unit Bonsai.Effect.t) -> unit
 
   (** Acknowledges current observed state. Resizing/fullscreen may complete later;
@@ -74,9 +77,17 @@ module Window : sig
   val end_text_selection : t -> (unit, Gpuio.Window.Error.t) Result.t Bonsai.Effect.t
 
   val is_closed : t -> bool
+
+  (** Native opening has been acknowledged, closing has not begun and the
+      application is not stopping. This is not the negation of [is_closed]: both
+      are false while opening. It does not imply focus, visibility, a rendered
+      frame or published application data. Like other window queries, call on the
+      OCaml UI domain. A later asynchronous operation must still handle closure. *)
+  val is_open : t -> bool
+
   val set_theme : t -> Gpuio.Theme.t -> unit
 
-  (** At most one request per open window. Call after activation; requests
+  (** At most one request per open window. Call after [is_open]; requests
       before native opening return an error. This observes a render callback,
       not physical screen presentation. Delivery can be deferred while a window
       is occluded: the pinned macOS backend stops its display link then. Do not
