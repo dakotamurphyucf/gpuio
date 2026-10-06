@@ -439,3 +439,33 @@ its default mode. Table's direct-effect checks differ from the physical AppKit
 harness. Shimmer's experimental status remains explicit. Document-file tests
 cover actual rename failure and symlink replacement, but not cancellation or
 crash durability. These limits remain visible to new readers.
+
+## Tree approval, guarded editing and remaining Signal Studio runtime
+
+Starting from `3d21215`, twenty further source groups are reviewed: all eight tree
+modules; gallery slider, workflow stepper, numeric draft, password, multiline and
+prepared-filter previews; Signal Studio application, checks, notification controller
+and tests, and both generated backend registration sources. Nineteen companions
+cover these groups; notification tests share the complete controller guide.
+Owning READMEs expose the reading order.
+
+The three authorized GPT-6.1 Sol agents read full scoped sources/interfaces and
+relevant contracts/callers. Primary review checked all delivered guides and
+representative source implementations. Editing guides were expanded to introduce
+actual aliases, graph ownership and reactive syntax before their concrete event
+traces. Generated registration is explicitly maintainer infrastructure, separate
+from ordinary OCaml view construction. Tree guides distinguish immutable hierarchy
+approval, transient row lifetime, native proposals and scoped filesystem loading.
+
+Coverage is **171 reviewed / 89 pending**, still 417 sources in 260 groups.
+Primary checks pass 322 relative file targets across 22 guides/READMEs, structural
+inventory and whitespace. Agents additionally checked their scoped links/anchors.
+Commands were reviewed against source/build/harness declarations. This prose batch
+adds no newly executed native, permission, IME or platform qualification.
+
+The guides preserve material limits: tree offset paging is not a directory
+snapshot; Support.perform needs caller-owned cancellation/deadlines; slider Reset
+is intentionally unconditional; notice epochs do not undo native commands;
+notification handlers depend on serial delivery; a receipt is not proof of a
+visible banner. These are documented contracts/limitations, not claims of newly
+reproduced or fixed bugs.

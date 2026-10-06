@@ -1,5 +1,15 @@
 # Managed trees
 
+## Source walkthroughs
+
+Start with [main](main.md) for flags, build commands, and test prerequisites.
+The filesystem path uses [filesystem_demo](filesystem_demo.md) and the
+[filesystem loader/interface](filesystem.md). The in-memory outline uses
+[outline_demo](outline_demo.md), [outline data policy/interface](outline_data.md),
+and [pure outline expect tests](outline_test.md). Read
+[lifecycle_demo](lifecycle_demo.md) for scripted ownership/cancellation checks and
+[support](support.md) for the shared effect-to-Eio diagnostic bridge.
+
 ## Filesystem explorer
 
 Run from the repository root:

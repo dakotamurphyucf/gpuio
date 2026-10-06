@@ -10,12 +10,14 @@ separate application and is unchanged.
 | File | Responsibility |
 | --- | --- |
 | [entry-point walkthrough](main.md) | Entry point and package metadata modes. |
-| [application.ml](application.ml) | Eio/native resource ownership, model actions, desktop services and windows. |
+| [application runtime walkthrough](application.md) | Eio/native resource ownership, model actions, desktop services and windows. |
 | [reactive component walkthrough](component.md) | The Bonsai boundary: observe a snapshot and call `Ui.view`. |
 | [layout walkthrough](ui.md) | Stateless GPUIO layout from `Snapshot.t` and `Actions.t`; no graph construction or I/O. |
 | [model walkthrough](model/workspace.md) | Pure workspace values and chart/canvas data. |
-| [document controller walkthrough](documents.md), [file helper/tests walkthrough](files/document_file.md) and [notifications/](notifications/) | Scoped document and notification behavior. |
-| [checks.ml](checks.ml) | Optional self-test and resource-workload assertions, separate from the application. |
+| [document controller walkthrough](documents.md), [file helper/tests walkthrough](files/document_file.md) and [notification controller/tests walkthrough](notifications/run_alerts.md) | Scoped document and notification behavior. |
+| [diagnostic checks walkthrough](checks.md) | Optional self-test and resource-workload assertions, separate from the application. |
+
+The generated [OCaml backend bridge](backend/backend.md) and [Rust registration](backend/registration.md) explain static extension composition.
 
 `View` is GPUIO presentation, `Bonsai` is reactive wiring, and `Effect` represents
 a deferred action. The [UI-thread walkthrough](ui_thread.md) explains the explicit Eio-task-to-UI adapter used for

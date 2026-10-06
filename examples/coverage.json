@@ -1065,8 +1065,10 @@
         "examples/gallery/edit_filter_preview.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/gallery/edit_filter_preview.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -1487,8 +1489,10 @@
         "examples/gallery/number_preview.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/gallery/number_preview.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -1555,8 +1559,10 @@
         "examples/gallery/password_preview.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/gallery/password_preview.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -1688,8 +1694,10 @@
         "examples/gallery/slider_preview.ml"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/gallery/slider_preview.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -1725,8 +1733,10 @@
         "examples/gallery/stepper_preview.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/gallery/stepper_preview.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -1770,8 +1780,10 @@
         "examples/gallery/textarea_preview.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/gallery/textarea_preview.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -2248,8 +2260,10 @@
         "examples/signal_studio/application.mli"
       ],
       "role": "application-entry",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/signal_studio/application.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -2267,16 +2281,20 @@
         "examples/signal_studio/backend/backend.ml"
       ],
       "role": "generated-registration",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/signal_studio/backend/backend.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
         "examples/signal_studio/backend/registration.rs"
       ],
       "role": "generated-registration",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/signal_studio/backend/registration.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -2284,8 +2302,10 @@
         "examples/signal_studio/checks.mli"
       ],
       "role": "test-support",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/signal_studio/checks.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -2367,16 +2387,20 @@
         "examples/signal_studio/notifications/run_alerts.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/signal_studio/notifications/run_alerts.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
         "examples/signal_studio/notifications/test/run_alerts_test.ml"
       ],
       "role": "test-support",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/signal_studio/notifications/run_alerts.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -2457,8 +2481,10 @@
         "examples/tree/filesystem.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/tree/filesystem.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -2466,8 +2492,10 @@
         "examples/tree/filesystem_demo.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/tree/filesystem_demo.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -2475,8 +2503,10 @@
         "examples/tree/lifecycle_demo.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/tree/lifecycle_demo.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -2484,9 +2514,9 @@
       ],
       "role": "application-entry",
       "walkthroughs": [
-        "examples/tree/README.md"
+        "examples/tree/main.md"
       ],
-      "review": "pending"
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -2494,8 +2524,10 @@
         "examples/tree/outline_data.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/tree/outline_data.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -2503,16 +2535,20 @@
         "examples/tree/outline_demo.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/tree/outline_demo.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
         "examples/tree/outline_test.ml"
       ],
       "role": "test-support",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/tree/outline_test.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -2520,8 +2556,10 @@
         "examples/tree/support.mli"
       ],
       "role": "support",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/tree/support.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [

@@ -63,6 +63,11 @@ State and native rendering walkthroughs: [input formats](format_preview.md),
 [progress](progress_preview.md), [custom spinners](spinner_preview.md) and
 [selectable text shimmer](shimmer_preview.md).
 
+Editing and controlled-input walkthroughs: [sliders](slider_preview.md),
+[workflow stages](stepper_preview.md), [numeric drafts](number_preview.md),
+[password privacy](password_preview.md), [multiline geometry](textarea_preview.md) and
+[prepared edit filters](edit_filter_preview.md).
+
 Styles → **A theme from your workspace** loads a palette for the current window.
 Read the [theme-loading walkthrough](theme_preview.md), then the independent
 [appearance model](model/appearance.md), [selection identity](model/theme_selection.md),
