@@ -40,6 +40,12 @@ not build dependencies or current functionality. Keep implementation status hone
 and record exact commands, revisions and actual platform coverage in Linear.
 Complete only tickets whose acceptance criteria have passed.
 
+Every new example component needs an adjacent Markdown walkthrough linked from
+its owning README. Keep it current when behavior, structure or commands change.
+Follow `examples/coverage-guide.md`, maintain its source inventory and run
+`python3 scripts/audit_example_docs.py`. Review explanations against the actual
+code; source/file coverage alone does not prove onboarding or platform acceptance.
+
 Use `scratch/` for local experiments, logs, implementation notes and handoffs that
 must survive context compaction. Create it when absent; it is ignored by Git and
 excluded from Dune discovery.

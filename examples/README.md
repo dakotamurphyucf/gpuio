@@ -10,6 +10,14 @@ optional acceptance runners are separate from normal app code.
 
 The gallery's [charts walkthrough](gallery/charts_page.md) traces source
 publication, plotting options, native selection and page-scope cleanup.
+Its [embedded command browser](gallery/embedded_palette_preview.md) and
+[external search](gallery/external_palette_preview.md) guides distinguish local
+Bonsai state from native query ownership and scoped Eio producers.
+
+The [walkthrough coverage checklist](coverage.md) inventories all example source
+parts and exposes missing or unreviewed guides. See the [review guide](coverage-guide.md)
+when adding or changing an example; an existing README alone does not establish
+complete documentation.
 
 The examples below include historical bootstrap and low-level integration checks.
 They are useful for framework work, but are not the recommended first-app template.

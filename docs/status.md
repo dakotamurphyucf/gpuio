@@ -5,6 +5,13 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **O
 Markdown walkthroughs for every example component; it is planned in this milestone. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
+[Example walkthrough coverage](evidence/example-walkthroughs-och48.md) now has an
+explicit inventory of 417 OCaml/Rust source files in 260 groups, with four guides
+reviewed and 256 groups still pending. The starter, embedded/external palettes
+and scope helper explain application, Bonsai, GPUIO and Eio responsibilities.
+Contributor guidance and a structural CI check keep new sources visible; neither
+file presence nor that check establishes documentation or platform acceptance.
+
 [Sankey presentation controls](evidence/sankey-presentation-och41.md) now expose
 validated node corners, ribbon opacity/minimum thickness and label spacing.
 Native/protocol/OCaml/lint checks and root/fresh-installed macOS chart walkthroughs

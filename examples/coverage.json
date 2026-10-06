@@ -1,0 +1,2335 @@
+{
+  "schema_version": 1,
+  "scope": "Tracked OCaml and Rust example source; pending rows are not documentation acceptance.",
+  "components": [
+    {
+      "sources": [
+        "examples/agent_chat/application.ml",
+        "examples/agent_chat/application.mli"
+      ],
+      "role": "application-entry",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/agent_chat/main.ml"
+      ],
+      "role": "application-entry",
+      "walkthroughs": [
+        "examples/agent_chat/README.md"
+      ],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/agent_chat/model/fake_backend.ml",
+        "examples/agent_chat/model/fake_backend.mli"
+      ],
+      "role": "support",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/agent_chat/model/fake_backend_test.ml"
+      ],
+      "role": "test-support",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/agent_chat/runtime/annotation_settings.ml",
+        "examples/agent_chat/runtime/annotation_settings.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/agent_chat/runtime/artifact_sidebar.ml",
+        "examples/agent_chat/runtime/artifact_sidebar.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/agent_chat/runtime/artifact_tour.ml",
+        "examples/agent_chat/runtime/artifact_tour.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/agent_chat/runtime/chat_message.ml",
+        "examples/agent_chat/runtime/chat_message.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/agent_chat/runtime/chat_motion.ml",
+        "examples/agent_chat/runtime/chat_motion.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/agent_chat/runtime/contributor_portrait.ml",
+        "examples/agent_chat/runtime/contributor_portrait.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/agent_chat/runtime/conversation.ml",
+        "examples/agent_chat/runtime/conversation.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/agent_chat/runtime/diagram.ml",
+        "examples/agent_chat/runtime/diagram.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/agent_chat/runtime/fixture_job.ml",
+        "examples/agent_chat/runtime/fixture_job.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/agent_chat/runtime/generation_settings.ml",
+        "examples/agent_chat/runtime/generation_settings.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/agent_chat/runtime/icons.ml",
+        "examples/agent_chat/runtime/icons.mli"
+      ],
+      "role": "support",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/agent_chat/runtime/inspector.ml",
+        "examples/agent_chat/runtime/inspector.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/agent_chat/runtime/palette.ml",
+        "examples/agent_chat/runtime/palette.mli"
+      ],
+      "role": "support",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/agent_chat/runtime/query_loading.ml",
+        "examples/agent_chat/runtime/query_loading.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/agent_chat/runtime/responsive.ml",
+        "examples/agent_chat/runtime/responsive.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/agent_chat/runtime/result_actions.ml",
+        "examples/agent_chat/runtime/result_actions.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/agent_chat/runtime/result_data.ml",
+        "examples/agent_chat/runtime/result_data.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/agent_chat/runtime/results.ml",
+        "examples/agent_chat/runtime/results.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/agent_chat/runtime/review.ml",
+        "examples/agent_chat/runtime/review.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/agent_chat/runtime/review_feedback.ml",
+        "examples/agent_chat/runtime/review_feedback.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/agent_chat/runtime/run_diagram.ml",
+        "examples/agent_chat/runtime/run_diagram.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/agent_chat/runtime/schedule_data.ml",
+        "examples/agent_chat/runtime/schedule_data.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/agent_chat/runtime/schedule_settings.ml",
+        "examples/agent_chat/runtime/schedule_settings.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/agent_chat/runtime/score_range.ml",
+        "examples/agent_chat/runtime/score_range.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/agent_chat/runtime/settings.ml",
+        "examples/agent_chat/runtime/settings.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/agent_chat/runtime/source_data.ml",
+        "examples/agent_chat/runtime/source_data.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/agent_chat/runtime/sources.ml",
+        "examples/agent_chat/runtime/sources.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/agent_chat/runtime/workspace.ml",
+        "examples/agent_chat/runtime/workspace.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/agent_chat/self_test.ml",
+        "examples/agent_chat/self_test.mli"
+      ],
+      "role": "test-support",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/agent_chat/workload_metrics.ml",
+        "examples/agent_chat/workload_metrics.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/animation/main.ml"
+      ],
+      "role": "application-entry",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/animation_program/main.ml"
+      ],
+      "role": "application-entry",
+      "walkthroughs": [
+        "examples/animation_program/README.md"
+      ],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/asset_upload/main.ml"
+      ],
+      "role": "diagnostic",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/bridge/main.ml"
+      ],
+      "role": "diagnostic",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/calendar/main.ml"
+      ],
+      "role": "application-entry",
+      "walkthroughs": [
+        "examples/calendar/README.md"
+      ],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/calendar/picker.ml"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/canvas/main.ml"
+      ],
+      "role": "application-entry",
+      "walkthroughs": [
+        "examples/canvas/README.md"
+      ],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/canvas/plot.ml",
+        "examples/canvas/plot.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/canvas_upload/main.ml"
+      ],
+      "role": "diagnostic",
+      "walkthroughs": [
+        "examples/canvas_upload/README.md"
+      ],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/chart_stream/main.ml"
+      ],
+      "role": "application-entry",
+      "walkthroughs": [
+        "examples/chart_stream/README.md"
+      ],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/chart_upload/main.ml"
+      ],
+      "role": "diagnostic",
+      "walkthroughs": [
+        "examples/chart_upload/README.md"
+      ],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/charts/gallery.ml"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/charts/main.ml"
+      ],
+      "role": "application-entry",
+      "walkthroughs": [
+        "examples/charts/README.md"
+      ],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/charts/samples/categorical.ml",
+        "examples/charts/samples/categorical.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [
+        "examples/charts/samples/categorical.md"
+      ],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/charts/samples/gpuio_chart_samples.ml",
+        "examples/charts/samples/gpuio_chart_samples.mli"
+      ],
+      "role": "support",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/charts/samples/inspection.ml",
+        "examples/charts/samples/inspection.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [
+        "examples/charts/samples/inspection.md"
+      ],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/charts/samples/ordinal_colors.ml",
+        "examples/charts/samples/ordinal_colors.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [
+        "examples/charts/samples/ordinal_colors.md"
+      ],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/charts/samples/sankey_presentation.ml",
+        "examples/charts/samples/sankey_presentation.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [
+        "examples/charts/samples/sankey_presentation.md"
+      ],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/charts/samples/stacked.ml",
+        "examples/charts/samples/stacked.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [
+        "examples/charts/samples/stacked.md"
+      ],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/color_input/main.ml"
+      ],
+      "role": "application-entry",
+      "walkthroughs": [
+        "examples/color_input/README.md"
+      ],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/color_input/picker.ml"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/combobox/main.ml"
+      ],
+      "role": "application-entry",
+      "walkthroughs": [
+        "examples/combobox/README.md"
+      ],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/commands/main.ml"
+      ],
+      "role": "application-entry",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/container_query/main.ml"
+      ],
+      "role": "application-entry",
+      "walkthroughs": [
+        "examples/container_query/README.md"
+      ],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/controls/main.ml"
+      ],
+      "role": "application-entry",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/desktop/main.ml"
+      ],
+      "role": "application-entry",
+      "walkthroughs": [
+        "examples/desktop/README.md"
+      ],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/document_profile_package/ocaml/gpuio_example_document.ml",
+        "examples/document_profile_package/ocaml/gpuio_example_document.mli"
+      ],
+      "role": "extension-author",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/document_profile_package/rust/src/lib.rs"
+      ],
+      "role": "extension-author",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/document_profile_package/rust/src/scroll_card.rs"
+      ],
+      "role": "extension-author",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/document_profile_package/test/document_profile_example_test.ml"
+      ],
+      "role": "test-support",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/documents/main.ml"
+      ],
+      "role": "application-entry",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/drag_drop/main.ml"
+      ],
+      "role": "application-entry",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/drag_drop_desktop/main.ml"
+      ],
+      "role": "application-entry",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/extension_consumer/backend/backend.ml"
+      ],
+      "role": "generated-registration",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/extension_consumer/backend/registration.rs"
+      ],
+      "role": "generated-registration",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/extension_consumer/main.ml"
+      ],
+      "role": "application-entry",
+      "walkthroughs": [
+        "examples/extension_consumer/README.md"
+      ],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/extension_package/ocaml/gpuio_example_counter.ml",
+        "examples/extension_package/ocaml/gpuio_example_counter.mli"
+      ],
+      "role": "extension-author",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/extension_package/rust/src/lib.rs"
+      ],
+      "role": "extension-author",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/file_dialogs/main.ml"
+      ],
+      "role": "application-entry",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/foundation/main.ml"
+      ],
+      "role": "historical-bootstrap",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/foundation/native.ml"
+      ],
+      "role": "historical-bootstrap",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/foundation/wire.ml"
+      ],
+      "role": "historical-bootstrap",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/alert_preview.ml",
+        "examples/gallery/alert_preview.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/application.ml",
+        "examples/gallery/application.mli"
+      ],
+      "role": "application-entry",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/aspect_preview.ml"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/assets_page.ml",
+        "examples/gallery/assets_page.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/attachment_preview.ml"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/avatar_preview.ml",
+        "examples/gallery/avatar_preview.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/badge_preview.ml",
+        "examples/gallery/badge_preview.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/binding_preview.ml",
+        "examples/gallery/binding_preview.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/button_appearance_preview.ml",
+        "examples/gallery/button_appearance_preview.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/button_preview.ml",
+        "examples/gallery/button_preview.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/canvas_page.ml",
+        "examples/gallery/canvas_page.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/carousel_track_preview.ml",
+        "examples/gallery/carousel_track_preview.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/charts_page.ml",
+        "examples/gallery/charts_page.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [
+        "examples/gallery/charts_page.md"
+      ],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/chat_composition_preview.ml",
+        "examples/gallery/chat_composition_preview.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/chat_list_preview.ml",
+        "examples/gallery/chat_list_preview.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/checkable_navigation_preview.ml",
+        "examples/gallery/checkable_navigation_preview.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/choice_picker_cases.ml",
+        "examples/gallery/choice_picker_cases.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/choice_picker_preview.ml",
+        "examples/gallery/choice_picker_preview.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/collections_page.ml",
+        "examples/gallery/collections_page.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/command_tooltip_preview.ml"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/component.ml",
+        "examples/gallery/component.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/content_hint_preview.ml",
+        "examples/gallery/content_hint_preview.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/control_appearance_preview.ml",
+        "examples/gallery/control_appearance_preview.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/description_preview.ml",
+        "examples/gallery/description_preview.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/desktop_page.ml",
+        "examples/gallery/desktop_page.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/desktop_session.ml",
+        "examples/gallery/desktop_session.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/disclosure_preview.ml"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/documents_page.ml",
+        "examples/gallery/documents_page.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/edit_filter_preview.ml",
+        "examples/gallery/edit_filter_preview.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/embedded_palette_preview.ml",
+        "examples/gallery/embedded_palette_preview.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [
+        "examples/gallery/embedded_palette_preview.md"
+      ],
+      "review": "reviewed"
+    },
+    {
+      "sources": [
+        "examples/gallery/empty_preview.ml",
+        "examples/gallery/empty_preview.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/extensions_page.ml",
+        "examples/gallery/extensions_page.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/external_palette_preview.ml",
+        "examples/gallery/external_palette_preview.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [
+        "examples/gallery/external_palette_preview.md"
+      ],
+      "review": "reviewed"
+    },
+    {
+      "sources": [
+        "examples/gallery/feedback_page.ml",
+        "examples/gallery/feedback_page.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/files/settings_file.ml",
+        "examples/gallery/files/settings_file.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/files/test/settings_file_test.ml"
+      ],
+      "role": "test-support",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/files/test/theme_file_test.ml"
+      ],
+      "role": "test-support",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/files/theme_file.ml",
+        "examples/gallery/files/theme_file.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/form_preview.ml",
+        "examples/gallery/form_preview.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/format_preview.ml",
+        "examples/gallery/format_preview.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/group_preview.ml",
+        "examples/gallery/group_preview.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/highlight_page.ml",
+        "examples/gallery/highlight_page.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/horizontal_list_preview.ml",
+        "examples/gallery/horizontal_list_preview.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/image_samples.ml",
+        "examples/gallery/image_samples.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/input_page.ml",
+        "examples/gallery/input_page.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/journeys_page.ml",
+        "examples/gallery/journeys_page.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/keyboard_preview.ml",
+        "examples/gallery/keyboard_preview.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/label_preview.ml",
+        "examples/gallery/label_preview.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/link_preview.ml",
+        "examples/gallery/link_preview.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/main.ml"
+      ],
+      "role": "application-entry",
+      "walkthroughs": [
+        "examples/gallery/README.md"
+      ],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/marker_preview.ml",
+        "examples/gallery/marker_preview.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/menu_preview.ml",
+        "examples/gallery/menu_preview.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/model/appearance.ml",
+        "examples/gallery/model/appearance.mli"
+      ],
+      "role": "support",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/model/canvas_study.ml",
+        "examples/gallery/model/canvas_study.mli"
+      ],
+      "role": "support",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/model/diff_state.ml",
+        "examples/gallery/model/diff_state.mli"
+      ],
+      "role": "support",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/model/editor_visit.ml",
+        "examples/gallery/model/editor_visit.mli"
+      ],
+      "role": "support",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/model/extension_state.ml",
+        "examples/gallery/model/extension_state.mli"
+      ],
+      "role": "support",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/model/feedback_state.ml",
+        "examples/gallery/model/feedback_state.mli"
+      ],
+      "role": "support",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/model/message_follow.ml",
+        "examples/gallery/model/message_follow.mli"
+      ],
+      "role": "support",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/model/message_stream.ml",
+        "examples/gallery/model/message_stream.mli"
+      ],
+      "role": "support",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/model/numeric_state.ml",
+        "examples/gallery/model/numeric_state.mli"
+      ],
+      "role": "support",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/model/page.ml",
+        "examples/gallery/model/page.mli"
+      ],
+      "role": "support",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/model/picker_state.ml",
+        "examples/gallery/model/picker_state.mli"
+      ],
+      "role": "support",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/model/selection_state.ml",
+        "examples/gallery/model/selection_state.mli"
+      ],
+      "role": "support",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/model/settings_state.ml",
+        "examples/gallery/model/settings_state.mli"
+      ],
+      "role": "support",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/model/theme_profile.ml",
+        "examples/gallery/model/theme_profile.mli"
+      ],
+      "role": "support",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/model/theme_selection.ml",
+        "examples/gallery/model/theme_selection.mli"
+      ],
+      "role": "support",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/motion_page.ml",
+        "examples/gallery/motion_page.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/navigation_page.ml",
+        "examples/gallery/navigation_page.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/number_preview.ml",
+        "examples/gallery/number_preview.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/numeric_page.ml",
+        "examples/gallery/numeric_page.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/observations_page.ml",
+        "examples/gallery/observations_page.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/overlays_page.ml",
+        "examples/gallery/overlays_page.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/pages.ml",
+        "examples/gallery/pages.mli"
+      ],
+      "role": "support",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/pagination_preview.ml"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/palette.ml",
+        "examples/gallery/palette.mli"
+      ],
+      "role": "support",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/password_preview.ml",
+        "examples/gallery/password_preview.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/pickers_page.ml",
+        "examples/gallery/pickers_page.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/placement_preview.ml"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/preview_scope.ml",
+        "examples/gallery/preview_scope.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [
+        "examples/gallery/preview_scope.md"
+      ],
+      "review": "reviewed"
+    },
+    {
+      "sources": [
+        "examples/gallery/progress_preview.ml",
+        "examples/gallery/progress_preview.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/responsive_page.ml",
+        "examples/gallery/responsive_page.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/runtime_page.ml",
+        "examples/gallery/runtime_page.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/scrollbar_preview.ml",
+        "examples/gallery/scrollbar_preview.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/selectable_preview.ml",
+        "examples/gallery/selectable_preview.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/selection_preview.ml",
+        "examples/gallery/selection_preview.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/separator_preview.ml"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/settings_preview.ml",
+        "examples/gallery/settings_preview.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/shell.ml",
+        "examples/gallery/shell.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/shimmer_preview.ml",
+        "examples/gallery/shimmer_preview.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/slider_preview.ml"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/spinner_preview.ml",
+        "examples/gallery/spinner_preview.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/split_group_preview.ml"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/split_preview.ml",
+        "examples/gallery/split_preview.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/stepper_preview.ml",
+        "examples/gallery/stepper_preview.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/structural_table_preview.ml",
+        "examples/gallery/structural_table_preview.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/styles_page.ml",
+        "examples/gallery/styles_page.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/tab_content_preview.ml",
+        "examples/gallery/tab_content_preview.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/tag_preview.ml",
+        "examples/gallery/tag_preview.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/textarea_preview.ml",
+        "examples/gallery/textarea_preview.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/theme_preview.ml",
+        "examples/gallery/theme_preview.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/window_input_preview.ml"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/gallery/window_selection_preview.ml",
+        "examples/gallery/window_selection_preview.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/getting_started/main.ml"
+      ],
+      "role": "application-entry",
+      "walkthroughs": [
+        "examples/getting_started/README.md"
+      ],
+      "review": "reviewed"
+    },
+    {
+      "sources": [
+        "examples/images/main.ml"
+      ],
+      "role": "application-entry",
+      "walkthroughs": [
+        "examples/images/README.md"
+      ],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/lifecycle_workload/gpuio_lifecycle_workload.ml",
+        "examples/lifecycle_workload/gpuio_lifecycle_workload.mli"
+      ],
+      "role": "benchmark",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/menu_controller/component.ml",
+        "examples/menu_controller/component.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [
+        "examples/menu_controller/component.md"
+      ],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/menu_controller/main.ml"
+      ],
+      "role": "application-entry",
+      "walkthroughs": [
+        "examples/menu_controller/README.md"
+      ],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/menu_controller/multiwindow.ml",
+        "examples/menu_controller/multiwindow.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [
+        "examples/menu_controller/multiwindow.md"
+      ],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/menus/main.ml"
+      ],
+      "role": "application-entry",
+      "walkthroughs": [
+        "examples/menus/main.md"
+      ],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/navigation/carousel_lab.ml",
+        "examples/navigation/carousel_lab.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/navigation/main.ml"
+      ],
+      "role": "application-entry",
+      "walkthroughs": [
+        "examples/navigation/README.md"
+      ],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/navigation/sidebar_icons.ml"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/notification/main.ml"
+      ],
+      "role": "application-entry",
+      "walkthroughs": [
+        "examples/notification/README.md"
+      ],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/numeric/main.ml"
+      ],
+      "role": "application-entry",
+      "walkthroughs": [
+        "examples/numeric/README.md"
+      ],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/numeric/number.ml"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/numeric/otp.ml"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/overlays/main.ml"
+      ],
+      "role": "application-entry",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/palette/main.ml"
+      ],
+      "role": "application-entry",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/performance/backend/backend.ml"
+      ],
+      "role": "generated-registration",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/performance/backend/registration.rs"
+      ],
+      "role": "generated-registration",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/performance/main.ml"
+      ],
+      "role": "benchmark",
+      "walkthroughs": [
+        "examples/performance/README.md"
+      ],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/performance_document/main.ml"
+      ],
+      "role": "benchmark",
+      "walkthroughs": [
+        "examples/performance_document/README.md"
+      ],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/performance_idle/main.ml"
+      ],
+      "role": "benchmark",
+      "walkthroughs": [
+        "examples/performance_idle/README.md"
+      ],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/performance_lifecycle/main.ml"
+      ],
+      "role": "benchmark",
+      "walkthroughs": [
+        "examples/performance_lifecycle/README.md"
+      ],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/performance_presented/backend/backend.ml"
+      ],
+      "role": "generated-registration",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/performance_presented/backend/registration.rs"
+      ],
+      "role": "generated-registration",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/performance_probe/ocaml/gpuio_performance_probe.ml",
+        "examples/performance_probe/ocaml/gpuio_performance_probe.mli"
+      ],
+      "role": "benchmark",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/performance_probe/rust/src/lib.rs"
+      ],
+      "role": "benchmark",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/performance_probe/rust/src/presentation.rs"
+      ],
+      "role": "benchmark",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/performance_streaming/main.ml"
+      ],
+      "role": "benchmark",
+      "walkthroughs": [
+        "examples/performance_streaming/README.md"
+      ],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/performance_streaming/stream_model.ml",
+        "examples/performance_streaming/stream_model.mli"
+      ],
+      "role": "benchmark",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/performance_table/main.ml"
+      ],
+      "role": "benchmark",
+      "walkthroughs": [
+        "examples/performance_table/README.md"
+      ],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/performance_table/page_cache.ml",
+        "examples/performance_table/page_cache.mli"
+      ],
+      "role": "benchmark",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/pointer/main.ml"
+      ],
+      "role": "application-entry",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/presentation/avatar_assets.ml"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/presentation/avatar_mode.ml"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/presentation/content_cases.ml",
+        "examples/presentation/content_cases.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/presentation/main.ml"
+      ],
+      "role": "application-entry",
+      "walkthroughs": [
+        "examples/presentation/README.md"
+      ],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/presentation/rating_action.ml"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/progress/main.ml"
+      ],
+      "role": "application-entry",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/resource_audit/backend/backend.ml"
+      ],
+      "role": "generated-registration",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/resource_audit/backend/registration.rs"
+      ],
+      "role": "generated-registration",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/resource_audit/main.ml"
+      ],
+      "role": "diagnostic",
+      "walkthroughs": [
+        "examples/resource_audit/README.md"
+      ],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/resource_audit/ocaml/gpuio_resource_audit.ml",
+        "examples/resource_audit/ocaml/gpuio_resource_audit.mli"
+      ],
+      "role": "diagnostic",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/resource_audit/rust/src/lib.rs"
+      ],
+      "role": "diagnostic",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/resource_audit/rust/src/metal.rs"
+      ],
+      "role": "diagnostic",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/runtime/bench.ml"
+      ],
+      "role": "benchmark",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/runtime/bench_input.ml"
+      ],
+      "role": "benchmark",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/runtime/main.ml"
+      ],
+      "role": "application-entry",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/signal_studio/application.ml",
+        "examples/signal_studio/application.mli"
+      ],
+      "role": "application-entry",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/signal_studio/application_identity.ml",
+        "examples/signal_studio/application_identity.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/signal_studio/backend/backend.ml"
+      ],
+      "role": "generated-registration",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/signal_studio/backend/registration.rs"
+      ],
+      "role": "generated-registration",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/signal_studio/checks.ml",
+        "examples/signal_studio/checks.mli"
+      ],
+      "role": "test-support",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/signal_studio/component.ml",
+        "examples/signal_studio/component.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/signal_studio/documents.ml",
+        "examples/signal_studio/documents.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/signal_studio/files/document_file.ml",
+        "examples/signal_studio/files/document_file.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/signal_studio/files/test/document_file_test.ml"
+      ],
+      "role": "test-support",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/signal_studio/main.ml"
+      ],
+      "role": "application-entry",
+      "walkthroughs": [
+        "examples/signal_studio/README.md"
+      ],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/signal_studio/model/test/workspace_test.ml"
+      ],
+      "role": "test-support",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/signal_studio/model/workspace.ml",
+        "examples/signal_studio/model/workspace.mli"
+      ],
+      "role": "support",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/signal_studio/notifications/run_alerts.ml",
+        "examples/signal_studio/notifications/run_alerts.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/signal_studio/notifications/test/run_alerts_test.ml"
+      ],
+      "role": "test-support",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/signal_studio/ui.ml",
+        "examples/signal_studio/ui.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/signal_studio/ui_thread.ml",
+        "examples/signal_studio/ui_thread.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/table/event_actions.ml",
+        "examples/table/event_actions.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/table/main.ml"
+      ],
+      "role": "application-entry",
+      "walkthroughs": [
+        "examples/table/README.md"
+      ],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/text_input/main.ml"
+      ],
+      "role": "application-entry",
+      "walkthroughs": [
+        "examples/text_input/README.md"
+      ],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/toasts/main.ml"
+      ],
+      "role": "application-entry",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/tooltips/main.ml"
+      ],
+      "role": "application-entry",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/tree/filesystem.ml",
+        "examples/tree/filesystem.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/tree/filesystem_demo.ml",
+        "examples/tree/filesystem_demo.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/tree/lifecycle_demo.ml",
+        "examples/tree/lifecycle_demo.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/tree/main.ml"
+      ],
+      "role": "application-entry",
+      "walkthroughs": [
+        "examples/tree/README.md"
+      ],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/tree/outline_data.ml",
+        "examples/tree/outline_data.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/tree/outline_demo.ml",
+        "examples/tree/outline_demo.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/tree/outline_test.ml"
+      ],
+      "role": "test-support",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/tree/support.ml",
+        "examples/tree/support.mli"
+      ],
+      "role": "support",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/view_api/bonsai_component.ml"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/view_api/components.ml"
+      ],
+      "role": "component",
+      "walkthroughs": [],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/view_api/main.ml"
+      ],
+      "role": "application-entry",
+      "walkthroughs": [
+        "examples/view_api/README.md"
+      ],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/virtual_list/main.ml"
+      ],
+      "role": "application-entry",
+      "walkthroughs": [
+        "examples/virtual_list/README.md"
+      ],
+      "review": "pending"
+    },
+    {
+      "sources": [
+        "examples/window_lifecycle/main.ml"
+      ],
+      "role": "application-entry",
+      "walkthroughs": [],
+      "review": "pending"
+    }
+  ]
+}

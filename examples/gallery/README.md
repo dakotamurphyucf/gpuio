@@ -25,10 +25,15 @@ Feedback → **Commands in your workspace** demonstrates a persistent inline
 command chooser beside an ordinary native editor. Add steps repeatedly, clear
 then cancel with Escape, hide/show while retaining the query, and select the
 workspace note through a native edit command. Read
-[embedded_palette_preview.ml](embedded_palette_preview.ml) and the
+[embedded palette walkthrough](embedded_palette_preview.md) and the
 [ownership contract](../../docs/design/palette-embedded.md). The adjacent
-[external_palette_preview.ml](external_palette_preview.ml) demonstrates dynamic
-asynchronous search in a modal instead.
+[external search walkthrough](external_palette_preview.md) explains dynamic
+asynchronous search in a modal, including cancellation and staged result
+publication. Its [scope helper](preview_scope.md) explains resource acquisition
+and cleanup when a Bonsai branch activates or deactivates.
+
+The [example coverage checklist](../coverage.md#gallery) records companion
+coverage for every gallery source part; pending entries remain explicit.
 
 Styles → **A theme from your workspace** loads a palette for the current window.
 Choose [the Aurora sample](themes/aurora.sexp), edit its hex colors in your editor,
