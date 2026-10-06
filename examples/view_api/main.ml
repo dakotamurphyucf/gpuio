@@ -74,6 +74,7 @@ let worker native notification_read ~self_test =
         | Pointer_event _
         | Toast_dismissed _
         | Palette_dismissed _
+        | Palette_observed _
         | Command_invoked _ ) as event ->
         (match Reconciler.dispatch reconciler event with
          | Some Action.Increment ->
@@ -118,6 +119,7 @@ let worker native notification_read ~self_test =
       | Frame_requested _
       | Editor_event _
       | Editor_result _
+      | Palette_result _
       | Image_state _
       | Asset_response _
       | List_retained _

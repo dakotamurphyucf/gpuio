@@ -126,6 +126,8 @@ let worker native notification_read =
       | Pointer_event _
       | Toast_dismissed _
       | Palette_dismissed _
+      | Palette_observed _
+      | Palette_result _
       | List_retained _
       | List_viewport _
       | Slider_result _

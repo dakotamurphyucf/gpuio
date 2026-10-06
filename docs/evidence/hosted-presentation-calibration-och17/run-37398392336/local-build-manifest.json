@@ -1,0 +1,18 @@
+{
+  "palette-example-event-fix.patch": {
+    "bytes": 1149,
+    "sha256": "5c880da1bd22e7c7a9169bb0812cfd8f9740cbc79afc559b38e33a69bd7f52b2"
+  },
+  "palette-example-build-validation.json": {
+    "bytes": 607,
+    "sha256": "88bf3020218eab896d5613596f9e85da3177863128614801a4157f5fb25f03dc"
+  },
+  "palette-command-all-build.log": {
+    "bytes": 605248,
+    "sha256": "4ec0ea03945e0dcb5a76849d9e89193f985e25ad6af524d592d1e6ff05ac5bab"
+  },
+  "palette-command-all-fmt.log": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+}

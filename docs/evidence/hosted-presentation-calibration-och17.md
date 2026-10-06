@@ -125,3 +125,42 @@ notification preferences.
 [Reports, terminal metadata and original failed-step log](hosted-presentation-calibration-och17/run-37387307992/reports.tar.gz)
 have a [verified checksum manifest](hosted-presentation-calibration-och17/run-37387307992/manifest.json).
 No threshold, assertion or release gate has been waived.
+
+## Repeat on hosted run 37398392336
+
+[Run 37398392336](https://github.com/dakotamurphyucf/gpuio/actions/runs/37398392336)
+is terminal with failure at branch `c0694a2`. Both platforms fail Build because
+the low-level `bridge` and `view_api` examples omit the new `Palette_observed`
+event in exhaustive matches. The earlier local suite built the tests and gallery,
+which did not compile these standalone examples. Linux unit/private-bus/consumer
+checks and the macOS window walkthroughs were skipped; this run does not qualify
+the preceding owned-window placement correction. The fresh receiver is skipped.
+
+Both Metal probes run independently of that build failure and still fail. GPUI
+admits 180 callbacks across two retired sessions, all with zero presentation
+timestamps, no missing callbacks and no pending submissions. Standalone Metal
+records 120 active, visible, GPU-completed frames, all with zero presentation
+timestamps on Apple Paravirtual/macOS 15.7.9. This repeats the hosted clock
+limitation; it provides no passing presentation evidence.
+
+[Seven retained files](hosted-presentation-calibration-och17/run-37398392336/reports.tar.gz)
+include the raw reports, terminal metadata and original build/job failure logs,
+with a [verified checksum manifest](hosted-presentation-calibration-och17/run-37398392336/manifest.json).
+The example correction explicitly handles palette observations and the newer
+command responses; it retains exhaustiveness checking. Exact all-example build
+validation is recorded separately below. No gate or threshold is waived.
+
+### Local all-example build correction
+
+At `282daf0` plus the archived four-line example patch,
+`GPUIO_JOBS=2 ./scripts/gpuio build` and `GPUIO_JOBS=2 ./scripts/gpuio fmt`
+both exit zero on the local physical arm64 Mac. `git diff --check` also passes.
+`view_api` dispatches `Palette_observed` through its reconciler; the raw bridge
+ignores that event. Both explicitly ignore command replies they never request.
+No wildcard or warning suppression hides future event additions.
+
+[Patch, exact validation metadata and logs](hosted-presentation-calibration-och17/run-37398392336/local-build.tar.gz)
+have a [verified four-file manifest](hosted-presentation-calibration-och17/run-37398392336/local-build-manifest.json).
+This proves local default-target compilation, including the standalone examples
+omitted from the earlier targeted gallery build. It does not establish a Linux
+pass, new native behavior coverage or hosted window-placement acceptance.

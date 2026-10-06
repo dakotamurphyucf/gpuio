@@ -4,13 +4,14 @@ Current handoff: 2026-10-05. Milestone **07 — Expanded v1 macOS validation and
 release** is in progress. **OCH-41 and OCH-17 remain open.** This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
-Run [37387307992](https://github.com/dakotamurphyucf/gpuio/actions/runs/37387307992)
-at branch `f6e34e2` is terminal: Linux passes; macOS fails custom-window pointer
-readiness and both Metal presentation probes; the fresh receiver is skipped.
-[Retained reports](evidence/hosted-presentation-calibration-och17.md#repeat-on-hosted-run-37387307992)
-identify NotificationCenter at the Fullscreen pointer target and preserve the
-continued paravirtual presentation-clock failures. Newer source remains outside
-this run's coverage. No gates are waived.
+Run [37398392336](https://github.com/dakotamurphyucf/gpuio/actions/runs/37398392336)
+at branch `c0694a2` is terminal: both platform builds fail on missing palette
+event cases in two low-level examples; macOS also fails both Metal presentation
+probes. Later unit/consumer/window checks and the fresh receiver are skipped.
+[Retained reports and correction](evidence/hosted-presentation-calibration-och17.md#repeat-on-hosted-run-37398392336)
+include a passing local all-example build and formatting check at `282daf0`
+plus the explicit event-match patch. Corrected hosted validation remains pending.
+No gates are waived.
 
 The [window-placement follow-up](evidence/window-readiness-och17.md#owned-window-placement-follow-up--2026-10-06-utc)
 now passes both complete local window walkthroughs. It moves only the test window
