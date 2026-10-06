@@ -417,3 +417,26 @@ and the [verified manifest](hosted-presentation-calibration-och17/run-3751583244
 retain 11 files (1,410,997 uncompressed bytes). Internal ad-hoc package checks
 do not establish release signing or whole-milestone acceptance. Full Linux desktop
 qualification remains deferred to OCH-47; required nongraphical gates remain.
+
+## Hosted run 37523471664
+
+[Run 37523471664](https://github.com/dakotamurphyucf/gpuio/actions/runs/37523471664)
+is terminal. Linux foundation and all three independently extracted macOS apps
+pass. macOS foundation fails the mounted-chart step: its pie-caption GPU test
+reports a missing independently colored leader for slice 1. This failure remains
+under investigation; it is not dismissed as a timing or runner issue. The two
+Metal presentation probes also fail. The full table-retention step passes,
+including its intentional failure/cleanup check.
+
+Checkout is merge `916b73c9781f00c6e376cd6743970be31711ca5b`, whose tree
+`abb7238ce3536467bfa1861679f0c5e89cb0f317` matches branch `f22abd8`. This covers
+custom axes, before subsequent appearance, cursor and guide-span work. It is not
+current-source or whole-release acceptance.
+
+Both GPUI windows receive 90 zero-time callbacks and finish with no pending
+submissions or missing callbacks. The standalone Metal probe again runs on Apple
+Paravirtual. The [primary reports and terminal job/source records](hosted-presentation-calibration-och17/run-37523471664/reports.tar.gz)
+and [verified manifest](hosted-presentation-calibration-och17/run-37523471664/manifest.json)
+retain the failures and scoped package results. Neither presentation gate is
+waived. Internal ad-hoc extracted-app checks do not establish clean-machine
+release signing or distribution acceptance; Linux GUI remains deferred OCH-47.
