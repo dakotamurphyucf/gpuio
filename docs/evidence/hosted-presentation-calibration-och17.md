@@ -341,3 +341,30 @@ and the [verified manifest](hosted-presentation-calibration-och17/run-3746041587
 retain 38 files (1,415,049 uncompressed bytes). Local success does not establish
 that the hosted timing races are resolved; the next CI run must check that.
 Broader catalog, accessibility, measured workload and release requirements remain.
+
+## Hosted run 37487278162
+
+[Run 37487278162](https://github.com/dakotamurphyucf/gpuio/actions/runs/37487278162)
+is terminal. Linux foundation and the independent fresh macOS receiver pass;
+the receiver checks gallery, Agent Workspace and Signal Studio. The only failed
+macOS foundation steps are the GPUI Metal presentation hook and standalone Metal
+calibration. Other executed macOS foundation checks, including the native table full-history
+test, pass. This is not full release acceptance.
+
+The checkout log identifies tested merge
+`d0d2295d56ea1744579bbd6bbad69b6ba7f4382c`, whose tree
+`014a401c09dc516465d93edfdf928b60d9b286e0` matches branch `c373e3b`.
+It includes the ordinary radar View API but predates subsequent input-lifetime
+and clipping repairs. Those changes still require current-source CI.
+
+Both GPUI hook sessions report 90 zero-time presentation callbacks, no missing
+callbacks and zero pending submissions after closure. Standalone Metal submits
+120 frames on Apple Paravirtual and receives 120 zero presentation times, failing
+clock ordering. This reproduces the hosted presentation limitation; it does not
+establish physical display timing, and neither gate is waived.
+
+[Primary reports, terminal job results and source identity](hosted-presentation-calibration-och17/run-37487278162/reports.tar.gz)
+and a [verified manifest](hosted-presentation-calibration-och17/run-37487278162/manifest.json)
+retain seven files (208,100 uncompressed bytes). The passing receiver uses internal
+ad-hoc packages; release signing, notices, clean-machine distribution and broader
+catalog/accessibility/performance qualification remain separate requirements.

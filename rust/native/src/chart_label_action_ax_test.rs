@@ -36,7 +36,10 @@ unsafe fn find(object: *mut AnyObject, depth: usize) -> Option<Retained<AnyObjec
     }
     None
 }
-async fn target(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>) -> Retained<AnyObject> {
+pub(super) async fn target(
+    cx: &mut gpui::AsyncApp,
+    handle: WindowHandle<View>,
+) -> Retained<AnyObject> {
     for _ in 0..100 {
         draw(cx, handle);
         let address = crate::host::editor_test::native_view(cx, handle) as *mut AnyObject;
@@ -54,13 +57,13 @@ async fn target(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>) -> Retained
     }
     panic!("native radar AXButton missing");
 }
-fn press(object: &Retained<AnyObject>) {
+pub(super) fn press(object: &Retained<AnyObject>) {
     unsafe {
         let accepted: Bool = msg_send![&**object, accessibilityPerformPress];
         assert!(accepted.as_bool());
     }
 }
-async fn delivered(cx: &mut gpui::AsyncApp, transport: &Transport) {
+pub(super) async fn delivered(cx: &mut gpui::AsyncApp, transport: &Transport) {
     for _ in 0..100 {
         let count = presses(transport);
         if count > 0 {

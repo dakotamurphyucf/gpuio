@@ -1,0 +1,44 @@
+{
+  "run": 37487278162,
+  "branch_commit": "c373e3b8d1a256c8ac44a9349883b27fdc744dd0",
+  "tested_merge": "d0d2295d56ea1744579bbd6bbad69b6ba7f4382c",
+  "tree": "014a401c09dc516465d93edfdf928b60d9b286e0",
+  "archive_sha256": "750df31990b4bfe06743e9829efa8eea012ee2d749d6762ae9956b177156a62f",
+  "files": [
+    {
+      "path": "jobs.json",
+      "bytes": 66785,
+      "sha256": "fa8fed05452706c62acf506e3c3cac353b6447883271f5c13fb735066aa3c3ee"
+    },
+    {
+      "path": "merge-source.json",
+      "bytes": 199,
+      "sha256": "08041df2151c26a184e9266199a4b3158a33079d59949a56c17be0db1be600e1"
+    },
+    {
+      "path": "checkout.txt",
+      "bytes": 1204,
+      "sha256": "aae8032af7563412383a57e9505e03b7ccca4bfb0cc6ef101834fa6dc8ae4b56"
+    },
+    {
+      "path": "reports/metal-presentation-calibration.json",
+      "bytes": 63548,
+      "sha256": "1ebc58fd37aae15964239be8b16443de792c9e74ee7a424e1f5227db3bf14715"
+    },
+    {
+      "path": "reports/metal-presentation-display.json",
+      "bytes": 35,
+      "sha256": "0e2a2e10de1b28c2c98b9bf2faadb16610de1aad4b8308e92b54c13e74402c3c"
+    },
+    {
+      "path": "reports/metal-presentation-hook/native.log",
+      "bytes": 122,
+      "sha256": "c0b114dcec83a6744a1b14cf21a9af8597b2a09a9227847e74604c511b9f94ac"
+    },
+    {
+      "path": "reports/metal-presentation-hook/report.json",
+      "bytes": 76207,
+      "sha256": "92d6343c64945d3be98d05c3f30047d2296c28bedd0200a020aae19476abbb46"
+    }
+  ]
+}

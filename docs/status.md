@@ -15,6 +15,20 @@ Three owner-authorized GPT-6.1 Sol agents contributed scoped walkthroughs in par
 Contributor guidance and a structural CI check keep new sources visible; neither
 file presence nor that check establishes documentation or platform acceptance.
 
+[Radar label clipping](evidence/radar-label-clipping-och41.md) now retires native
+focus and stale AppKit actions when resize clips a child inside a partly visible
+composite, without a tree/source update. Zero/oversized bounds and recovery pass.
+Broader testing caught and repaired cleanup ordering against carousel focus;
+the final native suite, strict lint and root gallery walkthrough pass. Idle
+rendering settles. Broader label/catalog/release qualification remains open.
+
+[Hosted run 37487278162](evidence/hosted-presentation-calibration-och17.md#hosted-run-37487278162)
+is terminal: Linux foundation and all three independently extracted macOS apps
+pass. Only the two macOS Metal presentation probes fail, again receiving zero-time
+callbacks on Apple Paravirtual. This covers tree-equivalent `c373e3b`, before the
+subsequent radar input/clipping repairs; current-source CI remains required.
+Neither physical-presentation gate is waived.
+
 [Radar label actions](evidence/radar-label-actions-och41.md) now reject ordinary
 button and command gestures that cross a hide/return transition, before and after
 repaint. Revocable native lifetimes also reject queued AppKit actions and retired

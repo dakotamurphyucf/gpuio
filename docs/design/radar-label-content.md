@@ -147,6 +147,13 @@ control inside a partly visible composite. Reuse the existing retained-slot
 visibility mechanisms where they have these semantics. Retaining an invisible
 subtree is not permission to retain its active pointer capture or popup.
 
+Native clipping can change during prepaint without an OCaml tree or source update.
+The complete-paint hook commits these measured visibility changes through shared
+input cleanup. Owner-specific focus restoration runs first; shared cleanup then
+releases any remaining ineligible focus to the existing root fallback. An unchanged
+mask does not schedule this additional cleanup. The native regression includes a
+partly visible composite with a fully clipped child and recovery after window resize.
+
 Preserve focus for an unchanged, still-visible axis on ordinary value updates.
 When its target becomes ineligible, retire native editor focus and move to a
 valid enclosing target using the repository's established focus rules. Do not

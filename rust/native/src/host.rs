@@ -1786,6 +1786,7 @@ impl Render for View {
                                 || !view.split_groups.is_empty()
                                 || !view.scrollbars.is_empty()
                                 || !view.toast_stacks.is_empty()
+                                || view.focus.borrow().track_visibility_changed()
                                 // A native style can reveal the last hidden scope.
                                 // Commit that sample even with no active matcher.
                                 || view.focus.borrow().has_pending_highlight_styles()
@@ -1816,6 +1817,16 @@ impl Render for View {
                                 }
                                 for owner in view.text_shimmers.values() {
                                     owner.finish_frame();
+                                }
+                                // Native resize/scroll can clip retained controls
+                                // without a tree/source update. Let owners (for
+                                // example, carousels) restore their local focus
+                                // before shared cleanup considers the root fallback.
+                                if view.focus.borrow().track_visibility_changed() {
+                                    view.sync_tooltips(window, cx);
+                                    if let Some(fallback) = &view.root_focus {
+                                        view.focus.borrow_mut().finish_frame(fallback, window, cx);
+                                    }
                                 }
                             });
                         });

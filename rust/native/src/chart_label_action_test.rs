@@ -3,6 +3,9 @@ use super::*;
 #[cfg(target_os = "macos")]
 #[path = "chart_label_action_ax_test.rs"]
 mod accessibility;
+#[cfg(target_os = "macos")]
+#[path = "chart_label_clip_test.rs"]
+mod clipping;
 #[path = "chart_label_command_test.rs"]
 mod commands;
 
@@ -116,6 +119,8 @@ pub(super) async fn exercise(
         0,
         "new frame cannot inherit the retired button down"
     );
+    #[cfg(target_os = "macos")]
+    clipping::exercise(cx, handle, transport).await;
     #[cfg(target_os = "macos")]
     accessibility::exercise(cx, handle, source, session, transport, data, absent).await;
     apply(
