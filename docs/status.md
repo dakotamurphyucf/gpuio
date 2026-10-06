@@ -15,6 +15,13 @@ Three owner-authorized GPT-6.1 Sol agents contributed scoped walkthroughs in par
 Contributor guidance and a structural CI check keep new sources visible; neither
 file presence nor that check establishes documentation or platform acceptance.
 
+[Radar rating/theme checks](evidence/radar-label-rating-theme-och41.md) pass actual
+AppKit rating increments, queued/retired action rejection and GPUI pointer gesture
+lifetimes without another runtime repair. The public gallery now verifies both
+theme transitions retain the custom-label editor's focus/draft and Bonsai counter.
+Native regressions, strict lint and the complete radar walkthrough pass with
+resource cleanup. Broader catalog/native accessibility/release work remains open.
+
 [Radar label isolation](evidence/radar-label-isolation-och41.md) now passes actual
 AppKit button actions for two charts in two windows with identical node IDs.
 Per-chart hiding, shared-axis removal/return and one owner's unmount/close preserve

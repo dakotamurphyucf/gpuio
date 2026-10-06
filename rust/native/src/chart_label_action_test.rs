@@ -11,6 +11,9 @@ mod commands;
 #[cfg(target_os = "macos")]
 #[path = "chart_label_isolation_test.rs"]
 mod isolation;
+#[cfg(target_os = "macos")]
+#[path = "chart_label_rating_test.rs"]
+mod rating;
 
 fn presses(transport: &Transport) -> usize {
     transport
@@ -134,6 +137,8 @@ pub(super) async fn exercise(
     commands::exercise(cx, handle, source, session, transport, data, absent).await;
     #[cfg(target_os = "macos")]
     isolation::exercise(cx, handle, session, transport, data, absent).await;
+    #[cfg(target_os = "macos")]
+    rating::exercise(cx, handle, source, session, transport, data, absent).await;
     eprintln!(
         "GPUIO_RADAR_BUTTON_LIFETIME_OK: native click, same-axis preservation, prepaint hide/return rejects old click and fresh input recovers"
     );

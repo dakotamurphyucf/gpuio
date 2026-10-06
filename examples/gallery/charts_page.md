@@ -336,6 +336,12 @@ retain their own styles instead of receiving `Chart_style.label_color`. Large
 content can overlap or clip: use normal View sizing and the chart's radius/gap
 controls when adapting the layout.
 
+Changing the application theme updates the palette values used by these ordinary
+Views. The axis keys, page-owned Bonsai counter and editor controller stay the
+same, so restyling does not replace the native editor or discard its draft.
+The public radar walkthrough switches themes in both directions with this field
+focused and checks its draft, focus and the counter afterward.
+
 **Show radar labels** changes `Chart_options.Radar.labels`, keeping the View
 entries mounted but hiding their native content. The original-data browser also
 hides them. Closing the browser or showing labels restores the content; neither

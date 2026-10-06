@@ -97,6 +97,17 @@ def exercise(mac, images):
     mac.key(49)
     mac.wait_text(TITLE, 'Radar label activations: 2')
     focus_gallery_control(mac, 'Radar axis note', 'AXTextField')
+    # The public theme is Bonsai state above both ordinary label children.
+    # Repainting their styles must retain the editor draft/focus and counter.
+    for current, alternate in [(initial, other), (other, initial)]:
+        mac.press(TITLE, current)
+        mac.release(mac.wait_find(TITLE, alternate, 'AXButton'))
+        expect_field(mac, TITLE, 'Radar axis note', 'b')
+        expect_focus(mac, 'Radar axis note', 'AXTextField')
+        expect_enabled(mac, 'Inspect radar quality', True)
+        mac.wait_text(TITLE, 'Radar label activations: 2')
+        if images:
+            screenshot(mac, images / f'gallery-radar-labels-theme-{alternate.lower()}.png', title=TITLE)
     toggle('Disable chart input', keep_viewport=True)
     expect_enabled(mac, 'Inspect radar quality', False)
     expect_enabled(mac, 'Radar axis note', False, role='AXTextField')
@@ -131,4 +142,4 @@ def exercise(mac, images):
     toggle('Custom radar labels', keep_viewport=True)
     wait_absent(mac, 'Radar axis note', 'AXTextField')
     print('GALLERY_RADAR_OK: shared/explicit/per-axis scale, radius, gap, native selection and original values', flush=True)
-    print('GALLERY_RADAR_LABELS_OK: ordinary OCaml Views, click/keyboard effects, ancestor disable, hide/browser retention and unmount', flush=True)
+    print('GALLERY_RADAR_LABELS_OK: ordinary OCaml Views, click/keyboard effects, theme focus/draft retention, ancestor disable, hide/browser retention and unmount', flush=True)

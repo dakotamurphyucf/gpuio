@@ -83,6 +83,11 @@ per-owner hiding, shared-source membership changes, unmount/close and exact
 window/node routing. Specialized widget and broader accessibility acceptance
 remain separate.
 
+[Rating and public-theme evidence](../evidence/radar-label-rating-theme-och41.md)
+also covers the specialized rating's AppKit increment and pointer gesture
+lifetimes, plus custom-label editor focus/draft and Bonsai counter retention
+across both application themes. No runtime repair was needed for these cases.
+
 ## Interaction, accessibility and resource evidence
 
 [`Chart.Config`](../../lib/core/chart.mli) supports native pointer/drag selection,
