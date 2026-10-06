@@ -52,10 +52,16 @@ type t [@@deriving equal, sexp_of]
     existing options' visibility gates. [grid] controls independent positions
     and line appearance. All colors, including per-tick colors, resolve here.
 
+    [appearance] supplies series paths, markers, bar brushes/corners and explicit
+    legend colors. Omitted fields inherit this style; per-datum marker/bar fields
+    inherit their series. Explicit area/radar fills carry their own alpha. Stacked
+    area layers require matching effective curves, otherwise native preparation
+    reports [Chart.Error.Invalid_config].
+
     Palette length 1..32; stroke width 0.5..8, point radius 1..12 and bar corner
     radius 0..32 logical pixels. Area opacity is 0..1. Optional [gradient_end]
     makes bars fade from their palette color to that color along the value axis.
-    Corner radii clamp to each bar's size. Other filled families use palette
+    Corner radii clamp to each bar's size. Without appearance overrides, filled families use palette
     colors; area/radar fills additionally apply [area_opacity]. Native labels
     inherit the view's font and use [label_color]. The original-data companion
     derives its foreground, neutral backing and borders from [label_color], and
@@ -71,6 +77,7 @@ val create
   -> ?x_axis:Chart_axis.t
   -> ?y_axis:Chart_axis.t
   -> ?grid:Chart_grid.t
+  -> ?appearance:Chart_appearance.t
   -> ?axis_color:Color.t
   -> ?grid_color:Color.t
   -> ?label_color:Color.t

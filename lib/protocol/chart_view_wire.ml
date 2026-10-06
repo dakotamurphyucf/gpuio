@@ -39,6 +39,7 @@ module Error = struct
     | Unavailable_data
     | Render_limit
     | Native_failure
+    | Invalid_config
   [@@deriving bin_io, equal, sexp_of]
 end
 

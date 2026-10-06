@@ -83,7 +83,7 @@ fn axis_and_grid_match_independent_ocaml_bytes_and_current_envelope() {
     let index = bad_utf8.windows(2).position(|v| v == [0xce, 0xbb]).unwrap();
     bad_utf8[index] = 255;
     assert!(decode_chart_style(&bad_utf8).is_err());
-    for version in [-3, -2, -1, 0, 1] {
+    for version in [-4, -3, -2, -1, 0, 1] {
         let mut old = style.clone();
         old.version = version;
         assert_eq!(
@@ -94,7 +94,7 @@ fn axis_and_grid_match_independent_ocaml_bytes_and_current_envelope() {
     let old = unhex(include_str!("../../../test/fixtures/chart-v9-pie-view.hex").trim());
     assert_eq!(decode_chart_view_config(&old), Err(DecodeError::Malformed));
     let mut bad = encode(&Style::default());
-    let start = bad.len() - 66;
+    let start = bad.len() - 69;
     bad[start + 5] = 3; // Invalid side, with all following fields still present.
     assert_eq!(decode_chart_style(&bad), Err(DecodeError::Malformed));
     bad[start + 5] = 0;

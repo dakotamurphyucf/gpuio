@@ -108,7 +108,7 @@ fn cartesian_categorical_and_radar_colors_follow_series_identity_after_reorder()
                 assert_eq!(prepared.series_color(index), expected);
                 assert_eq!(names[index], format!("Series {id}"));
                 if !matches!(source.contents, data::Contents::Radar(..)) {
-                    assert_eq!(prepared.quads[index].color, expected);
+                    assert_eq!(brush_color(prepared.quads[index].brush), expected);
                     let details = chart_details::describe(
                         source,
                         &Policy::default(),
@@ -147,7 +147,7 @@ fn pie_reorder_cycles_domain_colors_and_unknown_falls_back_only_when_requested()
                     _ => style.color(index),
                 };
                 assert_eq!(p.series_color(index), expected);
-                assert_eq!(p.meshes[index].color, expected);
+                assert_eq!(brush_color(p.meshes[index].brush), expected);
             }
         }
     }
@@ -171,7 +171,7 @@ fn sankey_ribbons_and_nodes_use_the_same_stable_source_node_color() {
             }],
         ));
         let p = plan(&source, &style);
-        assert_eq!(p.meshes[0].color, alpha(BLUE as u32, 0.5));
+        assert_eq!(brush_color(p.meshes[0].brush), alpha(BLUE as u32, 0.5));
         for (index, id) in ids.iter().copied().enumerate() {
             let expected = match id {
                 2 => RED,
@@ -186,7 +186,10 @@ fn sankey_ribbons_and_nodes_use_the_same_stable_source_node_color() {
             .map(|id| if id == 2 { RED as u32 } else { BLUE as u32 })
             .collect::<Vec<_>>();
         assert_eq!(
-            p.quads.iter().map(|q| q.color).collect::<Vec<_>>(),
+            p.quads
+                .iter()
+                .map(|q| brush_color(q.brush))
+                .collect::<Vec<_>>(),
             visible,
             "the isolated zero-flow node keeps its legend color but has no rectangle"
         );
@@ -223,7 +226,7 @@ fn candle_movement_and_key_namespaces_do_not_depend_on_raw_id_collisions() {
             .iter()
             .any(|q| q.border.is_some_and(|(_, c)| c == BLUE as u32))
     );
-    assert!(p.quads.iter().any(|q| q.color == RED as u32));
+    assert!(p.quads.iter().any(|q| brush_color(q.brush) == RED as u32));
     let wrong_namespace = data(data::Contents::Pie(vec![data::Slice {
         id: 9,
         label: "Nine".into(),

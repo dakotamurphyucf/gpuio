@@ -44,6 +44,7 @@ type t =
   ; x_axis : Chart_axis_wire.t
   ; y_axis : Chart_axis_wire.t
   ; grid : Chart_grid_wire.t
+  ; appearance : Chart_appearance_wire.t
   }
 [@@deriving bin_io, equal, sexp_of]
 
@@ -64,7 +65,7 @@ let valid_ordinal (t : Ordinal.t) =
 ;;
 
 let valid t =
-  Int64.equal t.version (-4L)
+  Int64.equal t.version (-5L)
   && List.length t.palette >= 1
   && List.length t.palette <= 32
   && List.for_all t.palette ~f:color
@@ -84,4 +85,5 @@ let valid t =
   && Chart_axis_wire.valid t.x_axis
   && Chart_axis_wire.valid t.y_axis
   && Chart_grid_wire.valid t.grid
+  && Chart_appearance_wire.valid t.appearance
 ;;

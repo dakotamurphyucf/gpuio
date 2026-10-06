@@ -8,7 +8,7 @@ fn bytes(style: &Style) -> Vec<u8> {
 #[test]
 fn paired_style_fixture_and_decoder_bounds() {
     let value = Style {
-        version: -4,
+        version: -5,
         palette: vec![1, 2],
         axis_color: 3,
         grid_color: 4,
@@ -27,8 +27,9 @@ fn paired_style_fixture_and_decoder_bounds() {
         x_axis: Default::default(),
         y_axis: Default::default(),
         grid: Default::default(),
+        appearance: Default::default(),
     };
-    let hex = "fffc020102030405060107000000000000004000000000000008400000000000001040000000000000e03f000101010000000000008071400000000000002040000000000000204000000000000018400000000000002840000000000000314000000000000000000000000000000000000000f03f0001010000000000003040000000000000000000000000000101000000000000000000000000002640000000000000f03f00000101000000000000000000000000002640000000000000f03f0000000000000000000000f03f00";
+    let hex = "fffb020102030405060107000000000000004000000000000008400000000000001040000000000000e03f000101010000000000008071400000000000002040000000000000204000000000000018400000000000002840000000000000314000000000000000000000000000000000000000f03f0001010000000000003040000000000000000000000000000101000000000000000000000000002640000000000000f03f00000101000000000000000000000000002640000000000000f03f0000000000000000000000f03f00000000";
     let expected: Vec<u8> = hex
         .as_bytes()
         .chunks_exact(2)
@@ -43,7 +44,7 @@ fn paired_style_fixture_and_decoder_bounds() {
     trailing.push(0);
     assert_eq!(decode_chart_style(&trailing), Err(DecodeError::Malformed));
     assert_eq!(
-        decode_chart_style(&[0; 192 * 1024 + 1]),
+        decode_chart_style(&[0; 384 * 1024 + 1]),
         Err(DecodeError::LimitExceeded)
     );
     assert!(Style::default().is_valid());
@@ -101,7 +102,7 @@ fn invalid_raw_styles_cannot_reach_paint() {
 fn explicit_ordinal_namespaces_match_independent_bytes_and_reject_legacy_style() {
     use gpuio_protocol::chart_style::{Key, Ordinal};
     let mut style = Style {
-        version: -4,
+        version: -5,
         palette: vec![1, 2],
         axis_color: 3,
         grid_color: 4,
@@ -130,8 +131,9 @@ fn explicit_ordinal_namespaces_match_independent_bytes_and_reject_legacy_style()
         x_axis: Default::default(),
         y_axis: Default::default(),
         grid: Default::default(),
+        appearance: Default::default(),
     };
-    let hex = "fffc020102030405060107000000000000004000000000000008400000000000001040000000000000e03f01050009010902090304020a14011e0101010000000000008071400000000000002040000000000000204000000000000018400000000000002840000000000000314000000000000000000000000000000000000000f03f0001010000000000003040000000000000000000000000000101000000000000000000000000002640000000000000f03f00000101000000000000000000000000002640000000000000f03f0000000000000000000000f03f00";
+    let hex = "fffb020102030405060107000000000000004000000000000008400000000000001040000000000000e03f01050009010902090304020a14011e0101010000000000008071400000000000002040000000000000204000000000000018400000000000002840000000000000314000000000000000000000000000000000000000f03f0001010000000000003040000000000000000000000000000101000000000000000000000000002640000000000000f03f00000101000000000000000000000000002640000000000000f03f0000000000000000000000f03f00000000";
     let expected = hex
         .as_bytes()
         .chunks_exact(2)
@@ -249,7 +251,7 @@ fn pie_caption_overrides_have_paired_bytes_and_reject_untrusted_payloads() {
     };
     let encoded = bytes(&style);
     assert_eq!(
-        &encoded[encoded.len() - 76..encoded.len() - 66],
+        &encoded[encoded.len() - 79..encoded.len() - 69],
         &[1, 7, 1, 2, 0xce, 0xbb, 1, 7, 1, 3]
     );
     assert_eq!(decode_chart_style(&encoded), Ok(style.clone()));
@@ -260,7 +262,7 @@ fn pie_caption_overrides_have_paired_bytes_and_reject_untrusted_payloads() {
     trailing.push(0);
     assert_eq!(decode_chart_style(&trailing), Err(DecodeError::Malformed));
     let mut prefix = bytes(&Style::default());
-    prefix.truncate(prefix.len() - 68);
+    prefix.truncate(prefix.len() - 71);
     for suffix in [vec![1, 7, 1, 1, 255, 0, 0], vec![254, 1, 1], vec![1, 7, 2]] {
         let mut bad = prefix.clone();
         bad.extend(suffix);

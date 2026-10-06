@@ -1,8 +1,8 @@
 open Core
 
-(** Chart appearance under implementation. Constructors and theme resolution are
-    available; attachment to Chart_style and native rendering are not yet wired.
-    See docs/design/chart-mark-appearance.md for the complete delivery contract. *)
+(** Bounded immutable path, marker and bar presentation. [Chart_style.create]
+    resolves theme tokens before native preparation; no paint callback enters OCaml.
+    Source values and stable selection IDs remain independent of presentation. *)
 module Corners : sig
   type t [@@deriving equal, sexp_of]
 
@@ -60,8 +60,11 @@ module Marker : sig
   type t [@@deriving equal, sexp_of]
 
   (** Partial override; inherited radius remains Chart_style.point_radius. Radius
-      1..24, border width 0..8, clamped to radius. Existing dots flag remains master.
-      Hidden markers retain the existing line/area/radar selection behavior. *)
+      1..24, border width 0..8, clamped to radius. Border width defaults to zero;
+      supply a positive width to show a border. Dots follow the existing options,
+      including the isolated-point fallback; [visible=true] does not enable dots
+      suppressed by those options. Hidden markers retain selection with the
+      default chart hit radius; visible markers use their effective radius. *)
   val create
     :  ?visible:bool
     -> ?radius:float

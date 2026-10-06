@@ -21,6 +21,7 @@ pub enum Error {
 struct Entry {
     bounds: Rect,
     mark: usize,
+    radius: f64,
 }
 struct Node {
     bounds: Rect,
@@ -35,7 +36,6 @@ pub struct Index {
     nodes: Vec<Node>,
     columns: Vec<Vec<usize>>,
     horizontal: bool,
-    point_radius: f64,
 }
 fn contains(r: Rect, p: Point) -> bool {
     p.x >= r.left && p.x <= r.right && p.y >= r.top && p.y <= r.bottom
@@ -228,12 +228,28 @@ fn build(
 impl Index {
     /// The validated geometry contains at most 100,000 marks. Cancellation can
     /// interrupt construction between bounded partitions; none of this runs in paint.
+    #[cfg(test)]
     pub fn prepare(
         plan: &Plan,
         orientation: Orientation,
         point_radius: f64,
         cancel: &AtomicBool,
     ) -> Result<Self, Error> {
+        Self::prepare_with_radii(plan, orientation, point_radius, None, cancel)
+    }
+    pub(crate) fn prepare_with_radii(
+        plan: &Plan,
+        orientation: Orientation,
+        point_radius: f64,
+        radii: Option<&[f64]>,
+        cancel: &AtomicBool,
+    ) -> Result<Self, Error> {
+        if radii.is_some_and(|r| {
+            r.len() != plan.marks.len()
+                || r.iter().any(|r| !r.is_finite() || !(1. ..=24.).contains(r))
+        }) {
+            return Err(Error::InvalidGeometry);
+        }
         if plan.marks.len() > MAX_MARKS {
             return Err(Error::LimitExceeded);
         }
@@ -250,7 +266,6 @@ impl Index {
         }
         let mut index = Self {
             horizontal: orientation.is_horizontal(),
-            point_radius: (point_radius + 4.).max(8.),
             ..Self::default()
         };
         let mut columns = BTreeMap::<usize, Vec<usize>>::new();
@@ -258,7 +273,8 @@ impl Index {
             if i % 256 == 0 && cancel.load(Ordering::Relaxed) {
                 return Err(Error::Cancelled);
             }
-            let bounds = bounds(mark.shape, index.point_radius);
+            let radius = (radii.map_or(point_radius, |r| r[i]) + 4.).max(8.);
+            let bounds = bounds(mark.shape, radius);
             if ![bounds.left, bounds.top, bounds.right, bounds.bottom]
                 .into_iter()
                 .all(f64::is_finite)
@@ -267,7 +283,11 @@ impl Index {
             {
                 return Err(Error::InvalidGeometry);
             }
-            index.entries.push(Entry { bounds, mark: i });
+            index.entries.push(Entry {
+                bounds,
+                mark: i,
+                radius,
+            });
             if let (Source::Cartesian { series, .. }, Shape::Dot { .. }) = (mark.source, mark.shape)
             {
                 columns.entry(series).or_default().push(i);
@@ -318,7 +338,7 @@ impl Index {
         for entry in &self.entries[node.start..node.end] {
             let mark = &plan.marks[entry.mark];
             if contains(entry.bounds, p)
-                && hit(mark.shape, p, self.point_radius)
+                && hit(mark.shape, p, entry.radius)
                 && best.is_none_or(|old| prefer(plan, entry.mark, old, p))
             {
                 *best = Some(entry.mark);
@@ -485,7 +505,7 @@ mod tests {
                             .marks
                             .iter()
                             .enumerate()
-                            .filter(|(_, m)| hit(m.shape, p, index.point_radius))
+                            .filter(|(_, m)| hit(m.shape, p, 8.))
                             .fold(None, |best, (i, _)| {
                                 if best.is_none_or(|old| prefer(&plan, i, old, p)) {
                                     Some(i)

@@ -117,9 +117,19 @@ fn opacity_rounding_node_corners_and_edge_relative_labels_use_configuration() {
     options.sankey.link_opacity = 0.25;
     options.sankey.label_gap = 24.;
     let plan = prepared(&options, 400., 200.);
-    assert!(plan.meshes.iter().all(|m| m.color == 0x12345620));
     assert!(
-        plan.quads.iter().all(|q| q.radius == 8.),
+        plan.meshes
+            .iter()
+            .all(|m| brush_color(m.brush) == 0x12345620)
+    );
+    assert!(
+        plan.quads.iter().all(|q| q.corners
+            == Corners {
+                top_left: 8.,
+                top_right: 8.,
+                bottom_left: 8.,
+                bottom_right: 8.
+            }),
         "radius clamps to half the 16px node width"
     );
     for (index, label) in plan.geometry.labels.iter().enumerate() {
@@ -148,7 +158,12 @@ fn opacity_rounding_node_corners_and_edge_relative_labels_use_configuration() {
     }
     options.sankey.link_opacity = 0.;
     let hidden = prepared(&options, 400., 200.);
-    assert!(hidden.meshes.iter().all(|m| m.color & 255 == 0));
+    assert!(
+        hidden
+            .meshes
+            .iter()
+            .all(|m| brush_color(m.brush) & 255 == 0)
+    );
     assert_eq!(
         hidden.geometry.marks.len(),
         plan.geometry.marks.len(),
@@ -200,7 +215,10 @@ fn link_brushes_follow_ids_and_opacity_without_changing_geometry_or_budget() {
             assert_eq!(plan.retained_bytes(), ordinary.retained_bytes());
             assert_eq!(plan.meshes.len(), 2, "zero-valued third edge stays absent");
             for draw in &plan.meshes {
-                assert_eq!((draw.color, draw.gradient_end), (start, end));
+                assert_eq!(
+                    draw.brush,
+                    end.map_or(solid(start), |end| gradient(90., start, end))
+                );
             }
             assert!(
                 plan.geometry

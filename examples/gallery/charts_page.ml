@@ -199,6 +199,7 @@ let component app window palette graph =
       graph
   in
   let axes, set_axes = B.state Chart_axes.Default graph in
+  let marks, set_marks = B.state Chart_marks.Default graph in
   let inspection, set_inspection = B.state Samples.Inspection.Default graph in
   let flow_style, set_flow_style = B.state Samples.Sankey_presentation.Default graph in
   let narrow_flow, toggle_narrow_flow = B.toggle ~default_model:false graph in
@@ -252,6 +253,8 @@ let component app window palette graph =
   and set_flow_style = set_flow_style
   and axes = axes
   and set_axes = set_axes
+  and marks = marks
+  and set_marks = set_marks
   and inspection = inspection
   and set_inspection = set_inspection
   and narrow_flow = narrow_flow
@@ -378,7 +381,11 @@ let component app window palette graph =
                   (if spaced_radar then 24 else 0)
               else direction)
              (Samples.Inspection.label inspection)
-             (if Chart_axes.equal axes Default then "" else " · " ^ Chart_axes.label axes))
+             ((if Chart_axes.equal axes Default then "" else " · " ^ Chart_axes.label axes)
+              ^
+              if Chart_marks.equal marks Default
+              then ""
+              else " · " ^ Chart_marks.label marks))
       | Failed e -> set_notice (Sexp.to_string_hum [%sexp (e : Chart.Error.t)])
       | Selection_changed target ->
         E.of_thunk (fun () -> B.Expert.Var.set selected target)
@@ -409,6 +416,7 @@ let component app window palette graph =
         ~cartesian:
           (Chart_options.Cartesian.create
              ~orientation
+             ~dots:(Chart_marks.dots marks)
              ~stacking:(if stack_mode && stacked then Stacked else Grouped)
              ~category_layout:(Category_layout.options category_layout)
              ()
@@ -451,6 +459,11 @@ let component app window palette graph =
         ~x_axis
         ~y_axis
         ~grid
+        ~appearance:
+          (Option.value_map
+             (Registered.data source.chart)
+             ~default:Chart_appearance.empty
+             ~f:(Chart_marks.configuration marks p))
         ?ordinal:
           (Option.some_if
              (Mode.equal current_mode Ordinal_colors)
@@ -523,6 +536,7 @@ let component app window palette graph =
            ~disabled
            ~options
            ~style:chart_style
+           ~sampling:(Chart_marks.sampling marks)
            ()
          |> ok)
     in
@@ -565,6 +579,26 @@ let component app window palette graph =
             ]
           | Family (Pie | Radar | Sankey) | Ordinal_colors | Flow_styling | Flow_labels ->
             [])
+       @ (match current_mode with
+          | Family (Line | Area | Bar | Radar)
+          | Mixed | Categorical | Stacked_bars | Stacked_areas ->
+            [ V.row
+                ~style:(style [ Gap (px 6.); Wrap Wrap ])
+                (List.map Chart_marks.all ~f:(fun candidate ->
+                   Palette.button
+                     p
+                     ~selected:(Chart_marks.equal candidate marks)
+                     (Chart_marks.label candidate)
+                     (set_marks candidate)))
+            ; Palette.text
+                p
+                ~size:12.
+                ~muted:true
+                "Mark styles follow source IDs. Aggregate colors require agreement; \
+                 original values remain available."
+            ]
+          | Family (Pie | Candlestick | Sankey)
+          | Ordinal_colors | Flow_styling | Flow_labels -> [])
        @ (if Mode.equal current_mode (Family Pie)
           then
             [ V.row

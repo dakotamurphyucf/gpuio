@@ -88,6 +88,184 @@ fn cases() -> Vec<Case> {
             samples,
         })
     };
+    use gpuio_protocol::chart_appearance as a;
+    use gpuio_protocol::chart_options::Orientation;
+    let series_override = |bar, path, marker| a::Series {
+        series: 1,
+        path,
+        marker,
+        bar,
+        legend: None,
+    };
+    let mut single = series();
+    single.points.truncate(1);
+    single.points[0].y = Some(2.);
+    for orientation in [
+        Orientation::Vertical,
+        Orientation::Horizontal,
+        Orientation::VerticalReversed,
+        Orientation::HorizontalReversed,
+    ] {
+        for value in [2., -2.] {
+            let mut source = single.clone();
+            source.points[0].y = Some(value);
+            let mut config = options();
+            config.cartesian.orientation = orientation;
+            let mut appearance = style();
+            appearance.appearance.series.push(series_override(
+                Some(a::Bar {
+                    fill: Some(a::BarFill::BaseToTip(0xff0000ff, 0x0000ffff)),
+                    corners: Some(Corners {
+                        top_left: 0.,
+                        top_right: 0.,
+                        bottom_left: 0.,
+                        bottom_right: 0.,
+                    }),
+                }),
+                None,
+                None,
+            ));
+            add(
+                "appearance-base-tip",
+                dataset(data::Contents::Cartesian(vec![data::Layer::Bar(source)])),
+                config,
+                appearance,
+                vec![],
+            );
+        }
+        let mut source = single.clone();
+        source.points[0].y = Some(4.);
+        let mut config = options();
+        config.cartesian.orientation = orientation;
+        let mut appearance = style();
+        appearance.appearance.series.push(series_override(
+            Some(a::Bar {
+                fill: Some(a::BarFill::Values(1., 0xff0000ff, 3., 0x0000ffff)),
+                corners: None,
+            }),
+            None,
+            None,
+        ));
+        add(
+            "appearance-value-plateaus",
+            dataset(data::Contents::Cartesian(vec![data::Layer::Bar(source)])),
+            config,
+            appearance,
+            vec![],
+        );
+    }
+    let mut corners = style();
+    corners.appearance.series.push(series_override(
+        Some(a::Bar {
+            fill: Some(a::BarFill::Background(solid(0x00ff00ff))),
+            corners: Some(Corners {
+                top_left: 24.,
+                top_right: 0.,
+                bottom_right: 16.,
+                bottom_left: 0.,
+            }),
+        }),
+        None,
+        None,
+    ));
+    add(
+        "appearance-corners",
+        dataset(data::Contents::Cartesian(vec![data::Layer::Bar(single)])),
+        options(),
+        corners,
+        vec![
+            sample(62., 2., 0, 0, 0),
+            sample(138., 2., 0, 255, 0),
+            sample(138., 158., 0, 0, 0),
+            sample(62., 158., 0, 255, 0),
+        ],
+    );
+    let mut marker_source = series();
+    for (i, point) in marker_source.points.iter_mut().enumerate() {
+        point.y = Some(i as f64);
+    }
+    let mut markers = style();
+    markers.appearance.series.push(series_override(
+        None,
+        None,
+        Some(a::Marker {
+            fill: Some(0x00ff00ff),
+            stroke: Some(0x0000ffff),
+            radius: Some(12.),
+            stroke_width: Some(4.),
+            ..Default::default()
+        }),
+    ));
+    markers.appearance.data.push(a::Datum {
+        series: 1,
+        datum: 2,
+        bar: None,
+        marker: Some(a::Marker {
+            radius: Some(24.),
+            ..Default::default()
+        }),
+    });
+    let mut dots = options();
+    dots.cartesian.dots = true;
+    add(
+        "appearance-markers",
+        dataset(data::Contents::Cartesian(vec![data::Layer::Line(
+            marker_source,
+        )])),
+        dots,
+        markers,
+        vec![
+            sample(100., 80., 0, 255, 0),
+            sample(122., 80., 0, 0, 255),
+            sample(126., 80., 0, 0, 0),
+        ],
+    );
+    let mut area = style();
+    area.area_opacity = 0.01;
+    area.appearance.series.push(series_override(
+        None,
+        Some(a::Path {
+            fill: Some(solid(0x0000ff80)),
+            stroke: Some(a::Stroke {
+                visible: true,
+                width: Some(8.),
+                brush: solid(0x00ff00ff),
+            }),
+            curve: None,
+        }),
+        None,
+    ));
+    add(
+        "appearance-area",
+        dataset(data::Contents::Cartesian(vec![data::Layer::Area(series())])),
+        options(),
+        area,
+        vec![sample(100., 80., 0, 0, 128), sample(50., 80., 0, 255, 0)],
+    );
+    let mut line = series();
+    for point in &mut line.points {
+        point.y = Some(1.);
+    }
+    let mut path_gradient = style();
+    path_gradient.appearance.series.push(series_override(
+        None,
+        Some(a::Path {
+            stroke: Some(a::Stroke {
+                visible: true,
+                width: Some(8.),
+                brush: gradient(90., 0xff0000ff, 0x0000ffff),
+            }),
+            ..Default::default()
+        }),
+        None,
+    ));
+    add(
+        "appearance-path-gradient",
+        dataset(data::Contents::Cartesian(vec![data::Layer::Line(line)])),
+        options(),
+        path_gradient,
+        vec![],
+    );
     add(
         "line",
         dataset(data::Contents::Cartesian(vec![data::Layer::Line(series())])),
@@ -723,6 +901,28 @@ async fn exercise(
                     "{} plot clip",
                     case.name
                 );
+                if matches!(case.name, "appearance-base-tip" | "appearance-value-plateaus") {
+                    let horizontal = case.options.cartesian.orientation.is_horizontal();
+                    let (first, last) = if horizontal {
+                        (pixel(&image, bounds, scale, 20., 80.), pixel(&image, bounds, scale, 180., 80.))
+                    } else { (pixel(&image, bounds, scale, 100., 20.), pixel(&image, bounds, scale, 100., 140.)) };
+                    let data::Contents::Cartesian(layers) = &case.data.contents else { panic!() };
+                    let negative = layers[0].series().points[0].y.unwrap() < 0.;
+                    let tip_at_start = !horizontal ^ case.options.cartesian.orientation.is_reversed() ^ negative;
+                    let (base, tip) = if tip_at_start { (last, first) } else { (first, last) };
+                    assert!(base[0] > tip[0] + 100 && tip[2] > base[2] + 100,
+                        "{} signed orientation {:?}, negative={negative}: base{base:?} tip{tip:?}", case.name, case.options.cartesian.orientation);
+                    if case.name == "appearance-value-plateaus" {
+                        assert!(base[0] > 247 && base[2] < 8 && tip[2] > 247 && tip[0] < 8,
+                            "value endpoints remain plateaus: {base:?} {tip:?}");
+                    }
+                }
+                if case.name == "appearance-path-gradient" {
+                    let first = pixel(&image, bounds, scale, 20., 80.);
+                    let last = pixel(&image, bounds, scale, 180., 80.);
+                    assert!(first[0] > last[0] + 100 && last[2] > first[2] + 100,
+                        "path brush spans its prepared bounds: {first:?} {last:?}");
+                }
                 if case.name == "sankey-gradient" {
                     let left = pixel(&image, bounds, scale, 35., 80.);
                     let right = pixel(&image, bounds, scale, 165., 80.);

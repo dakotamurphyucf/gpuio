@@ -6,6 +6,8 @@ module Error : sig
     | Unavailable_data
     | Render_limit
     | Native_failure
+    | Invalid_config
+    (** Source-dependent configuration conflict, such as mismatched stacked-area curves. *)
   [@@deriving equal, sexp_of]
 end
 

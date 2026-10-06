@@ -42,7 +42,13 @@ fn custom_axis_strokes_have_independent_brushes_positions_and_visibility() {
     };
     let plan = make(&options, &style);
     assert_eq!(plan.mesh_count(), 2);
-    assert_eq!((plan.meshes[0].color, plan.meshes[1].color), (7, 8));
+    assert_eq!(
+        (
+            brush_color(plan.meshes[0].brush),
+            brush_color(plan.meshes[1].brush)
+        ),
+        (7, 8)
+    );
     let x = plan.meshes[0].mesh.bounds().unwrap();
     let y = plan.meshes[1].mesh.bounds().unwrap();
     assert_eq!((x.top, x.bottom), (38., 42.));
@@ -106,7 +112,10 @@ fn categorical_axis_strokes_do_not_require_a_numeric_x_domain() {
                 "{orientation:?} x={x} y={y}"
             );
             if x || y {
-                assert_eq!(plan.meshes[0].color, Style::default().axis_color as u32);
+                assert_eq!(
+                    brush_color(plan.meshes[0].brush),
+                    Style::default().axis_color as u32
+                );
                 let bounds = plan.meshes[0].mesh.bounds().unwrap();
                 let vertical = if orientation.is_horizontal() { x } else { y };
                 let horizontal = if orientation.is_horizontal() { y } else { x };
@@ -191,7 +200,7 @@ fn wedges_ribbons_and_candle_noncolor_geometry_prepare() {
     }]))
     .unwrap();
     assert_eq!(p.quad_count(), 3);
-    assert_eq!(p.quads[2].color, 0);
+    assert_eq!(brush_color(p.quads[2].brush), 0);
     assert!(p.quads[2].border.is_some());
     assert!(p.quads[0].rect.bottom <= p.quads[2].rect.top);
     assert!(p.quads[1].rect.top >= p.quads[2].rect.bottom);

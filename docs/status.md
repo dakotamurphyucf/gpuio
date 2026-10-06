@@ -5,14 +5,16 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **O
 Markdown walkthroughs for every example component; its documentation acceptance is complete. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
-[Chart appearance values and codecs](evidence/chart-appearance-values-och41.md)
-now have validated OCaml constructors, theme resolution and paired bounded Rust
-decoding, with local chart/protocol tests and strict lint passing. Native chart
-attachment, rendering, hit testing and public gallery qualification remain under
-implementation; this checkpoint adds no rendered capability or release acceptance.
+[Native chart appearance](evidence/chart-mark-appearance-och41.md) now exposes
+independent path fill/stroke/curve, marker borders/radii, bar corners and
+signed/domain/value gradients through bounded stable-ID overrides. Paired codecs,
+1,050 native tests, actual GPU pixels, the mounted view, full Dune checks and
+root/fresh-installed gallery walkthroughs pass locally, including selection and
+zero-resource cleanup. Style schema is -5; matching packages are required. Dense
+backgrounds/patterns, baselines, rich inspection and broader release work remain.
 
 [Example walkthrough coverage](evidence/example-walkthroughs-och48.md) now has an
-explicit inventory of 419 OCaml/Rust source files in 261 groups, with all 261 groups
+explicit inventory of 421 OCaml/Rust source files in 262 groups, with all 262 groups
 reviewed and none pending. The starter, palette/scope/gallery/theme guides,
 chart samples and application, controls/editors/menus, and Agent Chat startup/model/
 message/motion/conversation guides, gallery data/media pages and positioned-menu
@@ -25,8 +27,8 @@ file presence nor that check establishes documentation or platform acceptance.
 explicit numeric/category/fraction ticks, caption styling, axis placement and
 dashed grids from OCaml. Paired codecs, geometry and actual GPU/font checks,
 root/fresh-installed gallery walkthroughs and resource cleanup pass locally.
-Visual review also found and repaired a clipped floating-axis endpoint. Style
-schema is now -4; matching packages are required. Current-source hosted/Linux
+Visual review also found and repaired a clipped floating-axis endpoint. At that checkpoint, style
+schema was -4; matching packages are required. Current-source hosted/Linux
 checks, broader catalog work and release qualification remain open.
 
 [Hosted run 37515832448](evidence/hosted-presentation-calibration-och17.md#hosted-run-37515832448)

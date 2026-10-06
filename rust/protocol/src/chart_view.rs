@@ -45,6 +45,7 @@ pub enum Error {
     UnavailableData,
     RenderLimit,
     NativeFailure,
+    InvalidConfig,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
 pub struct Metrics {

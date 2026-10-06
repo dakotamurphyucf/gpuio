@@ -498,7 +498,11 @@ explains physical-fraction ticks and styling; Cartesian axes transpose with
 orientation, while candlestick axes remain vertical. These controls change
 presentation without publishing new source data and are still under qualification. Each page visit acquires one
 scoped registration; leaving releases it. Choices survive a revisit while source
-phase and selection start fresh. The original-data table includes node records
+phase and selection start fresh. Read the pure [mark preset guide](chart_marks.md) for source-ID highlights,
+path/bar styling and explicit aggregate sampling in Cartesian/radar modes. Pie,
+Candlestick, Ordinal colors and flow modes hide these controls; integration remains
+under qualification.
+The original-data table includes node records
 for Sankey flows as well as their numerical edge values.
 
 Motion demonstrates interrupted targets, tween/spring sequences, playback controls,

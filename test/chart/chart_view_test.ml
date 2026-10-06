@@ -17,7 +17,7 @@ let hex bytes =
 
 let style =
   Gpuio.Chart_style.Expert.of_wire
-    { version = -4L
+    { version = -5L
     ; palette = [ 1L; 2L ]
     ; axis_color = 3L
     ; grid_color = 4L
@@ -51,6 +51,7 @@ let style =
           Gpuio.Chart_inspection.default
           ~theme:Gpuio.Theme.default
         |> Or_error.ok_exn
+    ; appearance = Gpuio_protocol.Chart_appearance_wire.empty
     ; ordinal = None
     }
   |> ok

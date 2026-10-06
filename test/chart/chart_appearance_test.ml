@@ -10,6 +10,39 @@ let did n = Gpuio.Chart_data.Datum_id.of_int64 (Int64.of_int n) |> ok
 let alpha n = C.rgba ~red:0 ~green:0 ~blue:0 ~alpha:n |> ok
 let resolve t = A.Expert.to_wire t ~theme:Gpuio.Theme.default |> ok
 
+let%expect_test "chart style resolves appearance and rejects forged nested values" =
+  let module S = Gpuio.Chart_style in
+  let token = C.token_exn "chart-appearance-style" in
+  let appearance =
+    A.create ~series:[ A.Series.create ~series:(sid 1) ~legend:token () ] () |> ok
+  in
+  assert (Result.is_error (S.create ~appearance ()));
+  let theme = Gpuio.Theme.create [ "chart-appearance-style", alpha 7 ] |> ok in
+  let style = S.create ~appearance ~theme () |> ok |> S.Expert.to_wire in
+  assert (W.equal style.appearance (A.Expert.to_wire appearance ~theme |> ok));
+  assert (Int64.equal style.version (-5L));
+  let first = List.hd_exn style.appearance.series in
+  assert (
+    Result.is_error
+      (S.Expert.of_wire
+         { style with
+           appearance =
+             { style.appearance with series = [ { first with legend = Some (-1L) } ] }
+         }));
+  assert (Result.is_error (S.Expert.of_wire { style with version = -4L }));
+  let bytes =
+    Bin_prot.Utils.bin_dump
+      Gpuio_protocol.Chart_view_wire.Observation.bin_writer_t
+      (Failed Invalid_config)
+    |> Bigstring.to_string
+  in
+  assert (String.equal bytes "\001\004");
+  print_s
+    [%sexp "style schema -5; resolved nested colors; invalid config observation 01 04"];
+  [%expect
+    {| "style schema -5; resolved nested colors; invalid config observation 01 04" |}]
+;;
+
 let%expect_test "appearance independently paired bytes preserve omission and variants" =
   let gradient =
     B.linear_gradient_in Oklab ~angle:90. ~from:(alpha 3, 0.25) ~to_:(alpha 4, 0.75) |> ok

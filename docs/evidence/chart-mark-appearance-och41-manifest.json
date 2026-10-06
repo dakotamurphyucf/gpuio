@@ -1,0 +1,137 @@
+{
+  "base_commit": "0e7ca7ec217a612b4bad6c5d9f4b7b5dcff241db",
+  "scope": "Local macOS chart appearance qualification; not whole catalog/release or Linux GUI acceptance",
+  "archive_sha256": "3781237bd48e237fb1454ea4ad240d62819b965339a19b428551636ac7012200",
+  "files": [
+    {
+      "path": "binaries.json",
+      "bytes": 164,
+      "sha256": "58347c2928823dde08e7ccea966abbe5cc9d78da85eac92c93acfc2379959f43"
+    },
+    {
+      "path": "commands.py",
+      "bytes": 1292,
+      "sha256": "b89598b24d407270832cd6ccbc9664ada2cc6c9a549df9256e75ce7947792b6f"
+    },
+    {
+      "path": "earlier-commands.py",
+      "bytes": 1639,
+      "sha256": "ca92505afde8320b784dcd2ad58223247f45707201c4beb41e78f5ccb464c4d6"
+    },
+    {
+      "path": "environment.txt",
+      "bytes": 69,
+      "sha256": "c1201d2f8119b24a5acfa8471316a1719c5b6d9fbbe878ea93031f4318078c71"
+    },
+    {
+      "path": "images/gallery-marks-area-styled-paths.png",
+      "bytes": 979176,
+      "sha256": "331f0bd45dd046049f8cff8e7f446723ce83e417a2a311e0f9c86433278d8756"
+    },
+    {
+      "path": "images/gallery-marks-bar-base-to-tip-bars.png",
+      "bytes": 891773,
+      "sha256": "9161925fd469852eaf70c819f94407de88253676f7269e0801a52515bcc06af1"
+    },
+    {
+      "path": "images/gallery-marks-bar-domain-colored-bars.png",
+      "bytes": 892787,
+      "sha256": "27456af55de54efa841cf74c2d313c9f3e10d0456b392d2cf565f0bcfe11ff74"
+    },
+    {
+      "path": "images/gallery-marks-bar-uniform-aggregate-colors.png",
+      "bytes": 403802,
+      "sha256": "5b44a83cf380b6262efad0b62c071bb43e344b7d76b58451c42ed2ca9f2b0170"
+    },
+    {
+      "path": "images/gallery-marks-line-styled-markers.png",
+      "bytes": 443148,
+      "sha256": "5a549726c8017c63f988c5132cf6ecaaeb1a49e605f89e5b95dae9aaca89461d"
+    },
+    {
+      "path": "images/gallery-marks-mixed-layers-styled-paths.png",
+      "bytes": 564474,
+      "sha256": "5bc0364560aa62cb6a4e05ec338b880161b97bac717e9dbc15f48ecf94aaee16"
+    },
+    {
+      "path": "images/gallery-marks-radar-styled-markers.png",
+      "bytes": 424452,
+      "sha256": "c000cf4f8ef5efffbeba3ec3c9cad5f3524828aee9fdb9d718a11e4a80950c71"
+    },
+    {
+      "path": "images/gallery-marks-stacked-bars-value-colored-bars.png",
+      "bytes": 692158,
+      "sha256": "346d27a14aa5c5dd45775948ac1db80ecba79fd148a59a0133456b86dc8526bb"
+    },
+    {
+      "path": "logs/attached-clippy.log",
+      "bytes": 588425,
+      "sha256": "24bec48952fe2d18b1a84d9e01cc6fbdb2de5cf2a59e77f4daf9e2b1e2097584"
+    },
+    {
+      "path": "logs/attached-core-final.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "logs/attached-gpu.log",
+      "bytes": 621533,
+      "sha256": "dc9084f502ebb3a3c7b89097a17236c21ab939307f070e6249c5fe2a76df0c49"
+    },
+    {
+      "path": "logs/attached-protocol-max.log",
+      "bytes": 821,
+      "sha256": "f6671969fc2de83ffa9d3762060a38bab8a1c7988e5f4360cfe2e5a7706eca9d"
+    },
+    {
+      "path": "logs/attached-protocol.log",
+      "bytes": 57794,
+      "sha256": "268e4f8476576b88de0a62c532f8bfeaa7b9250866d1fb012a61cff49dbfc3e1"
+    },
+    {
+      "path": "logs/final-dune.log",
+      "bytes": 705777,
+      "sha256": "73420a04827207bef02775e4555c390646db62da5a3d0dad1bbcb64f5049b8ab"
+    },
+    {
+      "path": "logs/final-feature-clippy.log",
+      "bytes": 588275,
+      "sha256": "55890d73acb4b4ff8501fb6dcaae0732696a8cde44b080157e33a967810e8323"
+    },
+    {
+      "path": "logs/final-fmt-ocaml.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "logs/final-fmt-rust.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "logs/final-native-view.log",
+      "bytes": 589905,
+      "sha256": "9b06617b6e23f139f5715bfdf9853af1b2a094cb600f870860fa5c58b3d60cec"
+    },
+    {
+      "path": "logs/final-native.log",
+      "bytes": 700112,
+      "sha256": "6767e6fd360d235d8f2ff248037a25a46af3fda406313745faf1e2481e63fe1a"
+    },
+    {
+      "path": "logs/gallery-marks-consumer.log",
+      "bytes": 114787,
+      "sha256": "c28ce555e14147db6974c457fd00deee096e56ab1826ee9292962b545f8f626e"
+    },
+    {
+      "path": "logs/gallery-marks-qualified.log",
+      "bytes": 15840,
+      "sha256": "422f3a3c92a7efed6b11b991258625b2fde7bd0c050f0feebebccbd0869d0620"
+    },
+    {
+      "path": "public-commands.py",
+      "bytes": 792,
+      "sha256": "65b83e58b0dec8d51ef09e96dd57beea107ba54ec3cc6b5a264b82454e1a44db"
+    }
+  ]
+}

@@ -946,6 +946,17 @@
     },
     {
       "sources": [
+        "examples/gallery/chart_marks.ml",
+        "examples/gallery/chart_marks.mli"
+      ],
+      "role": "support",
+      "walkthroughs": [
+        "examples/gallery/chart_marks.md"
+      ],
+      "review": "reviewed"
+    },
+    {
+      "sources": [
         "examples/gallery/charts_page.ml",
         "examples/gallery/charts_page.mli"
       ],

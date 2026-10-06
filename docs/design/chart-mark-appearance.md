@@ -7,8 +7,8 @@ acceptance. Existing charts keep their current defaults.
 
 ## Ownership and identity
 
-`Chart_appearance` describes immutable presentation. `Chart_style.create` will
-resolve its theme tokens before submission; no native layout, paint, hit testing
+`Chart_appearance` describes immutable presentation. `Chart_style.create`
+resolves its theme tokens before submission; no native layout, paint, hit testing
 or tooltip callback invokes OCaml. Series overrides use stable series IDs. Datum
 overrides use `(series_id, datum_id)`, including radar axis IDs. Neither uses array
 indices, category captions nor display order. Unknown IDs remain dormant, and
@@ -23,9 +23,10 @@ of a continuous line. Pie slice colors retain their existing ordinal interface.
 Path stroke controls visibility, width and brush independently of fill. Explicit
 area/radar fill replaces the default palette plus area opacity: the supplied
 brush carries its own alpha. Marker radius, fill, border and visibility are
-independent; the existing dots option remains a master visibility gate. Hidden
-markers do not remove line/area/radar selection. Visible marker hit bounds must
-include their actual radius, rather than the current single global radius.
+independent; existing geometry visibility (including the isolated-point fallback)
+remains a master gate. Borders default to zero width. Hidden markers retain the
+default selection radius without removing line/area/radar selection. Visible
+marker hit bounds include their effective radius plus the normal hit tolerance.
 
 Series may supply a separate legend color. Otherwise the existing ordinal/palette
 legend color remains stable. A gradient or many differently colored bars has no
@@ -37,7 +38,7 @@ accessible names or the original-data table.
 
 Grouped line/area series may override their curve. Stacked area boundaries must
 use the same effective curve throughout the stack. Preparation must reject
-conflicting effective area curves with a typed configuration error; it must not
+conflicting effective area curves with `Chart.Error.Invalid_config`; it must not
 silently draw gaps/overlaps or choose the first series' curve. Stacked bars and
 unstacked lines are independent of this restriction. Radar ignores curve and bar
 fields; family changes retain otherwise dormant configuration.
@@ -86,10 +87,11 @@ Marker radius is 1..24, border width 0..8 (clamped to radius), and path stroke
 width 0.5..8 logical pixels. Colors resolve even for currently hidden/dormant IDs;
 missing theme definitions are recoverable errors.
 
-The appearance payload must have independent maximum-size and malformed-input
-tests. When attaching it to the parent chart style, advance the style schema and
-prove that a maximally populated style still fits its envelope and the outer
-message limit. Do not change the envelope based only on a typical example.
+The independent appearance envelope is 192 KiB; the paired maximum encoding is
+173,447 bytes. Attachment advances the chart style schema to -5 and its bounded
+envelope to 384 KiB. A maximally populated parent style, including axis/node/pie
+captions and all appearance overrides, is tested against this envelope and the
+outer 1 MiB message limit. Matching OCaml and Rust packages are required.
 
 The existing `Background` API covers solids and two-stop gradients. GPUI's other
 background patterns, arbitrary per-datum baselines and the low-level area shape's

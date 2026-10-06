@@ -149,6 +149,38 @@ validation bounds, independent grid visibility and adaptation to numeric/categor
 positions. The [axis/grid design](../../docs/design/chart-axis-presentation.md)
 is under qualification; this documentation adds no platform acceptance claim.
 
+## Mark appearance presets
+
+The [Chart_marks guide](chart_marks.md) explains the seven pure presets and their
+stable-ID extraction. `B.state Chart_marks.Default graph` retains the page's
+`marks` choice and returns `set_marks`. A preset button receives
+`set_marks candidate`: an effect value, executed by its native button event.
+The next `let%arr` reads the changed choice and current palette. It obtains the
+accepted source dataset with `Registered.data source.chart`, derives
+`Chart_marks.configuration marks p` when available (otherwise empty appearance),
+and passes that value to `Chart_style.create ~appearance`. `V.chart` receives
+both the resolved style and `~sampling:(Chart_marks.sampling marks)`.
+`Chart_options.Cartesian.create ~dots:(Chart_marks.dots marks)` enables Cartesian
+dots only for Styled markers. Radar retains its separate dots option, whose
+default is true. Style construction resolves colors; native preparation owns
+geometry, appearance application and painting, without calling OCaml during paint.
+
+Trace: press Styled markers → native event runs `set_marks Markers` → Bonsai
+updates its reactive model → `let%arr` derives series and two-ID highlights,
+enables dots and rebuilds style → `V.chart` submits the changed configuration →
+native preparation returns Ready with the selected preset appended to its notice.
+Default adds no mark suffix. Theme changes rebuild the same ID-keyed appearance
+from the new palette. The source registration, generation and selection IDs remain
+unchanged; ordinary publication guards still control the selection readout.
+Uniform aggregate colors separately requests explicit two-bucket bar sums: geometry
+and aggregate provenance change, while original source records remain available.
+
+Controls appear for Cartesian, radar, mixed, categorical and stacked modes; they
+are hidden for Pie, Candlestick, Ordinal colors and flow modes. Not every preset
+applies to every family: radar ignores bar/curve fields, for example. The guide
+explains physical corners, signed/domain/value ramps, sparse bounds and aggregate agreement. Native integration is undergoing
+qualification; these controls and this documentation add no GUI acceptance claim.
+
 ## Follow an update and a selection
 
 Clicking Update invokes an OCaml effect, advances the sample phase, and asks the

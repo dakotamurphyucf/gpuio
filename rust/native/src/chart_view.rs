@@ -504,6 +504,7 @@ impl State {
 }
 fn paint_error(error: paint::Error) -> Error {
     match error {
+        paint::Error::InvalidConfiguration => Error::InvalidConfig,
         paint::Error::InvalidInput | paint::Error::RenderLimit => Error::RenderLimit,
         paint::Error::Cancelled | paint::Error::NativeFailure => Error::NativeFailure,
     }

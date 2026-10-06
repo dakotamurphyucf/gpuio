@@ -2,7 +2,7 @@ use binprot::macros::BinProtWrite;
 use std::{collections::BTreeSet, mem::size_of};
 
 pub const MAX_COLOR_DOMAIN: usize = 1024;
-pub const MAX_STYLE_BYTES: usize = 192 * 1024;
+pub const MAX_STYLE_BYTES: usize = 384 * 1024;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, BinProtWrite)]
 pub enum Key {
     Series(i64),
@@ -59,6 +59,7 @@ pub struct Style {
     pub x_axis: Box<crate::chart_axis::Axis>,
     pub y_axis: Box<crate::chart_axis::Axis>,
     pub grid: Box<crate::chart_grid::Grid>,
+    pub appearance: Box<crate::chart_appearance::Appearance>,
 }
 fn color(value: i64) -> bool {
     (0..=0xffff_ffff).contains(&value)
@@ -68,7 +69,7 @@ fn within(value: f64, min: f64, max: f64) -> bool {
 }
 impl Style {
     pub fn is_valid(&self) -> bool {
-        self.version == -4
+        self.version == -5
             && (1..=32).contains(&self.palette.len())
             && self.palette.iter().all(|c| color(*c))
             && [
@@ -92,6 +93,7 @@ impl Style {
             && self.x_axis.is_valid()
             && self.y_axis.is_valid()
             && self.grid.is_valid()
+            && self.appearance.is_valid()
     }
     pub fn heap_bytes(&self) -> usize {
         size_of::<crate::chart_inspection::Inspection>()
@@ -104,6 +106,8 @@ impl Style {
             + self.x_axis.heap_bytes()
             + self.y_axis.heap_bytes()
             + self.grid.heap_bytes()
+            + size_of::<crate::chart_appearance::Appearance>()
+            + self.appearance.heap_bytes()
     }
     pub fn color(&self, layer: usize) -> u32 {
         self.palette[layer % self.palette.len()] as u32
@@ -112,7 +116,7 @@ impl Style {
 impl Default for Style {
     fn default() -> Self {
         Self {
-            version: -4,
+            version: -5,
             palette: vec![
                 0x818cf8ff, 0x2dd4bfff, 0xfbbf24ff, 0xf472b6ff, 0x38bdf8ff, 0xfb923cff,
             ],
@@ -133,6 +137,7 @@ impl Default for Style {
             x_axis: Default::default(),
             y_axis: Default::default(),
             grid: Default::default(),
+            appearance: Default::default(),
         }
     }
 }

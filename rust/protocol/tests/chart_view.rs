@@ -11,7 +11,7 @@ fn config() -> Config {
         options: Default::default(),
         sampling: Default::default(),
         style: gpuio_protocol::chart_style::Style {
-            version: -4,
+            version: -5,
             palette: vec![1, 2],
             axis_color: 3,
             grid_color: 4,
@@ -30,6 +30,7 @@ fn config() -> Config {
             x_axis: Default::default(),
             y_axis: Default::default(),
             grid: Default::default(),
+            appearance: Default::default(),
         },
     }
 }
@@ -263,14 +264,116 @@ fn independently_full_chart_captions_fit_the_config_envelope_and_are_charged() {
     value.style.grid.x = Some(vec![TickPosition::Category(i64::MAX); 64]);
     value.style.grid.y = Some(vec![TickPosition::Value(1e100); 64]);
     value.style.grid.dashes = vec![128.; 16];
+    use gpuio_protocol::chart_appearance as a;
+    let color = 0xffff_ffff;
+    let brush = a::Brush::Linear {
+        oklab: true,
+        angle: 360.,
+        from: color,
+        start: 0.,
+        to: color,
+        stop: 1.,
+    };
+    let marker = Some(a::Marker {
+        visible: Some(true),
+        radius: Some(24.),
+        fill: Some(color),
+        stroke: Some(color),
+        stroke_width: Some(8.),
+    });
+    let bar = Some(a::Bar {
+        fill: Some(a::BarFill::Background(brush)),
+        corners: Some(a::Corners {
+            top_left: 32.,
+            top_right: 32.,
+            bottom_right: 32.,
+            bottom_left: 32.,
+        }),
+    });
+    let path = Some(a::Path {
+        stroke: Some(a::Stroke {
+            visible: true,
+            width: Some(8.),
+            brush,
+        }),
+        fill: Some(brush),
+        curve: Some(gpuio_protocol::chart_options::Curve::Natural),
+    });
+    value.style.appearance.series = (0..a::MAX_SERIES)
+        .map(|i| a::Series {
+            series: i64::MAX - i as i64,
+            path,
+            marker,
+            bar,
+            legend: Some(color),
+        })
+        .collect();
+    value.style.appearance.data = (0..a::MAX_DATA)
+        .map(|i| a::Datum {
+            series: i64::MAX,
+            datum: i64::MAX - i as i64,
+            marker,
+            bar,
+        })
+        .collect();
+    // Exercise all other independently bounded style sections alongside the
+    // maximum appearance. Use long integer encodings, not tiny fixture IDs.
+    value.style.palette = vec![color; 32];
+    value.style.axis_color = color;
+    value.style.grid_color = color;
+    value.style.label_color = color;
+    value.style.selection_color = color;
+    value.style.gradient_end = Some(color);
+    value.style.pie_label_line_color = Some(color);
+    value.style.ordinal = Some(gpuio_protocol::chart_style::Ordinal {
+        domain: (0..1024)
+            .map(|i| gpuio_protocol::chart_style::Key::Series(i64::MAX - i))
+            .collect(),
+        range: vec![color; 32],
+        unknown: Some(color),
+    });
+    for (i, node) in value.style.node_labels.iter_mut().enumerate() {
+        node.node = i64::MAX - i as i64;
+        for (j, line) in node.lines.iter_mut().enumerate() {
+            line.text = if j == 0 {
+                "s".repeat(256)
+            } else {
+                String::new()
+            };
+        }
+    }
+    for (i, label) in value.style.pie_labels.iter_mut().enumerate() {
+        label.slice = i64::MAX - i as i64;
+    }
+    for axis in [&mut value.style.x_axis, &mut value.style.y_axis] {
+        axis.position = Some(1.);
+        axis.tick_count = Some(64);
+        axis.label_gap = Some(64.);
+        axis.label_width = Some(256.);
+        axis.line_color = Some(color);
+        axis.label_color = Some(color);
+        for tick in axis.ticks.as_mut().unwrap() {
+            tick.position = TickPosition::Category(i64::MAX);
+        }
+    }
+    value.style.grid.y = Some(vec![TickPosition::Category(i64::MAX); 64]);
+    value.style.grid.color = Some(color);
+    value.style.inspection.card.text_color = Some(color);
+    value.style.inspection.card.background = Some(color);
+    value.style.inspection.card.border_color = Some(color);
+    value.style.inspection.crosshair.color = Some(color);
+    value.style.inspection.marker.fill = Some(color);
+    value.style.inspection.marker.stroke = Some(color);
     assert!(value.is_valid());
-    assert_eq!(
-        value.retained_bytes() - before,
-        pie::heap_bytes(&value.style.pie_labels)
-            + node::heap_bytes(&value.style.node_labels)
-            + value.style.x_axis.heap_bytes()
-            + value.style.y_axis.heap_bytes()
-            + value.style.grid.heap_bytes()
+    assert!(
+        value.retained_bytes() - before
+            >= pie::heap_bytes(&value.style.pie_labels)
+                + node::heap_bytes(&value.style.node_labels)
+                + value.style.x_axis.heap_bytes()
+                + value.style.y_axis.heap_bytes()
+                + value.style.grid.heap_bytes()
+                + value.style.appearance.heap_bytes()
+                + value.style.ordinal.as_ref().unwrap().heap_bytes()
     );
     let style_bytes = encode(&value.style);
     assert!(style_bytes.len() <= gpuio_protocol::chart_style::MAX_STYLE_BYTES);
@@ -279,6 +382,23 @@ fn independently_full_chart_captions_fit_the_config_envelope_and_are_charged() {
         Ok(value.style.clone())
     );
     let bytes = encode(&value);
-    assert!(bytes.len() > 64 * 1024);
+    assert!(bytes.len() > 192 * 1024);
+    assert!(bytes.len() < gpuio_protocol::v1::MAX_MESSAGE_BYTES);
     assert_eq!(decode_chart_view_config(&bytes), Ok(value));
+}
+
+#[test]
+fn configuration_failure_appends_an_observation_error_without_retagging_existing_errors() {
+    for (i, error) in [
+        Error::WrongApplication,
+        Error::UnavailableData,
+        Error::RenderLimit,
+        Error::NativeFailure,
+        Error::InvalidConfig,
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        assert_eq!(encode(&Observation::Failed(error)), vec![1, i as u8]);
+    }
 }

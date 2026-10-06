@@ -450,7 +450,7 @@ fn cartesian(
     categories: Option<&[data::Category]>,
     reduced: &[reduce::Series],
     options: &options::Options,
-    axes: Option<axis_presentation::Styles<'_>>,
+    presentation: Presentation<'_>,
     cancel: &AtomicBool,
 ) -> Result<(), Error> {
     let x = Domain::from(
@@ -508,11 +508,17 @@ fn cartesian(
         categorical: categories
             .map(|c| Projection::new(c.len(), width, options.cartesian.category_layout, bars > 0)),
     };
-    c.axes(plan, options.axes, categories, axes, cancel)?;
+    c.axes(plan, options.axes, categories, presentation.axes, cancel)?;
     let bar_width = slot * options.cartesian.bar_width / (groups as f64);
     let mut bar_index = 0;
     for (series, (layer, reduction)) in layers.iter().zip(reduced).enumerate() {
         check(cancel)?;
+        let mut series_options = options.cartesian;
+        series_options.curve = presentation
+            .curves
+            .get(series)
+            .copied()
+            .unwrap_or(options.cartesian.curve);
         match reduction {
             reduce::Series::Bar(_) | reduce::Series::StackedBar(_) => {
                 for (i, (b, bounds)) in reduction.bars().enumerate() {
@@ -562,7 +568,7 @@ fn cartesian(
                     layer.points,
                     points,
                     c,
-                    options.cartesian,
+                    series_options,
                     cancel,
                 )?;
             }
@@ -596,7 +602,7 @@ fn cartesian(
                         });
                     }
                     if run.len() > 1 {
-                        let commands = curve(&coordinates, options.cartesian.curve, horizontal);
+                        let commands = curve(&coordinates, series_options.curve, horizontal);
                         if area {
                             let mut fill = commands.clone();
                             fill.push(Command::Line(c.point(
@@ -1188,6 +1194,36 @@ pub(crate) fn prepare_with_axes(
     axes: Option<axis_presentation::Styles<'_>>,
     cancel: &AtomicBool,
 ) -> Result<Plan, Error> {
+    prepare_with_presentation(
+        data,
+        policy,
+        options,
+        size,
+        labels,
+        Presentation { axes, curves: &[] },
+        cancel,
+    )
+}
+#[derive(Clone, Copy)]
+pub(crate) struct Presentation<'a> {
+    pub axes: Option<axis_presentation::Styles<'a>>,
+    pub curves: &'a [options::Curve],
+}
+pub(crate) fn prepare_with_presentation(
+    data: &data::Data,
+    policy: Policy,
+    options: &options::Options,
+    size: (f64, f64),
+    labels: Option<&[Option<LabelMetrics>]>,
+    presentation: Presentation<'_>,
+    cancel: &AtomicBool,
+) -> Result<Plan, Error> {
+    let axes = presentation.axes;
+    if !presentation.curves.is_empty()
+        && Layers::of(data).is_none_or(|layers| layers.len() != presentation.curves.len())
+    {
+        return Err(Error::InvalidInput);
+    }
     if axes.is_some_and(|s| !s.x.is_valid() || !s.y.is_valid() || !s.grid.is_valid()) {
         return Err(Error::InvalidInput);
     }
@@ -1255,7 +1291,7 @@ pub(crate) fn prepare_with_axes(
             },
             series,
             options,
-            axes,
+            presentation,
             cancel,
         )?,
         (data::Contents::Candlestick(source), reduce::Contents::Candlestick(values)) => {

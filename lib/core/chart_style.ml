@@ -59,6 +59,7 @@ let create
       ?(x_axis = Chart_axis.default)
       ?(y_axis = Chart_axis.default)
       ?(grid = Chart_grid.default)
+      ?(appearance = Chart_appearance.empty)
       ?(axis_color = Color.rgb_exn 0x64748b)
       ?(grid_color =
         Color.rgba ~red:100 ~green:116 ~blue:139 ~alpha:64 |> Or_error.ok_exn)
@@ -99,8 +100,9 @@ let create
     let%bind x_axis = Chart_axis.Expert.to_wire x_axis ~theme in
     let%bind y_axis = Chart_axis.Expert.to_wire y_axis ~theme in
     let%bind grid = Chart_grid.Expert.to_wire grid ~theme in
+    let%bind appearance = Chart_appearance.Expert.to_wire appearance ~theme in
     let t =
-      { Wire.version = -4L
+      { Wire.version = -5L
       ; palette
       ; axis_color
       ; grid_color
@@ -119,6 +121,7 @@ let create
       ; x_axis
       ; y_axis
       ; grid
+      ; appearance
       }
     in
     if Wire.valid t
