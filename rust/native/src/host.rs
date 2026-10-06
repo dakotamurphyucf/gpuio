@@ -266,6 +266,8 @@ struct FlowPlacement<'a> {
 struct ButtonState {
     focus: gpui::FocusHandle,
 }
+#[path = "action_lifetime.rs"]
+mod action_lifetime;
 #[derive(Clone, Copy)]
 struct Interaction {
     pointer: bool,
@@ -311,6 +313,7 @@ struct View {
     split_groups: BTreeMap<NodeId, crate::split_group_widget::Shared>,
     split_activation: Option<gpui::Subscription>,
     buttons: BTreeMap<NodeId, Rc<ButtonState>>,
+    action_lifetimes: action_lifetime::Registry,
     hover_observations: BTreeMap<NodeId, Rc<hover_observation::State>>,
     input_regions: BTreeMap<NodeId, input_region::Shared>,
     window_regions: BTreeMap<NodeId, Rc<window_regions::State>>,
@@ -541,6 +544,7 @@ impl View {
             split_groups: BTreeMap::new(),
             split_activation: None,
             buttons: BTreeMap::new(),
+            action_lifetimes: Default::default(),
             hover_observations: BTreeMap::new(),
             input_regions: BTreeMap::new(),
             window_regions: BTreeMap::new(),
@@ -910,7 +914,14 @@ impl View {
         if let Some(config) = &node.link {
             accessible_name = config.label.clone().into();
         }
-        let mut element = div().id(("gpuio-node", identity));
+        let action_lifetime = (interaction.clip_controls
+            && (node.handler.is_some() || node.command_ref.is_some()))
+        .then(|| self.action_lifetimes.lease(id));
+        let element_id = action_lifetime.as_ref().map_or_else(
+            || ("gpuio-node", identity).into(),
+            action_lifetime::Lease::element_id,
+        );
+        let mut element = div().id(element_id);
         if let Some(scope) = highlight_scope {
             element = element.child(highlight::marker(scope));
         }
@@ -1204,6 +1215,7 @@ impl View {
         element = self.node_actions(
             node_actions::Render {
                 node,
+                action_lifetime,
                 revision: tree.revision(),
                 command,
                 interaction,

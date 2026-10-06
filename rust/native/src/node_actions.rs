@@ -4,6 +4,7 @@ use super::*;
 
 pub(super) struct Render<'a> {
     pub node: &'a crate::tree::Node,
+    pub action_lifetime: Option<action_lifetime::Lease>,
     pub revision: i64,
     pub command: Option<command::Route>,
     pub interaction: Interaction,
@@ -21,6 +22,7 @@ impl View {
     ) -> gpui::Stateful<gpui::Div> {
         let Render {
             node,
+            action_lifetime,
             command,
             interaction,
             disabled,
@@ -30,13 +32,20 @@ impl View {
             ..
         } = render;
         let id = node.id;
+        let pointer_lifetime = action_lifetime.clone();
         if let Some(route) = command.filter(|_| !disabled && !button_loading) {
             let accessible = route.clone();
+            let accessible_lifetime = action_lifetime.clone();
             let owner = cx.weak_entity();
             element =
                 element.on_a11y_action(gpui::AccessibleAction::Click, move |_, window, cx| {
-                    let _ =
-                        owner.update(cx, |view, cx| view.invoke_command(&accessible, window, cx));
+                    if accessible_lifetime
+                        .as_ref()
+                        .is_none_or(action_lifetime::Lease::is_live)
+                    {
+                        let _ = owner
+                            .update(cx, |view, cx| view.invoke_command(&accessible, window, cx));
+                    }
                     cx.stop_propagation();
                 });
             if !interaction.pointer {
@@ -44,7 +53,12 @@ impl View {
                     window.prevent_default()
                 });
             }
+            let lifetime = action_lifetime.clone();
             element = element.on_click(cx.listener(move |view, event, window, cx| {
+                if lifetime.as_ref().is_some_and(|lease| !lease.is_live()) {
+                    cx.stop_propagation();
+                    return;
+                }
                 if interaction.pointer || matches!(event, gpui::ClickEvent::Keyboard(_)) {
                     view.invoke_command(&route, window, cx);
                     cx.stop_propagation();
@@ -82,19 +96,25 @@ impl View {
             let accessible_gate = gate.clone();
             let accessible_session = session.clone();
             let accessible_transport = transport.clone();
+            let accessible_lifetime = action_lifetime.clone();
             // GPUI's fallback accessibility Click synthesizes pointer input.
             // Route the semantic action directly so pointer policy and pointer
             // occlusion do not suppress assistive activation.
             element = element.on_a11y_action(gpui::AccessibleAction::Click, move |_, _, cx| {
-                emit_press(
-                    &accessible_session,
-                    &accessible_gate,
-                    &accessible_transport,
-                    window,
-                    id,
-                    handler,
-                    revision,
-                );
+                if accessible_lifetime
+                    .as_ref()
+                    .is_none_or(action_lifetime::Lease::is_live)
+                {
+                    emit_press(
+                        &accessible_session,
+                        &accessible_gate,
+                        &accessible_transport,
+                        window,
+                        id,
+                        handler,
+                        revision,
+                    );
+                }
                 cx.stop_propagation();
             });
             if !interaction.pointer {
@@ -106,6 +126,13 @@ impl View {
             // activation. Registering a second key handler duplicates activation.
             let owner = cx.weak_entity();
             element = element.on_click(move |event, native_window, cx| {
+                if action_lifetime
+                    .as_ref()
+                    .is_some_and(|lease| !lease.is_live())
+                {
+                    cx.stop_propagation();
+                    return;
+                }
                 if !interaction.pointer && !matches!(event, gpui::ClickEvent::Keyboard(_)) {
                     return;
                 }
@@ -161,7 +188,11 @@ impl View {
         }
         let gate = self.focus.clone();
         element = element.capture_any_mouse_down(move |_, window, cx| {
-            if gate.borrow().blocks_pointer(id) {
+            if pointer_lifetime
+                .as_ref()
+                .is_some_and(|lease| !lease.is_live())
+                || gate.borrow().blocks_pointer(id)
+            {
                 window.prevent_default();
                 cx.stop_propagation();
             }

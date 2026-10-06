@@ -15,6 +15,13 @@ Three owner-authorized GPT-6.1 Sol agents contributed scoped walkthroughs in par
 Contributor guidance and a structural CI check keep new sources visible; neither
 file presence nor that check establishes documentation or platform acceptance.
 
+[Radar label actions](evidence/radar-label-actions-och41.md) now reject ordinary
+button and command gestures that cross a hide/return transition, before and after
+repaint. Revocable native lifetimes also reject queued AppKit actions and retired
+AX objects while fresh targets recover. Native/table suites and root/fresh-installed
+public gallery checks pass. Specialized actions and broader label/catalog/release
+qualification remain open.
+
 [Radar label InputRegion](evidence/radar-label-input-region-och41.md) now passes
 foreground native event dispatch and stale-click rejection across axis/browser
 hide and return before repaint. The regression exposed consumed mouse-down and

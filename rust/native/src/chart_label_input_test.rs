@@ -1,6 +1,8 @@
 //! Foreground native InputRegion routing and hide/return before another frame.
 use super::*;
 use gpuio_protocol::{chart_data::RadarAxis, input as observed};
+#[path = "chart_label_action_test.rs"]
+mod actions;
 
 fn publish(session: &SharedSession, source: ResourceId, data: &Data, cx: &mut App) -> i64 {
     let snapshot = session.borrow().chart(source).unwrap().snapshot().unwrap();
@@ -195,6 +197,7 @@ pub(super) async fn exercise(
     mouse(cx, handle, point, true);
     mouse(cx, handle, point, false);
     assert_eq!(events(transport), vec![MouseDown, MouseUp, Click]);
+    actions::exercise(cx, handle, source, session, transport, &data, &absent).await;
     apply(
         cx,
         handle,

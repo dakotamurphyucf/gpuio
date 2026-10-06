@@ -219,6 +219,8 @@ impl View {
         hidden.extend(self.invisible_toasts());
         self.focus.borrow_mut().set_hidden(hidden);
         self.focus.borrow_mut().sync(window, cx);
+        self.action_lifetimes
+            .retire(|id| self.focus.borrow().allows(id));
         self.retire_ineligible_menus(window, cx);
         self.retire_ineligible_slider_drags(window);
         self.retire_ineligible_input_regions(window);

@@ -132,6 +132,15 @@ retire stale child input, focus and accessibility actions. The old picture may
 remain during ordinary worker preparation, but an old axis must not remain an
 actionable control after removal from the live source.
 
+Ordinary button and command-button callbacks now hold a revocable native input
+lifetime for their rendered label exposure. Becoming ineligible retires that
+lifetime before another frame; becoming visible again cannot revive its queued
+actions. The next render uses a fresh GPUI element identity, discarding pending
+native clicks and the old accessibility target. Still-eligible nodes keep their
+identity across normal source publications. This native bookkeeping preserves
+the retained OCaml View identity and application model; it does not remount the
+Bonsai component or serialize new IDs over the bridge.
+
 Use owned slot sets per chart; one chart must not clear another's hidden set.
 Clipping must gate descendant semantics and input, including a fully clipped
 control inside a partly visible composite. Reuse the existing retained-slot
