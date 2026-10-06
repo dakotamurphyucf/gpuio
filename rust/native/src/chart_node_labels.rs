@@ -33,6 +33,7 @@ pub(crate) fn apply(
             return Err(Error::Cancelled);
         }
         let LabelKind::Flow {
+            placement,
             align_right,
             node_index,
         } = label.kind
@@ -53,6 +54,7 @@ pub(crate) fn apply(
                 position: label.position,
                 text: line.text.clone(),
                 kind: LabelKind::FlowLine {
+                    placement,
                     align_right,
                     font_size: line.font_size.unwrap_or(11.),
                     color: line.color.map(|c| c as u32),

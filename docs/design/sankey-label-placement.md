@@ -1,7 +1,9 @@
 # Sankey outside-label placement
 
 **Draft implementation plan, OCH-41, 2026-10-06. Not shipped or qualified.**
-Current behavior remains the [inside-label presentation](sankey-presentation.md)
+The [pure internal geometry engine](../evidence/sankey-label-layout-engine.md) now
+accepts supplied measurements and has unit coverage. Its public/worker wiring is
+still pending; no outside-label feature is exposed yet. Current behavior remains the [inside-label presentation](sankey-presentation.md)
 and [ID-keyed rich label values](chart-node-labels.md). This document makes the
 next catalog gap concrete without claiming it is implemented.
 

@@ -15,6 +15,12 @@ Three owner-authorized GPT-6.1 Sol agents contributed scoped walkthroughs in par
 Contributor guidance and a structural CI check keep new sources visible; neither
 file presence nor that check establishes documentation or platform acceptance.
 
+[Measured Sankey geometry](evidence/sankey-label-layout-engine.md) now reserves
+bounded margins and preserves multiline placement and source hit identity in the
+internal engine. Native library tests and strict lint pass. Public options, paired
+wire changes, actual worker font measurement and native/consumer validation remain
+pending; this is not yet an exposed outside-label feature.
+
 [Code document controls](evidence/document-code-controls-och41.md) now append/reset
 the displayed code source independently of Markdown. Focused build/tests/format and
 root/fresh-installed macOS document walkthroughs pass. A reproduced test-driver

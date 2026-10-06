@@ -179,6 +179,47 @@ impl Frame {
     pub fn label(&self, label: &Label) -> Placement {
         let x = self.plot.x + label.position.x;
         let y = self.plot.y + label.position.y;
+        let measured = match label.kind {
+            LabelKind::Flow {
+                placement: Some(p), ..
+            } => Some((p, TEXT_HEIGHT, 0.)),
+            LabelKind::FlowLine {
+                placement: Some(p),
+                font_size,
+                offset,
+                ..
+            } => Some((p, (font_size + 4.).max(TEXT_HEIGHT), offset)),
+            _ => None,
+        };
+        if let Some((p, line_height, offset)) = measured {
+            use crate::chart_geometry::FlowAlign;
+            let width = p.width.min(self.plot.width);
+            let top = (y - if p.above {
+                p.block_height
+            } else {
+                p.block_height / 2.
+            })
+            .clamp(
+                self.plot.y,
+                self.plot.y + (self.plot.height - p.block_height).max(0.),
+            );
+            let bottom = self.plot.y + self.plot.height;
+            let row_y = (top + offset).min(bottom);
+            let (x, align) = match p.align {
+                FlowAlign::Left => (x, Align::Left),
+                FlowAlign::Center => (x - width / 2., Align::Center),
+                FlowAlign::Right => (x - width, Align::Right),
+            };
+            return Placement {
+                rect: Rect {
+                    x: x.clamp(self.plot.x, self.plot.x + self.plot.width - width),
+                    y: row_y,
+                    width,
+                    height: line_height.min(bottom - row_y),
+                },
+                align,
+            };
+        }
         if let LabelKind::FlowLine {
             align_right,
             font_size,
@@ -285,10 +326,12 @@ mod tests {
                     LabelKind::Y,
                     LabelKind::Radial,
                     LabelKind::Flow {
+                        placement: None,
                         align_right: false,
                         node_index: 0,
                     },
                     LabelKind::Flow {
+                        placement: None,
                         align_right: true,
                         node_index: 0,
                     },

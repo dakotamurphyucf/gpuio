@@ -109,16 +109,39 @@ pub struct Mark {
     pub layer: usize,
     pub shape: Shape,
 }
+/// Worker-measured label block in logical pixels, including its painted backing.
+/// The slice passed to preparation uses the exact source snapshot's node order;
+/// None hides that node's label without reserving space.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct FlowLabelMetrics {
+    pub width: f64,
+    pub height: f64,
+}
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum FlowAlign {
+    Left,
+    Center,
+    Right,
+}
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct FlowLabelPlacement {
+    pub align: FlowAlign,
+    pub width: f64,
+    pub block_height: f64,
+    pub above: bool,
+}
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum LabelKind {
     X,
     Y,
     Radial,
     Flow {
+        placement: Option<FlowLabelPlacement>,
         align_right: bool,
         node_index: usize,
     },
     FlowLine {
+        placement: Option<FlowLabelPlacement>,
         align_right: bool,
         font_size: f64,
         color: Option<u32>,
@@ -788,11 +811,23 @@ fn sankey(
     nodes: &[data::Node],
     edges: &[data::Edge],
     options: options::Sankey,
+    labels: Option<&[Option<FlowLabelMetrics>]>,
+    cancel: &AtomicBool,
 ) -> Result<(), Error> {
     use gpuio_plot::sankey::{Sankey, SankeyAlign, SankeyLink, SankeyValueScale};
+    check(cancel)?;
+    if let Some(labels) = labels
+        && (labels.len() != nodes.len()
+            || labels.iter().flatten().any(|m| {
+                !m.width.is_finite() || m.width < 0. || !m.height.is_finite() || m.height <= 0.
+            }))
+    {
+        return Err(Error::InvalidInput);
+    }
     if nodes.is_empty() {
         return Ok(());
     }
+    let labels = labels.filter(|_| options.labels);
     let indices: BTreeMap<_, _> = nodes.iter().enumerate().map(|(i, n)| (n.id, i)).collect();
     let maximum = edges.iter().map(|e| e.value).fold(0., f64::max);
     let links: Vec<_> = edges
@@ -824,6 +859,34 @@ fn sankey(
     let graph = layout
         .topology(nodes.len(), &links)
         .map_err(|_| Error::InvalidInput)?;
+    check(cancel)?;
+    let (mut left, mut right, mut top, mut bottom) = (0_f64, 0_f64, 0_f64, 0_f64);
+    if let Some(labels) = labels {
+        for node in &graph.nodes {
+            check(cancel)?;
+            let Some(metric) = labels[node.index] else {
+                continue;
+            };
+            bottom = 4.;
+            if node.layer == 0 {
+                left = left.max(metric.width + options.label_gap);
+            } else if node.layer + 1 == graph.layer_count() {
+                right = right.max(metric.width + options.label_gap);
+            } else {
+                top = top.max(metric.height + options.label_gap);
+            }
+        }
+        left = left.min(plan.width * 0.2);
+        right = right.min(plan.width * 0.2);
+        let cap = plan.height * 0.6;
+        if top + bottom > cap {
+            let factor = cap / (top + bottom);
+            top *= factor;
+            bottom *= factor;
+        }
+    }
+    let available_width = plan.width - left - right;
+    let available_height = plan.height - top - bottom;
     // Fit the actual columns, not total node count. Keep room for positive
     // node heights so crowded padding cannot erase all visible flows.
     let mut columns = vec![0_usize; graph.layer_count()];
@@ -832,18 +895,25 @@ fn sankey(
     }
     let largest_column = columns.iter().copied().max().unwrap_or(1);
     let graph = layout
+        .extent(
+            left as f32,
+            top as f32,
+            (plan.width - right) as f32,
+            (plan.height - bottom) as f32,
+        )
         .node_width(
             options
                 .node_width
-                .min(plan.width / (2 * columns.len() - 1) as f64) as f32,
+                .min(available_width / (2 * columns.len() - 1) as f64) as f32,
         )
         .node_padding(
             options
                 .node_padding
-                .min(plan.height / (2 * largest_column) as f64) as f32,
+                .min(available_height / (2 * largest_column) as f64) as f32,
         )
         .layout_from(graph);
     for link in &graph.links {
+        check(cancel)?;
         if link.value == 0. {
             continue;
         }
@@ -853,8 +923,12 @@ fn sankey(
         // unchanged and clip endpoint spans inside small plotting rectangles.
         let source_half = f64::from(link.source_width).max(options.min_link_width) / 2.;
         let target_half = f64::from(link.target_width).max(options.min_link_width) / 2.;
-        let span =
-            |center: f64, half: f64| ((center - half).max(0.), (center + half).min(plan.height));
+        let span = |center: f64, half: f64| {
+            (
+                (center - half).max(top),
+                (center + half).min(plan.height - bottom),
+            )
+        };
         let (source_top, source_bottom) = span(f64::from(link.y0), source_half);
         let (target_top, target_bottom) = span(f64::from(link.y1), target_half);
         plan.marks.push(Mark {
@@ -869,6 +943,7 @@ fn sankey(
         });
     }
     for node in &graph.nodes {
+        check(cancel)?;
         let bounds = Rect {
             left: node.x0 as f64,
             right: node.x1 as f64,
@@ -882,17 +957,63 @@ fn sankey(
         });
         if options.labels {
             let align_right = (bounds.left + bounds.right) / 2. > plan.width / 2.;
+            let (position, placement) = if let Some(labels) = labels {
+                let Some(metric) = labels[node.index] else {
+                    continue;
+                };
+                let middle = (bounds.left + bounds.right) / 2.;
+                let (x, y, align, width, above) = if node.layer == 0 {
+                    (
+                        bounds.left - options.label_gap,
+                        (bounds.top + bounds.bottom) / 2.,
+                        FlowAlign::Right,
+                        (left - options.label_gap).max(0.),
+                        false,
+                    )
+                } else if node.layer + 1 == graph.layer_count() {
+                    (
+                        bounds.right + options.label_gap,
+                        (bounds.top + bounds.bottom) / 2.,
+                        FlowAlign::Left,
+                        (right - options.label_gap).max(0.),
+                        false,
+                    )
+                } else {
+                    (
+                        middle,
+                        bounds.top - options.label_gap,
+                        FlowAlign::Center,
+                        2. * middle.min(plan.width - middle).max(0.),
+                        true,
+                    )
+                };
+                (
+                    Point::new(x, y),
+                    Some(FlowLabelPlacement {
+                        align,
+                        width,
+                        block_height: metric.height,
+                        above,
+                    }),
+                )
+            } else {
+                (
+                    Point::new(
+                        if align_right {
+                            bounds.left - options.label_gap
+                        } else {
+                            bounds.right + options.label_gap
+                        },
+                        (bounds.top + bounds.bottom) / 2.,
+                    ),
+                    None,
+                )
+            };
             plan.labels.push(Label {
-                position: Point::new(
-                    if align_right {
-                        bounds.left - options.label_gap
-                    } else {
-                        bounds.right + options.label_gap
-                    },
-                    (bounds.top + bounds.bottom) / 2.,
-                ),
+                position,
                 text: nodes[node.index].label.clone(),
                 kind: LabelKind::Flow {
+                    placement,
                     align_right,
                     node_index: node.index,
                 },
@@ -966,7 +1087,25 @@ pub fn prepare(
     height: f64,
     cancel: &AtomicBool,
 ) -> Result<Plan, Error> {
+    prepare_with_flow_labels(data, policy, options, (width, height), None, cancel)
+}
+/// Measured outside-label geometry. The caller must supply exact native block
+/// metrics for this snapshot; preparation never estimates text widths. None
+/// preserves the existing inside layout. Only Sankey data accepts metrics.
+/// Public option/worker integration is a separate layer above this pure engine.
+pub fn prepare_with_flow_labels(
+    data: &data::Data,
+    policy: Policy,
+    options: &options::Options,
+    size: (f64, f64),
+    labels: Option<&[Option<FlowLabelMetrics>]>,
+    cancel: &AtomicBool,
+) -> Result<Plan, Error> {
+    let (width, height) = size;
     check(cancel)?;
+    if labels.is_some() && !matches!(data.contents, data::Contents::Sankey(..)) {
+        return Err(Error::InvalidInput);
+    }
     if !options.is_valid()
         || !width.is_finite()
         || !height.is_finite()
@@ -1029,7 +1168,7 @@ pub fn prepare(
         (data::Contents::Pie(slices), _) => pie(&mut plan, slices, options.pie),
         (data::Contents::Radar(axes, series), _) => radar(&mut plan, axes, series, options.radar),
         (data::Contents::Sankey(nodes, edges), _) => {
-            sankey(&mut plan, nodes, edges, options.sankey)?
+            sankey(&mut plan, nodes, edges, options.sankey, labels, cancel)?
         }
         _ => return Err(Error::InvalidInput),
     }
@@ -1051,3 +1190,6 @@ pub fn prepare(
 mod tests;
 
 mod stacking;
+
+#[cfg(test)]
+mod flow_labels_tests;
