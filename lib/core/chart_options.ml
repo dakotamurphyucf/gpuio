@@ -106,11 +106,37 @@ end
 module Pie = struct
   type t = Wire.Pie.t [@@deriving equal, sexp_of]
 
-  let create ?(inner_radius = 0.) ?(pad_angle = 0.) ?(labels = true) () =
+  module Radius = struct
+    type t = Wire.Pie.Radius.t =
+      | Fit
+      | Pixels of float
+    [@@deriving equal, sexp_of]
+  end
+
+  module Slice_radii = struct
+    type t = Wire.Pie.Slice_radii.t [@@deriving equal, sexp_of]
+
+    let create ~slice ~inner ~outer () =
+      checked
+        Wire.Pie.Slice_radii.valid
+        { Wire.Pie.Slice_radii.slice = Chart_data.Datum_id.to_int64 slice; inner; outer }
+        "pie slice radii require finite logical pixels 0 <= inner <= outer <= 32768"
+    ;;
+  end
+
+  let create
+        ?(inner_radius = 0.)
+        ?(pad_angle = 0.)
+        ?(labels = true)
+        ?(radius = Radius.Fit)
+        ?(slice_radii = [])
+        ()
+    =
     checked
       Wire.Pie.valid
-      { Wire.Pie.inner_radius; pad_angle; labels }
-      "chart inner_radius must be in [0,0.95] and pad_angle in [0,0.2]"
+      { Wire.Pie.inner_radius; pad_angle; labels; radius; slice_radii }
+      "pie requires inner fraction [0,0.95], pad [0,0.2], radius (0,32768] and at most \
+       256 unique valid slice radii"
   ;;
 
   let default = create () |> Or_error.ok_exn
@@ -248,7 +274,7 @@ let create
       ?(sankey = Sankey.default)
       ()
   =
-  { Wire.version = 7L; axes; cartesian; pie; radar; candlestick; sankey }
+  { Wire.version = 8L; axes; cartesian; pie; radar; candlestick; sankey }
 ;;
 
 let default = create ()

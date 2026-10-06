@@ -733,3 +733,19 @@ it. Original source values and selection are unchanged. See the
 and [scoped local evidence](../evidence/radar-label-content-och41.md), including
 remaining interaction/lifecycle qualification. The explicit chart-view envelope
 is -1; options/style/data are 7/-2/1. Matching bridge revisions are required.
+
+
+## Pie fixed and per-slice radii — options schema 8
+
+The [pie radii contract](pie-radii.md) adds a global Fit/Pixels outer radius and
+at most 256 stable-ID overrides containing both inner and outer logical-pixel
+radii. The existing global donut-hole fraction stays unchanged. Overrides affect
+presentation and hit geometry while preserving source values, angular weights
+and selection identities. Unknown IDs are ignored until present; equal radii
+omit the wedge/caption without filtering original data.
+
+Options schema 8 explicitly rejects version 7 and earlier. The default frame is
+114 bytes; style/data/view versions remain -2/1/-1. Matching packages are required.
+This supersedes earlier sections' current-options version references; their
+original fixtures and evidence remain historical. Outside pie captions, leader
+styling and label spacing remain separate catalog work.

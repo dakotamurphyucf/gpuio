@@ -210,6 +210,8 @@ let component app window palette graph =
   let category_layout, set_category_layout = B.state Category_layout.Auto graph in
   let unknown_color, toggle_unknown_color = B.toggle ~default_model:true graph in
   let stacked, toggle_stacked = B.toggle ~default_model:true graph in
+  let fixed_pie, toggle_fixed_pie = B.toggle ~default_model:false graph in
+  let variable_pie, toggle_variable_pie = B.toggle ~default_model:false graph in
   let radar_scale, set_radar_scale = B.state Radar_scale.Per_axis graph in
   let fixed_radius, toggle_fixed_radius = B.toggle ~default_model:false graph in
   let spaced_radar, toggle_spaced_radar = B.toggle ~default_model:false graph in
@@ -265,6 +267,10 @@ let component app window palette graph =
   and toggle_unknown_color = toggle_unknown_color
   and stacked = stacked
   and toggle_stacked = toggle_stacked
+  and fixed_pie = fixed_pie
+  and toggle_fixed_pie = toggle_fixed_pie
+  and variable_pie = variable_pie
+  and toggle_variable_pie = toggle_variable_pie
   and radar_scale = radar_scale
   and set_radar_scale = set_radar_scale
   and fixed_radius = fixed_radius
@@ -342,6 +348,12 @@ let component app window palette graph =
                 if placement_mode
                 then if outside then " · Outside" else " · Inside"
                 else ""
+              else if Mode.equal current_mode (Family Pie)
+              then
+                sprintf
+                  "%s · %s"
+                  (if fixed_pie then "80 px" else "Fit")
+                  (if variable_pie then "Per-slice radii" else "Uniform radii")
               else if Mode.equal current_mode (Family Radar)
               then
                 sprintf
@@ -385,7 +397,25 @@ let component app window palette graph =
              ~category_layout:(Category_layout.options category_layout)
              ()
            |> ok)
-        ~pie:(Chart_options.Pie.create ~inner_radius:0.5 () |> ok)
+        ~pie:
+          (Chart_options.Pie.create
+             ~inner_radius:0.5
+             ~radius:(if fixed_pie then Pixels 80. else Fit)
+             ~slice_radii:
+               (if variable_pie
+                then
+                  List.map
+                    [ 1L, 20., 90.; 2L, 35., 65.; 3L, 15., 75.; 4L, 0., 50. ]
+                    ~f:(fun (id, inner, outer) ->
+                      Chart_options.Pie.Slice_radii.create
+                        ~slice:(Chart_data.Datum_id.of_int64 id |> ok)
+                        ~inner
+                        ~outer
+                        ()
+                      |> ok)
+                else [])
+             ()
+           |> ok)
         ~radar:
           (Chart_options.Radar.create
              ~labels:show_radar_labels
@@ -468,6 +498,25 @@ let component app window palette graph =
            ; Palette.button p "Update chart samples" update
            ]
        ]
+       @ (if Mode.equal current_mode (Family Pie)
+          then
+            [ V.row
+                ~style:(style [ Gap (px 12.); Wrap Wrap ])
+                [ V.switch
+                    ~checked:fixed_pie
+                    ~on_toggle:toggle_fixed_pie
+                    "Fixed pie radius 80"
+                ; V.switch
+                    ~checked:variable_pie
+                    ~on_toggle:toggle_variable_pie
+                    "Per-slice pie radii"
+                ]
+            ; Palette.text
+                p
+                ~muted:true
+                "Radii change the picture; slice values and angular shares stay the same."
+            ]
+          else [])
        @ (if Mode.equal current_mode (Family Radar)
           then
             [ V.row

@@ -17,6 +17,7 @@ impl Config {
         std::mem::size_of::<Self>()
             + self.label.capacity()
             + self.style.heap_bytes()
+            + self.options.heap_bytes()
             + self.radar_labels.capacity() * std::mem::size_of::<i64>()
     }
 

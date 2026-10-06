@@ -339,6 +339,60 @@ fn cases() -> Vec<Case> {
             samples,
         );
     }
+    let mut fixed_pie = options();
+    fixed_pie.pie.radius = gpuio_protocol::chart_options::PieRadius::Pixels(50.);
+    fixed_pie.pie.labels = false;
+    add(
+        "pie-fixed-radius",
+        dataset(data::Contents::Pie(slices.clone())),
+        fixed_pie.clone(),
+        style(),
+        vec![
+            sample(140., 80., 255, 0, 0),
+            sample(160., 80., 0, 0, 0),
+            sample(60., 80., 0, 0, 255),
+            sample(40., 80., 0, 0, 0),
+        ],
+    );
+    fixed_pie.pie.slice_radii = vec![gpuio_protocol::chart_options::SliceRadii {
+        slice: 1,
+        inner: 20.,
+        outer: 35.,
+    }];
+    add(
+        "pie-variable-radius",
+        dataset(data::Contents::Pie(slices.clone())),
+        fixed_pie.clone(),
+        style(),
+        vec![
+            sample(110., 80., 0, 0, 0),
+            sample(128., 80., 255, 0, 0),
+            sample(144., 80., 0, 0, 0),
+            sample(60., 80., 0, 0, 255),
+        ],
+    );
+    let mut reordered = slices.clone();
+    reordered.reverse();
+    add(
+        "pie-radius-reordered",
+        dataset(data::Contents::Pie(reordered)),
+        fixed_pie.clone(),
+        style(),
+        vec![
+            sample(90., 80., 0, 0, 0),
+            sample(72., 80., 0, 0, 255),
+            sample(56., 80., 0, 0, 0),
+            sample(140., 80., 255, 0, 0),
+        ],
+    );
+    fixed_pie.pie.slice_radii[0].inner = 35.;
+    add(
+        "pie-equal-radii",
+        dataset(data::Contents::Pie(slices.clone())),
+        fixed_pie,
+        style(),
+        vec![sample(128., 80., 0, 0, 0), sample(60., 80., 0, 0, 255)],
+    );
     let mut donut = options();
     donut.pie.inner_radius = 0.5;
     add(

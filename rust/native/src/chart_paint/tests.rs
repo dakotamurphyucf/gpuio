@@ -317,3 +317,33 @@ fn radar_projection_prepares_meshes_and_preserves_off_plot_selection() {
         ));
     }
 }
+
+#[test]
+fn maximum_pie_radius_prepares_bounded_meshes_without_changing_raw_data() {
+    let data = Data {
+        version: 1,
+        contents: data::Contents::Pie(vec![data::Slice {
+            id: 7,
+            label: "Original value".into(),
+            value: 3.,
+        }]),
+    };
+    let mut options = Options::default();
+    options.pie.radius = gpuio_protocol::chart_options::PieRadius::Pixels(32768.);
+    options.pie.labels = false;
+    for scale in [0.5, 1., 2., 8.] {
+        let p = prepare(
+            &data,
+            Policy::default(),
+            &options,
+            &Style::default(),
+            Layout::new(200., 160., scale).unwrap(),
+            &AtomicBool::new(false),
+        )
+        .unwrap();
+        assert_eq!(p.geometry().source_values, 1);
+        assert_eq!(p.geometry().marks[0].source, geometry::Source::Slice(0));
+        assert!(p.mesh_count() > 0 && p.vertices() <= MAX_VERTICES);
+        assert!(p.retained_bytes() < MAX_BYTES);
+    }
+}

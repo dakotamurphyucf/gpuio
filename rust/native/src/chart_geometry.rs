@@ -653,7 +653,7 @@ fn cartesian(
     }
     Ok(())
 }
-fn pie(plan: &mut Plan, slices: &[data::Slice], options: options::Pie) {
+fn pie(plan: &mut Plan, slices: &[data::Slice], options: &options::Pie) {
     // Dividing first avoids both aggregate overflow and precision loss from
     // converting raw tiny/huge values to f32 in a graphics API.
     let maximum = slices.iter().map(|s| s.value).fold(0., f64::max);
@@ -661,20 +661,32 @@ fn pie(plan: &mut Plan, slices: &[data::Slice], options: options::Pie) {
         return;
     }
     let total = slices.iter().map(|s| s.value / maximum).sum::<f64>();
-    let radius = plan.width.min(plan.height) / 2.;
+    let radius = match options.radius {
+        options::PieRadius::Fit => plan.width.min(plan.height) / 2.,
+        options::PieRadius::Pixels(radius) => radius,
+    };
+    let radii: std::collections::BTreeMap<_, _> = options
+        .slice_radii
+        .iter()
+        .map(|r| (r.slice, (r.inner, r.outer)))
+        .collect();
     let center = Point::new(plan.width / 2., plan.height / 2.);
     let mut angle = -PI / 2.;
     for (i, slice) in slices.iter().enumerate() {
         let sweep = (slice.value / maximum) / total * TAU;
         let gap = options.pad_angle.min(sweep * 0.5);
-        if sweep > 0. {
+        let (inner, outer) = radii
+            .get(&slice.id)
+            .copied()
+            .unwrap_or((radius * options.inner_radius, radius));
+        if sweep > 0. && outer > inner {
             plan.marks.push(Mark {
                 layer: i,
                 source: Source::Slice(i),
                 shape: Shape::Wedge {
                     center,
-                    inner: radius * options.inner_radius,
-                    outer: radius,
+                    inner,
+                    outer,
                     start: angle + gap / 2.,
                     end: angle + sweep - gap / 2.,
                 },
@@ -683,7 +695,7 @@ fn pie(plan: &mut Plan, slices: &[data::Slice], options: options::Pie) {
                 plan.labels.push(Label {
                     position: Point::polar(
                         center,
-                        radius * (options.inner_radius + (1. - options.inner_radius) * 0.65),
+                        inner + (outer - inner) * 0.65,
                         angle + sweep / 2.,
                     ),
                     text: slice.label.clone(),
@@ -1194,7 +1206,7 @@ pub fn prepare_with_flow_labels(
         (data::Contents::Candlestick(source), reduce::Contents::Candlestick(values)) => {
             candles(&mut plan, source, values, options)
         }
-        (data::Contents::Pie(slices), _) => pie(&mut plan, slices, options.pie),
+        (data::Contents::Pie(slices), _) => pie(&mut plan, slices, &options.pie),
         (data::Contents::Radar(axes, series), _) => radar(&mut plan, axes, series, options.radar)?,
         (data::Contents::Sankey(nodes, edges), _) => {
             sankey(&mut plan, nodes, edges, options.sankey, labels, cancel)?
@@ -1222,3 +1234,6 @@ mod stacking;
 
 #[cfg(test)]
 mod flow_labels_tests;
+
+#[cfg(test)]
+mod pie_radii_tests;

@@ -14,7 +14,7 @@ impl Decoder<'_> {
     }
     pub(super) fn chart_options(&mut self) -> Result<Options, DecodeError> {
         let version = self.int()?;
-        if version != 7 {
+        if version != 8 {
             return Err(DecodeError::Malformed);
         }
         let options = Options {
@@ -62,6 +62,18 @@ impl Decoder<'_> {
                 inner_radius: self.float()?,
                 pad_angle: self.float()?,
                 labels: self.boolean()?,
+                radius: match self.tag()? {
+                    0 => PieRadius::Fit,
+                    1 => PieRadius::Pixels(self.float()?),
+                    _ => return Err(DecodeError::Malformed),
+                },
+                slice_radii: self.list(256, |d| {
+                    Ok(SliceRadii {
+                        slice: d.int()?,
+                        inner: d.float()?,
+                        outer: d.float()?,
+                    })
+                })?,
             },
             radar: Radar {
                 levels: self.int()?,
@@ -125,7 +137,7 @@ impl Decoder<'_> {
     }
 }
 pub fn decode_chart_options(bytes: &[u8]) -> Result<Options, DecodeError> {
-    if bytes.len() > 256 {
+    if bytes.len() > MAX_OPTIONS_BYTES {
         return Err(DecodeError::LimitExceeded);
     }
     let mut d = Decoder(Cursor::new(bytes));

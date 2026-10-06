@@ -15,6 +15,13 @@ Three owner-authorized GPT-6.1 Sol agents contributed scoped walkthroughs in par
 Contributor guidance and a structural CI check keep new sources visible; neither
 file presence nor that check establishes documentation or platform acceptance.
 
+[Pie radii](evidence/pie-radii-och41.md) now expose a global Fit/Pixels radius
+and bounded stable-ID inner/outer overrides from OCaml. Source weights, angular
+shares and original values remain intact. Paired codecs, full OCaml/native unit
+checks, GPU pixels at four test scales, strict lint and root/fresh-installed
+public gallery walkthroughs pass. Options schema is now 8; matching packages
+are required. Outside pie captions and broader catalog/release work remain open.
+
 [Radar rating/theme checks](evidence/radar-label-rating-theme-och41.md) pass actual
 AppKit rating increments, queued/retired action rejection and GPUI pointer gesture
 lifetimes without another runtime repair. The public gallery now verifies both

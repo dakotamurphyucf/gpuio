@@ -118,13 +118,42 @@ end
 module Pie : sig
   type t [@@deriving equal, sexp_of]
 
+  module Radius : sig
+    type t =
+      | Fit
+      | Pixels of float
+    [@@deriving equal, sexp_of]
+  end
+
+  module Slice_radii : sig
+    type t [@@deriving equal, sexp_of]
+
+    (** Override both radii for one stable slice ID. Finite logical pixels with
+        [0 <= inner <= outer <= 32768]. Equal radii hide the wedge/caption while
+        retaining its angular interval and original-data value. *)
+    val create
+      :  slice:Chart_data.Datum_id.t
+      -> inner:float
+      -> outer:float
+      -> unit
+      -> t Or_error.t
+  end
+
   (** [inner_radius] is the donut hole fraction in [0,0.95]; [pad_angle] is
       radians in [0,0.2]. Padding is clamped per slice to avoid negative wedges.
-      Zero-valued slices have no area; an all-zero pie has no wedges. *)
+      Zero-valued slices have no area; an all-zero pie has no wedges.
+      [radius] defaults to Fit (half the smaller available plot dimension).
+      Pixels is finite and in (0,32768]; oversized wedges clip to the plot.
+      [slice_radii] has at most 256 unique IDs. Unknown IDs are ignored; matched
+      slices replace both radii, independent of caption/order. Others use the
+      global outer radius and fractional inner radius. Source weights and
+      selection values are unchanged. *)
   val create
     :  ?inner_radius:float
     -> ?pad_angle:float
     -> ?labels:bool
+    -> ?radius:Radius.t
+    -> ?slice_radii:Slice_radii.t list
     -> unit
     -> t Or_error.t
 

@@ -1,6 +1,9 @@
 //! Validated, source-independent plotting options, shared by all chart families.
 use binprot::macros::BinProtWrite;
 
+/// Upper bound for a standalone options frame, including 256 per-slice radii.
+pub const MAX_OPTIONS_BYTES: usize = 16 * 1024;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
 pub enum NumberFormat {
     Compact,
@@ -78,10 +81,39 @@ pub struct Cartesian {
     pub stacking: Stacking,
 }
 #[derive(Clone, Copy, Debug, PartialEq, BinProtWrite)]
+pub enum PieRadius {
+    Fit,
+    Pixels(f64),
+}
+impl PieRadius {
+    pub fn is_valid(self) -> bool {
+        match self {
+            Self::Fit => true,
+            Self::Pixels(n) => between(n, 0., 32768.) && n > 0.,
+        }
+    }
+}
+#[derive(Clone, Copy, Debug, PartialEq, BinProtWrite)]
+pub struct SliceRadii {
+    pub slice: i64,
+    pub inner: f64,
+    pub outer: f64,
+}
+impl SliceRadii {
+    pub fn is_valid(&self) -> bool {
+        self.slice > 0
+            && between(self.inner, 0., 32768.)
+            && between(self.outer, 0., 32768.)
+            && self.inner <= self.outer
+    }
+}
+#[derive(Clone, Debug, PartialEq, BinProtWrite)]
 pub struct Pie {
     pub inner_radius: f64,
     pub pad_angle: f64,
     pub labels: bool,
+    pub radius: PieRadius,
+    pub slice_radii: Vec<SliceRadii>,
 }
 #[derive(Clone, Copy, Debug, PartialEq, BinProtWrite)]
 pub enum RadarScale {
@@ -161,7 +193,7 @@ pub struct Sankey {
     pub link_color: LinkColor,
     pub label_placement: LabelPlacement,
 }
-#[derive(Clone, Copy, Debug, PartialEq, BinProtWrite)]
+#[derive(Clone, Debug, PartialEq, BinProtWrite)]
 pub struct Options {
     pub version: i64,
     pub axes: Axes,
@@ -178,8 +210,11 @@ fn fraction(n: f64) -> bool {
     between(n, 0., 1.) && n > 0.
 }
 impl Options {
+    pub fn heap_bytes(&self) -> usize {
+        self.pie.slice_radii.capacity() * std::mem::size_of::<SliceRadii>()
+    }
     pub fn is_valid(&self) -> bool {
-        self.version == 7
+        self.version == 8
             && (2..=12).contains(&self.axes.ticks)
             && self.axes.x_format.is_valid()
             && self.axes.y_format.is_valid()
@@ -187,6 +222,17 @@ impl Options {
             && self.cartesian.category_layout.is_valid()
             && between(self.pie.inner_radius, 0., 0.95)
             && between(self.pie.pad_angle, 0., 0.2)
+            && self.pie.radius.is_valid()
+            && self.pie.slice_radii.len() <= 256
+            && self.pie.slice_radii.iter().all(SliceRadii::is_valid)
+            && self
+                .pie
+                .slice_radii
+                .iter()
+                .map(|r| r.slice)
+                .collect::<std::collections::BTreeSet<_>>()
+                .len()
+                == self.pie.slice_radii.len()
             && (1..=12).contains(&self.radar.levels)
             && self.radar.scale.is_valid()
             && self.radar.radius.is_valid()
@@ -204,7 +250,7 @@ impl Options {
 impl Default for Options {
     fn default() -> Self {
         Self {
-            version: 7,
+            version: 8,
             axes: Axes {
                 x: true,
                 y: true,
@@ -225,6 +271,8 @@ impl Default for Options {
                 inner_radius: 0.,
                 pad_angle: 0.,
                 labels: true,
+                radius: PieRadius::Fit,
+                slice_radii: vec![],
             },
             radar: Radar {
                 levels: 4,

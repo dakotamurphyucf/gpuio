@@ -92,14 +92,54 @@ module Cartesian = struct
 end
 
 module Pie = struct
+  module Radius = struct
+    type t =
+      | Fit
+      | Pixels of float
+    [@@deriving bin_io, equal, sexp_of]
+
+    let valid = function
+      | Fit -> true
+      | Pixels n -> between n 0. 32768. && Float.(n > 0.)
+    ;;
+  end
+
+  module Slice_radii = struct
+    type t =
+      { slice : int64
+      ; inner : float
+      ; outer : float
+      }
+    [@@deriving bin_io, equal, sexp_of]
+
+    let valid t =
+      Int64.(t.slice > 0L)
+      && between t.inner 0. 32768.
+      && between t.outer 0. 32768.
+      && Float.(t.inner <= t.outer)
+    ;;
+  end
+
   type t =
     { inner_radius : float
     ; pad_angle : float
     ; labels : bool
+    ; radius : Radius.t
+    ; slice_radii : Slice_radii.t list
     }
   [@@deriving bin_io, equal, sexp_of]
 
-  let valid t = between t.inner_radius 0. 0.95 && between t.pad_angle 0. 0.2
+  let valid t =
+    between t.inner_radius 0. 0.95
+    && between t.pad_angle 0. 0.2
+    && Radius.valid t.radius
+    && List.length t.slice_radii <= 256
+    && List.for_all t.slice_radii ~f:Slice_radii.valid
+    && not
+         (List.contains_dup
+            ~compare:Int64.compare
+            (List.map t.slice_radii ~f:(fun r -> r.slice)))
+  ;;
 end
 
 module Radar = struct
@@ -223,7 +263,7 @@ type t =
 [@@deriving bin_io, equal, sexp_of]
 
 let valid t =
-  Int64.equal t.version 7L
+  Int64.equal t.version 8L
   && Axes.valid t.axes
   && Cartesian.valid t.cartesian
   && Pie.valid t.pie

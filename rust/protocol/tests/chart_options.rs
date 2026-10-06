@@ -7,7 +7,7 @@ fn bytes(value: &Options) -> Vec<u8> {
 }
 #[test]
 fn default_options_match_independent_ocaml_fixture_and_reject_truncation() {
-    let hex = "070101010500000000009a9999999999e93f0000000000000000000000000000000000000104010100000000000000000000666666666666e63f0000000000003040000000000000284003000601000000000000f03f000000000000e03f000000000000000000000000000018400000";
+    let hex = "080101010500000000009a9999999999e93f00000000000000000000000000000000000001000004010100000000000000000000666666666666e63f0000000000003040000000000000284003000601000000000000f03f000000000000e03f000000000000000000000000000018400000";
     let expected: Vec<u8> = hex
         .as_bytes()
         .chunks_exact(2)
@@ -15,7 +15,7 @@ fn default_options_match_independent_ocaml_fixture_and_reject_truncation() {
         .collect();
     let value = Options::default();
     assert_eq!(bytes(&value), expected);
-    assert_eq!(decode_chart_options(&expected), Ok(value));
+    assert_eq!(decode_chart_options(&expected), Ok(value.clone()));
     for end in 0..expected.len() {
         assert!(decode_chart_options(&expected[..end]).is_err());
     }
@@ -24,14 +24,14 @@ fn default_options_match_independent_ocaml_fixture_and_reject_truncation() {
     assert_eq!(decode_chart_options(&trailing), Err(DecodeError::Malformed));
     // Independently specified enum/boolean field offsets in the default frame.
     for offset in [
-        1, 2, 3, 5, 6, 7, 8, 9, 18, 19, 36, 38, 39, 40, 41, 74, 75, 77,
+        1, 2, 3, 5, 6, 7, 8, 9, 18, 19, 36, 37, 40, 41, 42, 43, 76, 77, 79,
     ] {
         let mut bad = expected.clone();
         bad[offset] = 255;
         assert!(decode_chart_options(&bad).is_err(), "offset {offset}");
     }
     assert_eq!(
-        decode_chart_options(&[0; 257]),
+        decode_chart_options(&[0; 16 * 1024 + 1]),
         Err(DecodeError::LimitExceeded)
     );
 }
@@ -188,7 +188,7 @@ fn categorical_layout_tags_and_padding_bounds_are_paired_and_versioned() {
 fn stacking_is_explicit_paired_and_old_layouts_are_rejected() {
     let mut options = Options::default();
     let mut expected = bytes(&options);
-    assert_eq!(expected[0], 7);
+    assert_eq!(expected[0], 8);
     assert_eq!(expected[19], 0);
     options.cartesian.stacking = Stacking::Stacked;
     expected[19] = 1;
@@ -252,34 +252,34 @@ fn sankey_link_color_tags_preserve_default_and_reject_unknown_variants() {
         let mut value = Options::default();
         value.sankey.link_color = mode;
         let encoded = bytes(&value);
-        assert_eq!(encoded.len(), 112);
-        assert_eq!(encoded[110], tag);
-        assert_eq!(decode_chart_options(&encoded), Ok(value));
+        assert_eq!(encoded.len(), 114);
+        assert_eq!(encoded[112], tag);
+        assert_eq!(decode_chart_options(&encoded), Ok(value.clone()));
     }
     let mut encoded = bytes(&Options::default());
-    assert_eq!(encoded[110], 0);
-    encoded[110] = 3;
+    assert_eq!(encoded[112], 0);
+    encoded[112] = 3;
     assert_eq!(decode_chart_options(&encoded), Err(DecodeError::Malformed));
-    encoded[110] = 0;
+    encoded[112] = 0;
     encoded[0] = 4;
     assert_eq!(decode_chart_options(&encoded), Err(DecodeError::Malformed));
 }
 
 #[test]
-fn measured_label_placement_is_explicit_and_version_seven_rejects_old_options() {
+fn measured_label_placement_is_explicit_and_version_eight_rejects_old_options() {
     let mut value = Options::default();
     let original = bytes(&value);
-    assert_eq!(original.len(), 112);
-    assert_eq!(original[0], 7);
-    assert_eq!(original[111], 0);
+    assert_eq!(original.len(), 114);
+    assert_eq!(original[0], 8);
+    assert_eq!(original[113], 0);
     value.sankey.label_placement = LabelPlacement::Outside;
     let mut expected = original.clone();
-    expected[111] = 1;
+    expected[113] = 1;
     assert_eq!(bytes(&value), expected);
-    assert_eq!(decode_chart_options(&expected), Ok(value));
-    expected[111] = 2;
+    assert_eq!(decode_chart_options(&expected), Ok(value.clone()));
+    expected[113] = 2;
     assert_eq!(decode_chart_options(&expected), Err(DecodeError::Malformed));
-    for version in 0..7 {
+    for version in 0..8 {
         let mut old = original.clone();
         old[0] = version;
         assert_eq!(decode_chart_options(&old), Err(DecodeError::Malformed));
@@ -294,14 +294,14 @@ fn radar_scale_radius_gap_tags_and_invalid_wire_are_paired() {
     value.radar.label_gap = 10.;
     let mut expected = bytes(&Options::default());
     expected.splice(
-        40..50,
+        42..52,
         [1, 1, 0, 0, 0, 0, 0, 0, 84, 64, 0, 0, 0, 0, 0, 0, 36, 64],
     );
     assert_eq!(bytes(&value), expected);
-    assert_eq!(decode_chart_options(&expected), Ok(value));
+    assert_eq!(decode_chart_options(&expected), Ok(value.clone()));
     for maximum in [f64::from_bits(1), 1., 1e100] {
         value.radar.scale = RadarScale::Maximum(maximum);
-        assert_eq!(decode_chart_options(&bytes(&value)), Ok(value));
+        assert_eq!(decode_chart_options(&bytes(&value)), Ok(value.clone()));
     }
     for n in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY, -1., 0., 1.1e100] {
         value.radar.scale = RadarScale::Maximum(n);
@@ -320,7 +320,7 @@ fn radar_scale_radius_gap_tags_and_invalid_wire_are_paired() {
     }
     value.radar.radius = RadarRadius::Pixels(32768.);
     value.radar.label_gap = 64.;
-    assert_eq!(decode_chart_options(&bytes(&value)), Ok(value));
+    assert_eq!(decode_chart_options(&bytes(&value)), Ok(value.clone()));
     for n in [f64::NAN, f64::INFINITY, -1., 64.01] {
         value.radar.label_gap = n;
         assert_eq!(
@@ -328,7 +328,7 @@ fn radar_scale_radius_gap_tags_and_invalid_wire_are_paired() {
             Err(DecodeError::Malformed)
         );
     }
-    for (offset, tag) in [(40, 3), (41, 2)] {
+    for (offset, tag) in [(42, 3), (43, 2)] {
         let mut invalid = bytes(&Options::default());
         invalid[offset] = tag;
         assert_eq!(decode_chart_options(&invalid), Err(DecodeError::Malformed));
@@ -343,4 +343,152 @@ fn radar_scale_radius_gap_tags_and_invalid_wire_are_paired() {
         gpuio_protocol::decode_chart_view_config(&old),
         Err(DecodeError::Malformed)
     );
+}
+
+#[test]
+fn pie_radii_have_independent_tags_and_id_keyed_pairs() {
+    let mut options = Options::default();
+    options.pie.radius = PieRadius::Pixels(80.);
+    options.pie.slice_radii = vec![
+        SliceRadii {
+            slice: 7,
+            inner: 20.,
+            outer: 60.,
+        },
+        SliceRadii {
+            slice: 9,
+            inner: 0.,
+            outer: 0.,
+        },
+    ];
+    // Radius tag+80px, two overrides: ID 7 at [20,60], ID 9 at [0,0].
+    // Specified independently of BinProtWrite; OCaml asserts the same hex.
+    let hex =
+        "010000000000005440020700000000000034400000000000004e400900000000000000000000000000000000";
+    let fields = hex
+        .as_bytes()
+        .chunks_exact(2)
+        .map(|s| u8::from_str_radix(std::str::from_utf8(s).unwrap(), 16).unwrap())
+        .collect::<Vec<_>>();
+    let mut expected = bytes(&Options::default());
+    expected.splice(37..39, fields);
+    assert_eq!(bytes(&options), expected);
+    assert_eq!(decode_chart_options(&expected), Ok(options));
+    for end in 0..expected.len() {
+        assert!(decode_chart_options(&expected[..end]).is_err());
+    }
+    let mut trailing = expected;
+    trailing.push(0);
+    assert_eq!(decode_chart_options(&trailing), Err(DecodeError::Malformed));
+}
+
+#[test]
+fn pie_radii_bound_untrusted_frames_and_native_records() {
+    let mut options = Options::default();
+    for radius in [
+        f64::NAN,
+        f64::INFINITY,
+        f64::NEG_INFINITY,
+        -1.,
+        0.,
+        32768.01,
+    ] {
+        options.pie.radius = PieRadius::Pixels(radius);
+        assert!(!options.is_valid());
+        assert_eq!(
+            decode_chart_options(&bytes(&options)),
+            Err(DecodeError::Malformed)
+        );
+    }
+    for radius in [f64::from_bits(1), 1., 32768.] {
+        options.pie.radius = PieRadius::Pixels(radius);
+        assert_eq!(decode_chart_options(&bytes(&options)), Ok(options.clone()));
+    }
+    options.pie.radius = PieRadius::Fit;
+    for (inner, outer) in [(0., 0.), (10., 10.), (0., 32768.), (f64::from_bits(1), 1.)] {
+        options.pie.slice_radii = vec![SliceRadii {
+            slice: i64::MAX,
+            inner,
+            outer,
+        }];
+        assert_eq!(decode_chart_options(&bytes(&options)), Ok(options.clone()));
+    }
+    for invalid in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY, -1., 32768.01] {
+        for (inner, outer) in [(invalid, 10.), (0., invalid), (20., 10.)] {
+            options.pie.slice_radii = vec![SliceRadii {
+                slice: 1,
+                inner,
+                outer,
+            }];
+            assert!(!options.is_valid());
+            assert_eq!(
+                decode_chart_options(&bytes(&options)),
+                Err(DecodeError::Malformed)
+            );
+        }
+    }
+    for slice in [0, -1] {
+        options.pie.slice_radii = vec![SliceRadii {
+            slice,
+            inner: 0.,
+            outer: 1.,
+        }];
+        assert!(!options.is_valid());
+        assert_eq!(
+            decode_chart_options(&bytes(&options)),
+            Err(DecodeError::Malformed)
+        );
+    }
+    options.pie.slice_radii = vec![
+        SliceRadii {
+            slice: 1,
+            inner: 0.,
+            outer: 1.
+        };
+        2
+    ];
+    assert!(!options.is_valid());
+    assert_eq!(
+        decode_chart_options(&bytes(&options)),
+        Err(DecodeError::Malformed)
+    );
+    options.pie.slice_radii = (1..=256)
+        .map(|slice| SliceRadii {
+            slice,
+            inner: 0.,
+            outer: 1.,
+        })
+        .collect();
+    assert!(options.is_valid());
+    assert_eq!(decode_chart_options(&bytes(&options)), Ok(options.clone()));
+    assert_eq!(
+        options.heap_bytes(),
+        options.pie.slice_radii.capacity() * std::mem::size_of::<SliceRadii>()
+    );
+    options.pie.slice_radii.push(SliceRadii {
+        slice: 257,
+        inner: 0.,
+        outer: 1.,
+    });
+    assert!(!options.is_valid());
+    assert_eq!(
+        decode_chart_options(&bytes(&options)),
+        Err(DecodeError::LimitExceeded)
+    );
+    // Reject the advertised count before allocating/reading nonexistent entries.
+    for count in [
+        vec![254, 1, 1],
+        vec![252, 255, 255, 255, 255, 255, 255, 255, 127],
+    ] {
+        let mut frame = bytes(&Options::default());
+        frame.truncate(38);
+        frame.extend(count);
+        assert_eq!(
+            decode_chart_options(&frame),
+            Err(DecodeError::LimitExceeded)
+        );
+    }
+    let mut frame = bytes(&Options::default());
+    frame[37] = 2;
+    assert_eq!(decode_chart_options(&frame), Err(DecodeError::Malformed));
 }

@@ -26,7 +26,9 @@ impl Decoder<'_> {
     }
 }
 pub fn decode_chart_view_config(bytes: &[u8]) -> Result<Config, DecodeError> {
-    if bytes.len() > crate::chart_style::MAX_STYLE_BYTES + 2 * 1024 {
+    if bytes.len()
+        > crate::chart_style::MAX_STYLE_BYTES + crate::chart_options::MAX_OPTIONS_BYTES + 2 * 1024
+    {
         return Err(DecodeError::LimitExceeded);
     }
     let mut d = Decoder(Cursor::new(bytes));

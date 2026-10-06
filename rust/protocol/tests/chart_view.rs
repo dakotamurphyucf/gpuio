@@ -83,7 +83,12 @@ fn bounded_chart_view_and_transaction_match_independent_fixture() {
         Err(DecodeError::Malformed)
     );
     assert_eq!(
-        decode_chart_view_config(&[0; gpuio_protocol::chart_style::MAX_STYLE_BYTES + 2 * 1024 + 1]),
+        decode_chart_view_config(
+            &[0; gpuio_protocol::chart_style::MAX_STYLE_BYTES
+                + gpuio_protocol::chart_options::MAX_OPTIONS_BYTES
+                + 2 * 1024
+                + 1]
+        ),
         Err(DecodeError::LimitExceeded)
     );
     let window = WindowId::from_parts(0, 1).unwrap();
@@ -195,4 +200,23 @@ fn radar_label_targets_match_independent_bytes_and_bound_native_allocation() {
         decode_chart_view_config(&previous),
         Err(DecodeError::Malformed)
     );
+}
+
+#[test]
+fn pie_radius_storage_is_charged_and_full_override_lists_decode() {
+    use gpuio_protocol::chart_options::SliceRadii;
+    let mut value = config();
+    let before = value.retained_bytes();
+    value.options.pie.slice_radii = (1..=256)
+        .map(|slice| SliceRadii {
+            slice,
+            inner: 0.,
+            outer: 60.,
+        })
+        .collect();
+    assert_eq!(
+        value.retained_bytes() - before,
+        value.options.pie.slice_radii.capacity() * std::mem::size_of::<SliceRadii>()
+    );
+    assert_eq!(decode_chart_view_config(&encode(&value)), Ok(value));
 }

@@ -270,6 +270,66 @@ caption stays on its prepared line. These checks do not establish Linux desktop,
 VoiceOver or 120 FPS acceptance.
 
 
+## Pie radius controls
+
+Choose the Pie family to expose **Fixed pie radius 80** and **Per-slice pie radii**.
+In `component`, `fixed_pie` and `variable_pie` each come from
+`B.toggle ~default_model:false graph`. Here `B = Bonsai.Cont`: `graph` owns the
+reactive state cells, and each toggle supplies a current Boolean plus an effect
+that changes it. The outer `let%arr` reads both Booleans and their toggle effects,
+deriving the current `V.switch` descriptions and plotting options. Passing an
+effect to `~on_toggle` schedules nothing until a native switch event runs it.
+
+`Chart_options.Pie.create ~inner_radius:0.5` starts with a donut hole equal to half
+the global outer radius. Its `~radius` argument chooses
+`Chart_options.Pie.Radius.Fit` or `Pixels 80.` from `fixed_pie`. Fit uses half the
+smaller available plot dimension after native presentation gutters; Pixels fixes
+that outer radius in logical pixels. The fractional hole is therefore 40 pixels
+when the fixed radius is enabled and no slice override matches.
+
+When `variable_pie` is true, `List.map` turns four `(id, inner, outer)` tuples into
+validated `Chart_options.Pie.Slice_radii.create ~slice ~inner ~outer ()` values.
+`Chart_data.Datum_id.of_int64` supplies each stable slice identity; `ok` unwraps
+these known-valid fixture results. The [sample source](../charts/samples/gpuio_chart_samples.ml)
+assigns ID 1 to Reasoning, 2 to Code, 3 to Research and 4 to Other. Their inner/outer
+pairs are respectively `(20, 90)`, `(35, 65)`, `(15, 75)` and `(0, 50)` logical
+pixels. An override replaces **both** radii for its ID, rather than multiplying
+the global radius or reusing the 0.5 hole fraction. All four fixture IDs match,
+so enabling the fixed-radius switch while per-slice radii are enabled does not
+change these four wedges. Disabling per-slice radii submits `[]` and restores the
+global Fit/80-pixel radius and fractional hole.
+
+Trace: toggle Per-slice pie radii → native switch executes `toggle_variable_pie`
+→ Bonsai updates its Boolean → `let%arr` derives the ID-keyed options and chart
+config → native preparation updates wedge, caption and hit geometry → Ready
+updates the notice to name the radius settings. The chart keeps its stable key
+and borrowed source handle. This path does not call `Source.update` or change
+slice weights, angular shares, selected IDs or original-data values. The ordinary
+selection handler and matching-publication guard continue to use source data.
+Radius associations follow IDs across reordering or renaming, not caption text
+or a slice's current position. The options are constructed with the other chart
+options; these two switches are displayed only in the Pie family.
+
+The [public interface](../../lib/core/chart_options.mli) and
+[pie-radii contract](../../docs/design/pie-radii.md) require finite global Pixels
+in `(0, 32768]`, fractional `inner_radius` in `[0, 0.95]`, and finite override
+pixels with `0 <= inner <= outer <= 32768`. At most 256 distinct override IDs are
+allowed. Unknown IDs are retained but ignored; unmatched slices use the global
+settings. Equal radii, including `(0, 0)`, hide a wedge and its caption while a
+positive source weight still reserves its angular interval and original-data
+selection value. A zero source weight stays invisible even with positive radii.
+Oversized radii may clip to the plot rather than moving its center.
+
+To adapt the example, change Research's ID-3 tuple to `(25, 85)` while preserving
+its source ID; the next derived options change that ring only. To demonstrate a
+hidden positive-weight sector, use equal radii for ID 3 and keep its source value
+18: the original-data browser still exposes that value, but the absent wedge is
+not a hit or keyboard-preview target. Native selection highlighting requires a
+prepared mark, just as it does for zero-weight slices. Handle constructor errors
+when radii come from user input instead of using the fixture's `ok` shortcut.
+This documentation update records the implementation; it adds no native, GPU,
+accessibility or platform acceptance evidence.
+
 ## Radar projection controls
 
 The Radar family adds a small `Radar_scale` model: its values are the public
