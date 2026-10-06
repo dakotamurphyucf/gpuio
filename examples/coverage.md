@@ -220,8 +220,8 @@ Generated from [coverage.json](coverage.json). Read the [review guide](coverage-
 | [feedback_page.ml](gallery/feedback_page.ml), [feedback_page.mli](gallery/feedback_page.mli) | component | Missing | pending |
 | [settings_file.ml](gallery/files/settings_file.ml), [settings_file.mli](gallery/files/settings_file.mli) | component | Missing | pending |
 | [settings_file_test.ml](gallery/files/test/settings_file_test.ml) | test-support | Missing | pending |
-| [theme_file_test.ml](gallery/files/test/theme_file_test.ml) | test-support | Missing | pending |
-| [theme_file.ml](gallery/files/theme_file.ml), [theme_file.mli](gallery/files/theme_file.mli) | component | Missing | pending |
+| [theme_file_test.ml](gallery/files/test/theme_file_test.ml) | test-support | [theme_file.md](gallery/files/theme_file.md) | reviewed |
+| [theme_file.ml](gallery/files/theme_file.ml), [theme_file.mli](gallery/files/theme_file.mli) | component | [theme_file.md](gallery/files/theme_file.md) | reviewed |
 | [form_preview.ml](gallery/form_preview.ml), [form_preview.mli](gallery/form_preview.mli) | component | Missing | pending |
 | [format_preview.ml](gallery/format_preview.ml), [format_preview.mli](gallery/format_preview.mli) | component | Missing | pending |
 | [group_preview.ml](gallery/group_preview.ml), [group_preview.mli](gallery/group_preview.mli) | component | Missing | pending |
@@ -236,7 +236,7 @@ Generated from [coverage.json](coverage.json). Read the [review guide](coverage-
 | [main.ml](gallery/main.ml) | application-entry | [application.md](gallery/application.md) | reviewed |
 | [marker_preview.ml](gallery/marker_preview.ml), [marker_preview.mli](gallery/marker_preview.mli) | component | Missing | pending |
 | [menu_preview.ml](gallery/menu_preview.ml), [menu_preview.mli](gallery/menu_preview.mli) | component | Missing | pending |
-| [appearance.ml](gallery/model/appearance.ml), [appearance.mli](gallery/model/appearance.mli) | support | Missing | pending |
+| [appearance.ml](gallery/model/appearance.ml), [appearance.mli](gallery/model/appearance.mli) | support | [appearance.md](gallery/model/appearance.md) | reviewed |
 | [canvas_study.ml](gallery/model/canvas_study.ml), [canvas_study.mli](gallery/model/canvas_study.mli) | support | Missing | pending |
 | [diff_state.ml](gallery/model/diff_state.ml), [diff_state.mli](gallery/model/diff_state.mli) | support | Missing | pending |
 | [editor_visit.ml](gallery/model/editor_visit.ml), [editor_visit.mli](gallery/model/editor_visit.mli) | support | Missing | pending |
@@ -249,8 +249,8 @@ Generated from [coverage.json](coverage.json). Read the [review guide](coverage-
 | [picker_state.ml](gallery/model/picker_state.ml), [picker_state.mli](gallery/model/picker_state.mli) | support | Missing | pending |
 | [selection_state.ml](gallery/model/selection_state.ml), [selection_state.mli](gallery/model/selection_state.mli) | support | Missing | pending |
 | [settings_state.ml](gallery/model/settings_state.ml), [settings_state.mli](gallery/model/settings_state.mli) | support | Missing | pending |
-| [theme_profile.ml](gallery/model/theme_profile.ml), [theme_profile.mli](gallery/model/theme_profile.mli) | support | Missing | pending |
-| [theme_selection.ml](gallery/model/theme_selection.ml), [theme_selection.mli](gallery/model/theme_selection.mli) | support | Missing | pending |
+| [theme_profile.ml](gallery/model/theme_profile.ml), [theme_profile.mli](gallery/model/theme_profile.mli) | support | [theme_profile.md](gallery/model/theme_profile.md) | reviewed |
+| [theme_selection.ml](gallery/model/theme_selection.ml), [theme_selection.mli](gallery/model/theme_selection.mli) | support | [theme_selection.md](gallery/model/theme_selection.md) | reviewed |
 | [motion_page.ml](gallery/motion_page.ml), [motion_page.mli](gallery/motion_page.mli) | component | Missing | pending |
 | [navigation_page.ml](gallery/navigation_page.ml), [navigation_page.mli](gallery/navigation_page.mli) | component | Missing | pending |
 | [number_preview.ml](gallery/number_preview.ml), [number_preview.mli](gallery/number_preview.mli) | component | Missing | pending |
@@ -284,7 +284,7 @@ Generated from [coverage.json](coverage.json). Read the [review guide](coverage-
 | [tab_content_preview.ml](gallery/tab_content_preview.ml), [tab_content_preview.mli](gallery/tab_content_preview.mli) | component | Missing | pending |
 | [tag_preview.ml](gallery/tag_preview.ml), [tag_preview.mli](gallery/tag_preview.mli) | component | Missing | pending |
 | [textarea_preview.ml](gallery/textarea_preview.ml), [textarea_preview.mli](gallery/textarea_preview.mli) | component | Missing | pending |
-| [theme_preview.ml](gallery/theme_preview.ml), [theme_preview.mli](gallery/theme_preview.mli) | component | Missing | pending |
+| [theme_preview.ml](gallery/theme_preview.ml), [theme_preview.mli](gallery/theme_preview.mli) | component | [theme_preview.md](gallery/theme_preview.md) | reviewed |
 | [window_input_preview.ml](gallery/window_input_preview.ml) | component | Missing | pending |
 | [window_selection_preview.ml](gallery/window_selection_preview.ml), [window_selection_preview.mli](gallery/window_selection_preview.mli) | component | Missing | pending |
 ## getting_started
@@ -497,4 +497,4 @@ Generated from [coverage.json](coverage.json). Read the [review guide](coverage-
 | --- | --- | --- | --- |
 | [main.ml](window_lifecycle/main.ml) | application-entry | Missing | pending |
 
-417 source files in 260 groups; 10 reviewed, 250 pending.
+417 source files in 260 groups; 16 reviewed, 244 pending.

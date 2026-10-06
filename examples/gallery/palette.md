@@ -12,11 +12,11 @@ its own, Eio I/O or native resource lifetime.
 The private record stores six concrete colors, presentation appearance,
 document appearance and a size factor. Light/Dark defaults come from integer RGB
 values validated by `Color.rgb_exn`. An optional
-[`Theme_profile`](model/theme_profile.mli) replaces colors and presentation
+[validated theme profile](model/theme_profile.md) replaces colors and presentation
 appearance. Document/avatar appearance is derived from the effective Light/Dark
 choice passed by the caller. `create` does not load or watch a theme file.
 
-The [Appearance model](model/appearance.mli) maps Compact, Comfortable and Large
+The [Appearance model](model/appearance.md) maps Compact, Comfortable and Large
 to 0.85, 1.0 and 1.2. `size` multiplies logical dimensions by that factor.
 This is application sizing, not a simulation of Retina/display DPI. Some shell
 dimensions intentionally remain fixed; these helpers do not globally rescale

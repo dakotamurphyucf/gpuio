@@ -35,6 +35,9 @@ The [example coverage checklist](../coverage.md#gallery) records companion
 coverage for every gallery source part; pending entries remain explicit.
 
 Styles → **A theme from your workspace** loads a palette for the current window.
+Read the [theme-loading walkthrough](theme_preview.md), then the independent
+[appearance model](model/appearance.md), [selection identity](model/theme_selection.md),
+[profile decoder](model/theme_profile.md) and [Eio file adapter/test](files/theme_file.md).
 Choose [the Aurora sample](themes/aurora.sexp), edit its hex colors in your editor,
 save, then use **Reload file**. Type into **Theme preview draft** before reloading
 to check that the same editor keeps its text. A malformed file leaves the last

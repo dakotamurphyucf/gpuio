@@ -13,8 +13,8 @@ build coverage remain distinct; this guide adds no platform acceptance claim.
 
 Read `effective_appearance`, `palette`, the theme-change hook, `Pages.component`,
 then the final `let%arr`. The supporting source interfaces are
-[`Theme_selection`](model/theme_selection.mli),
-[`Appearance`](model/appearance.mli), [Palette](palette.md),
+[theme selection](model/theme_selection.md),
+[appearance](model/appearance.md), [Palette](palette.md),
 [Pages](pages.md) and [Shell](shell.md).
 
 `Bonsai.Expert.Var.value` observes variables created at window startup. `let%arr`

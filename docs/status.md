@@ -6,10 +6,10 @@ Markdown walkthroughs for every example component; it is planned in this milesto
 current work from historical checkpoints; it does not certify release readiness.
 
 [Example walkthrough coverage](evidence/example-walkthroughs-och48.md) now has an
-explicit inventory of 417 OCaml/Rust source files in 260 groups, with ten groups
-reviewed and 250 still pending. The starter, embedded/external palettes,
-scope helper and gallery application/layout/routing guides explain application,
-Bonsai, GPUIO and Eio responsibilities.
+explicit inventory of 417 OCaml/Rust source files in 260 groups, with sixteen groups
+reviewed and 244 still pending. The starter, embedded/external palettes,
+scope helper, gallery application/layout/routing and theme-loading guides explain
+application, Bonsai, GPUIO and Eio responsibilities.
 Contributor guidance and a structural CI check keep new sources visible; neither
 file presence nor that check establishes documentation or platform acceptance.
 

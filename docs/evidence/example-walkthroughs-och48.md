@@ -92,3 +92,37 @@ The former reports `GALLERY_CATALOGS_PASS counter=1 document_profile=1`;
 the latter's output passes `plutil -lint`. No native window was opened for this
 documentation-only follow-up. The ongoing PR run `37447717604` covers `548bcde`,
 not these newer docs/CI changes, so it cannot certify their new audit step.
+
+## Theme loading and stale-result ownership follow-up
+
+Starting from `8ba99e2`, the adjacent
+[theme preview](../../examples/gallery/theme_preview.md),
+[appearance model](../../examples/gallery/model/appearance.md),
+[selection identity](../../examples/gallery/model/theme_selection.md),
+[profile decoder](../../examples/gallery/model/theme_profile.md) and
+[file adapter/test](../../examples/gallery/files/theme_file.md) guides explain
+six additional source groups. The adapter guide explicitly owns its associated
+expect-test source and Dune fixture setup; the interface files are linked too.
+
+The review follows the actual one-request-at-a-time card, picker/read selection
+fences, scope cancellation, retained draft and last-good palette. It explains
+process-local token identity, the distinction between selected preference and
+effective appearance, the 16 KiB/UTF-8/name/parsed-depth constraints, all ten
+concrete color fields, bounded Eio reading and cancellation propagation. The
+profile guide explicitly places the depth check after S-expression parsing.
+These are application example contracts, not an upstream theme-format claim.
+
+Coverage is now **16 reviewed groups and 244 pending**, with all 417 source files
+still mapped. README and related guide links expose the complete theme path.
+Inventory/table and changed-Markdown file-link checks pass, as does
+`git diff --check`. The documented command also succeeds using existing Dune
+build/test caching:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 @examples/gallery/files/test/runtest
+```
+
+No implementation or tests changed. Earlier actual parser/filesystem/native
+results retain the scope recorded in [theme-file evidence](gallery-theme-files-och41.md).
+No GUI window was opened, and no additional IME, accessibility, performance or
+Linux desktop acceptance is claimed by this documentation review.

@@ -1021,8 +1021,10 @@
         "examples/gallery/files/test/theme_file_test.ml"
       ],
       "role": "test-support",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/gallery/files/theme_file.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -1030,8 +1032,10 @@
         "examples/gallery/files/theme_file.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/gallery/files/theme_file.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -1166,8 +1170,10 @@
         "examples/gallery/model/appearance.mli"
       ],
       "role": "support",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/gallery/model/appearance.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -1283,8 +1289,10 @@
         "examples/gallery/model/theme_profile.mli"
       ],
       "role": "support",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/gallery/model/theme_profile.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -1292,8 +1300,10 @@
         "examples/gallery/model/theme_selection.mli"
       ],
       "role": "support",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/gallery/model/theme_selection.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -1601,8 +1611,10 @@
         "examples/gallery/theme_preview.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/gallery/theme_preview.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
