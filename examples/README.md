@@ -10,6 +10,9 @@ optional acceptance runners are separate from normal app code.
 
 The gallery's [charts walkthrough](gallery/charts_page.md) traces source
 publication, plotting options, native selection and page-scope cleanup.
+Read its [startup](gallery/application.md), [Bonsai composition](gallery/component.md),
+[layout](gallery/shell.md) and [page routing](gallery/pages.md) guides for the
+application structure surrounding those components.
 Its [embedded command browser](gallery/embedded_palette_preview.md) and
 [external search](gallery/external_palette_preview.md) guides distinguish local
 Bonsai state from native query ownership and scoped Eio producers.

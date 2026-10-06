@@ -55,3 +55,40 @@ and the scoped [embedded](palette-embedded-och41.md) /
 [external](palette-external-results-och41.md) palette checks retain their original
 source/platform limits. No new GUI, IME, VoiceOver, performance or Linux desktop
 acceptance is claimed.
+
+## Gallery application structure follow-up
+
+Starting from `a370318`, five adjacent guides now explain six more source groups:
+[`main`/`Application`](../../examples/gallery/application.md),
+[`Component`](../../examples/gallery/component.md),
+[`Shell`](../../examples/gallery/shell.md),
+[`Pages`](../../examples/gallery/pages.md) and
+[`Palette`](../../examples/gallery/palette.md). The application guide owns both
+entry-point dispatch and startup; neither source part is omitted. The other
+guides link their interfaces and supporting model sources without marking those
+models' separate coverage rows complete.
+
+The review covers initial/per-window/shared state, explicit Eio services, the
+four-window demo bound and cleanup, native observations, theme synchronization,
+pure layout/effect inputs, native-handshake capability gating, stable page keys,
+branch deactivation and the local Presentation/Controls/Text editing examples.
+It distinguishes Bonsai model retention from native resource retirement and
+documents mock operations and discarded command results. Each guide gives a
+concrete adaptation. README reading maps link all five companions.
+
+Coverage is now **10 reviewed groups and 250 pending** out of the same 260;
+the 417-file source inventory is unchanged. The earlier four-group checkpoint
+above remains historical.
+
+The source/table audit, gallery build and changed-Markdown file-link checks pass.
+These documented non-GUI modes were also executed successfully:
+
+```sh
+./scripts/gpuio exec _build/default/examples/gallery/main.exe --check-catalogs
+./scripts/gpuio exec _build/default/examples/gallery/main.exe --print-info-plist
+```
+
+The former reports `GALLERY_CATALOGS_PASS counter=1 document_profile=1`;
+the latter's output passes `plutil -lint`. No native window was opened for this
+documentation-only follow-up. The ongoing PR run `37447717604` covers `548bcde`,
+not these newer docs/CI changes, so it cannot certify their new audit step.

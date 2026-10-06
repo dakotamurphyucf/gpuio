@@ -7,12 +7,11 @@ For this larger example, follow the files by responsibility:
 
 | File | Responsibility |
 | --- | --- |
-| [main.ml](main.ml) | Entry point and package/catalog command-line modes. |
-| [application.ml](application.ml) | Eio file capabilities, app services, window creation and cleanup. |
-| [component.ml](component.ml) | Bonsai observations and effects; passes resolved values to the shell. |
-| [shell.ml](shell.ml) | Stateless GPUIO layout for navigation, page content and window chrome. Its `Snapshot` and `Actions` interfaces make the inputs explicit. |
-| [pages.ml](pages.ml) | Selects the active page's Bonsai component. Each `*_page.ml` demonstrates a component family. |
-| [palette.ml](palette.ml) and [model/](model/) | Shared presentation helpers and application value types. |
+| [Startup walkthrough](application.md), [main.ml](main.ml) and [application.ml](application.ml) | Entry modes, Eio capabilities, app services, window creation and cleanup. |
+| [Reactive composition](component.md) / [component.ml](component.ml) | Bonsai observations and effects; passes resolved values to the shell. |
+| [Stateless layout](shell.md) / [shell.ml](shell.ml) | Navigation, page content and window chrome from explicit `Snapshot` and `Actions` inputs. |
+| [Page routing and initial demos](pages.md) / [pages.ml](pages.ml) | Active branches plus Presentation, Controls and Text editing; other pages remain separate components. |
+| [Shared styling](palette.md) / [palette.ml](palette.ml) and [model/](model/) | Immutable appearance helpers and application value types. |
 
 `View` constructs GPUIO descriptions. `Bonsai` allocates/observes reactive state.
 `Effect` describes actions to run later; constructing a view does not run an

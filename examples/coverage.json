@@ -702,8 +702,10 @@
         "examples/gallery/application.mli"
       ],
       "role": "application-entry",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/gallery/application.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -872,8 +874,10 @@
         "examples/gallery/component.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/gallery/component.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -1134,9 +1138,9 @@
       ],
       "role": "application-entry",
       "walkthroughs": [
-        "examples/gallery/README.md"
+        "examples/gallery/application.md"
       ],
-      "review": "pending"
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -1351,8 +1355,10 @@
         "examples/gallery/pages.mli"
       ],
       "role": "support",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/gallery/pages.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -1368,8 +1374,10 @@
         "examples/gallery/palette.mli"
       ],
       "role": "support",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/gallery/palette.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [
@@ -1485,8 +1493,10 @@
         "examples/gallery/shell.mli"
       ],
       "role": "component",
-      "walkthroughs": [],
-      "review": "pending"
+      "walkthroughs": [
+        "examples/gallery/shell.md"
+      ],
+      "review": "reviewed"
     },
     {
       "sources": [

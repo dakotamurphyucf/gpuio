@@ -185,7 +185,7 @@ Generated from [coverage.json](coverage.json). Read the [review guide](coverage-
 | Source parts | Role | Walkthrough | Review |
 | --- | --- | --- | --- |
 | [alert_preview.ml](gallery/alert_preview.ml), [alert_preview.mli](gallery/alert_preview.mli) | component | Missing | pending |
-| [application.ml](gallery/application.ml), [application.mli](gallery/application.mli) | application-entry | Missing | pending |
+| [application.ml](gallery/application.ml), [application.mli](gallery/application.mli) | application-entry | [application.md](gallery/application.md) | reviewed |
 | [aspect_preview.ml](gallery/aspect_preview.ml) | component | Missing | pending |
 | [assets_page.ml](gallery/assets_page.ml), [assets_page.mli](gallery/assets_page.mli) | component | Missing | pending |
 | [attachment_preview.ml](gallery/attachment_preview.ml) | component | Missing | pending |
@@ -204,7 +204,7 @@ Generated from [coverage.json](coverage.json). Read the [review guide](coverage-
 | [choice_picker_preview.ml](gallery/choice_picker_preview.ml), [choice_picker_preview.mli](gallery/choice_picker_preview.mli) | component | Missing | pending |
 | [collections_page.ml](gallery/collections_page.ml), [collections_page.mli](gallery/collections_page.mli) | component | Missing | pending |
 | [command_tooltip_preview.ml](gallery/command_tooltip_preview.ml) | component | Missing | pending |
-| [component.ml](gallery/component.ml), [component.mli](gallery/component.mli) | component | Missing | pending |
+| [component.ml](gallery/component.ml), [component.mli](gallery/component.mli) | component | [component.md](gallery/component.md) | reviewed |
 | [content_hint_preview.ml](gallery/content_hint_preview.ml), [content_hint_preview.mli](gallery/content_hint_preview.mli) | component | Missing | pending |
 | [control_appearance_preview.ml](gallery/control_appearance_preview.ml), [control_appearance_preview.mli](gallery/control_appearance_preview.mli) | component | Missing | pending |
 | [description_preview.ml](gallery/description_preview.ml), [description_preview.mli](gallery/description_preview.mli) | component | Missing | pending |
@@ -233,7 +233,7 @@ Generated from [coverage.json](coverage.json). Read the [review guide](coverage-
 | [keyboard_preview.ml](gallery/keyboard_preview.ml), [keyboard_preview.mli](gallery/keyboard_preview.mli) | component | Missing | pending |
 | [label_preview.ml](gallery/label_preview.ml), [label_preview.mli](gallery/label_preview.mli) | component | Missing | pending |
 | [link_preview.ml](gallery/link_preview.ml), [link_preview.mli](gallery/link_preview.mli) | component | Missing | pending |
-| [main.ml](gallery/main.ml) | application-entry | [README.md](gallery/README.md) | pending |
+| [main.ml](gallery/main.ml) | application-entry | [application.md](gallery/application.md) | reviewed |
 | [marker_preview.ml](gallery/marker_preview.ml), [marker_preview.mli](gallery/marker_preview.mli) | component | Missing | pending |
 | [menu_preview.ml](gallery/menu_preview.ml), [menu_preview.mli](gallery/menu_preview.mli) | component | Missing | pending |
 | [appearance.ml](gallery/model/appearance.ml), [appearance.mli](gallery/model/appearance.mli) | support | Missing | pending |
@@ -257,9 +257,9 @@ Generated from [coverage.json](coverage.json). Read the [review guide](coverage-
 | [numeric_page.ml](gallery/numeric_page.ml), [numeric_page.mli](gallery/numeric_page.mli) | component | Missing | pending |
 | [observations_page.ml](gallery/observations_page.ml), [observations_page.mli](gallery/observations_page.mli) | component | Missing | pending |
 | [overlays_page.ml](gallery/overlays_page.ml), [overlays_page.mli](gallery/overlays_page.mli) | component | Missing | pending |
-| [pages.ml](gallery/pages.ml), [pages.mli](gallery/pages.mli) | support | Missing | pending |
+| [pages.ml](gallery/pages.ml), [pages.mli](gallery/pages.mli) | support | [pages.md](gallery/pages.md) | reviewed |
 | [pagination_preview.ml](gallery/pagination_preview.ml) | component | Missing | pending |
-| [palette.ml](gallery/palette.ml), [palette.mli](gallery/palette.mli) | support | Missing | pending |
+| [palette.ml](gallery/palette.ml), [palette.mli](gallery/palette.mli) | support | [palette.md](gallery/palette.md) | reviewed |
 | [password_preview.ml](gallery/password_preview.ml), [password_preview.mli](gallery/password_preview.mli) | component | Missing | pending |
 | [pickers_page.ml](gallery/pickers_page.ml), [pickers_page.mli](gallery/pickers_page.mli) | component | Missing | pending |
 | [placement_preview.ml](gallery/placement_preview.ml) | component | Missing | pending |
@@ -272,7 +272,7 @@ Generated from [coverage.json](coverage.json). Read the [review guide](coverage-
 | [selection_preview.ml](gallery/selection_preview.ml), [selection_preview.mli](gallery/selection_preview.mli) | component | Missing | pending |
 | [separator_preview.ml](gallery/separator_preview.ml) | component | Missing | pending |
 | [settings_preview.ml](gallery/settings_preview.ml), [settings_preview.mli](gallery/settings_preview.mli) | component | Missing | pending |
-| [shell.ml](gallery/shell.ml), [shell.mli](gallery/shell.mli) | component | Missing | pending |
+| [shell.ml](gallery/shell.ml), [shell.mli](gallery/shell.mli) | component | [shell.md](gallery/shell.md) | reviewed |
 | [shimmer_preview.ml](gallery/shimmer_preview.ml), [shimmer_preview.mli](gallery/shimmer_preview.mli) | component | Missing | pending |
 | [slider_preview.ml](gallery/slider_preview.ml) | component | Missing | pending |
 | [spinner_preview.ml](gallery/spinner_preview.ml), [spinner_preview.mli](gallery/spinner_preview.mli) | component | Missing | pending |
@@ -497,4 +497,4 @@ Generated from [coverage.json](coverage.json). Read the [review guide](coverage-
 | --- | --- | --- | --- |
 | [main.ml](window_lifecycle/main.ml) | application-entry | Missing | pending |
 
-417 source files in 260 groups; 4 reviewed, 256 pending.
+417 source files in 260 groups; 10 reviewed, 250 pending.
