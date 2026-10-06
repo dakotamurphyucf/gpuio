@@ -844,6 +844,7 @@ pub enum Op {
     SetTableText(NodeId, crate::table::Cell),
     SetPaletteOptions(NodeId, Option<crate::palette_options::Config>),
     SetPaletteLayout(NodeId, Option<crate::palette_layout::Config>),
+    SetPaletteObserved(NodeId, bool),
 }
 
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]
@@ -1137,5 +1138,12 @@ pub enum Event {
         i64,
         crate::ResourceId,
         crate::document_profile::Event,
+    ),
+    PaletteObserved(
+        WindowId,
+        NodeId,
+        HandlerId,
+        i64,
+        crate::palette_state::Snapshot,
     ),
 }

@@ -119,7 +119,33 @@ end
 
 module Appearance = Choice.Appearance
 
+(** Immutable native state, delivered initially and after observable changes.
+    Native typing/navigation never waits for an application callback. *)
+module Snapshot : sig
+  type t [@@deriving equal, sexp_of]
+
+  val query : t -> string
+  val composing : t -> bool
+  val selected : t -> Command.Id.t option
+
+  (** Includes disabled matching commands; excludes passive headings/separators. *)
+  val matched_count : t -> int
+
+  (** Same observer lifetime and query revision, including accepted edits and composition transitions.
+      Selection-only changes preserve this identity; typing away and back does not.
+      Check [composing] before starting application search. This comparison is an
+      observation fence, not an atomic native result-publication command. *)
+  val same_query : t -> t -> bool
+end
+
 module Expert : sig
+  val snapshot_of_wire
+    :  window:Gpuio_protocol.Window_id.t
+    -> node:Gpuio_protocol.Node_id.t
+    -> observer:Gpuio_protocol.Handler_id.t
+    -> Gpuio_protocol.Palette_state_wire.t
+    -> Snapshot.t Core.Or_error.t
+
   val to_wire : Config.t -> Gpuio_protocol.Wire.Palette.t
   val options : Config.t -> Gpuio_protocol.Palette_options_wire.t option
   val layout : Config.t -> Gpuio_protocol.Palette_layout_wire.t option

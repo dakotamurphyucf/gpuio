@@ -980,6 +980,7 @@ module Op = struct
     | Set_table_text of Node_id.t * Table.Cell.t
     | Set_palette_options of Node_id.t * Palette_options_wire.t option
     | Set_palette_layout of Node_id.t * Palette_layout_wire.t option
+    | Set_palette_observed of Node_id.t * bool
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -1392,6 +1393,8 @@ module Event = struct
         * int64
         * Resource_id.t
         * Document_profile_wire.Event.t
+    | Palette_observed of
+        Window_id.t * Node_id.t * Handler_id.t * int64 * Palette_state_wire.t
   [@@deriving bin_io, equal, sexp_of]
 
   let valid_snapshot (t : Editor.Snapshot.t) =
@@ -1574,6 +1577,8 @@ module Event = struct
       && List.for_all
            [ sample.window_x; sample.window_y; sample.local_x; sample.local_y ]
            ~f:Float.is_finite
+    | Palette_observed (_, _, _, revision, snapshot) ->
+      Int64.(revision >= 0L) && Palette_state_wire.valid snapshot
     | Palette_dismissed (window, node, handler, revision, Selected id) ->
       valid_event (Choice (window, node, handler, revision, id))
     | Palette_dismissed (_, _, _, revision, (Escape | Outside_pointer)) ->

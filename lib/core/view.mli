@@ -261,12 +261,16 @@ val command_button
     should remove the view. A closed session stays closed until unmounted and
     mounted again, or replaced with a new key; metadata updates do not reopen it.
     The query is independent of document editors and never becomes the target of
-    registry native-edit commands. Commands resolve at the palette's tree location. *)
+    registry native-edit commands. Commands resolve at the palette's tree location.
+    [on_change] receives initial and changed native query/highlight snapshots
+    asynchronously. Omission creates no subscription. Changing its presence
+    retires queued callbacks; replacing the callback preserves the subscription. *)
 val command_palette
   :  ?key:Key.t
   -> ?style:Style.t
   -> ?appearance:Command_palette.Appearance.t
   -> config:Command_palette.Config.t
+  -> ?on_change:(Command_palette.Snapshot.t -> 'action)
   -> on_dismiss:(Command_palette.Dismissal.t -> 'action)
   -> unit
   -> 'action t
@@ -1801,6 +1805,7 @@ module Expert : sig
   type 'action palette =
     { config : Command_palette.Config.t
     ; appearance : Command_palette.Appearance.t
+    ; on_change : (Command_palette.Snapshot.t -> 'action) option
     ; on_dismiss : Command_palette.Dismissal.t -> 'action
     }
 

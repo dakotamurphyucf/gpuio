@@ -44,6 +44,9 @@ pub(super) struct State {
     editor: Option<NodeId>,
     rows: Vec<Row>,
     selected: Option<String>,
+    snapshot: Option<gpuio_protocol::palette_state::Snapshot>,
+    input_revision: Option<i64>,
+    published: Option<(gpuio_protocol::HandlerId, i64)>,
     revealed: Option<Reveal>,
     scroll: list::State,
     layout_cache: super::measured_list_layout::Cache,
@@ -241,6 +244,9 @@ impl View {
                     editor,
                     rows: vec![],
                     selected: None,
+                    snapshot: None,
+                    input_revision: None,
+                    published: None,
                     revealed: None,
                     scroll: Default::default(),
                     layout_cache: Default::default(),
@@ -335,7 +341,73 @@ impl View {
             row_height as f32,
         );
         state.rows = rows;
+        self.observe_palette(id, cx);
         query
+    }
+    // Pure snapshots cross the bounded asynchronous bridge. Producing one never
+    // invokes OCaml or makes native query/selection dependent on an observer.
+    fn observe_palette(&mut self, id: NodeId, cx: &App) {
+        let Some(state) = self.palettes.get_mut(&id) else {
+            return;
+        };
+        if state.closed {
+            return;
+        }
+        let query = state.query.read(cx).value().to_string();
+        let composing = state.composing(cx);
+        let previous = state.snapshot.as_ref();
+        let input_revision = state.query.read(cx).bridge_revision();
+        // GPUI can coalesce notifications. The editor revision catches edits
+        // restoring the old text even when no intermediate value was observed.
+        let query_changed = state.input_revision != Some(input_revision)
+            || previous.is_none_or(|s| s.query != query || s.composing != composing);
+        let changed = query_changed
+            || previous.is_none_or(|s| {
+                s.selected != state.selected || s.matched_count != state.rows.len() as i64
+            });
+        if changed {
+            let Some(sequence) = previous.map_or(Some(1), |s| s.sequence.checked_add(1)) else {
+                if self.session.borrow_mut().overload(self.id) {
+                    self.transport.fault(self.id);
+                }
+                return;
+            };
+            state.input_revision = Some(input_revision);
+            state.snapshot = Some(gpuio_protocol::palette_state::Snapshot {
+                sequence,
+                query_revision: if query_changed {
+                    sequence
+                } else {
+                    previous.unwrap().query_revision
+                },
+                query,
+                composing,
+                selected: state.selected.clone(),
+                matched_count: state.rows.len() as i64,
+            });
+        }
+        let snapshot = state.snapshot.as_ref().unwrap();
+        let session = self.session.borrow();
+        let Some(tree) = session.tree(self.id) else {
+            return;
+        };
+        let Some(node) = tree.get(id) else {
+            return;
+        };
+        let Some(handler) = node.handler.filter(|_| node.palette_observed) else {
+            state.published = None;
+            return;
+        };
+        if state.published == Some((handler, snapshot.sequence)) {
+            return;
+        }
+        let event =
+            session.palette_observed(self.id, id, handler, tree.revision(), snapshot.clone());
+        if let Some(event) = event {
+            state.published = Some((handler, snapshot.sequence));
+            drop(session);
+            self.publish_palette_dismissal(event);
+        }
     }
     fn palette_available(&self, id: NodeId, config: &CommandConfig, cx: &App) -> bool {
         if !config.enabled {
@@ -554,6 +626,7 @@ impl View {
             state.selected = Some(
                 enabled[(current + delta).rem_euclid(enabled.len() as isize) as usize].clone(),
             );
+            self.observe_palette(id, cx);
             cx.notify();
         }
         true

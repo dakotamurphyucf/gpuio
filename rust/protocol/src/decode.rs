@@ -1359,6 +1359,7 @@ impl Decoder<'_> {
             124 => Op::SetTableText(self.node()?, self.table_cell()?),
             125 => Op::SetPaletteOptions(self.node()?, self.option(Self::palette_options)?),
             126 => Op::SetPaletteLayout(self.node()?, self.option(Self::palette_layout)?),
+            127 => Op::SetPaletteObserved(self.node()?, self.boolean()?),
             122 => Op::SetWindowRegion(
                 self.node()?,
                 self.option(|d| {

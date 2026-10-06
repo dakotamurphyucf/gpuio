@@ -321,6 +321,7 @@ module View : sig
     -> ?style:Gpuio.Style.t
     -> ?appearance:Gpuio.Command_palette.Appearance.t
     -> config:Gpuio.Command_palette.Config.t
+    -> ?on_change:(Gpuio.Command_palette.Snapshot.t -> unit Bonsai.Effect.t)
     -> on_dismiss:(Gpuio.Command_palette.Dismissal.t -> unit Bonsai.Effect.t)
     -> unit
     -> t

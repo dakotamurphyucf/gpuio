@@ -903,3 +903,160 @@ fn palette_tab_order_follows_header_query_and_footer() {
         });
     });
 }
+
+fn observations(
+    owner: &Entity<View>,
+    cx: &VisualTestContext,
+) -> Vec<gpuio_protocol::palette_state::Snapshot> {
+    owner.read_with(cx, |view, _| {
+        view.transport
+            .mailbox
+            .lock()
+            .unwrap()
+            .drain(128)
+            .into_iter()
+            .filter_map(|e| {
+                if let Event::PaletteObserved(_, _, _, _, s) = e {
+                    Some(s)
+                } else {
+                    None
+                }
+            })
+            .collect()
+    })
+}
+#[test]
+fn snapshot_edges_are_ordered_native_owned_and_reattach_without_query_reset() {
+    let mut app = TestAppContext::single();
+    let (owner, mut cx, _reader) = mount(&mut app);
+    assert!(observations(&owner, &cx).is_empty());
+    apply(&owner, &mut cx, vec![Op::SetPaletteObserved(id(1), true)]);
+    let initial = observations(&owner, &cx);
+    assert_eq!(initial.len(), 1);
+    assert_eq!(initial[0].query, "");
+    assert_eq!(initial[0].selected.as_deref(), Some("run"));
+    assert_eq!(initial[0].matched_count, 3); // disabled commands still match
+    let input = owner.read_with(&cx, |view, _| view.palettes[&id(1)].query.clone());
+    cx.update(|w, cx| w.focus(&input.read(cx).focus_handle(cx), cx));
+    draw(&mut cx);
+    draw(&mut cx);
+    assert!(
+        observations(&owner, &cx).is_empty(),
+        "focus/paint must not cause an event loop"
+    );
+    cx.update(|w, cx| {
+        owner.update(cx, |view, cx| {
+            assert!(view.palette_key(id(1), "down", w, cx))
+        })
+    });
+    draw(&mut cx);
+    let selected = observations(&owner, &cx);
+    assert_eq!(selected.len(), 1);
+    assert_eq!(selected[0].selected.as_deref(), Some("other"));
+    assert_eq!(selected[0].query_revision, initial[0].query_revision);
+    assert!(selected[0].sequence > initial[0].sequence);
+    query(&owner, &mut cx, "Run");
+    let changed = observations(&owner, &cx);
+    assert_eq!(changed.len(), 1);
+    assert_eq!(changed[0].query, "Run");
+    assert_eq!(changed[0].matched_count, 1);
+    assert!(changed[0].query_revision > selected[0].query_revision);
+    query(&owner, &mut cx, "Run");
+    let rewritten = observations(&owner, &cx);
+    assert_eq!(
+        rewritten.len(),
+        1,
+        "an accepted replacement advances editor identity even with the same text"
+    );
+    assert!(rewritten[0].query_revision > changed[0].query_revision);
+    query(&owner, &mut cx, "none");
+    query(&owner, &mut cx, "Run");
+    let aba = observations(&owner, &cx);
+    assert_eq!(aba.len(), 2);
+    assert_eq!(aba[0].selected, None);
+    assert_eq!(aba[0].matched_count, 0);
+    assert!(aba[1].query_revision > changed[0].query_revision);
+    apply(&owner, &mut cx, vec![Op::SetPaletteObserved(id(1), false)]);
+    query(&owner, &mut cx, "other");
+    assert!(observations(&owner, &cx).is_empty());
+    apply(
+        &owner,
+        &mut cx,
+        vec![
+            Op::Bind(id(1), Some(HandlerId::from_parts(9, 2).unwrap())),
+            Op::SetPaletteObserved(id(1), true),
+        ],
+    );
+    let fresh = observations(&owner, &cx);
+    assert_eq!(fresh.len(), 1);
+    assert_eq!(fresh[0].query, "other");
+    assert_eq!(fresh[0].selected.as_deref(), Some("other"));
+    assert_eq!(
+        owner.read_with(&cx, |view, _| view.palettes[&id(1)].query.entity_id()),
+        input.entity_id()
+    );
+    assert!(fresh[0].query_revision > aba[1].query_revision);
+    let mut empty_config = owner.read_with(&cx, |view, _| (*view.palettes[&id(1)].config).clone());
+    empty_config.commands.clear();
+    apply(&owner, &mut cx, vec![Op::SetPalette(id(1), empty_config)]);
+    let empty = observations(&owner, &cx);
+    assert_eq!(empty.len(), 1);
+    assert_eq!(empty[0].selected, None);
+    assert_eq!(empty[0].query_revision, fresh[0].query_revision);
+    cx.update(|w, cx| {
+        owner.update(cx, |view, cx| {
+            view.close_palette(id(1), PaletteDismissal::Escape, w, cx)
+        })
+    });
+    observations(&owner, &cx);
+    query(&owner, &mut cx, "retired");
+    assert!(observations(&owner, &cx).is_empty());
+}
+#[test]
+fn composition_changes_query_identity_without_waiting_for_an_observer() {
+    let mut app = TestAppContext::single();
+    let (owner, mut cx, _reader) = mount_extra(&mut app, vec![Op::SetPaletteObserved(id(1), true)]);
+    observations(&owner, &cx);
+    let input = owner.read_with(&cx, |view, _| view.palettes[&id(1)].query.clone());
+    cx.update(|w, cx| {
+        w.focus(&input.read(cx).focus_handle(cx), cx);
+        input.update(cx, |q, cx| {
+            q.replace_and_mark_text_in_range(None, "λ", Some(0..1), w, cx)
+        });
+    });
+    draw(&mut cx);
+    let composing = observations(&owner, &cx);
+    assert_eq!(composing.len(), 1);
+    assert!(composing[0].composing);
+    assert_eq!(composing[0].query, "λ");
+    cx.update(|w, cx| input.update(cx, |q, cx| q.unmark_text(w, cx)));
+    draw(&mut cx);
+    let committed = observations(&owner, &cx);
+    assert_eq!(committed.len(), 1);
+    assert!(!committed[0].composing);
+    assert_eq!(committed[0].query, "λ");
+    assert!(committed[0].query_revision > composing[0].query_revision);
+}
+
+#[test]
+fn coalesced_query_edits_do_not_reuse_identity_when_text_returns() {
+    let mut app = TestAppContext::single();
+    let (owner, mut cx, _reader) = mount_extra(&mut app, vec![Op::SetPaletteObserved(id(1), true)]);
+    query(&owner, &mut cx, "Run");
+    let before = observations(&owner, &cx).pop().unwrap();
+    let input = owner.read_with(&cx, |view, _| view.palettes[&id(1)].query.clone());
+    cx.update(|w, cx| {
+        input.update(cx, |q, cx| {
+            q.set_value("Other", w, cx);
+            q.set_value("Run", w, cx);
+        })
+    });
+    draw(&mut cx);
+    let after = observations(&owner, &cx);
+    assert!(
+        !after.is_empty(),
+        "coalesced notifications must not reuse an obsolete query identity"
+    );
+    assert_eq!(after.last().unwrap().query, "Run");
+    assert!(after.last().unwrap().query_revision > before.query_revision);
+}

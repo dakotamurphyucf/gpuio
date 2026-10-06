@@ -128,6 +128,7 @@ pub struct Node {
     pub command_ref: Option<Arc<str>>,
     pub menu: Option<Arc<MenuConfig>>,
     pub palette: Option<Arc<PaletteConfig>>,
+    pub palette_observed: bool,
     pub palette_options: Option<Arc<gpuio_protocol::palette_options::Config>>,
     pub palette_layout: Option<Arc<gpuio_protocol::palette_layout::Config>>,
     pub progress: Option<Arc<ProgressConfig>>,
@@ -2491,6 +2492,7 @@ impl Plan<'_> {
             | Op::SetCommands(id, ..)
             | Op::SetCommandRef(id, ..)
             | Op::SetMenu(id, ..)
+            | Op::SetPaletteObserved(id, ..)
             | Op::SetPalette(id, ..)
             | Op::SetPaletteOptions(id, ..)
             | Op::SetPaletteLayout(id, ..)
@@ -2700,6 +2702,7 @@ impl Plan<'_> {
                             command_ref: None,
                             menu: None,
                             palette: None,
+                            palette_observed: false,
                             palette_options: None,
                             palette_layout: None,
                             progress: None,
@@ -3800,6 +3803,12 @@ impl Plan<'_> {
                         shape: gpuio_protocol::progress_presentation::Shape::Linear,
                         transition: gpuio_protocol::progress_presentation::Transition::Immediate,
                     }));
+            }
+            Op::SetPaletteObserved(id, observed) => {
+                if self.node(*id)?.kind != Kind::CommandPalette {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.palette_observed = *observed;
             }
             Op::SetPaletteLayout(id, config) => {
                 if self.node(*id)?.kind != Kind::CommandPalette

@@ -1327,6 +1327,28 @@ impl Session {
         .then(|| accepted.event())
     }
 
+    pub fn palette_observed(
+        &self,
+        window: WindowId,
+        node: NodeId,
+        handler: HandlerId,
+        revision: i64,
+        snapshot: gpuio_protocol::palette_state::Snapshot,
+    ) -> Option<Event> {
+        let state = self.window(window).ok()?;
+        let config = state.tree.get(node)?;
+        (!state.overloaded
+            && config.palette.is_some()
+            && config.palette_observed
+            && state.tree.accepts_handler(node, handler)
+            && revision >= 0
+            && revision <= state.tree.revision()
+            && snapshot.is_valid())
+        .then_some(Event::PaletteObserved(
+            window, node, handler, revision, snapshot,
+        ))
+    }
+
     pub fn palette_dismissed(
         &self,
         window: WindowId,

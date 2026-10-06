@@ -202,6 +202,7 @@ type 'action menu =
 type 'action palette =
   { config : Command_palette.Config.t
   ; appearance : Command_palette.Appearance.t
+  ; on_change : (Command_palette.Snapshot.t -> 'action) option
   ; on_dismiss : Command_palette.Dismissal.t -> 'action
   }
 
@@ -3382,12 +3383,13 @@ let command_palette
           ()
         |> Or_error.ok_exn)
       ~config
+      ?on_change
       ~on_dismiss
       ()
   =
   { (text ?key ~style "") with
     kind = Command_palette
-  ; palette = Some { config; appearance; on_dismiss }
+  ; palette = Some { config; appearance; on_change; on_dismiss }
   }
 ;;
 
@@ -4098,6 +4100,7 @@ module Expert = struct
   type nonrec 'action palette = 'action palette =
     { config : Command_palette.Config.t
     ; appearance : Command_palette.Appearance.t
+    ; on_change : (Command_palette.Snapshot.t -> 'action) option
     ; on_dismiss : Command_palette.Dismissal.t -> 'action
     }
 

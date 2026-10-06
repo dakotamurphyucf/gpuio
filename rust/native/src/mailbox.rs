@@ -15,6 +15,9 @@ pub const MAX_INPUT_BYTES: usize = 4 * MAX_MESSAGE_BYTES;
 // Drain includes those prefixes when fitting a response batch into 1 MiB.
 fn event_bytes(event: &Event) -> usize {
     256 + match event {
+        Event::PaletteObserved(_, _, _, _, s) => {
+            s.query.len() + s.selected.as_ref().map_or(0, String::len)
+        }
         Event::NotificationResponse(_, gpuio_protocol::notification::Response::Events(events)) => {
             events
                 .iter()
@@ -892,6 +895,7 @@ impl Mailbox {
             | Event::Choice(id, ..)
             | Event::OverlayDismissed(id, ..)
             | Event::HoverChanged(id, ..)
+            | Event::PaletteObserved(id, ..)
             | Event::MenuOpenChanged(id, ..)
             | Event::TooltipOpenChanged(id, ..)
             | Event::CommandInvoked(id, ..)
@@ -1960,6 +1964,48 @@ mod document_profile_tests {
         mailbox.close();
         assert!(mailbox.input(event(2)).is_err());
         assert_eq!(mailbox.drain(128), vec![event(1), Event::Stopped]);
+        assert_eq!(mailbox.input_bytes, 0);
+    }
+}
+
+#[cfg(test)]
+mod palette_observation_tests {
+    use super::*;
+    use binprot::BinProtWrite;
+    #[test]
+    fn palette_snapshot_bytes_are_charged_ordered_and_bounded() {
+        let window = WindowId::from_parts(0, 1).unwrap();
+        let event = |sequence| {
+            Event::PaletteObserved(
+                window,
+                gpuio_protocol::NodeId::from_parts(0, 1).unwrap(),
+                gpuio_protocol::HandlerId::from_parts(0, 1).unwrap(),
+                1,
+                gpuio_protocol::palette_state::Snapshot {
+                    sequence,
+                    query_revision: sequence,
+                    query: "q".repeat(4096),
+                    composing: false,
+                    selected: Some("s".repeat(256)),
+                    matched_count: 1,
+                },
+            )
+        };
+        let mut encoded = vec![];
+        event(1).binprot_write(&mut encoded).unwrap();
+        assert!(event_bytes(&event(1)) >= encoded.len());
+        assert_eq!(event_bytes(&event(1)), 256 + 4096 + 256);
+        let mut mailbox = Mailbox::default();
+        for sequence in 1..=MAX_INPUT_EVENTS {
+            mailbox.input(event(sequence as i64)).unwrap();
+        }
+        assert_eq!(
+            mailbox.input_bytes,
+            MAX_INPUT_EVENTS * event_bytes(&event(1))
+        );
+        assert!(mailbox.has_window_output(window.slot()));
+        assert!(mailbox.input(event(129)).is_err());
+        assert_eq!(mailbox.drain(128), (1..=128).map(event).collect::<Vec<_>>());
         assert_eq!(mailbox.input_bytes, 0);
     }
 }

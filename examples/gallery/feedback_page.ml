@@ -60,6 +60,7 @@ let component app window palette graph =
       graph
   in
   let chooser, set_chooser = B.state false graph in
+  let palette_snapshot, set_palette_snapshot = B.state None graph in
   let palette_help, toggle_palette_help = B.toggle ~default_model:false graph in
   let palette_note =
     Gpuio_eio.Text_input.create
@@ -125,6 +126,8 @@ let component app window palette graph =
   and palette_note = palette_note
   and chooser = chooser
   and set_chooser = set_chooser
+  and palette_snapshot = palette_snapshot
+  and set_palette_snapshot = set_palette_snapshot
   and palette_search = palette_search
   and next_palette_search = next_palette_search
   and palette_searchable = palette_searchable
@@ -298,6 +301,22 @@ let component app window palette graph =
       |> ok
     | _ -> view
   in
+  let palette_status =
+    match palette_snapshot with
+    | None -> "Finding commands…"
+    | Some snapshot ->
+      let selected =
+        match Command_palette.Snapshot.selected snapshot with
+        | None -> "No command selected"
+        | Some command when Command.Id.equal command advance -> "Advance preview selected"
+        | Some command when Command.Id.equal command notify -> "Save preview selected"
+        | Some _ -> "Copy selection selected"
+      in
+      sprintf
+        "%d matching commands · %s"
+        (Command_palette.Snapshot.matched_count snapshot)
+        selected
+  in
   let decorate_palette view =
     let items =
       match menu_icon, show_content with
@@ -327,9 +346,10 @@ let component app window palette graph =
            ~style:(style [ Gap (px 8.) ])
            [ V.text "Workspace commands"; Gpuio_eio.Text_input.view palette_note ])
       ~footer:
-        (V.row
-           ~style:(style [ Gap (px 10.); Align_items Center ])
-           [ V.button ~on_click:toggle_palette_help "Palette help"
+        (V.column
+           ~style:(style [ Gap (px 8.) ])
+           [ V.text ~style:(style [ Font_size 12. ]) palette_status
+           ; V.button ~on_click:toggle_palette_help "Palette help"
            ; V.text
                (if palette_help
                 then "Use keywords to narrow the commands"
@@ -470,7 +490,9 @@ let component app window palette graph =
                 ~placeholder:"Find a preview action…"
                 ()
               |> ok)
-           ~on_dismiss:(fun _ -> set_chooser false)
+           ~on_change:(fun snapshot -> set_palette_snapshot (Some snapshot))
+           ~on_dismiss:(fun _ ->
+             Bonsai.Effect.Many [ set_palette_snapshot None; set_chooser false ])
            ()
          |> decorate_palette
        else V.column [])

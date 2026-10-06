@@ -96,3 +96,32 @@ job. The fresh extracted-app receiver was skipped. These are not passing release
 gates. [Reports](hosted-presentation-calibration-och17/run-37374125077/manifest.json)
 retain hashes, branch/merge revisions and exact counters. The newer palette/menu
 checkpoint `a8def93` is outside this run's coverage.
+
+## Repeat on hosted run 37387307992
+
+[Run 37387307992](https://github.com/dakotamurphyucf/gpuio/actions/runs/37387307992)
+is terminal with failure at branch `f6e34e2`, tested merge `5e5a610`. Linux passes;
+macOS fails custom-window pointer readiness and both presentation probes. The
+fresh extracted-app receiver is skipped. Later palette and example-readability
+changes are outside this run's coverage.
+
+The GPUI sessions again report 180 admitted callbacks with zero presentation
+timestamps, no missing callbacks and no pending submissions after retirement.
+The independent Metal probe submits 120 frames on Apple Paravirtual/macOS
+15.7.9 and fails its presentation-clock qualification. No performance gate passes
+from these results.
+
+The new pointer diagnostics identify **NotificationCenter** owning the Fullscreen
+button's physical point (1321.5, 235.5), while the gallery remains frontmost.
+The bounded readiness wait subsequently cannot locate the target and expires.
+Three minimize/restore cycles and native title-bar movement pass before that
+failure; the child is reaped. Standard-window checks pass. This establishes an
+OS overlay interfering with the first pointer sample; it does not explain every
+later accessibility lookup or establish a product fullscreen defect. The next
+harness investigation should keep the tested window away from notification-banner
+geometry while retaining actual pointer ownership checks, without changing user
+notification preferences.
+
+[Reports, terminal metadata and original failed-step log](hosted-presentation-calibration-och17/run-37387307992/reports.tar.gz)
+have a [verified checksum manifest](hosted-presentation-calibration-och17/run-37387307992/manifest.json).
+No threshold, assertion or release gate has been waived.

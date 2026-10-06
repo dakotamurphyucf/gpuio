@@ -3253,6 +3253,11 @@ def exercise_feedback(mac, images):
     activate(mac, mac.wait_find(TITLE, 'Clear command query before closing', 'AXCheckBox'))
     open_palette()
     expect_focus(mac, 'Preview commands', 'AXComboBox')
+    mac.wait_text(TITLE, '3 matching commands · Advance preview selected')
+    mac.key(125)  # Native Down updates the asynchronous OCaml snapshot.
+    mac.wait_text(TITLE, '3 matching commands · Save preview selected')
+    mac.key(126)
+    mac.wait_text(TITLE, '3 matching commands · Advance preview selected')
     mac.key(48)  # Tab: query -> footer, matching visual order.
     expect_focus(mac, 'Palette help', 'AXButton')
     mac.key(48, 1 << 17)
@@ -3280,6 +3285,14 @@ def exercise_feedback(mac, images):
         screenshot(mac, images / 'gallery-palette-groups.png', title=TITLE)
     mac.field(TITLE, 'Preview commands', 'AXComboBox', 'STEP next')
     expect_field(mac, TITLE, 'Preview commands', 'STEP next', 'AXComboBox')
+    mac.wait_text(TITLE, '1 matching commands · Advance preview selected')
+    expect_focus(mac, 'Preview commands', 'AXComboBox')
+    mac.key(6)  # z: real typing changes the native query and OCaml result count.
+    expect_field(mac, TITLE, 'Preview commands', 'STEP nextz', 'AXComboBox')
+    mac.wait_text(TITLE, '0 matching commands · No command selected')
+    mac.key(51)  # Backspace restores the text through a new query revision.
+    expect_field(mac, TITLE, 'Preview commands', 'STEP next', 'AXComboBox')
+    mac.wait_text(TITLE, '1 matching commands · Advance preview selected')
     palette_rows(['Advance preview'])
     passive_menu_label('Preview actions')
     wait_absent(mac, 'Editing', 'AXStaticText')

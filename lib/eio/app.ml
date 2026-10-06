@@ -1643,6 +1643,7 @@ let process t = function
     | Choice (id, _, _, _, _)
     | Combobox_selected (id, _, _, _, _, _)
     | Choice_picker_event (id, _, _, _, _)
+    | Palette_observed (id, _, _, _, _)
     | Palette_dismissed (id, _, _, _, _)
     | Toast_dismissed (id, _, _, _, _)
     | Drag_source_event (id, _, _, _, _)

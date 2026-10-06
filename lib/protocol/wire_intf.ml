@@ -992,6 +992,7 @@ module type S = sig
       | Set_table_text of Node_id.t * Table.Cell.t
       | Set_palette_options of Node_id.t * Palette_options_wire.t option
       | Set_palette_layout of Node_id.t * Palette_layout_wire.t option
+      | Set_palette_observed of Node_id.t * bool
     [@@deriving bin_io, equal, sexp_of]
   end
 
@@ -1309,6 +1310,8 @@ module type S = sig
           * int64
           * Resource_id.t
           * Document_profile_wire.Event.t
+      | Palette_observed of
+          Window_id.t * Node_id.t * Handler_id.t * int64 * Palette_state_wire.t
     [@@deriving bin_io, equal, sexp_of]
 
     (** Decode one bounded event envelope, requiring full byte consumption and

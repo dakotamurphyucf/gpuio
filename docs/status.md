@@ -4,6 +4,14 @@ Current handoff: 2026-10-05. Milestone **07 — Expanded v1 macOS validation and
 release** is in progress. **OCH-41 and OCH-17 remain open.** This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
+Run [37387307992](https://github.com/dakotamurphyucf/gpuio/actions/runs/37387307992)
+at branch `f6e34e2` is terminal: Linux passes; macOS fails custom-window pointer
+readiness and both Metal presentation probes; the fresh receiver is skipped.
+[Retained reports](evidence/hosted-presentation-calibration-och17.md#repeat-on-hosted-run-37387307992)
+identify NotificationCenter at the Fullscreen pointer target and preserve the
+continued paravirtual presentation-clock failures. Newer source remains outside
+this run's coverage. No gates are waived.
+
 Work is tracked on branch `milestone-07-gallery-release` and draft PR #16.
 Latest fully passing hosted checkpoint: [37286788836](https://github.com/dakotamurphyucf/gpuio/actions/runs/37286788836)
 passes both foundation jobs and all three extracted apps on a fresh macOS runner.
@@ -140,6 +148,11 @@ local validation](evidence/example-readability-och17.md). Begin with the small
 counter, then follow the gallery's Application → Component → Shell reading map.
 Chat and Signal Studio keep optional acceptance runners separate from startup.
 This onboarding improvement does not close release or catalog acceptance.
+
+Palettes now expose [asynchronous query/highlight snapshots](evidence/palette-observation-och41.md)
+with subscription/query identity, bounded delivery and a passing installed macOS
+typing/navigation walkthrough. Programmatic query/highlight, atomic external
+results, loading and persistent embedding remain open controller work.
 
 The public gallery and reference applications exist, with public Core/Bonsai/Eio
 APIs and native Rust ownership. Local source reviews and behavior evidence cover

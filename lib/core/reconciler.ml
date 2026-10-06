@@ -111,7 +111,11 @@ type 'a callback =
   | Drag_source of (Drag_and_drop.Source_event.t -> 'a)
   | Drop_target of (Drag_and_drop.Target_event.t -> 'a)
   | Toast of (Toast.Dismissal.t -> 'a)
-  | Palette of Command_palette.Config.t * (Command_palette.Dismissal.t -> 'a)
+  | Palette of
+      Command_palette.Config.t
+      * (Command_palette.Dismissal.t -> 'a)
+      * int64 ref
+      * (Command_palette.Snapshot.t -> 'a) option
   | Click of (unit -> 'a)
   | Commands of 'a Ui_command.Registry.t * Wire.Command.t list
   | Dismiss of Overlay.Config.t * (Overlay.Dismissal.t -> 'a)
@@ -160,6 +164,7 @@ type 'a mounted =
   ; container_query : Wire.Container_query.Config.t option
   ; query_seen : int64 ref
   ; binding_seen : int64 ref
+  ; palette_seen : int64 ref
   ; document_diff_epoch : int64
   ; document_profile_epoch : int64
   ; document_actions_epoch : int64
@@ -900,9 +905,22 @@ let rec mount builder ~depth previous view =
       | None, callback -> callback
       | Some _, Some _ -> fail "rating cannot combine another handler"
     in
+    let observes_palette view =
+      Option.exists view.View.Expert.palette ~f:(fun p -> Option.is_some p.on_change)
+    in
+    let palette_seen =
+      match previous with
+      | Some old
+        when Bool.equal
+               (observes_palette description)
+               (observes_palette (View.Expert.describe old.view)) -> old.palette_seen
+      | None | Some _ -> ref 0L
+    in
     let callback =
       match description.palette, callback with
-      | Some palette, None -> Some (Palette (palette.config, palette.on_dismiss))
+      | Some palette, None ->
+        Some
+          (Palette (palette.config, palette.on_dismiss, palette_seen, palette.on_change))
       | None, callback -> callback
       | Some _, Some _ -> fail "palette cannot combine another handler"
     in
@@ -1358,6 +1376,16 @@ let rec mount builder ~depth previous view =
             (Bool.equal
                (Tooltip.Expert.is_disabled old.config)
                (Tooltip.Expert.is_disabled tooltip.config)))
+      | None, _ | Some _, None -> false
+    in
+    let rotate_handler =
+      rotate_handler
+      ||
+      match description.palette, previous with
+      | Some palette, Some mounted ->
+        Option.exists (View.Expert.describe mounted.view).palette ~f:(fun old ->
+          not
+            (Bool.equal (Option.is_some old.on_change) (Option.is_some palette.on_change)))
       | None, _ | Some _, None -> false
     in
     let handler =
@@ -2394,7 +2422,15 @@ let rec mount builder ~depth previous view =
              Gpuio_protocol.Palette_layout_wire.equal
              (Option.bind old ~f:Command_palette.Expert.layout)
              layout)
-      then emit builder (Set_palette_layout (id, layout)));
+      then emit builder (Set_palette_layout (id, layout));
+      let observed = Option.is_some palette.on_change in
+      let was_observed =
+        Option.exists previous ~f:(fun mounted ->
+          Option.exists (View.Expert.describe mounted.view).palette ~f:(fun old ->
+            Option.is_some old.on_change))
+      in
+      if not (Bool.equal observed was_observed)
+      then emit builder (Set_palette_observed (id, observed)));
     let editor_config (description : _ View.Expert.description) =
       match description.editor, description.combobox with
       | Some editor, None -> Some editor.config
@@ -2963,6 +2999,7 @@ let rec mount builder ~depth previous view =
     ; container_query
     ; query_seen
     ; binding_seen
+    ; palette_seen
     ; document_diff_epoch
     ; document_profile_epoch
     ; document_actions_epoch
@@ -4099,6 +4136,27 @@ let dispatch t = function
        when Node_id.equal node expected && Handler_id.equal handler expected_handler ->
        Some (callback (Toast.Expert.dismissal reason))
      | Some _ | None -> None)
+  | Palette_observed (window, node, handler, revision, snapshot)
+    when (not t.closed)
+         && Window_id.equal window t.window
+         && Int64.(revision >= 0L && revision <= t.state.revision) ->
+    (match Map.find t.state.bindings (node_slot node) with
+     | Some
+         { node = expected
+         ; handler = expected_handler
+         ; callback = Palette (_, _, seen, Some callback)
+         }
+       when Node_id.equal node expected
+            && Handler_id.equal handler expected_handler
+            && Int64.(snapshot.sequence > !seen) ->
+       (match
+          Command_palette.Expert.snapshot_of_wire ~window ~node ~observer:handler snapshot
+        with
+        | Error _ -> None
+        | Ok value ->
+          seen := snapshot.sequence;
+          Some (callback value))
+     | Some _ | None -> None)
   | Palette_dismissed (window, node, handler, revision, reason)
     when (not t.closed)
          && Window_id.equal window t.window
@@ -4107,7 +4165,7 @@ let dispatch t = function
      | Some
          { node = expected
          ; handler = expected_handler
-         ; callback = Palette (config, callback)
+         ; callback = Palette (config, callback, _, _)
          }
        when Node_id.equal node expected && Handler_id.equal handler expected_handler ->
        Command_palette.Expert.dismissal config reason |> Option.map ~f:callback
@@ -4153,6 +4211,7 @@ let dispatch t = function
   | Pointer_event _
   | Toast_dismissed _
   | Palette_dismissed _
+  | Palette_observed _
   | Command_invoked _
   | Calendar_viewport_changed _
   | Hover_changed _

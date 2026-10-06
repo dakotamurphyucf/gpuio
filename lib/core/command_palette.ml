@@ -208,7 +208,40 @@ end
 
 module Appearance = Choice.Appearance
 
+module Snapshot = struct
+  type t =
+    { window : Gpuio_protocol.Window_id.t
+    ; node : Gpuio_protocol.Node_id.t
+    ; observer : Gpuio_protocol.Handler_id.t
+    ; wire : Gpuio_protocol.Palette_state_wire.t
+    }
+  [@@deriving equal, sexp_of]
+
+  let query t = t.wire.query
+  let composing t = t.wire.composing
+
+  let selected t =
+    Option.map t.wire.selected ~f:(fun id ->
+      Ui_command.Id.of_string id |> Or_error.ok_exn)
+  ;;
+
+  let matched_count t = t.wire.matched_count
+
+  let same_query t other =
+    Gpuio_protocol.Window_id.equal t.window other.window
+    && Gpuio_protocol.Node_id.equal t.node other.node
+    && Gpuio_protocol.Handler_id.equal t.observer other.observer
+    && Int64.equal t.wire.query_revision other.wire.query_revision
+  ;;
+end
+
 module Expert = struct
+  let snapshot_of_wire ~window ~node ~observer wire =
+    if Gpuio_protocol.Palette_state_wire.valid wire
+    then Ok Snapshot.{ window; node; observer; wire }
+    else Or_error.error_string "invalid palette snapshot"
+  ;;
+
   let options (t : Config.t) = t.options
   let layout (t : Config.t) = t.layout
 
