@@ -22,6 +22,8 @@ pub mod chart_axis;
 pub mod chart_data;
 pub mod chart_grid;
 pub mod chart_inspection;
+pub mod chart_inspection_content;
+pub use decode::decode_chart_inspection_content;
 pub mod chart_node_labels;
 pub mod chart_pie_labels;
 pub use decode::decode_chart_node_labels;

@@ -58,6 +58,12 @@ records scoped qualification and remaining limits.
 | Sankey topology/layout and ribbon path helpers | Bounded native preparation owns graph validation/layout and retained geometry. [Dependency provenance](../../third_party/sources.json) and reconstruction records govern compiled source; raw catalog snapshots are evidence only. |
 | Tooltip state, title/rows, cross lines, dots and appearance | [`Chart_inspection`](../../lib/core/chart_inspection.mli) now supplies card visibility/title/values, bounded anchor/corner placement and appearance; crosshair axes, dashed/solid bands and color; independent marker size/fill/stroke/status. Hover/drag previews stay native and OCaml observes committed selection. [Scoped qualification](../evidence/chart-inspection-och41.md) covers actual pixels and public gallery behavior. [Cursor-following cards](../design/chart-cursor-inspection.md) now have [actual native pixels and root/installed gallery evidence](../evidence/chart-cursor-inspection-och41.md), preserving data-anchored guides and keyboard fallback. [Independent guide spans](../design/chart-guide-spans.md) now configure clipped pixel/fractional intervals; [local qualification](../evidence/chart-guide-spans-och41.md) covers paired codecs, GPU pixels, resize and root/installed gallery behavior. Arbitrary rich rows and per-datum annotations remain separate public-surface work. |
 
+The [rich inspection contract](../design/chart-inspection-content.md) drafts
+ordinary OCaml View content alongside a title/row convenience API. The current
+foundation supplies validated stable/publication-bound targets and standalone
+metadata codecs only. `View.chart` attachment, native interactive content and
+gallery qualification remain required; it does not close the Tooltip row above.
+
 [`Chart_appearance`](../../lib/core/chart_appearance.mli) now attaches to
 `Chart_style.create`: 128 series overrides and 1,024 unique series/datum pairs,
 with full theme resolution before native preparation. Sparse marker and bar

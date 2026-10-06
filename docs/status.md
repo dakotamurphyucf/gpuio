@@ -5,6 +5,13 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **O
 Markdown walkthroughs for every example component; its documentation acceptance is complete. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
+[Rich inspection content foundations](evidence/chart-inspection-content-foundation-och41.md)
+add validated OCaml target/content values and paired standalone metadata codecs.
+Exact IDs survive reorder; aggregate content binds the source, application and
+publication. Focused expect tests, 452 protocol tests, strict workspace lint and
+full Dune checks pass. `View.chart` attachment, native interactive content and
+gallery qualification remain required; current parent schemas are unchanged.
+
 [Pie leader density regression](evidence/pie-leader-density-och41.md) reproduces
 the hosted failure locally at 1×: the original test required excessive channel intensity from a thin partially covered stroke. Expected-hue column coverage
 and neutral negative controls now pass at four synthetic scales, with strict

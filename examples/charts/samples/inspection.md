@@ -34,8 +34,11 @@ selected preset. `B = Bonsai.Cont`; `B.state Samples.Inspection.Default graph`
 creates a reactive model in the page graph and returns its current value plus
 `set_inspection`. Calling the setter constructs an effect; the button executes
 it, and `let%arr` derives the style from the latest choice and palette. The resulting
-`Chart_style.create ~inspection` changes the view configuration; native workers
-prepare a matching immutable result. The Ready notice acknowledges preparation,
+`Chart_style.create ~inspection:(Samples.Inspection.config inspection)` resolves
+the chosen public description into chart style. The page supplies that style to
+`Chart.Config.create`, then places the config in `V.chart` (`V = Gpuio_bonsai.View`)
+with a stable chart key and borrowed source handle. Native workers prepare a
+matching immutable result. The Ready notice acknowledges preparation,
 not physical display presentation. Hover and keyboard previews remain native;
 only committed selection crosses back to the page's OCaml selection state.
 

@@ -41,6 +41,8 @@ pub use chart_appearance::decode_chart_appearance;
 mod chart_axis;
 mod chart_data;
 mod chart_inspection;
+mod chart_inspection_content;
+pub use chart_inspection_content::decode_chart_inspection_content;
 mod chart_node_labels;
 pub use chart_node_labels::decode_chart_node_labels;
 mod chart_options;
