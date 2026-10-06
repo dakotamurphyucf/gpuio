@@ -1,0 +1,107 @@
+{
+  "source_base": "fd2bc6f",
+  "platform": "macOS 14.5 arm64",
+  "archive_sha256": "fcac78c3edf11aa4886c8d3d70e56f8a561f855f02904447760507a1a45751ff",
+  "files": [
+    {
+      "path": "pie-labels-clippy.log",
+      "bytes": 588425,
+      "sha256": "74588a2ae24ced19789a365d4e8ec988ca0b83b99bcd9257bcaf361b5b6c78df"
+    },
+    {
+      "path": "pie-labels-core-first.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "pie-labels-dune.log",
+      "bytes": 705834,
+      "sha256": "6a6efc6f61457543fd89fe82322a978c784baf3674d62067b6e4b284d9237fe6"
+    },
+    {
+      "path": "pie-labels-format-check.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "pie-labels-format.log",
+      "bytes": 19555,
+      "sha256": "b8855c8081aed8c76281b29fdf5494d08bef43bb4e175f09b6a0e33b7b76414f"
+    },
+    {
+      "path": "pie-labels-gallery.log",
+      "bytes": 2629,
+      "sha256": "088417beac5ab5ffedc10ce2664bcdde2faf965cf8401122080c7f93839a9b1a"
+    },
+    {
+      "path": "pie-labels-installed.log",
+      "bytes": 203691,
+      "sha256": "5d69ad4f35d2ab86fb58dd0bbea9c76a5468424a6010174eb726618d43c2b0b0"
+    },
+    {
+      "path": "pie-labels-native-all.log",
+      "bytes": 698085,
+      "sha256": "178df38313dba04ac67f2bf5e1ca2e32b088c10e871c6bdac241e6771a5c2a37"
+    },
+    {
+      "path": "pie-labels-native-first.log",
+      "bytes": 598949,
+      "sha256": "81bacc48718a03ec33ae2b2d73a12571f6be1fdb39e9c4345416d0d035dcc699"
+    },
+    {
+      "path": "pie-labels-native-font.log",
+      "bytes": 588691,
+      "sha256": "1be743a8f877c05d3d1a6e925ab340301299b421c2c26470645b8685334af0fe"
+    },
+    {
+      "path": "pie-labels-native-unit.log",
+      "bytes": 599129,
+      "sha256": "ab9b24be45b38a61b5d3d7382d2c24c8e70e30f7ce038c8d46c50e6aac142356"
+    },
+    {
+      "path": "pie-labels-native-view.log",
+      "bytes": 589758,
+      "sha256": "bd5820606f59f42dbf59f8a54c33edbdb9158fbde945447c9c3a24db5a99ebc1"
+    },
+    {
+      "path": "pie-labels-protocol-all.log",
+      "bytes": 56871,
+      "sha256": "60d96197310067395d41040f66c46379daaba1ed618ea44e67bc2b5e6e1d5494"
+    },
+    {
+      "path": "pie-labels-protocol-final.log",
+      "bytes": 2273,
+      "sha256": "707480937834ec9a5cc6182843fe7bb02a1204a17ad286d139c1bab0e99132ef"
+    },
+    {
+      "path": "pie-labels-protocol-first.log",
+      "bytes": 626,
+      "sha256": "ae64126b208cfdc33bb959318d92490ffc4d199bfded08cc7f1b0264c6423399"
+    },
+    {
+      "path": "pie-labels-protocol.log",
+      "bytes": 2126,
+      "sha256": "6790f15b9480cebce477c8f9c29b27e6573b3361bf1d8e035bafc71f889f667f"
+    },
+    {
+      "path": "screenshots/gallery-pie-80 px-Per-slice radii.png",
+      "bytes": 405390,
+      "sha256": "c69b2598f103fe311f8a6cec6f574603463d1a9b64274308ddc6d19af34c012a"
+    },
+    {
+      "path": "screenshots/gallery-pie-80 px-Uniform radii.png",
+      "bytes": 405281,
+      "sha256": "f39059fd13b099fb3e98bb98807b9abe7d19872e6c23fb263aeab185fc4c0581"
+    },
+    {
+      "path": "screenshots/gallery-pie-Fit-Per-slice radii.png",
+      "bytes": 405567,
+      "sha256": "325401ebe2943a373db7f4e0ff2c1a9cc6765a637081e8ce60dabb7feed639a8"
+    },
+    {
+      "path": "screenshots/gallery-pie-outside-captions.png",
+      "bytes": 411083,
+      "sha256": "e1bc62b336e32480a917cea5f00734a0240d53765401b006502ee4b9df3d440a"
+    }
+  ]
+}

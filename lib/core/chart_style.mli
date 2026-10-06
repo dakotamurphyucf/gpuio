@@ -43,6 +43,11 @@ type t [@@deriving equal, sexp_of]
     lists suppress individual labels, while [Sankey.labels=false] hides all.
     Overrides do not change original-data names or selection values.
 
+    [pie_labels] supplies stable-ID caption and leader-color overrides. Omitted
+    captions inherit source labels; empty captions hide their leader too.
+    [pie_label_line_color] defaults to the resolved axis color; per-slice colors
+    take precedence. Neither changes original names, legend or selection values.
+
     Palette length 1..32; stroke width 0.5..8, point radius 1..12 and bar corner
     radius 0..32 logical pixels. Area opacity is 0..1. Optional [gradient_end]
     makes bars fade from their palette color to that color along the value axis.
@@ -57,6 +62,8 @@ val create
   -> ?ordinal:Ordinal.t
   -> ?inspection:Chart_inspection.t
   -> ?node_labels:Chart_node_labels.t
+  -> ?pie_labels:Chart_pie_labels.t
+  -> ?pie_label_line_color:Color.t
   -> ?axis_color:Color.t
   -> ?grid_color:Color.t
   -> ?label_color:Color.t

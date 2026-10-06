@@ -1,7 +1,7 @@
 //! Native font measurement on the admitted chart worker, with a private cache.
 #[cfg(feature = "native-canvas-tests")]
 pub(crate) mod native_test;
-use crate::{chart_geometry::FlowLabelMetrics, chart_paint::Error};
+use crate::{chart_geometry::LabelMetrics, chart_paint::Error};
 use gpui::{Font, TextRun, TextSystem, WindowTextSystem, px};
 use gpuio_protocol::{
     chart_data::{Contents, Data},
@@ -44,7 +44,7 @@ impl Context {
         data: &Data,
         style: &Style,
         cancel: &AtomicBool,
-    ) -> Result<Vec<Option<FlowLabelMetrics>>, Error> {
+    ) -> Result<Vec<Option<LabelMetrics>>, Error> {
         if cancel.load(Ordering::Relaxed) {
             return Err(Error::Cancelled);
         }
@@ -78,7 +78,33 @@ fn collect(
     style: &Style,
     cancel: &AtomicBool,
     mut width: impl FnMut(&str, f64) -> f64,
-) -> Result<Vec<Option<FlowLabelMetrics>>, Error> {
+) -> Result<Vec<Option<LabelMetrics>>, Error> {
+    if let Contents::Pie(slices) = &data.contents {
+        let overrides: BTreeMap<_, _> = style.pie_labels.iter().map(|e| (e.slice, e)).collect();
+        return slices
+            .iter()
+            .map(|slice| {
+                if cancel.load(Ordering::Relaxed) {
+                    return Err(Error::Cancelled);
+                }
+                let text = overrides
+                    .get(&slice.id)
+                    .and_then(|e| e.text.as_deref())
+                    .unwrap_or(&slice.label);
+                if text.is_empty() {
+                    return Ok(None);
+                }
+                let measured = width(text, 11.);
+                if !measured.is_finite() || measured < 0. {
+                    return Err(Error::NativeFailure);
+                }
+                Ok(Some(LabelMetrics {
+                    width: measured,
+                    height: 18.,
+                }))
+            })
+            .collect();
+    }
     let Contents::Sankey(nodes, _) = &data.contents else {
         return Err(Error::InvalidInput);
     };
@@ -93,7 +119,7 @@ fn collect(
             if cancel.load(Ordering::Relaxed) {
                 return Err(Error::Cancelled);
             }
-            let mut metric = FlowLabelMetrics {
+            let mut metric = LabelMetrics {
                 width: 0.,
                 height: 0.,
             };
@@ -178,11 +204,11 @@ mod tests {
             measured,
             vec![
                 None,
-                Some(FlowLabelMetrics {
+                Some(LabelMetrics {
                     width: 77.,
                     height: 54.
                 }),
-                Some(FlowLabelMetrics {
+                Some(LabelMetrics {
                     width: 77.,
                     height: 18.
                 })

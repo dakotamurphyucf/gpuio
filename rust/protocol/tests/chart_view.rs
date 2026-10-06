@@ -11,7 +11,7 @@ fn config() -> Config {
         options: Default::default(),
         sampling: Default::default(),
         style: gpuio_protocol::chart_style::Style {
-            version: -2,
+            version: -3,
             palette: vec![1, 2],
             axis_color: 3,
             grid_color: 4,
@@ -25,6 +25,8 @@ fn config() -> Config {
             ordinal: None,
             inspection: Default::default(),
             node_labels: vec![],
+            pie_labels: vec![],
+            pie_label_line_color: None,
         },
     }
 }
@@ -219,4 +221,38 @@ fn pie_radius_storage_is_charged_and_full_override_lists_decode() {
         value.options.pie.slice_radii.capacity() * std::mem::size_of::<SliceRadii>()
     );
     assert_eq!(decode_chart_view_config(&encode(&value)), Ok(value));
+}
+
+#[test]
+fn independently_full_pie_and_sankey_captions_fit_the_config_envelope_and_are_charged() {
+    use gpuio_protocol::{chart_node_labels as node, chart_pie_labels as pie};
+    let mut value = config();
+    let before = value.retained_bytes();
+    value.style.pie_labels = (1..=256)
+        .map(|slice| pie::Entry {
+            slice,
+            text: Some("p".repeat(128)),
+            line_color: Some(0xffff_ffff),
+        })
+        .collect();
+    value.style.node_labels = (1..=128)
+        .map(|id| node::Node {
+            node: id,
+            lines: (0..4)
+                .map(|_| node::Line {
+                    text: "s".repeat(64),
+                    color: Some(0xffff_ffff),
+                    font_size: Some(32.),
+                })
+                .collect(),
+        })
+        .collect();
+    assert!(value.is_valid());
+    assert_eq!(
+        value.retained_bytes() - before,
+        pie::heap_bytes(&value.style.pie_labels) + node::heap_bytes(&value.style.node_labels)
+    );
+    let bytes = encode(&value);
+    assert!(bytes.len() > 64 * 1024);
+    assert_eq!(decode_chart_view_config(&bytes), Ok(value));
 }

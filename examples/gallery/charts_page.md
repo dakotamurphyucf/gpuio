@@ -330,6 +330,74 @@ when radii come from user input instead of using the fixture's `ok` shortcut.
 This documentation update records the implementation; it adds no native, GPU,
 accessibility or platform acceptance evidence.
 
+## Pie captions and leader lines
+
+The Pie family also exposes **Outside pie labels**, **Pie label gap 32**,
+**Custom pie captions** and **Show pie labels**. Their `B.toggle` cells are
+`outside_pie`, `spaced_pie`, `custom_pie_labels` and `show_pie_labels`; the first
+three start false and the last starts true. These are independent reactive
+Booleans in the page graph. Their toggle effects run on native switch events;
+the outer `let%arr` then derives plotting options and resolved style from the
+current values and palette. It does not measure text in OCaml or modify the data.
+
+`Chart_options.Pie.create` receives `~labels:show_pie_labels`,
+`~label_placement:(if outside_pie then Outside else Inside)` and
+`~label_gap:(if spaced_pie then 32. else 15.)`. `Label_placement` belongs to
+`Chart_options.Pie`. Inside is the default; gap is a finite logical-pixel distance
+in `[0, 64]` and affects Outside placement only. Thus the gap switch changes no
+inside-caption spacing. Hiding labels suppresses captions and leaders while
+leaving the wedges and original data intact.
+
+`Chart_style.create ~pie_labels` receives `Chart_pie_labels.empty` until custom
+captions are enabled. Then `List.map` builds entries with
+`Chart_pie_labels.Entry.create ~slice ~text ~line_color ()`, using validated
+`Chart_data.Datum_id.of_int64` IDs, and `Chart_pie_labels.create` validates their
+collection. ID 1 becomes Agent reasoning; ID 2 becomes Code generation; ID 3
+gets a deliberately long Research caption. ID 4 has explicit empty text, hiding
+Other's caption **and** leader without removing its wedge. ID 99 is absent from
+this fixture: its entry is retained but ignored until such a source ID exists.
+Omitting `~text` would inherit the source caption; it differs from passing `""`.
+
+The global `~pie_label_line_color:(Palette.muted p)` supplies the ordinary leader
+color. Custom entries override it: ID 1 uses orange `Color.rgb_exn 0xfb923c`,
+while the others use `Palette.accent p`. These colors affect Outside leaders;
+`~label_color:(Palette.foreground p)` supplies caption color independently.
+Style construction resolves colors for the current theme. The switch handlers
+carry effects, not paint callbacks; theme changes rebuild the resolved style.
+
+Trace: enable Outside pie labels → native switch runs `toggle_outside_pie` →
+Bonsai changes the Boolean → `let%arr` builds Outside options and the current
+caption/color collection → native preparation measures captions and prepares
+leaders with the same source/config/font snapshot → the chart delivers Ready.
+The current Ready notice names radius settings and the inspection preset; it
+does not spell out these label switches. Enable Custom pie captions through the
+same path to replace caption text and colors. No `Source.update` is needed:
+source names, weights, angular shares, original-data rows, legend names and
+selection values remain independent. IDs bind presentation across reorder or
+rename; repeated text cannot merge slice identity. Leaders are decorative,
+not additional selection targets, and use each wedge's actual outer radius.
+
+The [typed caption interface](../../lib/core/chart_pie_labels.mli) permits at
+most 256 UTF-8 bytes per single-line caption, without ASCII controls, at most
+256 unique IDs and 32 KiB of total override text. The
+[style interface](../../lib/core/chart_style.mli) describes color precedence;
+the [pie-label contract](../../docs/design/pie-labels.md) describes native layout.
+Outside captions for sweeps below half a degree are omitted. Dense sides retain
+a deterministic subset when 18-pixel rows cannot all fit; plots shorter than a
+row omit outside captions. Widths are bounded to a quarter of the plot and
+ellipsize. Fit reserves measured margins; literal oversized radii can clip or
+enter label space, so arbitrary radii do not guarantee separation between wedges
+and captions.
+Zero-weight and equal-radius slices still have no wedge or caption.
+
+To adapt the sample, replace ID 3's text with a short application caption while
+keeping the source ID. To change only its leader color and inherit Research,
+omit `~text` for that entry and supply `~line_color`; keep the original source
+label untouched. Validate user-supplied text and collection errors instead of
+unwrapping them with the fixture's `ok`. The separate
+[qualification record](../../docs/evidence/pie-labels-och41.md) states tested
+behavior and platform limits; this walkthrough itself is not acceptance evidence.
+
 ## Radar projection controls
 
 The Radar family adds a small `Radar_scale` model: its values are the public

@@ -54,6 +54,8 @@ let create
       ?ordinal
       ?(inspection = Chart_inspection.default)
       ?(node_labels = Chart_node_labels.empty)
+      ?(pie_labels = Chart_pie_labels.empty)
+      ?pie_label_line_color
       ?(axis_color = Color.rgb_exn 0x64748b)
       ?(grid_color =
         Color.rgba ~red:100 ~green:116 ~blue:139 ~alpha:64 |> Or_error.ok_exn)
@@ -86,8 +88,13 @@ let create
     in
     let%bind inspection = Chart_inspection.Expert.to_wire inspection ~theme in
     let%bind node_labels = Chart_node_labels.Expert.to_wire node_labels ~theme in
+    let%bind pie_labels = Chart_pie_labels.Expert.to_wire pie_labels ~theme in
+    let%bind pie_label_line_color =
+      Option.value_map pie_label_line_color ~default:(Ok None) ~f:(fun c ->
+        Theme.resolve theme c |> Or_error.map ~f:Option.some)
+    in
     let t =
-      { Wire.version = -2L
+      { Wire.version = -3L
       ; palette
       ; axis_color
       ; grid_color
@@ -101,6 +108,8 @@ let create
       ; ordinal
       ; inspection
       ; node_labels
+      ; pie_labels
+      ; pie_label_line_color
       }
     in
     if Wire.valid t

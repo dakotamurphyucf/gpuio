@@ -368,3 +368,25 @@ and a [verified manifest](hosted-presentation-calibration-och17/run-37487278162/
 retain seven files (208,100 uncompressed bytes). The passing receiver uses internal
 ad-hoc packages; release signing, notices, clean-machine distribution and broader
 catalog/accessibility/performance qualification remain separate requirements.
+
+## Hosted run 37502930557
+
+[Run 37502930557](https://github.com/dakotamurphyucf/gpuio/actions/runs/37502930557)
+is terminal. Linux foundation and all three independently extracted macOS apps
+pass. The only failed macOS foundation steps are again the GPUI Metal
+presentation hook and standalone Metal calibration. The checkout log identifies
+merge `65ccb3a409469e171b74c4cf793290b539251a7c`, whose tree
+`6f0e43a76ba1a5d6ae600454d4eeab3c9dbd91be` matches branch `328267a`.
+This includes the radar clipping repair, but predates subsequent resource,
+isolation, rating/theme and pie API changes. Current-source CI remains required.
+
+Both GPUI sessions receive 90 zero-time callbacks, with no missing callbacks and
+no pending submissions after closure. The standalone probe submits 120 frames
+and receives 120 zero presentation times on Apple Paravirtual / macOS 15.7.9.
+Neither probe establishes physical display timing; neither gate is waived.
+
+[Primary reports, terminal job results and source identity](hosted-presentation-calibration-och17/run-37502930557/reports.tar.gz)
+and the [verified manifest](hosted-presentation-calibration-och17/run-37502930557/manifest.json)
+retain seven files (207,734 uncompressed bytes). Passing internal ad-hoc packages
+do not establish release signing, clean-machine distribution or whole-milestone
+acceptance. Linux desktop qualification remains OCH-47.

@@ -200,19 +200,33 @@ impl State {
             snapshot: snapshot.clone(),
             config: self.config.clone(),
             layout,
-            text: (matches!(
-                snapshot.data().contents,
-                gpuio_protocol::chart_data::Contents::Sankey(..)
-            ) && self.config.options.sankey.labels
-                && self.config.options.sankey.label_placement
-                    == gpuio_protocol::chart_options::LabelPlacement::Outside)
-                .then(|| crate::chart_label_metrics::Context {
-                    system: cx.text_system().clone(),
-                    style: crate::chart_label_metrics::LabelStyle::new(
-                        window.text_style().font(),
-                        f32::from(window.rem_size()) * 0.25,
-                    ),
-                }),
+            text: (match &snapshot.data().contents {
+                gpuio_protocol::chart_data::Contents::Sankey(..) => {
+                    self.config.options.sankey.labels
+                        && self.config.options.sankey.label_placement
+                            == gpuio_protocol::chart_options::LabelPlacement::Outside
+                }
+                gpuio_protocol::chart_data::Contents::Pie(_) => {
+                    self.config.options.pie.labels
+                        && self.config.options.pie.label_placement
+                            == gpuio_protocol::chart_options::LabelPlacement::Outside
+                }
+                _ => false,
+            })
+            .then(|| crate::chart_label_metrics::Context {
+                system: cx.text_system().clone(),
+                style: crate::chart_label_metrics::LabelStyle::new(
+                    window.text_style().font(),
+                    if matches!(
+                        snapshot.data().contents,
+                        gpuio_protocol::chart_data::Contents::Pie(_)
+                    ) {
+                        0.
+                    } else {
+                        f32::from(window.rem_size()) * 0.25
+                    },
+                ),
+            }),
         };
         let changed = self.requested.as_ref().is_none_or(|old| {
             old.text != request.text
@@ -327,11 +341,16 @@ impl State {
                 crate::chart_geometry::LabelKind::Flow { .. }
                     | crate::chart_geometry::LabelKind::FlowLine { .. }
                     | crate::chart_geometry::LabelKind::Series(_)
-            ) || (matches!(label.kind, crate::chart_geometry::LabelKind::Radial)
-                && matches!(
-                    ready.snapshot.data().contents,
-                    gpuio_protocol::chart_data::Contents::Pie(_)
-                ));
+            ) || (matches!(
+                label.kind,
+                crate::chart_geometry::LabelKind::Pie {
+                    placement: None,
+                    ..
+                }
+            ) && matches!(
+                ready.snapshot.data().contents,
+                gpuio_protocol::chart_data::Contents::Pie(_)
+            ));
             // Each prepared caption owns one line; wrapping would hide later
             // words behind its fixed-height clipping rectangle.
             let mut content = div().min_w_0().truncate().child(label.text.clone());

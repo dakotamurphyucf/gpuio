@@ -44,7 +44,7 @@ fn data(reverse: bool) -> data::Data {
         ),
     }
 }
-fn metrics(data: &data::Data) -> Vec<Option<FlowLabelMetrics>> {
+fn metrics(data: &data::Data) -> Vec<Option<LabelMetrics>> {
     let data::Contents::Sankey(nodes, _) = &data.contents else {
         unreachable!()
     };
@@ -52,15 +52,15 @@ fn metrics(data: &data::Data) -> Vec<Option<FlowLabelMetrics>> {
         .iter()
         .map(|n| {
             Some(match n.id {
-                10 => FlowLabelMetrics {
+                10 => LabelMetrics {
                     width: 50.,
                     height: 18.,
                 },
-                20 => FlowLabelMetrics {
+                20 => LabelMetrics {
                     width: 90.,
                     height: 54.,
                 },
-                _ => FlowLabelMetrics {
+                _ => LabelMetrics {
                     width: 900.,
                     height: 18.,
                 },
@@ -72,9 +72,9 @@ fn prepared(
     data: &data::Data,
     options: &options::Options,
     size: (f64, f64),
-    labels: &[Option<FlowLabelMetrics>],
+    labels: &[Option<LabelMetrics>],
 ) -> Plan {
-    prepare_with_flow_labels(
+    prepare_with_labels(
         data,
         Default::default(),
         options,
@@ -304,7 +304,7 @@ fn single_column_prefers_first_column_and_rejects_invalid_metrics() {
         ),
     };
     let options = options::Options::default();
-    let labels = [Some(FlowLabelMetrics {
+    let labels = [Some(LabelMetrics {
         width: 40.,
         height: 18.,
     })];
@@ -323,17 +323,17 @@ fn single_column_prefers_first_column_and_rejects_invalid_metrics() {
     ));
     for labels in [
         vec![],
-        vec![Some(FlowLabelMetrics {
+        vec![Some(LabelMetrics {
             width: f64::NAN,
             height: 18.,
         })],
-        vec![Some(FlowLabelMetrics {
+        vec![Some(LabelMetrics {
             width: 10.,
             height: 0.,
         })],
     ] {
         assert!(matches!(
-            prepare_with_flow_labels(
+            prepare_with_labels(
                 &data,
                 Default::default(),
                 &options,
@@ -345,7 +345,7 @@ fn single_column_prefers_first_column_and_rejects_invalid_metrics() {
         ));
     }
     assert!(matches!(
-        prepare_with_flow_labels(
+        prepare_with_labels(
             &data,
             Default::default(),
             &options,

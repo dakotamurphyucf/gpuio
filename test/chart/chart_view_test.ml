@@ -17,7 +17,7 @@ let hex bytes =
 
 let style =
   Gpuio.Chart_style.Expert.of_wire
-    { version = -2L
+    { version = -3L
     ; palette = [ 1L; 2L ]
     ; axis_color = 3L
     ; grid_color = 4L
@@ -29,6 +29,8 @@ let style =
     ; bar_radius = 4.
     ; area_opacity = 0.5
     ; node_labels = []
+    ; pie_labels = []
+    ; pie_label_line_color = None
     ; inspection =
         Gpuio.Chart_inspection.Expert.to_wire
           Gpuio.Chart_inspection.default

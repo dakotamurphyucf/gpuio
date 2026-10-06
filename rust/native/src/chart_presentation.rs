@@ -185,6 +185,24 @@ impl Frame {
     pub fn label(&self, label: &Label) -> Placement {
         let x = self.plot.x + label.position.x;
         let y = self.plot.y + label.position.y;
+        if let LabelKind::Pie {
+            placement: Some(p), ..
+        } = label.kind
+        {
+            return Placement {
+                rect: Rect {
+                    x: x - if p.align_right { p.width } else { 0. },
+                    y: y - 9.,
+                    width: p.width,
+                    height: 18.,
+                },
+                align: if p.align_right {
+                    Align::Right
+                } else {
+                    Align::Left
+                },
+            };
+        }
         let measured = match label.kind {
             LabelKind::Flow {
                 placement: Some(p), ..

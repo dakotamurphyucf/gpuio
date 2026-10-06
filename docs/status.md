@@ -15,6 +15,21 @@ Three owner-authorized GPT-6.1 Sol agents contributed scoped walkthroughs in par
 Contributor guidance and a structural CI check keep new sources visible; neither
 file presence nor that check establishes documentation or platform acceptance.
 
+[Hosted run 37502930557](evidence/hosted-presentation-calibration-och17.md#hosted-run-37502930557)
+is terminal: Linux foundation and all three independently extracted macOS apps
+pass. Only the two macOS Metal presentation probes fail, receiving zero-time
+callbacks on Apple Paravirtual. This covers tree-equivalent `328267a`, before
+subsequent resource/isolation/rating and pie changes. Current-source CI and
+physical-presentation qualification remain required; no gate is waived.
+
+[Pie captions and leaders](evidence/pie-labels-och41.md) now expose Inside/Outside
+placement, bounded spacing and ID-keyed text/line colors from OCaml. Native workers
+measure captions; bounded spreading preserves original data and selection.
+Paired codecs, full OCaml/native tests, actual font/GPU checks, strict lint and
+root/fresh-installed public gallery walkthroughs pass with resource cleanup.
+Options/style schemas are 9/-3; matching packages are required. Broader catalog
+and release requirements remain open.
+
 [Pie radii](evidence/pie-radii-och41.md) now expose a global Fit/Pixels radius
 and bounded stable-ID inner/outer overrides from OCaml. Source weights, angular
 shares and original values remain intact. Paired codecs, full OCaml/native unit

@@ -355,6 +355,7 @@ async fn exercise(
             .unwrap();
     }
     labels::exercise(cx, handle, next, &session, &transport).await;
+    pie_labels::exercise(cx, handle, next, &session, &transport).await;
     label_content::exercise(cx, handle, next, &session, &transport).await;
     apply(
         cx,
@@ -375,6 +376,8 @@ mod interaction;
 mod label_content;
 #[path = "chart_label_view_test.rs"]
 mod labels;
+#[path = "chart_pie_label_view_test.rs"]
+mod pie_labels;
 #[path = "chart_stream_test.rs"]
 mod streaming;
 pub(crate) fn run() {

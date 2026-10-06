@@ -2,7 +2,7 @@ use binprot::macros::BinProtWrite;
 use std::{collections::BTreeSet, mem::size_of};
 
 pub const MAX_COLOR_DOMAIN: usize = 1024;
-pub const MAX_STYLE_BYTES: usize = 64 * 1024;
+pub const MAX_STYLE_BYTES: usize = 128 * 1024;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, BinProtWrite)]
 pub enum Key {
     Series(i64),
@@ -54,6 +54,8 @@ pub struct Style {
     pub ordinal: Option<Ordinal>,
     pub inspection: Box<crate::chart_inspection::Inspection>,
     pub node_labels: Vec<crate::chart_node_labels::Node>,
+    pub pie_labels: Vec<crate::chart_pie_labels::Entry>,
+    pub pie_label_line_color: Option<i64>,
 }
 fn color(value: i64) -> bool {
     (0..=0xffff_ffff).contains(&value)
@@ -63,7 +65,7 @@ fn within(value: f64, min: f64, max: f64) -> bool {
 }
 impl Style {
     pub fn is_valid(&self) -> bool {
-        self.version == -2
+        self.version == -3
             && (1..=32).contains(&self.palette.len())
             && self.palette.iter().all(|c| color(*c))
             && [
@@ -82,12 +84,15 @@ impl Style {
             && self.ordinal.as_ref().is_none_or(Ordinal::is_valid)
             && self.inspection.is_valid()
             && crate::chart_node_labels::is_valid(&self.node_labels)
+            && crate::chart_pie_labels::is_valid(&self.pie_labels)
+            && self.pie_label_line_color.is_none_or(color)
     }
     pub fn heap_bytes(&self) -> usize {
         size_of::<crate::chart_inspection::Inspection>()
             + self.palette.capacity() * size_of::<i64>()
             + self.ordinal.as_ref().map_or(0, Ordinal::heap_bytes)
             + crate::chart_node_labels::heap_bytes(&self.node_labels)
+            + crate::chart_pie_labels::heap_bytes(&self.pie_labels)
     }
     pub fn color(&self, layer: usize) -> u32 {
         self.palette[layer % self.palette.len()] as u32
@@ -96,7 +101,7 @@ impl Style {
 impl Default for Style {
     fn default() -> Self {
         Self {
-            version: -2,
+            version: -3,
             palette: vec![
                 0x818cf8ff, 0x2dd4bfff, 0xfbbf24ff, 0xf472b6ff, 0x38bdf8ff, 0xfb923cff,
             ],
@@ -112,6 +117,8 @@ impl Default for Style {
             ordinal: None,
             inspection: Default::default(),
             node_labels: vec![],
+            pie_labels: vec![],
+            pie_label_line_color: None,
         }
     }
 }

@@ -19,6 +19,7 @@ pub use decode::{decode_carousel_track_config, decode_carousel_track_request};
 pub mod chart_data;
 pub mod chart_inspection;
 pub mod chart_node_labels;
+pub mod chart_pie_labels;
 pub use decode::decode_chart_node_labels;
 pub mod chart_options;
 pub mod chart_resource;

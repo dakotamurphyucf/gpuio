@@ -467,12 +467,20 @@ pub fn prepare_with_text(
     if !style.is_valid() {
         return Err(Error::InvalidInput);
     }
-    let measured = if matches!(
-        data.contents,
-        gpuio_protocol::chart_data::Contents::Sankey(..)
-    ) && options.sankey.labels
-        && options.sankey.label_placement == gpuio_protocol::chart_options::LabelPlacement::Outside
-    {
+    let outside = match &data.contents {
+        gpuio_protocol::chart_data::Contents::Sankey(..) => {
+            options.sankey.labels
+                && options.sankey.label_placement
+                    == gpuio_protocol::chart_options::LabelPlacement::Outside
+        }
+        gpuio_protocol::chart_data::Contents::Pie(_) => {
+            options.pie.labels
+                && options.pie.label_placement
+                    == gpuio_protocol::chart_options::LabelPlacement::Outside
+        }
+        _ => false,
+    };
+    let measured = if outside {
         Some(
             text.ok_or(Error::InvalidInput)?
                 .measure(data, style, cancel)?,
@@ -480,7 +488,7 @@ pub fn prepare_with_text(
     } else {
         None
     };
-    let mut geometry = geometry::prepare_with_flow_labels(
+    let mut geometry = geometry::prepare_with_labels(
         data,
         policy,
         options,
@@ -498,6 +506,21 @@ pub fn prepare_with_text(
         geometry::Error::Cancelled => Error::Cancelled,
         geometry::Error::RenderLimit => Error::RenderLimit,
     })?;
+    let pie_overrides: std::collections::BTreeMap<_, _> =
+        style.pie_labels.iter().map(|e| (e.slice, e)).collect();
+    if let gpuio_protocol::chart_data::Contents::Pie(slices) = &data.contents {
+        geometry.labels.retain_mut(|label| {
+            if let geometry::LabelKind::Pie { slice_index, .. } = label.kind
+                && let Some(text) = pie_overrides
+                    .get(&slices[slice_index].id)
+                    .and_then(|e| e.text.as_ref())
+            {
+                label.text = text.clone();
+                return !text.is_empty();
+            }
+            true
+        });
+    }
     let colors = crate::chart_colors::resolve(data, style, cancel)?;
     let link_colors = crate::chart_colors::link_colors(data, &colors, cancel)?;
     let mut build = Build {
@@ -749,6 +772,26 @@ pub fn prepare_with_text(
         }
     }
     check(cancel)?;
+    if let gpuio_protocol::chart_data::Contents::Pie(slices) = &data.contents {
+        for label in &geometry.labels {
+            if let geometry::LabelKind::Pie {
+                slice_index,
+                placement: Some(p),
+            } = label.kind
+            {
+                let color = pie_overrides
+                    .get(&slices[slice_index].id)
+                    .and_then(|e| e.line_color)
+                    .or(style.pie_label_line_color)
+                    .unwrap_or(style.axis_color) as u32;
+                build.mesh(
+                    &segments(&[(p.edge, p.bend), (p.bend, p.end)]),
+                    mesh::Style::Stroke(1.),
+                    color,
+                )?;
+            }
+        }
+    }
     let hit_index = crate::chart_hit::Index::prepare(
         &geometry,
         options.cartesian.orientation,

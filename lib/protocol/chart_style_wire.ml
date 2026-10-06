@@ -39,6 +39,8 @@ type t =
   ; ordinal : Ordinal.t option
   ; inspection : Chart_inspection_wire.t
   ; node_labels : Chart_node_labels_wire.t
+  ; pie_labels : Chart_pie_labels_wire.t
+  ; pie_label_line_color : int64 option
   }
 [@@deriving bin_io, equal, sexp_of]
 
@@ -59,7 +61,7 @@ let valid_ordinal (t : Ordinal.t) =
 ;;
 
 let valid t =
-  Int64.equal t.version (-2L)
+  Int64.equal t.version (-3L)
   && List.length t.palette >= 1
   && List.length t.palette <= 32
   && List.for_all t.palette ~f:color
@@ -74,4 +76,6 @@ let valid t =
   && Option.for_all t.ordinal ~f:valid_ordinal
   && Chart_inspection_wire.valid t.inspection
   && Chart_node_labels_wire.valid t.node_labels
+  && Chart_pie_labels_wire.valid t.pie_labels
+  && Option.for_all t.pie_label_line_color ~f:color
 ;;

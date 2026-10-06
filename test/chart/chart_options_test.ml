@@ -33,7 +33,7 @@ let%expect_test "default chart options match independent fixed-width wire fixtur
      |> List.map ~f:(fun c -> sprintf "%02x" (Char.to_int c))
      |> String.concat);
   [%expect
-    {| 080101010500000000009a9999999999e93f00000000000000000000000000000000000001000004010100000000000000000000666666666666e63f0000000000003040000000000000284003000601000000000000f03f000000000000e03f000000000000000000000000000018400000 |}]
+    {| 090101010500000000009a9999999999e93f000000000000000000000000000000000000010000000000000000002e4004010100000000000000000000666666666666e63f0000000000003040000000000000284003000601000000000000f03f000000000000e03f000000000000000000000000000018400000 |}]
 ;;
 
 let%expect_test "typed construction rejects invalid geometry and formatting bounds" =
@@ -66,6 +66,7 @@ let%expect_test "typed construction rejects invalid geometry and formatting boun
     ; { wire with version = 5L }
     ; { wire with version = 6L }
     ; { wire with version = 7L }
+    ; { wire with version = 8L }
     ; { wire with axes = { wire.axes with x_format = Fixed 7L } }
     ; { wire with pie = { wire.pie with inner_radius = Float.nan } }
     ; { wire with sankey = { wire.sankey with iterations = Int64.max_value } }
@@ -128,7 +129,7 @@ let%expect_test "category layout options validate padding and append paired payl
     Bin_prot.Utils.bin_dump W.bin_writer_t (O.Expert.to_wire config)
     |> Bigstring.to_string
   in
-  assert (Char.to_int bytes.[0] = 8);
+  assert (Char.to_int bytes.[0] = 9);
   print_endline
     (String.sub bytes ~pos:18 ~len:9
      |> String.to_list
@@ -147,10 +148,10 @@ let%expect_test "stacking is opt-in with a paired versioned wire tag" =
       let wire = O.Expert.to_wire options in
       assert (O.equal options (O.Expert.of_wire wire |> Or_error.ok_exn));
       let bytes = Bin_prot.Utils.bin_dump W.bin_writer_t wire |> Bigstring.to_string in
-      assert (Char.to_int bytes.[0] = 8);
+      assert (Char.to_int bytes.[0] = 9);
       assert (Char.to_int bytes.[19] = tag));
-  print_endline "options v8: grouped=0 stacked=1; default grouped";
-  [%expect {| options v8: grouped=0 stacked=1; default grouped |}]
+  print_endline "options v9: grouped=0 stacked=1; default grouped";
+  [%expect {| options v9: grouped=0 stacked=1; default grouped |}]
 ;;
 
 let%expect_test "Sankey presentation preserves defaults and validates decoded overrides" =
@@ -201,8 +202,8 @@ let%expect_test "Sankey link color uses explicit source target gradient tags" =
       in
       let wire = O.Expert.to_wire options in
       let bytes = Bin_prot.Utils.bin_dump W.bin_writer_t wire |> Bigstring.to_string in
-      assert (String.length bytes = 114);
-      assert (Char.to_int bytes.[112] = tag);
+      assert (String.length bytes = 123);
+      assert (Char.to_int bytes.[121] = tag);
       assert (O.equal options (O.Expert.of_wire wire |> Or_error.ok_exn)));
   print_endline "source=0 target=1 gradient=2; default source";
   [%expect {| source=0 target=1 gradient=2; default source |}]
@@ -213,17 +214,17 @@ let%expect_test "outside labels append a paired tag and preserve inside by defau
     Bin_prot.Utils.bin_dump W.bin_writer_t (O.Expert.to_wire value) |> Bigstring.to_string
   in
   let original = encode O.default in
-  assert (String.length original = 114);
-  assert (Char.to_int original.[0] = 8);
-  assert (Char.to_int original.[113] = 0);
+  assert (String.length original = 123);
+  assert (Char.to_int original.[0] = 9);
+  assert (Char.to_int original.[122] = 0);
   let outside =
     O.create ~sankey:(O.Sankey.create ~label_placement:Outside () |> Or_error.ok_exn) ()
   in
-  let expected = String.prefix original 113 ^ "\001" in
+  let expected = String.prefix original 122 ^ "\001" in
   assert (String.equal (encode outside) expected);
   assert (O.equal outside (O.Expert.of_wire (O.Expert.to_wire outside) |> Or_error.ok_exn));
-  print_endline "options v8: inside=0 outside=1; default inside";
-  [%expect {| options v8: inside=0 outside=1; default inside |}]
+  print_endline "options v9: inside=0 outside=1; default inside";
+  [%expect {| options v9: inside=0 outside=1; default inside |}]
 ;;
 
 let%expect_test "radar scales radius and gap have paired tags and checked boundaries" =
@@ -239,7 +240,7 @@ let%expect_test "radar scales radius and gap have paired tags and checked bounda
     |> check
   in
   print_endline
-    (String.sub bytes ~pos:42 ~len:18
+    (String.sub bytes ~pos:51 ~len:18
      |> String.to_list
      |> List.map ~f:(fun c -> sprintf "%02x" (Char.to_int c))
      |> String.concat);
@@ -313,4 +314,22 @@ let%expect_test "pie radii use bounded unique IDs and independently paired bytes
     assert (Result.is_error (O.Expert.of_wire { wire with pie })));
   [%expect
     {| 010000000000005440020700000000000034400000000000004e400900000000000000000000000000000000 |}]
+;;
+
+let%expect_test "outside pie placement and gap use independent bytes and finite bounds" =
+  let pie = O.Pie.create ~label_placement:Outside ~label_gap:32. () |> Or_error.ok_exn in
+  let wire = O.Expert.to_wire (O.create ~pie ()) in
+  let bytes = Bin_prot.Utils.bin_dump W.bin_writer_t wire |> Bigstring.to_string in
+  print_endline
+    (String.sub bytes ~pos:39 ~len:9
+     |> String.to_list
+     |> List.map ~f:(fun c -> sprintf "%02x" (Char.to_int c))
+     |> String.concat);
+  List.iter
+    [ Float.nan; Float.infinity; Float.neg_infinity; -1.; 64.01 ]
+    ~f:(fun label_gap ->
+      assert (Result.is_error (O.Pie.create ~label_gap ()));
+      assert (
+        Result.is_error (O.Expert.of_wire { wire with pie = { wire.pie with label_gap } })));
+  [%expect {| 010000000000004040 |}]
 ;;

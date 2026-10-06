@@ -8,7 +8,7 @@ fn bytes(style: &Style) -> Vec<u8> {
 #[test]
 fn paired_style_fixture_and_decoder_bounds() {
     let value = Style {
-        version: -2,
+        version: -3,
         palette: vec![1, 2],
         axis_color: 3,
         grid_color: 4,
@@ -22,8 +22,10 @@ fn paired_style_fixture_and_decoder_bounds() {
         ordinal: None,
         inspection: Default::default(),
         node_labels: vec![],
+        pie_labels: vec![],
+        pie_label_line_color: None,
     };
-    let hex = "fffe020102030405060107000000000000004000000000000008400000000000001040000000000000e03f000101010000000000008071400000000000002040000000000000204000000000000018400000000000002840000000000000314000000000000000000000000000000000000000f03f00010100000000000030400000000000000000000000";
+    let hex = "fffd020102030405060107000000000000004000000000000008400000000000001040000000000000e03f000101010000000000008071400000000000002040000000000000204000000000000018400000000000002840000000000000314000000000000000000000000000000000000000f03f000101000000000000304000000000000000000000000000";
     let expected: Vec<u8> = hex
         .as_bytes()
         .chunks_exact(2)
@@ -38,7 +40,7 @@ fn paired_style_fixture_and_decoder_bounds() {
     trailing.push(0);
     assert_eq!(decode_chart_style(&trailing), Err(DecodeError::Malformed));
     assert_eq!(
-        decode_chart_style(&[0; 64 * 1024 + 1]),
+        decode_chart_style(&[0; 128 * 1024 + 1]),
         Err(DecodeError::LimitExceeded)
     );
     assert!(Style::default().is_valid());
@@ -96,7 +98,7 @@ fn invalid_raw_styles_cannot_reach_paint() {
 fn explicit_ordinal_namespaces_match_independent_bytes_and_reject_legacy_style() {
     use gpuio_protocol::chart_style::{Key, Ordinal};
     let mut style = Style {
-        version: -2,
+        version: -3,
         palette: vec![1, 2],
         axis_color: 3,
         grid_color: 4,
@@ -120,8 +122,10 @@ fn explicit_ordinal_namespaces_match_independent_bytes_and_reject_legacy_style()
         }),
         inspection: Default::default(),
         node_labels: vec![],
+        pie_labels: vec![],
+        pie_label_line_color: None,
     };
-    let hex = "fffe020102030405060107000000000000004000000000000008400000000000001040000000000000e03f01050009010902090304020a14011e0101010000000000008071400000000000002040000000000000204000000000000018400000000000002840000000000000314000000000000000000000000000000000000000f03f00010100000000000030400000000000000000000000";
+    let hex = "fffd020102030405060107000000000000004000000000000008400000000000001040000000000000e03f01050009010902090304020a14011e0101010000000000008071400000000000002040000000000000204000000000000018400000000000002840000000000000314000000000000000000000000000000000000000f03f000101000000000000304000000000000000000000000000";
     let expected = hex
         .as_bytes()
         .chunks_exact(2)
@@ -223,4 +227,85 @@ fn ordinal_validation_and_capacity_accounting_cover_large_domains() {
     };
     assert_eq!(decode_chart_style(&bytes(&empty_domain)), Ok(empty_domain));
     assert!(!Style { version: 1, ..base }.is_valid());
+}
+
+#[test]
+fn pie_caption_overrides_have_paired_bytes_and_reject_untrusted_payloads() {
+    use gpuio_protocol::chart_pie_labels::Entry;
+    let mut style = Style::default();
+    style.pie_labels = vec![Entry {
+        slice: 7,
+        text: Some("λ".into()),
+        line_color: Some(7),
+    }];
+    style.pie_label_line_color = Some(3);
+    let encoded = bytes(&style);
+    assert_eq!(
+        &encoded[encoded.len() - 10..],
+        &[1, 7, 1, 2, 0xce, 0xbb, 1, 7, 1, 3]
+    );
+    assert_eq!(decode_chart_style(&encoded), Ok(style.clone()));
+    for end in 0..encoded.len() {
+        assert!(decode_chart_style(&encoded[..end]).is_err());
+    }
+    let mut trailing = encoded;
+    trailing.push(0);
+    assert_eq!(decode_chart_style(&trailing), Err(DecodeError::Malformed));
+    let mut prefix = bytes(&Style::default());
+    prefix.truncate(prefix.len() - 2);
+    for suffix in [vec![1, 7, 1, 1, 255, 0, 0], vec![254, 1, 1], vec![1, 7, 2]] {
+        let mut bad = prefix.clone();
+        bad.extend(suffix);
+        assert!(decode_chart_style(&bad).is_err());
+    }
+    for id in [0, -1] {
+        style.pie_labels[0].slice = id;
+        assert!(!style.is_valid());
+        assert!(decode_chart_style(&bytes(&style)).is_err());
+    }
+    style.pie_labels[0].slice = 7;
+    for color in [-1, 0x1_0000_0000] {
+        style.pie_labels[0].line_color = Some(color);
+        assert!(!style.is_valid());
+        assert!(decode_chart_style(&bytes(&style)).is_err());
+    }
+    style.pie_labels[0].line_color = None;
+    for text in ["a\n".into(), "\u{7f}".into(), "x".repeat(257)] {
+        style.pie_labels[0].text = Some(text);
+        assert!(!style.is_valid());
+        assert!(decode_chart_style(&bytes(&style)).is_err());
+    }
+    style.pie_labels = (1..=256)
+        .map(|slice| Entry {
+            slice,
+            text: Some(String::new()),
+            line_color: None,
+        })
+        .collect();
+    assert!(style.is_valid());
+    assert_eq!(decode_chart_style(&bytes(&style)), Ok(style.clone()));
+    let before = Style::default().heap_bytes();
+    assert!(style.heap_bytes() >= before + 256 * std::mem::size_of::<Entry>());
+    style.pie_labels[255].slice = 1;
+    assert!(!style.is_valid());
+    assert!(decode_chart_style(&bytes(&style)).is_err());
+    style.pie_labels = (1..=128)
+        .map(|slice| Entry {
+            slice,
+            text: Some("x".repeat(256)),
+            line_color: None,
+        })
+        .collect();
+    assert!(style.is_valid());
+    assert_eq!(decode_chart_style(&bytes(&style)), Ok(style.clone()));
+    style.pie_labels.push(Entry {
+        slice: 129,
+        text: Some("x".repeat(256)),
+        line_color: None,
+    });
+    assert!(!style.is_valid());
+    assert!(decode_chart_style(&bytes(&style)).is_err());
+    style = Style::default();
+    style.version = -2;
+    assert!(decode_chart_style(&bytes(&style)).is_err());
 }

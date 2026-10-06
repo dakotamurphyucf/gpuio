@@ -110,10 +110,10 @@ pub struct Mark {
     pub shape: Shape,
 }
 /// Worker-measured label block in logical pixels, including its painted backing.
-/// The slice passed to preparation uses the exact source snapshot's node order;
-/// None hides that node's label without reserving space.
+/// Measurements follow the exact source snapshot's node or pie-slice order;
+/// None hides that entry's label without reserving space.
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct FlowLabelMetrics {
+pub struct LabelMetrics {
     pub width: f64,
     pub height: f64,
 }
@@ -131,10 +131,22 @@ pub struct FlowLabelPlacement {
     pub above: bool,
 }
 #[derive(Clone, Copy, Debug, PartialEq)]
+pub struct PieLabelPlacement {
+    pub align_right: bool,
+    pub width: f64,
+    pub edge: Point,
+    pub bend: Point,
+    pub end: Point,
+}
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum LabelKind {
     X,
     Y,
     Radial,
+    Pie {
+        slice_index: usize,
+        placement: Option<PieLabelPlacement>,
+    },
     /// Stable source-axis identity, independent of caption text or display order.
     /// Custom retained label content must join against this ID, not label indices.
     RadarAxis(i64),
@@ -653,25 +665,59 @@ fn cartesian(
     }
     Ok(())
 }
-fn pie(plan: &mut Plan, slices: &[data::Slice], options: &options::Pie) {
-    // Dividing first avoids both aggregate overflow and precision loss from
-    // converting raw tiny/huge values to f32 in a graphics API.
+fn pie(
+    plan: &mut Plan,
+    slices: &[data::Slice],
+    options: &options::Pie,
+    metrics: Option<&[Option<LabelMetrics>]>,
+) -> Result<(), Error> {
+    if let Some(metrics) = metrics
+        && (metrics.len() != slices.len()
+            || metrics.iter().flatten().any(|m| {
+                !m.width.is_finite() || m.width < 0. || !m.height.is_finite() || m.height <= 0.
+            }))
+    {
+        return Err(Error::InvalidInput);
+    }
+    let outside = options.labels && options.label_placement == options::LabelPlacement::Outside;
+    if outside && metrics.is_none() {
+        return Err(Error::InvalidInput);
+    }
     let maximum = slices.iter().map(|s| s.value).fold(0., f64::max);
     if maximum == 0. {
-        return;
+        return Ok(());
     }
     let total = slices.iter().map(|s| s.value / maximum).sum::<f64>();
-    let radius = match options.radius {
-        options::PieRadius::Fit => plan.width.min(plan.height) / 2.,
-        options::PieRadius::Pixels(radius) => radius,
-    };
-    let radii: std::collections::BTreeMap<_, _> = options
+    let radii: BTreeMap<_, _> = options
         .slice_radii
         .iter()
         .map(|r| (r.slice, (r.inner, r.outer)))
         .collect();
+    let label_width = if outside {
+        slices
+            .iter()
+            .enumerate()
+            .filter(|(_, s)| {
+                s.value > 0. && radii.get(&s.id).is_none_or(|(inner, outer)| outer > inner)
+            })
+            .filter_map(|(i, _)| metrics.unwrap()[i])
+            .map(|m| m.width)
+            .fold(0., f64::max)
+            .min(plan.width * 0.25)
+    } else {
+        0.
+    };
+    let radius = match options.radius {
+        options::PieRadius::Fit if outside => {
+            let margin = (label_width + options.label_gap + 4.).min(plan.width * 0.35);
+            (plan.width / 2. - margin).min(plan.height / 2. - 9_f64.min(plan.height * 0.2))
+        }
+        options::PieRadius::Fit => plan.width.min(plan.height) / 2.,
+        options::PieRadius::Pixels(radius) => radius,
+    };
     let center = Point::new(plan.width / 2., plan.height / 2.);
     let mut angle = -PI / 2.;
+    let mut candidates = Vec::new();
     for (i, slice) in slices.iter().enumerate() {
         let sweep = (slice.value / maximum) / total * TAU;
         let gap = options.pad_angle.min(sweep * 0.5);
@@ -691,7 +737,19 @@ fn pie(plan: &mut Plan, slices: &[data::Slice], options: &options::Pie) {
                     end: angle + sweep - gap / 2.,
                 },
             });
-            if options.labels {
+            if outside {
+                if sweep >= PI / 360.
+                    && let Some(m) = metrics.unwrap()[i]
+                {
+                    candidates.push(pie_labels::Candidate {
+                        slice_index: i,
+                        angle: angle + sweep / 2.,
+                        outer,
+                        width: m.width,
+                        text: slice.label.clone(),
+                    });
+                }
+            } else if options.labels {
                 plan.labels.push(Label {
                     position: Point::polar(
                         center,
@@ -699,13 +757,26 @@ fn pie(plan: &mut Plan, slices: &[data::Slice], options: &options::Pie) {
                         angle + sweep / 2.,
                     ),
                     text: slice.label.clone(),
-                    kind: LabelKind::Radial,
+                    kind: LabelKind::Pie {
+                        slice_index: i,
+                        placement: None,
+                    },
                 });
             }
         }
         angle += sweep;
     }
+    if outside {
+        plan.labels.extend(pie_labels::layout(
+            plan.width,
+            plan.height,
+            options.label_gap,
+            candidates,
+        ));
+    }
+    Ok(())
 }
+
 fn radar(
     plan: &mut Plan,
     axes: &[data::RadarAxis],
@@ -852,7 +923,7 @@ fn sankey(
     nodes: &[data::Node],
     edges: &[data::Edge],
     options: options::Sankey,
-    labels: Option<&[Option<FlowLabelMetrics>]>,
+    labels: Option<&[Option<LabelMetrics>]>,
     cancel: &AtomicBool,
 ) -> Result<(), Error> {
     use gpuio_plot::sankey::{Sankey, SankeyAlign, SankeyLink, SankeyValueScale};
@@ -1128,23 +1199,28 @@ pub fn prepare(
     height: f64,
     cancel: &AtomicBool,
 ) -> Result<Plan, Error> {
-    prepare_with_flow_labels(data, policy, options, (width, height), None, cancel)
+    prepare_with_labels(data, policy, options, (width, height), None, cancel)
 }
 /// Measured outside-label geometry. The caller must supply exact native block
 /// metrics for this snapshot; preparation never estimates text widths. None
-/// preserves the existing inside layout. Only Sankey data accepts metrics.
+/// preserves the existing inside layout. Sankey and pie data accept metrics.
 /// Public option/worker integration is a separate layer above this pure engine.
-pub fn prepare_with_flow_labels(
+pub fn prepare_with_labels(
     data: &data::Data,
     policy: Policy,
     options: &options::Options,
     size: (f64, f64),
-    labels: Option<&[Option<FlowLabelMetrics>]>,
+    labels: Option<&[Option<LabelMetrics>]>,
     cancel: &AtomicBool,
 ) -> Result<Plan, Error> {
     let (width, height) = size;
     check(cancel)?;
-    if labels.is_some() && !matches!(data.contents, data::Contents::Sankey(..)) {
+    if labels.is_some()
+        && !matches!(
+            data.contents,
+            data::Contents::Sankey(..) | data::Contents::Pie(_)
+        )
+    {
         return Err(Error::InvalidInput);
     }
     if !options.is_valid()
@@ -1206,7 +1282,7 @@ pub fn prepare_with_flow_labels(
         (data::Contents::Candlestick(source), reduce::Contents::Candlestick(values)) => {
             candles(&mut plan, source, values, options)
         }
-        (data::Contents::Pie(slices), _) => pie(&mut plan, slices, &options.pie),
+        (data::Contents::Pie(slices), _) => pie(&mut plan, slices, &options.pie, labels)?,
         (data::Contents::Radar(axes, series), _) => radar(&mut plan, axes, series, options.radar)?,
         (data::Contents::Sankey(nodes, edges), _) => {
             sankey(&mut plan, nodes, edges, options.sankey, labels, cancel)?
@@ -1237,3 +1313,5 @@ mod flow_labels_tests;
 
 #[cfg(test)]
 mod pie_radii_tests;
+
+mod pie_labels;

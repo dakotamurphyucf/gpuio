@@ -969,7 +969,13 @@ fn radar_label_identity_survives_duplicate_captions_reordering_and_empty_series(
         value: 1.,
     }]));
     assert!(labels(&pie).is_empty());
-    assert!(pie.labels.iter().any(|l| l.kind == LabelKind::Radial));
+    assert!(pie.labels.iter().any(|l| matches!(
+        l.kind,
+        LabelKind::Pie {
+            slice_index: 0,
+            placement: None
+        }
+    )));
 }
 
 #[test]

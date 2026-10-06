@@ -3,7 +3,7 @@
 use super::*;
 use crate::chart_paint::{Layout, prepare_with_text};
 use gpuio_protocol::{
-    chart_data::{Edge, Node},
+    chart_data::{Edge, Node, Slice},
     chart_node_labels::{Line, Node as LabelNode},
     chart_options::{LabelPlacement, Options},
     chart_sampling::Policy,
@@ -115,6 +115,88 @@ fn exercise(context: Context, ui_thread: std::thread::ThreadId) {
     );
     eprintln!(
         "NATIVE_CHART_LABEL_METRICS_PASS: worker platform shaping, Unicode, proportional widths, padding, rich/hidden labels and four preparation scales; no window opened"
+    );
+    exercise_pie(context);
+}
+
+fn exercise_pie(mut context: Context) {
+    context.style.padding = 0.;
+    let data = Data {
+        version: 1,
+        contents: Contents::Pie(
+            ["WWWWWW", "iiiiii", "日本語 λ 👨‍👩‍👧‍👦"]
+                .into_iter()
+                .enumerate()
+                .map(|(i, label)| Slice {
+                    id: i as i64 + 1,
+                    label: label.into(),
+                    value: 1.,
+                })
+                .collect(),
+        ),
+    };
+    let cancel = AtomicBool::new(false);
+    let mut style = Style::default();
+    let initial = context.measure(&data, &style, &cancel).unwrap();
+    assert!(initial[0].unwrap().width > initial[1].unwrap().width * 1.5);
+    assert!(initial[2].unwrap().width > 0.);
+    style.pie_labels = vec![
+        gpuio_protocol::chart_pie_labels::Entry {
+            slice: 1,
+            text: Some(String::new()),
+            line_color: None,
+        },
+        gpuio_protocol::chart_pie_labels::Entry {
+            slice: 2,
+            text: Some("WWWWWW".into()),
+            line_color: None,
+        },
+    ];
+    let measured = context.measure(&data, &style, &cancel).unwrap();
+    assert!(measured[0].is_none());
+    assert_eq!(measured[1], initial[0]);
+    assert_eq!(measured[2], initial[2]);
+    let mut options = Options::default();
+    options.pie.label_placement = LabelPlacement::Outside;
+    for scale in [1., 1.25, 1.5, 2.] {
+        let plan = prepare_with_text(
+            &data,
+            Policy::default(),
+            &options,
+            &style,
+            Layout::new(500., 300., scale).unwrap(),
+            Some(&context),
+            &cancel,
+        )
+        .unwrap();
+        assert_eq!(plan.geometry().marks.len(), 3);
+        assert_eq!(plan.geometry().labels.len(), 2);
+        for label in &plan.geometry().labels {
+            let crate::chart_geometry::LabelKind::Pie {
+                slice_index,
+                placement: Some(p),
+            } = label.kind
+            else {
+                panic!("outside pie label lost provenance")
+            };
+            assert!(slice_index > 0);
+            assert_eq!(p.width, measured[slice_index].unwrap().width.min(125.));
+            assert_eq!(
+                label.text,
+                if slice_index == 1 {
+                    "WWWWWW"
+                } else {
+                    "日本語 λ 👨‍👩‍👧‍👦"
+                }
+            );
+        }
+    }
+    assert_eq!(
+        context.measure(&data, &style, &AtomicBool::new(true)),
+        Err(Error::Cancelled)
+    );
+    eprintln!(
+        "NATIVE_PIE_LABEL_METRICS_PASS: worker platform shaping, Unicode, ID overrides, hidden captions, cancellation and four preparation scales; no window opened"
     );
 }
 

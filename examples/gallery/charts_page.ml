@@ -210,6 +210,10 @@ let component app window palette graph =
   let category_layout, set_category_layout = B.state Category_layout.Auto graph in
   let unknown_color, toggle_unknown_color = B.toggle ~default_model:true graph in
   let stacked, toggle_stacked = B.toggle ~default_model:true graph in
+  let outside_pie, toggle_outside_pie = B.toggle ~default_model:false graph in
+  let spaced_pie, toggle_spaced_pie = B.toggle ~default_model:false graph in
+  let custom_pie_labels, toggle_custom_pie_labels = B.toggle ~default_model:false graph in
+  let show_pie_labels, toggle_show_pie_labels = B.toggle ~default_model:true graph in
   let fixed_pie, toggle_fixed_pie = B.toggle ~default_model:false graph in
   let variable_pie, toggle_variable_pie = B.toggle ~default_model:false graph in
   let radar_scale, set_radar_scale = B.state Radar_scale.Per_axis graph in
@@ -267,6 +271,14 @@ let component app window palette graph =
   and toggle_unknown_color = toggle_unknown_color
   and stacked = stacked
   and toggle_stacked = toggle_stacked
+  and outside_pie = outside_pie
+  and toggle_outside_pie = toggle_outside_pie
+  and spaced_pie = spaced_pie
+  and toggle_spaced_pie = toggle_spaced_pie
+  and custom_pie_labels = custom_pie_labels
+  and toggle_custom_pie_labels = toggle_custom_pie_labels
+  and show_pie_labels = show_pie_labels
+  and toggle_show_pie_labels = toggle_show_pie_labels
   and fixed_pie = fixed_pie
   and toggle_fixed_pie = toggle_fixed_pie
   and variable_pie = variable_pie
@@ -400,6 +412,9 @@ let component app window palette graph =
         ~pie:
           (Chart_options.Pie.create
              ~inner_radius:0.5
+             ~labels:show_pie_labels
+             ~label_placement:(if outside_pie then Outside else Inside)
+             ~label_gap:(if spaced_pie then 32. else 15.)
              ~radius:(if fixed_pie then Pixels 80. else Fit)
              ~slice_radii:
                (if variable_pie
@@ -441,6 +456,30 @@ let component app window palette graph =
                ~long:(placement_mode && long_labels)
                flow_style
            else Chart_node_labels.empty)
+        ~pie_label_line_color:(Palette.muted p)
+        ~pie_labels:
+          (if custom_pie_labels
+           then
+             Chart_pie_labels.create
+               (List.map
+                  [ 1L, "Agent reasoning"
+                  ; 2L, "Code generation"
+                  ; 3L, "Research with a deliberately long caption that ellipsizes"
+                  ; 4L, ""
+                  ; 99L, "Absent slice"
+                  ]
+                  ~f:(fun (id, text) ->
+                    Chart_pie_labels.Entry.create
+                      ~slice:(Chart_data.Datum_id.of_int64 id |> ok)
+                      ~text
+                      ~line_color:
+                        (if Int64.equal id 1L
+                         then Color.rgb_exn 0xfb923c
+                         else Palette.accent p)
+                      ()
+                    |> ok))
+             |> ok
+           else Chart_pie_labels.empty)
         ~label_color:(Palette.foreground p)
         ~axis_color:(Palette.muted p)
         ~grid_color:(Palette.border p)
@@ -510,6 +549,25 @@ let component app window palette graph =
                     ~checked:variable_pie
                     ~on_toggle:toggle_variable_pie
                     "Per-slice pie radii"
+                ]
+            ; V.row
+                ~style:(style [ Gap (px 12.); Wrap Wrap ])
+                [ V.switch
+                    ~checked:outside_pie
+                    ~on_toggle:toggle_outside_pie
+                    "Outside pie labels"
+                ; V.switch
+                    ~checked:spaced_pie
+                    ~on_toggle:toggle_spaced_pie
+                    "Pie label gap 32"
+                ; V.switch
+                    ~checked:custom_pie_labels
+                    ~on_toggle:toggle_custom_pie_labels
+                    "Custom pie captions"
+                ; V.switch
+                    ~checked:show_pie_labels
+                    ~on_toggle:toggle_show_pie_labels
+                    "Show pie labels"
                 ]
             ; Palette.text
                 p

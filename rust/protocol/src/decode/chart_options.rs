@@ -14,7 +14,7 @@ impl Decoder<'_> {
     }
     pub(super) fn chart_options(&mut self) -> Result<Options, DecodeError> {
         let version = self.int()?;
-        if version != 8 {
+        if version != 9 {
             return Err(DecodeError::Malformed);
         }
         let options = Options {
@@ -74,6 +74,12 @@ impl Decoder<'_> {
                         outer: d.float()?,
                     })
                 })?,
+                label_placement: match self.tag()? {
+                    0 => LabelPlacement::Inside,
+                    1 => LabelPlacement::Outside,
+                    _ => return Err(DecodeError::Malformed),
+                },
+                label_gap: self.float()?,
             },
             radar: Radar {
                 levels: self.int()?,

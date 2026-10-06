@@ -114,6 +114,8 @@ pub struct Pie {
     pub labels: bool,
     pub radius: PieRadius,
     pub slice_radii: Vec<SliceRadii>,
+    pub label_placement: LabelPlacement,
+    pub label_gap: f64,
 }
 #[derive(Clone, Copy, Debug, PartialEq, BinProtWrite)]
 pub enum RadarScale {
@@ -214,7 +216,7 @@ impl Options {
         self.pie.slice_radii.capacity() * std::mem::size_of::<SliceRadii>()
     }
     pub fn is_valid(&self) -> bool {
-        self.version == 8
+        self.version == 9
             && (2..=12).contains(&self.axes.ticks)
             && self.axes.x_format.is_valid()
             && self.axes.y_format.is_valid()
@@ -223,6 +225,7 @@ impl Options {
             && between(self.pie.inner_radius, 0., 0.95)
             && between(self.pie.pad_angle, 0., 0.2)
             && self.pie.radius.is_valid()
+            && between(self.pie.label_gap, 0., 64.)
             && self.pie.slice_radii.len() <= 256
             && self.pie.slice_radii.iter().all(SliceRadii::is_valid)
             && self
@@ -250,7 +253,7 @@ impl Options {
 impl Default for Options {
     fn default() -> Self {
         Self {
-            version: 8,
+            version: 9,
             axes: Axes {
                 x: true,
                 y: true,
@@ -273,6 +276,8 @@ impl Default for Options {
                 labels: true,
                 radius: PieRadius::Fit,
                 slice_radii: vec![],
+                label_placement: LabelPlacement::Inside,
+                label_gap: 15.,
             },
             radar: Radar {
                 levels: 4,

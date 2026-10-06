@@ -104,6 +104,8 @@ module Cartesian = struct
 end
 
 module Pie = struct
+  module Label_placement = Wire.Pie.Label_placement
+
   type t = Wire.Pie.t [@@deriving equal, sexp_of]
 
   module Radius = struct
@@ -130,11 +132,20 @@ module Pie = struct
         ?(labels = true)
         ?(radius = Radius.Fit)
         ?(slice_radii = [])
+        ?(label_placement = Label_placement.Inside)
+        ?(label_gap = 15.)
         ()
     =
     checked
       Wire.Pie.valid
-      { Wire.Pie.inner_radius; pad_angle; labels; radius; slice_radii }
+      { Wire.Pie.inner_radius
+      ; pad_angle
+      ; labels
+      ; radius
+      ; slice_radii
+      ; label_placement
+      ; label_gap
+      }
       "pie requires inner fraction [0,0.95], pad [0,0.2], radius (0,32768] and at most \
        256 unique valid slice radii"
   ;;
@@ -274,7 +285,7 @@ let create
       ?(sankey = Sankey.default)
       ()
   =
-  { Wire.version = 8L; axes; cartesian; pie; radar; candlestick; sankey }
+  { Wire.version = 9L; axes; cartesian; pie; radar; candlestick; sankey }
 ;;
 
 let default = create ()

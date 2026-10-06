@@ -92,6 +92,13 @@ module Cartesian = struct
 end
 
 module Pie = struct
+  module Label_placement = struct
+    type t =
+      | Inside
+      | Outside
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
   module Radius = struct
     type t =
       | Fit
@@ -126,6 +133,8 @@ module Pie = struct
     ; labels : bool
     ; radius : Radius.t
     ; slice_radii : Slice_radii.t list
+    ; label_placement : Label_placement.t
+    ; label_gap : float
     }
   [@@deriving bin_io, equal, sexp_of]
 
@@ -133,6 +142,7 @@ module Pie = struct
     between t.inner_radius 0. 0.95
     && between t.pad_angle 0. 0.2
     && Radius.valid t.radius
+    && between t.label_gap 0. 64.
     && List.length t.slice_radii <= 256
     && List.for_all t.slice_radii ~f:Slice_radii.valid
     && not
@@ -263,7 +273,7 @@ type t =
 [@@deriving bin_io, equal, sexp_of]
 
 let valid t =
-  Int64.equal t.version 8L
+  Int64.equal t.version 9L
   && Axes.valid t.axes
   && Cartesian.valid t.cartesian
   && Pie.valid t.pie

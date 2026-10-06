@@ -125,6 +125,13 @@ module Pie : sig
     [@@deriving equal, sexp_of]
   end
 
+  module Label_placement : sig
+    type t =
+      | Inside
+      | Outside
+    [@@deriving equal, sexp_of]
+  end
+
   module Slice_radii : sig
     type t [@@deriving equal, sexp_of]
 
@@ -147,13 +154,19 @@ module Pie : sig
       [slice_radii] has at most 256 unique IDs. Unknown IDs are ignored; matched
       slices replace both radii, independent of caption/order. Others use the
       global outer radius and fractional inner radius. Source weights and
-      selection values are unchanged. *)
+      selection values are unchanged.
+      Outside captions have native measured placement and leader lines; Inside
+      remains the default. [label_gap] defaults to 15 logical pixels and must be
+      finite in [0,64]. Dense/tiny plots may omit outside captions; the original
+      data remains available. *)
   val create
     :  ?inner_radius:float
     -> ?pad_angle:float
     -> ?labels:bool
     -> ?radius:Radius.t
     -> ?slice_radii:Slice_radii.t list
+    -> ?label_placement:Label_placement.t
+    -> ?label_gap:float
     -> unit
     -> t Or_error.t
 
