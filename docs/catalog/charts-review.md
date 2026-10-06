@@ -65,8 +65,10 @@ codecs and [schema -2 parent admission](../evidence/chart-inspection-parent-och4
 The subsequent [experimental renderer](../evidence/chart-inspection-renderer-och41.md)
 adds `View.chart` attachment and native Card/Overlay children, with button pixels,
 native pointer/keyboard focus, stable-ID reorder and immediate stale-gesture
-retirement evidence. Rich-row helpers, broader child-widget/lifecycle and public
-gallery qualification remain required; this does not close the Tooltip row above.
+retirement evidence. [Native editor and aggregate cases](../evidence/chart-inspection-editors-och41.md)
+now qualify Input/Textarea text-client composition/draft retirement and explicit
+publication-bound Sum/Mean/OHLC content. Rich-row helpers, broader action/lifecycle
+and public-gallery qualification remain required; this does not close the Tooltip row above.
 
 [`Chart_appearance`](../../lib/core/chart_appearance.mli) now attaches to
 `Chart_style.create`: 128 series overrides and 1,024 unique series/datum pairs,

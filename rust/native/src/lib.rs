@@ -49,6 +49,10 @@ pub fn run_native_chart_input_test() {
     host::chart_view::test::run_input();
 }
 #[cfg(feature = "native-canvas-tests")]
+pub fn run_native_chart_inspection_test() {
+    host::chart_view::test::run_inspection();
+}
+#[cfg(feature = "native-canvas-tests")]
 pub fn run_native_chart_view_test() {
     host::chart_view::test::run();
 }

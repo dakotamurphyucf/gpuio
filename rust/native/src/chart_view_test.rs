@@ -374,6 +374,8 @@ async fn exercise(
 }
 #[path = "chart_axis_view_test.rs"]
 mod axis_labels;
+#[path = "chart_inspection_content_test.rs"]
+mod inspection_content;
 #[path = "chart_input_test.rs"]
 mod interaction;
 #[path = "chart_label_content_test.rs"]
@@ -384,13 +386,23 @@ mod labels;
 mod pie_labels;
 #[path = "chart_stream_test.rs"]
 mod streaming;
+#[derive(Clone, Copy)]
+enum Mode {
+    Hidden,
+    Input,
+    Inspection,
+}
 pub(crate) fn run() {
-    run_mode(false);
+    run_mode(Mode::Hidden);
 }
 pub(crate) fn run_input() {
-    run_mode(true);
+    run_mode(Mode::Input);
 }
-fn run_mode(interactive: bool) {
+pub(crate) fn run_inspection() {
+    run_mode(Mode::Inspection);
+}
+fn run_mode(mode: Mode) {
+    let interactive = !matches!(mode, Mode::Hidden);
     let failure = Rc::new(RefCell::new(None));
     let task_failure = failure.clone();
     let mut fds = [0; 2];
@@ -446,12 +458,35 @@ fn run_mode(interactive: bool) {
         }
         cx.spawn(async move |cx| {
             let result = crate::host::native_test::protect(async {
-                if interactive {
-                    interaction::exercise(cx, handle, source, session.clone(), transport.clone())
-                        .await;
-                } else {
-                    exercise(cx, handle, source, session.clone(), transport.clone()).await;
-                    streaming::exercise(cx, handle, session.clone(), transport.clone()).await;
+                match mode {
+                    Mode::Input => {
+                        interaction::exercise(
+                            cx,
+                            handle,
+                            source,
+                            session.clone(),
+                            transport.clone(),
+                        )
+                        .await
+                    }
+                    Mode::Inspection => {
+                        apply(cx, handle, mount(source));
+                        ready(cx, handle, 1, 0xff0000ff).await;
+                        crate::host::editor_test::frame(cx, handle).await;
+                        assert!(handle.update(cx, |_, w, _| w.is_window_active()).unwrap());
+                        inspection_content::exercise(cx, handle, source, &session, &transport)
+                            .await;
+                        cx.update(|cx| dispatch(cx, &transport, 140, Request::Release(source)));
+                        apply(
+                            cx,
+                            handle,
+                            vec![Op::Splice(id(0), 0, 1, vec![]), Op::Remove(id(1))],
+                        );
+                    }
+                    Mode::Hidden => {
+                        exercise(cx, handle, source, session.clone(), transport.clone()).await;
+                        streaming::exercise(cx, handle, session.clone(), transport.clone()).await;
+                    }
                 }
             })
             .await;

@@ -4,11 +4,9 @@ use crate::host::native_test::{mouse, move_mouse};
 use gpuio_protocol::chart_selection::Selection;
 #[path = "chart_guide_span_test.rs"]
 mod guide_spans;
-#[path = "chart_inspection_content_test.rs"]
-mod inspection_content;
 #[path = "chart_label_input_test.rs"]
 mod labels;
-fn position(x: f32, y: f32) -> gpui::Point<gpui::Pixels> {
+pub(super) fn position(x: f32, y: f32) -> gpui::Point<gpui::Pixels> {
     gpui::point(px(x), px(y))
 }
 fn observations(transport: &Transport) -> Vec<Option<Selection>> {
@@ -26,7 +24,7 @@ fn observations(transport: &Transport) -> Vec<Option<Selection>> {
         })
         .collect()
 }
-fn key(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, value: &str) {
+pub(super) fn key(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, value: &str) {
     cx.update_window(handle.into(), |_, window, cx| {
         window.dispatch_event(
             gpui::PlatformInput::KeyDown(gpui::KeyDownEvent {
@@ -451,7 +449,6 @@ pub(super) async fn exercise(
     key(cx, handle, "escape");
     draw(cx, handle);
     labels::exercise(cx, handle, source, &session, &transport).await;
-    inspection_content::exercise(cx, handle, source, &session, &transport).await;
     move_mouse(cx, handle, position(150., 100.), false);
     mouse(cx, handle, position(150., 100.), true);
     cx.update(|cx| dispatch(cx, &transport, 40, Request::Release(source)));

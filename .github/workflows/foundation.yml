@@ -251,7 +251,7 @@ jobs:
           ./scripts/gpuio exec cargo clippy --locked -p gpuio-native --features native-tests --all-targets -- -D warnings
           ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-image-tests --test native_images --test native_text_shimmer_paint --test native_text_shimmer_clock --test native_text_shimmer_view --test native_styled_text --test native_border_style --test native_aspect_ratio --test native_grid_location --test native_opacity_factor --test native_link --test native_highlight_paint --test native_highlight_view --test native_highlight_document --test native_image_views --test native_container_query --test native_presentation --test native_slider --test native_number_input --test native_otp_input --test native_calendar --test native_color_input --no-run
           ./scripts/gpuio exec cargo clippy --locked -p gpuio-native --features native-image-tests --all-targets -- -D warnings
-          ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-canvas-tests --test native_canvas --test native_canvas_view --test native_canvas_input --test native_chart_paint --test native_chart_labels --test native_chart_view --test native_chart_input --no-run
+          ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-canvas-tests --test native_canvas --test native_canvas_view --test native_canvas_input --test native_chart_paint --test native_chart_labels --test native_chart_view --test native_chart_input --test native_chart_inspection --no-run
           ./scripts/gpuio exec cargo clippy --locked -p gpuio-native --features native-canvas-tests --all-targets -- -D warnings
       - name: Record storage before independent consumers
         if: ${{ !cancelled() }}
@@ -385,6 +385,11 @@ jobs:
       - name: macOS prepared chart GPU pixels
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
         run: python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-canvas-tests", "--test", "native_chart_paint"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-chart-paint.log
+      - name: macOS retained chart inspection content
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          set -o pipefail
+          python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-canvas-tests", "--test", "native_chart_inspection"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-chart-inspection.log
       - name: macOS mounted charts and public chart gallery
         env:
           GPUIO_PIE_LABEL_DIAGNOSTIC: ${{ github.workspace }}/.cache/ci/pie-leader-failure.png

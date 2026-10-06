@@ -5,6 +5,13 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **O
 Markdown walkthroughs for every example component; its documentation acceptance is complete. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
+[Inspection editor and aggregate checks](evidence/chart-inspection-editors-och41.md)
+now pass retained Input/Textarea drafts, AppKit marked-text composition across
+reorder, immediate hiding/reset retirement and late-input rejection. Sum/Mean/OHLC
+content remains publication-bound, including one-value aggregates and equal-span
+updates. A dedicated native test executable makes these cases independently
+runnable. Broader interaction and public-gallery qualification remain open.
+
 [Initial inspection rendering](evidence/chart-inspection-renderer-och41.md) adds
 experimental `View.chart ~inspection_content` attachment and ordinary child Views
 in Card/Overlay containers. Native button pixels/input, uncommitted Tab navigation,

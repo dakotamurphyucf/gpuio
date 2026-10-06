@@ -1,12 +1,19 @@
 //! Foreground native dispatch and pixels for ordinary inspection child Views.
+use super::interaction::{key, position};
 use super::*;
+use crate::host::native_test::{mouse, move_mouse};
+use gpuio_protocol::chart_selection::Selection;
+#[path = "chart_inspection_aggregate_test.rs"]
+mod aggregate;
+#[path = "chart_inspection_editor_test.rs"]
+mod editor;
 use gpuio_protocol::chart_inspection_content::{Container, Entry, Target};
-// The previous label fixture retired slots 2 and 3 at generation 1.
+// This standalone fixture allocates the next contiguous retained slots.
 fn wrapper() -> NodeId {
-    NodeId::from_parts(2, 2).unwrap()
+    NodeId::from_parts(2, 1).unwrap()
 }
 fn button() -> NodeId {
-    NodeId::from_parts(3, 2).unwrap()
+    NodeId::from_parts(3, 1).unwrap()
 }
 fn presses(transport: &Transport) -> usize {
     transport
@@ -307,4 +314,6 @@ pub(super) async fn exercise(
     eprintln!(
         "GPUIO_INSPECTION_CONTENT_OK: real Card/Overlay pixels, ordinary button, pointer entry, Tab/focus retention, immediate target retirement and stale gesture rejection"
     );
+    editor::exercise(cx, handle, source, session, transport).await;
+    aggregate::exercise(cx, handle, source, session, transport).await;
 }

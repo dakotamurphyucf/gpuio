@@ -4,8 +4,10 @@ OCH-41, 2026-10-06. Implementation contract in progress. Validated target/conten
 values and paired metadata codecs use chart-view schema -2 with retained-tree
 admission. `View.chart` attachment and an experimental native Card/Overlay adapter
 are now implemented. [Initial interaction evidence](../evidence/chart-inspection-renderer-och41.md)
-covers ordinary buttons and target/focus retention; broader widget/lifecycle,
-rich-row helpers and public-gallery qualification remain required.
+covers ordinary buttons and target/focus retention. [Editor and aggregate checks](../evidence/chart-inspection-editors-och41.md)
+now cover retained drafts, AppKit composition, source-generation retirement and
+publication-bound aggregate content. Broader widget/lifecycle, rich-row helpers
+and public-gallery qualification remain required.
 
 ## Source capability and interface
 
@@ -128,8 +130,12 @@ retention before paint; exact-ID children may remain eligible while new geometry
 for a reordered publication is pending. Aggregate identity remains publication-bound.
 
 These are implemented policies with scoped evidence, not complete acceptance of all
-arbitrary child widgets. Native editor/IME, queued AX/command/popup, clipping,
-aggregate and multi-window interaction combinations still need qualification.
+arbitrary child widgets. Input/Textarea native text-client composition and aggregate publication fences have
+scoped evidence. Physical IME candidate panels, queued AX/command/popup actions,
+nested clipping and multi-window interaction combinations still need qualification.
+Aggregate selection clears on publication: rebinding metadata alone does not
+create a new preview. A fresh native preview or commit makes matching new-publication
+content eligible.
 Neither successful metadata decoding nor retained-tree admission qualifies rendering.
 
 ## Required evidence
