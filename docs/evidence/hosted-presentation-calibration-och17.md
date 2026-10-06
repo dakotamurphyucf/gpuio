@@ -216,3 +216,28 @@ packages, with notices and release distribution/signing acceptance still open.
 [Reports, terminal jobs, merge tree and receiver evidence](hosted-presentation-calibration-och17/run-37410532617/reports.tar.gz)
 are retained with a [verified manifest](hosted-presentation-calibration-och17/run-37410532617/manifest.json)
 (30 files; 1,258,038 uncompressed bytes). Newer source needs its own checks.
+
+## Repeat on hosted run 37421611438
+
+[Run 37421611438](https://github.com/dakotamurphyucf/gpuio/actions/runs/37421611438)
+finished with failure on 2026-10-06. Linux foundation and the independent fresh
+macOS extracted-app job pass. The only failed macOS foundation steps are the GPUI
+Metal presentation hook and independent Metal calibration. The tested PR merge
+is `538abf39fe7f48d86b9939d2c83a38d58f22ce99`; its tree
+`e83e84e33708913f30a1b170af631ec0a355724c` matches branch `23650c8`.
+This predates the newer popup-controller, categorical and stacked-chart work.
+
+Both hook windows finish and close with no pending submissions; each records
+90 zero-time callbacks and no missing callbacks. Standalone Metal submits all
+120 requested frames on Apple Paravirtual, with zero presentation times and
+failed clock-ordering qualification. No presentation gate is waived.
+
+The separate receiver verifies transfer hashes and passes gallery, Agent Workspace
+and Signal Studio runtime checks. Its narrower application reports remain explicit
+about development-directory isolation; the separate hosted job establishes machine
+freshness. These are internal ad-hoc test packages, not approved release artifacts.
+
+[Reports, terminal jobs, source identity and receiver artifacts](hosted-presentation-calibration-och17/run-37421611438/reports.tar.gz)
+are retained with a [verified manifest](hosted-presentation-calibration-och17/run-37421611438/manifest.json)
+(31 files; 1,261,330 uncompressed bytes). Final-source checks, notices, signing and
+release distribution acceptance remain open.

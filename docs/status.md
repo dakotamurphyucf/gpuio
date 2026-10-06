@@ -5,6 +5,14 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **O
 Markdown walkthroughs for every example component; it is planned in this milestone. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
+Run [37421611438](https://github.com/dakotamurphyucf/gpuio/actions/runs/37421611438)
+is terminal: Linux foundation and the independent fresh macOS extracted-app job
+pass. macOS foundation fails only the GPUI Metal presentation hook and standalone
+Metal calibration, with 180/120 zero presentation timestamps respectively on
+Apple Paravirtual. [Verified reports and source identity](evidence/hosted-presentation-calibration-och17.md#repeat-on-hosted-run-37421611438)
+cover branch `23650c8`, not the newer menu/controller or chart changes. No gate
+is waived; final-source and release qualification remain open.
+
 [Typed categorical charts](evidence/categorical-charts-och41.md) now add explicit
 category IDs/order, missing observations and native Auto/Point/Band layouts.
 The shared preparation path borrows source data, preserves category-aware sampling
