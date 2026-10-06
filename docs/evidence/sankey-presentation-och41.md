@@ -42,8 +42,11 @@ zero registered resources and normal shutdown. Its binary SHA-256 is
 [per-file checksums](sankey-presentation-och41/manifest.json) preserve source overlay,
 raw checks, root screenshots, exact commands and installed binary identity.
 The structural catalog audit passes; it is not behavior acceptance. Changed
-Markdown links and `git diff --check` pass. Hosted checks for these new changes
-remain pending; the already-running inspection checkpoint is preserved.
+Markdown links and `git diff --check` pass. Hosted checks for these new changes remain pending. Publishing `548bcde` queued
+run [37447717604](https://github.com/dakotamurphyucf/gpuio/actions/runs/37447717604)
+and the workflow's concurrency policy cancelled older run `37445142735` before
+acceptance. The archived source overlay records the pre-publication checkpoint;
+that older run must not be counted as completed qualification.
 
 ```sh
 GPUIO_JOBS=2 ./scripts/gpuio exec cargo fmt --all -- --check
