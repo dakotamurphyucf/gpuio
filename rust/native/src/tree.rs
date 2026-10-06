@@ -2182,10 +2182,7 @@ impl Plan<'_> {
             let slots = &root.children[usize::from(menu.presentation.is_context())..];
             if !slots.is_empty() {
                 let items = menu.items_preorder();
-                if matches!(
-                    menu.presentation,
-                    MenuPresentation::PlatformBar | MenuPresentation::PlatformContext
-                ) || slots.len() != items.len()
+                if menu.presentation == MenuPresentation::PlatformBar || slots.len() != items.len()
                 {
                     return Err(ErrorCode::InvalidTree);
                 }
@@ -2196,6 +2193,21 @@ impl Plan<'_> {
                         || (matches!(item, MenuItem::Separator) && !slot.children.is_empty())
                     {
                         return Err(ErrorCode::InvalidTree);
+                    }
+                    if menu.presentation == MenuPresentation::PlatformContext
+                        && let Some(icon) = slot.children.first()
+                    {
+                        let icon = self.node(*icon)?;
+                        if icon.kind != Kind::Icon
+                            || !icon.children.is_empty()
+                            || !icon.text.is_empty()
+                            || !icon
+                                .image
+                                .as_ref()
+                                .is_some_and(|image| image.label.is_none())
+                        {
+                            return Err(ErrorCode::InvalidTree);
+                        }
                     }
                 }
             }

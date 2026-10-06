@@ -189,3 +189,30 @@ no presentation threshold or release gate changed.
 [Raw reports, terminal metadata and navigation failure](hosted-presentation-calibration-och17/run-37400903839/reports.tar.gz)
 are retained with a [verified manifest](hosted-presentation-calibration-och17/run-37400903839/manifest.json).
 Later palette changes require their own current-source hosted qualification.
+
+## Repeat on hosted run 37410532617
+
+[Run 37410532617](https://github.com/dakotamurphyucf/gpuio/actions/runs/37410532617)
+is terminal with failure. Linux foundation and the independent extracted-app
+receiver pass. The only failed macOS foundation steps are the GPUI presentation
+hook and independent Metal calibration; native navigation passes this time.
+The actual tested PR merge is `7c72f21e83948c9bf5c46d5837869ffdf8581c95`.
+Its Git tree `728f98973fc356bc0211e1780e1f6cb3968e483f` matches branch `8cf5b5f`.
+This is older than the positioned-menu and native-icon implementation.
+
+The hook records 180 admitted zero-time callbacks (90 in each window), no missing
+callbacks and no pending submissions at retirement. Standalone Metal again
+submits 120 frames on Apple Paravirtual and fails clock ordering with zero
+presentation timestamps. Neither probe nor the release gate is waived.
+
+Independent receiver scheduling now demonstrably works despite those failures:
+all three extracted applications pass their native runtime walkthroughs on the
+separate fresh hosted runner. Transfer verification ties package, archive and
+executable hashes to the tested source revision. The application-level reports
+retain their narrower environment-isolation wording; machine freshness comes
+from the separate job, not that wording. These remain internal ad-hoc test
+packages, with notices and release distribution/signing acceptance still open.
+
+[Reports, terminal jobs, merge tree and receiver evidence](hosted-presentation-calibration-och17/run-37410532617/reports.tar.gz)
+are retained with a [verified manifest](hosted-presentation-calibration-och17/run-37410532617/manifest.json)
+(30 files; 1,258,038 uncompressed bytes). Newer source needs its own checks.

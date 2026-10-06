@@ -283,6 +283,7 @@ module View = struct
   let editor_menu = Gpuio.View.editor_menu
   let menu_bar = Gpuio.View.menu_bar
   let with_menu_item_content = Gpuio.View.with_menu_item_content
+  let with_menu_item_icons = Gpuio.View.with_menu_item_icons
   let command_button = Gpuio.View.command_button
   let tooltip = Gpuio.View.tooltip
   let hover_card = Gpuio.View.hover_card

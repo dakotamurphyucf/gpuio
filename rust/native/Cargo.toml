@@ -51,7 +51,7 @@ cocoa = "=0.26.0"
 objc2 = "0.6.4"
 objc2-core-foundation = { version = "=0.3.2", default-features = false, features = ["std", "CFRunLoop", "CFString", "block2"] }
 objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "NSString", "NSRange", "NSURL", "NSArray", "NSDictionary", "NSBundle", "NSError", "NSNotification", "NSOperation", "NSProcessInfo", "NSUUID", "NSSet"] }
-objc2-app-kit = { version = "0.3.2", default-features = false, features = ["std", "NSApplication", "NSOpenPanel", "NSSavePanel", "NSPanel", "NSResponder", "NSWindow", "NSView", "NSWorkspace", "NSRunningApplication", "NSAccessibility", "NSMenu", "NSMenuItem", "block2"] }
+objc2-app-kit = { version = "0.3.2", default-features = false, features = ["std", "NSApplication", "NSOpenPanel", "NSSavePanel", "NSPanel", "NSResponder", "NSWindow", "NSView", "NSWorkspace", "NSRunningApplication", "NSAccessibility", "NSMenu", "NSMenuItem", "NSImage", "NSImageRep", "NSBitmapImageRep", "NSGraphics", "block2"] }
 block2 = "0.6.2"
 objc2-user-notifications = "=0.3.2"
 

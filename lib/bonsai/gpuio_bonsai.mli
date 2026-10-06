@@ -26,6 +26,11 @@ module View : sig
     -> items:(Gpuio.Menu.Item_path.t * t) list
     -> t Or_error.t
 
+  val with_menu_item_icons
+    :  t
+    -> items:(Gpuio.Menu.Item_path.t * Gpuio.Asset.Handle.t) list
+    -> t Or_error.t
+
   val link
     :  ?key:Gpuio.Key.t
     -> ?style:Gpuio.Style.t

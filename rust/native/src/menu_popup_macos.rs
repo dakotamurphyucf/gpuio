@@ -25,11 +25,13 @@ pub(super) enum Item {
         enabled: bool,
         checked: bool,
         action: Option<usize>,
+        icon: Option<std::sync::Arc<gpui::RenderImage>>,
     },
     Submenu {
         label: String,
         enabled: bool,
         items: Vec<Item>,
+        icon: Option<std::sync::Arc<gpui::RenderImage>>,
     },
 }
 
@@ -147,7 +149,12 @@ pub(super) fn prepare(
     view.window()?;
     let target = Target::new();
     let state = Rc::new(State {
-        menu: build(items, &target, marker),
+        menu: build(
+            items,
+            &target,
+            marker,
+            &mut super::popup_icon::Budget::default(),
+        ),
         target,
         view,
         cancelled: Cell::new(false),
@@ -163,7 +170,12 @@ pub(super) fn prepare(
     ))
 }
 
-fn build(items: &[Item], target: &Target, marker: MainThreadMarker) -> Retained<NSMenu> {
+fn build(
+    items: &[Item],
+    target: &Target,
+    marker: MainThreadMarker,
+    icons: &mut super::popup_icon::Budget,
+) -> Retained<NSMenu> {
     let menu = NSMenu::new(marker);
     menu.setAutoenablesItems(false);
     for item in items {
@@ -174,11 +186,15 @@ fn build(items: &[Item], target: &Target, marker: MainThreadMarker) -> Retained<
                 enabled,
                 checked,
                 action,
+                icon,
             } => {
                 let row = NSMenuItem::new(marker);
                 row.setTitle(&NSString::from_str(label));
                 row.setEnabled(*enabled && action.is_some());
                 row.setState(isize::from(*checked));
+                if let Some(image) = icon.as_ref().and_then(|image| icons.image(image)) {
+                    row.setImage(Some(&image));
+                }
                 if let Some(action) = action.filter(|_| *enabled) {
                     row.setTag(action as isize);
                     // SAFETY: Target implements selectItem: with the NSMenuItem
@@ -194,11 +210,15 @@ fn build(items: &[Item], target: &Target, marker: MainThreadMarker) -> Retained<
                 label,
                 enabled,
                 items,
+                icon,
             } => {
                 let row = NSMenuItem::new(marker);
                 row.setTitle(&NSString::from_str(label));
                 row.setEnabled(*enabled);
-                row.setSubmenu(Some(&build(items, target, marker)));
+                if let Some(image) = icon.as_ref().and_then(|image| icons.image(image)) {
+                    row.setImage(Some(&image));
+                }
+                row.setSubmenu(Some(&build(items, target, marker, icons)));
                 row
             }
         };

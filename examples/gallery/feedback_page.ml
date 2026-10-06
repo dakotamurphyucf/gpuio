@@ -406,10 +406,22 @@ let component ~search_palette app window palette graph =
         [ V.menu_bar ~platform:false [ menu ] |> ok |> decorate
         ; V.row
             ~style:(style [ Gap (px 12.); Wrap Wrap ])
-            [ V.context_menu
-                ~platform:true
-                ~menu
-                (V.command_button ~style:button_style ~command:advance ())
+            [ (V.context_menu
+                 ~platform:true
+                 ~menu
+                 (V.command_button ~style:button_style ~command:advance ())
+               |> fun view ->
+               match menu_icon, show_content with
+               | Preview_scope.Ready icon, true ->
+                 let asset = Icon.Expert.image icon |> Image.Config.asset in
+                 V.with_menu_item_icons
+                   view
+                   ~items:
+                     [ Menu.Item_path.of_list [ 0; 1 ] |> ok, asset
+                     ; Menu.Item_path.of_list [ 0; 4 ] |> ok, asset
+                     ]
+                 |> ok
+               | _ -> view)
             ; V.menu_button ~style:button_style ~menu () |> decorate
             ; V.command_button ~style:button_style ~command:choose ()
             ]

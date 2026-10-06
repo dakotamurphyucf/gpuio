@@ -306,6 +306,30 @@ impl Handle {
     }
 }
 
+/// Observe worker-decoded pixels for an OS-owned image, without reserving a GPUI
+/// atlas entry. The caller must retain the returned Arc for as long as it reads
+/// the pixels; the cache charges retired pixels until the last reader drops.
+/// Any additional OS bitmap allocation needs its own bounded owner.
+#[cfg(target_os = "macos")]
+pub fn native_pixels(handle: &Handle, cx: &App) -> Result<Option<Arc<RenderImage>>, Error> {
+    let service = handle.service.upgrade().ok_or(Error::Closed)?;
+    if !cx
+        .try_global::<Global>()
+        .is_some_and(|global| Rc::ptr_eq(&global.0, &service))
+    {
+        return Err(Error::Closed);
+    }
+    let state = service.borrow();
+    if state.closed {
+        return Err(Error::Closed);
+    }
+    match state.cache.state(&handle.lease) {
+        asset_cache::State::Loading => Ok(None),
+        asset_cache::State::Failed(error) => Err(error),
+        asset_cache::State::Ready(image) => Ok(Some(image)),
+    }
+}
+
 /// Observe ready pixels and reserve their full animation footprint for this
 /// window before returning them to img/paint_image. None means still loading.
 /// Reuse of the same image in a window does not charge a second atlas copy.

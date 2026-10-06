@@ -5,18 +5,31 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **O
 Markdown walkthroughs for every example component; it is planned in this milestone. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
+[Native popup SVG icons](evidence/native-menu-icons-och41.md) now have typed
+Core/Bonsai APIs, bounded worker rasterization and AppKit template snapshots.
+The native suite passes 985 tests (two existing skips), and an installed public
+consumer passes actual icon pixels, clearing, release during tracking, retained
+readers and command dispatch. Full OCaml checks and strict native lint pass.
+New-source hosted checks and broader popup/catalog/release acceptance remain open.
+
+Run [37410532617](https://github.com/dakotamurphyucf/gpuio/actions/runs/37410532617)
+is terminal: Linux and all three extracted applications on the independent fresh
+macOS runner pass. The macOS foundation job fails only the two presentation
+probes, which again return zero timestamps on Apple Paravirtual. Navigation passes
+in this run. [Verified reports and source identity](evidence/hosted-presentation-calibration-och17.md#repeat-on-hosted-run-37410532617)
+cover branch `8cf5b5f`, not the newer popup/controller/icon work. No gate is waived.
+
 The [native OS context-popup slice](evidence/native-popup-och41.md) now adds
 `View.context_menu ~platform:true`, with AppKit on macOS and drawn Linux fallback.
 Local and independently installed macOS tests pass physical opening, outside-window
 bounds, nested selection, Escape, native Copy, owner removal, stale-command
 rejection and window close during tracking. The close test first exposed main-queue
-starvation; a main-run-loop callback now keeps native work progressing. Native
-icons, additional lifecycle cases and consolidated gallery acceptance remain open. No Linux GUI or VoiceOver acceptance is claimed.
+starvation; a main-run-loop callback now keeps native work progressing. Additional lifecycle cases and consolidated gallery acceptance remain open. No Linux GUI or VoiceOver acceptance is claimed.
 The [owner-transition follow-up](evidence/native-popup-och41.md#owner-transition-and-recovery-follow-up)
 now passes definition replacement, hidden/disabled ancestors and modal entry,
 including actual keyboard recovery and retained editor content. A fresh installed
 consumer passes the complete eight-run popup matrix. The added CI step awaits
-hosted execution; native icons, multi-window/editor-target
+hosted execution; multi-window/editor-target
 qualification and consolidated acceptance remain open.
 
 [Positioned menu commands](evidence/menu-commands-och41.md) now add a public
@@ -24,7 +37,7 @@ OCaml `Menu_controller`, validated logical coordinates and correlated Show/Close
 A fresh installed consumer passes actual AppKit placement, same/different-owner
 Busy, explicit close, selection, observer detach/recovery and stale-definition
 rejection. Native/protocol suites pass 981/416 tests (two existing native skips);
-full OCaml checks and strict lint pass. Native icon metadata, multi-window/editor
+full OCaml checks and strict lint pass. Multi-window/editor
 focus coverage and consolidated catalog/release acceptance remain open.
 
 Run [37400903839](https://github.com/dakotamurphyucf/gpuio/actions/runs/37400903839)
@@ -133,7 +146,7 @@ including passive accessibility text, keyboard navigation and context-menu focus
 restoration. Platform bars reject labels explicitly. [Passive rich menu content](evidence/menu-content-och41.md)
 now adds registered SVGs and composed labels, with paired transaction admission,
 paint/animation lifecycle checks and an installed macOS pixel/interaction walkthrough.
-Palette search/visibility/Escape policies now have [API, native lifecycle and installed macOS evidence](evidence/palette-policies-och41.md). [Grouped palette presentation](evidence/palette-layout-och41.md) now adds stable groups, filtered passive headings and separators with retained measured scrolling, paired codecs, native regressions and an installed macOS walkthrough. [Rich palette content](evidence/palette-content-och41.md) now adds measured command rows and interactive header/footer/empty Views, with native lifecycle/1,000-row/focus tests and a passing installed macOS walkthrough. Query/highlight controls now have [local controller qualification](evidence/palette-commands-och41.md); [Native loading](evidence/palette-loading-och41.md) now preserves editing/undo and query identity with native lifecycle/reduced-motion and installed macOS typing/undo/pixel evidence. [External results](evidence/palette-external-results-och41.md) now have local query-fenced publication and installed delayed-search/typing evidence. [Persistent embedding](evidence/palette-embedded-och41.md) now has normal-layout/focus, repeated dispatch, nested scrolling, transition restoration and installed macOS keyboard/document evidence. OS popup menus and consolidated family acceptance remain open catalog work.
+Palette search/visibility/Escape policies now have [API, native lifecycle and installed macOS evidence](evidence/palette-policies-och41.md). [Grouped palette presentation](evidence/palette-layout-och41.md) now adds stable groups, filtered passive headings and separators with retained measured scrolling, paired codecs, native regressions and an installed macOS walkthrough. [Rich palette content](evidence/palette-content-och41.md) now adds measured command rows and interactive header/footer/empty Views, with native lifecycle/1,000-row/focus tests and a passing installed macOS walkthrough. Query/highlight controls now have [local controller qualification](evidence/palette-commands-och41.md); [Native loading](evidence/palette-loading-och41.md) now preserves editing/undo and query identity with native lifecycle/reduced-motion and installed macOS typing/undo/pixel evidence. [External results](evidence/palette-external-results-och41.md) now have local query-fenced publication and installed delayed-search/typing evidence. [Persistent embedding](evidence/palette-embedded-och41.md) now has normal-layout/focus, repeated dispatch, nested scrolling, transition restoration and installed macOS keyboard/document evidence. Consolidated palette/menu family acceptance remains open catalog work.
 The current unmodified table smoke at `5c3956d` fails the 100 ms startup gate
 at approximately 147.364 ms. A separate paced replay also reproduces the owner's
 reported table flicker: three overlapping rows remain populated while newly

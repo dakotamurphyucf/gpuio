@@ -98,3 +98,33 @@ python3 scripts/test_menu_controller_macos.py \
 
 The install prefix, copied example and build artifacts live entirely in that
 workspace. Use a fresh directory for each independent build.
+
+## Decorative native icons
+
+The activation effect constructs an encoded SVG and registers it with
+`Gpuio_eio.Asset.register` in the window scope. The source is an in-memory
+triangle, so this example performs no file I/O. The registration result becomes
+Bonsai state; its handle is passed to `View.with_menu_item_icons` at path `[0; 1]`
+(first menu, second item: Run). Both menu owners use the same registered asset.
+The default platform presentation supplies a 16-point AppKit template icon;
+`--drawn` demonstrates the ordinary controller without platform icon metadata.
+On Linux the default platform presentation uses the drawn icon-and-label fallback.
+
+Hide menu icons removes the decorative slots. Show menu icons mounts new ones.
+Release icon source retires the registration but leaves existing native readers
+alive. Opening an already mounted menu still shows its retained icon. Hiding and
+showing icons after release creates new readers, which cannot acquire the retired
+source; the menu remains usable with its text and actions. A tracking popup keeps
+its ready bitmap snapshot until dismissal. Registration completion means encoded
+publication, not completed decoding: an early open may have no icon yet.
+
+The ordinary state, controller snapshots and editor ownership remain independent
+of the artwork. Application code neither parses SVGs nor holds NSImage pointers.
+The window scope releases an unreleased registration when the window closes.
+Registration failure is displayed in the status text while the menu remains usable.
+
+`python3 scripts/test_native_menu_icons_macos.py --output scratch/menu-icons`
+checks real AppKit pixels, clear/remount, release during tracking, retained versus
+new readers, and command selection. It also accepts `--binary` for an installed
+consumer. Its screenshots cover the owned popup rectangle; this is separate from
+VoiceOver, Linux desktop and performance qualification.

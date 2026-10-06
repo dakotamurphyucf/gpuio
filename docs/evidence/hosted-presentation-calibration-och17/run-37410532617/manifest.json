@@ -1,0 +1,122 @@
+{
+  "run.json": {
+    "bytes": 13128,
+    "sha256": "baf75bba5b944fcc9268502f71d3e7a1a931624937927bcda1505c0517b789af"
+  },
+  "jobs.json": {
+    "bytes": 64800,
+    "sha256": "c0d461dc48a073c87d56eca51f8750976de571a00a184cfb61c961e7f1c8342e"
+  },
+  "merge-commit.json": {
+    "bytes": 2646,
+    "sha256": "0397c8ea8912f939539840961999bd30a552beed5117828f258bf507871f3fe2"
+  },
+  "foundation/metal-presentation-hook/report.json": {
+    "bytes": 76205,
+    "sha256": "ccb299dc96fdce0db4e30309311277f4155141a84e08b4f92194445cb4f04c61"
+  },
+  "foundation/metal-presentation-calibration.json": {
+    "bytes": 63553,
+    "sha256": "67505933d102cd9c2d0a30f4c5fb21f623ffc24ad0f2674cbcb16fa760d45db9"
+  },
+  "foundation/metal-presentation-display.json": {
+    "bytes": 35,
+    "sha256": "0e2a2e10de1b28c2c98b9bf2faadb16610de1aad4b8308e92b54c13e74402c3c"
+  },
+  "foundation/macos-navigation-public.log": {
+    "bytes": 263,
+    "sha256": "6ab6dfd484722493fc7afd06abea99ef084512c34d37b4d8addb09796ceec437"
+  },
+  "receiver/signal-studio.log": {
+    "bytes": 1173,
+    "sha256": "4659bdc68cb3e6f092c1df0bb6ccaede8df07c4dad7081e21242cd5c3da75b85"
+  },
+  "receiver/agent-chat.log": {
+    "bytes": 766,
+    "sha256": "80c2344ac3a4b7c08cca65482bc9a4ab8c5efc2dc0875ab3e0f17b0e9a74d65a"
+  },
+  "receiver/transfer-verification.log": {
+    "bytes": 1099,
+    "sha256": "532d809f5b492e7bfb93ff8bdb7bffcf706c438128b68a4bd3f82e207809eb4d"
+  },
+  "receiver/notification-service.log": {
+    "bytes": 73,
+    "sha256": "e2bf704a0dc713b0cbc4dc9b60497a2879f44e329adc5315b91ef189ccc6f8c6"
+  },
+  "receiver/display.log": {
+    "bytes": 909,
+    "sha256": "c31f2cb59335dc0cc17cd9452085b08e937c08f9d340741252cd9e0cd8a4e1eb"
+  },
+  "receiver/gallery.log": {
+    "bytes": 2329,
+    "sha256": "df2266893ae78aa4f191902d59512fadaea5671523aca62c80118fd72b9d20a6"
+  },
+  "receiver/gallery/report.json": {
+    "bytes": 3156,
+    "sha256": "381ebc043059d7dfb7996c2a28c3b9c66db97c7a811527d2f8e9e994d7474b73"
+  },
+  "receiver/gallery/gallery-assets.png": {
+    "bytes": 140250,
+    "sha256": "1b0c1c7708411152b5736dd576d8af42e5093b3768a10c6e256d8a060ba0c8ea"
+  },
+  "receiver/gallery/runtime.sb": {
+    "bytes": 399,
+    "sha256": "5c0e0497c9a7a5e3603b28fbbca07542d8544f080c7ec5f9fe7db8953366e5d1"
+  },
+  "receiver/gallery/gallery-assets-light.png": {
+    "bytes": 128329,
+    "sha256": "f961ec3659980b355e70978e2cfe4a4f8b455e4f6f1a7d8f26bce07e2c8cfb0f"
+  },
+  "receiver/gallery/application.log": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "receiver/agent-chat/report.json": {
+    "bytes": 1534,
+    "sha256": "bca0da2713994f42f64fa6a5758d2d0a479fade16d999acb903306ff9eb2cb60"
+  },
+  "receiver/agent-chat/runtime.sb": {
+    "bytes": 399,
+    "sha256": "5c0e0497c9a7a5e3603b28fbbca07542d8544f080c7ec5f9fe7db8953366e5d1"
+  },
+  "receiver/agent-chat/application.log": {
+    "bytes": 37,
+    "sha256": "975e582d0fc5be2a25302bb3b5f8ff7292d48cbce24ce14238db7da651453b25"
+  },
+  "receiver/signal-studio/alerts-bundled.png": {
+    "bytes": 145959,
+    "sha256": "d84f937a0d231c2b788748738cbbafa1c13788c1f9186abf5fd96b46b1cd83fc"
+  },
+  "receiver/signal-studio/report.json": {
+    "bytes": 1592,
+    "sha256": "2878fb3bf312c67a1a6f9fd4dd2dbf6a31e67fad89134786fa52b19140382c1a"
+  },
+  "receiver/signal-studio/wide.png": {
+    "bytes": 129181,
+    "sha256": "748d82b11aea585368be85f80205d0c0bd45d3f624a32261ff2d915777febf2d"
+  },
+  "receiver/signal-studio/streaming.png": {
+    "bytes": 133701,
+    "sha256": "98a5244592f5060f8c48ee28696cc5fb9b0a8e6b54d322e23bc634a31081e2fc"
+  },
+  "receiver/signal-studio/compact.png": {
+    "bytes": 81194,
+    "sha256": "63ba3a2455bfc2fe7161a4252069f22a622bc2ddcd9b7f9f0378ecd9fa8322d0"
+  },
+  "receiver/signal-studio/runtime.sb": {
+    "bytes": 399,
+    "sha256": "5c0e0497c9a7a5e3603b28fbbca07542d8544f080c7ec5f9fe7db8953366e5d1"
+  },
+  "receiver/signal-studio/before-drag.png": {
+    "bytes": 130444,
+    "sha256": "e040886a65c7936140b03c100d8bd6e3d5e1e31d6ea4094123c9a738fa98d5b3"
+  },
+  "receiver/signal-studio/application.log": {
+    "bytes": 1586,
+    "sha256": "36056f88cd6b96c0b1f652d04887412886c97b5deddf7422a092e2362b6988fa"
+  },
+  "receiver/signal-studio/updated.png": {
+    "bytes": 132899,
+    "sha256": "dd1ef6bc447ead3ca3dea4c4e84a435563b2417d1c80f26ee4f5cde0f2d31848"
+  }
+}

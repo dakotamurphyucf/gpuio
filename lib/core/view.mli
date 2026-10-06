@@ -430,7 +430,7 @@ val menu_bar
 (** Replace the visual label of drawn menu items with passive view content.
     The receiver must be a menu button, context menu or drawn menu bar. Paths
     address positions in its definitions; unknown/duplicate paths, separators
-    and platform bars are rejected. Omitted paths retain their string labels.
+    and platform presentations are rejected. Omitted paths retain their string labels.
     Passing an empty list removes all custom content. The command/submenu/label
     still supplies the accessible name; descendants add no independent actions.
     Content can compose icons, text and other passive rich-label elements. The
@@ -441,6 +441,26 @@ val menu_bar
 val with_menu_item_content
   :  'action t
   -> items:(Menu.Item_path.t * 'action t) list
+  -> 'action t Core.Or_error.t
+
+(** Decorative SVG icons for an opt-in platform context menu. The receiver must
+    be a direct [context_menu ~platform:true]. Paths use the same validation as
+    [with_menu_item_content]; raster registrations, separators, duplicate and
+    unknown paths are rejected. An empty list removes the icons.
+
+    Icons occupy 16 logical pixels, preserve their aspect ratio, and retain the
+    existing command/submenu/section text and accessible name. AppKit owns the
+    template tint; the drawn Linux fallback inherits the row foreground. These
+    are decorations, not arbitrary View content or independently focusable items.
+
+    Registrations remain caller-owned. Accepted mounted icons retain their asset
+    leases after registration release. Decoding is asynchronous; a menu opened
+    before an icon is ready, or after an icon decoding/resource failure, remains
+    usable without that decoration. A native popup freezes ready icons until it
+    closes. A later open observes subsequent asset updates. *)
+val with_menu_item_icons
+  :  'action t
+  -> items:(Menu.Item_path.t * Asset.Handle.t) list
   -> 'action t Core.Or_error.t
 
 (** Rich labels are passive, with one native activation/focus target. The required

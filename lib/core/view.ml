@@ -1605,63 +1605,84 @@ let validate_control_labels children =
     children
 ;;
 
-let with_menu_item_content t ~items =
+let menu_item_slots t config ~items =
   let open Or_error.Let_syntax in
+  let path_key path =
+    Menu.Item_path.to_list path |> List.map ~f:Int.to_string |> String.concat ~sep:"/"
+  in
+  let%bind () =
+    if List.length items > 1024
+    then Or_error.error_string "menu content exceeds 1024 item paths"
+    else Ok ()
+  in
+  let%bind content =
+    Map.of_alist_or_error
+      (module String)
+      (List.map items ~f:(fun (path, view) -> path_key path, view))
+  in
+  let paths = Menu.Expert.item_paths config.menus in
+  let allowed =
+    List.filter_map paths ~f:(fun (path, item) ->
+      match item with
+      | Menu.Item.Separator -> None
+      | Command _ | Label _ | Submenu _ -> Some (path_key path))
+    |> String.Set.of_list
+  in
+  let%bind () =
+    match List.find (Map.keys content) ~f:(fun key -> not (Set.mem allowed key)) with
+    | None -> Ok ()
+    | Some key -> Or_error.errorf "unknown or separator menu content path: %s" key
+  in
+  let slots =
+    if Map.is_empty content
+    then []
+    else
+      List.map paths ~f:(fun (path, _) ->
+        let name = path_key path in
+        { (container [] (Option.to_list (Map.find content name))) with
+          style = Style.empty
+        ; structural_key = Some ("menu-content", name)
+        })
+  in
+  let%map () = validate_control_labels slots in
+  let target =
+    match config.presentation with
+    | Context | Editor_context | Platform_context -> List.take t.children 1
+    | Button | Bar | Platform_bar -> []
+  in
+  { t with children = target @ slots }
+;;
+
+let with_menu_item_content t ~items =
   match t.kind, t.menu with
   | Menu, Some config ->
-    let%bind () =
-      match config.presentation with
-      | Platform_bar ->
-        Or_error.error_string "platform menu bars do not support custom content"
-      | Platform_context ->
-        Or_error.error_string "platform context menus do not support custom content"
-      | Button | Context | Bar | Editor_context -> Ok ()
-    in
-    let path_key path =
-      Menu.Item_path.to_list path |> List.map ~f:Int.to_string |> String.concat ~sep:"/"
-    in
-    let%bind () =
-      if List.length items > 1024
-      then Or_error.error_string "menu content exceeds 1024 item paths"
-      else Ok ()
-    in
-    let%bind content =
-      Map.of_alist_or_error
-        (module String)
-        (List.map items ~f:(fun (path, view) -> path_key path, view))
-    in
-    let paths = Menu.Expert.item_paths config.menus in
-    let allowed =
-      List.filter_map paths ~f:(fun (path, item) ->
-        match item with
-        | Menu.Item.Separator -> None
-        | Command _ | Label _ | Submenu _ -> Some (path_key path))
-      |> String.Set.of_list
-    in
-    let%bind () =
-      match List.find (Map.keys content) ~f:(fun key -> not (Set.mem allowed key)) with
-      | None -> Ok ()
-      | Some key -> Or_error.errorf "unknown or separator menu content path: %s" key
-    in
-    let slots =
-      if Map.is_empty content
-      then []
-      else
-        List.map paths ~f:(fun (path, _) ->
-          let name = path_key path in
-          { (container [] (Option.to_list (Map.find content name))) with
-            style = Style.empty
-          ; structural_key = Some ("menu-content", name)
-          })
-    in
-    let%map () = validate_control_labels slots in
-    let target =
-      match config.presentation with
-      | Context | Editor_context | Platform_context -> List.take t.children 1
-      | Button | Bar | Platform_bar -> []
-    in
-    { t with children = target @ slots }
+    (match config.presentation with
+     | Platform_bar ->
+       Or_error.error_string "platform menu bars do not support custom content"
+     | Platform_context ->
+       Or_error.error_string "platform context menus do not support custom content"
+     | Button | Context | Bar | Editor_context -> menu_item_slots t config ~items)
   | _ -> Or_error.error_string "menu item content requires a direct menu view"
+;;
+
+let with_menu_item_icons t ~items =
+  let open Or_error.Let_syntax in
+  match t.kind, t.menu with
+  | Menu, Some ({ presentation = Platform_context; _ } as config) ->
+    let%bind items =
+      List.map items ~f:(fun (path, asset) ->
+        let%map config =
+          Icon.Config.create ~asset ~description:Image.Description.decorative ()
+        in
+        ( path
+        , icon
+            ~style:
+              (Style.create_exn [ Width (Length.px_exn 16.); Height (Length.px_exn 16.) ])
+            config ))
+      |> Or_error.all
+    in
+    menu_item_slots t config ~items
+  | _ -> Or_error.error_string "menu item icons require a direct platform context menu"
 ;;
 
 let editor_menu

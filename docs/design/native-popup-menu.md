@@ -22,8 +22,10 @@ section labels remain disabled, non-actionable native rows.
 This opt-in route also supports [positioned commands](menu-commands.md) through
 `Gpuio_eio.Menu_controller`: typed Show/Close requests use the exact observed
 subscription and the same adapter/command validation. [Local installed evidence](../evidence/menu-commands-och41.md)
-covers positioning, overlap rejection, close and stale ownership. Native image/icon
-metadata and broader platform acceptance remain required catalog work.
+covers positioning, overlap rejection, close and stale ownership. Native
+[decorative SVG icons](../evidence/native-menu-icons-och41.md) now have typed slots,
+bounded worker-backed rasterization and AppKit template snapshots. Broader platform
+acceptance remains required catalog work.
 
 ## Ownership and dispatch
 
@@ -82,7 +84,7 @@ owned window, keeping them separate from the application's global menu bar.
 Its submenu test waits for actual native selected children, because initial
 highlighting can depend on the previous pointer position.
 
-Still required before closing the native-popup catalog row: native icon metadata,
+Still required before closing the native-popup catalog row: native icon qualification,
 multi-window overlap and native editor focus-change cases,
 and consolidated gallery/platform acceptance. Window close, owner removal,
 stale-command rejection and independently installed consumer interaction now
@@ -118,3 +120,43 @@ also qualifies definition replacement, hidden/disabled ancestors and modal entry
 including reopening, command delivery and preserved editor content, on a fresh
 installed-library consumer. These checks do not establish multi-window overlap
 or native editor retargeting behavior.
+
+## Decorative icon contract (implementation in progress)
+
+`View.with_menu_item_icons view ~items` accepts item paths paired with registered
+SVG `Asset.Handle.t` values. The receiver is a direct platform context menu.
+Unknown/duplicate paths, separators, raster handles and other receivers are
+errors. Empty items remove all icon slots. Command, submenu and section labels
+remain authoritative for both text and accessibility. Native admission accepts
+only direct passive decorative Icon children in these slots; arbitrary rich
+View content remains rejected. No new protocol tag is needed, but both bridge
+ends must use the same unpublished repository revision.
+
+The icon is 16 logical pixels square, aspect-preserving. AppKit uses a template
+image and chooses its tint; the Linux drawn fallback composes the icon beside
+the existing text with inherited foreground. View styling does not override OS
+menu appearance. Icons are keyed by item position, as with drawn content slots.
+
+Mounted slots acquire encoded leases when the tree transaction is accepted,
+before subsequent registration release. The existing bounded image service
+rasterizes SVGs off-thread directly to the menu's display density. Opening a
+popup observes ready pixels without adding a GPUI atlas copy. Missing, loading,
+failed or over-budget decoration is omitted; navigation and command dispatch
+remain available. A density change requests replacement pixels through the
+mounted lease and temporarily retains the previous raster. A subsequent open
+observes the replacement. An already tracking popup freezes its bitmap snapshot.
+
+AppKit receives interleaved alpha-bearing template bitmaps copied from validated
+ready pixels, never encoded SVG/image data. Each side is bounded to 256 physical
+pixels (16 logical pixels at maximum supported density); aggregate bitmap
+payload is bounded to 8 MiB per snapshot, counting duplicate icons. The existing
+one-active-popup lease bounds simultaneous snapshots. NSMenu retains its images
+through tracking/cancellation; all are released with that native snapshot.
+Decoded source pixels remain subject to the existing cache/retired-reader budget.
+These are payload bounds, not measurements of AppKit's private allocations/RSS.
+
+Required evidence: paired public transactions and native admission, passive and
+atomic rejection, lease retention after registration release, density changes,
+loading/failure, no atlas charge, bitmap alpha/size/template/budget, nested icon
+placement, selection and teardown on actual macOS and an installed consumer.
+Linux fallback needs build/unit/consumer evidence; desktop acceptance stays 07b.

@@ -9,7 +9,7 @@ module Command = Gpuio.Command
 let run = Command.Id.of_string "run" |> Or_error.ok_exn
 let position x y = Menu.Position.create ~x ~y |> Or_error.ok_exn
 
-let create ~platform window graph =
+let create ~platform ~app window graph =
   let controller = Controller.create window graph in
   let other_controller = Controller.create window graph in
   let count, set_count = B.state 0 graph in
@@ -17,6 +17,31 @@ let create ~platform window graph =
   let observing, set_observing = B.state true graph in
   let saved, set_saved = B.state_opt ~equal:Menu.Snapshot.equal graph in
   let status, set_status = B.state "Ready" graph in
+  let artwork, set_artwork = B.state_opt graph in
+  let released, set_released = B.state false graph in
+  let show_icons, toggle_icons = B.toggle ~default_model:true graph in
+  let open B.Let_syntax in
+  B.Edge.lifecycle
+    ~on_activate:
+      (let%arr set_artwork = set_artwork
+       and set_status = set_status in
+       let source =
+         Gpuio.Asset.Source.of_bytes
+           ~format:Svg
+           {|<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><path d="M3 2L14 8L3 14Z" fill="black"/></svg>|}
+         |> Or_error.ok_exn
+       in
+       let open E.Let_syntax in
+       let%bind result =
+         Gpuio_eio.Asset.register app ~scope:(Gpuio_eio.App.Window.scope window) source
+       in
+       match result with
+       | Ok asset -> set_artwork (Some asset)
+       | Error error ->
+         set_status
+           ("Icon registration failed: "
+            ^ Sexp.to_string (Gpuio_eio.Asset.Error.sexp_of_t error)))
+    graph;
   let input =
     Gpuio_eio.Text_input.create
       window
@@ -26,7 +51,6 @@ let create ~platform window graph =
             |> Or_error.ok_exn))
       graph
   in
-  let open B.Let_syntax in
   let%arr controller = controller
   and other_controller = other_controller
   and count = count
@@ -39,7 +63,24 @@ let create ~platform window graph =
   and set_saved = set_saved
   and status = status
   and set_status = set_status
-  and input = input in
+  and input = input
+  and artwork = artwork
+  and released = released
+  and set_released = set_released
+  and show_icons = show_icons
+  and toggle_icons = toggle_icons in
+  let decorate view =
+    match artwork with
+    | Some asset when platform && show_icons ->
+      V.with_menu_item_icons
+        view
+        ~items:
+          [ ( Menu.Item_path.of_list [ 0; 1 ] |> Or_error.ok_exn
+            , Gpuio_eio.Asset.handle asset )
+          ]
+      |> Or_error.ok_exn
+    | Some _ | None -> view
+  in
   let report label operation =
     let open E.Let_syntax in
     let%bind result = operation in
@@ -90,12 +131,14 @@ let create ~platform window graph =
         ?on_change:(if observing then Some (Controller.observe controller) else None)
         ~menu
         (Gpuio_eio.Text_input.view input)
+      |> decorate
     ; V.context_menu
         ~platform
         ~key:(Controller.key other_controller)
         ~on_change:(Controller.observe other_controller)
         ~menu
         (V.text "Secondary popup anchor")
+      |> decorate
     ; V.button
         ~disabled:(Option.is_none (Controller.snapshot other_controller))
         ~on_click:
@@ -139,6 +182,18 @@ let create ~platform window graph =
                   snapshot
                   (Show (position 100. 100.))))
         "Show captured menu"
+    ; V.button
+        ~on_click:toggle_icons
+        (if show_icons then "Hide menu icons" else "Show menu icons")
+    ; V.button
+        ~disabled:(released || Option.is_none artwork)
+        ~on_click:
+          (match artwork with
+           | None -> E.Ignore
+           | Some asset ->
+             E.Many
+               [ E.of_thunk (fun () -> Gpuio_eio.Asset.release asset); set_released true ])
+        (if released then "Icon source released" else "Release icon source")
     ; V.button
         ~on_click:(E.of_thunk (fun () -> Gpuio_eio.App.Window.close window))
         "Close window"

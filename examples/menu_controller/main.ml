@@ -8,7 +8,7 @@ let () =
       ~title:"GPUIO positioned menus"
       ~width:660.
       ~height:700.
-      (Component.create ~platform)
+      (Component.create ~platform ~app)
     |> Or_error.ok_exn
     |> fun (_ : Gpuio_eio.App.Window.t) -> ())
 ;;

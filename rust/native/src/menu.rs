@@ -19,6 +19,9 @@ mod popup;
 #[cfg(target_os = "macos")]
 #[path = "menu_popup_host.rs"]
 mod popup_host;
+#[cfg(target_os = "macos")]
+#[path = "menu_popup_icon.rs"]
+mod popup_icon;
 
 #[path = "menu_command_host.rs"]
 mod command_host;
@@ -187,6 +190,7 @@ impl View {
         node: &crate::tree::Node,
         path: &[usize],
         interaction: Interaction,
+        rows: &[Row],
         cx: &Context<Self>,
     ) -> Option<MenuContent> {
         let expected = node.menu.clone()?;
@@ -195,6 +199,10 @@ impl View {
             return None;
         }
         let indices = expected.row_content_indices(path)?;
+        // Reuse the panel's already resolved row labels. Resolving every command
+        // again for each visible icon would multiply work by the visible rows.
+        let labels: Option<Vec<_>> = (expected.presentation == MenuPresentation::PlatformContext)
+            .then(|| rows.iter().map(|row| row.label.clone()).collect());
         let slots = node.children.clone();
         let path = path.to_vec();
         let id = node.id;
@@ -217,7 +225,21 @@ impl View {
                 }
                 let slot = tree.get(*slots.get(skip + indices.get(index)?)?)?;
                 let content = *slot.children.first()?;
-                Some(view.control_label(tree, content, interaction, disabled, window, cx))
+                let icon = view.control_label(tree, content, interaction, disabled, window, cx);
+                if let Some(labels) = &labels {
+                    let label = labels.get(index)?.clone();
+                    Some(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap(px(6.))
+                            .child(icon)
+                            .child(label)
+                            .into_any_element(),
+                    )
+                } else {
+                    Some(icon)
+                }
             })
             .ok()
             .flatten()
@@ -1017,6 +1039,7 @@ impl View {
                 (menu.clone(), trigger)
             };
             let rows = self.menu_rows(tree, id, &definition, window, cx);
+            let content = self.menu_content(node, &path[..=depth], interaction, &rows, cx);
             let panel = self.menu_panel(
                 Panel {
                     id,
@@ -1026,7 +1049,7 @@ impl View {
                     state: state.clone(),
                     appearance: appearance.clone(),
                     pointer: interaction.pointer,
-                    content: self.menu_content(node, &path[..=depth], interaction, cx),
+                    content,
                 },
                 window,
                 cx,

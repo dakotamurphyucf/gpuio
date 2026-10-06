@@ -63,6 +63,28 @@ fn usage(service: &Shared) -> (usize, usize, usize) {
     (state.atlas_entries, state.atlas_frames, state.atlas_bytes)
 }
 
+#[cfg(target_os = "macos")]
+#[test]
+fn native_snapshot_pixels_keep_cache_charge_without_an_atlas_reservation() {
+    let mut app = TestAppContext::single();
+    let window = window(&mut app);
+    let mut store = Store::default();
+    let source = source(&mut store, false);
+    let id = source.id();
+    let handle = request_ready(&mut app, window, source);
+    store.release(id).unwrap();
+    assert!(store.acquire(id).is_err());
+    let image = app.update(|cx| native_pixels(&handle, cx).unwrap().unwrap());
+    let service = service(&mut app);
+    assert_eq!(usage(&service), (0, 0, 0));
+    assert_eq!(image.as_bytes(0).unwrap().len(), 16);
+    drop(handle);
+    assert!(service.borrow_mut().cache.stats().charged_pixels >= 16);
+    assert_eq!(usage(&service), (0, 0, 0));
+    app.update(finish_before_quit);
+    assert_eq!(image.as_bytes(0).unwrap().len(), 16);
+}
+
 struct Paint {
     pixels: Arc<RenderImage>,
     color: bool,

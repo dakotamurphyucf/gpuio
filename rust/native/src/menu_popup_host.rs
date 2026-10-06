@@ -14,34 +14,61 @@ impl View {
         &self,
         tree: &crate::tree::Tree,
         id: NodeId,
-        definition: &MenuDefinition,
-        ui: (&Window, &App),
+        menu: (&MenuDefinition, &[usize]),
+        ui: (&mut Window, &mut App),
         routes: &mut Vec<Route>,
         disabled: bool,
     ) -> Vec<popup::Item> {
         let (window, cx) = ui;
+        let (definition, path) = menu;
         let disabled = disabled || definition.disabled;
+        let node = tree.get(id);
+        let indices = node
+            .and_then(|node| node.menu.as_ref())
+            .and_then(|menu| menu.row_content_indices(path));
         self.menu_rows(tree, id, definition, window, cx)
             .into_iter()
             .zip(&definition.items)
-            .map(|(row, item)| match item {
-                MenuItem::Separator => popup::Item::Separator,
-                MenuItem::Submenu(child) => popup::Item::Submenu {
-                    label: row.label,
-                    enabled: !disabled && row.enabled,
-                    items: self.popup_items(tree, id, child, (window, cx), routes, disabled),
-                },
-                MenuItem::Command(_) | MenuItem::Label(_) => {
-                    let action = row.route.map(|route| {
-                        let index = routes.len();
-                        routes.push(route);
-                        index
-                    });
-                    popup::Item::Row {
+            .enumerate()
+            .map(|(index, (row, item))| {
+                let icon = indices
+                    .as_ref()
+                    .and_then(|indices| indices.get(index))
+                    .and_then(|index| node?.children.get(1 + index))
+                    .and_then(|slot| tree.get(*slot)?.children.first())
+                    .and_then(|icon| self.platform_menu_pixels(*icon, window, cx));
+                match item {
+                    MenuItem::Separator => popup::Item::Separator,
+                    MenuItem::Submenu(child) => popup::Item::Submenu {
                         label: row.label,
                         enabled: !disabled && row.enabled,
-                        checked: row.checked == Some(true),
-                        action,
+                        items: {
+                            let mut path = path.to_vec();
+                            path.push(index);
+                            self.popup_items(
+                                tree,
+                                id,
+                                (child, &path),
+                                (window, cx),
+                                routes,
+                                disabled,
+                            )
+                        },
+                        icon,
+                    },
+                    MenuItem::Command(_) | MenuItem::Label(_) => {
+                        let action = row.route.map(|route| {
+                            let index = routes.len();
+                            routes.push(route);
+                            index
+                        });
+                        popup::Item::Row {
+                            label: row.label,
+                            enabled: !disabled && row.enabled,
+                            checked: row.checked == Some(true),
+                            action,
+                            icon,
+                        }
                     }
                 }
             })
@@ -75,7 +102,14 @@ impl View {
                 return Err(Error::StaleMenu);
             };
             (
-                self.popup_items(tree, id, &config.menus[0], (window, cx), &mut routes, false),
+                self.popup_items(
+                    tree,
+                    id,
+                    (&config.menus[0], &[0]),
+                    (window, cx),
+                    &mut routes,
+                    false,
+                ),
                 tree.get(id).and_then(|node| node.handler),
             )
         };

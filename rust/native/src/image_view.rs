@@ -24,6 +24,7 @@ struct Binding {
     layout_error: Option<ImageError>,
     svg: bool,
     mask: bool,
+    native_menu: bool,
 }
 impl Binding {
     fn new(current: Result<image_host::Handle, ImageError>, mask: bool) -> Self {
@@ -38,6 +39,7 @@ impl Binding {
             layout_error: None,
             svg,
             mask,
+            native_menu: false,
         }
     }
     fn pixels(
@@ -46,6 +48,10 @@ impl Binding {
         window: &mut Window,
         cx: &mut gpui::App,
     ) -> Result<Option<Arc<gpui::RenderImage>>, image_host::Error> {
+        #[cfg(target_os = "macos")]
+        if self.native_menu {
+            return image_host::native_pixels(handle, cx);
+        }
         if self.mask {
             image_host::image_mask(handle, window, cx)
         } else {
@@ -128,6 +134,30 @@ fn fit(value: ImageFit) -> gpui::ObjectFit {
         ImageFit::ScaleDown => gpui::ObjectFit::ScaleDown,
         ImageFit::None => gpui::ObjectFit::None,
     }
+}
+
+fn menu_request(scale: f32) -> Result<asset_svg::Request, ImageError> {
+    let density = asset_svg::Density::new(scale).map_err(|_| ImageError::InvalidData)?;
+    let side = (16. * scale).ceil() as u32;
+    Ok(asset_svg::Request {
+        size: asset_svg::Size::Exact(
+            asset_svg::RasterSize::new(side, side).map_err(|_| ImageError::ResourceLimit)?,
+        ),
+        density,
+        fit: ImageFit::Contain,
+        tint: Some(0x000000ff),
+    })
+}
+
+fn platform_menu_icon(tree: &Tree, node: &Node) -> bool {
+    node.kind == Kind::Icon
+        && node
+            .parent
+            .and_then(|id| tree.get(id))
+            .and_then(|slot| slot.parent)
+            .and_then(|id| tree.get(id))
+            .and_then(|parent| parent.menu.as_ref())
+            .is_some_and(|menu| menu.presentation == MenuPresentation::PlatformContext)
 }
 
 // An avatar must know which slot it will display before laying out a rich
@@ -306,42 +336,97 @@ impl View {
         };
         self.images
             .retain(|id, _| tree.get(*id).is_some_and(|node| node.image.is_some()));
-        for id in dirty {
+        // A menu presentation can change without making its icon descendants
+        // dirty. Rebind those readers too, preserving the already acquired source.
+        let rebind: Vec<_> = self
+            .images
+            .iter()
+            .filter_map(|(id, state)| {
+                let native = cfg!(target_os = "macos") && platform_menu_icon(tree, tree.get(*id)?);
+                (state.binding.borrow().native_menu != native).then_some(*id)
+            })
+            .collect();
+        for id in dirty.iter().chain(&rebind) {
             let Some(node) = tree.get(*id) else {
                 continue;
             };
             let Some(config) = node.image.as_ref() else {
                 continue;
             };
-            if self
-                .images
-                .get(id)
-                .is_some_and(|state| state.source == config.source)
-            {
+            let native_menu = cfg!(target_os = "macos") && platform_menu_icon(tree, node);
+            if self.images.get(id).is_some_and(|state| {
+                state.source == config.source && state.binding.borrow().native_menu == native_menu
+            }) {
                 continue;
             }
-            // Drop the old lease before requesting replacement work.
-            self.images.remove(id);
-            let handle = match config.source {
-                ImageSource::Reference(id) => session.acquire_image(id).and_then(|lease| {
-                    if (node.kind == Kind::Icon || node.spinner.is_some())
-                        && lease.source().format() != gpuio_protocol::asset::Format::Svg
-                    {
-                        return Err(ImageError::Unsupported);
-                    }
-                    image_host::request(lease, window, cx).map_err(error)
-                }),
-                ImageSource::Unavailable(error) => Err(error),
+            // A presentation-only change keeps its encoded reader even after
+            // registration retirement. A changed source requires fresh admission.
+            let retained = self
+                .images
+                .remove(id)
+                .filter(|state| state.source == config.source)
+                .map(|state| state.binding.borrow().current.clone());
+            let request = if native_menu {
+                Some(menu_request(window.scale_factor()))
+            } else {
+                None
             };
+            let handle = if let Some(retained) = retained {
+                retained.and_then(|handle| {
+                    image_host::rerasterize(&handle, request.unwrap_or(Ok(Default::default()))?, cx)
+                        .map_err(error)
+                })
+            } else {
+                match config.source {
+                    ImageSource::Reference(id) => session.acquire_image(id).and_then(|lease| {
+                        if (node.kind == Kind::Icon || node.spinner.is_some())
+                            && lease.source().format() != gpuio_protocol::asset::Format::Svg
+                        {
+                            return Err(ImageError::Unsupported);
+                        }
+                        match request {
+                            Some(request) => {
+                                image_host::request_svg(lease, request?, window, cx).map_err(error)
+                            }
+                            None => image_host::request(lease, window, cx).map_err(error),
+                        }
+                    }),
+                    ImageSource::Unavailable(error) => Err(error),
+                }
+            };
+            let mut binding = Binding::new(handle, node.spinner.is_some());
+            binding.native_menu = native_menu;
+            if let Some(Ok(request)) = request {
+                binding.requested = Some(request);
+                binding.rendered = request;
+            }
             self.images.insert(
                 *id,
                 State {
                     source: config.source,
-                    binding: Rc::new(RefCell::new(Binding::new(handle, node.spinner.is_some()))),
+                    binding: Rc::new(RefCell::new(binding)),
                     emitted: None,
                 },
             );
         }
+    }
+
+    #[cfg(target_os = "macos")]
+    pub(super) fn platform_menu_pixels(
+        &self,
+        id: NodeId,
+        window: &mut Window,
+        cx: &mut gpui::App,
+    ) -> Option<Arc<gpui::RenderImage>> {
+        let mut binding = self.images.get(&id)?.binding.borrow_mut();
+        if !binding.native_menu {
+            return None;
+        }
+        let (image, _) = binding.observe(window, cx);
+        if let Ok(request) = menu_request(window.scale_factor()) {
+            binding.request(request, window, cx);
+        }
+        image
     }
 
     fn observe_image(
