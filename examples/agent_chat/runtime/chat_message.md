@@ -87,7 +87,18 @@ message card. Row eviction can retire the mounted native document view without
 canceling its underlying conversation-owned response. The stable integer row key
 and bounded mounting belong to `List_view.paged`, not `Chat_message.view`.
 Theme changes derive new styles/views through Bonsai while those document
-registrations retain their own lifetime. None of these API submissions proves a
+registrations retain their own lifetime.
+
+The concrete streaming path is `Conversation.start_stream` → the scoped worker
+waits between fixture chunks → `Document.push_bytes` appends bytes to the existing
+response document → GPUIO asynchronously publishes coalesced snapshots to mounted
+native document views. Byte chunks can split Unicode scalars; `push_bytes` buffers
+the incomplete scalar rather than exposing invalid text. This is not a new
+`Chat_message.view` call for every chunk. `update_response` separately uses `Pager.set` when the message detail changes, such as Streaming,
+Complete or cancellation; that row-data change does flow through `let%arr`. The
+worker's `Scope.start ~on_result` returns an effect whose UI thunk calls `finish`;
+`Document.finish` closes successful input, while cancellation preserves partial
+content. Document publication and deferred effect completion do not prove a
 physical frame was displayed.
 
 A small adaptation is to give `User` a distinct accent-colored bubble. Change

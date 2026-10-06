@@ -13,7 +13,9 @@ Read the three named parts of `main.ml` in order:
 3. The entry point uses `App.run` and `App.open_window` to own the runtime and mount
    that component. No native handles or Rust code are needed.
 
-The `View`, `Bonsai`, `Effect` and `App` aliases identify these boundaries. This
+The aliases are `View = Gpuio_bonsai.View`, `Bonsai = Bonsai.Cont`,
+`Effect = Bonsai.Effect` (declared before the `Bonsai` alias), and
+`App = Gpuio_eio.App`. This
 small example stays in one file; the [gallery](../gallery/README.md#reading-the-code)
 shows the same separation using modules as the application grows.
 
@@ -43,9 +45,29 @@ a native button event to its OCaml effect, requests `count + 1`, and causes the
 dependent view text to update through GPUIO. Creating `counter_view` alone does
 not execute an effect. `Reset` requests zero through the same path.
 
+The key reactive expression is:
+
+```ocaml
+let count, set_count = Bonsai.state 0 graph in
+let open Bonsai.Let_syntax in
+let%arr count = count
+and set_count = set_count in
+```
+
+Before `let%arr`, both names hold reactive values in the graph; inside its body,
+`count` is the current integer and `set_count` is a function from an integer to a
+`unit Effect.t`. `and` declares another dependency, not another thread.
+`Bonsai.Let_syntax` and the `bonsai.ppx_bonsai` dependency in `dune` enable this
+syntax. `set_count (count + 1)` constructs the effect stored in
+`View.button`'s `~on_click`; GPUIO runs it after delivering the native activation
+to the OCaml UI domain. It does not increment while constructing the view.
+
 `counter_view` is a pure presentation function receiving current values and
 actions. It uses a column, text, buttons and validated logical-pixel spacing.
 The component defines neither a serialized bridge protocol nor a native widget.
+The [Bonsai view interface](../../lib/bonsai/gpuio_bonsai.mli) defines these
+effect-bearing widget signatures; the [application interface](../../lib/eio/app.mli)
+defines window ownership and close behavior.
 There is no editor, virtual list or explicit resource handle requiring stable
 application keys in this example.
 

@@ -13,6 +13,10 @@ macOS-first release from required Linux builds and deferred desktop qualificatio
 Read `choice_id`, `modes` and `choice_appearance` first, then `component`, then the
 entry point. The single-file split keeps immutable configuration outside the
 reactive graph and allocates window-specific state inside it. The
+aliases `B = Bonsai.Cont`, `View = Gpuio_bonsai.View` and `App = Gpuio_eio.App`
+identify graph construction, effect-bearing presentation and runtime ownership.
+The [Bonsai view interface](../../lib/bonsai/gpuio_bonsai.mli) gives the actual
+checkbox, switch and choice callback types used here. The
 [dune stanza](dune) links Core, GPUIO, the Bonsai/Eio adapters, Bonsai and `eio_main`;
 `ppx_jane` and `bonsai.ppx_bonsai` enable the syntax used below.
 
@@ -54,6 +58,11 @@ let combo_config =
 
 `let%arr` reads the current ordinary values from reactive inputs and derives a
 reactive result. `and` lists additional dependencies; it does not start threads.
+`let open B.Let_syntax in` brings this reactive syntax into scope. Before the
+binding, `mode` is a reactive value; inside the body it is an ordinary
+`Gpuio.Choice.Id.t option`. Similarly, inside `on_select`, `set_mode` is a
+function from that option to `unit Bonsai.Effect.t`, so the callback returns
+work for the runtime to execute rather than changing state during configuration.
 This configuration changes when the master checkbox or selected mode changes.
 The separate `on_select` computation derives a callback that extracts the
 `Combobox.Selection.id` and returns a setter effect. Creating that effect is not

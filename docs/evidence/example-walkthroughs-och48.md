@@ -631,3 +631,20 @@ authorization; this correction is not accessibility test evidence. Hosted run
 failed Signal Studio responsive/input, Agent Workspace Diagram and both Metal
 presentation checks; fresh extracted-app checks were still running at this
 checkpoint. Their failures and remaining release gates are not waived by docs.
+
+## Beginner explanation maintenance
+
+Source base `9ffd929`, 2026-10-06: three owner-authorized GPT-6.1 Sol agents
+reviewed six existing guides in parallel: the starter, controls, chart mark
+appearance, chart inspection, Agent Chat startup and transcript message composition.
+Primary review checked their changes against the actual implementations and public
+interfaces. The updates clarify reactive values versus values inside `let%arr`,
+setter effect construction/execution, chart configuration/native preparation,
+final-window shutdown, and document streaming versus Bonsai row-data updates.
+No new API or implementation is implied by these prose changes.
+
+`python3 scripts/audit_example_docs.py` and `git diff --check` pass. A separate
+local-file link scan resolves all 70 targets in the six changed guides. Coverage
+remains 421 source files in 262 reviewed groups, with zero pending. No builds,
+GUI tests or new platform/performance acceptance were needed or claimed for this
+maintenance pass. OCH-48 remains complete; milestone 07 remains in progress.

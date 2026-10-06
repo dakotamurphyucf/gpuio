@@ -30,7 +30,10 @@ combines `Card.create`, `Crosshair.create` and `Marker.create` results;
 are validated public constructor inputs.
 
 The [gallery page](../../gallery/charts_page.ml) owns a Bonsai state value for the
-selected preset. Clicking a button applies its state effect. The resulting
+selected preset. `B = Bonsai.Cont`; `B.state Samples.Inspection.Default graph`
+creates a reactive model in the page graph and returns its current value plus
+`set_inspection`. Calling the setter constructs an effect; the button executes
+it, and `let%arr` derives the style from the latest choice and palette. The resulting
 `Chart_style.create ~inspection` changes the view configuration; native workers
 prepare a matching immutable result. The Ready notice acknowledges preparation,
 not physical display presentation. Hover and keyboard previews remain native;
@@ -42,6 +45,11 @@ moves ownership into a row. Leaving the page retires the view and its native wor
 through the existing scope. See the [page walkthrough](../../gallery/charts_page.md)
 for source publication, selection identity and teardown.
 
+The current `Crosshair.create` accepts axis, pattern, thickness and color only.
+Its guides use full prepared plot extents; the solid Horizontal band is 12 logical
+pixels thick with translucent accent color, not a partial guide segment. Thickness
+is bounded to `[0.5, 64]` and clips in narrow plots.
+
 To make Anchored use a larger readable card, change `width`, `font_size` and
 `line_height` in that branch. Keep line height at least font size. To create a
 horizontal dashed guide, combine Axis.Horizontal with Pattern.Dashed. Theme
@@ -50,8 +58,8 @@ the theme changes. [The inspection contract](../../../docs/design/chart-inspecti
 explains clipping, accessibility and remaining presentation limits.
 
 For a concrete trace, click **Anchored details**: `set_inspection Anchored` is the
-Bonsai effect returned by `B.state`. It changes that reactive value, and the
-page's `let%arr` recomputes `Samples.Inspection.config inspection` and the chart
+effect constructed by the setter returned by `B.state`. It changes that reactive
+value, and the page's `let%arr` recomputes `Samples.Inspection.config inspection` and the chart
 style. The native inspection now uses a 180-pixel card, a both-axis solid crosshair
 and a 24-pixel outlined marker. Moving the pointer updates the native preview
 without an OCaml state update; committing a value emits `Selection_changed`,

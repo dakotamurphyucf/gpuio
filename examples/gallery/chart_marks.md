@@ -7,6 +7,19 @@ appearance from a choice/palette/dataset, `dots` chooses marker visibility and
 `sampling` chooses geometry policy. Bonsai state and native source ownership live
 in [Charts_page](charts_page.md), not in this module.
 
+The caller uses `B = Bonsai.Cont` and `B.state Chart_marks.Default graph`: `graph` owns the
+reactive choice, while the returned setter constructs effects that update it.
+Pressing Styled markers executes `set_marks Markers`; the page's `let%arr` then
+derives appearance from the current choice, palette and accepted dataset.
+`configuration` returns an `A.t` description, not native geometry. The page passes
+it to `Chart_style.create ~appearance`, applies `dots` to Cartesian options and
+passes `sampling` to `V.chart`. Style construction resolves theme colors; Rust
+owns prepared geometry, painting and hit testing. Merely constructing the setter
+effect does not run it, and deriving a style does not publish a new dataset.
+Native Ready acknowledges preparation; native `Selection_changed` is a separate
+event updating the page's selected source target. The page's scope retires its
+chart registration and native work when the preview leaves.
+
 `series data` examines `D.Expert.contents`. Cartesian/categorical layers supply
 their stable series IDs and first 32 point IDs; radar supplies series IDs and the
 first 32 axis IDs. Pie, candles and Sankey return no entries. This bounded prefix

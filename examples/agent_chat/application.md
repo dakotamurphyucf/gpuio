@@ -94,6 +94,13 @@ application reopen event to make a fresh workspace. `App.run` owns final runtime
 cleanup; the scoped controllers retire their resources as their scopes close.
 There is no disk-backed session and no promise of restoring drafts after exit.
 
+This call uses `App.run`'s default `exit_on_last_window=true`. Shared conversation
+ownership lets a response survive closing one workspace while another stays open;
+it does not keep this application streaming after its final window closes.
+`App.on_reopen` handles a reopen event while the runtime is still running, rather
+than persisting conversations across process exits. Also distinguish the demo's
+four-window guard from the public runtime's larger window bound.
+
 ## Trace another window and a send
 
 1. **New window** reaches the workspace command and calls the supplied
