@@ -134,7 +134,7 @@ def exercise_shell(mac, images):
         expect_field(mac, TITLE, 'Document title', 'A place for good ideas')
 
 
-def reveal_gallery_control(mac, label, role, *, scroll_fraction=.78):
+def reveal_gallery_control(mac, label, role, *, scroll_fraction=.78, scroll_in_left_gutter=False):
     # This helper sends desktop pointer events. Re-establish window ownership
     # for each action group; raising does not request focus on the target leaf.
     # The owner guard below still rejects occlusion before sending a click/wheel.
@@ -158,6 +158,12 @@ def reveal_gallery_control(mac, label, role, *, scroll_fraction=.78):
             mac.release(node)
         if y >= wy + 170 and y + h <= wy + wh - 30:
             return x, y, w, h
+        if scroll_in_left_gutter:
+            # A mode switch can still be settling layout. Derive the gutter
+            # from this iteration's bounds, not a stale pre-switch rectangle.
+            point = (x - 10, wy + wh * .67)
+            assert wx < point[0] < wx + ww, ('Scroll gutter outside window', point)
+        print('GALLERY_REVEAL_SCROLL', label, 'bounds', (x, y, w, h), 'point', point, flush=True)
         mouse.send(5, point)
         mouse.check_owner(point)
         # A standalone section may start several screens above its target.
@@ -3855,17 +3861,7 @@ def reveal_document_control(mac, label="Copy code", role="AXButton"):
     # First reveal the nested viewport through its outer page. AX reports its
     # full layout rectangle even when a parent clips it. Target the card padding
     # just left of the document so the inner scroller cannot consume this wheel.
-    body = mac.wait_find(TITLE, 'Document content', 'AXGroup')
-    window = mac.window(TITLE)
-    try:
-        x, _, _, _ = element_rect(mac, body)
-        wx, _, ww, _ = element_rect(mac, window)
-    finally:
-        mac.release(body)
-        mac.release(window)
-    fraction = (x - wx - 10) / ww
-    assert 0 < fraction < 1, ('Document outer scroll target', fraction)
-    reveal_gallery_control(mac, 'Document content', 'AXGroup', scroll_fraction=fraction)
+    reveal_gallery_control(mac, 'Document content', 'AXGroup', scroll_in_left_gutter=True)
     # Scroll the actual native viewport until the requested block/control mounts.
     # A baseline code fence can exist before later appended content is visible.
     raise_gallery(mac)
@@ -4146,30 +4142,81 @@ def exercise_document_images(mac, images):
           'decorative omission, safe placeholder, AX focus/activation, collapse and remount', flush=True)
 
 
-def assert_reset_document_source(mac):
-    # The baseline now contains a code fence, so Copy code remains legitimate.
-    # Verify source reset directly rather than relying on viewport virtualization.
+def copy_document_source(mac):
+    """Read the complete source, independent of the virtualized viewport."""
     env = dict(os.environ, LANG='en_US.UTF-8', LC_ALL='en_US.UTF-8')
     saved = subprocess.run(['/usr/bin/pbpaste'], capture_output=True, check=True, env=env).stdout
+    marker = b'GPUIO source pending'
     try:
-        subprocess.run(['/usr/bin/pbcopy'], input=b'GPUIO source pending', check=True, env=env)
+        subprocess.run(['/usr/bin/pbcopy'], input=marker, check=True, env=env)
         mac.press(TITLE, 'Copy source')
         deadline = time.monotonic() + 5
         while True:
-            source = subprocess.run(['/usr/bin/pbpaste'], capture_output=True, check=True, env=env).stdout.decode('utf-8')
-            if '# A place for ideas' in source:
-                assert 'let next_step = "Explore"' in source, source
-                assert '## Finding ' not in source, source
-                return
-            assert time.monotonic() < deadline, source
+            source = subprocess.run(['/usr/bin/pbpaste'], capture_output=True, check=True, env=env).stdout
+            if source != marker:
+                return source.decode('utf-8')
+            assert time.monotonic() < deadline, 'Copy source did not complete'
             time.sleep(.05)
     finally:
         subprocess.run(['/usr/bin/pbcopy'], input=saved, check=True, env=env)
 
 
+def assert_reset_document_source(mac):
+    # The baseline includes a code fence, so Copy code remains legitimate.
+    source = copy_document_source(mac)
+    assert '# A place for ideas' in source, source
+    assert 'let next_step = "Explore"' in source, source
+    assert '## Finding ' not in source, source
+
+
+def exercise_code_source_controls(mac):
+    markdown = copy_document_source(mac)
+    assert '## Finding 6' in markdown, markdown
+    mac.press(TITLE, 'Code')
+    original = mac.field(TITLE, 'Code preview', 'AXTextArea')
+    assert original and 'let greeting name =' in original, original
+    expected = original
+    for finding in range(1, 7):
+        mac.press(TITLE, 'Append code')
+        mac.wait_text(TITLE, f'Code findings: {finding} / 6')
+        expected += f'\nlet finding_{finding} = "Useful detail {finding} · 世界"\n'
+        expect_field(mac, TITLE, 'Code preview', expected, role='AXTextArea')
+    mac.press(TITLE, 'Append code')
+    mac.wait_text(TITLE, 'Code findings: 6 / 6')
+    assert copy_document_source(mac) == expected
+    mac.press(TITLE, 'Markdown')
+    mac.wait_text(TITLE, 'Markdown preview')
+    assert copy_document_source(mac) == markdown, 'Code append changed Markdown'
+    mac.press(TITLE, 'Reset document')
+    mac.wait_text(TITLE, 'Document reset')
+    assert_reset_document_source(mac)
+    mac.press(TITLE, 'Append a finding')
+    mac.wait_text(TITLE, 'Appended findings: 1 / 6')
+    markdown = copy_document_source(mac)
+    assert '## Finding 1' in markdown and '## Finding 2' not in markdown, markdown
+    mac.press(TITLE, 'Code')
+    expect_field(mac, TITLE, 'Code preview', expected, role='AXTextArea')
+    mac.press(TITLE, 'Reset code')
+    mac.wait_text(TITLE, 'Code reset')
+    expect_field(mac, TITLE, 'Code preview', original, role='AXTextArea')
+    mac.press(TITLE, 'Append code')
+    mac.wait_text(TITLE, 'Code findings: 1 / 6')
+    expect_field(mac, TITLE, 'Code preview', original + '\nlet finding_1 = "Useful detail 1 · 世界"\n', role='AXTextArea')
+    mac.press(TITLE, 'Reset code')
+    mac.wait_text(TITLE, 'Code reset')
+    expect_field(mac, TITLE, 'Code preview', original, role='AXTextArea')
+    mac.press(TITLE, 'Markdown')
+    mac.wait_text(TITLE, 'Markdown preview')
+    assert copy_document_source(mac) == markdown, 'Code reset changed Markdown'
+    mac.press(TITLE, 'Code')
+    expect_field(mac, TITLE, 'Code preview', original, role='AXTextArea')
+    print('GALLERY_CODE_SOURCE_CONTROLS_OK: exact Unicode append, six-fragment cap, reset/reappend and independent Markdown source', flush=True)
+
+
 def exercise_documents(mac, images):
     exercise_document_images(mac, images)
     exercise_document_links(mac, images)
+    exercise_code_source_controls(mac)
     mac.press(TITLE, 'Code')
     mac.wait_text(TITLE, 'Code preview')
     editor = mac.wait_find(TITLE, 'Code preview', 'AXTextArea')

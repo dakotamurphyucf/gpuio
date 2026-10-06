@@ -193,7 +193,8 @@ Bonsai state/effects, activation disposal, stream acceptance/cancellation and
 resource ownership. They expose a confusing existing example detail: the Code
 tab's append/reset controls currently mutate Markdown. The guide describes that
 limitation without inferring design intent; it needs a separate example repair.
-No such code repair is claimed by this documentation batch.
+No such code repair is claimed by this documentation batch. The subsequent
+[Code-tab repair](document-code-controls-och41.md) has separate local behavior evidence.
 
 Relative local file links, source/table audit and whitespace checks pass. Agents
 checked command names/flags against code/Dune/drivers and ran no builds or GUI.

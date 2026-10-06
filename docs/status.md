@@ -15,6 +15,12 @@ Three owner-authorized GPT-6.1 Sol agents contributed scoped walkthroughs in par
 Contributor guidance and a structural CI check keep new sources visible; neither
 file presence nor that check establishes documentation or platform acceptance.
 
+[Code document controls](evidence/document-code-controls-och41.md) now append/reset
+the displayed code source independently of Markdown. Focused build/tests/format and
+root/fresh-installed macOS document walkthroughs pass. A reproduced test-driver
+scroll target used stale layout bounds; the current-bounds correction passes both
+walkthroughs without changing native scrolling or visibility assertions.
+
 [Sankey ribbon color policies](evidence/sankey-link-colors-och41.md) now expose
 Source, Target and Gradient through the public OCaml API. Endpoint colors resolve
 on the worker and one retained mesh carries the whole-ribbon gradient. Paired

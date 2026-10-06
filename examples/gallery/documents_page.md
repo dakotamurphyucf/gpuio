@@ -39,16 +39,16 @@ application defaults; this page only chooses per-view overrides.
 ## Source owners, revisions and bounded mock updates
 
 `Resources.t` contains six `Gpuio_eio.Document.t` registrations (Markdown, profile
-preview, HTML, code, diff and image examples), one borrowed asset handle and three
+preview, HTML, code, diff and image examples), one borrowed asset handle and four
 fragment counters. `Resources.create` chains asynchronous effects, mapping typed
 errors and stopping on the first failure. All acquired registrations share one
 `Preview_scope` child, so failure or departure retires partial acquisitions too.
-`Text_source.of_string` gives Markdown/HTML/diff Streaming status initially; the
+`Text_source.of_string` gives Markdown/HTML/code/diff Streaming status initially; the
 others are ordinary complete fixtures. Streaming here describes source state, not
 a network producer: this page never starts a fetch loop or calls `finish`/`cancel`.
 
 `append` adds at most six Markdown findings; `append_html` adds six HTML paragraphs;
-`append_diff` adds three Rust-file patches. They update counters only after the
+`append_code` adds six OCaml bindings; `append_diff` adds three Rust-file patches. They update counters only after the
 local `D.append` succeeds and become idempotent at the limit. The reset helpers
 restore the corresponding fixture and counter. These are UI-domain operations:
 [document.mli](../../lib/eio/document.mli) distinguishes coalesced desired snapshots
@@ -109,11 +109,14 @@ can reflect the append; no duplicate document copy is made. Six clicks reach the
 fixture limit; later clicks return the same count without appending. **Reset document**
 requests the original intro again and clears the counter.
 
-The Code tab currently displays those same append/reset controls, but they call
-`Resources.append`/`reset` on **Markdown**, not `resources.code`. Its visible code
-fixture stays unchanged; switch to Markdown or inspect the bottom preview to see
-the changed source. This is a confusing example limitation: the controls do not
-update the displayed Code document. It is not evidence of intended API behavior.
+In Code, **Append code** calls `Resources.append_code` on `resources.code`,
+adding `let finding_1 = "Useful detail 1 · 世界"` and advancing its separate counter.
+Six additions reach the cap. **Reset code** calls `reset_code`, restoring the
+original greeting fixture and that counter. These operations leave Markdown and
+its bottom preview unchanged; Markdown's controls likewise leave code unchanged.
+Code begins with Streaming status so `D.append` is valid even before its first
+reset. Native code readers stay read-only: source publication is an application
+operation, not an editable text-input API.
 **Try unsupported YAML** replaces the Markdown source with quoted/sequence syntax;
 it does not reset the fragment counter. Reset document restores both original text
 and count. Enable frontmatter to compare the unsupported source fallback.

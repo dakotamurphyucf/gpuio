@@ -22,6 +22,7 @@ module Resources = struct
     ; images : D.t
     ; image : Asset.Handle.t
     ; mutable html_fragments : int
+    ; mutable code_fragments : int
     ; mutable fragments : int
     ; mutable diff_fragments : int
     }
@@ -140,7 +141,7 @@ module Resources = struct
                     (create (Text_source.of_string ~status:Streaming intro |> ok))
                     ~f:(fun markdown ->
                       bind
-                        (create (Text_source.of_string code |> ok))
+                        (create (Text_source.of_string ~status:Streaming code |> ok))
                         ~f:(fun code ->
                           E.map
                             (create (Text_source.of_string ~status:Streaming diff |> ok))
@@ -154,6 +155,7 @@ module Resources = struct
                                  ; images
                                  ; image
                                  ; html_fragments = 0
+                                 ; code_fragments = 0
                                  ; fragments = 0
                                  ; diff_fragments = 0
                                  }))))))))
@@ -199,6 +201,22 @@ module Resources = struct
   ;;
 
   let reset t = Result.map (D.reset t.markdown intro) ~f:(fun () -> t.fragments <- 0)
+
+  let append_code t =
+    if t.code_fragments = 6
+    then Ok t.code_fragments
+    else (
+      let next = t.code_fragments + 1 in
+      Result.map
+        (D.append
+           t.code
+           (sprintf "\nlet finding_%d = \"Useful detail %d · 世界\"\n" next next))
+        ~f:(fun () ->
+          t.code_fragments <- next;
+          next))
+  ;;
+
+  let reset_code t = Result.map (D.reset t.code code) ~f:(fun () -> t.code_fragments <- 0)
 
   let append_diff t =
     if t.diff_fragments = 3
@@ -576,7 +594,24 @@ let component app window palette graph =
                           "HTML reset")))
                  ; V.switch ~checked:highlight ~on_toggle:toggle_highlight "Highlight let"
                  ]
-             | Markdown | Code ->
+             | Code ->
+               V.row
+                 ~style:(style [ Gap (px 10.); Wrap Wrap ])
+                 [ Palette.button
+                     p
+                     "Append code"
+                     (run (fun () ->
+                        Result.map (Resources.append_code resources) ~f:(fun n ->
+                          sprintf "Code findings: %d / 6" n)))
+                 ; Palette.button
+                     p
+                     "Reset code"
+                     (run (fun () ->
+                        Result.map (Resources.reset_code resources) ~f:(fun () ->
+                          "Code reset")))
+                 ; V.switch ~checked:highlight ~on_toggle:toggle_highlight "Highlight let"
+                 ]
+             | Markdown ->
                V.row
                  ~style:(style [ Gap (px 10.); Wrap Wrap ])
                  [ Palette.button
@@ -591,24 +626,21 @@ let component app window palette graph =
                      (run (fun () ->
                         Result.map (Resources.reset resources) ~f:(fun () ->
                           "Document reset")))
-                 ; (if Mode.equal mode Markdown
-                    then
-                      Palette.button
-                        p
-                        "Try unsupported YAML"
-                        (run (fun () ->
-                           Result.map
-                             (D.reset
-                                resources.markdown
-                                "---\n\
-                                 name: \"Quoted metadata\"\n\
-                                 tags: [native, readable]\n\
-                                 ---\n\n\
-                                 # Source stays visible\n\n\
-                                 This YAML falls back to code; Reset document restores \
-                                 the description example.\n")
-                             ~f:(fun () -> "Unsupported YAML sample loaded")))
-                    else V.column ~style:(style [ Display Hidden ]) [])
+                 ; Palette.button
+                     p
+                     "Try unsupported YAML"
+                     (run (fun () ->
+                        Result.map
+                          (D.reset
+                             resources.markdown
+                             "---\n\
+                              name: \"Quoted metadata\"\n\
+                              tags: [native, readable]\n\
+                              ---\n\n\
+                              # Source stays visible\n\n\
+                              This YAML falls back to code; Reset document restores the \
+                              description example.\n")
+                          ~f:(fun () -> "Unsupported YAML sample loaded")))
                  ; V.switch ~checked:highlight ~on_toggle:toggle_highlight "Highlight let"
                  ; V.switch
                      ~checked:copy_markdown
