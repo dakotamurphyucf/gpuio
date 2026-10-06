@@ -1,5 +1,26 @@
 # Component Studio
 
+## Reading the code
+
+For a first application, start with the [counter](../getting_started/README.md).
+For this larger example, follow the files by responsibility:
+
+| File | Responsibility |
+| --- | --- |
+| [main.ml](main.ml) | Entry point and package/catalog command-line modes. |
+| [application.ml](application.ml) | Eio file capabilities, app services, window creation and cleanup. |
+| [component.ml](component.ml) | Bonsai observations and effects; passes resolved values to the shell. |
+| [shell.ml](shell.ml) | Stateless GPUIO layout for navigation, page content and window chrome. Its `Snapshot` and `Actions` interfaces make the inputs explicit. |
+| [pages.ml](pages.ml) | Selects the active page's Bonsai component. Each `*_page.ml` demonstrates a component family. |
+| [palette.ml](palette.ml) and [model/](model/) | Shared presentation helpers and application value types. |
+
+`View` constructs GPUIO descriptions. `Bonsai` allocates/observes reactive state.
+`Effect` describes actions to run later; constructing a view does not run an
+application action. The shell owns neither mutable Bonsai state nor Eio work.
+File operations are supplied by the application and invoked through scoped page
+controllers. Native editor/list state remains in GPUIO's public controllers.
+The component pages are demonstrations, not required application boilerplate.
+
 Styles → **A theme from your workspace** loads a palette for the current window.
 Choose [the Aurora sample](themes/aurora.sexp), edit its hex colors in your editor,
 save, then use **Reload file**. Type into **Theme preview draft** before reloading

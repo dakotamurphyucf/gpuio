@@ -73,17 +73,22 @@ def exercise(mac, images):
     activate(mac, mac.wait_find(TITLE, 'Animate loading previews', 'AXCheckBox'))
     mac.wait_text(TITLE, 'Loading spinner')
     activate(mac, mac.wait_find(TITLE, 'Animate loading previews', 'AXCheckBox'))
+    exercise_shell(mac, images)
+
+
+def exercise_shell(mac, images):
+    """Application shell: page selection, editor retention, themes and windows."""
     mac.press(TITLE, 'Selection & actions')
     mac.press(TITLE, 'Pressed 0 times')
     mac.wait_text(TITLE, 'Pressed 1 times')
     mac.press(TITLE, 'Numbers & codes')
-    mac.wait_text(TITLE, 'Level: 35')
+    mac.wait_text(TITLE, 'Value: 35 · committed: 35')
     slider = mac.wait_find(TITLE, 'Preview level', 'AXSlider')
     try:
         mac.perform(slider, 'AXIncrement')
     finally:
         mac.release(slider)
-    mac.wait_text(TITLE, 'Level: 36')
+    mac.wait_text(TITLE, 'Value: 36 · committed: 36')
     mac.wait_text(TITLE, 'Committed quantity: 12')
     mac.press(TITLE, 'Text editing')
     focus_gallery_control(mac, 'Document title', 'AXTextField')
@@ -6687,7 +6692,7 @@ def main():
     parser.add_argument('--trace-canvas', action='store_true')
     parser.add_argument('--trace-motion', action='store_true')
     parser.add_argument('--trace-windows', action='store_true')
-    parser.add_argument('--section', choices=['all', 'core', 'settings', 'settings-windows', 'settings-composition', 'settings-fields', 'forms', 'editor-groups', 'avatar-groups', 'sliders', 'numbers', 'otp', 'rating', 'spinners', 'progress', 'selection', 'buttons', 'button-appearance', 'menu-observation', 'menu-placement', 'split-buttons', 'split-paint', 'command-tooltip', 'checkable-navigation', 'control-appearance', 'status-regions', 'badges', 'labels', 'shimmer', 'markers', 'alerts', 'tags', 'keyboard-labels', 'binding-observations', 'descriptions', 'chat-composition', 'chat-list', 'attachments', 'attachment-paint', 'groups', 'links', 'empty', 'separators', 'styles', 'borders', 'aspect-ratio', 'pickers', 'color-preview', 'calendar-viewport', 'choice-pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'selectable-lists', 'structural-tables', 'documents', 'document-links', 'document-images', 'highlighting', 'canvas', 'assets', 'clipboard', 'charts', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
+    parser.add_argument('--section', choices=['all', 'core', 'shell', 'settings', 'settings-windows', 'settings-composition', 'settings-fields', 'forms', 'editor-groups', 'avatar-groups', 'sliders', 'numbers', 'otp', 'rating', 'spinners', 'progress', 'selection', 'buttons', 'button-appearance', 'menu-observation', 'menu-placement', 'split-buttons', 'split-paint', 'command-tooltip', 'checkable-navigation', 'control-appearance', 'status-regions', 'badges', 'labels', 'shimmer', 'markers', 'alerts', 'tags', 'keyboard-labels', 'binding-observations', 'descriptions', 'chat-composition', 'chat-list', 'attachments', 'attachment-paint', 'groups', 'links', 'empty', 'separators', 'styles', 'borders', 'aspect-ratio', 'pickers', 'color-preview', 'calendar-viewport', 'choice-pickers', 'overlays', 'navigation', 'feedback', 'journeys', 'collections', 'selectable-lists', 'structural-tables', 'documents', 'document-links', 'document-images', 'highlighting', 'canvas', 'assets', 'clipboard', 'charts', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
     args = parser.parse_args()
     Mac.require_accessibility()
     if args.images:
@@ -6711,6 +6716,8 @@ def main():
             mac = Mac(child.pid, child)
             if args.section in ('all', 'core'):
                 exercise(mac, args.images)
+            if args.section == 'shell':
+                exercise_shell(mac, args.images)
             if args.section == 'links':
                 exercise_links(mac, args.images)
             if args.section == 'separators':

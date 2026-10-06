@@ -1,5 +1,16 @@
 # Examples
 
+Start with [getting_started](getting_started/README.md): one small counter with
+explicit GPUIO view, Bonsai state and application startup functions. Then use the
+[gallery](gallery/README.md#reading-the-code) for component recipes,
+[Agent Workspace](agent_chat/README.md#implementation-map) for a larger chat app,
+and [Signal Studio](signal_studio/README.md#reading-the-code) for graphics and
+desktop integration. Their entry points link to modules by responsibility;
+optional acceptance runners are separate from normal app code.
+
+The examples below include historical bootstrap and low-level integration checks.
+They are useful for framework work, but are not the recommended first-app template.
+
 `foundation/` is the bootstrap Bonsai/Eio/GPUI window and input example. Run it with
 `./scripts/gpuio smoke`; `--self-test` exercises the bridge/lifecycle/input handlers
 and cleanup, while `--two-windows` exercises native window identity and independent
@@ -8,7 +19,7 @@ handlers; they do not prove real OS IME or accessibility behavior.
 
 The bootstrap protocol and single-window application host are private to this
 example. The production per-window Bonsai/Eio API is demonstrated in `runtime/`.
-The integrated `agent_chat/` workspace is documented in its [README](agent_chat/README.md). Graphics examples follow in later milestones.
+The integrated `agent_chat/` workspace is documented in its [README](agent_chat/README.md). Signal Studio is the current graphics reference.
 
 `view_api/` demonstrates the public typed view/style/theme vocabulary, reusable
 components, a compiled Bonsai.Cont component and an explicit Eio bridge runner.

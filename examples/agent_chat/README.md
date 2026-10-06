@@ -52,7 +52,18 @@ This example is not a provider client or a storage layer.
   bounded attachments, cancellation and retry.
 - `runtime/workspace`: one window's tabs, editors, list views, commands and close
   decision; composed entirely through public view/controller APIs.
-- `main.ml`: Eio capabilities, window creation and integration acceptance runner.
+- [`main.ml`](main.ml): command-line options and package metadata only.
+- [`application.ml`](application.ml): Eio capabilities, conversation ownership,
+  window creation and resource cleanup. Start here to see how the app is assembled.
+- [`self_test.ml`](self_test.ml) and [`workload_metrics.ml`](workload_metrics.ml):
+  optional acceptance/diagnostic runners, kept out of the ordinary startup path.
+
+For the UI, follow `runtime/workspace.ml`'s `component` function: `Bonsai` owns
+reactive observations, `Effect` describes deferred actions, and `View` creates
+GPUIO elements. The workspace delegates conversation content, settings and
+inspector features to their own modules. For a smaller introduction to the same
+boundaries, read the [counter](../getting_started/README.md) and the gallery's
+[separate component and shell](../gallery/README.md#reading-the-code).
 
 The [ownership design](../../docs/design/agent-workspace.md) explains why hiding a
 row, closing a tab and closing a window have different effects on streaming.

@@ -1,27 +1,37 @@
 open Core
 module App = Gpuio_eio.App
-module B = Bonsai.Cont
-module V = Gpuio_bonsai.View
+module Effect = Bonsai.Effect
+module Bonsai = Bonsai.Cont
+module View = Gpuio_bonsai.View
 
-let component window graph =
-  let count, set_count = B.state 0 graph in
-  let open B.Let_syntax in
-  let%arr count = count
-  and set_count = set_count in
-  V.column
+(* GPUIO: describe the layout from current values and actions. *)
+let counter_view ~count ~increment ~reset ~close =
+  View.column
     ~style:
       (Gpuio.Style.create_exn
          [ Padding (Gpuio.Length.px_exn 24.); Gap (Gpuio.Length.px_exn 12.) ])
-    [ V.text "Hello from OCaml"
-    ; V.text (sprintf "Count: %d" count)
-    ; V.button "Increment" ~on_click:(set_count (count + 1))
-    ; V.button "Reset" ~on_click:(set_count 0)
-    ; V.button
-        "Close"
-        ~on_click:(Bonsai.Effect.of_thunk (fun () -> App.Window.request_close window))
+    [ View.text "Hello from OCaml"
+    ; View.text (sprintf "Count: %d" count)
+    ; View.button "Increment" ~on_click:increment
+    ; View.button "Reset" ~on_click:reset
+    ; View.button "Close" ~on_click:close
     ]
 ;;
 
+(* Bonsai: allocate state once, then derive the view whenever it changes. *)
+let component window graph =
+  let count, set_count = Bonsai.state 0 graph in
+  let open Bonsai.Let_syntax in
+  let%arr count = count
+  and set_count = set_count in
+  counter_view
+    ~count
+    ~increment:(set_count (count + 1))
+    ~reset:(set_count 0)
+    ~close:(Effect.of_thunk (fun () -> App.Window.request_close window))
+;;
+
+(* Application: start the native/Eio runtime and mount the Bonsai component. *)
 let () =
   App.run (fun _env app ->
     let (_ : App.Window.t) =

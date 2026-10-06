@@ -1,10 +1,10 @@
 open Core
-module W = Signal_studio_model.Workspace
+module Workspace = Signal_studio_model.Workspace
 module Alerts = Signal_studio_notifications.Run_alerts
 
 module Snapshot : sig
   type t =
-    { workspace : W.t
+    { workspace : Workspace.t
     ; canvas : Gpuio.Canvas_scene.Handle.t option
     ; chart : Gpuio.Chart_resource.t option
     ; command : Gpuio.Canvas.Command.t option

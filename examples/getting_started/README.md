@@ -5,6 +5,18 @@ native backend. Increment/Reset update Bonsai state; Close requests normal windo
 closure. The complete implementation is [main.ml](main.ml), with dependencies in
 [dune](dune).
 
+Read the three named parts of `main.ml` in order:
+
+1. `counter_view` is GPUIO layout: ordinary values and effects in, a view out.
+2. `component` is Bonsai: `state` allocates the counter once; `let%arr` computes a
+   new view from current values. Button effects request state changes.
+3. The entry point uses `App.run` and `App.open_window` to own the runtime and mount
+   that component. No native handles or Rust code are needed.
+
+The `View`, `Bonsai`, `Effect` and `App` aliases identify these boundaries. This
+small example stays in one file; the [gallery](../gallery/README.md#reading-the-code)
+shows the same separation using modules as the application grows.
+
 From the repository root:
 
 ```sh

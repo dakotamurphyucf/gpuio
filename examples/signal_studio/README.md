@@ -5,6 +5,25 @@ charts and the independently packaged `gpuio_example_counter` component. It uses
 the public Core/Bonsai/Eio and extension SDK APIs. The agent-chat example is a
 separate application and is unchanged.
 
+## Reading the code
+
+| File | Responsibility |
+| --- | --- |
+| [main.ml](main.ml) | Entry point and package metadata modes. |
+| [application.ml](application.ml) | Eio/native resource ownership, model actions, desktop services and windows. |
+| [component.ml](component.ml) | The Bonsai boundary: observe a snapshot and call `Ui.view`. |
+| [ui.ml](ui.ml) | Stateless GPUIO layout from `Snapshot.t` and `Actions.t`; no graph construction or I/O. |
+| [model/workspace.ml](model/workspace.ml) | Pure workspace values and chart/canvas data. |
+| [documents.ml](documents.ml), [files/](files/) and [notifications/](notifications/) | Scoped document and notification behavior. |
+| [checks.ml](checks.ml) | Optional self-test and resource-workload assertions, separate from the application. |
+
+`View` is GPUIO presentation, `Bonsai` is reactive wiring, and `Effect` represents
+a deferred action. `ui_thread.ml` is the explicit Eio-task-to-UI adapter used for
+native resource startup and integration checks; ordinary view construction does
+not need it. `application_identity.ml` shares one identity between runtime and
+packaging. Begin with the [counter](../getting_started/README.md) before studying
+this example's desktop and native-extension integration.
+
 ```sh
 GPUIO_JOBS=2 ./scripts/gpuio exec dune build examples/signal_studio/main.exe
 ./scripts/gpuio exec dune exec examples/signal_studio/main.exe

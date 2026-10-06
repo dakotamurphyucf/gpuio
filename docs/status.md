@@ -135,6 +135,12 @@ Agent notes belong in separate ignored `scratch/agents/<session>/<ticket>.md` fi
 
 ## Current implementation and evidence
 
+The reference examples now have [clearer application/state/view boundaries and
+local validation](evidence/example-readability-och17.md). Begin with the small
+counter, then follow the gallery's Application → Component → Shell reading map.
+Chat and Signal Studio keep optional acceptance runners separate from startup.
+This onboarding improvement does not close release or catalog acceptance.
+
 The public gallery and reference applications exist, with public Core/Bonsai/Eio
 APIs and native Rust ownership. Local source reviews and behavior evidence cover
 many catalog additions; neither root-module coverage nor compilation proves

@@ -1,6 +1,6 @@
 open Core
-module B = Bonsai.Cont
-module E = Bonsai.Effect
+module Effect = Bonsai.Effect
+module Bonsai = Bonsai.Cont
 module App = Gpuio_eio.App
 module Scope = Gpuio_eio.Scope
 module Editor = Gpuio_eio.Text_input
@@ -22,13 +22,13 @@ end
 type t =
   { icons : Icons.t
   ; conversations : Conversation.t list
-  ; tabs : int Tabs.t B.Expert.Var.t
-  ; dark : bool B.Expert.Var.t
-  ; notice : string B.Expert.Var.t
-  ; backend : Backend.Config.t B.Expert.Var.t
-  ; palette : bool B.Expert.Var.t
-  ; demo_controls : bool B.Expert.Var.t
-  ; close_pending : bool B.Expert.Var.t
+  ; tabs : int Tabs.t Bonsai.Expert.Var.t
+  ; dark : bool Bonsai.Expert.Var.t
+  ; notice : string Bonsai.Expert.Var.t
+  ; backend : Backend.Config.t Bonsai.Expert.Var.t
+  ; palette : bool Bonsai.Expert.Var.t
+  ; demo_controls : bool Bonsai.Expert.Var.t
+  ; close_pending : bool Bonsai.Expert.Var.t
   ; mutable close_answer : (Gpuio.Window.Close_decision.t -> unit) option
   ; panels : (int, Panel.t) Hashtbl.t
   ; inspector : Inspector.t
@@ -55,13 +55,13 @@ let create ~icons conversations ~selected =
   let chosen = List.find_exn conversations ~f:(fun c -> Conversation.id c = selected) in
   { icons
   ; conversations
-  ; tabs = B.Expert.Var.create (Tabs.create [ tab chosen ] |> Or_error.ok_exn)
-  ; dark = B.Expert.Var.create true
-  ; notice = B.Expert.Var.create "Local demo · no network or credentials"
-  ; backend = B.Expert.Var.create (Backend.Config.create () |> Or_error.ok_exn)
-  ; palette = B.Expert.Var.create false
-  ; demo_controls = B.Expert.Var.create false
-  ; close_pending = B.Expert.Var.create false
+  ; tabs = Bonsai.Expert.Var.create (Tabs.create [ tab chosen ] |> Or_error.ok_exn)
+  ; dark = Bonsai.Expert.Var.create true
+  ; notice = Bonsai.Expert.Var.create "Local demo · no network or credentials"
+  ; backend = Bonsai.Expert.Var.create (Backend.Config.create () |> Or_error.ok_exn)
+  ; palette = Bonsai.Expert.Var.create false
+  ; demo_controls = Bonsai.Expert.Var.create false
+  ; close_pending = Bonsai.Expert.Var.create false
   ; close_answer = None
   ; panels = Int.Table.create ()
   ; inspector = Inspector.create ()
@@ -70,28 +70,28 @@ let create ~icons conversations ~selected =
 ;;
 
 let select t id =
-  let previous = B.Expert.Var.get t.tabs in
+  let previous = Bonsai.Expert.Var.get t.tabs in
   let next =
     match Tabs.find previous (tab_id id) with
     | Some _ -> Tabs.select previous (tab_id id)
     | None -> Tabs.add previous (tab (find t id))
   in
-  B.Expert.Var.set t.tabs (Or_error.ok_exn next)
+  Bonsai.Expert.Var.set t.tabs (Or_error.ok_exn next)
 ;;
 
 let close_tab t id =
   let remaining, _ =
-    Tabs.remove (B.Expert.Var.get t.tabs) (tab_id id) |> Or_error.ok_exn
+    Tabs.remove (Bonsai.Expert.Var.get t.tabs) (tab_id id) |> Or_error.ok_exn
   in
-  B.Expert.Var.set t.tabs remaining
+  Bonsai.Expert.Var.set t.tabs remaining
 ;;
 
 let panel t id = Hashtbl.find t.panels id
-let dark t = B.Expert.Var.get t.dark
-let toggle_theme t = B.Expert.Var.set t.dark (not (dark t))
-let set_backend t value = B.Expert.Var.set t.backend value
-let notice t = B.Expert.Var.get t.notice
-let notify t text = B.Expert.Var.set t.notice text
+let dark t = Bonsai.Expert.Var.get t.dark
+let toggle_theme t = Bonsai.Expert.Var.set t.dark (not (dark t))
+let set_backend t value = Bonsai.Expert.Var.set t.backend value
+let notice t = Bonsai.Expert.Var.get t.notice
+let notify t text = Bonsai.Expert.Var.set t.notice text
 
 let report t result =
   Result.iter_error result ~f:(fun error -> notify t (Error.to_string_hum error))
@@ -184,7 +184,7 @@ let dot p =
 ;;
 
 let spacer = View.column ~style:(style [ Grow 1. ]) []
-let action f = E.of_thunk f
+let action f = Effect.of_thunk f
 
 let config label mode =
   Input.Config.create
@@ -213,7 +213,7 @@ let submit t window conversation submission =
     | None -> notify t "Composer is not ready."
     | Some panel ->
       let accepted =
-        let open E.Let_syntax in
+        let open Effect.Let_syntax in
         let%bind result = Editor.clear_if_unchanged panel.editor submission in
         action (fun () ->
           match result with
@@ -226,14 +226,14 @@ let submit t window conversation submission =
       Conversation.submit
         conversation
         ~window_scope:(App.Window.scope window)
-        ~config:(B.Expert.Var.get t.backend)
+        ~config:(Bonsai.Expert.Var.get t.backend)
         ~prompt:(Input.Submission.text submission)
         ~on_accept:accepted
       |> report t)
 ;;
 
 let send t editor =
-  let open E.Let_syntax in
+  let open Effect.Let_syntax in
   let%bind result = Editor.submit editor in
   action (fun () ->
     Result.iter_error result ~f:(fun error ->
@@ -241,7 +241,7 @@ let send t editor =
 ;;
 
 let attach t ~read_file ~attachment_directory window conversation =
-  let open E.Let_syntax in
+  let open Effect.Let_syntax in
   let%bind selected =
     Gpuio_eio.File_dialog.open_
       window
@@ -253,7 +253,7 @@ let attach t ~read_file ~attachment_directory window conversation =
          |> Or_error.ok_exn)
   in
   match selected with
-  | Ok None -> E.Ignore
+  | Ok None -> Effect.Ignore
   | Error error ->
     action (fun () ->
       notify t (Sexp.to_string_hum (Gpuio.File_dialog.Error.sexp_of_t error)))
@@ -326,7 +326,7 @@ let message_view t dark icons message =
 ;;
 
 let conversation_panel t ~read_file ~attachment_directory window conversation graph =
-  let dark = B.Expert.Var.value t.dark in
+  let dark = Bonsai.Expert.Var.value t.dark in
   let icons = Icons.value t.icons in
   let phase = Conversation.phase_value conversation in
   let snapshot = Pager.value (Conversation.pager conversation) in
@@ -334,28 +334,30 @@ let conversation_panel t ~read_file ~attachment_directory window conversation gr
     Editor.create
       window
       ~config:
-        (B.return (config ("Message · " ^ Conversation.title conversation) Multiline))
-      ~on_submit:(B.return (submit t window conversation))
+        (Bonsai.return
+           (config ("Message · " ^ Conversation.title conversation) Multiline))
+      ~on_submit:(Bonsai.return (submit t window conversation))
       graph
   in
   let list =
     List_view.paged
       (module Int)
       snapshot
-      ~paging:(B.return (Pager.controls (Conversation.pager conversation)))
+      ~paging:(Bonsai.return (Pager.controls (Conversation.pager conversation)))
       ~row_key:(fun id -> key (Int.to_string id))
       ~config:list_config
-      ~style:(B.return (style [ Grow 1.; Basis (px 0.); Min_height (px 0.); Width full ]))
+      ~style:
+        (Bonsai.return (style [ Grow 1.; Basis (px 0.); Min_height (px 0.); Width full ]))
       ~render_row:(fun ~key:_ ~data ~lifetime:_ _graph ->
-        let open B.Let_syntax in
+        let open Bonsai.Let_syntax in
         let%arr message = data
         and dark = dark
         and icons = icons in
         message_view t dark icons message)
       graph
   in
-  let open B.Let_syntax in
-  B.Edge.after_display
+  let open Bonsai.Let_syntax in
+  Bonsai.Edge.after_display
     (let%arr editor = editor
      and list = list in
      action (fun () ->
@@ -572,15 +574,15 @@ let conversation_panel t ~read_file ~attachment_directory window conversation gr
 let answer_close t answer =
   let callback = t.close_answer in
   t.close_answer <- None;
-  B.Expert.Var.set t.close_pending false;
+  Bonsai.Expert.Var.set t.close_pending false;
   Option.iter callback ~f:(fun callback -> callback answer)
 ;;
 
 let install_close_handler t window =
   App.Window.set_close_handler window (fun _reason ->
-    let open E.Let_syntax in
+    let open Effect.Let_syntax in
     let%bind snapshots =
-      E.all
+      Effect.all
         (List.map (Hashtbl.data t.panels) ~f:(fun panel ->
            Editor.read_snapshot panel.editor))
     in
@@ -604,11 +606,11 @@ let install_close_handler t window =
             | Not_editable ) -> true)
     in
     if not drafts
-    then E.return Gpuio.Window.Close_decision.Allow
+    then Effect.return Gpuio.Window.Close_decision.Allow
     else
-      E.Expert.of_fun ~f:(fun ~callback ->
+      Effect.Expert.of_fun ~f:(fun ~callback ->
         t.close_answer <- Some callback;
-        B.Expert.Var.set t.close_pending true));
+        Bonsai.Expert.Var.set t.close_pending true));
   Scope.Expert.on_cancel (App.Window.scope window) (fun () ->
     t.close_answer <- None;
     Hashtbl.clear t.panels)
@@ -630,19 +632,19 @@ let component
       window
       graph
   =
-  B.Edge.on_change
-    (B.Expert.Var.value t.dark)
+  Bonsai.Edge.on_change
+    (Bonsai.Expert.Var.value t.dark)
     ~equal:Bool.equal
     ~callback:
-      (B.return (fun dark ->
-         E.of_thunk (fun () ->
+      (Bonsai.return (fun dark ->
+         Effect.of_thunk (fun () ->
            App.Window.set_theme window (Palette.theme (Palette.of_dark dark)))))
     graph;
   let artifact_navigation =
     Inspector.navigation
       t.inspector
       ~icons:(Icons.value t.icons)
-      ~dark:(B.Expert.Var.value t.dark)
+      ~dark:(Bonsai.Expert.Var.value t.dark)
       graph
   in
   let inspector =
@@ -653,7 +655,7 @@ let component
       ~sources
       ~results
       ~annotation:(Settings.annotation t.settings)
-      ~dark:(B.Expert.Var.value t.dark)
+      ~dark:(Bonsai.Expert.Var.value t.dark)
       graph
   in
   let settings =
@@ -663,14 +665,14 @@ let component
       ~results
       ~on_generation:(fun generation ->
         set_backend t (Generation_settings.backend generation))
-      ~dark:(B.Expert.Var.value t.dark)
+      ~dark:(Bonsai.Expert.Var.value t.dark)
       graph
   in
   let search =
     Editor.create
       window
       ~config:
-        (B.return
+        (Bonsai.return
            (Input.Config.create
               ~mode:Single_line
               ~label:"Find conversations"
@@ -684,17 +686,17 @@ let component
       let view =
         conversation_panel t ~read_file ~attachment_directory window conversation graph
       in
-      B.map view ~f:(fun view -> Conversation.id conversation, view))
-    |> B.all
+      Bonsai.map view ~f:(fun view -> Conversation.id conversation, view))
+    |> Bonsai.all
   in
-  let open B.Let_syntax in
-  let%arr tabs = B.Expert.Var.value t.tabs
-  and dark = B.Expert.Var.value t.dark
-  and notice = B.Expert.Var.value t.notice
-  and palette = B.Expert.Var.value t.palette
-  and demo_controls = B.Expert.Var.value t.demo_controls
+  let open Bonsai.Let_syntax in
+  let%arr tabs = Bonsai.Expert.Var.value t.tabs
+  and dark = Bonsai.Expert.Var.value t.dark
+  and notice = Bonsai.Expert.Var.value t.notice
+  and palette = Bonsai.Expert.Var.value t.palette
+  and demo_controls = Bonsai.Expert.Var.value t.demo_controls
   and icons = Icons.value t.icons
-  and pending_close = B.Expert.Var.value t.close_pending
+  and pending_close = Bonsai.Expert.Var.value t.close_pending
   and search = search
   and inspector = inspector
   and artifact_navigation = artifact_navigation
@@ -720,7 +722,7 @@ let component
           ~shortcuts:[ shortcut "p" [ Primary; Shift ] ]
           "commands"
           "Open commands"
-          (fun () -> B.Expert.Var.set t.palette true)
+          (fun () -> Bonsai.Expert.Var.set t.palette true)
       ; make_command
           ~shortcuts:[ shortcut "n" [ Primary ] ]
           "new-window"
@@ -730,12 +732,14 @@ let component
           ~shortcuts:[ shortcut "]" [ Primary; Shift ] ]
           "next-tab"
           "Next conversation tab"
-          (fun () -> B.Expert.Var.set t.tabs (Tabs.next (B.Expert.Var.get t.tabs)))
+          (fun () ->
+             Bonsai.Expert.Var.set t.tabs (Tabs.next (Bonsai.Expert.Var.get t.tabs)))
       ; make_command
           ~shortcuts:[ shortcut "[" [ Primary; Shift ] ]
           "previous-tab"
           "Previous conversation tab"
-          (fun () -> B.Expert.Var.set t.tabs (Tabs.previous (B.Expert.Var.get t.tabs)))
+          (fun () ->
+             Bonsai.Expert.Var.set t.tabs (Tabs.previous (Bonsai.Expert.Var.get t.tabs)))
       ; make_command "theme" "Toggle light/dark theme" (fun () -> toggle_theme t)
       ; make_command "settings" "Workspace settings" (fun () ->
           Settings.toggle t.settings)
@@ -883,7 +887,7 @@ let component
            ~icons
            ~icon:Sliders
            "Demo controls"
-           (action (fun () -> B.Expert.Var.set t.demo_controls (not demo_controls)))
+           (action (fun () -> Bonsai.Expert.Var.set t.demo_controls (not demo_controls)))
        ]
        @ (if demo_controls
           then
@@ -1023,7 +1027,7 @@ let component
           icons
           Command
           ~label:"Commands"
-          (action (fun () -> B.Expert.Var.set t.palette true))
+          (action (fun () -> Bonsai.Expert.Var.set t.palette true))
       ]
   in
   let content =
@@ -1220,7 +1224,7 @@ let component
                      ~f:command_id)
                 ()
               |> Or_error.ok_exn)
-           ~on_dismiss:(fun _ -> action (fun () -> B.Expert.Var.set t.palette false))
+           ~on_dismiss:(fun _ -> action (fun () -> Bonsai.Expert.Var.set t.palette false))
            ()
        ]
      else [])
