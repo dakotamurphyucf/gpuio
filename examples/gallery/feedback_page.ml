@@ -316,9 +316,10 @@ let component app window palette graph =
         | Some _ -> "Copy selection selected"
       in
       sprintf
-        "%d matching commands · %s"
+        "%d matching commands · %s%s"
         (Command_palette.Snapshot.matched_count snapshot)
         selected
+        (if Command_palette.Snapshot.loading snapshot then " · Loading" else "")
   in
   let palette_command command =
     let open Bonsai.Effect.Let_syntax in
@@ -371,6 +372,8 @@ let component app window palette graph =
                    "Highlight save"
                ; V.button ~on_click:(palette_command (Highlight None)) "Clear highlight"
                ; V.button ~on_click:(palette_command Focus) "Focus search"
+               ; V.button ~on_click:(palette_command (Set_loading true)) "Start loading"
+               ; V.button ~on_click:(palette_command (Set_loading false)) "Finish loading"
                ]
            ; V.text palette_command_status
            ; V.text

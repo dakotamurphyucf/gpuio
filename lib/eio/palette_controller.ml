@@ -107,6 +107,7 @@ let%expect_test "late replies never regress observations or cross subscription/r
       ; composing = false
       ; selected = None
       ; matched_count = 0
+      ; loading = false
       }
     |> ok
   in

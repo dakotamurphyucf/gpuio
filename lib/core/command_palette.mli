@@ -126,13 +126,17 @@ module Snapshot : sig
 
   val query : t -> string
   val composing : t -> bool
+
+  (** Native loading presentation; independent of query identity and eligibility. *)
+  val loading : t -> bool
+
   val selected : t -> Command.Id.t option
 
   (** Includes disabled matching commands; excludes passive headings/separators. *)
   val matched_count : t -> int
 
   (** Same observer lifetime and query revision, including accepted edits and composition transitions.
-      Selection-only changes preserve this identity; typing away and back does not.
+      Selection/loading-only changes preserve this identity; typing away and back does not.
       Check [composing] before starting application search. This comparison is an
       observation fence, not an atomic native result-publication command. *)
   val same_query : t -> t -> bool
@@ -144,6 +148,7 @@ module Command : sig
     | Focus
     | Set_query of string
     | Highlight of Command.Id.t option
+    | Set_loading of bool
   [@@deriving equal, sexp_of]
 end
 

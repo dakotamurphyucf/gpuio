@@ -45,6 +45,9 @@ pub(super) struct State {
     rows: Vec<Row>,
     selected: Option<String>,
     preserve_no_selection: bool,
+    loading: bool,
+    #[cfg(feature = "native-tests")]
+    loading_probe: super::loading::Probe,
     snapshot: Option<gpuio_protocol::palette_state::Snapshot>,
     input_revision: Option<i64>,
     published: Option<(gpuio_protocol::HandlerId, i64)>,
@@ -246,6 +249,9 @@ impl View {
                     rows: vec![],
                     selected: None,
                     preserve_no_selection: false,
+                    loading: false,
+                    #[cfg(feature = "native-tests")]
+                    loading_probe: Default::default(),
                     snapshot: None,
                     input_revision: None,
                     published: None,
@@ -307,7 +313,7 @@ impl View {
         if expected_query.is_some_and(|r| r != snapshot.query_revision) {
             return Response::Failed(Error::QueryChanged);
         }
-        if !matches!(command, Command::ReadSnapshot) {
+        if !matches!(command, Command::ReadSnapshot | Command::SetLoading(_)) {
             if !self.focus.borrow().top_overlay(id)
                 || !self.focus.borrow().visible(id)
                 || !self.focus.borrow().interactive(id)
@@ -320,6 +326,9 @@ impl View {
         }
         match command {
             Command::ReadSnapshot => {}
+            Command::SetLoading(loading) => {
+                self.palettes.get_mut(&id).unwrap().loading = *loading;
+            }
             Command::Focus => {
                 if !state.searchable() {
                     return Response::Failed(Error::Unavailable);
@@ -347,6 +356,11 @@ impl View {
         }
         self.refresh_palette(id, cx);
         cx.notify();
+        if matches!(command, Command::SetLoading(_)) {
+            self.sync_tooltips(window, cx);
+            self.suspend_hidden_animations();
+            self.suspend_hidden_programs();
+        }
         Response::Applied(self.palettes[&id].snapshot.as_ref().unwrap().clone())
     }
     fn refresh_palette(&mut self, id: NodeId, cx: &App) -> String {
@@ -446,7 +460,9 @@ impl View {
             || previous.is_none_or(|s| s.query != query || s.composing != composing);
         let changed = query_changed
             || previous.is_none_or(|s| {
-                s.selected != state.selected || s.matched_count != state.rows.len() as i64
+                s.selected != state.selected
+                    || s.matched_count != state.rows.len() as i64
+                    || s.loading != state.loading
             });
         if changed {
             let Some(sequence) = previous.map_or(Some(1), |s| s.sequence.checked_add(1)) else {
@@ -467,6 +483,7 @@ impl View {
                 composing,
                 selected: state.selected.clone(),
                 matched_count: state.rows.len() as i64,
+                loading: state.loading,
             });
         }
         let snapshot = state.snapshot.as_ref().unwrap();
@@ -770,6 +787,9 @@ impl View {
         let row_bounds = state.row_bounds.clone();
         let query = state.query.clone();
         let searchable = state.searchable();
+        let loading = state.loading;
+        #[cfg(feature = "native-tests")]
+        let loading_probe = state.loading_probe.clone();
         let selected = state.selected.clone();
         let scroll = state.scroll.handle.clone();
         let layout_handle = scroll.clone();
@@ -1000,8 +1020,39 @@ impl View {
         if let Some(header) = self.palette_slot(node, 0, interaction, window, cx) {
             panel = panel.child(header);
         }
+        let mut search_row = div().flex().items_center().gap(px(8.)).w_full();
         if searchable {
-            panel = panel.child(query.clone());
+            search_row = search_row.child(div().flex_1().min_w_0().child(query.clone()));
+        }
+        if loading {
+            let indicator = super::loading::indicator(
+                &gpuio_protocol::loading::Config {
+                    kind: gpuio_protocol::loading::Kind::Spinner,
+                    label: "Loading commands".into(),
+                    animated: true,
+                    period_ms: 1000,
+                },
+                ((id.generation() as u64) << 32) | id.slot() as u64,
+                cx.reduce_motion() || !self.focus.borrow().visible(id),
+                super::image_corners::Shared::default(),
+                #[cfg(feature = "native-tests")]
+                loading_probe,
+            );
+            search_row = search_row.child(
+                div()
+                    .id("palette-loading")
+                    .size(px(18.))
+                    .flex_none()
+                    .role(gpui::Role::ProgressIndicator)
+                    .aria_label("Loading commands")
+                    .child(indicator),
+            );
+            if !searchable {
+                search_row = search_row.child("Loading commands");
+            }
+        }
+        if searchable || loading {
+            panel = panel.child(search_row);
         }
         // Record the private query at its visual position so ordinary Tab
         // traversal follows header -> query -> empty/footer controls.
@@ -1068,7 +1119,7 @@ impl View {
                 cx.stop_propagation();
             });
         }
-        if count == 0 {
+        if count == 0 && !loading {
             let mut empty = div()
                 .h(px(appearance.row_height as f32))
                 .child(gpui::SharedString::from(appearance.empty_label.clone()));
@@ -1080,7 +1131,7 @@ impl View {
                 self.palette_slot(node, 2, interaction, window, cx)
                     .unwrap_or_else(|| empty.into_any_element()),
             );
-        } else {
+        } else if count > 0 {
             panel = panel.child(
                 div()
                     .id("palette-list")
@@ -1099,7 +1150,7 @@ impl View {
         let outside = owner;
         let panel = crate::semantics::State {
             identity: None,
-            busy: false,
+            busy: loading,
             hidden: false,
             metadata: None,
             live: None,

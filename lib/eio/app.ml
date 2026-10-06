@@ -2682,6 +2682,7 @@ let%test_module "pending picker command lifecycle" =
           ; composing = false
           ; selected = None
           ; matched_count = 0
+          ; loading = false
           }
         in
         let snapshot =

@@ -17,7 +17,7 @@ impl View {
             if node.children.is_empty() {
                 continue;
             }
-            if !state.rows.is_empty() {
+            if !state.rows.is_empty() || state.loading {
                 hidden.push(node.children[2]);
             }
             let matched = state

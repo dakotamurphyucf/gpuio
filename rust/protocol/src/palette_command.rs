@@ -7,11 +7,12 @@ pub enum Command {
     Focus,
     SetQuery(String),
     Highlight(Option<String>),
+    SetLoading(bool),
 }
 impl Command {
     pub fn is_valid(&self) -> bool {
         let (query, selected) = match self {
-            Self::ReadSnapshot | Self::Focus => return true,
+            Self::ReadSnapshot | Self::Focus | Self::SetLoading(_) => return true,
             Self::SetQuery(query) => (query.clone(), None),
             Self::Highlight(selected) => (String::new(), selected.clone()),
         };
@@ -22,6 +23,7 @@ impl Command {
             composing: false,
             selected,
             matched_count: 1,
+            loading: false,
         }
         .is_valid()
     }

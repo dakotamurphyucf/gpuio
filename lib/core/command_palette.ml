@@ -219,6 +219,7 @@ module Snapshot = struct
 
   let query t = t.wire.query
   let composing t = t.wire.composing
+  let loading t = t.wire.loading
 
   let selected t =
     Option.map t.wire.selected ~f:(fun id ->
@@ -241,6 +242,7 @@ module Command = struct
     | Focus
     | Set_query of string
     | Highlight of Ui_command.Id.t option
+    | Set_loading of bool
   [@@deriving equal, sexp_of]
 end
 
@@ -270,6 +272,7 @@ module Expert = struct
     | Read_snapshot -> Read_snapshot
     | Focus -> Focus
     | Set_query query -> Set_query query
+    | Set_loading loading -> Set_loading loading
     | Highlight selected -> Highlight (Option.map selected ~f:Ui_command.Id.to_string)
   ;;
 

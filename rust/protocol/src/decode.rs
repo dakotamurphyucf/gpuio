@@ -1796,6 +1796,7 @@ pub fn decode(bytes: &[u8]) -> Result<Message, DecodeError> {
                 1 => Command::Focus,
                 2 => Command::SetQuery(d.text()?),
                 3 => Command::Highlight(d.option(|d| d.text())?),
+                4 => Command::SetLoading(d.boolean()?),
                 _ => return Err(DecodeError::Malformed),
             };
             if correlation <= 0 || expected.is_some_and(|r| r <= 0) || !command.is_valid() {

@@ -7,8 +7,8 @@ Ordinary `View.with_palette_content` slots remain available. Applications can
 use `App.Window.Expert.palette_command` directly when implementing another
 controller; both routes use the same bounded asynchronous request transport.
 
-Core `Command_palette.Command` contains `Read_snapshot`, `Focus`, `Set_query`
-and `Highlight`. A command captures the snapshot's exact window, node and
+Core `Command_palette.Command` contains `Read_snapshot`, `Focus`, `Set_query`,
+`Highlight` and `Set_loading`. A command captures the snapshot's exact window, node and
 observer generation. Closing/unmounting or detaching/replacing the observer
 invalidates that authority. Replacing only the callback does not reset the
 native query. Native typing, selection and activation never wait for OCaml.
@@ -17,7 +17,7 @@ native query. Native typing, selection and activation never wait for OCaml.
 private query, puts the single-line caret at its end, and clears query undo
 history. It does not modify the captured application document editor. A hidden
 query may be set, but `Focus` returns `Unavailable` while search is hidden.
-Mutations require current native interaction ownership and reject IME composition.
+Query/focus/highlight mutations require current native interaction ownership and reject IME composition.
 `Read_snapshot` may observe a mounted palette without focusing it.
 
 `Highlight (Some id)` requires a currently matching, enabled registry command;
@@ -55,5 +55,9 @@ and event 80 `Palette_result`, leaving previous tags unchanged. Both packages
 ship at the same repository revision; this is not a backwards-compatible ABI
 promise. Independent OCaml/Rust fixture bytes cover the appended messages.
 
-Atomic external-result admission, loading and persistent palette embedding remain
-separate required catalog work. These command controls do not close those gaps.
+[Loading](palette-loading.md) is a presentation-only command: it preserves query
+identity, composition and current rows, exposes busy state and suppresses empty
+content. It may run without owning interaction. Its applied state is observable
+through `Snapshot.loading`; use the query-checked command for delayed completion.
+Atomic external-result admission and persistent palette embedding remain separate
+required catalog work. These controls do not close those gaps.

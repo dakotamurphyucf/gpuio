@@ -15,15 +15,21 @@ val observe : t -> Gpuio.Command_palette.Snapshot.t -> unit Bonsai.Effect.t
 val reset : t -> unit Bonsai.Effect.t
 
 (** Captures the observed window/node/subscription, never a replacement mount.
-    At most 64 requests may be pending in the application. Mutations reject IME
-    composition and unavailable native interaction. [Read_snapshot] does not
+    At most 64 requests may be pending in the application. Query/focus/highlight
+    mutations reject IME composition and unavailable native interaction. [Read_snapshot] does not
     require focus; [Focus] requires the query field to be visible.
 
     [Set_query] accepts at most 4096 UTF-8 bytes without NUL/CR/LF, places the
     caret at the end and clears query undo history. [Highlight None] clears the
     highlight until query editing, native navigation or an explicit selection.
     [Highlight (Some id)] requires a currently matching, enabled command. No
-    command activates an item. Successful replies reflect application, not paint. *)
+    command activates an item. Successful replies reflect application, not paint.
+
+    [Set_loading] controls the native busy indicator and suppresses empty content.
+    It preserves existing rows, selection, query, undo and composition, and may
+    run while another overlay owns interaction. Use the query-checked command
+    below for asynchronous search completion. Loading does not start a search or
+    atomically publish application results. *)
 val command
   :  t
   -> Gpuio.Command_palette.Command.t

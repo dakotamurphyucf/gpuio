@@ -2877,7 +2877,15 @@ def expect_focus(mac, trigger, role="AXButton", *, title=TITLE, focused=True):
                 mac.release(value)
             mac.release(node)
         time.sleep(.03)
-    raise RuntimeError(f'{title}: expected {trigger} AXFocused={focused}')
+    active = mac.attr(mac.app, 'AXFocusedUIElement')
+    try:
+        actual = ((mac.text(active, 'AXRole'), mac.text(active, 'AXTitle'))
+                  if active else None)
+    finally:
+        if active:
+            mac.release(active)
+    raise RuntimeError(f'{title}: expected {trigger} AXFocused={focused}; '
+                       f'actual focused role/title={actual!r}')
 
 
 def expect_popup_expanded(mac, label, expected, *, role="AXButton"):
@@ -3267,6 +3275,57 @@ def exercise_feedback(mac, images):
     mac.wait_text(TITLE, '3 matching commands · Save preview selected')
     mac.press(TITLE, 'Find saves')
     expect_field(mac, TITLE, 'Preview commands', 'store', 'AXComboBox')
+    mac.wait_text(TITLE, '1 matching commands · Save preview selected')
+    mac.press(TITLE, 'Start loading')
+    mac.wait_text(TITLE, '1 matching commands · Save preview selected · Loading')
+    indicator = mac.wait_find(TITLE, 'Loading commands', 'AXProgressIndicator')
+    window = mac.window(TITLE)
+    try:
+        x, y, width, height = element_rect(mac, indicator)
+        wx, wy, ww, wh = element_rect(mac, window)
+        assert width > 0 and height > 0
+        with tempfile.TemporaryDirectory(prefix='gpuio-palette-loading-') as temporary:
+            directory = images or Path(temporary)
+            def sample(index):
+                path = directory / f'gallery-palette-loading-{index:02d}.png'
+                screenshot(mac, path, title=TITLE)
+                pixels = read_png(mac, path)
+                return [pixels.rgb((x + dx - wx) * pixels.width / ww,
+                                   (y + dy - wy) * pixels.height / wh)
+                        for dy in range(1, int(height) - 1)
+                        for dx in range(1, int(width) - 1)]
+            before = sample(0)
+            changed = 0
+            deadline = time.monotonic() + 4
+            index = 1
+            while time.monotonic() < deadline:
+                time.sleep(.17)
+                after = sample(index)
+                index += 1
+                changed = max(changed, sum(max(abs(a-b) for a,b in zip(p,q)) > 5
+                                          for p,q in zip(before,after)))
+                if changed >= 8:
+                    break
+            assert changed >= 8, ('No visible palette loading animation', changed)
+            print('GALLERY_PALETTE_LOADING_PIXELS', changed, flush=True)
+    finally:
+        mac.release(indicator)
+        mac.release(window)
+    expect_field(mac, TITLE, 'Preview commands', 'store', 'AXComboBox')
+    mac.field(TITLE, 'Preview commands', 'AXComboBox', 'missing-loading-result')
+    mac.wait_text(TITLE, '0 matching commands · No command selected · Loading')
+    absent(mac, 'Help finding a command', 'AXButton')
+    mac.key(6)  # Native typing remains available while loading.
+    expect_field(mac, TITLE, 'Preview commands', 'missing-loading-resultz', 'AXComboBox')
+    mac.press(TITLE, 'Finish loading')
+    mac.wait_text(TITLE, '0 matching commands · No command selected')
+    absent(mac, 'Loading commands', 'AXProgressIndicator')
+    mac.release(mac.wait_find(TITLE, 'Help finding a command', 'AXButton'))
+    mac.press(TITLE, 'Focus search')
+    expect_focus(mac, 'Preview commands', 'AXComboBox')
+    mac.key(6, 1 << 20)  # Loading completion preserves the query's native undo history.
+    expect_field(mac, TITLE, 'Preview commands', 'missing-loading-result', 'AXComboBox')
+    mac.press(TITLE, 'Find saves')
     mac.wait_text(TITLE, '1 matching commands · Save preview selected')
     mac.press(TITLE, 'Clear search')
     expect_field(mac, TITLE, 'Preview commands', '', 'AXComboBox')

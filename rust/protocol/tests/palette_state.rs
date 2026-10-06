@@ -32,6 +32,7 @@ fn observation_operation_and_event_have_independent_ocaml_bytes() {
         composing: false,
         selected: Some("run".into()),
         matched_count: 2,
+        loading: false,
     };
     assert!(snapshot.is_valid());
     assert_eq!(
@@ -42,7 +43,7 @@ fn observation_operation_and_event_have_independent_ocaml_bytes() {
             7,
             snapshot.clone()
         )]),
-        b"\x01\x4f\x00\x01\x01\x01\x02\x01\x07\x03\x02\x02\xce\xbb\x00\x01\x03run\x02"
+        b"\x01\x4f\x00\x01\x01\x01\x02\x01\x07\x03\x02\x02\xce\xbb\x00\x01\x03run\x02\x00"
     );
     for candidate in [
         Snapshot {
@@ -121,6 +122,7 @@ fn palette_command_and_reply_match_independent_ocaml_fixtures() {
         composing: false,
         selected: Some("run".into()),
         matched_count: 2,
+        loading: false,
     };
     assert_eq!(
         bytes(&vec![Event::PaletteResult(
@@ -130,6 +132,28 @@ fn palette_command_and_reply_match_independent_ocaml_fixtures() {
             handler,
             Response::Applied(snapshot)
         )]),
-        b"\x01\x50\x09\x00\x01\x01\x01\x02\x01\x00\x03\x02\x02\xce\xbb\x00\x01\x03run\x02"
+        b"\x01\x50\x09\x00\x01\x01\x01\x02\x01\x00\x03\x02\x02\xce\xbb\x00\x01\x03run\x02\x00"
     );
+}
+
+#[test]
+fn palette_loading_has_a_checked_boolean_and_independent_command_fixture() {
+    use gpuio_protocol::palette_command::Command;
+    let message = Message::PaletteCommand(
+        9,
+        WindowId::from_parts(0, 1).unwrap(),
+        NodeId::from_parts(1, 1).unwrap(),
+        HandlerId::from_parts(2, 1).unwrap(),
+        Some(2),
+        Command::SetLoading(true),
+    );
+    let expected = b"\x16\x09\x00\x01\x01\x01\x02\x01\x01\x02\x04\x01";
+    assert_eq!(bytes(&message), expected);
+    assert_eq!(decode(expected), Ok(message));
+    for length in 0..expected.len() {
+        assert!(decode(&expected[..length]).is_err());
+    }
+    let mut invalid = expected.to_vec();
+    *invalid.last_mut().unwrap() = 2;
+    assert!(decode(&invalid).is_err());
 }

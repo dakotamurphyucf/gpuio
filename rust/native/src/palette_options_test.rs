@@ -1252,3 +1252,267 @@ fn state(
 ) -> (bool, Option<String>, Vec<(String, bool)>) {
     owner.read_with(cx, |view, _| view.palettes[&id(1)].probe())
 }
+
+#[test]
+fn palette_loading_preserves_query_selection_composition_and_fences_stale_work() {
+    use gpuio_protocol::palette_command::{Command as C, Error as E, Response as R};
+    let mut app = TestAppContext::single();
+    let (owner, mut cx, _reader) = mount_extra(&mut app, vec![Op::SetPaletteObserved(id(1), true)]);
+    let handler = HandlerId::from_parts(1, 1).unwrap();
+    let initial = observations(&owner, &cx).pop().unwrap();
+    let R::Applied(loading) = palette_command(
+        &owner,
+        &mut cx,
+        handler,
+        Some(initial.query_revision),
+        C::SetLoading(true),
+    ) else {
+        panic!()
+    };
+    assert!(loading.loading);
+    assert!(loading.sequence > initial.sequence);
+    assert_eq!(loading.query_revision, initial.query_revision);
+    assert_eq!(loading.selected, initial.selected);
+    assert_eq!(loading.matched_count, initial.matched_count);
+    assert_eq!(
+        palette_command(&owner, &mut cx, handler, None, C::SetLoading(true)),
+        R::Applied(loading.clone())
+    );
+    let input = owner.read_with(&cx, |view, _| view.palettes[&id(1)].query.clone());
+    cx.update(|w, cx| {
+        w.focus(&input.read(cx).focus_handle(cx), cx);
+        input.update(cx, |q, cx| {
+            q.replace_and_mark_text_in_range(None, "λ", Some(0..1), w, cx)
+        });
+    });
+    assert_eq!(
+        palette_command(
+            &owner,
+            &mut cx,
+            handler,
+            Some(initial.query_revision),
+            C::SetLoading(false)
+        ),
+        R::Failed(E::QueryChanged)
+    );
+    let R::Applied(composing) =
+        palette_command(&owner, &mut cx, handler, None, C::SetLoading(false))
+    else {
+        panic!()
+    };
+    assert!(!composing.loading);
+    assert!(composing.composing);
+    assert_eq!(composing.query, "λ");
+    cx.update(|w, cx| input.update(cx, |q, cx| q.unmark_text(w, cx)));
+    // Readiness is visual status: no input edit, selection reset or implicit activation.
+    query(&owner, &mut cx, "Run");
+    let R::Applied(before) = palette_command(&owner, &mut cx, handler, None, C::SetLoading(true))
+    else {
+        panic!()
+    };
+    assert_eq!(before.selected.as_deref(), Some("run"));
+    cx.simulate_keystrokes("enter");
+    draw(&mut cx);
+    assert!(
+        state(&owner, &cx).0,
+        "existing commands still activate while loading"
+    );
+    assert_eq!(
+        palette_command(&owner, &mut cx, handler, None, C::SetLoading(false)),
+        R::Failed(E::StalePalette)
+    );
+}
+
+#[test]
+fn palette_loading_gates_empty_content_and_retires_its_painter() {
+    use gpuio_protocol::palette_command::Command as C;
+    let mut app = TestAppContext::single();
+    let mut extra = content_operations();
+    extra.push(Op::SetPaletteObserved(id(1), true));
+    let (owner, mut cx, _reader) = mount_extra(&mut app, extra);
+    let handler = HandlerId::from_parts(1, 1).unwrap();
+    cx.simulate_a11y_active(true);
+    query(&owner, &mut cx, "missing");
+    let target = cx
+        .a11y_tree()
+        .unwrap()
+        .nodes
+        .iter()
+        .find(|(_, n)| n.label() == Some("Retry"))
+        .unwrap()
+        .0;
+    palette_command(&owner, &mut cx, handler, None, C::SetLoading(true));
+    owner.read_with(&cx, |view, _| {
+        assert!(
+            !view.focus.borrow().visible(id(10)),
+            "empty controls gated before paint"
+        );
+        view.transport.mailbox.lock().unwrap().drain(128);
+    });
+    cx.simulate_a11y_action(gpui::accesskit::ActionRequest {
+        action: gpui::accesskit::Action::Click,
+        target_node: target,
+        target_tree: gpui::accesskit::TreeId::ROOT,
+        data: None,
+    });
+    draw(&mut cx);
+    owner.read_with(&cx, |view, _| {
+        assert!(
+            !view
+                .transport
+                .mailbox
+                .lock()
+                .unwrap()
+                .drain(128)
+                .iter()
+                .any(|e| matches!(e, Event::Press(_, n, _, _) if *n == id(10)))
+        );
+    });
+    assert!(
+        !cx.a11y_tree()
+            .unwrap()
+            .nodes
+            .iter()
+            .any(|(_, n)| n.label() == Some("Retry"))
+    );
+    assert!(
+        cx.a11y_tree()
+            .unwrap()
+            .nodes
+            .iter()
+            .any(|(_, n)| n.label() == Some("Loading commands"))
+    );
+    assert!(
+        cx.a11y_tree()
+            .unwrap()
+            .nodes
+            .iter()
+            .any(|(_, n)| n.label() == Some("Actions") && n.is_busy())
+    );
+    let probe = owner.read_with(&cx, |view, _| view.palettes[&id(1)].loading_probe.clone());
+    assert!(probe.get().count > 0);
+    cx.update(|_, cx| cx.set_reduce_motion(true));
+    // Deliver callbacks already requested by the preceding animated paints.
+    // The following static paint must not schedule another animation frame.
+    cx.update(|w, cx| w.simulate_next_frame(cx));
+    draw(&mut cx);
+    assert_eq!(probe.get().phase, 0.);
+    assert_eq!(cx.update(|w, cx| w.simulate_next_frame(cx)), 0);
+    palette_command(&owner, &mut cx, handler, None, C::SetLoading(false));
+    draw(&mut cx);
+    let stopped = probe.get().count;
+    draw(&mut cx);
+    assert_eq!(probe.get().count, stopped);
+    assert!(
+        cx.a11y_tree()
+            .unwrap()
+            .nodes
+            .iter()
+            .any(|(_, n)| n.label() == Some("Retry"))
+    );
+    assert!(
+        !cx.a11y_tree()
+            .unwrap()
+            .nodes
+            .iter()
+            .any(|(_, n)| n.label() == Some("Loading commands"))
+    );
+    cx.update(|_, cx| cx.set_reduce_motion(false));
+    palette_command(&owner, &mut cx, handler, None, C::SetLoading(true));
+    draw(&mut cx);
+    assert!(cx.update(|w, cx| w.simulate_next_frame(cx)) > 0);
+    cx.update(|w, cx| {
+        owner.update(cx, |view, cx| {
+            view.close_palette(id(1), PaletteDismissal::Escape, w, cx)
+        })
+    });
+    draw(&mut cx);
+    let closed = probe.get().count;
+    // Closing cannot revoke callbacks queued by the preceding live frame.
+    cx.update(|w, cx| w.simulate_next_frame(cx));
+    draw(&mut cx);
+    assert_eq!(probe.get().count, closed);
+    assert_eq!(cx.update(|w, cx| w.simulate_next_frame(cx)), 0);
+}
+
+#[test]
+fn palette_loading_survives_hidden_query_and_covered_overlay_without_editor_mutation() {
+    use gpuio_protocol::palette_command::{Command as C, Response as R};
+    let mut app = TestAppContext::single();
+    let (owner, mut cx, _reader) = mount_extra(&mut app, vec![Op::SetPaletteObserved(id(1), true)]);
+    let handler = HandlerId::from_parts(1, 1).unwrap();
+    cx.simulate_a11y_active(true);
+    query(&owner, &mut cx, "Run");
+    let input = owner.read_with(&cx, |view, _| view.palettes[&id(1)].query.clone());
+    let revision = input.read_with(&cx, |q, _| q.bridge_revision());
+    apply(
+        &owner,
+        &mut cx,
+        vec![Op::SetPaletteOptions(id(1), Some(options(false)))],
+    );
+    let R::Applied(before) = palette_command(&owner, &mut cx, handler, None, C::SetLoading(true))
+    else {
+        panic!()
+    };
+    draw(&mut cx);
+    assert!(
+        cx.a11y_tree()
+            .unwrap()
+            .nodes
+            .iter()
+            .any(|(_, n)| n.label() == Some("Loading commands")
+                && n.role() == gpui::Role::ProgressIndicator)
+    );
+    apply(
+        &owner,
+        &mut cx,
+        vec![
+            Op::Create(
+                id(2),
+                Kind::CommandPalette,
+                "".into(),
+                Some(HandlerId::from_parts(2, 1).unwrap()),
+            ),
+            Op::SetPalette(
+                id(2),
+                PaletteConfig {
+                    label: "Cover".into(),
+                    placeholder: "Cover query".into(),
+                    commands: vec![],
+                    dismiss_on_outside_pointer: true,
+                },
+            ),
+            Op::Splice(id(0), 1, 0, vec![id(2)]),
+        ],
+    );
+    owner.read_with(&cx, |view, _| {
+        assert!(!view.focus.borrow().top_overlay(id(1)))
+    });
+    let R::Applied(after) = palette_command(
+        &owner,
+        &mut cx,
+        handler,
+        Some(before.query_revision),
+        C::SetLoading(false),
+    ) else {
+        panic!()
+    };
+    assert!(!after.loading);
+    assert_eq!(after.query, before.query);
+    assert_eq!(after.selected, before.selected);
+    assert_eq!(after.query_revision, before.query_revision);
+    assert_eq!(input.read_with(&cx, |q, _| q.bridge_revision()), revision);
+    let weak = owner.read_with(&cx, |view, _| {
+        Rc::downgrade(&view.palettes[&id(1)].loading_probe)
+    });
+    apply(
+        &owner,
+        &mut cx,
+        vec![Op::Splice(id(0), 0, 1, vec![]), Op::Remove(id(1))],
+    );
+    draw(&mut cx);
+    assert!(
+        weak.upgrade().is_none(),
+        "unmount releases the indicator state"
+    );
+}

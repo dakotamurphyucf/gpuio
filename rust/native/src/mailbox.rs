@@ -1990,6 +1990,7 @@ mod palette_observation_tests {
                     composing: false,
                     selected: Some("s".repeat(256)),
                     matched_count: 1,
+                    loading: false,
                 },
             )
         };

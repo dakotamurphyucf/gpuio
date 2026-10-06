@@ -6,10 +6,11 @@ module Command = struct
     | Focus
     | Set_query of string
     | Highlight of string option
+    | Set_loading of bool
   [@@deriving bin_io, equal, sexp_of]
 
   let valid = function
-    | Read_snapshot | Focus | Highlight None -> true
+    | Read_snapshot | Focus | Highlight None | Set_loading _ -> true
     | Set_query query ->
       Palette_state_wire.valid
         { sequence = 1L
@@ -18,6 +19,7 @@ module Command = struct
         ; composing = false
         ; selected = None
         ; matched_count = 0
+        ; loading = false
         }
     | Highlight (Some id) ->
       Palette_state_wire.valid
@@ -27,6 +29,7 @@ module Command = struct
         ; composing = false
         ; selected = Some id
         ; matched_count = 1
+        ; loading = false
         }
   ;;
 end

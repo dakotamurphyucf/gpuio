@@ -15,6 +15,7 @@ let state : Palette_state_wire.t =
   ; composing = false
   ; selected = Some "run"
   ; matched_count = 2
+  ; loading = false
   }
 ;;
 
@@ -42,7 +43,7 @@ let%expect_test
   assert (
     String.equal
       bytes
-      "\001\079\000\001\001\001\002\001\007\003\002\002\206\187\000\001\003run\002");
+      "\001\079\000\001\001\001\002\001\007\003\002\002\206\187\000\001\003run\002\000");
   assert (List.equal Wire.Event.equal (Wire.Event.decode bytes |> ok) [ event state ]);
   for length = 0 to String.length bytes - 1 do
     assert (Result.is_error (Wire.Event.decode (String.prefix bytes length)))
@@ -163,7 +164,7 @@ let%expect_test "palette command wire request/reply and malformed boundaries" =
   assert (
     String.equal
       bytes
-      "\001\080\009\000\001\001\001\002\001\000\003\002\002\206\187\000\001\003run\002");
+      "\001\080\009\000\001\001\001\002\001\000\003\002\002\206\187\000\001\003run\002\000");
   assert (List.equal Wire.Event.equal (Wire.Event.decode bytes |> ok) [ reply state ]);
   List.iter
     [ Some 0L, Palette_command_wire.Command.Focus
@@ -181,5 +182,35 @@ let%expect_test "palette command wire request/reply and malformed boundaries" =
   for length = 0 to String.length bytes - 1 do
     assert (Result.is_error (Wire.Event.decode (String.prefix bytes length)))
   done;
+  [%expect {| |}]
+;;
+
+let%expect_test "loading is observed without changing query identity" =
+  let make wire =
+    Command_palette.Expert.snapshot_of_wire ~window ~node ~observer:handler wire |> ok
+  in
+  let initial = make state in
+  let loading = make { state with sequence = 4L; loading = true } in
+  assert (not (Snapshot.loading initial));
+  assert (Snapshot.loading loading);
+  assert (Snapshot.same_query initial loading);
+  let message =
+    Wire.Message.Palette_command (9L, window, node, handler, Some 2L, Set_loading true)
+  in
+  assert (
+    String.equal
+      (Wire.Message.encode message |> ok)
+      "\022\009\000\001\001\001\002\001\001\002\004\001");
+  let event =
+    Wire.Event.Palette_observed (window, node, handler, 7L, { state with loading = true })
+  in
+  let bytes = encode [ event ] in
+  assert (
+    String.equal
+      bytes
+      "\001\079\000\001\001\001\002\001\007\003\002\002\206\187\000\001\003run\002\001");
+  assert (List.equal Wire.Event.equal (Wire.Event.decode bytes |> ok) [ event ]);
+  let invalid = String.drop_suffix bytes 1 ^ "\002" in
+  assert (Result.is_error (Wire.Event.decode invalid));
   [%expect {| |}]
 ;;

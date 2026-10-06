@@ -7,6 +7,7 @@ type t =
   ; composing : bool
   ; selected : string option
   ; matched_count : int
+  ; loading : bool
   }
 [@@deriving bin_io, equal, sexp_of]
 

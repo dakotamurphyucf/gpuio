@@ -8,6 +8,7 @@ pub struct Snapshot {
     pub composing: bool,
     pub selected: Option<String>,
     pub matched_count: i64,
+    pub loading: bool,
 }
 impl Snapshot {
     pub fn is_valid(&self) -> bool {
