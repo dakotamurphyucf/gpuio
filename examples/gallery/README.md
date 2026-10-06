@@ -73,6 +73,10 @@ Native composition walkthroughs: [split actions](split_preview.md),
 [shared scrollbar descriptions](scrollbar_preview.md), [independent tab parts](tab_content_preview.md)
 and [structural tables](structural_table_preview.md).
 
+Choice and display walkthroughs: [grouped capability pickers](choice_picker_preview.md),
+[picker cases](choice_picker_cases.md), [native control indicators](control_appearance_preview.md),
+[keyboard labels](keyboard_preview.md), [typed markers](marker_preview.md) and [rich tags](tag_preview.md).
+
 Styles → **A theme from your workspace** loads a palette for the current window.
 Read the [theme-loading walkthrough](theme_preview.md), then the independent
 [appearance model](model/appearance.md), [selection identity](model/theme_selection.md),
@@ -1124,3 +1128,10 @@ Desktop and persistence guides explain the [Desktop page](desktop_page.md),
 and [Eio settings writer and expect tests](files/settings_file.md).
 The [Extensions page](extensions_page.md) traces the packaged counter's typed
 OCaml interface and native lifetime.
+
+Read the [message-slot composition](chat_composition_preview.md) and
+[managed transcript](chat_list_preview.md) guides for document/editor lifetimes.
+The [popup placement](placement_preview.md), [searchable list](selectable_preview.md),
+[controlled toolbar selection](selection_preview.md) and
+[window text selection](window_selection_preview.md) guides trace native requests
+and application state separately.

@@ -497,3 +497,28 @@ interactive Bonsai, selection, IME or platform acceptance.
 Structural inventory, local Markdown file links and whitespace checks pass.
 No executable command or GUI test was repeated for this documentation batch;
 concurrent chart validation is recorded separately. OCH-48 remains incomplete.
+
+## Upload diagnostics, pickers and selection compositions
+
+Source base `66dad21`: another 18 groups bring coverage to **207 reviewed / 53
+pending** (417 sources, 260 groups). Three authorized agents contributed separate
+six-group batches; primary review read every guide and checked representative
+source/interface contracts. The earlier layout guides also received typography
+and code-identifier formatting improvements.
+
+New coverage includes asset/canvas/chart upload diagnostics, foundation main/native/
+wire, grouped picker and edge cases, indicator appearance, keyboard/marker/tag
+presentation, message composition/managed chat, popup placement, selectable-list
+search, toolbar selection and window read-only text selection. Owning READMEs link
+each companion. Guides distinguish pure views, Bonsai state/effects, native retained
+resources and Eio scopes, with concrete traces and adaptations.
+
+The diagnostic guides explicitly explain that encoded publication is not decoding
+or rendering, the foundation protocol is private/historical, its smoke wrapper
+sets the fixture working directory, and its early SELF_TEST_PASS marker does not
+replace normal exit and final cancellation assertions. No new graphical acceptance
+is inferred from these examples or this review.
+
+The structural inventory, changed Markdown local file links and whitespace checks
+pass. Documentation-only commands were checked against source/build declarations;
+no new example GUI executions were run for this batch. OCH-48 remains open.
