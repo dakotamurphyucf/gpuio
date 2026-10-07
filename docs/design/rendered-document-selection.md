@@ -794,11 +794,38 @@ head; with later input, the viewport must retain the input's actual offset and
 Copy must retain the selection. This is native event-dispatch evidence, not an
 OS screen-reader test or proof of every nested child's event propagation.
 
-Ordinary overflow containers need separate qualification. GPUI List consumes
-`Window.request_autoscroll`; plain Div and GPUIO's current scroll Frame do not.
-Consequently these tests do not establish precise selected-head reveal through
-an ordinary GPUIO ScrollView. That needs a host-level positive control and a
-solution which preserves matching paint, hitbox and accessibility geometry.
-Changing offsets after prepaint while retaining stale geometry is insufficient.
-Cached scenes, visual-line adjacency and full accessibility acceptance also
-remain open; native test-context results alone are not OS screen-reader evidence.
+### Flow documents inside host ScrollViews
+
+GPUI List consumes `Window.request_autoscroll`; ordinary Div does not. A native
+`TextView::on_flow_reveal` observer now bridges a flow document's own measured
+selection/link request to its GPUIO host. Prepaint isolates the document's request
+from preceding siblings and stores the measured rectangle in its prepaint state.
+It leaves the request available to an enclosing GPUI List. If that list retries
+layout, only the final element's geometry reaches the paint callback.
+
+The callback retains a weak presentation and checks its interpretation, installed
+source and live host policy. It records the node, exact focus handle and rectangle
+with the host focus manager. After the complete paint, including deferred
+content, the manager matches the current eligible focused entry and validates its
+whole measured scroll/clip path before moving any owner. It uses the text target
+instead of the document's outer bounds, even when focus itself has not changed.
+Offset changes happen after paint and request the next frame; the current frame's
+paint, hitboxes and semantic geometry continue to describe the same layout. The
+request is consumed once and reset at the next paint. No OCaml paint callback,
+wire command or retained document copy is involved.
+
+A handled wheel scroll also records the current focus when it belongs to that
+scroll ancestor. This suppresses an older automatic owner-bounds reveal which
+would otherwise run after the TextView's precise reveal was canceled. Unrelated
+scroll containers do not cancel another focus owner's reveal.
+
+Host regressions reproduce the original zero-offset failure, then exercise a
+100-line document, nested horizontal/vertical ancestors, repeated far/near/far
+selection without a focus change, exact last-glyph visibility, Copy, manual scroll
+without snapback and the newer-wheel race. The last-glyph query intentionally
+avoids assigning bounds to a logical terminal separator. The enclosing GPUI List
+positive-control test also installs the observer so it guards request forwarding.
+These are native test-context results. Dedicated flow-document hard-clip cases,
+other host input-cancellation paths, reset/remount/installed-consumer OS scenarios,
+cached scenes, visual-line adjacency and full accessibility acceptance remain
+open; native test-context results alone are not OS screen-reader evidence.

@@ -240,7 +240,9 @@ impl Render for OuterScroll {
             .child(gpui_base::TextSelectionLayer)
             .child(
                 gpui::list(self.scroll.clone(), move |_, _, _| {
-                    TextView::new(&text).into_any_element()
+                    TextView::new(&text)
+                        .on_flow_reveal(|_, _, _| {})
+                        .into_any_element()
                 })
                 .size_full(),
             )

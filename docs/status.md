@@ -5,6 +5,15 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **O
 Markdown walkthroughs for every example component; its documentation acceptance is complete. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
+[Flow-document selection reveal](evidence/rendered-selection-flow-och17.md)
+now routes measured text targets through the host's post-paint scroll path,
+including nested scroll ancestors and repeated selections without a focus change.
+A newer handled wheel scroll suppresses older automatic focus reveal. All 1,166
+native tests (2 ignored), strict lint/formatting, workspace, actual desktop,
+gallery rebuild, exact Base reconstruction and real macOS range/Copy regression
+pass. Dedicated clip/other-input/consumer cases, cached AX, VoiceOver and full
+release gates remain open.
+
 [Atomic selection and later-input cancellation](evidence/rendered-selection-objects-och17.md)
 now preserve empty-object edge provenance and cancel pending reveal when the
 document receives newer wheel, pointer or key input. All 1,164 native tests

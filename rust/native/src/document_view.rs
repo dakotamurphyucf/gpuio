@@ -2023,6 +2023,8 @@ impl Render for Presentation {
                 .code_highlighter
                 .clone()
                 .expect("prepared Markdown highlighter");
+            let reveal_weak = weak.clone();
+            let reveal_interpretation = self.interpretation.clone();
             let focus_weak = weak.clone();
             let focus_interpretation = self.interpretation.clone();
             let click_interpretation = self.interpretation.clone();
@@ -2053,6 +2055,24 @@ impl Render for Presentation {
                         .unwrap_or_else(|| action_rows::code(&code_actions, block))
                 })
                 .code_block_highlighter_shared(highlighter)
+                .on_flow_reveal(move |bounds, _, cx| {
+                    let Some(presentation) = reveal_weak.upgrade() else {
+                        return;
+                    };
+                    let state = presentation.read(cx);
+                    if !state.matches_interpretation(&reveal_interpretation)
+                        || !state.allows_link_focus(installed_revision, &presentation, cx)
+                    {
+                        return;
+                    }
+                    if let Some(root) = state.root.upgrade() {
+                        root.read(cx).focus.borrow_mut().request_text_reveal(
+                            state.node,
+                            state.primary_focus(cx),
+                            bounds,
+                        );
+                    }
+                })
                 .on_tab_exit(move |backward, window, cx| tab_exit(backward, window, cx))
                 .link_focus_guard(move |cx| {
                     focus_weak.upgrade().is_some_and(|presentation| {

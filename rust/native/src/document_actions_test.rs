@@ -1,4 +1,7 @@
-//! Production mounted action rows on TestPlatform, not physical OS input evidence.
+#[path = "document_flow_selection_test.rs"]
+mod flow_selection;
+
+// Production mounted action rows on TestPlatform, not physical OS input evidence.
 use super::markdown_options_test::{apply, draw};
 use super::*;
 use crate::{session::Session, transport::Transport};
@@ -59,6 +62,14 @@ fn ready(p: &Entity<Presentation>, cx: &mut VisualTestContext) {
     panic!("document preparation did not settle");
 }
 fn mount(app: &mut TestAppContext, mode: Mode) -> (Fixture, &mut VisualTestContext) {
+    let text = if mode == Mode::Html { HTML } else { MARKDOWN };
+    mount_source(app, mode, text)
+}
+fn mount_source<'a>(
+    app: &'a mut TestAppContext,
+    mode: Mode,
+    text: &str,
+) -> (Fixture, &'a mut VisualTestContext) {
     app.update(gpui_base::init);
     let (reader, writer) = UnixStream::pair().unwrap();
     let transport = Arc::new(Transport::new(writer.as_raw_fd()).unwrap());
@@ -72,7 +83,6 @@ fn mount(app: &mut TestAppContext, mode: Mode) -> (Fixture, &mut VisualTestConte
     let Response::Created(source) = session.borrow_mut().document_request(Request::Create) else {
         panic!("source")
     };
-    let text = if mode == Mode::Html { HTML } else { MARKDOWN };
     for request in [
         Request::Begin(Update {
             id: source,

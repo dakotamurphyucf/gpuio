@@ -129,6 +129,8 @@ pub(super) fn declared(styles: &[Style]) -> bool {
 pub(super) fn attach(
     mut element: gpui::Stateful<gpui::Div>,
     state: &Rc<State>,
+    focus: super::focus::Shared,
+    node: NodeId,
 ) -> gpui::Stateful<gpui::Div> {
     // A wheel axis must not be silently translated into a different axis by the
     // fallback listener when our handler lets a boundary event bubble.
@@ -180,6 +182,7 @@ pub(super) fn attach(
                     let next = clamp(old + delta);
                     if next != old {
                         state.handle.set_offset(next);
+                        focus.borrow_mut().record_scroll_focus(node, window, cx);
                         window.refresh();
                         cx.stop_propagation();
                     }

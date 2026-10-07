@@ -1108,7 +1108,7 @@ impl View {
                 || element.style().overflow.y == Some(gpui::Overflow::Scroll))
         {
             let state = self.scrolls.entry(id).or_default().clone();
-            element = scroll::attach(element, &state);
+            element = scroll::attach(element, &state, self.focus.clone(), id);
             Some(state)
         } else {
             None

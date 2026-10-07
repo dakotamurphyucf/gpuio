@@ -558,6 +558,7 @@ pub(super) struct Manager {
     last_focus: Option<WeakFocusHandle>,
     control_bounds: Option<(NodeId, Bounds<Pixels>)>,
     reveal_requested: Cell<bool>,
+    text_reveal: Option<(NodeId, FocusHandle, Bounds<Pixels>)>,
     viewport: Bounds<Pixels>,
     clipped_targets: bool,
     clipped_handles: Vec<FocusHandle>,
@@ -594,6 +595,7 @@ impl Manager {
             last_focus: None,
             control_bounds: None,
             reveal_requested: Cell::new(false),
+            text_reveal: None,
             viewport: Bounds::default(),
             clipped_targets: false,
             clipped_handles: Vec::new(),
@@ -1442,6 +1444,7 @@ impl Manager {
         std::mem::swap(&mut self.track_clipped, &mut self.previous_track_clipped);
         self.track_clipped.clear();
         self.entries.clear();
+        self.text_reveal = None;
         self.seen.clear();
         self.paint_path.clear();
         self.viewport = viewport;
@@ -1469,6 +1472,16 @@ impl Manager {
         debug_assert_eq!(self.paint_path.len(), depth + 1);
         self.paint_path.truncate(depth);
     }
+    /// A current painted document supplies its precise native head rectangle.
+    /// Resolve the complete painted ancestor path only after all content paints.
+    pub(super) fn request_text_reveal(
+        &mut self,
+        node: NodeId,
+        handle: FocusHandle,
+        bounds: Bounds<Pixels>,
+    ) {
+        self.text_reveal = Some((node, handle, bounds));
+    }
     pub(super) fn request_reveal(&self) {
         self.reveal_requested.set(true);
     }
@@ -1483,6 +1496,22 @@ impl Manager {
             self.last_focus = window.focused(cx).map(|handle| handle.downgrade());
         }
     }
+    /// A later handled wheel scroll owns the viewport even if a prior AX action
+    /// changed focus before the next paint. Suppress fallback owner-bounds reveal
+    /// only when that focus belongs to this scroll ancestor.
+    pub(super) fn record_scroll_focus(&mut self, owner: NodeId, window: &Window, cx: &App) {
+        if self.focused_entry(window, cx).is_some_and(|entry| {
+            self.eligible(entry.node)
+                && entry
+                    .paint_path
+                    .iter()
+                    .any(|boundary| matches!(boundary, Boundary::Scroll(node, _) if *node == owner))
+        }) {
+            self.last_focus = window.focused(cx).map(|handle| handle.downgrade());
+            self.reveal_requested.set(false);
+            self.text_reveal = None;
+        }
+    }
     fn reachable(&self, target: NodeId, bounds: Bounds<Pixels>) -> bool {
         self.paint_path
             .iter()
@@ -1494,7 +1523,9 @@ impl Manager {
     /// reveals once; later wheel motion with unchanged focus stays user-owned.
     pub(super) fn finish_paint(&mut self, window: &mut Window, cx: &mut App) {
         let focused = window.focused(cx).map(|handle| handle.downgrade());
-        if !self.reveal_requested.replace(false) && focused == self.last_focus {
+        let text_reveal = self.text_reveal.take();
+        let focus_reveal = self.reveal_requested.replace(false) || focused != self.last_focus;
+        if !focus_reveal && text_reveal.is_none() {
             return;
         }
         self.last_focus = focused.clone();
@@ -1504,20 +1535,27 @@ impl Manager {
         else {
             return;
         };
+        let precise = text_reveal
+            .filter(|(node, handle, _)| *node == entry.node && *handle == entry.handle)
+            .map(|(_, _, bounds)| bounds);
+        if !focus_reveal && precise.is_none() {
+            return;
+        }
+        let target = precise.unwrap_or(entry.bounds);
         // Validate the whole path before moving any owner: a stale or newly
         // clipped outer boundary must not produce a partial reveal.
         if entry
             .paint_path
             .iter()
             .rev()
-            .try_fold(entry.bounds, |bounds, boundary| {
+            .try_fold(target, |bounds, boundary| {
                 boundary.project(entry.node, bounds)
             })
             .is_none_or(|bounds| !bounds.intersects(&self.viewport))
         {
             return;
         }
-        let mut bounds = entry.bounds;
+        let mut bounds = target;
         let mut changed = false;
         for boundary in entry.paint_path.iter().rev() {
             let Some((revealed, moved)) = boundary.reveal(entry.node, bounds) else {
