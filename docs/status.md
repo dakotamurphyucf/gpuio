@@ -5,6 +5,14 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **O
 Markdown walkthroughs for every example component; its documentation acceptance is complete. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
+[Readable inline objects](evidence/rendered-inline-objects-och17.md) now restore
+atomic alternatives inside and outside links, with distinct empty-object edges
+and stable native controls/actions. Horizontal-overflow table text and endpoints
+have dedicated coverage. All 1,153 native tests (2 ignored), strict lint, complete
+workspace/Dune checks, actual macOS editor/document tests, rebuilt-gallery
+Copy/close and exact Base reconstruction pass. Final-paint selection, guarded OS
+actions, visual-line adjacency and broader platform/release acceptance remain open.
+
 [Visible native text scopes](evidence/rendered-native-scopes-och17.md) now restore
 separators in nested lists, tables and description lists, readable custom-block
 alternatives and empty-owner caret endpoints. Original child-slot mapping fixes

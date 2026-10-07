@@ -449,6 +449,19 @@ impl Element for InlineFlow {
                     else {
                         continue;
                     };
+                    let mut snapshot = window
+                        .is_a11y_active()
+                        .then(|| {
+                            let view = crate::GlobalState::global(cx).text_view_state()?.read(cx);
+                            let projection = view.rendered_text()?;
+                            super::accessible_runs::Snapshot::for_object(
+                                &projection,
+                                view.semantic_attachments.clone(),
+                                selected,
+                                text.clone(),
+                            )
+                        })
+                        .flatten();
                     let object_size = object.metrics.size;
                     if let Some(link) = link {
                         collector.push(
@@ -456,7 +469,7 @@ impl Element for InlineFlow {
                             Bounds::new(bounds.origin + origin, object_size),
                             accessibility_label,
                             Some(link.clone()),
-                            None,
+                            snapshot.take(),
                         );
                     } else {
                         collector.native(elements.len());
@@ -476,6 +489,7 @@ impl Element for InlineFlow {
                             size(bounds.size.width, selection_bounds.size.height),
                         ),
                     )
+                    .accessible_text(snapshot)
                     .link(link.clone(), self.link_click_handler.clone())
                     .into_any_element();
                     element.prepaint_as_root(

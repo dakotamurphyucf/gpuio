@@ -153,6 +153,7 @@ impl MeasuredInlineObject {
 
 /// Atomic selection wrapper that leaves child styling and interaction to GPUI.
 pub(super) struct InlineObject {
+    accessible_text: Option<super::accessible_runs::Snapshot>,
     id: ElementId,
     text: SharedString,
     accessibility_label: SharedString,
@@ -167,6 +168,10 @@ pub(super) struct InlineObject {
 }
 
 impl InlineObject {
+    pub fn accessible_text(mut self, text: Option<super::accessible_runs::Snapshot>) -> Self {
+        self.accessible_text = text;
+        self
+    }
     pub fn link(
         mut self,
         link: Option<super::node::LinkMark>,
@@ -197,6 +202,7 @@ impl InlineObject {
             line_bounds,
             content,
             content_measured,
+            accessible_text: None,
             link: None,
             link_click_handler: None,
         }
@@ -234,6 +240,12 @@ impl Element for InlineObject {
             && (!self.content_measured || self.object.hide_accessibility_when_linked)
         {
             node.set_hidden();
+        }
+    }
+
+    fn a11y_synthetic_children(&mut self, _: &mut Hitbox, builder: &mut gpui::A11ySubtreeBuilder) {
+        if let Some(snapshot) = &self.accessible_text {
+            snapshot.publish(0, builder);
         }
     }
 

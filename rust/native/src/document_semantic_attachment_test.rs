@@ -1,4 +1,7 @@
 //! Real GPUI prepaint bindings; not OS accessibility or VoiceOver acceptance.
+#[path = "document_inline_accessibility_test.rs"]
+mod inline;
+
 use super::markdown_options_test::draw;
 use super::*;
 use gpui::{TestAppContext, VisualTestContext, accesskit};
@@ -957,6 +960,11 @@ fn assert_realized_with_extensions(
     draw(cx);
     let text = view.read_with(cx, |view, _| view.text.clone());
     assert_complete_text(&text, cx);
+    assert_all_legal_positions(&text, cx);
+    cx.a11y_tree().unwrap()
+}
+
+fn assert_all_legal_positions(text: &Entity<TextViewState>, cx: &mut VisualTestContext) {
     cx.update(|window, cx| {
         let state = text.read(cx);
         let projection = state.rendered_text().unwrap();
@@ -977,7 +985,6 @@ fn assert_realized_with_extensions(
             }
         }
     });
-    cx.a11y_tree().unwrap()
 }
 
 #[test]
@@ -1023,5 +1030,86 @@ fn realized_lists_keep_original_child_slots_and_distinct_paragraph_ids() {
 fn realized_empty_owners_keep_a_document_caret() {
     for source in ["# ", "```\n```", "---"] {
         assert_realized_complete(source);
+    }
+}
+
+#[test]
+fn horizontal_table_keeps_offscreen_reading_text_and_positions() {
+    struct HorizontalTable(Entity<TextViewState>);
+    impl Render for HorizontalTable {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            let mut style = markdown_style(false, None);
+            let mut table = style.table().clone();
+            table.overflow.x = Some(gpui::Overflow::Scroll);
+            let mut cell = gpui::StyleRefinement::default();
+            cell.text.white_space = Some(gpui::WhiteSpace::Nowrap);
+            style = style.with_table(table).with_table_cell(cell);
+            div()
+                .w(px(440.))
+                .h(px(200.))
+                .child(TextView::new(&self.0).style(style))
+        }
+    }
+    let mut app = TestAppContext::single();
+    app.update(gpui_base::init);
+    let source = format!(
+        "| LEFT {} | RIGHT {} |\n| --- | --- |\n| λ🙂 | β |\n",
+        "wide ".repeat(30),
+        "wide ".repeat(30)
+    );
+    let (view, cx) = app.add_window_view(|_, cx| {
+        HorizontalTable(cx.new(|cx| {
+            let mut state = TextViewState::externally_prepared(cx);
+            state.set_prepared(
+                PreparedText::parse(&source, Default::default()).unwrap(),
+                None,
+                cx,
+            );
+            state
+        }))
+    });
+    cx.simulate_a11y_active(true);
+    draw(cx);
+    let text = view.read_with(cx, |view, _| view.0.clone());
+    assert_complete_text(&text, cx);
+    assert_all_legal_positions(&text, cx);
+    let tree = cx.a11y_tree().unwrap();
+    let table = tree
+        .nodes
+        .iter()
+        .find(|(_, node)| node.role() == accesskit::Role::Table)
+        .unwrap();
+    assert!(
+        table.1.bounds().unwrap().width() > 440.,
+        "real overflow track"
+    );
+    // A scroll viewport keeps text addressable; this is not preview clipping or
+    // permission to act on an offscreen native control.
+    let right = tree
+        .nodes
+        .iter()
+        .find(|(_, node)| {
+            node.role() == accesskit::Role::ColumnHeader && node.column_index() == Some(1)
+        })
+        .unwrap();
+    assert!(subtree_text(&tree, right.0).starts_with("RIGHT"));
+    assert!(right.1.bounds().unwrap().x0 >= 440.);
+    let mut cursor = Some(right.0);
+    while let Some(id) = cursor {
+        let node = &tree
+            .nodes
+            .iter()
+            .find(|(candidate, _)| *candidate == id)
+            .unwrap()
+            .1;
+        assert!(
+            !node.is_hidden(),
+            "scrollable reading text retains an accessible ancestor chain"
+        );
+        cursor = tree
+            .nodes
+            .iter()
+            .find(|(_, parent)| parent.children().contains(&id))
+            .map(|(id, _)| *id);
     }
 }

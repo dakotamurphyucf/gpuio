@@ -85,7 +85,7 @@
     "version": "0.6.1",
     "gpui_commit": "a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b",
     "archive_sha256": "909c00c97bbfce11607eef7d3eccd01201d591af9d26cd9ebadfe0c90fca502f",
-    "patch_sha256": "0f35af5474974eb2f76db05370d3b9faa167d3143672359819dd8a7d46f9cf74"
+    "patch_sha256": "ad611a51c9b4f1cbda95a2d7a3249c96a4b734f27acb79833c57034705482b1d"
   },
   "gpui": {
     "url": "https://github.com/zed-industries/zed.git",

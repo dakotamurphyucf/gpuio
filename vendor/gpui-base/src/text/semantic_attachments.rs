@@ -250,6 +250,21 @@ impl Frame {
         }
     }
 
+    pub fn record_reading_run(
+        &self,
+        node: NodeId,
+        part: RenderedAccessiblePartId,
+        characters: std::ops::Range<usize>,
+    ) {
+        let mut state = self.0.lock().expect("semantic attachment frame");
+        let Some(projection) = state.projection.upgrade() else {
+            return;
+        };
+        if let Some(run) = TextRun::new(&projection, node, part, characters) {
+            state.candidate_runs.insert(node, run);
+        }
+    }
+
     pub fn position(
         &self,
         window: gpui::WindowId,

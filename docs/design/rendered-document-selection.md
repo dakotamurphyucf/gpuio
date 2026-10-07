@@ -624,9 +624,9 @@ have a zero-character caret run. Clamped previews do not expand into the full
 logical document.
 
 This supersedes the earlier absence of offscreen runs. It does not complete the
-Document contract: inline-object/link interiors and clipped nested content still
-need dedicated integration coverage, as do visual-line adjacency, final-paint
-selection, guarded reveal/activation and OS selection actions. Offscreen link
+Document contract: visual-line adjacency, final-paint selection, guarded
+reveal/activation, OS selection actions and comprehensive clipping-policy
+acceptance remain required. Offscreen link
 roles and URLs do not imply an implemented activation handler. Actual macOS
 accessibility and VoiceOver acceptance remain separate from TestPlatform coverage.
 
@@ -660,3 +660,21 @@ storage is included in retention and admission accounting. See
 [native scope evidence](../evidence/rendered-native-scopes-och17.md) for the
 reproduced failures, coverage and remaining limitations. This does not authorize
 actions from last-prepaint coordinates or establish OS accessibility acceptance.
+
+## Reading inline atomic alternatives
+
+Native text snapshots distinguish a shaped glyph fragment from an atomic reading
+part. A reading binding carries the exact prepared part ID and character range;
+its TextRuns may split a multiline alternative without granting native selection
+inside the object. The existing checked conversion still permits only atomic
+edges, including distinct edges for adjacent empty objects represented by U+FFFC.
+No character bounds are inferred from an arbitrary widget's rectangle.
+
+Linked objects publish through their existing logical link, while unlinked objects
+publish beneath their actual native wrapper. Each snapshot has one owner; custom
+controls retain their native identities and actions. Equal-text replacement retires
+reading IDs independently of control IDs. The
+[inline-object evidence](../evidence/rendered-inline-objects-och17.md) includes
+action/coordinate tests and a horizontal-table reading check beyond the viewport.
+Readable offscreen text is not permission to dispatch actions to an offscreen
+control, and these bindings remain separate from final-paint selection publication.

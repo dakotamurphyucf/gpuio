@@ -1,10 +1,16 @@
 //! TextRun children of actual native labels/links. Geometry comes from the same
 //! cached shaped clusters as pointer selection; missing geometry stays missing.
-use std::ops::Range;
+use std::{
+    ops::Range,
+    sync::{Arc, Mutex},
+};
 
 use gpui::{A11ySubtreeBuilder, SharedString, accesskit};
 
-use super::{rendered_text::RenderedFragment, semantic_attachments::Frame};
+use super::{
+    RenderedAccessiblePartId, RenderedText, rendered_text::RenderedFragment,
+    semantic_attachments::Frame,
+};
 use crate::text_selection::TextSelectionGlyph;
 
 #[derive(Clone)]
@@ -15,12 +21,20 @@ struct Run {
 }
 
 #[derive(Clone)]
+enum Binding {
+    Glyphs(Frame, RenderedFragment),
+    // Reading coordinates may include atomic interiors. Mapping to native
+    // selection still goes through the checked part-edge conversion.
+    Reading(Frame, RenderedAccessiblePartId),
+}
+
+#[derive(Clone)]
 pub(super) struct Snapshot {
     text: SharedString,
     runs: Vec<Run>,
     scale: f32,
     start: usize,
-    binding: Option<(Frame, RenderedFragment)>,
+    binding: Option<Binding>,
 }
 
 impl Snapshot {
@@ -96,13 +110,48 @@ impl Snapshot {
     }
 
     pub fn with_binding(mut self, binding: Option<(Frame, RenderedFragment)>) -> Self {
-        self.binding = binding;
+        self.binding = binding.map(|(frame, fragment)| Binding::Glyphs(frame, fragment));
         self
     }
 
+    pub fn for_object<T>(
+        projection: &RenderedText,
+        frame: Frame,
+        owner: &Arc<Mutex<T>>,
+        text: SharedString,
+    ) -> Option<Self> {
+        let fragment = projection.object_fragment(owner)?;
+        let (part, characters) = projection.accessible_fragment(&fragment)?;
+        let reading = projection.accessible_part_text(part)?;
+        let text = if text.as_ref() == reading {
+            text
+        } else {
+            reading.to_owned().into()
+        };
+        let len = text.len();
+        let mut snapshot = Self::new(text, &[], 0..len, 1.);
+        debug_assert_eq!(characters.start, 0);
+        debug_assert_eq!(
+            characters.len(),
+            snapshot
+                .runs
+                .iter()
+                .map(|run| run.lengths.len())
+                .sum::<usize>()
+        );
+        snapshot.binding = Some(Binding::Reading(frame, part));
+        Some(snapshot)
+    }
+
     pub fn publish(&self, key: usize, builder: &mut A11ySubtreeBuilder) {
+        let mut first = 0;
         for run in &self.runs {
-            let binding = self.binding.as_ref().and_then(|(frame, fragment)| {
+            let characters = first..first + run.lengths.len();
+            first = characters.end;
+            let binding = self.binding.as_ref().and_then(|binding| {
+                let Binding::Glyphs(frame, fragment) = binding else {
+                    return None;
+                };
                 Some((
                     frame,
                     fragment.slice(run.bytes.start - self.start..run.bytes.end - self.start)?,
@@ -111,13 +160,23 @@ impl Snapshot {
             let provenance = binding
                 .as_ref()
                 .map(|(_, fragment)| (fragment.edge(false), fragment.edge(true)));
-            let id = builder.synthetic_node_id((
-                "rendered-text-run",
-                provenance,
-                key,
-                run.bytes.start,
-                run.bytes.end,
-            ));
+            let id = if let Some(Binding::Reading(_, part)) = &self.binding {
+                builder.synthetic_node_id((
+                    "rendered-object-run",
+                    part,
+                    key,
+                    characters.start,
+                    characters.end,
+                ))
+            } else {
+                builder.synthetic_node_id((
+                    "rendered-text-run",
+                    provenance,
+                    key,
+                    run.bytes.start,
+                    run.bytes.end,
+                ))
+            };
             let mut node = accesskit::Node::new(accesskit::Role::TextRun);
             node.set_value(self.text[run.bytes.clone()].to_owned());
             node.set_character_lengths(run.lengths.clone());
@@ -157,10 +216,12 @@ impl Snapshot {
                         .collect::<Vec<_>>(),
                 );
             }
-            if builder.push_child(id, node)
-                && let Some((frame, fragment)) = binding
-            {
-                frame.record_run(id, &fragment, run.lengths.len());
+            if builder.push_child(id, node) {
+                if let Some((frame, fragment)) = binding {
+                    frame.record_run(id, &fragment, run.lengths.len());
+                } else if let Some(Binding::Reading(frame, part)) = &self.binding {
+                    frame.record_reading_run(id, *part, characters);
+                }
             }
         }
     }
