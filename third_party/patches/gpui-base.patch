@@ -14647,3 +14647,666 @@
      pub const fn revision(self) -> TextSelectionContentRevision {
          self.revision
      }
+--- a/src/button.rs
++++ b/src/button.rs
+@@ -212,6 +212,12 @@
+         let on_click = self.on_click;
+ 
+         self.base
++            // A control press belongs to the button, including when it is
++            // nested inside a selectable document object. Keep propagation for
++            // activation/focus while preventing parent text selection.
++            .on_mouse_down(MouseButton::Left, |_, _, cx| {
++                crate::GlobalState::suppress_text_selection(cx);
++            })
+             // Centering is part of Button's control geometry. Without a flex
+             // formatting context an ordinary child starts at the root's
+             // leading edge, so a fixed-height unstyled Button cannot align its
+--- a/src/checkbox.rs
++++ b/src/checkbox.rs
+@@ -370,6 +370,11 @@
+         let on_change = self.on_change;
+ 
+         self.base
++            // Native controls own their pointer interaction inside selectable
++            // documents; bubbling still delivers activation and focus.
++            .on_mouse_down(gpui::MouseButton::Left, |_, _, cx| {
++                crate::GlobalState::suppress_text_selection(cx);
++            })
+             .test_support()
+             .when_some(self.role.resolve(|| Role::CheckBox), |this, role| {
+                 this.role(role)
+--- a/src/link.rs
++++ b/src/link.rs
+@@ -171,6 +171,11 @@
+         let activates = on_activate.is_some() || href.is_some() && open_with.is_some();
+ 
+         self.base
++            // Native controls own their pointer interaction inside selectable
++            // documents; bubbling still delivers activation and focus.
++            .on_mouse_down(gpui::MouseButton::Left, |_, _, cx| {
++                crate::GlobalState::suppress_text_selection(cx);
++            })
+             .role(Role::Link)
+             .when_some(self.accessibility_label, |this, label| {
+                 this.aria_label(label)
+--- a/src/radio.rs
++++ b/src/radio.rs
+@@ -199,6 +199,11 @@
+         let on_change = self.on_change;
+ 
+         self.base
++            // Native controls own their pointer interaction inside selectable
++            // documents; bubbling still delivers activation and focus.
++            .on_mouse_down(gpui::MouseButton::Left, |_, _, cx| {
++                crate::GlobalState::suppress_text_selection(cx);
++            })
+             .test_support()
+             .role(Role::RadioButton)
+             .aria_toggled(if checked {
+--- a/src/slider.rs
++++ b/src/slider.rs
+@@ -476,6 +476,9 @@
+         self.base
+             .id(("slider", entity_id))
+             .test_support()
++            .on_mouse_down(MouseButton::Left, |_, _, cx| {
++                crate::GlobalState::suppress_text_selection(cx);
++            })
+             .role(Role::Slider)
+             .aria_numeric_value(state.value().end() as f64)
+             .aria_min_numeric_value(state.min_value() as f64)
+--- a/src/switch.rs
++++ b/src/switch.rs
+@@ -350,6 +350,11 @@
+         let style = self.resolved_style();
+ 
+         self.base
++            // Native controls own their pointer interaction inside selectable
++            // documents; bubbling still delivers activation and focus.
++            .on_mouse_down(gpui::MouseButton::Left, |_, _, cx| {
++                crate::GlobalState::suppress_text_selection(cx);
++            })
+             .test_support()
+             .role(Role::Switch)
+             .aria_toggled(if checked {
+--- /dev/null
++++ b/src/text/block_object.rs
+@@ -0,0 +1,210 @@
++//! Atomic block ownership around arbitrary native layout and controls.
++use super::{TextViewMultiClickKind, inline::point_in_text_selection, state::LineSpan};
++use crate::GlobalState;
++use gpui::{
++    AnyElement, App, Bounds, CursorStyle, Element, ElementId, GlobalElementId, Hitbox,
++    HitboxBehavior, InspectorElementId, IntoElement, LayoutId, MouseButton, MouseDownEvent, Pixels,
++    Role, SharedString, Window,
++};
++use std::sync::{Arc, Mutex};
++
++/// Selection ownership follows the declared presentation; glyph-owned Text
++/// must never accidentally acquire a whole-object Copy override.
++#[derive(Default)]
++pub(super) enum BlockSelection {
++    #[default]
++    Text,
++    Object(bool),
++}
++impl BlockSelection {
++    pub(super) fn is_selected(&self) -> bool {
++        matches!(self, Self::Object(true))
++    }
++    pub(super) fn is_object(&self) -> bool {
++        matches!(self, Self::Object(_))
++    }
++    pub(super) fn clear(&mut self) {
++        if let Self::Object(selected) = self {
++            *selected = false;
++        }
++    }
++}
++
++pub(super) struct BlockObject {
++    id: usize,
++    copy_text: SharedString,
++    label: SharedString,
++    selected: Arc<Mutex<BlockSelection>>,
++    content: AnyElement,
++}
++impl BlockObject {
++    pub(super) fn new(
++        id: usize,
++        copy_text: SharedString,
++        label: SharedString,
++        selected: Arc<Mutex<BlockSelection>>,
++        content: AnyElement,
++    ) -> Self {
++        Self {
++            id,
++            copy_text,
++            label,
++            selected,
++            content,
++        }
++    }
++}
++impl IntoElement for BlockObject {
++    type Element = Self;
++    fn into_element(self) -> Self {
++        self
++    }
++}
++impl Element for BlockObject {
++    type RequestLayoutState = ();
++    type PrepaintState = Hitbox;
++    fn id(&self) -> Option<ElementId> {
++        Some(("atomic-block", self.id).into())
++    }
++    fn source_location(&self) -> Option<&'static std::panic::Location<'static>> {
++        None
++    }
++    fn a11y_role(&self) -> Option<Role> {
++        Some(Role::GenericContainer)
++    }
++    fn write_a11y_info(&self, node: &mut gpui::accesskit::Node) {
++        node.set_role(Role::GenericContainer);
++        if !self.label.is_empty() {
++            node.set_label(self.label.as_ref());
++        }
++        // Keep native child controls and their semantics; no hidden source tree.
++    }
++    fn request_layout(
++        &mut self,
++        _: Option<&GlobalElementId>,
++        _: Option<&InspectorElementId>,
++        window: &mut Window,
++        cx: &mut App,
++    ) -> (LayoutId, ()) {
++        (self.content.request_layout(window, cx), ())
++    }
++    fn prepaint(
++        &mut self,
++        _: Option<&GlobalElementId>,
++        _: Option<&InspectorElementId>,
++        bounds: Bounds<Pixels>,
++        _: &mut (),
++        window: &mut Window,
++        cx: &mut App,
++    ) -> Hitbox {
++        let hitbox = window.insert_hitbox(bounds, HitboxBehavior::Normal);
++        self.content.prepaint(window, cx);
++        if let Some(view) = GlobalState::global(cx).text_view_state() {
++            let state = view.read(cx);
++            if state.max_lines.is_some()
++                && let Ok(mut spans) = state.line_spans.lock()
++            {
++                spans.push(LineSpan {
++                    top: bounds.top(),
++                    bottom: bounds.bottom(),
++                    line_height: bounds.size.height,
++                });
++            }
++        }
++        hitbox
++    }
++    fn paint(
++        &mut self,
++        _: Option<&GlobalElementId>,
++        _: Option<&InspectorElementId>,
++        bounds: Bounds<Pixels>,
++        _: &mut (),
++        hitbox: &mut Hitbox,
++        window: &mut Window,
++        cx: &mut App,
++    ) {
++        let view = GlobalState::global(cx).text_view_state().cloned();
++        let selectable = view.as_ref().is_some_and(|v| v.read(cx).is_selectable());
++        let selected = view.as_ref().is_some_and(|view| {
++            let state = view.read(cx);
++            if !selectable {
++                return false;
++            }
++            if state.preserve_inline_selection && !state.is_all_selected() {
++                return self.selected.lock().is_ok_and(|s| s.is_selected());
++            }
++            state.is_all_selected()
++                || state
++                    .multi_click_selection()
++                    .is_some_and(|s| bounds.contains(&s.pos))
++                || state.selection_points(cx).is_some_and(|(start, end)| {
++                    point_in_text_selection(
++                        bounds.origin,
++                        bounds.size.width,
++                        start,
++                        end,
++                        bounds.size.height,
++                    )
++                })
++        });
++        if let Ok(mut state) = self.selected.lock() {
++            *state = BlockSelection::Object(selected);
++        }
++        let selection_color =
++            selected.then(|| view.as_ref().unwrap().read(cx).text_view_style.selection());
++        if selectable {
++            let view = view.unwrap();
++            window.set_cursor_style(CursorStyle::IBeam, hitbox);
++            let visible = bounds.intersect(&window.content_mask().bounds);
++            if visible.size.width > Pixels::ZERO && visible.size.height > Pixels::ZERO {
++                view.update(cx, |state, _| {
++                    state.selection_adapter.register_inline(vec![visible]);
++                    let fragment = state
++                        .rendered_text()
++                        .and_then(|t| t.object_fragment(&self.selected));
++                    state
++                        .selection_adapter
++                        .register_object_endpoint(bounds, fragment);
++                });
++            }
++            let revision = view.read(cx).rendered_text_revision();
++            let hitbox = hitbox.clone();
++            let selected_state = self.selected.clone();
++            let copy_text = self.copy_text.clone();
++            let current_view = window.current_view();
++            window.on_mouse_event(move |event: &MouseDownEvent, phase, window, cx| {
++                if !phase.bubble()
++                    || !hitbox.is_hovered(window)
++                    || event.button != MouseButton::Left
++                    || GlobalState::is_text_selection_suppressed(cx)
++                {
++                    return;
++                }
++                if !view.read(cx).accepts_selection_frame(revision) {
++                    GlobalState::suppress_text_selection(cx);
++                    return;
++                }
++                if !(2..=3).contains(&event.click_count) {
++                    return;
++                }
++                GlobalState::suppress_text_selection(cx);
++                if let Ok(mut selected) = selected_state.lock() {
++                    *selected = BlockSelection::Object(true);
++                }
++                view.update(cx, |s, cx| {
++                    s.set_multi_click_selection(
++                        event.position,
++                        TextViewMultiClickKind::Word,
++                        copy_text.to_string(),
++                        cx,
++                    )
++                });
++                cx.notify(current_view);
++            });
++        }
++        self.content.paint(window, cx);
++        if let Some(color) = selection_color {
++            window.paint_quad(gpui::fill(bounds, color));
++        }
++    }
++}
+--- a/src/text/inline_object.rs
++++ b/src/text/inline_object.rs
+@@ -395,6 +395,7 @@
+                 if !phase.bubble()
+                     || !hitbox.is_hovered(window)
+                     || event.button != MouseButton::Left
++                    || GlobalState::is_text_selection_suppressed(cx)
+                 {
+                     return;
+                 }
+--- a/src/text/markdown_ext.rs
++++ b/src/text/markdown_ext.rs
+@@ -74,6 +74,10 @@
+     fn parse(&self, node: &mdast::Node, cx: &MarkdownParseContext<'_>) -> Option<MarkdownNode>;
+ 
+     /// Render a custom Markdown node produced by this plugin.
++    /// Opaque/NonText blocks are wrapped as whole selectable objects. Native
++    /// child controls must claim their own mouse-down selection with
++    /// `GlobalState::suppress_text_selection` (or their editor adapter) so
++    /// double/triple clicks do not also select the containing object.
+     fn render(&self, node: &MarkdownNode, _window: &mut Window, _cx: &mut App) -> impl IntoElement {
+         node.as_text().to_string()
+     }
+@@ -127,6 +131,7 @@
+     // Parsed-occurrence state; unlike the immutable displayed-text projection,
+     // this belongs to the reader's selection lifetime.
+     pub(super) block_text: Arc<Mutex<super::inline::InlineState>>,
++    pub(super) block_selected: Arc<Mutex<super::block_object::BlockSelection>>,
+     name: SharedString,
+     text: SharedString,
+     explicit_text: bool,
+@@ -145,6 +150,7 @@
+         Self {
+             projection_key: Arc::new(()),
+             block_text: Arc::new(Mutex::new(Default::default())),
++            block_selected: Arc::default(),
+             name: name.into(),
+             text: SharedString::default(),
+             explicit_text: false,
+@@ -246,6 +252,7 @@
+         // its own identity; subsequent renderer clones preserve this key.
+         self.projection_key = Arc::new(());
+         self.block_text = Arc::new(Mutex::new(Default::default()));
++        self.block_selected = Arc::default();
+         self.span = span;
+     }
+ 
+--- a/src/text/mod.rs
++++ b/src/text/mod.rs
+@@ -1,4 +1,5 @@
+ mod backgrounds;
++mod block_object;
+ mod control_navigation;
+ mod displayed_text;
+ mod document;
+--- a/src/text/node.rs
++++ b/src/text/node.rs
+@@ -296,6 +296,20 @@
+                         text.push_str(content);
+                         text.push('\n');
+                     }
++                } else if node
++                    .block_selected
++                    .lock()
++                    .is_ok_and(|selected| selected.is_selected())
++                {
++                    let content = if matches!(kind, BlockTextKind::SelectedSource) {
++                        node.to_markdown()
++                    } else {
++                        node.as_text().to_owned()
++                    };
++                    if !content.is_empty() {
++                        text.push_str(&content);
++                        text.push('\n');
++                    }
+                 } else if let Ok(state) = node.block_text.lock()
+                     && let Some(selection) = state.selection
+                     && let Some(selected) = state.text.get(selection.start..selection.end)
+@@ -360,10 +374,15 @@
+                 .iter()
+                 .any(|entry| entry.label.has_selection() || entry.value.has_selection()),
+             BlockNode::CodeBlock(code_block) => code_block.has_selection(),
+-            BlockNode::Custom(node) => node
+-                .block_text
+-                .lock()
+-                .is_ok_and(|state| state.selection.is_some()),
++            BlockNode::Custom(node) => {
++                node.block_selected
++                    .lock()
++                    .is_ok_and(|selected| selected.is_selected())
++                    || node
++                        .block_text
++                        .lock()
++                        .is_ok_and(|state| state.selection.is_some())
++            }
+             BlockNode::Definition { .. }
+             | BlockNode::Break { .. }
+             | BlockNode::HorizontalRule { .. }
+@@ -398,6 +417,9 @@
+             }
+             BlockNode::CodeBlock(code_block) => code_block.clear_selection(),
+             BlockNode::Custom(node) => {
++                if let Ok(mut selected) = node.block_selected.lock() {
++                    selected.clear();
++                }
+                 if let Ok(mut state) = node.block_text.lock() {
+                     state.selection = None;
+                 }
+@@ -2928,7 +2950,16 @@
+                     None => div().child(node.as_text().to_string()).into_any_element(),
+                 };
+ 
+-                div().pb(mb).child(inner).into_any_element()
++                div()
++                    .pb(mb)
++                    .child(super::block_object::BlockObject::new(
++                        node.source_range().map_or(ix, |range| range.start),
++                        node.shared_text(),
++                        node.shared_accessibility_name(),
++                        node.block_selected.clone(),
++                        inner,
++                    ))
++                    .into_any_element()
+             }
+             BlockNode::Table { .. } => {
+                 Self::render_table(self, &options, node_cx, window, cx).into_any_element()
+@@ -3961,7 +3992,25 @@
+             | (Self::Heading { children: new, .. }, Self::Heading { children: old, .. }) => {
+                 new.transfer_selection(old, all)
+             }
+-            (Self::Custom(new), Self::Custom(old)) => new.as_text().starts_with(old.as_text()),
++            (Self::Custom(new), Self::Custom(old)) => {
++                let selected = old
++                    .block_selected
++                    .lock()
++                    .is_ok_and(|state| state.is_selected() || (all && state.is_object()));
++                if selected {
++                    if new != old {
++                        return false;
++                    }
++                    let Ok(mut state) = new.block_selected.lock() else {
++                        return false;
++                    };
++                    if !state.is_object() {
++                        return false;
++                    }
++                    *state = super::block_object::BlockSelection::Object(true);
++                }
++                new.as_text().starts_with(old.as_text())
++            }
+             (Self::CodeBlock(new), Self::CodeBlock(old)) => {
+                 transfer_inline_selection(&old.state, &new.state, &old.code(), &new.code(), all)
+             }
+--- a/src/text/rendered_text.rs
++++ b/src/text/rendered_text.rs
+@@ -82,7 +82,7 @@
+ #[derive(Clone, Debug)]
+ enum Owner {
+     Text(Weak<Mutex<InlineState>>),
+-    BlockObject(Weak<Mutex<InlineState>>),
++    BlockObject(Weak<Mutex<super::block_object::BlockSelection>>),
+     Object(Weak<Mutex<bool>>),
+     Separator,
+ }
+@@ -310,12 +310,10 @@
+             .parts
+             .iter()
+             .enumerate()
+-            .filter_map(|(index, part)| {
+-                if let Owner::Object(owner) = &part.owner {
+-                    Some((owner.as_ptr() as usize, index))
+-                } else {
+-                    None
+-                }
++            .filter_map(|(index, part)| match &part.owner {
++                Owner::Object(owner) => Some((owner.as_ptr() as usize, index)),
++                Owner::BlockObject(owner) => Some((owner.as_ptr() as usize, index)),
++                Owner::Text(_) | Owner::Separator => None,
+             })
+             .collect::<Vec<_>>();
+         object_parts.sort_unstable_by_key(|(owner, _)| *owner);
+@@ -336,7 +334,7 @@
+         &self.parts
+     }
+ 
+-    pub(super) fn object_fragment(&self, owner: &Arc<Mutex<bool>>) -> Option<RenderedFragment> {
++    pub(super) fn object_fragment<T>(&self, owner: &Arc<Mutex<T>>) -> Option<RenderedFragment> {
+         let index = self
+             .object_parts
+             .binary_search_by_key(&(Arc::as_ptr(owner) as usize), |(owner, _)| *owner)
+@@ -539,11 +537,13 @@
+         enum Strong {
+             Text(Arc<Mutex<InlineState>>),
+             Object(Arc<Mutex<bool>>),
++            BlockObject(Arc<Mutex<super::block_object::BlockSelection>>),
+             Separator,
+         }
+         enum Locked<'a> {
+             Text(MutexGuard<'a, InlineState>, &'a str, Option<Selection>),
+             Object(MutexGuard<'a, bool>, bool),
++            BlockObject(MutexGuard<'a, super::block_object::BlockSelection>, bool),
+             Separator,
+         }
+         let selection = self.selection(&selection.anchor, &selection.head)?;
+@@ -553,10 +553,9 @@
+             .iter()
+             .map(|part| {
+                 match &part.owner {
+-                    Owner::Text(owner) | Owner::BlockObject(owner) => {
+-                        owner.upgrade().map(Strong::Text)
+-                    }
++                    Owner::Text(owner) => owner.upgrade().map(Strong::Text),
+                     Owner::Object(owner) => owner.upgrade().map(Strong::Object),
++                    Owner::BlockObject(owner) => owner.upgrade().map(Strong::BlockObject),
+                     Owner::Separator => Some(Strong::Separator),
+                 }
+                 .ok_or(RenderedSelectionError::OwnerUnavailable)
+@@ -569,14 +568,6 @@
+                     <= (part.bytes.start, part.start_slot)
+                 && (part.bytes.end, part.end_slot)
+                     <= selection.anchor.order_key().max(selection.head.order_key());
+-            // Opaque block widgets still need a native whole-object wrapper.
+-            // Do not acknowledge a zero-width selection that cannot paint it.
+-            if atomic_selected
+-                && part.bytes.is_empty()
+-                && matches!(part.owner, Owner::BlockObject(_))
+-            {
+-                return Err(RenderedSelectionError::UnmappedOwner);
+-            }
+             let start = range.start.max(part.bytes.start);
+             let end = range.end.min(part.bytes.end);
+             let selected = (start < end)
+@@ -600,6 +591,15 @@
+                         .map_err(|_| RenderedSelectionError::OwnerUnavailable)?,
+                     atomic_selected,
+                 ),
++                Strong::BlockObject(owner) => {
++                    let state = owner
++                        .try_lock()
++                        .map_err(|_| RenderedSelectionError::OwnerUnavailable)?;
++                    if !state.is_object() {
++                        return Err(RenderedSelectionError::UnmappedOwner);
++                    }
++                    Locked::BlockObject(state, atomic_selected)
++                }
+                 Strong::Separator => Locked::Separator,
+             });
+         }
+@@ -614,6 +614,9 @@
+                     state.selection = selected;
+                 }
+                 Locked::Object(mut state, selected) => *state = selected,
++                Locked::BlockObject(mut state, selected) => {
++                    *state = super::block_object::BlockSelection::Object(selected)
++                }
+                 Locked::Separator => {}
+             }
+         }
+@@ -626,7 +629,7 @@
+         self.parts
+             .iter()
+             .filter_map(|part| match &part.owner {
+-                Owner::Text(owner) | Owner::BlockObject(owner) => {
++                Owner::Text(owner) => {
+                     let owner = owner.upgrade()?;
+                     let state = owner.lock().ok()?;
+                     if state.text.as_ref() != &self.text[part.bytes.clone()] {
+@@ -638,6 +641,11 @@
+                         return None;
+                     }
+                     Some(part.bytes.start + range.start..part.bytes.start + range.end)
++                }
++                Owner::BlockObject(owner) => {
++                    let owner = owner.upgrade()?;
++                    let selected = owner.lock().ok()?.is_selected();
++                    selected.then(|| part.bytes.clone())
+                 }
+                 Owner::Object(owner) => {
+                     let owner = owner.upgrade()?;
+@@ -800,6 +808,11 @@
+             }
+             BlockNode::Custom(node) => {
+                 if let Some(state) = self.displayed.object_block_text(node) {
++                    *node
++                        .block_selected
++                        .lock()
++                        .map_err(|_| SharedString::from("invalid prepared block selection"))? =
++                        super::block_object::BlockSelection::Text;
+                     // A declared Text block belongs to the reader's glyph
+                     // selection. Its whole-document Copy alternative may have
+                     // unrelated bytes; those are not character coordinates.
+@@ -810,14 +823,35 @@
+                         .clone();
+                     self.text_with_copy_len(&glyphs, node.as_text().len(), &state)?;
+                 } else {
+-                    node.block_text
+-                        .lock()
+-                        .map_err(|_| SharedString::from("invalid prepared inline state"))?
+-                        .rendered_fragment = None;
++                    {
++                        let mut state = node
++                            .block_text
++                            .lock()
++                            .map_err(|_| SharedString::from("invalid prepared inline state"))?;
++                        state.rendered_fragment = None;
++                        state.selection = None;
++                    }
++                    {
++                        let mut state = node
++                            .block_selected
++                            .lock()
++                            .map_err(|_| SharedString::from("invalid prepared block selection"))?;
++                        if !state.is_object() {
++                            *state = super::block_object::BlockSelection::Object(false);
++                        }
++                    }
+                     self.push(
+                         node.as_text(),
+-                        Owner::BlockObject(Arc::downgrade(&node.block_text)),
++                        Owner::BlockObject(Arc::downgrade(&node.block_selected)),
+                     )?;
++                    if node.as_text().is_empty() {
++                        self.parts.last_mut().unwrap().zero_source = Some(ZeroSource {
++                            key: Arc::downgrade(&node.projection_key),
++                            span: node.source_range(),
++                            name: node.shared_name(),
++                            markdown: node.shared_markdown(),
++                        });
++                    }
+                 }
+                 self.block_separator(start, copy_start)?;
+             }
+--- a/src/text/state.rs
++++ b/src/text/state.rs
+@@ -514,8 +514,16 @@
+                 self.selection_adapter
+                     .set_local_selection(!range.is_collapsed() || self.has_frozen_whole_copy(), cx);
+             }
+-            if all {
+-                self.selected_text_override = None;
++            // Appending within the last block can move its terminal
++            // separator out of the rebound logical range. Preserve the
++            // exact old Copy result even when the old projection matched
++            // it; only the new selected range can prove equivalence.
++            if all
++                && let Some(plain) = self.selected_text_override.take()
++                && new.selected_text(&range) != Some(plain.as_str())
++                && let Some(copy) = &mut self.prepared_whole_copy
++            {
++                copy.plain = Some(plain);
+             }
+             self.rendered_selection = Some(selection.rebind(range));
+         }
+--- a/src/toggle.rs
++++ b/src/toggle.rs
+@@ -169,6 +169,11 @@
+         let on_change = self.on_change;
+ 
+         self.base
++            // Native controls own their pointer interaction inside selectable
++            // documents; bubbling still delivers activation and focus.
++            .on_mouse_down(gpui::MouseButton::Left, |_, _, cx| {
++                crate::GlobalState::suppress_text_selection(cx);
++            })
+             .test_support()
+             .role(Role::Button)
+             // Match Button's neutral control geometry: a fixed-size toggle

@@ -302,8 +302,8 @@ Explicit clearing, replacement and input policy still retire selections.
 Unbounded legacy views and unmapped owners retain their existing native behavior
 without publishing a fabricated logical range. Empty inline alternatives now use
 the explicit object edges described below; a byte interval alone cannot represent
-their selected state. Opaque block integration and broader custom-object
-qualification remain required before complete AX acceptance.
+their selected state. Opaque blocks use the wrapper described below; broader
+custom-object qualification remains required before complete AX acceptance.
 
 
 ## Streaming and native frame identity
@@ -354,8 +354,10 @@ falls back to the selected glyphs when no character mapping exists.
 Genuine Select All, and an explicit request covering the entire document, retain
 the existing whole-document plain/source Copy policy. A compatible append freezes
 that old scope: its logical range follows the old glyphs; a separate immutable
-whole-Copy snapshot retains a differing declared representation. Ordinary matching
-Copy continues to use the logical range and its structural-separator affinity.
+whole-Copy snapshot retains a differing declared representation. A snapshot is
+also retained when append rebinding moves an old terminal structural separator outside the new logical range. Comparing only the old Copy
+and old projection is insufficient: compare against the rebound selected text.
+Thus exact Copy stays frozen while paint excludes newly appended characters.
 Selecting a new range or clearing the selection discards the old Copy snapshot.
 A whole-Copy scope can remain active even with zero displayed characters; this
 adds no synthetic characters to the logical text.
@@ -369,9 +371,9 @@ SDK's generated-string allowance is reduced.
 This addresses reader-owned custom block glyphs. Inline custom objects retain
 atomic selection, including when their presentation declares Text. Empty-copy
 inline objects use the ordered edges described below; a collapsed byte range alone
-cannot represent that selection. Opaque/NonText block interaction,
-custom-object scope/virtualization and rich AX publication remain separate
-requirements.
+cannot represent that selection. Opaque/NonText blocks use the native wrapper
+described below. Broader custom-object scope/virtualization and rich AX publication
+remain separate qualification requirements.
 
 ## Empty inline-object edges
 
@@ -401,7 +403,39 @@ compatible source/AST-transfer checks. Matching empty strings is insufficient.
 Projection/fragment and metadata storage is charged in preparation accounting;
 no strong parent AST or native view is retained by an endpoint.
 
-This integration covers inline atomic objects. Opaque/NonText block selection
-still needs its native whole-object wrapper; requests that would select a zero-byte
-block are rejected as unmapped until that integration is complete. Broader reflow/virtualization qualification, selection performance and rich AX
-remain required work.
+Both inline and opaque/NonText block objects now use these ordered edges; block
+objects delegate their actual native layout through the wrapper below. Broader
+reflow/virtualization qualification, selection performance and rich AX remain
+required work.
+
+## Opaque and NonText block ownership
+
+A custom block with Opaque or NonText presentation is one selectable object.
+`BlockObject` delegates layout and prepaint to the native child, registers its
+whole bounds and checked owner edges, and draws the selection wash after child
+content. No synthetic glyph or character-level mapping is invented for arbitrary
+Rust rendering. Empty Copy alternatives remain selectable through ordered edges;
+Source Copy uses the selected occurrence's declared Markdown.
+
+`BlockSelection` distinguishes glyph-owned Text from Object(selected). Changing
+renderer resources cannot leave an old whole-object flag shadowing partial glyph
+Copy. Rebinding selected atomic blocks additionally requires compatible occurrence
+identity/source metadata; equal Copy alternatives alone cannot preserve selection
+when an append changes the selected block's meaning.
+
+Native child semantic nodes remain under the block container. Button, checkbox,
+radio, toggle, switch, slider and link pointer handlers suppress parent text
+selection without stopping activation or focus propagation. Input keeps its own editor
+selection and typing. Custom interactive renderer authors must similarly claim
+pointer selection through `GlobalState::suppress_text_selection` in their native
+mouse-down handler (or their established editor interaction adapter). This is a
+Rust extension-author contract, not a synchronous OCaml callback. A semantic role
+alone does not opt an arbitrary element into that interaction policy.
+
+Targeted qualification includes repeated empty/nonempty blocks, both directions,
+background double/triple clicks, resize, renderer-kind changes, unchanged appends,
+replacement cancellation and unpainted multi-block requests with weak-owner
+cleanup. Tests of a native child Input's focus/typing do not establish its complete
+AX adapter. The block container is not rich TextRun/AX selection publication;
+that work and broader physical/virtualized/reflow/performance acceptance remain
+required.

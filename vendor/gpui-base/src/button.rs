@@ -212,6 +212,12 @@ impl RenderOnce for Button {
         let on_click = self.on_click;
 
         self.base
+            // A control press belongs to the button, including when it is
+            // nested inside a selectable document object. Keep propagation for
+            // activation/focus while preventing parent text selection.
+            .on_mouse_down(MouseButton::Left, |_, _, cx| {
+                crate::GlobalState::suppress_text_selection(cx);
+            })
             // Centering is part of Button's control geometry. Without a flex
             // formatting context an ordinary child starts at the root's
             // leading edge, so a fixed-height unstyled Button cannot align its

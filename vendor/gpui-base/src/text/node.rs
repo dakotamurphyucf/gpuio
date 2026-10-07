@@ -296,6 +296,20 @@ impl BlockNode {
                         text.push_str(content);
                         text.push('\n');
                     }
+                } else if node
+                    .block_selected
+                    .lock()
+                    .is_ok_and(|selected| selected.is_selected())
+                {
+                    let content = if matches!(kind, BlockTextKind::SelectedSource) {
+                        node.to_markdown()
+                    } else {
+                        node.as_text().to_owned()
+                    };
+                    if !content.is_empty() {
+                        text.push_str(&content);
+                        text.push('\n');
+                    }
                 } else if let Ok(state) = node.block_text.lock()
                     && let Some(selection) = state.selection
                     && let Some(selected) = state.text.get(selection.start..selection.end)
@@ -360,10 +374,15 @@ impl BlockNode {
                 .iter()
                 .any(|entry| entry.label.has_selection() || entry.value.has_selection()),
             BlockNode::CodeBlock(code_block) => code_block.has_selection(),
-            BlockNode::Custom(node) => node
-                .block_text
-                .lock()
-                .is_ok_and(|state| state.selection.is_some()),
+            BlockNode::Custom(node) => {
+                node.block_selected
+                    .lock()
+                    .is_ok_and(|selected| selected.is_selected())
+                    || node
+                        .block_text
+                        .lock()
+                        .is_ok_and(|state| state.selection.is_some())
+            }
             BlockNode::Definition { .. }
             | BlockNode::Break { .. }
             | BlockNode::HorizontalRule { .. }
@@ -398,6 +417,9 @@ impl BlockNode {
             }
             BlockNode::CodeBlock(code_block) => code_block.clear_selection(),
             BlockNode::Custom(node) => {
+                if let Ok(mut selected) = node.block_selected.lock() {
+                    selected.clear();
+                }
                 if let Ok(mut state) = node.block_text.lock() {
                     state.selection = None;
                 }
@@ -2928,7 +2950,16 @@ impl BlockNode {
                     None => div().child(node.as_text().to_string()).into_any_element(),
                 };
 
-                div().pb(mb).child(inner).into_any_element()
+                div()
+                    .pb(mb)
+                    .child(super::block_object::BlockObject::new(
+                        node.source_range().map_or(ix, |range| range.start),
+                        node.shared_text(),
+                        node.shared_accessibility_name(),
+                        node.block_selected.clone(),
+                        inner,
+                    ))
+                    .into_any_element()
             }
             BlockNode::Table { .. } => {
                 Self::render_table(self, &options, node_cx, window, cx).into_any_element()
@@ -3961,7 +3992,25 @@ impl BlockNode {
             | (Self::Heading { children: new, .. }, Self::Heading { children: old, .. }) => {
                 new.transfer_selection(old, all)
             }
-            (Self::Custom(new), Self::Custom(old)) => new.as_text().starts_with(old.as_text()),
+            (Self::Custom(new), Self::Custom(old)) => {
+                let selected = old
+                    .block_selected
+                    .lock()
+                    .is_ok_and(|state| state.is_selected() || (all && state.is_object()));
+                if selected {
+                    if new != old {
+                        return false;
+                    }
+                    let Ok(mut state) = new.block_selected.lock() else {
+                        return false;
+                    };
+                    if !state.is_object() {
+                        return false;
+                    }
+                    *state = super::block_object::BlockSelection::Object(true);
+                }
+                new.as_text().starts_with(old.as_text())
+            }
             (Self::CodeBlock(new), Self::CodeBlock(old)) => {
                 transfer_inline_selection(&old.state, &new.state, &old.code(), &new.code(), all)
             }

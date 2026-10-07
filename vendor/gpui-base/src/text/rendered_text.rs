@@ -82,7 +82,7 @@ impl RenderedFragment {
 #[derive(Clone, Debug)]
 enum Owner {
     Text(Weak<Mutex<InlineState>>),
-    BlockObject(Weak<Mutex<InlineState>>),
+    BlockObject(Weak<Mutex<super::block_object::BlockSelection>>),
     Object(Weak<Mutex<bool>>),
     Separator,
 }
@@ -310,12 +310,10 @@ impl RenderedText {
             .parts
             .iter()
             .enumerate()
-            .filter_map(|(index, part)| {
-                if let Owner::Object(owner) = &part.owner {
-                    Some((owner.as_ptr() as usize, index))
-                } else {
-                    None
-                }
+            .filter_map(|(index, part)| match &part.owner {
+                Owner::Object(owner) => Some((owner.as_ptr() as usize, index)),
+                Owner::BlockObject(owner) => Some((owner.as_ptr() as usize, index)),
+                Owner::Text(_) | Owner::Separator => None,
             })
             .collect::<Vec<_>>();
         object_parts.sort_unstable_by_key(|(owner, _)| *owner);
@@ -336,7 +334,7 @@ impl RenderedText {
         &self.parts
     }
 
-    pub(super) fn object_fragment(&self, owner: &Arc<Mutex<bool>>) -> Option<RenderedFragment> {
+    pub(super) fn object_fragment<T>(&self, owner: &Arc<Mutex<T>>) -> Option<RenderedFragment> {
         let index = self
             .object_parts
             .binary_search_by_key(&(Arc::as_ptr(owner) as usize), |(owner, _)| *owner)
@@ -539,11 +537,13 @@ impl RenderedText {
         enum Strong {
             Text(Arc<Mutex<InlineState>>),
             Object(Arc<Mutex<bool>>),
+            BlockObject(Arc<Mutex<super::block_object::BlockSelection>>),
             Separator,
         }
         enum Locked<'a> {
             Text(MutexGuard<'a, InlineState>, &'a str, Option<Selection>),
             Object(MutexGuard<'a, bool>, bool),
+            BlockObject(MutexGuard<'a, super::block_object::BlockSelection>, bool),
             Separator,
         }
         let selection = self.selection(&selection.anchor, &selection.head)?;
@@ -553,10 +553,9 @@ impl RenderedText {
             .iter()
             .map(|part| {
                 match &part.owner {
-                    Owner::Text(owner) | Owner::BlockObject(owner) => {
-                        owner.upgrade().map(Strong::Text)
-                    }
+                    Owner::Text(owner) => owner.upgrade().map(Strong::Text),
                     Owner::Object(owner) => owner.upgrade().map(Strong::Object),
+                    Owner::BlockObject(owner) => owner.upgrade().map(Strong::BlockObject),
                     Owner::Separator => Some(Strong::Separator),
                 }
                 .ok_or(RenderedSelectionError::OwnerUnavailable)
@@ -569,14 +568,6 @@ impl RenderedText {
                     <= (part.bytes.start, part.start_slot)
                 && (part.bytes.end, part.end_slot)
                     <= selection.anchor.order_key().max(selection.head.order_key());
-            // Opaque block widgets still need a native whole-object wrapper.
-            // Do not acknowledge a zero-width selection that cannot paint it.
-            if atomic_selected
-                && part.bytes.is_empty()
-                && matches!(part.owner, Owner::BlockObject(_))
-            {
-                return Err(RenderedSelectionError::UnmappedOwner);
-            }
             let start = range.start.max(part.bytes.start);
             let end = range.end.min(part.bytes.end);
             let selected = (start < end)
@@ -600,6 +591,15 @@ impl RenderedText {
                         .map_err(|_| RenderedSelectionError::OwnerUnavailable)?,
                     atomic_selected,
                 ),
+                Strong::BlockObject(owner) => {
+                    let state = owner
+                        .try_lock()
+                        .map_err(|_| RenderedSelectionError::OwnerUnavailable)?;
+                    if !state.is_object() {
+                        return Err(RenderedSelectionError::UnmappedOwner);
+                    }
+                    Locked::BlockObject(state, atomic_selected)
+                }
                 Strong::Separator => Locked::Separator,
             });
         }
@@ -614,6 +614,9 @@ impl RenderedText {
                     state.selection = selected;
                 }
                 Locked::Object(mut state, selected) => *state = selected,
+                Locked::BlockObject(mut state, selected) => {
+                    *state = super::block_object::BlockSelection::Object(selected)
+                }
                 Locked::Separator => {}
             }
         }
@@ -626,7 +629,7 @@ impl RenderedText {
         self.parts
             .iter()
             .filter_map(|part| match &part.owner {
-                Owner::Text(owner) | Owner::BlockObject(owner) => {
+                Owner::Text(owner) => {
                     let owner = owner.upgrade()?;
                     let state = owner.lock().ok()?;
                     if state.text.as_ref() != &self.text[part.bytes.clone()] {
@@ -638,6 +641,11 @@ impl RenderedText {
                         return None;
                     }
                     Some(part.bytes.start + range.start..part.bytes.start + range.end)
+                }
+                Owner::BlockObject(owner) => {
+                    let owner = owner.upgrade()?;
+                    let selected = owner.lock().ok()?.is_selected();
+                    selected.then(|| part.bytes.clone())
                 }
                 Owner::Object(owner) => {
                     let owner = owner.upgrade()?;
@@ -800,6 +808,11 @@ impl Builder<'_> {
             }
             BlockNode::Custom(node) => {
                 if let Some(state) = self.displayed.object_block_text(node) {
+                    *node
+                        .block_selected
+                        .lock()
+                        .map_err(|_| SharedString::from("invalid prepared block selection"))? =
+                        super::block_object::BlockSelection::Text;
                     // A declared Text block belongs to the reader's glyph
                     // selection. Its whole-document Copy alternative may have
                     // unrelated bytes; those are not character coordinates.
@@ -810,14 +823,35 @@ impl Builder<'_> {
                         .clone();
                     self.text_with_copy_len(&glyphs, node.as_text().len(), &state)?;
                 } else {
-                    node.block_text
-                        .lock()
-                        .map_err(|_| SharedString::from("invalid prepared inline state"))?
-                        .rendered_fragment = None;
+                    {
+                        let mut state = node
+                            .block_text
+                            .lock()
+                            .map_err(|_| SharedString::from("invalid prepared inline state"))?;
+                        state.rendered_fragment = None;
+                        state.selection = None;
+                    }
+                    {
+                        let mut state = node
+                            .block_selected
+                            .lock()
+                            .map_err(|_| SharedString::from("invalid prepared block selection"))?;
+                        if !state.is_object() {
+                            *state = super::block_object::BlockSelection::Object(false);
+                        }
+                    }
                     self.push(
                         node.as_text(),
-                        Owner::BlockObject(Arc::downgrade(&node.block_text)),
+                        Owner::BlockObject(Arc::downgrade(&node.block_selected)),
                     )?;
+                    if node.as_text().is_empty() {
+                        self.parts.last_mut().unwrap().zero_source = Some(ZeroSource {
+                            key: Arc::downgrade(&node.projection_key),
+                            span: node.source_range(),
+                            name: node.shared_name(),
+                            markdown: node.shared_markdown(),
+                        });
+                    }
                 }
                 self.block_separator(start, copy_start)?;
             }

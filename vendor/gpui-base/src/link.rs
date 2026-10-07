@@ -171,6 +171,11 @@ impl RenderOnce for Link {
         let activates = on_activate.is_some() || href.is_some() && open_with.is_some();
 
         self.base
+            // Native controls own their pointer interaction inside selectable
+            // documents; bubbling still delivers activation and focus.
+            .on_mouse_down(gpui::MouseButton::Left, |_, _, cx| {
+                crate::GlobalState::suppress_text_selection(cx);
+            })
             .role(Role::Link)
             .when_some(self.accessibility_label, |this, label| {
                 this.aria_label(label)

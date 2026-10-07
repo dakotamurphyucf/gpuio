@@ -276,6 +276,7 @@ fn streamed_select_all_keeps_old_glyphs_and_separator_ownership() {
             } else {
                 state.update(&mut app, |s, cx| s.select_all(cx));
             }
+            let frozen_copy = copy(&state, &app);
             let queued = request(&state, &app, 0, 0);
             state.update(&mut app, |s, cx| {
                 s.set_prepared(parse(&format!("{source}{suffix}")), Some(source.len()), cx)
@@ -294,7 +295,9 @@ fn streamed_select_all_keeps_old_glyphs_and_separator_ownership() {
                 );
                 assert_eq!(s.requested_rendered_selection().is_some(), backward);
             });
-            assert_eq!(copy(&state, &app), expected);
+            // Logical paint edges exclude newly owned appended bytes, while
+            // whole Copy retains the original structural separator.
+            assert_eq!(copy(&state, &app), frozen_copy);
             assert_eq!(
                 state.update(&mut app, |s, cx| s.apply_rendered_selection(queued, cx)),
                 Err(Error::StaleRequest)
@@ -774,4 +777,271 @@ fn empty_atomic_resource_refresh_keeps_edges_but_replacement_retires_them() {
     });
     assert_eq!(copy(&state, &app), "");
     assert!(!state.read_with(&app, |s, _| s.has_local_selection()));
+}
+
+#[derive(Clone)]
+struct OpaqueBlock {
+    copy: &'static str,
+    non_text: bool,
+}
+impl MarkdownPlugin for OpaqueBlock {
+    fn name(&self) -> &str {
+        "opaque-block"
+    }
+    fn is_block(&self) -> bool {
+        true
+    }
+    fn parse(
+        &self,
+        node: &gpui_base::text::markdown_ast::Node,
+        context: &gpui_base::text::MarkdownParseContext<'_>,
+    ) -> Option<MarkdownNode> {
+        matches!(node, gpui_base::text::markdown_ast::Node::Blockquote(_)).then(|| {
+            MarkdownNode::new("opaque-block", ())
+                .text(self.copy)
+                .markdown(context.node_source(node).unwrap_or_default())
+        })
+    }
+    fn presentation(&self, _: &MarkdownNode) -> MarkdownPresentation {
+        if self.non_text {
+            MarkdownPresentation::NonText
+        } else {
+            MarkdownPresentation::Opaque
+        }
+    }
+}
+#[test]
+fn opaque_block_atomic_requests_copy_empty_and_nonempty_owners_and_stream() {
+    for non_text in [false, true] {
+        for alternative in ["", "alternative"] {
+            let extensions = MarkdownExtensions::default().plugin(OpaqueBlock {
+                copy: alternative,
+                non_text,
+            });
+            let source = "Before\n\n> first\n\n> second\n\nAfter";
+            let (mut app, state) = mount(PreparedText::parse(source, extensions.clone()).unwrap());
+            let text = state.read_with(&app, |s, _| s.rendered_text().unwrap());
+            let index = text
+                .parts()
+                .iter()
+                .enumerate()
+                .filter(|(_, p)| p.is_atomic())
+                .nth(1)
+                .unwrap()
+                .0;
+            let selected = text.selection_for_part(index).unwrap();
+            let request = state.read_with(&app, |s, _| {
+                s.prepare_rendered_selection(selected.head(), selected.anchor())
+                    .unwrap()
+            });
+            state
+                .update(&mut app, |s, cx| s.apply_rendered_selection(request, cx))
+                .unwrap();
+            assert_eq!(copy(&state, &app), alternative);
+            state.read_with(&app, |s, _| {
+                assert!(s.has_local_selection());
+                let range = s.rendered_selection().unwrap();
+                assert!(!range.is_collapsed());
+                assert!(range.is_backward());
+                assert_eq!(
+                    s.rendered_text().unwrap().selected_fragment_ranges(),
+                    vec![selected.bytes()]
+                );
+            });
+            state.update(&mut app, |s, cx| {
+                s.set_selection_format(SelectionFormat::Source, cx)
+            });
+            assert_eq!(copy(&state, &app), "> second");
+            state.update(&mut app, |s, cx| {
+                s.set_prepared(
+                    PreparedText::parse(&format!("{source}\n\n> third"), extensions).unwrap(),
+                    Some(source.len()),
+                    cx,
+                )
+            });
+            assert_eq!(copy(&state, &app), "> second");
+            assert!(state.read_with(&app, |s, _| s.rendered_selection().unwrap().is_backward()));
+            state.update(&mut app, |s, cx| s.clear_selection(cx));
+            assert_eq!(copy(&state, &app), "");
+            assert!(!state.read_with(&app, |s, _| s.has_local_selection()));
+        }
+    }
+}
+
+struct ChangingBlock(std::sync::Arc<std::sync::atomic::AtomicBool>);
+impl MarkdownPlugin for ChangingBlock {
+    fn name(&self) -> &str {
+        "changing-block"
+    }
+    fn is_block(&self) -> bool {
+        true
+    }
+    fn parse(
+        &self,
+        node: &gpui_base::text::markdown_ast::Node,
+        _: &gpui_base::text::MarkdownParseContext<'_>,
+    ) -> Option<MarkdownNode> {
+        matches!(node, gpui_base::text::markdown_ast::Node::Blockquote(_)).then(|| {
+            MarkdownNode::new("changing-block", ())
+                .text("Glyph")
+                .markdown("> widget")
+        })
+    }
+    fn presentation(&self, _: &MarkdownNode) -> MarkdownPresentation {
+        if self.0.load(std::sync::atomic::Ordering::Relaxed) {
+            MarkdownPresentation::Text("Glyph".into())
+        } else {
+            MarkdownPresentation::NonText
+        }
+    }
+}
+#[test]
+fn opaque_block_atomic_resource_kind_changes_do_not_shadow_glyph_selection() {
+    use std::sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    };
+    let glyphs = Arc::new(AtomicBool::new(false));
+    let extensions = MarkdownExtensions::default().plugin(ChangingBlock(glyphs.clone()));
+    let source = "> widget\n\nAfter";
+    let (mut app, state) = mount(PreparedText::parse(source, extensions.clone()).unwrap());
+    apply(&state, &mut app, 0, 5);
+    glyphs.store(true, Ordering::Relaxed);
+    let refreshed = extensions.block_renderer("changing-block", |_, _, _| gpui::div());
+    state.update(&mut app, |s, cx| {
+        s.set_markdown_extensions(Arc::new(refreshed.clone()), cx)
+    });
+    assert_eq!(copy(&state, &app), "Glyph");
+    apply(&state, &mut app, 0, 2);
+    state.update(&mut app, |s, cx| {
+        s.set_selection_format(SelectionFormat::Source, cx)
+    });
+    assert_eq!(copy(&state, &app), "Gl");
+    state.update(&mut app, |s, cx| {
+        s.select_all(cx);
+        s.set_prepared(
+            PreparedText::parse(&format!("{source} appended"), refreshed.clone()).unwrap(),
+            Some(source.len()),
+            cx,
+        );
+    });
+    apply(&state, &mut app, 0, 2);
+    assert_eq!(
+        copy(&state, &app),
+        "Gl",
+        "All transfer must not mark a glyph-owned block atomic"
+    );
+    glyphs.store(false, Ordering::Relaxed);
+    state.update(&mut app, |s, cx| {
+        s.set_markdown_extensions(
+            Arc::new(refreshed.block_renderer("changing-block", |_, _, _| gpui::div())),
+            cx,
+        )
+    });
+    assert_eq!(copy(&state, &app), "");
+    assert!(!state.read_with(&app, |s, _| s.has_local_selection()));
+}
+#[test]
+fn opaque_block_atomic_append_that_changes_the_selected_occurrence_cancels_it() {
+    let extensions = MarkdownExtensions::default().plugin(OpaqueBlock {
+        copy: "same",
+        non_text: true,
+    });
+    let source = "Before\n\n> initial";
+    let (mut app, state) = mount(PreparedText::parse(source, extensions.clone()).unwrap());
+    apply(&state, &mut app, 7, 11);
+    state.update(&mut app, |s, cx| {
+        s.set_prepared(
+            PreparedText::parse(&format!("{source}\n> appended"), extensions).unwrap(),
+            Some(source.len()),
+            cx,
+        )
+    });
+    assert_eq!(copy(&state, &app), "");
+    assert!(!state.read_with(&app, |s, _| s.has_local_selection()));
+}
+
+#[test]
+fn rendered_select_all_preserves_terminal_separator_copy_when_stream_extends_last_block() {
+    for source in ["First\n\nLast", "First\n\nLast\n"] {
+        let (mut app, state) = mount(parse(source));
+        state.update(&mut app, |s, cx| s.select_all(cx));
+        let frozen = copy(&state, &app);
+        for suffix in [" continued", " continued again"] {
+            state.update(&mut app, |s, cx| {
+                s.set_prepared(parse(&format!("{source}{suffix}")), Some(source.len()), cx);
+            });
+            assert_eq!(copy(&state, &app), frozen, "source {source:?}");
+        }
+        // A new partial selection retires the whole-copy snapshot.
+        apply(&state, &mut app, 0, 2);
+        assert_eq!(copy(&state, &app), "Fi");
+    }
+}
+
+#[test]
+fn opaque_block_atomic_unpainted_ranges_retire_requests_and_release_owners() {
+    for alternative in ["", "same"] {
+        let extensions = MarkdownExtensions::default().plugin(OpaqueBlock {
+            copy: alternative,
+            non_text: true,
+        });
+        let source = (0..200)
+            .map(|i| format!("> widget {i}\n\n"))
+            .collect::<String>();
+        let (mut app, state) = mount(PreparedText::parse(&source, extensions.clone()).unwrap());
+        let old = state.read_with(&app, |s, _| s.rendered_text().unwrap());
+        let atoms = old
+            .parts()
+            .iter()
+            .enumerate()
+            .filter(|(_, p)| p.is_atomic())
+            .map(|(i, _)| i)
+            .collect::<Vec<_>>();
+        assert_eq!(atoms.len(), 200);
+        let start = old.selection_for_part(atoms[2]).unwrap();
+        let end = old.selection_for_part(atoms[198]).unwrap();
+        let selected = state.read_with(&app, |s, _| {
+            s.prepare_rendered_selection(end.head(), start.anchor())
+                .unwrap()
+        });
+        state
+            .update(&mut app, |s, cx| s.apply_rendered_selection(selected, cx))
+            .unwrap();
+        state.update(&mut app, |s, cx| {
+            s.set_selection_format(SelectionFormat::Source, cx)
+        });
+        let frozen = copy(&state, &app);
+        assert!(frozen.starts_with("> widget 2\n"));
+        assert!(frozen.ends_with("> widget 198"));
+        assert!(!frozen.contains("> widget 199"));
+        assert_eq!(old.selected_fragment_ranges().len(), 197);
+        let queued = state.read_with(&app, |s, _| {
+            s.prepare_rendered_selection(start.anchor(), start.head())
+                .unwrap()
+        });
+        state.update(&mut app, |s, cx| {
+            s.set_prepared(
+                PreparedText::parse(&format!("{source}> new"), extensions.clone()).unwrap(),
+                Some(source.len()),
+                cx,
+            )
+        });
+        assert_eq!(
+            state.update(&mut app, |s, cx| s.apply_rendered_selection(queued, cx)),
+            Err(Error::StaleRequest)
+        );
+        assert_eq!(copy(&state, &app), frozen);
+        state.update(&mut app, |s, cx| {
+            s.set_prepared(
+                PreparedText::parse("> replacement", extensions).unwrap(),
+                None,
+                cx,
+            )
+        });
+        assert_eq!(copy(&state, &app), "");
+        assert!(!state.read_with(&app, |s, _| s.has_local_selection()));
+        // Retaining a projection must not retain obsolete selection owners.
+        assert!(old.selected_fragment_ranges().is_empty());
+    }
 }

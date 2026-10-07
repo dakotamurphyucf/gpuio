@@ -5,6 +5,21 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **O
 Markdown walkthroughs for every example component; its documentation acceptance is complete. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
+[Opaque block selection and frozen Copy](evidence/rendered-block-selection-och17.md)
+now cover whole native block objects, empty alternatives, child controls and
+unpainted owners. The hosted terminal-newline Copy regression reproduces locally
+and is repaired without expanding the selected glyph range. All 1,118 native
+tests (2 ignored), actual macOS document/GPU checks, workspace tests, strict lint,
+Dune, exact 238-file reconstruction and rebuilt-gallery shutdown pass locally.
+Rich AX, broader reflow/virtualization/performance and release gates remain open.
+
+[Hosted run 37612466848](evidence/hosted-run-37612466848.md) is terminal at
+`4162d450`: Linux foundation and scoped extracted-app jobs pass; macOS streaming
+documents and both Metal presentation probes fail. The newline failure is repaired
+locally above; current-source hosted confirmation is separate. Both informational
+Linux GUI smokes fail. Packaging/binary provenance, physical presentation and
+clean-machine acceptance remain unqualified.
+
 [Empty inline-object selection](evidence/rendered-zero-selection-och17.md)
 now distinguishes selecting an empty-copy object from a caret using checked,
 ordered owner edges. Repeated objects, native clicks/drags, resource refresh and

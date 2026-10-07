@@ -1,4 +1,5 @@
 mod backgrounds;
+mod block_object;
 mod control_navigation;
 mod displayed_text;
 mod document;

@@ -1,0 +1,207 @@
+{
+  "run_id": 37612466848,
+  "revision": "4162d450b6e3162604f31feca35ba6a82144167b",
+  "archive_sha256": "a7d0a0266e872c488b3e2c36b19c2861ff0147dc7ba4c48d515281d98fab581b",
+  "files": [
+    {
+      "path": "ci-37612466848-failed.log",
+      "bytes": 1311826,
+      "sha256": "27e4f3cf46028866262f15962c9cfd981bd47b198efc92488420fd0de1a6b1ae"
+    },
+    {
+      "path": "ci-37612466848-run.json",
+      "bytes": 68293,
+      "sha256": "543cbd8898c24ba22ce7185c8b370991fc5f28d84b96217b8da94ac7e2425e6f"
+    },
+    {
+      "path": "foundation-logs-Linux-X64/linux-gui-status.json",
+      "bytes": 103,
+      "sha256": "77647998edf755064398f4913bf6acdf6b1d61c393f238b38bdf6e6d474c2649"
+    },
+    {
+      "path": "foundation-logs-Linux-X64/platform.txt",
+      "bytes": 113,
+      "sha256": "6ecb75ce9d770bd2cfb6898b267dd8f29398821b25cb233675e182e0323ba0d2"
+    },
+    {
+      "path": "foundation-logs-Linux-X64/tests.log",
+      "bytes": 314870,
+      "sha256": "d7f42237f5c0f9b45884596bf126ae964cee88a50ecb0b0bec00ca8bad02d5c8"
+    },
+    {
+      "path": "foundation-logs-macOS-ARM64/chart-stream/report.json",
+      "bytes": 88878,
+      "sha256": "236924c870421e4aeebad523501414621165927607748914f3b3bfc9b7eab51a"
+    },
+    {
+      "path": "foundation-logs-macOS-ARM64/document-profile/report.json",
+      "bytes": 1626,
+      "sha256": "522f75a5ce22d4e4d5fce6a89c43a09f7036a2cd5d59e9042d82d10b957f3d0a"
+    },
+    {
+      "path": "foundation-logs-macOS-ARM64/document-shutdown.json",
+      "bytes": 1916,
+      "sha256": "2a53b44dbd64eca430e1693341a8bf7b6cb5717f2f5c829c962c59b03d6e04ff"
+    },
+    {
+      "path": "foundation-logs-macOS-ARM64/editor-range-geometry.json",
+      "bytes": 6169,
+      "sha256": "513dc79d1ec8f403bf119ad04f00712e3f759f62d073e6dc8a096e9997a8fe57"
+    },
+    {
+      "path": "foundation-logs-macOS-ARM64/external-file-drop/report.json",
+      "bytes": 1120,
+      "sha256": "175e571d7874f349b4c573b3e3fb96ff9184472890f47927d46947b4776a8966"
+    },
+    {
+      "path": "foundation-logs-macOS-ARM64/focused-input/report.json",
+      "bytes": 646,
+      "sha256": "93ec91fe4aa98a1fa99a9fa4d3bdccf00a337b4ef14ea59f9b08f0dc0f2d488d"
+    },
+    {
+      "path": "foundation-logs-macOS-ARM64/metal-counter-calibration.json",
+      "bytes": 415,
+      "sha256": "edfb8e56fee12eb0239977dd75b13e220441543a5cd75f3583913b25e4585a86"
+    },
+    {
+      "path": "foundation-logs-macOS-ARM64/metal-lifecycle/physical-memory/cycle-001/footprint.json",
+      "bytes": 7948,
+      "sha256": "e3358453e69e15bd3d5cee31a12568f7d6b71283e10037966167d45f11861862"
+    },
+    {
+      "path": "foundation-logs-macOS-ARM64/metal-lifecycle/physical-memory/cycle-001/tools.json",
+      "bytes": 353,
+      "sha256": "2006ceef644a54c41759070f839e6f3e73197fd070f83a09adf7773b53484c9e"
+    },
+    {
+      "path": "foundation-logs-macOS-ARM64/metal-lifecycle/physical-memory/cycle-002/footprint.json",
+      "bytes": 7952,
+      "sha256": "c21c754d76fe256ff4b96c992c6072c30c63197603193e82410ddb880cc0e641"
+    },
+    {
+      "path": "foundation-logs-macOS-ARM64/metal-lifecycle/physical-memory/cycle-002/tools.json",
+      "bytes": 353,
+      "sha256": "ca618248db8b250baf43bf0ba39196938421d0b046696e72d502041f5bc5c7b9"
+    },
+    {
+      "path": "foundation-logs-macOS-ARM64/metal-lifecycle/physical-memory/cycle-003/footprint.json",
+      "bytes": 7957,
+      "sha256": "d32875d7470f03b2a4ce46e9f13ee43b3fa27c4844adc23aeadd861d93127ddb"
+    },
+    {
+      "path": "foundation-logs-macOS-ARM64/metal-lifecycle/physical-memory/cycle-003/tools.json",
+      "bytes": 353,
+      "sha256": "ecea59ec8dd66a987cc764aed93158140acbb916e4f43c76e568ed7298dbc595"
+    },
+    {
+      "path": "foundation-logs-macOS-ARM64/metal-lifecycle/physical-memory/cycle-004/footprint.json",
+      "bytes": 7957,
+      "sha256": "b220e1fc08e4dacc3ac0de337498b4252ebedcc91583f29aabab4d02374e0e79"
+    },
+    {
+      "path": "foundation-logs-macOS-ARM64/metal-lifecycle/physical-memory/cycle-004/tools.json",
+      "bytes": 353,
+      "sha256": "72461fcb4bf90c3298b81fdaefd3d8a8d04c91feca4d8632d245db718a5d8935"
+    },
+    {
+      "path": "foundation-logs-macOS-ARM64/metal-lifecycle/report.json",
+      "bytes": 89949,
+      "sha256": "84b56f4f2b0276d48d5723cd16cf097f772b8f424317b9c28d4d6e017db378e5"
+    },
+    {
+      "path": "foundation-logs-macOS-ARM64/metal-presentation-calibration.json",
+      "bytes": 63535,
+      "sha256": "b1a28d56303c8d7579ee4fe39b6dbe5089c70daa3d4890b4eac193019f44931a"
+    },
+    {
+      "path": "foundation-logs-macOS-ARM64/metal-presentation-display.json",
+      "bytes": 35,
+      "sha256": "0e2a2e10de1b28c2c98b9bf2faadb16610de1aad4b8308e92b54c13e74402c3c"
+    },
+    {
+      "path": "foundation-logs-macOS-ARM64/metal-presentation-hook/native.log",
+      "bytes": 122,
+      "sha256": "c0b114dcec83a6744a1b14cf21a9af8597b2a09a9227847e74604c511b9f94ac"
+    },
+    {
+      "path": "foundation-logs-macOS-ARM64/metal-presentation-hook/report.json",
+      "bytes": 76204,
+      "sha256": "14fc7359399cbe49039df29849762e1af284d385596a7097084b32691801c8cf"
+    },
+    {
+      "path": "foundation-logs-macOS-ARM64/native-menu-icons/report.json",
+      "bytes": 1972,
+      "sha256": "2b0955d218753b076c7034df9e342afb9a4e91613db4abe54ffb57eb8f4f078e"
+    },
+    {
+      "path": "foundation-logs-macOS-ARM64/platform.txt",
+      "bytes": 201,
+      "sha256": "f1495b9360b80e8c5265d833e6d9d35cbf813bc285cf2a215da7f27c98d3eda1"
+    },
+    {
+      "path": "foundation-logs-macOS-ARM64/signal-motion/full/measurements.json",
+      "bytes": 1492,
+      "sha256": "bbed644e6a43038dcc978da5ffd2006bf7911a5ab7c0008d1847ab6c7436f720"
+    },
+    {
+      "path": "foundation-logs-macOS-ARM64/signal-motion/reduce/measurements.json",
+      "bytes": 1535,
+      "sha256": "01bc1fc0fac1d37e88d9695592bfe5f7cf638e3a163a7588ddfe418de1a60fd1"
+    },
+    {
+      "path": "foundation-logs-macOS-ARM64/signal-workload/report.json",
+      "bytes": 3740,
+      "sha256": "433a8fd1932291a96e4b3b8d24b261e9bacc0bc3c368679f8de714d9673ac5fe"
+    },
+    {
+      "path": "foundation-logs-macOS-ARM64/system-appearance/appearance-recovery.json",
+      "bytes": 101,
+      "sha256": "11b85df9512446aa314b8ef0af459ad39023078f8dd1b08a59b78ae91e6ca84f"
+    },
+    {
+      "path": "foundation-logs-macOS-ARM64/system-appearance/report.json",
+      "bytes": 2407,
+      "sha256": "f54ef37481a3f8e31bf3f04f5e89bfa317c0e25ea898b58e0f4266baec4e2e94"
+    },
+    {
+      "path": "foundation-logs-macOS-ARM64/tests.log",
+      "bytes": 1537348,
+      "sha256": "43e54ad7d6d1a2768704f87fc2b45b42733c29d2b32e413153396f924eaf9db6"
+    },
+    {
+      "path": "foundation-logs-macOS-ARM64/theme-files/report.json",
+      "bytes": 1345,
+      "sha256": "4f0ae9546575e63cf851719b6aa1844b4aaf9e62c316e9dd6ff8476645022f47"
+    },
+    {
+      "path": "foundation-logs-macOS-ARM64/window-custom/report.json",
+      "bytes": 2404,
+      "sha256": "e1ed792ba791c73d431a97a2fa37ae6984ee712315f57d8fc3b34a0e311112e2"
+    },
+    {
+      "path": "foundation-logs-macOS-ARM64/window-selection/report.json",
+      "bytes": 666,
+      "sha256": "354c5634a5aa2c305e0f4d8140b5983c0010ad38ec51a4a98543f9688e40d5ce"
+    },
+    {
+      "path": "foundation-logs-macOS-ARM64/window-standard/report.json",
+      "bytes": 1053,
+      "sha256": "d05ace01b4408f5e62461d0f441639e60cf02f75ba7ee4a1e1ee23f958085133"
+    },
+    {
+      "path": "macos-package-runtime-evidence/agent-chat/report.json",
+      "bytes": 1534,
+      "sha256": "d40cd4c1e8b1237e851cccaf4b700f255b57b1dba269531014d0a307c00dc90d"
+    },
+    {
+      "path": "macos-package-runtime-evidence/gallery/report.json",
+      "bytes": 3156,
+      "sha256": "16e5497f2d07046707617df32e48e2fab4d6698d11528d10901510bb4278c361"
+    },
+    {
+      "path": "macos-package-runtime-evidence/signal-studio/report.json",
+      "bytes": 1592,
+      "sha256": "4a85c4db56775273374b107d96c1e3310ec39c91f59cf058ffcfee85387c72f9"
+    }
+  ]
+}

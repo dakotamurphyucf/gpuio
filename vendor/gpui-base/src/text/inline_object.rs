@@ -395,6 +395,7 @@ impl Element for InlineObject {
                 if !phase.bubble()
                     || !hitbox.is_hovered(window)
                     || event.button != MouseButton::Left
+                    || GlobalState::is_text_selection_suppressed(cx)
                 {
                     return;
                 }

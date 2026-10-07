@@ -518,3 +518,420 @@ fn empty_atomic_paragraph_does_not_join_the_following_text_paragraph() {
         1
     );
 }
+
+struct NativeBlock(std::sync::Arc<std::sync::atomic::AtomicUsize>);
+impl MarkdownPlugin for NativeBlock {
+    fn name(&self) -> &str {
+        "native-block"
+    }
+    fn is_block(&self) -> bool {
+        true
+    }
+    fn parse(
+        &self,
+        node: &gpui_base::text::markdown_ast::Node,
+        context: &gpui_base::text::MarkdownParseContext<'_>,
+    ) -> Option<MarkdownNode> {
+        matches!(node, gpui_base::text::markdown_ast::Node::Blockquote(_)).then(|| {
+            MarkdownNode::new("native-block", ())
+                .text("")
+                .markdown(context.node_source(node).unwrap_or_default())
+                .accessibility_label("opaque widget")
+        })
+    }
+    fn presentation(&self, _: &MarkdownNode) -> gpui_base::text::MarkdownPresentation {
+        gpui_base::text::MarkdownPresentation::NonText
+    }
+    fn render(&self, _: &MarkdownNode, _: &mut Window, _: &mut App) -> impl IntoElement {
+        let clicks = self.0.clone();
+        div()
+            .w_full()
+            .h(px(48.))
+            .flex()
+            .items_center()
+            .justify_end()
+            .bg(gpui::rgb(0xeeeeee))
+            .child(
+                gpui_base::Button::new("native-block-button")
+                    .accessibility_label("Activate")
+                    .child("Run")
+                    .w(px(85.))
+                    .h(px(28.))
+                    .on_click(move |_, _, _| {
+                        clicks.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                    }),
+            )
+    }
+}
+#[test]
+fn opaque_block_atomic_native_background_selection_keeps_child_buttons() {
+    let clicks = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let extensions = MarkdownExtensions::default().plugin(NativeBlock(clicks.clone()));
+    let mut app = TestAppContext::single();
+    app.update(gpui_base::init);
+    let (view, cx) = app.add_window_view(|_, cx| Scene {
+        text: cx.new(|cx| {
+            let mut state = TextViewState::externally_prepared(cx);
+            state.set_prepared(
+                PreparedText::parse("Before\n\n> first\n\n> second\n\nAfter", extensions.clone())
+                    .unwrap(),
+                None,
+                cx,
+            );
+            state
+        }),
+        extensions,
+        width: 450.,
+        selection_format: gpui_base::text::SelectionFormat::Source,
+    });
+    cx.simulate_a11y_active(true);
+    draw(cx);
+    let text = view.read_with(cx, |v, _| v.text.clone());
+    for count in [2, 3] {
+        click(cx, "opaque widget", 1, count);
+        assert_selection(&text, cx, 7..7, "> second");
+        assert!(!text.read_with(cx, |s, _| s.rendered_selection().unwrap().is_collapsed()));
+    }
+    for backward in [false, true] {
+        let tree = cx.a11y_tree().unwrap();
+        let mut candidates = tree
+            .nodes
+            .iter()
+            .filter(|(_, n)| n.label() == Some("opaque widget"))
+            .filter_map(|(_, n)| n.bounds())
+            .collect::<Vec<_>>();
+        candidates.sort_by(|a, b| a.y0.total_cmp(&b.y0));
+        let b = candidates[1];
+        let scale = cx.update(|w, _| f64::from(w.scale_factor()));
+        // Stay on the block background above the child button.
+        let left = gpui::point(
+            px((b.x0 / scale) as f32 + 2.),
+            px((b.y0 / scale) as f32 + 2.),
+        );
+        let right = gpui::point(px((b.x1 / scale) as f32 - 2.), left.y);
+        let (start, end) = if backward {
+            (right, left)
+        } else {
+            (left, right)
+        };
+        cx.simulate_mouse_move(start, None, Default::default());
+        cx.simulate_event(gpui::MouseDownEvent {
+            button: gpui::MouseButton::Left,
+            position: start,
+            click_count: 1,
+            modifiers: Default::default(),
+            first_mouse: false,
+        });
+        cx.simulate_mouse_move(end, Some(gpui::MouseButton::Left), Default::default());
+        cx.simulate_mouse_up(end, gpui::MouseButton::Left, Default::default());
+        draw(cx);
+        text.read_with(cx, |s, _| {
+            let r = s.rendered_selection().unwrap();
+            assert!(!r.is_collapsed());
+            assert_eq!(r.is_backward(), backward);
+            assert_eq!(s.selected_text(), "> second");
+        });
+    }
+    view.update(cx, |v, cx| {
+        v.width = 320.;
+        cx.notify();
+    });
+    draw(cx);
+    assert_eq!(
+        cx.update(gpui_base::TextSelection::selected_text),
+        "> second"
+    );
+    click(cx, "Activate", 1, 1);
+    assert_eq!(clicks.load(std::sync::atomic::Ordering::Relaxed), 1);
+    assert_eq!(cx.update(gpui_base::TextSelection::selected_text), "");
+    assert!(!text.read_with(cx, |s, _| s.has_local_selection()));
+    // Double click on the control must not also select its opaque parent.
+    click(cx, "Activate", 1, 2);
+    assert_eq!(clicks.load(std::sync::atomic::Ordering::Relaxed), 2);
+    assert_eq!(cx.update(gpui_base::TextSelection::selected_text), "");
+    assert!(!text.read_with(cx, |s, _| s.has_local_selection()));
+}
+
+#[derive(Default)]
+struct BlockInputs(std::collections::BTreeMap<usize, Entity<gpui_base::input::InputState>>);
+impl gpui::Global for BlockInputs {}
+struct NativeInputBlock;
+impl MarkdownPlugin for NativeInputBlock {
+    fn name(&self) -> &str {
+        "native-input-block"
+    }
+    fn is_block(&self) -> bool {
+        true
+    }
+    fn parse(
+        &self,
+        node: &gpui_base::text::markdown_ast::Node,
+        context: &gpui_base::text::MarkdownParseContext<'_>,
+    ) -> Option<MarkdownNode> {
+        matches!(node, gpui_base::text::markdown_ast::Node::Blockquote(_)).then(|| {
+            MarkdownNode::new("native-input-block", ())
+                .text("input widget")
+                .markdown(context.node_source(node).unwrap_or_default())
+                .accessibility_label("input object")
+        })
+    }
+    fn presentation(&self, _: &MarkdownNode) -> gpui_base::text::MarkdownPresentation {
+        gpui_base::text::MarkdownPresentation::NonText
+    }
+    fn render(&self, node: &MarkdownNode, window: &mut Window, cx: &mut App) -> impl IntoElement {
+        let key = node.source_range().unwrap().start;
+        let existing = cx.global::<BlockInputs>().0.get(&key).cloned();
+        let state = existing.unwrap_or_else(|| {
+            let state = cx
+                .new(|cx| gpui_base::input::InputState::new(window, cx).default_value("editable"));
+            cx.global_mut::<BlockInputs>().0.insert(key, state.clone());
+            state
+        });
+        div()
+            .w_full()
+            .h(px(80.))
+            .flex()
+            .items_end()
+            .justify_end()
+            .child(
+                div()
+                    .w(px(180.))
+                    .h(px(30.))
+                    .child(gpui_base::input::Input::new(&state)),
+            )
+    }
+}
+#[test]
+fn opaque_block_atomic_child_input_owns_focus_selection_and_typing() {
+    let extensions = MarkdownExtensions::default().plugin(NativeInputBlock);
+    let mut app = TestAppContext::single();
+    app.update(|cx| {
+        gpui_base::init(cx);
+        cx.set_global(BlockInputs::default());
+    });
+    let (view, cx) = app.add_window_view(|_, cx| Scene {
+        text: cx.new(|cx| {
+            let mut state = TextViewState::externally_prepared(cx);
+            state.set_prepared(
+                PreparedText::parse("> input", extensions.clone()).unwrap(),
+                None,
+                cx,
+            );
+            state
+        }),
+        extensions,
+        width: 450.,
+        selection_format: gpui_base::text::SelectionFormat::Source,
+    });
+    cx.simulate_a11y_active(true);
+    draw(cx);
+    let text = view.read_with(cx, |v, _| v.text.clone());
+    click(cx, "input object", 0, 2);
+    assert_selection(&text, cx, 0..12, "> input");
+    // Bare Base Input publishes geometry for its host's accessibility adapter,
+    // not a complete AX node itself. Hit its actual shaped text cell directly.
+    let input = cx.update(|_, cx| {
+        cx.global::<BlockInputs>()
+            .0
+            .values()
+            .next()
+            .unwrap()
+            .clone()
+    });
+    let point = input.read_with(cx, |s, _| {
+        s.bridge_text_layout().snapshot().unwrap().cells[0]
+            .bounds
+            .center()
+    });
+    cx.simulate_mouse_move(point, None, Default::default());
+    cx.simulate_event(gpui::MouseDownEvent {
+        button: gpui::MouseButton::Left,
+        position: point,
+        click_count: 2,
+        modifiers: Default::default(),
+        first_mouse: false,
+    });
+    cx.simulate_mouse_up(point, gpui::MouseButton::Left, Default::default());
+    assert_eq!(input.read_with(cx, |s, _| s.bridge_selection()), (0, 8));
+    cx.simulate_input("changed");
+    draw(cx);
+    let value = cx.update(|_, cx| {
+        cx.global::<BlockInputs>()
+            .0
+            .values()
+            .next()
+            .unwrap()
+            .read(cx)
+            .value()
+    });
+    assert_eq!(value.as_ref(), "changed");
+    assert!(!text.read_with(cx, |s, _| s.has_local_selection()));
+    assert_eq!(cx.update(gpui_base::TextSelection::selected_text), "");
+}
+
+struct NativeControlBlock {
+    kind: usize,
+    clicks: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+}
+impl MarkdownPlugin for NativeControlBlock {
+    fn name(&self) -> &str {
+        "native-control-block"
+    }
+    fn is_block(&self) -> bool {
+        true
+    }
+    fn parse(
+        &self,
+        node: &gpui_base::text::markdown_ast::Node,
+        context: &gpui_base::text::MarkdownParseContext<'_>,
+    ) -> Option<MarkdownNode> {
+        matches!(node, gpui_base::text::markdown_ast::Node::Blockquote(_)).then(|| {
+            MarkdownNode::new(self.name(), ())
+                .text("control block")
+                .markdown(context.node_source(node).unwrap_or_default())
+                .accessibility_label("control object")
+        })
+    }
+    fn presentation(&self, _: &MarkdownNode) -> gpui_base::text::MarkdownPresentation {
+        gpui_base::text::MarkdownPresentation::NonText
+    }
+    fn render(&self, _: &MarkdownNode, window: &mut Window, cx: &mut App) -> impl IntoElement {
+        let clicks = self.clicks.clone();
+        let control = match self.kind {
+            0 => gpui_base::Checkbox::new("control")
+                .accessibility_label("Control")
+                .w(px(100.))
+                .h(px(28.))
+                .on_change(move |_, _, _, _| {
+                    clicks.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                })
+                .into_any_element(),
+            1 => gpui_base::Radio::new("control")
+                .accessibility_label("Control")
+                .w(px(100.))
+                .h(px(28.))
+                .on_change(move |_, _, _, _| {
+                    clicks.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                })
+                .into_any_element(),
+            2 => gpui_base::Toggle::new("control")
+                .accessibility_label("Control")
+                .w(px(100.))
+                .h(px(28.))
+                .on_change(move |_, _, _, _| {
+                    clicks.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                })
+                .into_any_element(),
+            3 => gpui_base::Switch::new("control")
+                .accessibility_label("Control")
+                .w(px(100.))
+                .h(px(28.))
+                .on_change(move |_, _, _, _| {
+                    clicks.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                })
+                .into_any_element(),
+            4 => gpui_base::Link::new("control")
+                .accessibility_label("Control")
+                .w(px(100.))
+                .h(px(28.))
+                .on_activate(move |_, _, _| {
+                    clicks.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                })
+                .into_any_element(),
+            5 => {
+                let state = window.use_keyed_state("block-control-slider", cx, |_, _| {
+                    gpui_base::slider::SliderState::new().default_value(50.)
+                });
+                div()
+                    .id("slider-control-label")
+                    .role(gpui::Role::Group)
+                    .aria_label("Control")
+                    .w(px(100.))
+                    .h(px(28.))
+                    .child(
+                        gpui_base::slider::Slider::new(&state)
+                            .w_full()
+                            .h_full()
+                            .child(
+                                gpui_base::slider::SliderTrack::new(&state)
+                                    .w_full()
+                                    .h_full()
+                                    .child(
+                                        gpui_base::slider::SliderIndicator::new(&state)
+                                            .w_full()
+                                            .h_full(),
+                                    ),
+                            ),
+                    )
+                    .into_any_element()
+            }
+            _ => unreachable!(),
+        };
+        div()
+            .w_full()
+            .h(px(50.))
+            .flex()
+            .items_center()
+            .justify_end()
+            .child(control)
+    }
+}
+#[test]
+fn opaque_block_atomic_child_control_families_do_not_select_parent() {
+    let mut unexpected = Vec::new();
+    for kind in 0..6 {
+        let clicks = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let extensions = MarkdownExtensions::default().plugin(NativeControlBlock {
+            kind,
+            clicks: clicks.clone(),
+        });
+        let mut app = TestAppContext::single();
+        app.update(gpui_base::init);
+        let (view, cx) = app.add_window_view(|_, cx| Scene {
+            text: cx.new(|cx| {
+                let mut state = TextViewState::externally_prepared(cx);
+                state.set_prepared(
+                    PreparedText::parse("> widget", extensions.clone()).unwrap(),
+                    None,
+                    cx,
+                );
+                state
+            }),
+            extensions,
+            width: 450.,
+            selection_format: gpui_base::text::SelectionFormat::Source,
+        });
+        cx.simulate_a11y_active(true);
+        draw(cx);
+        let text = view.read_with(cx, |v, _| v.text.clone());
+        for count in [1, 2, 3] {
+            click(cx, "Control", 0, count);
+            if kind == 5 {
+                let tree = cx.a11y_tree().unwrap();
+                let value = tree
+                    .nodes
+                    .iter()
+                    .find(|(_, n)| n.role() == gpui::Role::Slider)
+                    .and_then(|(_, n)| n.numeric_value())
+                    .unwrap();
+                assert!(
+                    value > 0. && value < 10.,
+                    "slider pointer activation: {value}"
+                );
+            } else {
+                assert_eq!(
+                    clicks.load(std::sync::atomic::Ordering::Relaxed),
+                    count,
+                    "control {kind}"
+                );
+            }
+            if text.read_with(cx, |s, _| s.has_local_selection()) {
+                unexpected.push((kind, count));
+            }
+        }
+    }
+    assert!(
+        unexpected.is_empty(),
+        "child controls selected parent: {unexpected:?}"
+    );
+}

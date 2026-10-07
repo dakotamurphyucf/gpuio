@@ -514,8 +514,16 @@ impl TextViewState {
                 self.selection_adapter
                     .set_local_selection(!range.is_collapsed() || self.has_frozen_whole_copy(), cx);
             }
-            if all {
-                self.selected_text_override = None;
+            // Appending within the last block can move its terminal
+            // separator out of the rebound logical range. Preserve the
+            // exact old Copy result even when the old projection matched
+            // it; only the new selected range can prove equivalence.
+            if all
+                && let Some(plain) = self.selected_text_override.take()
+                && new.selected_text(&range) != Some(plain.as_str())
+                && let Some(copy) = &mut self.prepared_whole_copy
+            {
+                copy.plain = Some(plain);
             }
             self.rendered_selection = Some(selection.rebind(range));
         }

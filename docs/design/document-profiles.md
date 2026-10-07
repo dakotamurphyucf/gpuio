@@ -247,3 +247,11 @@ It does not expose that alternative as invisible selectable glyphs. Whole Copy
 and partial glyph Copy retain the distinction above through compatible streaming;
 empty presentations still retain independently bounded declared Copy data. See
 [the selection projection contract](rendered-document-selection.md#declared-custom-block-glyphs-versus-whole-document-copy).
+
+
+Opaque/NonText block renderers now have whole-object selection around their
+native layout, including empty Copy alternatives. Child controls retain their
+own interaction; custom extension controls must claim pointer selection through
+the native suppression/editor adapter described in the
+[block ownership contract](rendered-document-selection.md#opaque-and-nontext-block-ownership).
+No character mapping or rich AX selection is implied for arbitrary native content.

@@ -74,6 +74,10 @@ pub trait MarkdownPlugin: Send + Sync + 'static {
     fn parse(&self, node: &mdast::Node, cx: &MarkdownParseContext<'_>) -> Option<MarkdownNode>;
 
     /// Render a custom Markdown node produced by this plugin.
+    /// Opaque/NonText blocks are wrapped as whole selectable objects. Native
+    /// child controls must claim their own mouse-down selection with
+    /// `GlobalState::suppress_text_selection` (or their editor adapter) so
+    /// double/triple clicks do not also select the containing object.
     fn render(&self, node: &MarkdownNode, _window: &mut Window, _cx: &mut App) -> impl IntoElement {
         node.as_text().to_string()
     }
@@ -127,6 +131,7 @@ pub struct MarkdownNode {
     // Parsed-occurrence state; unlike the immutable displayed-text projection,
     // this belongs to the reader's selection lifetime.
     pub(super) block_text: Arc<Mutex<super::inline::InlineState>>,
+    pub(super) block_selected: Arc<Mutex<super::block_object::BlockSelection>>,
     name: SharedString,
     text: SharedString,
     explicit_text: bool,
@@ -145,6 +150,7 @@ impl MarkdownNode {
         Self {
             projection_key: Arc::new(()),
             block_text: Arc::new(Mutex::new(Default::default())),
+            block_selected: Arc::default(),
             name: name.into(),
             text: SharedString::default(),
             explicit_text: false,
@@ -246,6 +252,7 @@ impl MarkdownNode {
         // its own identity; subsequent renderer clones preserve this key.
         self.projection_key = Arc::new(());
         self.block_text = Arc::new(Mutex::new(Default::default()));
+        self.block_selected = Arc::default();
         self.span = span;
     }
 

@@ -476,6 +476,9 @@ impl RenderOnce for Slider {
         self.base
             .id(("slider", entity_id))
             .test_support()
+            .on_mouse_down(MouseButton::Left, |_, _, cx| {
+                crate::GlobalState::suppress_text_selection(cx);
+            })
             .role(Role::Slider)
             .aria_numeric_value(state.value().end() as f64)
             .aria_min_numeric_value(state.min_value() as f64)
