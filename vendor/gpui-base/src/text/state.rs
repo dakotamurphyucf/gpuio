@@ -274,7 +274,7 @@ impl TextViewState {
 
     /// The logical range shared by native requests or mapped pointer selection
     /// and Copy/paint. Genuine Select All covers the whole installed text.
-    /// Multi-click, cross-participant and unmapped selections are not yet
+    /// Cross-participant ranges use window document order. Multi-click and unmapped selections are not yet
     /// represented here; absence must not be interpreted as no native selection.
     pub fn rendered_selection(&self) -> Option<super::RenderedSelection> {
         if !self.selectable {
@@ -322,10 +322,11 @@ impl TextViewState {
         self.rendered_selection = Some(RetainedRenderedSelection::Pointer(selection));
     }
 
-    /// Captured same-document pointer endpoints in the installed preparation.
+    /// Captured pointer range in the installed preparation, including the local
+    /// portion of a cross-participant selection in window document order.
     /// A mapped pointer range is shared with native paint/Copy; a raw capture
     /// can still be returned when a custom owner prevented adoption. This is
-    /// not a complete multi-click/cross-participant or AX selection accessor.
+    /// not a complete multi-click or AX selection accessor.
     pub fn captured_rendered_pointer_selection(
         &self,
         cx: &App,

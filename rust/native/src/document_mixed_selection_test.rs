@@ -101,6 +101,7 @@ pub(super) async fn exercise(
         expected,
         "ordinary-origin mixed Copy uses rendered Markdown"
     );
+    assert_full_logical_selection(cx, &markdown, false);
     handle
         .update(cx, |_, window, cx| {
             let focus = markdown.read(cx).focus_handle().clone();
@@ -125,6 +126,7 @@ pub(super) async fn exercise(
         expected,
         "reverse mixed Copy stays in rendered order"
     );
+    assert_full_logical_selection(cx, &markdown, true);
     let bounds = markdown.read_with(cx, |m, _| m.bounds());
     let markdown_start = gpui::point(bounds.left() + px(1.), bounds.top() + px(10.));
     drag(cx, handle, markdown_start, end).await;
@@ -191,4 +193,21 @@ pub(super) async fn exercise(
     eprintln!(
         "GPUIO_MIXED_SELECTION_OK: ordinary/Markdown order, forward/reverse drag, focus-independent Copy, local Select All, Markdown-origin drag, installed-source retirement and endpoint unmount"
     );
+}
+
+fn assert_full_logical_selection(
+    cx: &AsyncApp,
+    markdown: &Entity<gpui_base::TextViewState>,
+    backward: bool,
+) {
+    markdown.read_with(cx, |state, _| {
+        let selection = state
+            .rendered_selection()
+            .expect("intermediate document has a logical selection");
+        let text = state.rendered_text().unwrap();
+        assert_eq!(selection.bytes(), 0..text.text().len());
+        assert_eq!(selection.is_backward(), backward);
+        assert_eq!(state.selected_text(), text.text());
+        assert!(state.requested_rendered_selection().is_none());
+    });
 }

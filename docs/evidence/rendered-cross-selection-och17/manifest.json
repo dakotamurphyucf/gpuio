@@ -1,0 +1,130 @@
+{
+  "archive_sha256": "d42ae5cf597d969510338474576d385342789215db55d618cddc22a9f02b3706",
+  "files": [
+    {
+      "path": "rendered-cross-after-checks.py",
+      "bytes": 1182,
+      "sha256": "8d5756ac3cf7e1b3608ba8cd37ba4a57ceeab1eae777d83f2520451d360064aa"
+    },
+    {
+      "path": "rendered-cross-after-native-002.log",
+      "bytes": 591814,
+      "sha256": "a048277495e189b278f55cefbd7f900fe1ec01e7b4ed9cca0b14c6880c05c965"
+    },
+    {
+      "path": "rendered-cross-after-native-checks.json",
+      "bytes": 447,
+      "sha256": "28d7b19ab1d7ff13c6a59dc23665e908263e412b9ca107be5f488bef1bf4f6e6"
+    },
+    {
+      "path": "rendered-cross-before-checks.py",
+      "bytes": 1184,
+      "sha256": "d2fe1514bd6f9d777fbe02e510af1a6b60c692790fea3195ac951b9d144b9f4f"
+    },
+    {
+      "path": "rendered-cross-before-native-001.log",
+      "bytes": 595878,
+      "sha256": "e6f3d42bc28c44356c45881e6632a7c550e94840d901c2c7d4b93be660064b8d"
+    },
+    {
+      "path": "rendered-cross-before-native-checks.json",
+      "bytes": 449,
+      "sha256": "897d8925e5efd5322508ea6cf55807aea3fcc1a8a737336a7e65715144274b5f"
+    },
+    {
+      "path": "rendered-cross-clippy-008.log",
+      "bytes": 588624,
+      "sha256": "812aad4606078610a05e85a9d11b81125833b9f3c4d685e0a39501ce88054175"
+    },
+    {
+      "path": "rendered-cross-docs-012.log",
+      "bytes": 139,
+      "sha256": "6a6c48d5844d1ffdb3732cf30e5bb603cac1b615504a84bb2ee3b168cab6ce0b"
+    },
+    {
+      "path": "rendered-cross-dune-009.log",
+      "bytes": 705936,
+      "sha256": "31600cd470ffe58312100270a5054e3ec23fa906c907ab43874d01075e086033"
+    },
+    {
+      "path": "rendered-cross-final-checks.py",
+      "bytes": 1500,
+      "sha256": "a610d5319cc6f1bd0b48c8164321f4e0b4fd7e6cac04c4c932329994416fb048"
+    },
+    {
+      "path": "rendered-cross-final2-checks.json",
+      "bytes": 1594,
+      "sha256": "e7ca2632a57bfc8e0bddca5670d5b195a6213319472c819643ad00a568f885fa"
+    },
+    {
+      "path": "rendered-cross-format-013.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "rendered-cross-metadata.json",
+      "bytes": 4590,
+      "sha256": "c8bffe3ec2047a117eb2024590b2114736f081dbc5fdc0dc3a263af1379125c1"
+    },
+    {
+      "path": "rendered-cross-native-007.log",
+      "bytes": 705207,
+      "sha256": "9a022f49d451a7439ee66a03b3485df450dd807afb20e68b287383b6b5edef57"
+    },
+    {
+      "path": "rendered-cross-qualified.patch",
+      "bytes": 26390,
+      "sha256": "3a049cc0bfdf175f0497b72c2910ac2e66a3c75cedbbc87d685a36d0b1cd85fe"
+    },
+    {
+      "path": "rendered-cross-reconstruction-010.log",
+      "bytes": 4527,
+      "sha256": "6973822d8404af12cd426d5bedc0b30ec8691c9561a91ff0cf17496746fc14db"
+    },
+    {
+      "path": "rendered-cross-shutdown-011.log",
+      "bytes": 164,
+      "sha256": "99423232a2037bb904ac26adf4bcb1fcc2b116f2108c8fcc55d5f9e44edee641"
+    },
+    {
+      "path": "rendered-cross-shutdown-checks.json",
+      "bytes": 463,
+      "sha256": "84b70f2532fe7e148c7617ba80d022d7b8d961c9e5e290d7118ad4c9423ea681"
+    },
+    {
+      "path": "rendered-cross-shutdown-checks.py",
+      "bytes": 1187,
+      "sha256": "03a112a0762e48094bcae618348a3c3e1c6398e75d25ee35c585d9f709833dcb"
+    },
+    {
+      "path": "rendered-cross-shutdown-current-app.log",
+      "bytes": 52,
+      "sha256": "4b7efb90808b044cf2b79f21733d78f17068047c9d17d9fc04715ac7773bad46"
+    },
+    {
+      "path": "rendered-cross-shutdown-current.json",
+      "bytes": 1916,
+      "sha256": "d6e3360b06ef52b83237be926f50d3e7bf7a24fdf735bb3c6150a0b080384873"
+    },
+    {
+      "path": "rendered-cross-targeted-003.log",
+      "bytes": 589337,
+      "sha256": "dfcb05cbd92a7132e0afdf17f1ea56361d2760e9eed635d50b218793dc5e3229"
+    },
+    {
+      "path": "rendered-cross-targeted-004.log",
+      "bytes": 589411,
+      "sha256": "7332443ac9286c29f9d45ac8042a32a015f4bae51b2efad206dcd5ff477a9585"
+    },
+    {
+      "path": "rendered-cross-targeted-005.log",
+      "bytes": 588625,
+      "sha256": "c637db75713d86ba1058af6b0ee98ada6fd88466ce44811ad3234f5e9bb9a584"
+    },
+    {
+      "path": "rendered-cross-workspace-006.log",
+      "bytes": 783107,
+      "sha256": "c805ff2568d31fe83f2fdac494fa72dc59eb5799d7d849b18c2d9a75d33816d8"
+    }
+  ]
+}

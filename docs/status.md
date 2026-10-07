@@ -5,6 +5,13 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **O
 Markdown walkthroughs for every example component; its documentation acceptance is complete. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
+[Cross-document logical selection](evidence/rendered-cross-selection-och17.md)
+now derives directed local ranges for endpoint and intermediate documents from
+window document order. Actual macOS native Copy/range checks and a three-identical-
+document partial-range/reorder/retirement test pass. Full Rust workspace tests,
+1,093 native tests, strict lint, Dune and exact reconstruction pass locally.
+Multi-click, streamed Select All remapping, custom mapping and rich AX remain open.
+
 [Rendered glyph selection and copy capacity](evidence/rendered-glyph-selection-och17.md)
 repairs missing RTL highlights, uses cached grapheme/directional pointer geometry,
 and preserves the SDK's previously admitted generated-copy capacity. Full Rust

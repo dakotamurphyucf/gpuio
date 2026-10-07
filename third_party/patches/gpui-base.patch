@@ -12537,3 +12537,162 @@
      pub(super) fn matches(&self, layout: &TextLayout) -> bool {
          let lines = layout.line_layouts();
          self.layouts.len() == lines.len()
+--- a/src/text/selection_adapter.rs
++++ b/src/text/selection_adapter.rs
+@@ -286,15 +286,64 @@
+         text: &super::RenderedText,
+         snapshot: Option<TextSelectionSnapshot>,
+     ) -> Option<super::RenderedSelection> {
++        use std::cmp::Ordering;
+         let snapshot = snapshot?;
+-        if snapshot.coverage() != TextSelectionCoverage::Bounded
+-            || snapshot.anchor().entity_id() != Some(self.selection.entity_id())
+-            || snapshot.cursor().entity_id() != Some(self.selection.entity_id())
+-        {
+-            return None;
+-        }
+-        let anchor = text.captured_position(snapshot.anchor().content_key()?.position()?)?;
+-        let head = text.captured_position(snapshot.cursor().content_key()?.position()?)?;
++        let owns = |endpoint: TextSelectionEndpoint| {
++            endpoint.entity_id() == Some(self.selection.entity_id())
++        };
++        let position = |endpoint: TextSelectionEndpoint| {
++            text.captured_position(endpoint.content_key()?.position()?)
++        };
++        let (anchor, head) = match snapshot.coverage() {
++            TextSelectionCoverage::Bounded => {
++                if !owns(snapshot.anchor()) || !owns(snapshot.cursor()) {
++                    return None;
++                }
++                (position(snapshot.anchor())?, position(snapshot.cursor())?)
++            }
++            coverage => {
++                let backward = match snapshot.participant_ordering()? {
++                    Ordering::Less => false,
++                    Ordering::Greater => true,
++                    Ordering::Equal => return None,
++                };
++                let start = text.position(0)?;
++                let end = text.position(text.text().len())?;
++                let (start, end) = match coverage {
++                    TextSelectionCoverage::Full => {
++                        if owns(snapshot.anchor()) || owns(snapshot.cursor()) {
++                            return None;
++                        }
++                        (start, end)
++                    }
++                    TextSelectionCoverage::FromStart | TextSelectionCoverage::ToEnd => {
++                        let endpoint = if owns(snapshot.anchor()) && !owns(snapshot.cursor()) {
++                            // In a forward gesture the anchor selects to the end;
++                            // in a backward gesture it selects from the beginning.
++                            if (coverage == TextSelectionCoverage::FromStart) != backward {
++                                return None;
++                            }
++                            snapshot.anchor()
++                        } else if owns(snapshot.cursor()) && !owns(snapshot.anchor()) {
++                            if (coverage == TextSelectionCoverage::ToEnd) != backward {
++                                return None;
++                            }
++                            snapshot.cursor()
++                        } else {
++                            return None;
++                        };
++                        let endpoint = position(endpoint)?;
++                        if coverage == TextSelectionCoverage::FromStart {
++                            (start, endpoint)
++                        } else {
++                            (endpoint, end)
++                        }
++                    }
++                    TextSelectionCoverage::Bounded => unreachable!(),
++                };
++                if backward { (end, start) } else { (start, end) }
++            }
++        };
+         text.selection(&anchor, &head).ok()
+     }
+ 
+--- a/src/text/state.rs
++++ b/src/text/state.rs
+@@ -274,7 +274,7 @@
+ 
+     /// The logical range shared by native requests or mapped pointer selection
+     /// and Copy/paint. Genuine Select All covers the whole installed text.
+-    /// Multi-click, cross-participant and unmapped selections are not yet
++    /// Cross-participant ranges use window document order. Multi-click and unmapped selections are not yet
+     /// represented here; absence must not be interpreted as no native selection.
+     pub fn rendered_selection(&self) -> Option<super::RenderedSelection> {
+         if !self.selectable {
+@@ -322,10 +322,11 @@
+         self.rendered_selection = Some(RetainedRenderedSelection::Pointer(selection));
+     }
+ 
+-    /// Captured same-document pointer endpoints in the installed preparation.
++    /// Captured pointer range in the installed preparation, including the local
++    /// portion of a cross-participant selection in window document order.
+     /// A mapped pointer range is shared with native paint/Copy; a raw capture
+     /// can still be returned when a custom owner prevented adoption. This is
+-    /// not a complete multi-click/cross-participant or AX selection accessor.
++    /// not a complete multi-click or AX selection accessor.
+     pub fn captured_rendered_pointer_selection(
+         &self,
+         cx: &App,
+--- a/src/text_selection.rs
++++ b/src/text_selection.rs
+@@ -188,6 +188,7 @@
+     is_selecting: bool,
+     window_points: Option<TextSelectionWindowPoints>,
+     coverage: TextSelectionCoverage,
++    participant_ordering: Option<std::cmp::Ordering>,
+ }
+ 
+ /// How much of one participant participates in a window selection.
+@@ -213,6 +214,7 @@
+             is_selecting: false,
+             window_points: None,
+             coverage: TextSelectionCoverage::Bounded,
++            participant_ordering: None,
+         }
+     }
+ 
+@@ -261,6 +263,13 @@
+     /// Returns the portion of the receiving participant covered by this selection.
+     pub const fn coverage(&self) -> TextSelectionCoverage {
+         self.coverage
++    }
++
++    /// Anchor participant compared with cursor participant in document order.
++    /// `Equal` describes one participant, not the direction inside its text.
++    /// Missing registrations have no ordering; window coordinates cannot supply it.
++    pub const fn participant_ordering(&self) -> Option<std::cmp::Ordering> {
++        self.participant_ordering
+     }
+ }
+ 
+@@ -1343,9 +1352,23 @@
+         let anchor = anchor_endpoint.resolve(&self.participants)?;
+         let cursor = cursor_endpoint.resolve(&self.participants)?;
+         (anchor != cursor).then(|| {
+-            TextSelectionSnapshot::new(anchor_endpoint.snapshot(), cursor_endpoint.snapshot())
+-                .with_selecting(self.is_selecting)
+-                .with_window_points(Some(TextSelectionWindowPoints { anchor, cursor }))
++            let mut snapshot =
++                TextSelectionSnapshot::new(anchor_endpoint.snapshot(), cursor_endpoint.snapshot())
++                    .with_selecting(self.is_selecting)
++                    .with_window_points(Some(TextSelectionWindowPoints { anchor, cursor }));
++            snapshot.participant_ordering = anchor_endpoint
++                .entity_id()
++                .zip(cursor_endpoint.entity_id())
++                .and_then(|(anchor, cursor)| {
++                    Some(
++                        self.participants
++                            .get(&anchor)?
++                            .registration
++                            .document_order
++                            .cmp(&self.participants.get(&cursor)?.registration.document_order),
++                    )
++                });
++            snapshot
+         })
+     }
+ 

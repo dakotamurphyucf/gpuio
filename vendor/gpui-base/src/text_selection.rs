@@ -188,6 +188,7 @@ pub struct TextSelectionSnapshot {
     is_selecting: bool,
     window_points: Option<TextSelectionWindowPoints>,
     coverage: TextSelectionCoverage,
+    participant_ordering: Option<std::cmp::Ordering>,
 }
 
 /// How much of one participant participates in a window selection.
@@ -213,6 +214,7 @@ impl TextSelectionSnapshot {
             is_selecting: false,
             window_points: None,
             coverage: TextSelectionCoverage::Bounded,
+            participant_ordering: None,
         }
     }
 
@@ -261,6 +263,13 @@ impl TextSelectionSnapshot {
     /// Returns the portion of the receiving participant covered by this selection.
     pub const fn coverage(&self) -> TextSelectionCoverage {
         self.coverage
+    }
+
+    /// Anchor participant compared with cursor participant in document order.
+    /// `Equal` describes one participant, not the direction inside its text.
+    /// Missing registrations have no ordering; window coordinates cannot supply it.
+    pub const fn participant_ordering(&self) -> Option<std::cmp::Ordering> {
+        self.participant_ordering
     }
 }
 
@@ -1343,9 +1352,23 @@ impl WindowSelectionState {
         let anchor = anchor_endpoint.resolve(&self.participants)?;
         let cursor = cursor_endpoint.resolve(&self.participants)?;
         (anchor != cursor).then(|| {
-            TextSelectionSnapshot::new(anchor_endpoint.snapshot(), cursor_endpoint.snapshot())
-                .with_selecting(self.is_selecting)
-                .with_window_points(Some(TextSelectionWindowPoints { anchor, cursor }))
+            let mut snapshot =
+                TextSelectionSnapshot::new(anchor_endpoint.snapshot(), cursor_endpoint.snapshot())
+                    .with_selecting(self.is_selecting)
+                    .with_window_points(Some(TextSelectionWindowPoints { anchor, cursor }));
+            snapshot.participant_ordering = anchor_endpoint
+                .entity_id()
+                .zip(cursor_endpoint.entity_id())
+                .and_then(|(anchor, cursor)| {
+                    Some(
+                        self.participants
+                            .get(&anchor)?
+                            .registration
+                            .document_order
+                            .cmp(&self.participants.get(&cursor)?.registration.document_order),
+                    )
+                });
+            snapshot
         })
     }
 

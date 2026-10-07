@@ -93,7 +93,7 @@ pub(super) async fn exercise(
     let first_widget = first.read_with(cx, |p, _| p.markdown.as_ref().unwrap().entity_id());
     let second_widget = second.read_with(cx, |p, _| p.markdown.as_ref().unwrap().entity_id());
     let (start, end) = endpoints(cx, first, &second);
-    for (a, b) in [(start, end), (end, start)] {
+    for (a, b, backward) in [(start, end, false), (end, start, true)] {
         drag(cx, handle, a, b).await;
         for p in [first, &second] {
             focus(cx, handle, p);
@@ -102,6 +102,22 @@ pub(super) async fn exercise(
                 "first α body\nsecond β body",
                 "document Copy is focus independent"
             );
+            p.read_with(cx, |p, cx| {
+                let state = p.markdown.as_ref().unwrap().read(cx);
+                let range = state
+                    .rendered_selection()
+                    .expect("endpoint document logical range");
+                assert_eq!(range.is_backward(), backward);
+                assert_eq!(
+                    state.selected_text(),
+                    state
+                        .rendered_text()
+                        .unwrap()
+                        .selected_text(&range)
+                        .unwrap()
+                );
+                assert!(state.requested_rendered_selection().is_none());
+            });
         }
     }
     key(cx, handle, "secondary-a");

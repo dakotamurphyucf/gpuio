@@ -286,15 +286,64 @@ impl TextViewSelectionAdapter {
         text: &super::RenderedText,
         snapshot: Option<TextSelectionSnapshot>,
     ) -> Option<super::RenderedSelection> {
+        use std::cmp::Ordering;
         let snapshot = snapshot?;
-        if snapshot.coverage() != TextSelectionCoverage::Bounded
-            || snapshot.anchor().entity_id() != Some(self.selection.entity_id())
-            || snapshot.cursor().entity_id() != Some(self.selection.entity_id())
-        {
-            return None;
-        }
-        let anchor = text.captured_position(snapshot.anchor().content_key()?.position()?)?;
-        let head = text.captured_position(snapshot.cursor().content_key()?.position()?)?;
+        let owns = |endpoint: TextSelectionEndpoint| {
+            endpoint.entity_id() == Some(self.selection.entity_id())
+        };
+        let position = |endpoint: TextSelectionEndpoint| {
+            text.captured_position(endpoint.content_key()?.position()?)
+        };
+        let (anchor, head) = match snapshot.coverage() {
+            TextSelectionCoverage::Bounded => {
+                if !owns(snapshot.anchor()) || !owns(snapshot.cursor()) {
+                    return None;
+                }
+                (position(snapshot.anchor())?, position(snapshot.cursor())?)
+            }
+            coverage => {
+                let backward = match snapshot.participant_ordering()? {
+                    Ordering::Less => false,
+                    Ordering::Greater => true,
+                    Ordering::Equal => return None,
+                };
+                let start = text.position(0)?;
+                let end = text.position(text.text().len())?;
+                let (start, end) = match coverage {
+                    TextSelectionCoverage::Full => {
+                        if owns(snapshot.anchor()) || owns(snapshot.cursor()) {
+                            return None;
+                        }
+                        (start, end)
+                    }
+                    TextSelectionCoverage::FromStart | TextSelectionCoverage::ToEnd => {
+                        let endpoint = if owns(snapshot.anchor()) && !owns(snapshot.cursor()) {
+                            // In a forward gesture the anchor selects to the end;
+                            // in a backward gesture it selects from the beginning.
+                            if (coverage == TextSelectionCoverage::FromStart) != backward {
+                                return None;
+                            }
+                            snapshot.anchor()
+                        } else if owns(snapshot.cursor()) && !owns(snapshot.anchor()) {
+                            if (coverage == TextSelectionCoverage::ToEnd) != backward {
+                                return None;
+                            }
+                            snapshot.cursor()
+                        } else {
+                            return None;
+                        };
+                        let endpoint = position(endpoint)?;
+                        if coverage == TextSelectionCoverage::FromStart {
+                            (start, endpoint)
+                        } else {
+                            (endpoint, end)
+                        }
+                    }
+                    TextSelectionCoverage::Bounded => unreachable!(),
+                };
+                if backward { (end, start) } else { (start, end) }
+            }
+        };
         text.selection(&anchor, &head).ok()
     }
 

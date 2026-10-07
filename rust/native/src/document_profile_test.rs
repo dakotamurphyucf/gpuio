@@ -1,5 +1,7 @@
 //! Production host/worker/profile rendering on TestPlatform; no physical GUI claim.
 use super::*;
+#[path = "document_cross_ranges_test.rs"]
+mod cross_ranges;
 #[path = "document_rendered_endpoints_test.rs"]
 mod rendered_endpoints;
 #[path = "document_resource_test.rs"]

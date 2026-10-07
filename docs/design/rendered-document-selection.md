@@ -180,8 +180,8 @@ This is a low-level Rust adapter primitive, not a new OCaml command or an OS
 authorization boundary. The future AX action handler must also validate its
 current window, visibility, modality and semantic action identity. The
 `requested_rendered_selection()` accessor describes only accepted requests;
-the common `rendered_selection()` accessor also represents adopted same-document
-pointer ranges. Multi-click/cross-participant capture, full Select All/override
+the common `rendered_selection()` accessor also represents adopted pointer ranges,
+including the local portion of a cross-participant drag. Multi-click capture, full Select All/override
 remapping and whole-document TextRun publication still require integration. A declared custom
 text block whose glyphs differ from its copy alternative currently returns
 `UnmappedOwner` when selected by this primitive, including empty declared glyphs.
@@ -214,8 +214,8 @@ does not extrapolate across unknown custom objects or paragraph gaps. A separate
 nonvirtual sentinel preserves unrestricted Copy traversal instead of accidentally
 restricting such a document to block zero.
 
-`captured_rendered_pointer_selection` exposes same-document bounded pointer
-endpoints. When their native owners are mapped, a selection-change event now
+`captured_rendered_pointer_selection` exposes mapped pointer ranges. When their
+native owners are mapped, a selection-change event now
 applies those endpoints to the owners and retains one directed logical range
 for native painting and exact plain Copy. This uses the snapshot delivered by
 that event, rather than reading a possibly later queued window snapshot. The
@@ -240,9 +240,32 @@ geometry as ordinary selectable runs. Actual single-row native checks cover
 Hebrew, mixed-direction spans, Arabic, combining marks and joined emoji. Wrapped
 and aligned rich-selection qualification still needs completion.
 
-Multi-click, cross-participant and preserved Select All overrides need explicit
-integration; custom glyph/copy-alternative mapping also remains required.
+Multi-click and preserved Select All overrides need explicit integration;
+custom glyph/copy-alternative mapping also remains required.
 An absent common range must not be interpreted as no native selection.
 The staged native-owner update currently scans the bounded projection; pointer
 hot-path cost and possible coalescing/delta updates need measured qualification.
 Rich TextRun publication and guarded OS actions follow that work.
+
+
+## Cross-participant logical ranges
+
+Window snapshots carry the anchor participant's ordering relative to the cursor
+participant, taken from the registered document order. This is independent of
+screen Y, reflow and scrolling. Equal means the same document position in that
+ordering, not a forward text range; same-participant character direction still
+comes from its captured positions. Missing or ambiguous ordering cannot supply
+a cross-participant logical range.
+
+The text adapter combines that ordering with `Bounded`, `FromStart`, `ToEnd`
+and `Full` coverage. It validates endpoint ownership and current projection stamps
+for the endpoint documents; intermediate documents use their complete installed
+projection. Forward and backward gestures retain their direction independently
+in every participating document. The original window controller still owns scope,
+retirement, gesture lifetime and Copy ordering. No selected-string search or
+physical coordinate comparison recovers direction.
+
+These ranges use the same staged native-owner update and pointer provenance as
+same-document drags. Unmapped custom owners can still prevent adoption; adding
+cross-participant coverage does not settle that mapping or the remaining AX
+publication/action work.
