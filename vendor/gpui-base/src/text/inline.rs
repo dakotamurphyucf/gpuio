@@ -182,6 +182,7 @@ pub(super) struct Inline {
     interaction: InlineInteraction,
     semantic_sink: Option<(super::inline_semantics::Collector, usize)>,
     suppress_semantics: bool,
+    reading_in_parent: bool,
     link_click_handler: Option<Arc<LinkClickHandlerFn>>,
 
     state: Arc<Mutex<InlineState>>,
@@ -277,6 +278,7 @@ impl Inline {
             interaction: InlineInteraction::Text,
             semantic_sink: None,
             suppress_semantics: false,
+            reading_in_parent: false,
             link_click_handler,
             state,
         }
@@ -293,6 +295,13 @@ impl Inline {
 
     pub(super) fn suppress_semantics(mut self, suppress: bool) -> Self {
         self.suppress_semantics = suppress;
+        self
+    }
+
+    /// Preserve the native label and geometry while an atomic parent supplies
+    /// the document's reading alternative. Do not publish a second TextRun.
+    pub(super) fn reading_in_parent(mut self) -> Self {
+        self.reading_in_parent = true;
         self
     }
 
@@ -396,7 +405,7 @@ impl Inline {
                     point(bounds.right(), end.y + height),
                 )
             };
-            let accessible = window.is_a11y_active().then(|| {
+            let accessible = (window.is_a11y_active() && !self.reading_in_parent).then(|| {
                 super::accessible_runs::Snapshot::new(
                     self.text.clone(),
                     glyphs,
@@ -886,6 +895,7 @@ impl Element for Inline {
         };
         let accessible = (window.is_a11y_active()
             && !self.suppress_semantics
+            && !self.reading_in_parent
             && self.semantic_sink.is_none()
             && self.links.is_empty())
         .then(|| {

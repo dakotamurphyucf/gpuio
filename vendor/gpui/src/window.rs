@@ -6941,6 +6941,26 @@ impl Window {
         self.a11y.debug_tree_json()
     }
 
+    /// Publish a Document's selection from paint, after its native text owners
+    /// have painted. End-of-frame validation rejects positions outside this
+    /// Document's current, enabled and visible text scope. This does not register
+    /// or authorize selection actions. Claims expire at the next frame.
+    /// Returns whether the claim was queued, not whether its endpoints passed
+    /// the deferred validation.
+    pub fn publish_document_selection(
+        &mut self,
+        document: accesskit::NodeId,
+        selection: Option<accesskit::TextSelection>,
+    ) -> bool {
+        if !self.is_a11y_active()
+            || self.invalidator.inner.borrow().draw_phase != DrawPhase::Paint
+        {
+            return false;
+        }
+        self.a11y.document_selections.insert(document, selection);
+        true
+    }
+
     /// Register a listener for an accessibility action on a specific node.
     /// The listener will be called when a screen reader requests the given
     /// action on the node identified by `node_id`.

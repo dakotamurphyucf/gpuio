@@ -678,3 +678,40 @@ reading IDs independently of control IDs. The
 action/coordinate tests and a horizontal-table reading check beyond the viewport.
 Readable offscreen text is not permission to dispatch actions to an offscreen
 control, and these bindings remain separate from final-paint selection publication.
+
+Framework-owned declared inline Text retains its native Label, value, bounds and
+painted glyphs, while its atomic wrapper or logical link owns the reading runs.
+Suppress only the duplicate inner TextRuns; removing the Label would break its
+accessible semantics and geometry. This does not suppress arbitrary plugin-owned
+controls. Window-level Plain Copy normalizes rendered boundary whitespace in the
+existing selection adapter; logical accessibility ranges retain their structural
+separators. Source Copy keeps its exact bytes.
+
+## Painted selection publication
+
+TextView now queues its Document selection after painting native children and
+registering the native selection adapter. Endpoints come from the installed
+prepared text's retained selection or captured pointer range, mapped through the
+current semantic frame. Missing or stale mappings do not invent a caret.
+
+`Window::publish_document_selection` accepts claims only during paint while
+accessibility is active. Its Boolean result means queued, not validated. Claims
+expire each frame. After all painting, one final-tree traversal checks all claims:
+the Document and endpoints must exist, character indices must fit their TextRuns,
+and both runs must belong to that Document's independent text scope. Hidden or
+disabled ancestry invalidates a claim. Nested inputs, Documents and Terminals
+cannot contribute endpoints to an outer Document. The operation changes only
+the selection property, preserving tree structure and native control ownership.
+
+This read-only publication does not register or authorize `SetTextSelection`.
+OS mutation still requires final-tree authorization at delivery, exact prepared
+identity, interaction-epoch/selectability checks and explicit focus/reveal policy.
+Last-prepaint position conversion remains insufficient for authorization. Actual
+OS reader validation and VoiceOver acceptance must be recorded independently of
+native TestPlatform selection tests.
+
+Cached ViewElement replay is also a separate outstanding contract: current GPUI
+cache reuse does not replay its accessibility nodes/listeners. Ordinary redraw
+tests do not qualify cached semantics, focus, actions or selection. The fix must
+preserve real cache reuse, current context and bounded frame storage, including
+accessibility activation, invalidation, disabled/hidden ancestry and unmount.

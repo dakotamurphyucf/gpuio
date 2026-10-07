@@ -5,6 +5,15 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **O
 Markdown walkthroughs for every example component; its documentation acceptance is complete. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
+[Painted document selection](evidence/rendered-accessible-selection-och17.md)
+now exposes the native range through macOS selected-text attributes. The real
+gallery probe passes UTF-16 range/text, Copy and normal close after repairing
+duplicated literal HTML runs while preserving native Label/bounds. All 1,157
+native tests (2 private-bus fixtures ignored), strict lint, workspace/Dune,
+actual desktop and exact GPUI/Base reconstruction checks pass. OS mutation/reveal,
+cached accessibility replay, visual-line adjacency, VoiceOver and full release
+qualification remain open.
+
 [Readable inline objects](evidence/rendered-inline-objects-och17.md) now restore
 atomic alternatives inside and outside links, with distinct empty-object edges
 and stable native controls/actions. Horizontal-overflow table text and endpoints

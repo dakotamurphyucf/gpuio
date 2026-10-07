@@ -61,6 +61,7 @@ impl TextRun {
 
 #[derive(Default)]
 struct State {
+    document: Option<NodeId>,
     complete: bool,
     completed: HashMap<NodeId, std::ops::Range<usize>>,
     window: Option<gpui::WindowId>,
@@ -86,6 +87,7 @@ impl Frame {
         state.projection = projection.map_or_else(Weak::new, Arc::downgrade);
         state.window = Some(window);
         state.complete = complete;
+        state.document = None;
         state.completed.clear();
         state.candidates.clear();
         state.published.clear();
@@ -192,6 +194,7 @@ impl Frame {
     pub fn finish(&self, builder: &mut gpui::A11ySubtreeBuilder, complete: bool) {
         let children = builder.parent_node().children().to_vec();
         let mut state = self.0.lock().expect("semantic attachment frame");
+        state.document = Some(builder.parent_id());
         let mut seen = HashSet::new();
         let mut ambiguous = HashSet::new();
         state.published = children
@@ -318,6 +321,39 @@ impl Frame {
         } else {
             Vec::new()
         }
+    }
+
+    pub fn publish_selection(
+        &self,
+        window: &mut Window,
+        projection: &Arc<RenderedText>,
+        selection: Option<&super::RenderedSelection>,
+    ) {
+        let document = {
+            let state = self.0.lock().expect("semantic attachment frame");
+            if state.window != Some(window.window_handle().window_id())
+                || !state.projection.ptr_eq(&Arc::downgrade(projection))
+            {
+                return;
+            }
+            state.document
+        };
+        let Some(document) = document else { return };
+        let selection = selection.and_then(|selection| {
+            Some(gpui::accesskit::TextSelection {
+                anchor: self.text_position(
+                    window.window_handle().window_id(),
+                    projection,
+                    selection.anchor(),
+                )?,
+                focus: self.text_position(
+                    window.window_handle().window_id(),
+                    projection,
+                    selection.head(),
+                )?,
+            })
+        });
+        window.publish_document_selection(document, selection);
     }
 
     pub fn wrap(&self, block: usize, owner: RenderedSemanticId, element: AnyElement) -> AnyElement {

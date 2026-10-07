@@ -895,6 +895,19 @@ impl Element for TextView {
                 cx,
             );
         }
+        if window.is_a11y_active() {
+            let state = state.read(cx);
+            if let Some(projection) = state.rendered_text() {
+                let selection = state
+                    .rendered_selection()
+                    .or_else(|| state.captured_rendered_pointer_selection(cx));
+                state.semantic_attachments.publish_selection(
+                    window,
+                    &projection,
+                    selection.as_ref(),
+                );
+            }
+        }
     }
 }
 

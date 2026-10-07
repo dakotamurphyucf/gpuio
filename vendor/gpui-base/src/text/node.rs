@@ -1997,6 +1997,10 @@ impl Paragraph {
                                         None,
                                     )
                                     .passive()
+                                    // The atomic wrapper (or its logical link)
+                                    // owns this object's reading alternative.
+                                    // Retain the native label and its bounds.
+                                    .reading_in_parent()
                                     .suppress_semantics(linked),
                                 ),
                             ));

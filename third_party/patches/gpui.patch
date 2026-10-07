@@ -3714,3 +3714,162 @@
      }
  
      /// Clip this subtree's finalized descendant bounds in accessibility (scaled
+--- a/src/window.rs
++++ b/src/window.rs
+@@ -6941,6 +6941,26 @@
+         self.a11y.debug_tree_json()
+     }
+ 
++    /// Publish a Document's selection from paint, after its native text owners
++    /// have painted. End-of-frame validation rejects positions outside this
++    /// Document's current, enabled and visible text scope. This does not register
++    /// or authorize selection actions. Claims expire at the next frame.
++    /// Returns whether the claim was queued, not whether its endpoints passed
++    /// the deferred validation.
++    pub fn publish_document_selection(
++        &mut self,
++        document: accesskit::NodeId,
++        selection: Option<accesskit::TextSelection>,
++    ) -> bool {
++        if !self.is_a11y_active()
++            || self.invalidator.inner.borrow().draw_phase != DrawPhase::Paint
++        {
++            return false;
++        }
++        self.a11y.document_selections.insert(document, selection);
++        true
++    }
++
+     /// Register a listener for an accessibility action on a specific node.
+     /// The listener will be called when a screen reader requests the given
+     /// action on the node identified by `node_id`.
+--- a/src/window/a11y.rs
++++ b/src/window/a11y.rs
+@@ -101,6 +101,7 @@
+ use crate::*;
+ 
+ pub(crate) mod debug;
++mod document_selection;
+ 
+ use crate::{App, Bounds, FocusId, Pixels, SharedString, Window};
+ use accesskit::{Action, NodeId, TreeUpdate};
+@@ -172,6 +173,7 @@
+     pub(crate) focus_ids: FxHashMap<NodeId, FocusId>,
+     pub(crate) node_bounds: FxHashMap<NodeId, Bounds<Pixels>>,
+     pub(crate) action_listeners: FxHashMap<NodeId, Vec<(Action, A11yActionListener)>>,
++    pub(crate) document_selections: FxHashMap<NodeId, Option<accesskit::TextSelection>>,
+     /// The window's title, used to label the root node so assistive
+     /// technology can tell windows apart.
+     window_title: Option<SharedString>,
+@@ -203,6 +205,7 @@
+             focus_ids: FxHashMap::default(),
+             node_bounds: FxHashMap::default(),
+             action_listeners: FxHashMap::default(),
++            document_selections: FxHashMap::default(),
+             window_title,
+             last_focus_without_node: None,
+             debug: debug::A11yDebug::default(),
+@@ -418,6 +421,7 @@
+         self.explicit_active_descendant = None;
+         self.node_bounds.clear();
+         self.action_listeners.clear();
++        self.document_selections.clear();
+         self.nodes.begin_frame(self.window_title.as_ref());
+     }
+ 
+@@ -432,6 +436,7 @@
+             self.nodes.set_active_descendant(node_id);
+         }
+         let mut update = self.nodes.finalize();
++        document_selection::publish(&mut update, &self.document_selections);
+         self.remove_hidden_actions(&mut update);
+         self.debug.capture(
+             &update,
+--- /dev/null
++++ b/src/window/a11y/document_selection.rs
+@@ -0,0 +1,85 @@
++//! Resolve paint-time claims against the final tree, once for all Documents.
++use accesskit::{NodeId, Role, TextSelection, TreeUpdate};
++use collections::{FxHashMap, FxHashSet};
++
++pub(super) fn publish(
++    update: &mut TreeUpdate,
++    claims: &FxHashMap<NodeId, Option<TextSelection>>,
++) {
++    if claims.is_empty() {
++        return;
++    }
++    let nodes: FxHashMap<_, _> = update.nodes.iter().map(|(id, node)| (*id, node)).collect();
++    let mut pending = vec![(super::ROOT_NODE_ID, None, false)];
++    let mut seen = FxHashSet::default();
++    let mut documents = FxHashSet::default();
++    let mut runs = FxHashMap::default();
++    while let Some((id, inherited, excluded)) = pending.pop() {
++        if !seen.insert(id) {
++            continue;
++        }
++        let Some(node) = nodes.get(&id) else {
++            continue;
++        };
++        let excluded = excluded || node.is_hidden() || node.is_disabled();
++        let scope = if node.role() == Role::Document {
++            if !excluded {
++                documents.insert(id);
++            }
++            Some(id)
++        } else if independent_text_owner(node.role()) {
++            None
++        } else {
++            inherited
++        };
++        if !excluded && node.role() == Role::TextRun {
++            runs.insert(id, (scope, node.character_lengths().len()));
++        }
++        pending.extend(node.children().iter().map(|child| (*child, scope, excluded)));
++    }
++    for (id, node) in &mut update.nodes {
++        let Some(selection) = claims.get(id) else {
++            continue;
++        };
++        if node.role() != Role::Document {
++            continue;
++        }
++        let valid = selection.as_ref().filter(|selection| {
++            documents.contains(id)
++                && [selection.anchor, selection.focus].iter().all(|position| {
++                    runs.get(&position.node).is_some_and(|(scope, length)| {
++                        *scope == Some(*id) && position.character_index <= *length
++                    })
++                })
++        });
++        if let Some(selection) = valid {
++            node.set_text_selection(*selection);
++        } else {
++            node.clear_text_selection();
++        }
++    }
++}
++
++// Match the independent text scopes in the pinned AccessKit consumer's
++// text_node_filter/is_text_input. Labels remain part of their outer Document.
++fn independent_text_owner(role: Role) -> bool {
++    matches!(
++        role,
++        Role::Terminal
++            | Role::TextInput
++            | Role::MultilineTextInput
++            | Role::SearchInput
++            | Role::DateInput
++            | Role::DateTimeInput
++            | Role::WeekInput
++            | Role::MonthInput
++            | Role::TimeInput
++            | Role::EmailInput
++            | Role::NumberInput
++            | Role::PasswordInput
++            | Role::PhoneNumberInput
++            | Role::UrlInput
++            | Role::EditableComboBox
++            | Role::SpinButton
++    )
++}

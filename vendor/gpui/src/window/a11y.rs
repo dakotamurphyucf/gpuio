@@ -101,6 +101,7 @@
 use crate::*;
 
 pub(crate) mod debug;
+mod document_selection;
 
 use crate::{App, Bounds, FocusId, Pixels, SharedString, Window};
 use accesskit::{Action, NodeId, TreeUpdate};
@@ -172,6 +173,7 @@ pub(crate) struct A11y {
     pub(crate) focus_ids: FxHashMap<NodeId, FocusId>,
     pub(crate) node_bounds: FxHashMap<NodeId, Bounds<Pixels>>,
     pub(crate) action_listeners: FxHashMap<NodeId, Vec<(Action, A11yActionListener)>>,
+    pub(crate) document_selections: FxHashMap<NodeId, Option<accesskit::TextSelection>>,
     /// The window's title, used to label the root node so assistive
     /// technology can tell windows apart.
     window_title: Option<SharedString>,
@@ -203,6 +205,7 @@ impl A11y {
             focus_ids: FxHashMap::default(),
             node_bounds: FxHashMap::default(),
             action_listeners: FxHashMap::default(),
+            document_selections: FxHashMap::default(),
             window_title,
             last_focus_without_node: None,
             debug: debug::A11yDebug::default(),
@@ -418,6 +421,7 @@ impl A11y {
         self.explicit_active_descendant = None;
         self.node_bounds.clear();
         self.action_listeners.clear();
+        self.document_selections.clear();
         self.nodes.begin_frame(self.window_title.as_ref());
     }
 
@@ -432,6 +436,7 @@ impl A11y {
             self.nodes.set_active_descendant(node_id);
         }
         let mut update = self.nodes.finalize();
+        document_selection::publish(&mut update, &self.document_selections);
         self.remove_hidden_actions(&mut update);
         self.debug.capture(
             &update,

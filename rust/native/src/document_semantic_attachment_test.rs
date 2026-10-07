@@ -1,6 +1,8 @@
 //! Real GPUI prepaint bindings; not OS accessibility or VoiceOver acceptance.
 #[path = "document_inline_accessibility_test.rs"]
 mod inline;
+#[path = "document_accessible_selection_test.rs"]
+mod selection;
 
 use super::markdown_options_test::draw;
 use super::*;
