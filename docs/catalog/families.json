@@ -679,7 +679,7 @@
       "id": "charts",
       "owner": "OCH-40",
       "scope": "v1",
-      "audit_status": "All seven pinned chart families and nested plot/scale/shape/axis/tooltip sources reviewed. Four Cartesian value directions and typed categorical point/band layouts have paired data/options codecs, native geometry/provenance/hit/data-table tests and local installed macOS gallery evidence. Categorical domains use explicit IDs/order and missing observations; Auto/Point/Band layout and padding are native. The band formula and aligned-series contract differ explicitly from arbitrary upstream accessors. Native stacking now has shared-boundary area envelopes/curves, aligned aggregate bars, raw-value selection and local GPU/installed-gallery evidence. Options envelope version 3 requires matching packages. Stable namespaced ordinal colors now have bounded domain/range/unknown semantics, paired style-version-0 codecs, shared prepared paint/legend colors and local reordered-gallery evidence. Richer per-datum/label/tooltip styling remains work; whole plotting parity, VoiceOver, optimized performance and release acceptance are not claimed.",
+      "audit_status": "All seven pinned chart families and nested plot/scale/shape/axis/tooltip sources reviewed. Local paired/native/GPU and public root/fresh-installed evidence now covers categorical domains, four directions, signed stacking, ordinal colors, independent axes/grids, Sankey/radar/pie presentation, retained rich radar labels and inspection content, mark appearance/patterns, scalar area origins, dense bar backgrounds and per-observation bar origins. Current view/options/style/data schemas are -2/9/-9/3 and require matching packages. Original source IDs/endpoints, explicit aggregation, bounded ownership and teardown remain enforced. charts-review.md maps the supported declarative fill cases and explicitly unsupported arbitrary live pixel-bound callbacks/raw plot helpers; the native extension SDK does not inject custom fills into the built-in Chart. Scoped local evidence is not complete plotting parity, VoiceOver/physical presentation, optimized performance, current-source hosted/Linux or release acceptance.",
       "public_interface": "lib/core/chart.mli",
       "example": "examples/charts",
       "evidence": [
@@ -687,7 +687,16 @@
         "docs/catalog/charts-review.md",
         "docs/evidence/chart-directions-och41.md",
         "docs/evidence/categorical-charts-och41.md",
-        "docs/evidence/stacked-charts-och41.md"
+        "docs/evidence/stacked-charts-och41.md",
+        "docs/evidence/chart-axis-presentation-och41.md",
+        "docs/evidence/pie-labels-och41.md",
+        "docs/evidence/radar-label-rating-theme-och41.md",
+        "docs/evidence/chart-inspection-gallery-och41.md",
+        "docs/evidence/chart-mark-appearance-och41.md",
+        "docs/evidence/native-pattern-brushes-och41.md",
+        "docs/evidence/area-baselines-och41.md",
+        "docs/evidence/dense-background-gallery-och41.md",
+        "docs/evidence/bar-baselines-och41.md"
       ],
       "gallery_page": "charts",
       "contract": "Seven chart families/mixed layers, bounded source/preparation and original-data accessibility; preserve exact/reduced provenance.",

@@ -112,10 +112,54 @@ records paired codecs, 100k-source accounting and actual native GPU checks.
 [Scalar area baselines](../evidence/area-baselines-och41.md) now pass local
 qualification, including shared stacked offsets and retained source semantics.
 
-These missing public options remain explicit catalog work/decisions; this review
-does not create a new post-v1 deferral. Any extension must use bounded serialized
-values/native preparation and preserve accessibility/provenance, rather than
-introducing per-frame OCaml callbacks or weakening data validation.
+The callback and raw-geometry differences below remain explicit. This review
+does not create a new post-v1 deferral or establish whole plotting parity. Any
+extension must use bounded serialized values/native preparation and preserve
+accessibility/provenance, rather than introducing per-frame OCaml callbacks or
+weakening data validation.
+
+## Callback and geometry boundary
+
+Reviewed at `46b291d` against the unchanged pinned snapshots. The accepted
+[adapter contract](../design/component-catalog.md#adapter-contract) gives public
+families functional equivalents and maps helpers to their owning APIs; it
+explicitly prohibits synchronous OCaml rendering/delegate/formatter callbacks.
+That rule explains a runtime boundary, not an assertion that every callback's
+possible output is supported by the current declarative vocabulary.
+
+| Pinned operation | Current OCaml equivalent and exact difference |
+| --- | --- |
+| `BarChart::band`, `value`, `label`; low-level `Bar::cross`, `base`, `value` | Applications calculate typed category/point values, labels and optional per-observation origins before publication. Native preparation projects them, preserving IDs and original data. Arbitrary screen-space cross/base/value accessors are not public chart APIs. The chart-level source itself uses a zero baseline; independent source origins correspond to the lower-level Bar capability. |
+| `BarChart::fill`, `Bar::fill`: arbitrary datum-dependent `Background` | `Chart_data.with_bar_backgrounds` supplies up to 100k data-owned solid, two-stop gradient, slash or checker brushes. `Chart_appearance` adds bounded sparse/series overrides with explicit precedence. Applications may calculate a brush from arbitrary OCaml data before publication. Verbatim brush angles stay physical, matching the source fill's lack of automatic orientation adjustment. Theme resolution happens at publication/configuration time. |
+| `BarChart::fill_gradient`: automatic orientation and `chart_to_bar` helper | `Chart_appearance.Bar_fill.base_to_tip`, `domain` and `values` resolve native interval/domain coordinates, signed direction, stacking and clipping. These typed sRGB ramps support the source examples' local and chart-value gradients. The source and GPUIO need not share the same data domain or signed-gradient convention: GPUIO includes actual origins/stack bounds, and base-to-tip follows the actual signed interval. Custom arbitrary stop-producing callbacks are not serialized. |
+| `BarChart::fill`: closure receives live bar bounds, full chart bounds and alignment | **Not exposed as a general OCaml callback or general pixel-bound brush program.** Data-derived brushes and value-domain ramps cover their stated cases; a diagonal gradient anchored to the full chart rectangle, a width-threshold color rule, or an arbitrary frame-sampled colormap is not automatically equivalent. There is no general chart-frame observation/roundtrip substitute promising same-frame results. This unsupported surface remains visible in the catalog. |
+| `Plot::prepaint`, `paint`, `tooltip_state`, `tooltip` | Built-in native preparation, hit testing, inspection and retained ordinary View children own these phases. `Chart_inspection`, guide/marker presentation and rich content provide the documented chart behavior without application code running inside native paint. Arbitrary native plot implementations belong to a separately authored static extension. |
+| `Scale` trait, raw `Arc`/`Pie` angles and shape paint/path helpers | Chart options expose their family-specific projection, radii, captions, axes and styling. They do not export a general plotting algebra or arbitrary angular extent. Canvas provides retained drawing under its own semantics; the extension SDK provides trusted native rendering. Neither automatically supplies this chart's selection, original-data table or resource/provenance behavior. |
+
+The exact source inputs are [chart BarChart](sources/component-chart-bar_chart.rs.txt),
+[low-level Bar](sources/component-plot-shape-bar.rs.txt),
+[Plot](sources/component-plot-mod.rs.txt), [Scale](sources/component-plot-scale.rs.txt),
+[Pie](sources/component-plot-shape-pie.rs.txt) and
+[Arc](sources/component-plot-shape-arc.rs.txt), all hash-checked by the catalog
+manifest. Current public contracts are [Chart_data](../../lib/core/chart_data.mli),
+[Chart_appearance](../../lib/core/chart_appearance.mli) and
+[Background](../../lib/core/background.mli). The native
+[bar brush resolver](../../rust/native/src/chart_appearance.rs) explicitly
+distinguishes verbatim, base-to-tip, domain and value ramps.
+
+A static [extension package](../design/extensions.md) may implement its own plot
+using the pinned GPUI API, with a separately designed bounded OCaml interface.
+The current SDK does **not** let a package inject a new fill closure into the
+built-in Chart worker or borrow its private source store. Such integration would
+need a concrete library extension and its own lifetime, accessibility and
+performance validation. Ordinary users of the built-in examples need no Rust.
+
+Local paired/native/GPU and root/fresh-installed evidence for the supported
+appearance, backgrounds and baseline cases is linked above. This boundary review
+adds no runtime behavior and does not close unsupported functionality by calling
+it equivalent. Current-source hosted/Linux checks and the consolidated OCH-17
+accessibility, physical presentation, resource/performance and distribution/API
+gates remain required.
 
 [Axis visibility qualification](../evidence/chart-axis-visibility-och41.md) repairs
 categorical axes omitted by a numeric-domain guard and left boundary strokes

@@ -5,6 +5,13 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **O
 Markdown walkthroughs for every example component; its documentation acceptance is complete. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
+[Current chart-gallery integration](evidence/chart-catalog-current-och41.md) now
+passes the complete local chart sequence at `46b291d`, including the baseline
+controls, retained rich content and zero-resource teardown. The source ledger
+now reflects the implemented extensions and explicitly distinguishes typed fills
+from unsupported arbitrary pixel-bound callbacks/raw plot helpers. This is scoped
+integration and catalog evidence; broader acceptance remains open.
+
 [Per-bar baselines](evidence/bar-baselines-och41.md) now pass local paired codecs,
 native unit/GPU, full Dune/lint and root/fresh-installed gallery checks. Immutable
 source origins preserve endpoints/IDs, define compatible Sum/Mean/stacking and
