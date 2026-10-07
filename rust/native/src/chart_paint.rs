@@ -517,6 +517,7 @@ pub fn prepare_with_text(
     };
     let appearance = appearance::Index::new(data, style, options, cancel)?;
     let curves = appearance.curves()?;
+    let area_baselines = appearance.area_baselines()?;
     let mut geometry = geometry::prepare_with_presentation(
         data,
         policy,
@@ -526,6 +527,7 @@ pub fn prepare_with_text(
         geometry::Presentation {
             axes: Some(geometry::axis_presentation::Styles::of(style)),
             curves: &curves,
+            area_baselines: &area_baselines,
         },
         cancel,
     )

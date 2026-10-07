@@ -13,6 +13,7 @@ type t =
   | Uniform_buckets
   | Slash_pattern
   | Checkerboard
+  | Raised_area
 [@@deriving equal]
 
 let all =
@@ -25,6 +26,7 @@ let all =
   ; Uniform_buckets
   ; Slash_pattern
   ; Checkerboard
+  ; Raised_area
   ]
 ;;
 
@@ -38,6 +40,7 @@ let label = function
   | Uniform_buckets -> "Uniform aggregate colors"
   | Slash_pattern -> "Slash pattern"
   | Checkerboard -> "Checkerboard pattern"
+  | Raised_area -> "Area baseline 20"
 ;;
 
 let series data =
@@ -67,8 +70,14 @@ let configuration t palette data =
     match t with
     | Slash_pattern -> Some (Background.pattern_slash accent ~width:2. ~interval:4. |> ok)
     | Checkerboard -> Some (Background.checkerboard accent ~size:8. |> ok)
-    | Default | Paths | Markers | Signed_bars | Domain_bars | Value_bars | Uniform_buckets
-      -> None
+    | Default
+    | Paths
+    | Markers
+    | Signed_bars
+    | Domain_bars
+    | Value_bars
+    | Uniform_buckets
+    | Raised_area -> None
   in
   let path =
     A.Path.create
@@ -94,7 +103,7 @@ let configuration t palette data =
     | Domain_bars -> A.Bar_fill.domain ~from:accent ~to_:gold
     | Value_bars -> A.Bar_fill.values ~from:(0., accent) ~to_:(20., gold) |> ok
     | Slash_pattern | Checkerboard -> A.Bar_fill.background (Option.value_exn pattern)
-    | Default | Paths | Markers | Uniform_buckets ->
+    | Default | Paths | Markers | Uniform_buckets | Raised_area ->
       A.Bar_fill.background (Background.solid muted)
   in
   if equal t Default
@@ -120,7 +129,9 @@ let configuration t palette data =
                   t
                   ~equal)
                (A.Bar.create ~fill:bar_fill ~corners ()))
-          ~legend:accent
+          ?area_baseline:
+            (Option.some_if (equal t Raised_area) (A.Baseline.create 20. |> ok))
+          ?legend:(Option.some_if (not (equal t Raised_area)) accent)
           ())
     in
     let data =
@@ -148,7 +159,8 @@ let configuration t palette data =
         | Domain_bars
         | Value_bars
         | Slash_pattern
-        | Checkerboard -> [])
+        | Checkerboard
+        | Raised_area -> [])
     in
     A.create ~series ~data ~aggregates:Uniform () |> ok)
 ;;
@@ -167,5 +179,6 @@ let sampling = function
   | Domain_bars
   | Value_bars
   | Slash_pattern
-  | Checkerboard -> Chart_sampling.default
+  | Checkerboard
+  | Raised_area -> Chart_sampling.default
 ;;

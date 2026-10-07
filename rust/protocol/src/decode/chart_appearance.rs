@@ -78,6 +78,7 @@ impl Decoder<'_> {
                     marker: d.option(|d| d.chart_mark_marker())?,
                     bar: d.option(|d| d.chart_mark_bar())?,
                     legend: d.option(|d| d.int())?,
+                    area_baseline: d.option(|d| d.float())?,
                 })
             })?,
             data: self.list(MAX_DATA, |d| {

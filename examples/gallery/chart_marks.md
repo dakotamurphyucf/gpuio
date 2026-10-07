@@ -2,7 +2,7 @@
 
 [chart_marks.ml](chart_marks.ml) implements the [interface](chart_marks.mli).
 `A = Chart_appearance` and `D = Chart_data` shorten public API names. This helper
-is pure: `all` orders nine choices, `label` names buttons, `configuration` builds
+is pure: `all` orders ten choices, `label` names buttons, `configuration` builds
 appearance from a choice/palette/dataset, `dots` chooses marker visibility and
 `sampling` chooses geometry policy. Bonsai state and native source ownership live
 in [Charts_page](charts_page.md), not in this module.
@@ -52,7 +52,7 @@ is not the first 32 visible or defined observations: missing points can occupy
 positions, and sampling can omit a requested mark. No style override creates a
 new observation. Datum identity is scoped to its series, never a label or index.
 
-The nine presets use these public constructors:
+The ten presets use these public constructors:
 
 - Default returns `A.empty`; ordinary chart styles remain inherited.
 - Styled paths attaches `A.Path.create` to every extracted series: four-pixel
@@ -78,8 +78,14 @@ The nine presets use these public constructors:
   The paths also receive the same four-logical-pixel solid accent stroke and
   Natural curve as Styled paths. Radar uses the fill/stroke while ignoring bars
   and curve; a line without an area has no filled region to display the pattern.
+- Area baseline 20 attaches `A.Baseline.create 20. |> ok` through
+  `A.Series.create ~area_baseline` to every extracted series. The baseline
+  applies only to Cartesian/categorical area layers; lines, bars and radar
+  ignore that field. This choice does not supply a path override, enable dots
+  or change default sampling. It supplies no bar, marker or legend override,
+  keeping those appearances unchanged while the area baseline moves.
 
-In `configuration`, `pattern` is `Some brush` for those last two choices and
+In `configuration`, `pattern` is `Some brush` for the two pattern choices and
 `None` otherwise. `Option.value pattern ~default:...` selects the path fill;
 `A.Bar_fill.background` wraps the same brush for bars. The `?path` and `?bar`
 arguments to `A.Series.create` are supplied through `Option.some_if`, so a
@@ -107,11 +113,43 @@ geometry. Selecting **Checkerboard pattern** replaces the brush through the same
 flow. Source IDs, values and publication revision remain unchanged, and committed
 selection continues through the page's existing event handler.
 
+For the baseline flow, choose **Area**, then press **Area baseline 20**.
+The button executes `set_marks Raised_area`; the caller's `let%arr` reads that
+reactive choice and calls `configuration`. Its `Option.some_if` supplies the
+validated baseline to each `A.Series.create`, then `A.create` combines the
+series entries. Charts_page passes that appearance through `Chart_style.create`
+and `Chart.Config.create` to the native chart. No Bonsai state is created here,
+and this presentation change does not publish data or rewrite the page's stored
+selection observation.
+
+The number 20 is in **data units**, unlike either logical chart dimensions or
+physical-pixel pattern dimensions. It participates in the prepared value domain.
+A grouped area fills between 20 and each unchanged raw source value: a value 12
+remains 12 and fills down from 20 to 12, rather than becoming 32. Stacked areas
+instead interpret values as contributions: a common baseline offsets both
+cumulative bounds. For example, successive positive contributions 5 and 7 at
+baseline 20 occupy bounds 20–25 and 25–32. Inspection retains the original
+contributions and IDs while its stacked bounds include that offset. Missing
+observations still break runs.
+
+Every participating stacked area must have the same effective baseline;
+omission means zero. A partial override to 20 beside an omitted baseline therefore
+fails native preparation with `Chart.Error.Invalid_config`. The helper applies
+20 to every extracted series, preserving the common-baseline rule. When adapting
+it, keep that agreement as well as the common effective curve requirement.
+`Baseline.create` accepts only finite values within ±1e100 and returns
+`Or_error.t`; handle editable-input errors before installing the appearance.
+The baseline is a whole-series setting, not a datum override or a dense source
+channel. [Local baseline qualification](../../docs/evidence/area-baselines-och41.md)
+records codec, native unit/GPU and root/installed gallery behavior. Broader
+platform/release acceptance remains separate.
+
 Bar series use physical top-left radius 16 and bottom-right radius 8, with other
 corners zero. These corners stay physical through orientation changes and clamp
 to the bar's bounds. Local background gradient angles also stay physical; signed,
 domain and value ramps express value projection rather than a fixed screen angle.
-Every nondefault extracted series explicitly gets an accent legend swatch, which
+Every nondefault preset except Area baseline 20 explicitly gives extracted
+series an accent legend swatch, which
 is separate from datum highlights and original source names.
 The pattern color is that same palette accent, but a legend swatch remains a
 single explicit color rather than the patterned fill. Background colors may be

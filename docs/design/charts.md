@@ -40,7 +40,7 @@ substitute for identity.
 | Family | Data and invariants |
 | --- | --- |
 | Line | One or more named series; strictly increasing numeric x; optional y marks an explicit gap |
-| Area | The same series contract, with zero baseline; negative values remain valid |
+| Area | The same source contract, default zero baseline; [whole-series data-unit baselines](area-baselines.md) can change presentation without rewriting source values. Negative values remain valid. |
 | Bar | Numeric x, required y, zero baseline; negative values remain valid |
 | Mixed Cartesian | Line/area/bar layers share numeric coordinates and unique series IDs |
 | Categorical Cartesian | Ordered category IDs/labels, aligned line/area/bar layers, explicit missing observations and native point/band spacing |

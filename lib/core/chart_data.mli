@@ -202,7 +202,9 @@ val area : Series.t list -> t Or_error.t
 val bar : Series.t list -> t Or_error.t
 
 (** Shared numeric coordinates allow mixed line/area/bar layers. All series IDs
-    remain unique across layers. Zero is the area/bar baseline. *)
+    remain unique across layers. Areas and bars default to a zero baseline;
+    Chart_appearance.Series can override an area's baseline without changing this
+    source. In stacked mode values are contributions, not absolute endpoints. *)
 val cartesian : Layer.t list -> t Or_error.t
 
 (** The explicit category list defines order, not numeric ID or label ordering.

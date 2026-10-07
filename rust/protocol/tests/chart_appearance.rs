@@ -40,6 +40,7 @@ fn fixture() -> Appearance {
             }),
             bar: None,
             legend: Some(13),
+            area_baseline: None,
         }],
         data: [
             BarFill::Background(gradient()),
@@ -73,7 +74,7 @@ fn independent_ocaml_bytes_and_all_truncations() {
     let value = fixture();
     let bytes = encode(&value);
     // OCaml independently constructs these fields in chart_appearance_test.ml.
-    let expected = include_str!("../../../test/fixtures/chart-appearance.hex").trim();
+    let expected = include_str!("../../../test/fixtures/chart-appearance-v2.hex").trim();
     let actual: String = bytes.iter().map(|b| format!("{b:02x}")).collect();
     assert_eq!(actual, expected);
     assert_eq!(decode_chart_appearance(&bytes).unwrap(), value);
@@ -253,6 +254,7 @@ fn largest_valid_encoding_fits_and_is_not_a_dense_source_allocation() {
                 marker,
                 bar,
                 legend: Some(c),
+                area_baseline: Some(1e100),
             })
             .collect(),
         data: (0..MAX_DATA)
@@ -267,7 +269,7 @@ fn largest_valid_encoding_fits_and_is_not_a_dense_source_allocation() {
     };
     let bytes = encode(&value);
     assert!(bytes.len() <= MAX_BYTES, "{}", bytes.len());
-    assert_eq!(bytes.len(), 173447); // Independently measured by the OCaml maximum test.
+    assert_eq!(bytes.len(), 174599); // Independently measured by the OCaml maximum test.
     assert_eq!(decode_chart_appearance(&bytes).unwrap(), value);
     assert!(value.heap_bytes() < 512 * 1024);
     let mut over = value.clone();
@@ -318,5 +320,42 @@ fn patterns_have_paired_bytes_and_validate_before_preparation() {
             assert!(!value.is_valid());
             assert!(decode_chart_appearance(&encode(&value)).is_err());
         }
+    }
+}
+
+#[test]
+fn area_baseline_bytes_and_semantic_bounds() {
+    let mut value = Appearance {
+        series: vec![Series {
+            series: 1,
+            path: None,
+            marker: None,
+            bar: None,
+            legend: None,
+            area_baseline: Some(42.),
+        }],
+        ..Default::default()
+    };
+    assert_eq!(
+        encode(&value)
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect::<String>(),
+        "0101000000000100000000000045400000"
+    );
+    assert_eq!(decode_chart_appearance(&encode(&value)), Ok(value.clone()));
+    for n in [
+        f64::NAN,
+        f64::INFINITY,
+        f64::NEG_INFINITY,
+        -1.01e100,
+        1.01e100,
+    ] {
+        value.series[0].area_baseline = Some(n);
+        rejected(value.clone());
+    }
+    for n in [-1e100, 0., 1e100] {
+        value.series[0].area_baseline = Some(n);
+        assert_eq!(decode_chart_appearance(&encode(&value)), Ok(value.clone()));
     }
 }

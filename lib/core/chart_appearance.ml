@@ -173,6 +173,16 @@ module Bar = struct
   ;;
 end
 
+module Baseline = struct
+  type t = float [@@deriving equal, sexp_of]
+
+  let create value =
+    if Wire.within value (-1e100) 1e100
+    then Ok value
+    else Or_error.error_string "area baseline must be finite within [-1e100,1e100]"
+  ;;
+end
+
 module Series = struct
   type t =
     { series : Chart_data.Series_id.t
@@ -180,10 +190,13 @@ module Series = struct
     ; marker : Marker.t option
     ; bar : Bar.t option
     ; legend : Color.t option
+    ; area_baseline : Baseline.t option
     }
   [@@deriving equal, sexp_of]
 
-  let create ~series ?path ?marker ?bar ?legend () = { series; path; marker; bar; legend }
+  let create ~series ?path ?marker ?bar ?legend ?area_baseline () =
+    { series; path; marker; bar; legend; area_baseline }
+  ;;
 
   let resolve t theme =
     let open Or_error.Let_syntax in
@@ -196,6 +209,7 @@ module Series = struct
     ; marker
     ; bar
     ; legend
+    ; area_baseline = t.area_baseline
     }
   ;;
 end

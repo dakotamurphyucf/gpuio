@@ -96,6 +96,7 @@ fn cases() -> Vec<Case> {
         marker,
         bar,
         legend: None,
+        area_baseline: None,
     };
     let mut single = series();
     single.points.truncate(1);
@@ -242,6 +243,57 @@ fn cases() -> Vec<Case> {
         area,
         vec![sample(100., 80., 0, 0, 128), sample(50., 80., 0, 255, 0)],
     );
+    for baseline in [0., 1.] {
+        for orientation in [
+            Orientation::Vertical,
+            Orientation::Horizontal,
+            Orientation::VerticalReversed,
+            Orientation::HorizontalReversed,
+        ] {
+            let mut config = options();
+            config.cartesian.orientation = orientation;
+            let mut appearance = style();
+            appearance.appearance.series.push(a::Series {
+                area_baseline: Some(baseline),
+                ..series_override(
+                    None,
+                    Some(a::Path {
+                        fill: Some(solid(0x0000ffff)),
+                        stroke: Some(a::Stroke {
+                            visible: false,
+                            width: None,
+                            brush: solid(0),
+                        }),
+                        curve: Some(gpuio_protocol::chart_options::Curve::Linear),
+                    }),
+                    None,
+                )
+            });
+            let at = |value: f32, blue| {
+                let value = if orientation.is_reversed() {
+                    1. - value
+                } else {
+                    value
+                };
+                let (x, y) = if orientation.is_horizontal() {
+                    (value * 200., 40.)
+                } else {
+                    (50., (1. - value) * 160.)
+                };
+                sample(x, y, 0, 0, blue)
+            };
+            add(
+                "area-baseline",
+                dataset(data::Contents::Cartesian(vec![data::Layer::Area(series())])),
+                config,
+                appearance,
+                vec![
+                    at(0.25, if baseline == 0. { 255 } else { 0 }),
+                    at(0.875, if baseline == 1. { 255 } else { 0 }),
+                ],
+            );
+        }
+    }
     let mut line = series();
     for point in &mut line.points {
         point.y = Some(1.);

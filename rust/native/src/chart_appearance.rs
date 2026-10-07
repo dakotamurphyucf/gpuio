@@ -177,6 +177,35 @@ impl<'a> Index<'a> {
         }
         Ok(result)
     }
+    pub fn area_baselines(&self) -> Result<Vec<f64>, Error> {
+        let Some(layers) = Layers::of(self.data) else {
+            return Ok(vec![]);
+        };
+        let mut common = None;
+        layers
+            .iter()
+            .enumerate()
+            .map(|(i, layer)| {
+                if self.cancel.load(Ordering::Relaxed) {
+                    return Err(Error::Cancelled);
+                }
+                if layer.kind != Kind::Area {
+                    return Ok(0.);
+                }
+                let baseline = self
+                    .series_at(i)
+                    .and_then(|s| s.area_baseline)
+                    .unwrap_or(0.);
+                if self.options.cartesian.stacking == Stacking::Stacked {
+                    if common.is_some_and(|previous| previous != baseline) {
+                        return Err(Error::InvalidConfiguration);
+                    }
+                    common = Some(baseline);
+                }
+                Ok(baseline)
+            })
+            .collect()
+    }
     fn datum(&self, source: geometry::Source) -> Option<&appearance::Datum> {
         let (series, datum) = match source {
             geometry::Source::Cartesian { series, start, end } if end == start + 1 => {

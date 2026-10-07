@@ -81,18 +81,34 @@ module Bar : sig
   val create : ?fill:Bar_fill.t -> ?corners:Corners.t -> unit -> t
 end
 
+module Baseline : sig
+  type t [@@deriving equal, sexp_of]
+
+  (** Area fill baseline in data units, finite within +/-1e100. This participates
+      in the value domain. It is not a screen coordinate or a source value. *)
+  val create : float -> t Or_error.t
+end
+
 module Series : sig
   type t [@@deriving equal, sexp_of]
 
   (** Series IDs are stable. Applicable fields affect Cartesian/categorical paths,
       bars or markers; radar accepts paths/markers, ignoring curve/bars.
-      Legend color is independent; omission preserves the ordinal/palette swatch. *)
+      Legend color is independent; omission preserves the ordinal/palette swatch.
+      [area_baseline] defaults to zero and applies only to area layers. Grouped
+      areas fill from the baseline to the unchanged source value. Stacked areas
+      treat source values as contributions, offsetting both cumulative bounds by
+      a shared baseline; differing effective baselines fail with Invalid_config.
+      Missing observations still break runs. Inspection/data-table source values
+      and selection IDs remain unchanged; stacked inspection bounds include the
+      offset. Lines, bars and radar ignore [area_baseline]. *)
   val create
     :  series:Chart_data.Series_id.t
     -> ?path:Path.t
     -> ?marker:Marker.t
     -> ?bar:Bar.t
     -> ?legend:Color.t
+    -> ?area_baseline:Baseline.t
     -> unit
     -> t
 end

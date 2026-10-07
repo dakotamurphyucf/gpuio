@@ -169,6 +169,7 @@ fn aggregates_compare_inherited_resolved_styles_and_ignore_missing_observations(
             corners: None,
         }),
         legend: None,
+        area_baseline: None,
     });
     style.appearance.data.push(Datum {
         series: 55,

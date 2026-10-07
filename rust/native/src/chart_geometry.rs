@@ -329,10 +329,11 @@ struct Coordinates {
     horizontal: bool,
     reversed: bool,
     categorical: Option<Projection>,
+    value_offset: f64,
 }
 impl Coordinates {
     fn value(self, value: f64) -> f64 {
-        let fraction = self.y.unit(value);
+        let fraction = self.y.unit(value + self.value_offset);
         (if self.reversed {
             1. - fraction
         } else {
@@ -457,9 +458,22 @@ fn cartesian(
         layers.iter().flat_map(|l| l.points.iter().map(|p| p.x)),
         false,
     );
-    let zero = layers
+    let baseline = |series: usize| {
+        presentation
+            .area_baselines
+            .get(series)
+            .copied()
+            .unwrap_or(0.)
+    };
+    let has_values = layers
         .iter()
-        .any(|l| matches!(l.kind, Kind::Area | Kind::Bar));
+        .any(|l| l.points.iter().any(|p| p.y.is_some()));
+    let zero = layers.iter().any(|l| l.kind == Kind::Bar);
+    let area_bases = layers
+        .iter()
+        .enumerate()
+        .filter(|(_, l)| has_values && l.kind == Kind::Area)
+        .map(|(i, _)| baseline(i));
     // Include original extrema even when their points were reduced, plus bar
     // aggregates whose sums can exceed the individual source values.
     let stacked = options.cartesian.stacking == options::Stacking::Stacked;
@@ -471,14 +485,19 @@ fn cartesian(
         .iter()
         .flat_map(|s| s.bars())
         .flat_map(|(b, bounds)| bounds.map_or([0., b.value], |s| [s.lower, s.upper]));
-    let area_y = reduced
-        .iter()
-        .flat_map(|s| match s {
+    let area_y = reduced.iter().enumerate().flat_map(|(i, s)| {
+        let points = match s {
             reduce::Series::StackedArea(points) => points.as_slice(),
             _ => &[],
-        })
-        .flat_map(|p| [p.bounds.lower, p.bounds.upper]);
-    let y = Domain::from(source_y.chain(aggregate_y).chain(area_y), zero);
+        };
+        points
+            .iter()
+            .flat_map(move |p| [p.bounds.lower + baseline(i), p.bounds.upper + baseline(i)])
+    });
+    let y = Domain::from(
+        source_y.chain(aggregate_y).chain(area_y).chain(area_bases),
+        zero,
+    );
     let bars = reduced
         .iter()
         .filter(|s| matches!(s, reduce::Series::Bar(_) | reduce::Series::StackedBar(_)))
@@ -505,6 +524,7 @@ fn cartesian(
         inset: if bars > 0 { slot / 2. } else { 0. },
         horizontal,
         reversed: options.cartesian.orientation.is_reversed(),
+        value_offset: 0.,
         categorical: categories
             .map(|c| Projection::new(c.len(), width, options.cartesian.category_layout, bars > 0)),
     };
@@ -567,7 +587,10 @@ fn cartesian(
                     series,
                     layer.points,
                     points,
-                    c,
+                    Coordinates {
+                        value_offset: baseline(series),
+                        ..c
+                    },
                     series_options,
                     cancel,
                 )?;
@@ -607,11 +630,12 @@ fn cartesian(
                             let mut fill = commands.clone();
                             fill.push(Command::Line(c.point(
                                 layer.points.get(run.last().unwrap().source).unwrap().x,
-                                0.,
+                                baseline(series),
                             )));
-                            fill.push(Command::Line(
-                                c.point(layer.points.get(run[0].source).unwrap().x, 0.),
-                            ));
+                            fill.push(Command::Line(c.point(
+                                layer.points.get(run[0].source).unwrap().x,
+                                baseline(series),
+                            )));
                             fill.push(Command::Close);
                             plan.paths.push(Path {
                                 layer: series,
@@ -854,6 +878,7 @@ fn candles(
         inset: slot / 2.,
         horizontal: false,
         reversed: false,
+        value_offset: 0.,
         categorical: None,
     };
     c.axes(plan, options.axes, None, axes, cancel)?;
@@ -1200,7 +1225,11 @@ pub(crate) fn prepare_with_axes(
         options,
         size,
         labels,
-        Presentation { axes, curves: &[] },
+        Presentation {
+            axes,
+            curves: &[],
+            area_baselines: &[],
+        },
         cancel,
     )
 }
@@ -1208,6 +1237,7 @@ pub(crate) fn prepare_with_axes(
 pub(crate) struct Presentation<'a> {
     pub axes: Option<axis_presentation::Styles<'a>>,
     pub curves: &'a [options::Curve],
+    pub area_baselines: &'a [f64],
 }
 pub(crate) fn prepare_with_presentation(
     data: &data::Data,
@@ -1221,6 +1251,15 @@ pub(crate) fn prepare_with_presentation(
     let axes = presentation.axes;
     if !presentation.curves.is_empty()
         && Layers::of(data).is_none_or(|layers| layers.len() != presentation.curves.len())
+    {
+        return Err(Error::InvalidInput);
+    }
+    if !presentation.area_baselines.is_empty()
+        && (Layers::of(data).is_none_or(|layers| layers.len() != presentation.area_baselines.len())
+            || presentation
+                .area_baselines
+                .iter()
+                .any(|n| !n.is_finite() || n.abs() > 1e100))
     {
         return Err(Error::InvalidInput);
     }

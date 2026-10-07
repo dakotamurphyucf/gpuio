@@ -131,6 +131,7 @@ module Series = struct
     ; marker : Marker.t option
     ; bar : Bar.t option
     ; legend : int64 option
+    ; area_baseline : float option
     }
   [@@deriving bin_io, equal, sexp_of]
 
@@ -140,6 +141,7 @@ module Series = struct
     && Option.for_all t.marker ~f:Marker.valid
     && Option.for_all t.bar ~f:Bar.valid
     && Option.for_all t.legend ~f:color
+    && Option.for_all t.area_baseline ~f:(fun n -> within n (-1e100) 1e100)
   ;;
 end
 

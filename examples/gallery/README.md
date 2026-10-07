@@ -503,7 +503,10 @@ path/bar styling and explicit aggregate sampling in Cartesian/radar modes. Its
 **Slash pattern** and **Checkerboard pattern** controls apply transparent-gap
 brushes to bars and filled paths; brush dimensions use physical pixels while
 chart geometry uses logical pixels. The guide traces their pure configuration
-through the page's Bonsai state; native qualification remains open. Pie,
+through the page's Bonsai state. **Area baseline 20** demonstrates a data-unit
+fill baseline for grouped areas and a common offset for stacked contributions;
+source values and selection IDs remain intact. Its native qualification is pending.
+See the guide for the separately recorded pattern qualification. Pie,
 Candlestick, Ordinal colors and flow modes hide these controls; integration remains
 under qualification.
 The original-data table includes node records

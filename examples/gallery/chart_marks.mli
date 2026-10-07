@@ -11,6 +11,7 @@ type t =
   | Uniform_buckets
   | Slash_pattern
   | Checkerboard
+  | Raised_area
 [@@deriving equal]
 
 val all : t list

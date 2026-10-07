@@ -12,7 +12,7 @@ fn config() -> Config {
         options: Default::default(),
         sampling: Default::default(),
         style: gpuio_protocol::chart_style::Style {
-            version: -8,
+            version: -9,
             palette: vec![1, 2],
             axis_color: 3,
             grid_color: 4,
@@ -302,6 +302,7 @@ fn independently_full_chart_captions_fit_the_config_envelope_and_are_charged() {
             marker,
             bar,
             legend: Some(color),
+            area_baseline: Some(1e100),
         })
         .collect();
     value.style.appearance.data = (0..a::MAX_DATA)

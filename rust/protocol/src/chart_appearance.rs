@@ -151,6 +151,7 @@ pub struct Series {
     pub marker: Option<Marker>,
     pub bar: Option<Bar>,
     pub legend: Option<i64>,
+    pub area_baseline: Option<f64>,
 }
 impl Series {
     pub fn is_valid(&self) -> bool {
@@ -159,6 +160,7 @@ impl Series {
             && self.marker.is_none_or(|m| m.is_valid())
             && self.bar.is_none_or(|b| b.is_valid())
             && self.legend.is_none_or(color)
+            && self.area_baseline.is_none_or(|n| within(n, -1e100, 1e100))
     }
 }
 

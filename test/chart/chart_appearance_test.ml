@@ -20,7 +20,7 @@ let%expect_test "chart style resolves appearance and rejects forged nested value
   let theme = Gpuio.Theme.create [ "chart-appearance-style", alpha 7 ] |> ok in
   let style = S.create ~appearance ~theme () |> ok |> S.Expert.to_wire in
   assert (W.equal style.appearance (A.Expert.to_wire appearance ~theme |> ok));
-  assert (Int64.equal style.version (-8L));
+  assert (Int64.equal style.version (-9L));
   let first = List.hd_exn style.appearance.series in
   assert (
     Result.is_error
@@ -31,6 +31,7 @@ let%expect_test "chart style resolves appearance and rejects forged nested value
          }));
   assert (Result.is_error (S.Expert.of_wire { style with version = -4L }));
   assert (Result.is_error (S.Expert.of_wire { style with version = -7L }));
+  assert (Result.is_error (S.Expert.of_wire { style with version = -8L }));
   let bytes =
     Bin_prot.Utils.bin_dump
       Gpuio_protocol.Chart_view_wire.Observation.bin_writer_t
@@ -39,9 +40,9 @@ let%expect_test "chart style resolves appearance and rejects forged nested value
   in
   assert (String.equal bytes "\001\004");
   print_s
-    [%sexp "style schema -8; resolved nested colors; invalid config observation 01 04"];
+    [%sexp "style schema -9; resolved nested colors; invalid config observation 01 04"];
   [%expect
-    {| "style schema -8; resolved nested colors; invalid config observation 01 04" |}]
+    {| "style schema -9; resolved nested colors; invalid config observation 01 04" |}]
 ;;
 
 let%expect_test "appearance independently paired bytes preserve omission and variants" =
@@ -95,7 +96,7 @@ let%expect_test "appearance independently paired bytes preserve omission and var
   |> String.concat
   |> print_endline;
   [%expect
-    {| 01010101000100000000000000400002010101000000000080564003000000000000d03f04000000000000e83f01020101010100000000000038400105010601000000000000204000010d040101000101000101000000000080564003000000000000d03f04000000000000e83f01000000000000f03f000000000000004000000000000008400000000000001040010200010101070801000000000000f03f000000000000004000000000000008400000000000001040010300010102090a01000000000000f03f00000000000000400000000000000840000000000000104001040001010300000000000000c00b00000000000008400c01000000000000f03f00000000000000400000000000000840000000000000104001 |}]
+    {| 01010101000100000000000000400002010101000000000080564003000000000000d03f04000000000000e83f01020101010100000000000038400105010601000000000000204000010d00040101000101000101000000000080564003000000000000d03f04000000000000e83f01000000000000f03f000000000000004000000000000008400000000000001040010200010101070801000000000000f03f000000000000004000000000000008400000000000001040010300010102090a01000000000000f03f00000000000000400000000000000840000000000000104001040001010300000000000000c00b00000000000008400c01000000000000f03f00000000000000400000000000000840000000000000104001 |}]
 ;;
 
 let%expect_test "constructor bounds and identity namespaces" =
@@ -263,6 +264,7 @@ let%expect_test "maximum wire appearance fits an independently bounded envelope"
       ; marker = Some marker
       ; bar = Some bar
       ; legend = Some c
+      ; area_baseline = Some 1e100
       })
   in
   let data =
@@ -278,7 +280,7 @@ let%expect_test "maximum wire appearance fits an independently bounded envelope"
   let bytes = W.bin_size_t t in
   assert (bytes <= 192 * 1024);
   print_s [%sexp (bytes : int)];
-  [%expect {| 173447 |}]
+  [%expect {| 174599 |}]
 ;;
 
 let%expect_test "native pattern brushes resolve once and have paired encodings" =
@@ -316,4 +318,25 @@ let%expect_test "native pattern brushes resolve once and have paired encodings" 
     020000000000000000400000000000001040
     03000000000000002040
     |}]
+;;
+
+let%expect_test "area baseline is validated and encoded independently of source data" =
+  List.iter
+    [ Float.nan; Float.infinity; Float.neg_infinity; -1.01e100; 1.01e100 ]
+    ~f:(fun n -> assert (Result.is_error (A.Baseline.create n)));
+  List.iter [ -1e100; 0.; 1e100 ] ~f:(fun n ->
+    ignore (A.Baseline.create n |> ok : A.Baseline.t));
+  let area_baseline = A.Baseline.create 42. |> ok in
+  let wire =
+    A.create ~series:[ A.Series.create ~series:(sid 1) ~area_baseline () ] ()
+    |> ok
+    |> resolve
+  in
+  let first = List.hd_exn wire.series in
+  assert (Option.equal Float.equal first.area_baseline (Some 42.));
+  assert (
+    not (W.valid { wire with series = [ { first with area_baseline = Some Float.nan } ] }));
+  let bytes = Bin_prot.Utils.bin_dump W.bin_writer_t wire |> Bigstring.to_string in
+  print_endline (String.concat_map bytes ~f:(fun c -> sprintf "%02x" (Char.to_int c)));
+  [%expect {| 0101000000000100000000000045400000 |}]
 ;;

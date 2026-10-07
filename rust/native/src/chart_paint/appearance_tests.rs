@@ -46,6 +46,7 @@ fn series_style(id: i64) -> a::Series {
         marker: None,
         bar: None,
         legend: None,
+        area_baseline: None,
     }
 }
 
@@ -135,6 +136,7 @@ fn series_paths_have_independent_brushes_widths_curves_and_legend_colors() {
             curve: Some(Curve::StepAfter),
         }),
         legend: Some(99),
+        area_baseline: None,
         ..series_style(11)
     });
     let p = plan(&data, &options, &style).unwrap();
@@ -361,4 +363,209 @@ fn radar_appearance_uses_axis_identity_and_preserves_original_selection() {
         }),
         Some(1)
     );
+}
+
+#[test]
+fn area_baseline_changes_domain_and_fill_without_rewriting_source() {
+    let mut options = options();
+    let mut style = Style::default();
+    style.appearance.series.push(a::Series {
+        area_baseline: Some(5.),
+        ..series_style(11)
+    });
+    for categorical in [false, true] {
+        let source = series(11, &[10., 20., 15.]);
+        let data = Data {
+            version: 1,
+            contents: if categorical {
+                d::Contents::Categorical(
+                    (0..3)
+                        .map(|i| d::Category {
+                            id: i + 1,
+                            label: format!("C{i}"),
+                        })
+                        .collect(),
+                    vec![d::CategoricalLayer::Area(d::CategoricalSeries {
+                        id: 11,
+                        name: "Area".into(),
+                        points: source
+                            .points
+                            .iter()
+                            .map(|p| d::CategoricalPoint {
+                                id: p.id,
+                                category: p.id,
+                                value: p.y,
+                                label: p.label.clone(),
+                            })
+                            .collect(),
+                    })],
+                )
+            } else {
+                d::Contents::Cartesian(vec![d::Layer::Area(source)])
+            },
+        };
+        let original = data.clone();
+        for baseline in [-5., 5., 30.] {
+            style.appearance.series[0].area_baseline = Some(baseline);
+            for orientation in [
+                Orientation::Vertical,
+                Orientation::Horizontal,
+                Orientation::VerticalReversed,
+                Orientation::HorizontalReversed,
+            ] {
+                options.cartesian.orientation = orientation;
+                let p = plan(&data, &options, &style).unwrap();
+                let domain = p.geometry.y_domain.unwrap();
+                assert_eq!(domain.min, baseline.min(10.));
+                assert_eq!(domain.max, baseline.max(20.));
+                let fill = p.geometry.paths.iter().find(|p| p.fill).unwrap();
+                let end = &fill.commands[fill.commands.len() - 3..];
+                let fraction = domain.unit(baseline);
+                let fraction = if orientation.is_reversed() {
+                    1. - fraction
+                } else {
+                    fraction
+                };
+                for command in &end[..2] {
+                    let geometry::Command::Line(point) = command else {
+                        panic!("closing boundary")
+                    };
+                    let (actual, expected) = if orientation.is_horizontal() {
+                        (point.x, fraction * p.geometry.width)
+                    } else {
+                        (point.y, (1. - fraction) * p.geometry.height)
+                    };
+                    assert!((actual - expected).abs() < 1e-8);
+                }
+                assert_eq!(end[2], geometry::Command::Close);
+                assert_eq!(
+                    p.geometry.marks[0].source,
+                    geometry::Source::Cartesian {
+                        series: 0,
+                        start: 0,
+                        end: 1
+                    }
+                );
+                assert_eq!(data, original);
+            }
+        }
+    }
+}
+
+#[test]
+fn stacked_area_baseline_offsets_bounds_and_requires_shared_effective_value() {
+    let data = Data {
+        version: 1,
+        contents: d::Contents::Cartesian(vec![
+            d::Layer::Area(series(11, &[2., -3., 4.])),
+            d::Layer::Area(series(22, &[5., -7., 6.])),
+        ]),
+    };
+    let mut options = options();
+    options.cartesian.stacking = Stacking::Stacked;
+    let mut style = Style::default();
+    style.appearance.series = [11, 22]
+        .into_iter()
+        .map(|id| a::Series {
+            area_baseline: Some(20.),
+            ..series_style(id)
+        })
+        .collect();
+    for curve in [Curve::Linear, Curve::Natural, Curve::StepAfter] {
+        options.cartesian.curve = curve;
+        let p = plan(&data, &options, &style).unwrap();
+        assert_eq!(
+            p.geometry.y_domain,
+            Some(geometry::Domain { min: 10., max: 30. })
+        );
+        assert_eq!(
+            p.geometry.summary(0),
+            Some(geometry::Summary::Stacked {
+                value: 2.,
+                lower: 20.,
+                upper: 22.
+            })
+        );
+        assert_eq!(
+            p.geometry.summary(3),
+            Some(geometry::Summary::Stacked {
+                value: 5.,
+                lower: 22.,
+                upper: 27.
+            })
+        );
+        assert_eq!(
+            p.geometry.summary(4),
+            Some(geometry::Summary::Stacked {
+                value: -7.,
+                lower: 17.,
+                upper: 10.
+            })
+        );
+    }
+    style.appearance.series[1].area_baseline = None;
+    assert!(matches!(
+        plan(&data, &options, &style),
+        Err(Error::InvalidConfiguration)
+    ));
+    style.appearance.series[0].area_baseline = Some(0.);
+    assert!(plan(&data, &options, &style).is_ok());
+    options.cartesian.stacking = Stacking::Grouped;
+    style.appearance.series[0].area_baseline = Some(20.);
+    assert!(plan(&data, &options, &style).is_ok());
+}
+
+#[test]
+fn area_baseline_preserves_gaps_empty_domains_and_non_area_layers() {
+    let options = options();
+    let mut style = Style::default();
+    style.appearance.series.push(a::Series {
+        area_baseline: Some(20.),
+        ..series_style(11)
+    });
+    let mut source = series(11, &[1., 2., 3.]);
+    source.points[1].y = None;
+    let data = Data {
+        version: 1,
+        contents: d::Contents::Cartesian(vec![d::Layer::Area(source.clone())]),
+    };
+    let p = plan(&data, &options, &style).unwrap();
+    assert!(p.geometry.paths.is_empty());
+    assert_eq!(p.geometry.marks.len(), 2);
+    assert_eq!(
+        p.geometry.marks[1].source,
+        geometry::Source::Cartesian {
+            series: 0,
+            start: 2,
+            end: 3
+        }
+    );
+    for point in &mut source.points {
+        point.y = None;
+    }
+    let empty = Data {
+        version: 1,
+        contents: d::Contents::Cartesian(vec![d::Layer::Area(source)]),
+    };
+    let p = plan(&empty, &options, &style).unwrap();
+    assert_eq!(
+        p.geometry.y_domain,
+        Some(geometry::Domain { min: 0., max: 1. })
+    );
+    assert!(p.geometry.paths.is_empty());
+    assert!(p.geometry.marks.is_empty());
+    for layer in [
+        d::Layer::Line(series(11, &[10., 12.])),
+        d::Layer::Bar(series(11, &[10., 12.])),
+    ] {
+        let data = Data {
+            version: 1,
+            contents: d::Contents::Cartesian(vec![layer]),
+        };
+        let default = plan(&data, &options, &Style::default()).unwrap();
+        let override_ = plan(&data, &options, &style).unwrap();
+        assert_eq!(default.geometry.y_domain, override_.geometry.y_domain);
+        assert_eq!(default.geometry.paths, override_.geometry.paths);
+        assert_eq!(default.geometry.marks, override_.geometry.marks);
+    }
 }

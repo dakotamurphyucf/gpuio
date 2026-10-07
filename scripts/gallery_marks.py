@@ -20,7 +20,7 @@ def exercise(mac, images):
         mac.wait_text(TITLE, 'Selected: ' + value)
 
     patterns = ['Slash pattern', 'Checkerboard pattern']
-    paths = ['Styled paths', 'Styled markers'] + patterns
+    paths = ['Styled paths', 'Styled markers', 'Area baseline 20'] + patterns
     bars = ['Base-to-tip bars', 'Domain-colored bars', 'Value-colored bars',
             'Uniform aggregate colors'] + patterns
     for family, count, value, presets in [
@@ -71,6 +71,16 @@ def exercise(mac, images):
                     toggle(control)
                     mac.wait_text(TITLE, f'Ready: {family} · {count} source values · {direction}')
                     select(family, value)
+        if family in ('Area', 'Stacked areas'):
+            press('Area baseline 20')
+            for control, direction in [
+                    ('Horizontal axes', 'Horizontal'),
+                    ('Reverse value axis', 'Horizontal reversed'),
+                    ('Horizontal axes', 'Vertical reversed'),
+                    ('Reverse value axis', 'Vertical')]:
+                toggle(control)
+                mac.wait_text(TITLE, f'Ready: {family} · {count} source values · {direction}')
+                select(family, value)
         press('View data')
         mac.release(mac.wait_find(TITLE, f'Chart preview: {family} · original data', 'AXTable'))
         mac.key(119)
@@ -94,7 +104,7 @@ def exercise(mac, images):
         for family, value in [('Area', 'Active capacity · x 0 · value 30'),
                               ('Bar', 'Completed evaluations · x 0 · value 30')]:
             press(family)
-            for preset in patterns:
+            for preset in patterns + ['Area baseline 20']:
                 press(preset)
                 select(family, value)
                 if images:
