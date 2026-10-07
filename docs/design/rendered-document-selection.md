@@ -181,7 +181,8 @@ authorization boundary. The future AX action handler must also validate its
 current window, visibility, modality and semantic action identity. The
 `requested_rendered_selection()` accessor describes only accepted requests;
 the common `rendered_selection()` accessor also represents adopted pointer ranges,
-including the local portion of a cross-participant drag. Multi-click capture, full Select All/override
+including the local portion of a cross-participant drag and mapped multi-click
+gestures. Full Select All/override
 remapping and whole-document TextRun publication still require integration. A declared custom
 text block whose glyphs differ from its copy alternative currently returns
 `UnmappedOwner` when selected by this primitive, including empty declared glyphs.
@@ -240,8 +241,8 @@ geometry as ordinary selectable runs. Actual single-row native checks cover
 Hebrew, mixed-direction spans, Arabic, combining marks and joined emoji. Wrapped
 and aligned rich-selection qualification still needs completion.
 
-Multi-click and preserved Select All overrides need explicit integration;
-custom glyph/copy-alternative mapping also remains required.
+Preserved Select All overrides need explicit integration; custom
+glyph/copy-alternative mapping and zero-byte atomic selection also remain required.
 An absent common range must not be interpreted as no native selection.
 The staged native-owner update currently scans the bounded projection; pointer
 hot-path cost and possible coalescing/delta updates need measured qualification.
@@ -269,3 +270,35 @@ These ranges use the same staged native-owner update and pointer provenance as
 same-document drags. Unmapped custom owners can still prevent adoption; adding
 cross-participant coverage does not settle that mapping or the remaining AX
 publication/action work.
+
+
+## Mapped multi-click selection
+
+Double-click maps the current cached shaped-run hit to its actual prepared owner.
+The existing native word policy runs on that owner's text, spanning styled visual
+fragments; its result expands to whole graphemes. This preserves combining and
+joined-emoji sequences. It does not claim full language-aware Unicode word
+segmentation: the shared native word policy still uses bounded character-class
+scans. Repeated text is addressed by owner and position, never string search.
+
+An ordinary paragraph gesture spans adjacent projection parts through the next
+structural separator, including intervening inline objects. Rich-flow triple-click
+selects the clicked visual line, combining its mapped text fragments and inline
+objects; a wrapped word can therefore be split between visual-line selections.
+Object lookup uses a bounded, sorted index of native selection-owner identities.
+It costs logarithmic lookup per visible object rather than scanning the entire
+projection for each object on every paint. The index retains no extra strong
+owners, and both actual and maximum preparation accounting include it.
+
+The result has distinct multi-click provenance, applies the staged native-owner
+update, stops the gesture/autoscroll and registers participant-local selection.
+It survives compatible reflow/append through the same retained range path.
+Clear handlers synchronously retire old owners; a queued empty window snapshot
+must not then erase a newer local selection installed by that mouse press.
+Explicit clearing, replacement and input policy still retire selections.
+
+Unbounded legacy views and unmapped owners retain their existing native behavior
+without publishing a fabricated logical range. Zero-byte atomic alternatives need
+an explicit object-selection representation: a collapsed text range would erase
+the visible object's selected state. That integration and custom declared-glyph
+versus Copy-alternative mapping remain required before complete AX acceptance.

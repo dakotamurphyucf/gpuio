@@ -90,6 +90,7 @@ pub(super) struct TextViewSelectionAdapter {
     selection: TextSelectionHandle,
     text_bounds: Vec<Bounds<Pixels>>,
     endpoint_runs: Vec<TextEndpointRun>,
+    object_runs: Vec<(Bounds<Pixels>, Option<RenderedFragment>)>,
     layout_revision: Option<usize>,
 }
 
@@ -110,11 +111,19 @@ impl TextViewSelectionAdapter {
                         };
                         let snapshot = *snapshot;
                         view.update(cx, |state, cx| {
-                            state.retire_rendered_selection();
-                            state.preserve_inline_selection = false;
                             blocks_for_events
                                 .borrow_mut()
                                 .update(snapshot, selection_id);
+                            // Clear handlers synchronously reset the old owners.
+                            // Their queued None event must not retire a newer
+                            // local selection installed by the same mouse press.
+                            if snapshot.is_none()
+                                && state.selection_adapter.selection.has_local_selection(cx)
+                            {
+                                return;
+                            }
+                            state.retire_rendered_selection();
+                            state.preserve_inline_selection = false;
                             state.is_selecting =
                                 snapshot.is_some_and(|snapshot| snapshot.is_selecting());
                             state.adopt_rendered_pointer_selection(snapshot);
@@ -228,6 +237,7 @@ impl TextViewSelectionAdapter {
             selection,
             text_bounds: Vec::new(),
             endpoint_runs: Vec::new(),
+            object_runs: Vec::new(),
             layout_revision: None,
         }
     }
@@ -245,6 +255,7 @@ impl TextViewSelectionAdapter {
     pub(super) fn begin_frame(&mut self) {
         self.text_bounds.clear();
         self.endpoint_runs.clear();
+        self.object_runs.clear();
     }
 
     pub(super) fn register_inline(&mut self, bounds: Vec<Bounds<Pixels>>) {
@@ -257,6 +268,71 @@ impl TextViewSelectionAdapter {
         fragment: Option<RenderedFragment>,
     ) {
         self.endpoint_runs.push(TextEndpointRun { run, fragment });
+    }
+
+    pub(super) fn register_object_endpoint(
+        &mut self,
+        bounds: Bounds<Pixels>,
+        fragment: Option<RenderedFragment>,
+    ) {
+        self.object_runs.push((bounds, fragment));
+    }
+
+    pub(super) fn multi_click_selection(
+        &self,
+        text: &super::RenderedText,
+        point: Point<Pixels>,
+        kind: super::TextViewMultiClickKind,
+        line: Option<Bounds<Pixels>>,
+    ) -> Option<super::RenderedSelection> {
+        if kind == super::TextViewMultiClickKind::Line && line.is_none() {
+            return None;
+        }
+        let range = if let Some(line) = line {
+            let mut ranges = Vec::new();
+            for run in &self.endpoint_runs {
+                if line.contains(&run.run.bounds().center()) {
+                    ranges.push(run.fragment.as_ref()?.range(text)?);
+                }
+            }
+            for (bounds, fragment) in &self.object_runs {
+                if line.contains(&bounds.center()) {
+                    let range = fragment.as_ref()?.range(text)?;
+                    // A zero-byte object needs explicit object-selection state;
+                    // a text range alone cannot faithfully represent it yet.
+                    if range.is_empty() {
+                        return None;
+                    }
+                    ranges.push(range);
+                }
+            }
+            // The gesture defines forward direction. Extrema combine current
+            // row fragments; they never reconstruct a prior selection's direction.
+            ranges.iter().map(|range| range.start).min()?
+                ..ranges.iter().map(|range| range.end).max()?
+        } else if let Some((_, fragment)) = self
+            .object_runs
+            .iter()
+            .find(|(bounds, _)| bounds.contains(&point))
+        {
+            fragment.as_ref()?.range(text)?
+        } else {
+            let run = self
+                .endpoint_runs
+                .iter()
+                .find(|run| run.run.bounds().contains(&point))?;
+            let position = run
+                .fragment
+                .as_ref()?
+                .position(run.run.index_for_position(point)?)?;
+            let position = text.captured_position(position)?;
+            text.multi_click_range(&position, kind == super::TextViewMultiClickKind::Paragraph)?
+        };
+        if range.is_empty() {
+            return None;
+        }
+        text.selection(&text.position(range.start)?, &text.position(range.end)?)
+            .ok()
     }
 
     fn endpoint_at(&self, point: Point<Pixels>) -> Option<crate::TextSelectionContentPosition> {

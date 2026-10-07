@@ -2,6 +2,8 @@
 use super::*;
 #[path = "document_cross_ranges_test.rs"]
 mod cross_ranges;
+#[path = "document_multiclick_test.rs"]
+mod multiclick;
 #[path = "document_rendered_endpoints_test.rs"]
 mod rendered_endpoints;
 #[path = "document_resource_test.rs"]

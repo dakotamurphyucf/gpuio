@@ -1060,6 +1060,16 @@ impl Element for Inline {
                         _ => return,
                     };
 
+                    if let Some(view) = &text_view_state
+                        && view.update(cx, |state, cx| {
+                            state.adopt_rendered_multi_click(event.position, kind, None, cx)
+                        })
+                    {
+                        GlobalState::suppress_text_selection(cx);
+                        cx.notify(current_view);
+                        return;
+                    }
+
                     let Some(range) = selection_for_multi_click(
                         &text,
                         &text_layout,

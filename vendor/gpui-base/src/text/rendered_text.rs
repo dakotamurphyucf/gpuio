@@ -12,6 +12,7 @@ use std::{
     ops::Range,
     sync::{Arc, Mutex, Weak},
 };
+use unicode_segmentation::UnicodeSegmentation as _;
 
 // Source/decoration admission does not bound custom copy alternatives. GPUIO's
 // extension SDK permits 1 MiB of aggregate generated strings; leave another
@@ -29,6 +30,9 @@ pub(super) struct RenderedFragment {
 }
 
 impl RenderedFragment {
+    pub(super) fn range(&self, projection: &RenderedText) -> Option<Range<usize>> {
+        (self.identity == projection.identity).then(|| self.bytes.clone())
+    }
     pub(super) fn slice(&self, range: Range<usize>) -> Option<Self> {
         (range.start <= range.end && range.end <= self.bytes.len()).then(|| Self {
             identity: self.identity,
@@ -131,6 +135,9 @@ pub struct RenderedText {
     identity: TextSelectionContentRevision,
     text: SharedString,
     parts: Vec<RenderedTextPart>,
+    // Sorted native-owner address -> part index. Weak owners in `parts` keep
+    // these allocation identities alive; lookup never dereferences an address.
+    object_parts: Box<[(usize, usize)]>,
 }
 impl PartialEq for RenderedText {
     fn eq(&self, other: &Self) -> bool {
@@ -152,10 +159,24 @@ impl RenderedText {
         for block in document.blocks.iter() {
             builder.block(block)?;
         }
+        let mut object_parts = builder
+            .parts
+            .iter()
+            .enumerate()
+            .filter_map(|(index, part)| {
+                if let Owner::Object(owner) = &part.owner {
+                    Some((owner.as_ptr() as usize, index))
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
+        object_parts.sort_unstable_by_key(|(owner, _)| *owner);
         Ok(Arc::new(Self {
             identity,
             text: builder.text.into(),
             parts: builder.parts,
+            object_parts: object_parts.into_boxed_slice(),
         }))
     }
     /// Logical document text, before the window Copy adapter trims outer
@@ -165,6 +186,70 @@ impl RenderedText {
     }
     pub fn parts(&self) -> &[RenderedTextPart] {
         &self.parts
+    }
+
+    pub(super) fn object_fragment(&self, owner: &Arc<Mutex<bool>>) -> Option<RenderedFragment> {
+        let index = self
+            .object_parts
+            .binary_search_by_key(&(Arc::as_ptr(owner) as usize), |(owner, _)| *owner)
+            .ok()?;
+        let part = &self.parts[self.object_parts[index].1];
+        Some(RenderedFragment {
+            identity: self.identity,
+            bytes: part.bytes.clone(),
+        })
+    }
+
+    pub(super) fn multi_click_range(
+        &self,
+        position: &RenderedTextPosition,
+        paragraph: bool,
+    ) -> Option<Range<usize>> {
+        let byte = self.offset(position)?;
+        let index = self
+            .parts
+            .iter()
+            .position(|part| part.bytes.contains(&byte))?;
+        let part = &self.parts[index];
+        if part.is_separator() {
+            return None;
+        }
+        if paragraph {
+            let start = self.parts[..index]
+                .iter()
+                .rev()
+                .take_while(|part| !part.is_separator())
+                .last()
+                .unwrap_or(part)
+                .bytes
+                .start;
+            let end = self.parts[index + 1..]
+                .iter()
+                .take_while(|part| !part.is_separator())
+                .last()
+                .unwrap_or(part)
+                .bytes
+                .end;
+            return Some(start..end);
+        }
+        if part.is_atomic() {
+            return Some(part.bytes.clone());
+        }
+        let text = &self.text[part.bytes.clone()];
+        let mut range = crate::text_boundary::word_range_at(text, byte - part.bytes.start)?;
+        // Native word policy is scalar based. Never split a grapheme when it
+        // treats an emoji/joiner/combining scalar as an individual token.
+        for (start, grapheme) in text.grapheme_indices(true) {
+            let end = start + grapheme.len();
+            if start <= range.start && range.start < end {
+                range.start = start;
+            }
+            if start < range.end && range.end <= end {
+                range.end = end;
+                break;
+            }
+        }
+        Some(part.bytes.start + range.start..part.bytes.start + range.end)
     }
     /// Aggregate logical copy-text bound, including generated alternatives.
     /// Hosts must separately enforce their source and plugin-generation limits.
@@ -177,6 +262,7 @@ impl RenderedText {
         256 + self.text.len() * 2
             + self.parts.capacity() * std::mem::size_of::<RenderedTextPart>()
             + self.parts.len() * std::mem::size_of::<Option<RenderedFragment>>()
+            + std::mem::size_of_val(&*self.object_parts)
     }
     /// Reserve before a bounded background preparation, then reduce to the
     /// retained units after installation. At most two GPUIO workers run at once.
@@ -185,6 +271,7 @@ impl RenderedText {
             + MAX_PARTS
                 * (std::mem::size_of::<RenderedTextPart>()
                     + std::mem::size_of::<Option<RenderedFragment>>())
+            + MAX_PARTS * std::mem::size_of::<(usize, usize)>()
     }
     pub fn position(&self, byte: usize) -> Option<RenderedTextPosition> {
         (self.text.is_char_boundary(byte)

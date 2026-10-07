@@ -5,6 +5,14 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **O
 Markdown walkthroughs for every example component; its documentation acceptance is complete. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
+[Mapped multi-click selection](evidence/rendered-multiclick-selection-och17.md)
+now shares owner-based word/paragraph/visual-line ranges with native paint and
+Copy, including rich fragments and nonempty inline objects. Repeated text,
+graphemes, reflow, compatible append, actual native double/triple clicks, full
+Rust workspace, 1,096 native tests, lint, Dune and reconstruction pass locally.
+Streamed Select All, custom/empty-object mapping, stale-input qualification and
+rich AX remain required; this does not establish release readiness.
+
 [Cross-document logical selection](evidence/rendered-cross-selection-och17.md)
 now derives directed local ranges for endpoint and intermediate documents from
 window document order. Actual macOS native Copy/range checks and a three-identical-

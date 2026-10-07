@@ -84,12 +84,15 @@ pub struct RenderedSelectionRequest {
 enum RetainedRenderedSelection {
     Request(super::RenderedSelection),
     Pointer(super::RenderedSelection),
+    MultiClick(super::RenderedSelection),
 }
 
 impl RetainedRenderedSelection {
     fn selection(&self) -> &super::RenderedSelection {
         match self {
-            Self::Request(selection) | Self::Pointer(selection) => selection,
+            Self::Request(selection) | Self::Pointer(selection) | Self::MultiClick(selection) => {
+                selection
+            }
         }
     }
 
@@ -97,6 +100,7 @@ impl RetainedRenderedSelection {
         match self {
             Self::Request(_) => Self::Request(selection),
             Self::Pointer(_) => Self::Pointer(selection),
+            Self::MultiClick(_) => Self::MultiClick(selection),
         }
     }
 }
@@ -268,14 +272,18 @@ impl TextViewState {
     pub fn requested_rendered_selection(&self) -> Option<&super::RenderedSelection> {
         match &self.rendered_selection {
             Some(RetainedRenderedSelection::Request(selection)) => Some(selection),
-            Some(RetainedRenderedSelection::Pointer(_)) | None => None,
+            Some(
+                RetainedRenderedSelection::Pointer(_) | RetainedRenderedSelection::MultiClick(_),
+            )
+            | None => None,
         }
     }
 
     /// The logical range shared by native requests or mapped pointer selection
     /// and Copy/paint. Genuine Select All covers the whole installed text.
-    /// Cross-participant ranges use window document order. Multi-click and unmapped selections are not yet
-    /// represented here; absence must not be interpreted as no native selection.
+    /// Cross-participant ranges use window document order; mapped multi-click
+    /// gestures also share this range. Unmapped selections are not represented
+    /// here; absence must not be interpreted as no native selection.
     pub fn rendered_selection(&self) -> Option<super::RenderedSelection> {
         if !self.selectable {
             return None;
@@ -1129,6 +1137,9 @@ impl TextViewState {
         selected_text: String,
         cx: &mut App,
     ) {
+        if self.adopt_rendered_multi_click(pos, kind, None, cx) {
+            return;
+        }
         self.retire_rendered_selection();
         self.preserve_inline_selection = false;
         let scroll_offset = self.scroll_offset();
@@ -1147,6 +1158,14 @@ impl TextViewState {
     }
 
     pub(crate) fn set_multi_click_line(&mut self, bounds: Bounds<Pixels>, cx: &mut App) {
+        if self.adopt_rendered_multi_click(
+            bounds.center(),
+            TextViewMultiClickKind::Line,
+            Some(bounds),
+            cx,
+        ) {
+            return;
+        }
         self.set_multi_click_selection(
             bounds.center(),
             TextViewMultiClickKind::Line,
@@ -1159,6 +1178,42 @@ impl TextViewState {
         if let Some(selection) = self.multi_click_selection.as_mut() {
             selection.line_bounds = Some(Bounds::new(bounds.origin - offset, bounds.size));
         }
+    }
+
+    pub(super) fn adopt_rendered_multi_click(
+        &mut self,
+        point: Point<Pixels>,
+        kind: TextViewMultiClickKind,
+        line: Option<Bounds<Pixels>>,
+        cx: &mut App,
+    ) -> bool {
+        if !self.selectable {
+            return false;
+        }
+        let Some(text) = self.rendered_text() else {
+            return false;
+        };
+        let Some(selection) = self
+            .selection_adapter
+            .multi_click_selection(&text, point, kind, line)
+        else {
+            return false;
+        };
+        if text.apply_selection(&selection).is_err() {
+            return false;
+        }
+        self.retire_rendered_selection();
+        self.multi_click_selection = None;
+        self.selected_text_override = None;
+        self.prepared_source_selection = None;
+        self.select_all = false;
+        self.preserve_inline_selection = true;
+        self.is_selecting = false;
+        self.auto_scroll.stop();
+        self.selection_adapter
+            .set_local_selection(!selection.bytes().is_empty(), cx);
+        self.rendered_selection = Some(RetainedRenderedSelection::MultiClick(selection));
+        true
     }
 
     pub(super) fn set_auto_scroll(&mut self, delta: Option<Pixels>, cx: &mut Context<Self>) {

@@ -93,6 +93,37 @@ pub(super) async fn exercise(
     let first_widget = first.read_with(cx, |p, _| p.markdown.as_ref().unwrap().entity_id());
     let second_widget = second.read_with(cx, |p, _| p.markdown.as_ref().unwrap().entity_id());
     let (start, end) = endpoints(cx, first, &second);
+    for (click_count, expected) in [(2, "first"), (3, "first α body")] {
+        move_mouse(cx, handle, start, false);
+        handle
+            .update(cx, |_, window, cx| {
+                window.dispatch_event(
+                    gpui::PlatformInput::MouseDown(gpui::MouseDownEvent {
+                        position: start,
+                        button: gpui::MouseButton::Left,
+                        modifiers: Default::default(),
+                        click_count,
+                        first_mouse: false,
+                    }),
+                    cx,
+                );
+            })
+            .unwrap();
+        mouse(cx, handle, start, false);
+        frame(cx, handle).await;
+        focus(cx, handle, first);
+        assert_eq!(copy(cx, handle), expected);
+        first.read_with(cx, |p, cx| {
+            let state = p.markdown.as_ref().unwrap().read(cx);
+            let range = state
+                .rendered_selection()
+                .expect("native multi-click range");
+            assert_eq!(range.bytes(), 0..expected.len());
+            assert!(!range.is_backward());
+            assert!(state.requested_rendered_selection().is_none());
+            assert_eq!(state.selected_text(), expected);
+        });
+    }
     for (a, b, backward) in [(start, end, false), (end, start, true)] {
         drag(cx, handle, a, b).await;
         for p in [first, &second] {

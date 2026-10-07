@@ -375,6 +375,12 @@ impl Element for InlineObject {
             if visible.size.width > Pixels::ZERO && visible.size.height > Pixels::ZERO {
                 view.as_ref().unwrap().update(cx, |state, _| {
                     state.selection_adapter.register_inline(vec![visible]);
+                    if let Some(text) = state.rendered_text() {
+                        let fragment = text.object_fragment(&self.selected);
+                        state
+                            .selection_adapter
+                            .register_object_endpoint(bounds, fragment);
+                    }
                 });
             }
             let hitbox = hitbox.clone();

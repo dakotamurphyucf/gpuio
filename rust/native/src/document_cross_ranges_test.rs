@@ -150,3 +150,66 @@ fn repeated_documents_keep_partial_endpoints_full_middle_direction_and_retiremen
         assert!(text.read_with(cx, |state, _| state.rendered_selection().is_none()));
     }
 }
+
+#[test]
+fn repeated_paragraph_multiclick_has_current_owner_ranges_and_survives_reflow() {
+    let mut app = TestAppContext::single();
+    app.update(gpui_base::init);
+    let source = format!("{LABEL}\n\n{LABEL}\n\n{LABEL}");
+    let (view, cx) = app.add_window_view(|_, cx| Documents {
+        documents: vec![cx.new(|cx| {
+            let mut state = TextViewState::externally_prepared(cx);
+            state.set_prepared(
+                PreparedText::parse(&source, Default::default()).unwrap(),
+                None,
+                cx,
+            );
+            state
+        })],
+    });
+    cx.simulate_a11y_active(true);
+    draw(cx);
+    let text = view.read_with(cx, |view, _| view.documents[0].clone());
+    for (count, expected) in [(2, "Repeated"), (3, LABEL)] {
+        let (_, position) = points(cx);
+        cx.simulate_mouse_move(position, None, Default::default());
+        cx.simulate_event(gpui::MouseDownEvent {
+            button: gpui::MouseButton::Left,
+            position,
+            click_count: count,
+            modifiers: Default::default(),
+            first_mouse: false,
+        });
+        cx.simulate_mouse_up(position, gpui::MouseButton::Left, Default::default());
+        draw(cx);
+        assert_eq!(cx.update(gpui_base::TextSelection::selected_text), expected);
+        let expected_range = 2 * (LABEL.len() + 1)..2 * (LABEL.len() + 1) + expected.len();
+        let check = |state: &TextViewState| {
+            let range = state
+                .rendered_selection()
+                .expect("multi-click logical selection");
+            assert_eq!(range.bytes(), expected_range);
+            assert!(!range.is_backward());
+            assert!(state.requested_rendered_selection().is_none());
+            assert_eq!(state.selected_text(), expected);
+        };
+        text.read_with(cx, |state, _| check(state));
+        cx.simulate_resize(gpui::size(px(500.), px(900.)));
+        draw(cx);
+        text.read_with(cx, |state, _| check(state));
+        if count == 3 {
+            text.update(cx, |state, cx| {
+                state.set_prepared(
+                    PreparedText::parse(&format!("{source} appended"), Default::default()).unwrap(),
+                    Some(source.len()),
+                    cx,
+                );
+            });
+            draw(cx);
+            text.read_with(cx, |state, _| check(state));
+            assert_eq!(cx.update(gpui_base::TextSelection::selected_text), expected);
+        }
+        cx.update(gpui_base::TextSelection::clear);
+        assert!(text.read_with(cx, |state, _| state.rendered_selection().is_none()));
+    }
+}
