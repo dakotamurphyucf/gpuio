@@ -5,6 +5,12 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **O
 Markdown walkthroughs for every example component; its documentation acceptance is complete. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
+[Inspection button actions and clipping](evidence/chart-inspection-actions-och41.md)
+now pass actual AppKit activation in Card/Overlay, queued/retired action rejection,
+and nested clipping that clears focus without a tree/source update. Fresh semantic
+actions recover. These are scoped ordinary-button checks; broader command/popup,
+isolation and public-gallery requirements remain open.
+
 [Hosted run 37538145025](evidence/hosted-presentation-calibration-och17.md#hosted-run-37538145025)
 is terminal at tree-equivalent `e41b7d6`: Linux and all three extracted macOS apps
 pass. macOS foundation fails Signal Studio's reopening readiness check, a pie

@@ -1,0 +1,34 @@
+{
+  "commands.json": {
+    "bytes": 991,
+    "sha256": "564ff04dc7d86dc717ef479b9472e8c018024cd92bfbfe9a7cae14b1da53ec8a"
+  },
+  "inspection-actions-clippy.log": {
+    "bytes": 588275,
+    "sha256": "e2588f60bfc39abae72c27d401fe7bb1be22f836ff2325bf0b729f7a589d37f4"
+  },
+  "inspection-actions-final.log": {
+    "bytes": 589257,
+    "sha256": "3ed2b155609e2b2ebbf31c56566b5b746f9a172a38e823381ffdbc4212e3be11"
+  },
+  "inspection-actions-first.log": {
+    "bytes": 588879,
+    "sha256": "3f78a074d71c20d790f81f9213b094b0227d04dfb2fd0538d9209006271aed03"
+  },
+  "inspection-actions-fmt-check.log": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "inspection-actions-format.log": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "inspection-actions-radar-regression.log": {
+    "bytes": 590102,
+    "sha256": "e57ccdf910dccbcfbdbbe4d9c1bac54a145f25eb1a7921b5b073ca576ed9d400"
+  },
+  "source-identity.json": {
+    "bytes": 684,
+    "sha256": "e6ff37cbdef3a80ee26d3576d014069044f2f7a3d4e02943101ed9d186ab01b7"
+  }
+}

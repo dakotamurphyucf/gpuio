@@ -382,6 +382,9 @@ mod interaction;
 mod label_content;
 #[path = "chart_label_view_test.rs"]
 mod labels;
+#[cfg(target_os = "macos")]
+#[path = "chart_native_ax_test.rs"]
+mod native_ax;
 #[path = "chart_pie_label_view_test.rs"]
 mod pie_labels;
 #[path = "chart_stream_test.rs"]

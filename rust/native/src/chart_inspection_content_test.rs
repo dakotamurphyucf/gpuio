@@ -3,6 +3,9 @@ use super::interaction::{key, position};
 use super::*;
 use crate::host::native_test::{mouse, move_mouse};
 use gpuio_protocol::chart_selection::Selection;
+#[cfg(target_os = "macos")]
+#[path = "chart_inspection_action_test.rs"]
+mod accessibility;
 #[path = "chart_inspection_aggregate_test.rs"]
 mod aggregate;
 #[path = "chart_inspection_editor_test.rs"]
@@ -277,7 +280,11 @@ pub(super) async fn exercise(
     draw(cx, handle);
     // Metadata-only container changes reuse geometry and keep the retained child.
     chart.inspection_content[0].container = Container::Overlay;
-    apply(cx, handle, vec![Op::SetChart(id(1), Box::new(chart))]);
+    apply(
+        cx,
+        handle,
+        vec![Op::SetChart(id(1), Box::new(chart.clone()))],
+    );
     draw(cx, handle);
     handle
         .update(cx, |view, window, _| {
@@ -299,6 +306,8 @@ pub(super) async fn exercise(
             );
         })
         .unwrap();
+    #[cfg(target_os = "macos")]
+    accessibility::exercise(cx, handle, source, session, transport, &chart).await;
     apply(
         cx,
         handle,
@@ -309,6 +318,13 @@ pub(super) async fn exercise(
             Op::Remove(wrapper()),
         ],
     );
+    let revision = session
+        .borrow()
+        .chart(source)
+        .unwrap()
+        .snapshot()
+        .unwrap()
+        .revision();
     ready(cx, handle, revision, 0xff0000ff).await;
     presses(transport);
     eprintln!(

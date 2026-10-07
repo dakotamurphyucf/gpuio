@@ -131,8 +131,12 @@ for a reordered publication is pending. Aggregate identity remains publication-b
 
 These are implemented policies with scoped evidence, not complete acceptance of all
 arbitrary child widgets. Input/Textarea native text-client composition and aggregate publication fences have
-scoped evidence. Physical IME candidate panels, queued AX/command/popup actions,
-nested clipping and multi-window interaction combinations still need qualification.
+scoped evidence. [Button accessibility and clipping checks](../evidence/chart-inspection-actions-och41.md)
+also exercise actual AppKit actions in Card/Overlay, reject queued actions and
+retired objects across source removal/return, and retire a clipped nested button's
+focus and old AX object without a tree update. This does not qualify VoiceOver,
+every widget or physical IME candidate panels. Command/popup actions and
+multi-window interaction combinations still need qualification.
 Aggregate selection clears on publication: rebinding metadata alone does not
 create a new preview. A fresh native preview or commit makes matching new-publication
 content eligible.

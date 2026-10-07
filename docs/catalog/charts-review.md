@@ -67,7 +67,9 @@ adds `View.chart` attachment and native Card/Overlay children, with button pixel
 native pointer/keyboard focus, stable-ID reorder and immediate stale-gesture
 retirement evidence. [Native editor and aggregate cases](../evidence/chart-inspection-editors-och41.md)
 now qualify Input/Textarea text-client composition/draft retirement and explicit
-publication-bound Sum/Mean/OHLC content. Rich-row helpers, broader action/lifecycle
+publication-bound Sum/Mean/OHLC content. [Button AX and clipping cases](../evidence/chart-inspection-actions-och41.md)
+qualify actual AppKit activation, queued/retired-object rejection and nested
+focus retirement on native resize. Rich-row helpers, broader command/popup/isolation
 and public-gallery qualification remain required; this does not close the Tooltip row above.
 
 [`Chart_appearance`](../../lib/core/chart_appearance.mli) now attaches to
