@@ -388,6 +388,15 @@ pub struct TextSelectionRun {
     bounds: Bounds<Pixels>,
 }
 
+/// Cached shaped cluster geometry in logical source order. A cluster can span
+/// several scalar characters; accessibility must not split its painted extent.
+#[derive(Clone)]
+pub(crate) struct TextSelectionGlyph {
+    pub bytes: Range<usize>,
+    pub bounds: Bounds<Pixels>,
+    pub right_to_left: bool,
+}
+
 impl TextSelectionRun {
     /// Creates a laid-out text run.
     pub fn new(text: impl Into<SharedString>, layout: TextLayout, bounds: Bounds<Pixels>) -> Self {
@@ -460,6 +469,11 @@ impl TextSelectionRun {
     pub(crate) fn text_bounds(&self) -> Vec<Bounds<Pixels>> {
         self.geometry()
             .map_or_else(Vec::new, |geometry| geometry.text_bounds(self))
+    }
+
+    pub(crate) fn accessibility_glyphs(&self) -> Vec<TextSelectionGlyph> {
+        self.geometry()
+            .map_or_else(Vec::new, |geometry| geometry.accessibility_glyphs(self))
     }
 
     /// Sets the run's logical order within the participant.

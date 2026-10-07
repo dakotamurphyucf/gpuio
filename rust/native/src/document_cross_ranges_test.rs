@@ -26,7 +26,7 @@ fn points(cx: &mut VisualTestContext) -> (gpui::Point<gpui::Pixels>, gpui::Point
     let mut bounds: Vec<_> = tree
         .nodes
         .iter()
-        .filter(|(_, node)| node.value() == Some(LABEL))
+        .filter(|(_, node)| node.role() == gpui::Role::Label && node.value() == Some(LABEL))
         .map(|(_, node)| node.bounds().unwrap())
         .collect();
     assert_eq!(bounds.len(), 3);

@@ -19,6 +19,52 @@ pub(super) struct Geometry {
     rows: Vec<Row>,
 }
 impl Geometry {
+    pub(super) fn accessibility_glyphs(
+        &self,
+        run: &TextSelectionRun,
+    ) -> Vec<super::TextSelectionGlyph> {
+        let mut result = Vec::new();
+        for (index, row) in self.rows.iter().enumerate() {
+            let origin = point(
+                run.bounds.left() + row.inset(run),
+                run.bounds.top() + run.layout.line_height() * index,
+            );
+            result.extend(row.cells.iter().map(|cell| super::TextSelectionGlyph {
+                bytes: cell.source.clone(),
+                bounds: gpui::Bounds::new(
+                    point(origin.x + cell.x.start, origin.y),
+                    gpui::size(cell.x.end - cell.x.start, run.layout.line_height()),
+                ),
+                right_to_left: cell.rtl,
+            }));
+        }
+        result.sort_by_key(|cell| (cell.bytes.start, cell.bytes.end));
+        // Discard overlapping source clusters as a whole. This both avoids an
+        // invented rectangle across rows and leaves disjoint intervals for
+        // bounded binary-search lookup by semantic fragments.
+        let mut disjoint = Vec::new();
+        let mut current: Option<super::TextSelectionGlyph> = None;
+        let mut ambiguous = false;
+        for cell in result {
+            if let Some(previous) = &mut current
+                && cell.bytes.start < previous.bytes.end
+            {
+                previous.bytes.end = previous.bytes.end.max(cell.bytes.end);
+                ambiguous = true;
+                continue;
+            }
+            if !ambiguous {
+                disjoint.extend(current.take());
+            }
+            current = Some(cell);
+            ambiguous = false;
+        }
+        if !ambiguous {
+            disjoint.extend(current);
+        }
+        disjoint
+    }
+
     pub(super) fn text_bounds(&self, run: &TextSelectionRun) -> Vec<gpui::Bounds<Pixels>> {
         self.rows
             .iter()

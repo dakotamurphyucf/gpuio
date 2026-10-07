@@ -95,6 +95,8 @@ struct Fragment {
     text: String,
     link: Option<LinkMark>,
     native: bool,
+    visual: bool,
+    text_run: Option<super::accessible_runs::Snapshot>,
 }
 
 pub(super) struct Run {
@@ -103,6 +105,7 @@ pub(super) struct Run {
     pub fragments: Vec<Bounds<Pixels>>,
     pub text: String,
     pub link: Option<LinkMark>,
+    text_runs: Vec<super::accessible_runs::Snapshot>,
 }
 
 impl Collector {
@@ -128,7 +131,14 @@ impl Collector {
         self.enabled
     }
 
-    pub fn push(&self, slot: usize, bounds: Bounds<Pixels>, text: &str, link: Option<LinkMark>) {
+    pub fn push(
+        &self,
+        slot: usize,
+        bounds: Bounds<Pixels>,
+        text: &str,
+        link: Option<LinkMark>,
+        text_run: Option<super::accessible_runs::Snapshot>,
+    ) {
         if self.enabled {
             self.fragments.borrow_mut().push(Fragment {
                 slot,
@@ -140,6 +150,33 @@ impl Collector {
                 },
                 link,
                 native: false,
+                visual: true,
+                text_run,
+            });
+        }
+    }
+
+    /// Logical text omitted by hard-line layout has no focus/paint rectangle.
+    pub fn line_break(
+        &self,
+        slot: usize,
+        bounds: Bounds<Pixels>,
+        link: Option<LinkMark>,
+        text_run: Option<super::accessible_runs::Snapshot>,
+    ) {
+        if self.enabled {
+            self.fragments.borrow_mut().push(Fragment {
+                slot,
+                bounds,
+                link,
+                text_run,
+                text: if self.labels {
+                    "\n".into()
+                } else {
+                    String::new()
+                },
+                native: false,
+                visual: false,
             });
         }
     }
@@ -153,6 +190,8 @@ impl Collector {
                 text: String::new(),
                 link: None,
                 native: true,
+                visual: false,
+                text_run: None,
             });
         }
     }
@@ -176,16 +215,28 @@ fn coalesce(fragments: Vec<Fragment>) -> Vec<Run> {
             && let Some(previous) = runs.last_mut()
             && previous.link.as_ref() == Some(link)
         {
-            previous.bounds = previous.bounds.union(&fragment.bounds);
-            previous.fragments.push(fragment.bounds);
+            if fragment.visual {
+                previous.bounds = if previous.fragments.is_empty() {
+                    fragment.bounds
+                } else {
+                    previous.bounds.union(&fragment.bounds)
+                };
+                previous.fragments.push(fragment.bounds);
+            }
             previous.text.push_str(&fragment.text);
+            previous.text_runs.extend(fragment.text_run);
         } else {
             runs.push(Run {
                 slot: fragment.slot,
                 bounds: fragment.bounds,
-                fragments: vec![fragment.bounds],
+                fragments: fragment
+                    .visual
+                    .then_some(fragment.bounds)
+                    .into_iter()
+                    .collect(),
                 text: fragment.text,
                 link: fragment.link,
+                text_runs: fragment.text_run.into_iter().collect(),
             });
         }
         adjacent = true;
@@ -280,6 +331,7 @@ pub(super) fn elements(
             }
             .into();
             let mut element = div().id(id).w(area.size.width).h(area.size.height);
+            let metadata_url = run.link.as_ref().map(|link| link.url.clone());
             if let Some(link) = &run.link {
                 let mut label = run.text.clone();
                 let active = view.as_ref().is_some_and(|view| {
@@ -318,7 +370,6 @@ pub(super) fn elements(
                     .as_ref()
                     .filter(|_| link.source_start.is_some())
                     .map(|view| (view.downgrade(), link.clone()));
-                let metadata_url = url.clone();
                 let handler = handler.clone();
                 element = element
                     .role(gpui::Role::Link)
@@ -332,9 +383,6 @@ pub(super) fn elements(
                                     .update(cx, |state, cx| state.focus_link(&link, window, cx));
                             },
                         )
-                    })
-                    .a11y_synthetic_children(move |builder| {
-                        builder.parent_node().set_url(metadata_url.to_string())
                     })
                     .on_a11y_action(gpui::AccessibleAction::Click, move |_, window, cx| {
                         if !super::inline_semantics::activation_allowed(&activation_target, cx) {
@@ -354,7 +402,17 @@ pub(super) fn elements(
             } else {
                 element = element.role(gpui::Role::Label).aria_value(run.text.clone());
             }
-            let mut element = element.into_any_element();
+            let text_runs = run.text_runs.clone();
+            let mut element = element
+                .a11y_synthetic_children(move |builder| {
+                    if let Some(url) = metadata_url {
+                        builder.parent_node().set_url(url.to_string());
+                    }
+                    for (index, snapshot) in text_runs.iter().enumerate() {
+                        snapshot.publish(index, builder);
+                    }
+                })
+                .into_any_element();
             element.prepaint_as_root(
                 area.origin,
                 size(
@@ -413,6 +471,8 @@ mod tests {
                 ..Default::default()
             }),
             native: false,
+            visual: true,
+            text_run: None,
         }
     }
 

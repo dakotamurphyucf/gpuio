@@ -16640,3 +16640,1424 @@
              let max_lines_active = state.read(cx).max_lines.is_some();
              state.update(cx, |state, _| {
                  state.link_reveal_claimed = false;
+--- /dev/null
++++ b/src/text/accessible_runs.rs
+@@ -0,0 +1,179 @@
++//! TextRun children of actual native labels/links. Geometry comes from the same
++//! cached shaped clusters as pointer selection; missing geometry stays missing.
++use std::ops::Range;
++
++use gpui::{A11ySubtreeBuilder, SharedString, accesskit};
++
++use super::{rendered_text::RenderedFragment, semantic_attachments::Frame};
++use crate::text_selection::TextSelectionGlyph;
++
++#[derive(Clone)]
++struct Run {
++    bytes: Range<usize>,
++    lengths: Vec<u8>,
++    cells: Vec<TextSelectionGlyph>,
++}
++
++#[derive(Clone)]
++pub(super) struct Snapshot {
++    text: SharedString,
++    runs: Vec<Run>,
++    scale: f32,
++    start: usize,
++    binding: Option<(Frame, RenderedFragment)>,
++}
++
++impl Snapshot {
++    pub fn new(
++        text: SharedString,
++        cells: &[TextSelectionGlyph],
++        range: Range<usize>,
++        scale: f32,
++    ) -> Self {
++        let start = range.start;
++        let mut cell_index = cells.partition_point(|cell| cell.bytes.end <= range.start);
++        let mut runs = Vec::new();
++        let mut current: Option<Run> = None;
++        let mut previous_newline = false;
++        let mut chars = text[range.clone()].char_indices().peekable();
++        while let Some((local, character)) = chars.next() {
++            let start = range.start + local;
++            let len = if character == '\r' && chars.peek().is_some_and(|(_, c)| *c == '\n') {
++                chars.next();
++                2
++            } else {
++                character.len_utf8()
++            };
++            let bytes = start..start + len;
++            while cells
++                .get(cell_index)
++                .is_some_and(|cell| cell.bytes.end <= start)
++            {
++                cell_index += 1;
++            }
++            // The cached geometry adapter supplies disjoint source intervals;
++            // absent or ambiguous clusters retain text without a rectangle.
++            let cell = cells
++                .get(cell_index)
++                .filter(|cell| cell.bytes.start <= start && cell.bytes.end >= bytes.end);
++            let append = !previous_newline
++                && current
++                    .as_ref()
++                    .is_some_and(|run| match (run.cells.last(), cell) {
++                        (None, None) => true,
++                        (Some(previous), Some(next)) => contiguous(previous, next),
++                        _ => false,
++                    });
++            if !append {
++                runs.extend(current.take());
++                current = Some(Run {
++                    bytes: start..start,
++                    lengths: Vec::new(),
++                    cells: Vec::new(),
++                });
++            }
++            let run = current.as_mut().expect("character starts a run");
++            run.bytes.end = bytes.end;
++            run.lengths.push(len as u8);
++            run.cells.extend(cell.cloned());
++            previous_newline = character == '\n' || (character == '\r' && len == 2);
++        }
++        runs.extend(current);
++        if range.is_empty() {
++            runs.push(Run {
++                bytes: range,
++                lengths: Vec::new(),
++                cells: Vec::new(),
++            });
++        }
++        Self {
++            text,
++            runs,
++            scale,
++            start,
++            binding: None,
++        }
++    }
++
++    pub fn with_binding(mut self, binding: Option<(Frame, RenderedFragment)>) -> Self {
++        self.binding = binding;
++        self
++    }
++
++    pub fn publish(&self, key: usize, builder: &mut A11ySubtreeBuilder) {
++        for run in &self.runs {
++            let binding = self.binding.as_ref().and_then(|(frame, fragment)| {
++                Some((
++                    frame,
++                    fragment.slice(run.bytes.start - self.start..run.bytes.end - self.start)?,
++                ))
++            });
++            let provenance = binding
++                .as_ref()
++                .map(|(_, fragment)| (fragment.edge(false), fragment.edge(true)));
++            let id = builder.synthetic_node_id((
++                "rendered-text-run",
++                provenance,
++                key,
++                run.bytes.start,
++                run.bytes.end,
++            ));
++            let mut node = accesskit::Node::new(accesskit::Role::TextRun);
++            node.set_value(self.text[run.bytes.clone()].to_owned());
++            node.set_character_lengths(run.lengths.clone());
++            if let Some(first) = run.cells.first() {
++                let bounds = run
++                    .cells
++                    .iter()
++                    .fold(first.bounds, |area, cell| area.union(&cell.bounds));
++                let scale = f64::from(self.scale);
++                node.set_bounds(accesskit::Rect {
++                    x0: f64::from(bounds.left()) * scale,
++                    y0: f64::from(bounds.top()) * scale,
++                    x1: f64::from(bounds.right()) * scale,
++                    y1: f64::from(bounds.bottom()) * scale,
++                });
++                node.set_text_direction(if first.right_to_left {
++                    accesskit::TextDirection::RightToLeft
++                } else {
++                    accesskit::TextDirection::LeftToRight
++                });
++                node.set_character_positions(
++                    run.cells
++                        .iter()
++                        .map(|cell| {
++                            f32::from(if first.right_to_left {
++                                bounds.right() - cell.bounds.right()
++                            } else {
++                                cell.bounds.left() - bounds.left()
++                            }) * self.scale
++                        })
++                        .collect::<Vec<_>>(),
++                );
++                node.set_character_widths(
++                    run.cells
++                        .iter()
++                        .map(|cell| f32::from(cell.bounds.size.width) * self.scale)
++                        .collect::<Vec<_>>(),
++                );
++            }
++            if builder.push_child(id, node)
++                && let Some((frame, fragment)) = binding
++            {
++                frame.record_run(id, &fragment, run.lengths.len());
++            }
++        }
++    }
++}
++
++fn contiguous(previous: &TextSelectionGlyph, next: &TextSelectionGlyph) -> bool {
++    previous.right_to_left == next.right_to_left
++        && previous.bounds.top() == next.bounds.top()
++        && previous.bounds.size.height == next.bounds.size.height
++        && (previous.bounds == next.bounds
++            || if previous.right_to_left {
++                previous.bounds.left() == next.bounds.right()
++            } else {
++                previous.bounds.right() == next.bounds.left()
++            })
++}
+--- a/src/text/inline.rs
++++ b/src/text/inline.rs
+@@ -190,6 +190,8 @@
+ pub(super) struct InlinePrepaint {
+     hitbox: Hitbox,
+     semantics: Vec<gpui::AnyElement>,
++    selection_run: Option<crate::TextSelectionRun>,
++    accessible: Option<super::accessible_runs::Snapshot>,
+ }
+ 
+ /// Partition rendered text in reading order. Adjacent style runs of the same
+@@ -327,10 +329,38 @@
+         self
+     }
+ 
++    fn semantic_binding(
++        &self,
++        range: Range<usize>,
++        cx: &App,
++    ) -> Option<(
++        super::semantic_attachments::Frame,
++        super::rendered_text::RenderedFragment,
++    )> {
++        let view = GlobalState::global(cx).text_view_state()?.read(cx);
++        let projection = view.rendered_text()?;
++        let (owner, owner_range) = self
++            .selection_source
++            .as_ref()
++            .map(|(owner, range)| (owner, range.clone()))
++            .unwrap_or((&self.state, 0..self.text.len()));
++        let fragment = owner
++            .lock()
++            .ok()?
++            .rendered_fragment
++            .clone()?
++            .slice(owner_range)?;
++        if !fragment.matches(&projection, &self.text) {
++            return None;
++        }
++        Some((view.semantic_attachments.clone(), fragment.slice(range)?))
++    }
++
+     fn semantic_elements(
+         &self,
+         owner: Option<&GlobalElementId>,
+         bounds: Bounds<Pixels>,
++        glyphs: &[crate::text_selection::TextSelectionGlyph],
+         window: &mut Window,
+         cx: &mut App,
+     ) -> Vec<gpui::AnyElement> {
+@@ -366,8 +396,17 @@
+                     point(bounds.right(), end.y + height),
+                 )
+             };
++            let accessible = window.is_a11y_active().then(|| {
++                super::accessible_runs::Snapshot::new(
++                    self.text.clone(),
++                    glyphs,
++                    range.clone(),
++                    window.scale_factor(),
++                )
++                .with_binding(self.semantic_binding(range.clone(), cx))
++            });
+             if let Some((sink, slot)) = &self.semantic_sink {
+-                sink.push(*slot, area, &self.text[range], link);
++                sink.push(*slot, area, &self.text[range], link, accessible);
+                 continue;
+             }
+             let id: SharedString = format!(
+@@ -379,6 +418,7 @@
+             .into();
+             let text = self.text[range].to_owned();
+             let mut element = gpui::div().id(id).w(area.size.width).h(area.size.height);
++            let metadata_url = link.as_ref().map(|link| link.url.clone());
+             if let Some(link) = link {
+                 let text = if text.trim().is_empty() {
+                     link.url.to_string()
+@@ -409,7 +449,6 @@
+                     .filter(|_| link.source_start.is_some())
+                     .map(|view| (view.downgrade(), link.clone()));
+                 let url = link.url;
+-                let metadata_url = url.clone();
+                 let handler = self.link_click_handler.clone();
+                 element = element
+                     .role(gpui::Role::Link)
+@@ -423,9 +462,6 @@
+                                     .update(cx, |state, cx| state.focus_link(&link, window, cx));
+                             },
+                         )
+-                    })
+-                    .a11y_synthetic_children(move |builder| {
+-                        builder.parent_node().set_url(metadata_url.to_string())
+                     })
+                     .on_a11y_action(gpui::AccessibleAction::Click, move |_, window, cx| {
+                         if !super::inline_semantics::activation_allowed(&activation_target, cx) {
+@@ -445,7 +481,16 @@
+             } else {
+                 element = element.role(gpui::Role::Label).aria_value(text);
+             }
+-            let mut element = element.into_any_element();
++            let mut element = element
++                .a11y_synthetic_children(move |builder| {
++                    if let Some(url) = metadata_url {
++                        builder.parent_node().set_url(url.to_string());
++                    }
++                    if let Some(snapshot) = accessible {
++                        snapshot.publish(0, builder);
++                    }
++                })
++                .into_any_element();
+             element.prepaint_as_root(
+                 area.origin,
+                 gpui::size(
+@@ -684,6 +729,16 @@
+         // Publish the same rendered text here; do not duplicate raw Markdown.
+         if self.links.is_empty() {
+             node.set_value(self.text.to_string());
++        }
++    }
++
++    fn a11y_synthetic_children(
++        &mut self,
++        prepaint: &mut InlinePrepaint,
++        builder: &mut gpui::A11ySubtreeBuilder,
++    ) {
++        if let Some(snapshot) = &prepaint.accessible {
++            snapshot.publish(0, builder);
+         }
+     }
+ 
+@@ -798,9 +853,55 @@
+             }
+         }
+ 
++        // Build the frame-local cached run before semantic children. Painting
++        // and accessibility share the same shaped clusters and dynamic bounds.
++        let needs_run = window.is_a11y_active()
++            || GlobalState::global(cx)
++                .text_view_state()
++                .is_some_and(|view| view.read(cx).is_selectable());
++        let selection_run = needs_run.then(|| {
++            let layout = self.styled_text.layout().clone();
++            let align = self
++                .text_style
++                .as_ref()
++                .map_or_else(|| window.text_style().text_align, |style| style.text_align);
++            window.with_element_state(
++                id.expect("Inline has a stable element ID"),
++                |retained: Option<crate::TextSelectionRun>, _| {
++                    let mut run = retained.unwrap_or_else(|| {
++                        crate::TextSelectionRun::new(self.text.clone(), layout.clone(), bounds)
++                    });
++                    run.update(self.text.clone(), layout, bounds);
++                    let run = run.with_text_align(align);
++                    (run.clone(), run)
++                },
++            )
++        });
++        let glyphs = if window.is_a11y_active() {
++            selection_run
++                .as_ref()
++                .map_or_else(Vec::new, |run| run.accessibility_glyphs())
++        } else {
++            Vec::new()
++        };
++        let accessible = (window.is_a11y_active()
++            && !self.suppress_semantics
++            && self.semantic_sink.is_none()
++            && self.links.is_empty())
++        .then(|| {
++            super::accessible_runs::Snapshot::new(
++                self.text.clone(),
++                &glyphs,
++                0..self.text.len(),
++                window.scale_factor(),
++            )
++            .with_binding(self.semantic_binding(0..self.text.len(), cx))
++        });
+         InlinePrepaint {
+             hitbox: window.insert_hitbox(bounds, HitboxBehavior::Normal),
+-            semantics: self.semantic_elements(id, bounds, window, cx),
++            semantics: self.semantic_elements(id, bounds, &glyphs, window, cx),
++            selection_run,
++            accessible,
+         }
+     }
+ 
+@@ -957,24 +1058,11 @@
+ 
+         if is_selectable {
+             if let Some(text_view_state) = GlobalState::global(cx).text_view_state().cloned() {
+-                // Keep shaped selection geometry in frame-owned element state,
+-                // never in the worker-owned parsed InlineState. Bounds/alignment
+-                // change without rebuilding immutable glyph cells.
+-                let run = window.with_element_state(
+-                    global_id.expect("Inline has a stable element ID"),
+-                    |retained: Option<crate::TextSelectionRun>, _| {
+-                        let mut run = retained.unwrap_or_else(|| {
+-                            crate::TextSelectionRun::new(
+-                                self.text.clone(),
+-                                text_layout.clone(),
+-                                bounds,
+-                            )
+-                        });
+-                        run.update(self.text.clone(), text_layout.clone(), bounds);
+-                        let run = run.with_text_align(align);
+-                        (run.clone(), run)
+-                    },
+-                );
++                let run = prepaint
++                    .selection_run
++                    .as_ref()
++                    .expect("selectable Inline prepared its shaped run")
++                    .clone();
+                 let mask = window.content_mask().bounds;
+                 let text_bounds = run
+                     .text_bounds()
+--- a/src/text/inline_flow.rs
++++ b/src/text/inline_flow.rs
+@@ -90,6 +90,13 @@
+ 
+ #[derive(Clone)]
+ enum PositionedFragment {
++    // Hard line breaks occupy logical text but have no painted glyph fragment.
++    LineBreak {
++        item_ix: usize,
++        offset: usize,
++        origin: gpui::Point<Pixels>,
++        height: Pixels,
++    },
+     Object {
+         item_ix: usize,
+         origin: gpui::Point<Pixels>,
+@@ -365,6 +372,66 @@
+ 
+         for fragment in fragments {
+             match fragment {
++                PositionedFragment::LineBreak {
++                    item_ix,
++                    offset,
++                    origin,
++                    height,
++                } => {
++                    let InlineFlowItem::Text {
++                        text,
++                        links,
++                        state: source_state,
++                        ..
++                    } = &self.items[item_ix]
++                    else {
++                        unreachable!("line break belongs to a text item")
++                    };
++                    let area = Bounds::new(bounds.origin + origin, size(Pixels::ZERO, height));
++                    let link = links
++                        .iter()
++                        .find(|(range, _)| range.contains(&offset))
++                        .map(|(_, link)| link.clone());
++                    let snapshot = window.is_a11y_active().then(|| {
++                        super::accessible_runs::Snapshot::new(
++                            text.clone(),
++                            &[],
++                            offset..offset + 1,
++                            window.scale_factor(),
++                        )
++                        .with_binding(
++                            crate::GlobalState::global(cx)
++                                .text_view_state()
++                                .and_then(|view| {
++                                    let view = view.read(cx);
++                                    let projection = view.rendered_text()?;
++                                    let fragment = source_state
++                                        .lock()
++                                        .ok()?
++                                        .rendered_fragment
++                                        .clone()?
++                                        .slice(offset..offset + 1)?;
++                                    fragment
++                                        .matches(&projection, "\n")
++                                        .then(|| (view.semantic_attachments.clone(), fragment))
++                                }),
++                        )
++                    });
++                    collector.line_break(elements.len(), area, link, snapshot);
++                    // Keep the source-order slot present even when accessibility
++                    // is inactive; toggling it must not remount later controls.
++                    let mut element = visual_slot(elements.len(), div().w(px(0.)).h(height));
++                    element.prepaint_as_root(
++                        area.origin,
++                        size(
++                            AvailableSpace::Definite(px(0.)),
++                            AvailableSpace::Definite(height),
++                        ),
++                        window,
++                        cx,
++                    );
++                    elements.push((element, None));
++                }
+                 PositionedFragment::Object {
+                     item_ix,
+                     origin,
+@@ -389,6 +456,7 @@
+                             Bounds::new(bounds.origin + origin, object_size),
+                             accessibility_label,
+                             Some(link.clone()),
++                            None,
+                         );
+                     } else {
+                         collector.native(elements.len());
+@@ -547,6 +615,7 @@
+                             Bounds::new(bounds.origin + origin, fragment_size),
+                             title,
+                             Some(link.clone()),
++                            None,
+                         );
+                     } else {
+                         collector.native(elements.len());
+@@ -788,6 +857,14 @@
+     let mut fragments = Vec::new();
+     let mut max_width = Pixels::ZERO;
+     let mut y = Pixels::ZERO;
++    let mut offset = 0;
++    let item_ends: Vec<_> = items
++        .iter()
++        .map(|item| {
++            offset += item.len();
++            offset
++        })
++        .collect();
+ 
+     for line_range in line_ranges {
+         let mut line_fragments = Vec::new();
+@@ -945,6 +1022,21 @@
+             fragments.push(positioned);
+         }
+ 
++        // A soft-wrap boundary is only geometry. A hard newline remains part
++        // of the exact source item/link, including leading or repeated breaks.
++        let item_ix = item_ends.partition_point(|end| *end <= line_range.end);
++        if let Some(MeasureItem::Text { text, .. }) = items.get(item_ix) {
++            let start = item_ix.checked_sub(1).map_or(0, |index| item_ends[index]);
++            let offset = line_range.end - start;
++            if text.as_bytes().get(offset) == Some(&b'\n') {
++                fragments.push(PositionedFragment::LineBreak {
++                    item_ix,
++                    offset,
++                    origin: point(x, y),
++                    height: line_ascent + line_descent,
++                });
++            }
++        }
+         max_width = max_width.max(line_width);
+         y += line_ascent + line_descent;
+     }
+@@ -1451,7 +1543,9 @@
+             .iter()
+             .filter_map(|fragment| match fragment {
+                 PositionedFragment::Text { text, origin, .. } => Some((text.trim(), origin.y)),
+-                PositionedFragment::Image { .. } | PositionedFragment::Object { .. } => None,
++                PositionedFragment::Image { .. }
++                | PositionedFragment::Object { .. }
++                | PositionedFragment::LineBreak { .. } => None,
+             })
+             .collect::<Vec<_>>();
+         let first_y = text_lines[0].1;
+--- a/src/text/inline_semantics.rs
++++ b/src/text/inline_semantics.rs
+@@ -95,6 +95,8 @@
+     text: String,
+     link: Option<LinkMark>,
+     native: bool,
++    visual: bool,
++    text_run: Option<super::accessible_runs::Snapshot>,
+ }
+ 
+ pub(super) struct Run {
+@@ -103,6 +105,7 @@
+     pub fragments: Vec<Bounds<Pixels>>,
+     pub text: String,
+     pub link: Option<LinkMark>,
++    text_runs: Vec<super::accessible_runs::Snapshot>,
+ }
+ 
+ impl Collector {
+@@ -128,7 +131,14 @@
+         self.enabled
+     }
+ 
+-    pub fn push(&self, slot: usize, bounds: Bounds<Pixels>, text: &str, link: Option<LinkMark>) {
++    pub fn push(
++        &self,
++        slot: usize,
++        bounds: Bounds<Pixels>,
++        text: &str,
++        link: Option<LinkMark>,
++        text_run: Option<super::accessible_runs::Snapshot>,
++    ) {
+         if self.enabled {
+             self.fragments.borrow_mut().push(Fragment {
+                 slot,
+@@ -140,6 +150,33 @@
+                 },
+                 link,
+                 native: false,
++                visual: true,
++                text_run,
++            });
++        }
++    }
++
++    /// Logical text omitted by hard-line layout has no focus/paint rectangle.
++    pub fn line_break(
++        &self,
++        slot: usize,
++        bounds: Bounds<Pixels>,
++        link: Option<LinkMark>,
++        text_run: Option<super::accessible_runs::Snapshot>,
++    ) {
++        if self.enabled {
++            self.fragments.borrow_mut().push(Fragment {
++                slot,
++                bounds,
++                link,
++                text_run,
++                text: if self.labels {
++                    "\n".into()
++                } else {
++                    String::new()
++                },
++                native: false,
++                visual: false,
+             });
+         }
+     }
+@@ -153,6 +190,8 @@
+                 text: String::new(),
+                 link: None,
+                 native: true,
++                visual: false,
++                text_run: None,
+             });
+         }
+     }
+@@ -176,16 +215,28 @@
+             && let Some(previous) = runs.last_mut()
+             && previous.link.as_ref() == Some(link)
+         {
+-            previous.bounds = previous.bounds.union(&fragment.bounds);
+-            previous.fragments.push(fragment.bounds);
++            if fragment.visual {
++                previous.bounds = if previous.fragments.is_empty() {
++                    fragment.bounds
++                } else {
++                    previous.bounds.union(&fragment.bounds)
++                };
++                previous.fragments.push(fragment.bounds);
++            }
+             previous.text.push_str(&fragment.text);
++            previous.text_runs.extend(fragment.text_run);
+         } else {
+             runs.push(Run {
+                 slot: fragment.slot,
+                 bounds: fragment.bounds,
+-                fragments: vec![fragment.bounds],
++                fragments: fragment
++                    .visual
++                    .then_some(fragment.bounds)
++                    .into_iter()
++                    .collect(),
+                 text: fragment.text,
+                 link: fragment.link,
++                text_runs: fragment.text_run.into_iter().collect(),
+             });
+         }
+         adjacent = true;
+@@ -280,6 +331,7 @@
+             }
+             .into();
+             let mut element = div().id(id).w(area.size.width).h(area.size.height);
++            let metadata_url = run.link.as_ref().map(|link| link.url.clone());
+             if let Some(link) = &run.link {
+                 let mut label = run.text.clone();
+                 let active = view.as_ref().is_some_and(|view| {
+@@ -318,7 +370,6 @@
+                     .as_ref()
+                     .filter(|_| link.source_start.is_some())
+                     .map(|view| (view.downgrade(), link.clone()));
+-                let metadata_url = url.clone();
+                 let handler = handler.clone();
+                 element = element
+                     .role(gpui::Role::Link)
+@@ -332,9 +383,6 @@
+                                     .update(cx, |state, cx| state.focus_link(&link, window, cx));
+                             },
+                         )
+-                    })
+-                    .a11y_synthetic_children(move |builder| {
+-                        builder.parent_node().set_url(metadata_url.to_string())
+                     })
+                     .on_a11y_action(gpui::AccessibleAction::Click, move |_, window, cx| {
+                         if !super::inline_semantics::activation_allowed(&activation_target, cx) {
+@@ -354,7 +402,17 @@
+             } else {
+                 element = element.role(gpui::Role::Label).aria_value(run.text.clone());
+             }
+-            let mut element = element.into_any_element();
++            let text_runs = run.text_runs.clone();
++            let mut element = element
++                .a11y_synthetic_children(move |builder| {
++                    if let Some(url) = metadata_url {
++                        builder.parent_node().set_url(url.to_string());
++                    }
++                    for (index, snapshot) in text_runs.iter().enumerate() {
++                        snapshot.publish(index, builder);
++                    }
++                })
++                .into_any_element();
+             element.prepaint_as_root(
+                 area.origin,
+                 size(
+@@ -413,6 +471,8 @@
+                 ..Default::default()
+             }),
+             native: false,
++            visual: true,
++            text_run: None,
+         }
+     }
+ 
+--- /dev/null
++++ b/src/text/logical_accessibility.rs
+@@ -0,0 +1,307 @@
++//! Complete unpainted top-level owners in the existing Document tree. Native
++//! attachments keep their original descendants/actions; logical nodes have no
++//! invented layout geometry or input handlers.
++use std::{
++    collections::{HashMap, HashSet},
++    ops::Range,
++};
++
++use super::{
++    RenderedAccessiblePartId, RenderedSemanticId, RenderedSemanticKind, RenderedText,
++    semantic_attachments::{RenderedSemanticAttachment, TextRun},
++};
++use gpui::{
++    A11ySubtreeBuilder,
++    accesskit::{Node, NodeId, Role},
++};
++
++pub(super) fn publish(
++    projection: &RenderedText,
++    native: &[RenderedSemanticAttachment],
++    builder: &mut A11ySubtreeBuilder,
++) -> Vec<TextRun> {
++    let original = builder.parent_node().children().to_vec();
++    let native: HashMap<_, _> = native
++        .iter()
++        .map(|item| (item.owner(), item.node()))
++        .collect();
++    let mapped: HashSet<_> = native.values().copied().collect();
++    let mut remaining = original.iter().copied().peekable();
++    let mut order = Vec::new();
++    let mut runs = Vec::new();
++    let mut cursor = 0;
++    for owner in projection.semantic_children(None) {
++        let span = semantic_span(projection, owner.id());
++        if let Some(span) = &span {
++            order.extend(emit_text(
++                projection,
++                cursor..span.start,
++                builder,
++                &mut runs,
++            ));
++        }
++        if let Some(id) = native.get(&owner.id()) {
++            // Unknown native siblings (e.g. a rule) retain their order around
++            // actual attachments. They are not substituted with text nodes.
++            for child in remaining.by_ref() {
++                if child == *id {
++                    break;
++                }
++                if !mapped.contains(&child) {
++                    order.push(child);
++                }
++            }
++            // Top-level block ownership includes its boundary separators,
++            // while native glyph subtrees contain only the block content.
++            let parts = projection
++                .semantic_parts(owner.id())
++                .expect("prepared block parts");
++            let part_range = owner.parts();
++            let leading = parts.iter().take_while(|part| part.is_separator()).count();
++            let trailing = parts
++                .iter()
++                .rev()
++                .take_while(|part| part.is_separator())
++                .count();
++            if let Some(span) = &span {
++                if leading < parts.len() {
++                    let content_start = projection.accessible_parts()[part_range.start + leading]
++                        .utf16_range()
++                        .start;
++                    order.extend(emit_text(
++                        projection,
++                        span.start..content_start,
++                        builder,
++                        &mut runs,
++                    ));
++                }
++            }
++            order.push(*id);
++            if let Some(span) = &span {
++                if trailing > 0 {
++                    let tail = projection.accessible_parts()[part_range.end - trailing]
++                        .utf16_range()
++                        .start;
++                    order.extend(emit_text(projection, tail..span.end, builder, &mut runs));
++                }
++            }
++        } else {
++            order.push(emit_owner(projection, owner.id(), builder, &mut runs));
++        }
++        if let Some(span) = span {
++            cursor = span.end;
++        }
++    }
++    let end = projection
++        .accessible_parts()
++        .last()
++        .map_or(0, |part| part.utf16_range().end);
++    order.extend(emit_text(projection, cursor..end, builder, &mut runs));
++    if end == 0 && order.is_empty() {
++        if let Some(part) = projection.accessible_parts().first() {
++            order.push(emit_part(projection, part.id(), 0..0, builder, &mut runs));
++        }
++    }
++    order.extend(remaining.filter(|id| !mapped.contains(id)));
++    builder.parent_node().set_children(order);
++    runs
++}
++
++fn semantic_span(projection: &RenderedText, owner: RenderedSemanticId) -> Option<Range<usize>> {
++    let selection = projection.semantic_selection(owner)?;
++    Some(
++        projection.accessible_utf16_offset(selection.anchor())?
++            ..projection.accessible_utf16_offset(selection.head())?,
++    )
++}
++
++// Explicit work stack avoids recursion proportional to document nesting.
++enum Task {
++    Owner(RenderedSemanticId),
++    Text(Range<usize>),
++    Finish {
++        owner: RenderedSemanticId,
++        start: usize,
++        node: Node,
++    },
++}
++
++fn emit_owner(
++    projection: &RenderedText,
++    owner: RenderedSemanticId,
++    builder: &mut A11ySubtreeBuilder,
++    runs: &mut Vec<TextRun>,
++) -> NodeId {
++    let mut tasks = vec![Task::Owner(owner)];
++    while let Some(task) = tasks.pop() {
++        match task {
++            Task::Text(span) => {
++                emit_text(projection, span, builder, runs);
++            }
++            Task::Finish { owner, start, node } => {
++                let members = builder.parent_node().children()[start..].to_vec();
++                let key = ("logical-document-owner", owner);
++                if members.is_empty() {
++                    let id = builder.synthetic_node_id(key);
++                    assert!(
++                        builder.push_child(id, node),
++                        "unique prepared semantic owner"
++                    );
++                } else {
++                    builder
++                        .group_children(key, node, &members)
++                        .expect("new contiguous semantic children");
++                }
++            }
++            Task::Owner(owner) => {
++                let node = semantic_node(projection, owner);
++                tasks.push(Task::Finish {
++                    owner,
++                    start: builder.parent_node().children().len(),
++                    node,
++                });
++                let Some(span) = semantic_span(projection, owner) else {
++                    continue;
++                };
++                let mut cursor = span.start;
++                let mut children = Vec::new();
++                for child in projection.semantic_children(Some(owner)) {
++                    if let Some(child_span) = semantic_span(projection, child.id()) {
++                        children.push(Task::Text(cursor..child_span.start));
++                        children.push(Task::Owner(child.id()));
++                        cursor = child_span.end;
++                    } else {
++                        children.push(Task::Owner(child.id()));
++                    }
++                }
++                children.push(Task::Text(cursor..span.end));
++                tasks.extend(children.into_iter().rev());
++            }
++        }
++    }
++    *builder
++        .parent_node()
++        .children()
++        .last()
++        .expect("logical owner published")
++}
++
++fn emit_text(
++    projection: &RenderedText,
++    span: Range<usize>,
++    builder: &mut A11ySubtreeBuilder,
++    runs: &mut Vec<TextRun>,
++) -> Vec<NodeId> {
++    projection
++        .accessible_slices(span)
++        .map(|(part, chars)| emit_part(projection, part.id(), chars, builder, runs))
++        .collect()
++}
++
++fn emit_part(
++    projection: &RenderedText,
++    part: RenderedAccessiblePartId,
++    chars: Range<usize>,
++    builder: &mut A11ySubtreeBuilder,
++    runs: &mut Vec<TextRun>,
++) -> NodeId {
++    let text = projection
++        .accessible_part_slice(part, chars.clone())
++        .expect("prepared character range");
++    let base = projection
++        .accessible_part_byte(part, chars.start)
++        .expect("prepared character start");
++    let mut start = 0;
++    let mut first = chars.start;
++    let mut members = Vec::new();
++    for end in text
++        .match_indices('\n')
++        .map(|(offset, _)| offset + 1)
++        .chain(std::iter::once(text.len()))
++    {
++        if start == end && !text.is_empty() {
++            continue;
++        }
++        let last = projection
++            .accessible_part_character_at_byte(part, base + end)
++            .expect("line boundary");
++        let id = builder.synthetic_node_id(("logical-document-run", part, first, last));
++        let mut node = Node::new(Role::TextRun);
++        node.set_value(text[start..end].to_owned());
++        let mut lengths = Vec::with_capacity(last - first);
++        let mut characters = text[start..end].chars().peekable();
++        while let Some(character) = characters.next() {
++            let len = if character == '\r' && characters.peek() == Some(&'\n') {
++                characters.next();
++                2
++            } else {
++                character.len_utf8()
++            };
++            lengths.push(len as u8);
++        }
++        node.set_character_lengths(lengths);
++        assert!(
++            builder.push_child(id, node),
++            "unique prepared text interval"
++        );
++        runs.push(TextRun::new(projection, id, part, first..last).expect("prepared text run"));
++        members.push(id);
++        first = last;
++        start = end;
++    }
++    let mut label = Node::new(Role::Label);
++    label.set_value(text.to_owned());
++    builder
++        .group_children(
++            ("logical-document-label", part, chars.start, chars.end),
++            label,
++            &members,
++        )
++        .expect("new contiguous text runs")
++}
++
++fn semantic_node(projection: &RenderedText, owner: RenderedSemanticId) -> Node {
++    use RenderedSemanticKind as Kind;
++    let kind = projection
++        .semantic_node(owner)
++        .expect("prepared owner")
++        .kind();
++    let role = match kind {
++        Kind::Paragraph => Role::Paragraph,
++        Kind::Heading { .. } => Role::Heading,
++        Kind::List => Role::List,
++        Kind::ListItem => Role::ListItem,
++        Kind::Link { .. } => Role::Link,
++        Kind::Table { .. } => Role::Table,
++        Kind::Row { .. } => Role::Row,
++        Kind::Cell { header: true, .. } => Role::ColumnHeader,
++        Kind::Cell { .. } => Role::Cell,
++        Kind::DescriptionList => Role::DescriptionList,
++        Kind::Term => Role::Term,
++        Kind::Definition => Role::Definition,
++        Kind::Group | Kind::Blockquote | Kind::Code | Kind::NativeObject => Role::Group,
++    };
++    let mut node = Node::new(role);
++    match kind {
++        Kind::Heading { level } => node.set_level(usize::from(*level)),
++        Kind::Table { rows, columns } => {
++            node.set_row_count(*rows);
++            node.set_column_count(*columns);
++        }
++        Kind::Row { index } => node.set_row_index(*index),
++        Kind::Cell { row, column, .. } => {
++            node.set_row_index(*row);
++            node.set_column_index(*column);
++        }
++        Kind::Link { url, .. } => {
++            node.set_url(url.to_string());
++            if let Some(selection) = projection.semantic_selection(owner) {
++                if let Some(label) = projection.selected_text(&selection) {
++                    node.set_label(label.to_owned());
++                }
++            }
++        }
++        _ => {}
++    }
++    node
++}
+--- a/src/text/mod.rs
++++ b/src/text/mod.rs
+@@ -1,3 +1,4 @@
++mod accessible_runs;
+ mod backgrounds;
+ mod block_object;
+ mod control_navigation;
+@@ -13,6 +14,7 @@
+ #[cfg(test)]
+ mod inline_virtual_tests;
+ mod link_navigation;
++mod logical_accessibility;
+ mod markdown_ext;
+ mod node;
+ mod range_geometry;
+--- a/src/text/rendered_accessibility.rs
++++ b/src/text/rendered_accessibility.rs
+@@ -314,6 +314,86 @@
+         let part = self.accessible_parts.get(end.checked_sub(1)?)?;
+         Some((part.id, part.character_for_position(position)?))
+     }
++    /// Exact same-part character interval for a painted native fragment. The
++    /// end is resolved against the owning part, not the following boundary part.
++    pub(in crate::text) fn accessible_fragment(
++        &self,
++        fragment: &super::RenderedFragment,
++    ) -> Option<(RenderedAccessiblePartId, Range<usize>)> {
++        let start = self.captured_position(fragment.edge(false))?;
++        let end = self.captured_position(fragment.edge(true))?;
++        let (id, first) = self.accessible_coordinates(&start)?;
++        let last = self.accessible_character_in_part(id, &end)?;
++        (first <= last).then_some((id, first..last))
++    }
++
++    pub(in crate::text) fn accessible_character_in_part(
++        &self,
++        id: RenderedAccessiblePartId,
++        position: &RenderedTextPosition,
++    ) -> Option<usize> {
++        self.offset(position)?;
++        self.accessible_part(id)?.character_for_position(position)
++    }
++
++    pub(in crate::text) fn accessible_character_utf16(
++        &self,
++        id: RenderedAccessiblePartId,
++        character: usize,
++    ) -> Option<usize> {
++        let part = self.accessible_part(id)?;
++        Some(part.utf16_start + part.characters.boundary(character)?.1)
++    }
++
++    pub(in crate::text) fn accessible_part_slice(
++        &self,
++        id: RenderedAccessiblePartId,
++        characters: Range<usize>,
++    ) -> Option<&str> {
++        let part = self.accessible_part(id)?;
++        let start = part.characters.boundary(characters.start)?.0;
++        let end = part.characters.boundary(characters.end)?.0;
++        self.accessible_part_text(id)?.get(start..end)
++    }
++
++    pub(in crate::text) fn accessible_part_character_at_byte(
++        &self,
++        id: RenderedAccessiblePartId,
++        byte: usize,
++    ) -> Option<usize> {
++        self.accessible_part(id)?.characters.character(byte, false)
++    }
++
++    pub(in crate::text) fn accessible_part_byte(
++        &self,
++        id: RenderedAccessiblePartId,
++        character: usize,
++    ) -> Option<usize> {
++        Some(self.accessible_part(id)?.characters.boundary(character)?.0)
++    }
++
++    pub(in crate::text) fn accessible_slices(
++        &self,
++        span: Range<usize>,
++    ) -> impl Iterator<Item = (&RenderedAccessiblePart, Range<usize>)> {
++        let start = self
++            .accessible_parts
++            .partition_point(|part| part.utf16_range().end <= span.start);
++        self.accessible_parts[start..]
++            .iter()
++            .take_while(move |part| part.utf16_start < span.end)
++            .filter_map(move |part| {
++                let range = part.utf16_range();
++                let start = part
++                    .characters
++                    .character(span.start.max(range.start) - range.start, true)?;
++                let end = part
++                    .characters
++                    .character(span.end.min(range.end) - range.start, true)?;
++                (start < end).then_some((part, start..end))
++            })
++    }
++
+     /// Global AX UTF-16 coordinate, distinct from bridge UTF-8 offsets.
+     pub fn accessible_utf16_offset(&self, position: &RenderedTextPosition) -> Option<usize> {
+         let (id, character) = self.accessible_coordinates(position)?;
+--- a/src/text/semantic_attachments.rs
++++ b/src/text/semantic_attachments.rs
+@@ -10,7 +10,8 @@
+     LayoutId, Pixels, Window, accesskit::NodeId,
+ };
+ 
+-use super::{RenderedSemanticId, RenderedText};
++use super::rendered_text::RenderedFragment;
++use super::{RenderedAccessiblePartId, RenderedSemanticId, RenderedText, RenderedTextPosition};
+ 
+ /// A prepared top-level owner and its actual current-frame native subtree.
+ /// This is not a text-run ID or authorization to dispatch an accessibility action.
+@@ -30,12 +31,43 @@
+     }
+ }
+ 
++#[derive(Clone, Copy)]
++pub(super) struct TextRun {
++    node: NodeId,
++    part: RenderedAccessiblePartId,
++    first: usize,
++    len: usize,
++    source_start: usize,
++}
++
++impl TextRun {
++    pub(super) fn new(
++        projection: &RenderedText,
++        node: NodeId,
++        part: RenderedAccessiblePartId,
++        characters: std::ops::Range<usize>,
++    ) -> Option<Self> {
++        let source_start = projection.accessible_character_utf16(part, characters.start)?;
++        projection.accessible_character_utf16(part, characters.end)?;
++        (characters.start <= characters.end).then_some(Self {
++            node,
++            part,
++            first: characters.start,
++            len: characters.len(),
++            source_start,
++        })
++    }
++}
++
+ #[derive(Default)]
+ struct State {
+     window: Option<gpui::WindowId>,
+     projection: Weak<RenderedText>,
+     candidates: HashMap<NodeId, RenderedSemanticId>,
+     published: Vec<RenderedSemanticAttachment>,
++    candidate_runs: HashMap<NodeId, TextRun>,
++    runs: HashMap<NodeId, TextRun>,
++    ordered_runs: Vec<TextRun>,
+ }
+ 
+ #[derive(Clone, Default)]
+@@ -48,6 +80,9 @@
+         state.window = Some(window);
+         state.candidates.clear();
+         state.published.clear();
++        state.candidate_runs.clear();
++        state.runs.clear();
++        state.ordered_runs.clear();
+     }
+ 
+     fn record(&self, owner: RenderedSemanticId, node: NodeId) {
+@@ -63,7 +98,8 @@
+ 
+     /// Filter against the existing Document's finalized direct children. A row
+     /// prepainted only for measurement or a rolled-back attempt is not attached.
+-    pub fn finish(&self, children: &[NodeId]) {
++    pub fn finish(&self, builder: &mut gpui::A11ySubtreeBuilder, complete: bool) {
++        let children = builder.parent_node().children().to_vec();
+         let mut state = self.0.lock().expect("semantic attachment frame");
+         let mut seen = HashSet::new();
+         let mut ambiguous = HashSet::new();
+@@ -81,6 +117,87 @@
+             .published
+             .retain(|item| !ambiguous.contains(&item.owner));
+         state.candidates.clear();
++        let mut actual = Vec::new();
++        builder.visit_descendants(|id, node| {
++            if node.role() == gpui::Role::TextRun
++                && !node.is_hidden()
++                && let Some(run) = state.candidate_runs.get(&id)
++            {
++                actual.push(*run);
++            }
++        });
++        state.candidate_runs.clear();
++        if complete
++            && ambiguous.is_empty()
++            && let Some(projection) = state.projection.upgrade()
++        {
++            actual.extend(super::logical_accessibility::publish(
++                &projection,
++                &state.published,
++                builder,
++            ));
++        }
++        state.runs = actual.iter().map(|run| (run.node, *run)).collect();
++        actual.sort_by_key(|run| run.source_start);
++        state.ordered_runs = actual;
++    }
++
++    pub fn record_run(&self, node: NodeId, fragment: &RenderedFragment, count: usize) {
++        let mut state = self.0.lock().expect("semantic attachment frame");
++        let Some(projection) = state.projection.upgrade() else {
++            return;
++        };
++        let Some((part, characters)) = projection.accessible_fragment(fragment) else {
++            return;
++        };
++        if characters.len() != count {
++            return;
++        }
++        if let Some(run) = TextRun::new(&projection, node, part, characters) {
++            state.candidate_runs.insert(node, run);
++        }
++    }
++
++    pub fn position(
++        &self,
++        window: gpui::WindowId,
++        projection: &Arc<RenderedText>,
++        position: gpui::accesskit::TextPosition,
++    ) -> Option<RenderedTextPosition> {
++        let state = self.0.lock().expect("semantic attachment frame");
++        if state.window != Some(window) || !state.projection.ptr_eq(&Arc::downgrade(projection)) {
++            return None;
++        }
++        let run = state.runs.get(&position.node)?;
++        if position.character_index > run.len {
++            return None;
++        }
++        projection.accessible_position(run.part, run.first + position.character_index)
++    }
++
++    pub fn text_position(
++        &self,
++        window: gpui::WindowId,
++        projection: &Arc<RenderedText>,
++        position: &RenderedTextPosition,
++    ) -> Option<gpui::accesskit::TextPosition> {
++        let source = projection.accessible_utf16_offset(position)?;
++        let state = self.0.lock().expect("semantic attachment frame");
++        if state.window != Some(window) || !state.projection.ptr_eq(&Arc::downgrade(projection)) {
++            return None;
++        }
++        let index = state
++            .ordered_runs
++            .partition_point(|run| run.source_start <= source)
++            .checked_sub(1)?;
++        let run = state.ordered_runs.get(index)?;
++        let character = projection
++            .accessible_character_in_part(run.part, position)?
++            .checked_sub(run.first)?;
++        (character <= run.len).then_some(gpui::accesskit::TextPosition {
++            node: run.node,
++            character_index: character,
++        })
+     }
+ 
+     pub fn snapshot(
+--- a/src/text/state.rs
++++ b/src/text/state.rs
+@@ -238,6 +238,34 @@
+             self.semantic_attachments
+                 .snapshot(window.window_handle().window_id(), &projection)
+         })
++    }
++
++    /// Read-only conversion against this window's last completed native subtree
++    /// and exact preparation. This is not visibility or action authorization.
++    pub fn rendered_accessible_position(
++        &self,
++        window: &Window,
++        position: gpui::accesskit::TextPosition,
++    ) -> Option<super::RenderedTextPosition> {
++        self.semantic_attachments.position(
++            window.window_handle().window_id(),
++            &self.rendered_text()?,
++            position,
++        )
++    }
++
++    /// Returns a published text-run position when the current prepared point is
++    /// realized. Missing/offscreen runs have no invented native position.
++    pub fn rendered_accessible_text_position(
++        &self,
++        window: &Window,
++        position: &super::RenderedTextPosition,
++    ) -> Option<gpui::accesskit::TextPosition> {
++        self.semantic_attachments.text_position(
++            window.window_handle().window_id(),
++            &self.rendered_text()?,
++            position,
++        )
+     }
+ 
+     pub(super) fn rendered_text_revision(&self) -> Option<crate::TextSelectionContentRevision> {
+--- a/src/text/text_view.rs
++++ b/src/text/text_view.rs
+@@ -650,7 +650,7 @@
+             .role(gpui::Role::Document)
+             .aria_label("Document content")
+             .a11y_synthetic_children(move |builder| {
+-                semantic_attachments.finish(builder.parent_node().children());
++                semantic_attachments.finish(builder, max_lines.is_none());
+             })
+             .key_context("TextView")
+             .track_focus(&focus_handle)
+--- a/src/text_selection.rs
++++ b/src/text_selection.rs
+@@ -386,6 +386,15 @@
+     layout: TextLayout,
+     /// The run's window-coordinate paint bounds.
+     bounds: Bounds<Pixels>,
++}
++
++/// Cached shaped cluster geometry in logical source order. A cluster can span
++/// several scalar characters; accessibility must not split its painted extent.
++#[derive(Clone)]
++pub(crate) struct TextSelectionGlyph {
++    pub bytes: Range<usize>,
++    pub bounds: Bounds<Pixels>,
++    pub right_to_left: bool,
+ }
+ 
+ impl TextSelectionRun {
+@@ -460,6 +469,11 @@
+     pub(crate) fn text_bounds(&self) -> Vec<Bounds<Pixels>> {
+         self.geometry()
+             .map_or_else(Vec::new, |geometry| geometry.text_bounds(self))
++    }
++
++    pub(crate) fn accessibility_glyphs(&self) -> Vec<TextSelectionGlyph> {
++        self.geometry()
++            .map_or_else(Vec::new, |geometry| geometry.accessibility_glyphs(self))
+     }
+ 
+     /// Sets the run's logical order within the participant.
+--- a/src/text_selection/geometry.rs
++++ b/src/text_selection/geometry.rs
+@@ -19,6 +19,52 @@
+     rows: Vec<Row>,
+ }
+ impl Geometry {
++    pub(super) fn accessibility_glyphs(
++        &self,
++        run: &TextSelectionRun,
++    ) -> Vec<super::TextSelectionGlyph> {
++        let mut result = Vec::new();
++        for (index, row) in self.rows.iter().enumerate() {
++            let origin = point(
++                run.bounds.left() + row.inset(run),
++                run.bounds.top() + run.layout.line_height() * index,
++            );
++            result.extend(row.cells.iter().map(|cell| super::TextSelectionGlyph {
++                bytes: cell.source.clone(),
++                bounds: gpui::Bounds::new(
++                    point(origin.x + cell.x.start, origin.y),
++                    gpui::size(cell.x.end - cell.x.start, run.layout.line_height()),
++                ),
++                right_to_left: cell.rtl,
++            }));
++        }
++        result.sort_by_key(|cell| (cell.bytes.start, cell.bytes.end));
++        // Discard overlapping source clusters as a whole. This both avoids an
++        // invented rectangle across rows and leaves disjoint intervals for
++        // bounded binary-search lookup by semantic fragments.
++        let mut disjoint = Vec::new();
++        let mut current: Option<super::TextSelectionGlyph> = None;
++        let mut ambiguous = false;
++        for cell in result {
++            if let Some(previous) = &mut current
++                && cell.bytes.start < previous.bytes.end
++            {
++                previous.bytes.end = previous.bytes.end.max(cell.bytes.end);
++                ambiguous = true;
++                continue;
++            }
++            if !ambiguous {
++                disjoint.extend(current.take());
++            }
++            current = Some(cell);
++            ambiguous = false;
++        }
++        if !ambiguous {
++            disjoint.extend(current);
++        }
++        disjoint
++    }
++
+     pub(super) fn text_bounds(&self, run: &TextSelectionRun) -> Vec<gpui::Bounds<Pixels>> {
+         self.rows
+             .iter()

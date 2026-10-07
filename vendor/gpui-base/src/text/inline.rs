@@ -190,6 +190,8 @@ pub(super) struct Inline {
 pub(super) struct InlinePrepaint {
     hitbox: Hitbox,
     semantics: Vec<gpui::AnyElement>,
+    selection_run: Option<crate::TextSelectionRun>,
+    accessible: Option<super::accessible_runs::Snapshot>,
 }
 
 /// Partition rendered text in reading order. Adjacent style runs of the same
@@ -327,10 +329,38 @@ impl Inline {
         self
     }
 
+    fn semantic_binding(
+        &self,
+        range: Range<usize>,
+        cx: &App,
+    ) -> Option<(
+        super::semantic_attachments::Frame,
+        super::rendered_text::RenderedFragment,
+    )> {
+        let view = GlobalState::global(cx).text_view_state()?.read(cx);
+        let projection = view.rendered_text()?;
+        let (owner, owner_range) = self
+            .selection_source
+            .as_ref()
+            .map(|(owner, range)| (owner, range.clone()))
+            .unwrap_or((&self.state, 0..self.text.len()));
+        let fragment = owner
+            .lock()
+            .ok()?
+            .rendered_fragment
+            .clone()?
+            .slice(owner_range)?;
+        if !fragment.matches(&projection, &self.text) {
+            return None;
+        }
+        Some((view.semantic_attachments.clone(), fragment.slice(range)?))
+    }
+
     fn semantic_elements(
         &self,
         owner: Option<&GlobalElementId>,
         bounds: Bounds<Pixels>,
+        glyphs: &[crate::text_selection::TextSelectionGlyph],
         window: &mut Window,
         cx: &mut App,
     ) -> Vec<gpui::AnyElement> {
@@ -366,8 +396,17 @@ impl Inline {
                     point(bounds.right(), end.y + height),
                 )
             };
+            let accessible = window.is_a11y_active().then(|| {
+                super::accessible_runs::Snapshot::new(
+                    self.text.clone(),
+                    glyphs,
+                    range.clone(),
+                    window.scale_factor(),
+                )
+                .with_binding(self.semantic_binding(range.clone(), cx))
+            });
             if let Some((sink, slot)) = &self.semantic_sink {
-                sink.push(*slot, area, &self.text[range], link);
+                sink.push(*slot, area, &self.text[range], link, accessible);
                 continue;
             }
             let id: SharedString = format!(
@@ -379,6 +418,7 @@ impl Inline {
             .into();
             let text = self.text[range].to_owned();
             let mut element = gpui::div().id(id).w(area.size.width).h(area.size.height);
+            let metadata_url = link.as_ref().map(|link| link.url.clone());
             if let Some(link) = link {
                 let text = if text.trim().is_empty() {
                     link.url.to_string()
@@ -409,7 +449,6 @@ impl Inline {
                     .filter(|_| link.source_start.is_some())
                     .map(|view| (view.downgrade(), link.clone()));
                 let url = link.url;
-                let metadata_url = url.clone();
                 let handler = self.link_click_handler.clone();
                 element = element
                     .role(gpui::Role::Link)
@@ -423,9 +462,6 @@ impl Inline {
                                     .update(cx, |state, cx| state.focus_link(&link, window, cx));
                             },
                         )
-                    })
-                    .a11y_synthetic_children(move |builder| {
-                        builder.parent_node().set_url(metadata_url.to_string())
                     })
                     .on_a11y_action(gpui::AccessibleAction::Click, move |_, window, cx| {
                         if !super::inline_semantics::activation_allowed(&activation_target, cx) {
@@ -445,7 +481,16 @@ impl Inline {
             } else {
                 element = element.role(gpui::Role::Label).aria_value(text);
             }
-            let mut element = element.into_any_element();
+            let mut element = element
+                .a11y_synthetic_children(move |builder| {
+                    if let Some(url) = metadata_url {
+                        builder.parent_node().set_url(url.to_string());
+                    }
+                    if let Some(snapshot) = accessible {
+                        snapshot.publish(0, builder);
+                    }
+                })
+                .into_any_element();
             element.prepaint_as_root(
                 area.origin,
                 gpui::size(
@@ -687,6 +732,16 @@ impl Element for Inline {
         }
     }
 
+    fn a11y_synthetic_children(
+        &mut self,
+        prepaint: &mut InlinePrepaint,
+        builder: &mut gpui::A11ySubtreeBuilder,
+    ) {
+        if let Some(snapshot) = &prepaint.accessible {
+            snapshot.publish(0, builder);
+        }
+    }
+
     fn request_layout(
         &mut self,
         global_element_id: Option<&GlobalElementId>,
@@ -798,9 +853,55 @@ impl Element for Inline {
             }
         }
 
+        // Build the frame-local cached run before semantic children. Painting
+        // and accessibility share the same shaped clusters and dynamic bounds.
+        let needs_run = window.is_a11y_active()
+            || GlobalState::global(cx)
+                .text_view_state()
+                .is_some_and(|view| view.read(cx).is_selectable());
+        let selection_run = needs_run.then(|| {
+            let layout = self.styled_text.layout().clone();
+            let align = self
+                .text_style
+                .as_ref()
+                .map_or_else(|| window.text_style().text_align, |style| style.text_align);
+            window.with_element_state(
+                id.expect("Inline has a stable element ID"),
+                |retained: Option<crate::TextSelectionRun>, _| {
+                    let mut run = retained.unwrap_or_else(|| {
+                        crate::TextSelectionRun::new(self.text.clone(), layout.clone(), bounds)
+                    });
+                    run.update(self.text.clone(), layout, bounds);
+                    let run = run.with_text_align(align);
+                    (run.clone(), run)
+                },
+            )
+        });
+        let glyphs = if window.is_a11y_active() {
+            selection_run
+                .as_ref()
+                .map_or_else(Vec::new, |run| run.accessibility_glyphs())
+        } else {
+            Vec::new()
+        };
+        let accessible = (window.is_a11y_active()
+            && !self.suppress_semantics
+            && self.semantic_sink.is_none()
+            && self.links.is_empty())
+        .then(|| {
+            super::accessible_runs::Snapshot::new(
+                self.text.clone(),
+                &glyphs,
+                0..self.text.len(),
+                window.scale_factor(),
+            )
+            .with_binding(self.semantic_binding(0..self.text.len(), cx))
+        });
         InlinePrepaint {
             hitbox: window.insert_hitbox(bounds, HitboxBehavior::Normal),
-            semantics: self.semantic_elements(id, bounds, window, cx),
+            semantics: self.semantic_elements(id, bounds, &glyphs, window, cx),
+            selection_run,
+            accessible,
         }
     }
 
@@ -957,24 +1058,11 @@ impl Element for Inline {
 
         if is_selectable {
             if let Some(text_view_state) = GlobalState::global(cx).text_view_state().cloned() {
-                // Keep shaped selection geometry in frame-owned element state,
-                // never in the worker-owned parsed InlineState. Bounds/alignment
-                // change without rebuilding immutable glyph cells.
-                let run = window.with_element_state(
-                    global_id.expect("Inline has a stable element ID"),
-                    |retained: Option<crate::TextSelectionRun>, _| {
-                        let mut run = retained.unwrap_or_else(|| {
-                            crate::TextSelectionRun::new(
-                                self.text.clone(),
-                                text_layout.clone(),
-                                bounds,
-                            )
-                        });
-                        run.update(self.text.clone(), text_layout.clone(), bounds);
-                        let run = run.with_text_align(align);
-                        (run.clone(), run)
-                    },
-                );
+                let run = prepaint
+                    .selection_run
+                    .as_ref()
+                    .expect("selectable Inline prepared its shaped run")
+                    .clone();
                 let mask = window.content_mask().bounds;
                 let text_bounds = run
                     .text_bounds()

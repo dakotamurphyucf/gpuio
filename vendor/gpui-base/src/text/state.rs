@@ -240,6 +240,34 @@ impl TextViewState {
         })
     }
 
+    /// Read-only conversion against this window's last completed native subtree
+    /// and exact preparation. This is not visibility or action authorization.
+    pub fn rendered_accessible_position(
+        &self,
+        window: &Window,
+        position: gpui::accesskit::TextPosition,
+    ) -> Option<super::RenderedTextPosition> {
+        self.semantic_attachments.position(
+            window.window_handle().window_id(),
+            &self.rendered_text()?,
+            position,
+        )
+    }
+
+    /// Returns a published text-run position when the current prepared point is
+    /// realized. Missing/offscreen runs have no invented native position.
+    pub fn rendered_accessible_text_position(
+        &self,
+        window: &Window,
+        position: &super::RenderedTextPosition,
+    ) -> Option<gpui::accesskit::TextPosition> {
+        self.semantic_attachments.text_position(
+            window.window_handle().window_id(),
+            &self.rendered_text()?,
+            position,
+        )
+    }
+
     pub(super) fn rendered_text_revision(&self) -> Option<crate::TextSelectionContentRevision> {
         self.parsed_content
             .rendered_text

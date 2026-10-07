@@ -43,7 +43,10 @@ fn click(cx: &mut VisualTestContext, value: &str, occurrence: usize, count: usiz
     let mut candidates: Vec<_> = tree
         .nodes
         .iter()
-        .filter(|(_, node)| node.value() == Some(value) || node.label() == Some(value))
+        .filter(|(_, node)| {
+            node.role() != gpui::Role::TextRun
+                && (node.value() == Some(value) || node.label() == Some(value))
+        })
         .filter_map(|(_, node)| node.bounds())
         .collect();
     candidates.sort_by(|a, b| a.y0.total_cmp(&b.y0).then(a.x0.total_cmp(&b.x0)));
@@ -99,7 +102,7 @@ fn visual_line_text(cx: &mut VisualTestContext, hit: &str) -> String {
     let hit = tree
         .nodes
         .iter()
-        .find(|(_, node)| node.value() == Some(hit))
+        .find(|(_, node)| node.role() == gpui::Role::Label && node.value() == Some(hit))
         .unwrap()
         .1
         .bounds()
@@ -109,6 +112,9 @@ fn visual_line_text(cx: &mut VisualTestContext, hit: &str) -> String {
         .nodes
         .iter()
         .filter_map(|(_, node)| {
+            if node.role() != gpui::Role::Label {
+                return None;
+            }
             let value = node.value()?;
             let bounds = node.bounds()?;
             (bounds.y0 <= y && y < bounds.y1).then_some((bounds.x0, value))

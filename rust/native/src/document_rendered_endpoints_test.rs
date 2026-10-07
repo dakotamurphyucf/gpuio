@@ -20,7 +20,9 @@ fn drag(cx: &mut VisualTestContext, label: &str, occurrence: usize, backward: bo
     let bounds = tree
         .nodes
         .iter()
-        .filter(|(_, n)| n.value() == Some(label))
+        .filter(|(_, n)| {
+            n.role() == gpui::Role::Label && n.value() == Some(label) && n.bounds().is_some()
+        })
         .nth(occurrence)
         .unwrap()
         .1
@@ -165,6 +167,15 @@ fn captured_pointer_anchor_survives_virtualization_without_retaining_layout_hist
         .read_with(cx, |p, _| p.markdown.clone().unwrap());
     drag(cx, "Paragraph 0 repeated content", 0, true);
     let before = captured(&text, cx);
+    let first_owner = text.read_with(cx, |state, _| {
+        state.rendered_text().unwrap().semantic_block(0).unwrap()
+    });
+    assert!(cx.update(|window, cx| {
+        text.read(cx)
+            .rendered_semantic_attachments(window)
+            .iter()
+            .any(|attachment| attachment.owner() == first_owner)
+    }));
     let position = text.read_with(cx, |state, _| state.bounds().center());
     cx.simulate_event(gpui::ScrollWheelEvent {
         position,
@@ -178,8 +189,16 @@ fn captured_pointer_anchor_survives_virtualization_without_retaining_layout_hist
             .unwrap()
             .nodes
             .iter()
-            .any(|(_, n)| n.value() == Some("Paragraph 0 repeated content")),
-        "anchor must actually leave the realized tree"
+            .any(|(_, n)| n.value() == Some("Paragraph 0 repeated content") && n.bounds().is_some()),
+        "unrealized anchor must not retain layout bounds"
+    );
+    assert!(
+        !cx.update(|window, cx| text
+            .read(cx)
+            .rendered_semantic_attachments(window)
+            .iter()
+            .any(|attachment| attachment.owner() == first_owner)),
+        "anchor must actually leave the realized native tree"
     );
     assert_eq!(captured(&text, cx), before);
     text.read_with(cx, |state, _| {

@@ -5,6 +5,22 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **O
 Markdown walkthroughs for every example component; its documentation acceptance is complete. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
+[Unrealized document accessibility](evidence/rendered-logical-document-och17.md)
+now exposes offscreen structured text, block separators and atomic alternatives
+without fabricated bounds, preserving actual native control identities/actions.
+Local 1,140 native tests (2 ignored), actual macOS editor/document checks, workspace,
+strict lint, full Dune, exact 243-file Base reconstruction and rebuilt-gallery
+Copy/close pass. Realized nested text gaps, publication cost, final-paint selection,
+guarded OS actions and full platform/release acceptance remain open.
+
+[Native text runs and prepared mappings](evidence/rendered-text-runs-och17.md) now
+publish laid-out text beneath actual labels/links and reject stale or foreign
+positions. Current native tests (1,137 passed, 2 ignored), lint, formatting and
+both vendor reconstructions pass. Broader workspace/Dune checks passed at the
+preceding leaf stage; current GUI testing timed out under sandbox restrictions.
+Complete Document text/selection, physical accessibility and release gates remain
+open. The change and its pending Linear update are still local.
+
 [Rendered block semantic attachments](evidence/rendered-semantic-attachments-och17.md)
 now bind prepared top-level owners to real GPUI subtrees while preserving native
 control actions and stable identities across replacement/resource refresh. All
@@ -1059,12 +1075,13 @@ Scoped physical OS results are recorded in the requirement table below; see [min
 
 ## Environment constraints and next action
 
-On 2026-10-04 the owner supplied unrestricted filesystem access and enabled
-network access. Archive downloads now work; all eight Bonsai-family packages
-reconstruct exactly. macOS accessibility and screen-capture preflights pass.
-The earlier access denials remain historical evidence, not current acceptance
-results. Native testing and delivery can resume under the updated permissions;
-do not substitute these preflights for the actual physical/release checks.
+After the owner's 2026-10-07 restart, the session again reports unrestricted
+filesystem/network access. Process inspection, GitHub reads and a real Linear
+progress update work; actual macOS editor/document checks pass again. The earlier
+restricted-session desktop attempt remains an incomplete failure record, not
+current acceptance. Its old workspace process is gone; normal workspace, full Dune and rebuilt-gallery
+checks pass on the current sources. User authorization for foreground native and
+VoiceOver testing remains unchanged.
 
 Use the current requirement table and its linked evidence when choosing the next
 check. Historical test counts and earlier open items remain in the dated evidence

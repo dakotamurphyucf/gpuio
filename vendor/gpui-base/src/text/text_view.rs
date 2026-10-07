@@ -650,7 +650,7 @@ impl Element for TextView {
             .role(gpui::Role::Document)
             .aria_label("Document content")
             .a11y_synthetic_children(move |builder| {
-                semantic_attachments.finish(builder.parent_node().children());
+                semantic_attachments.finish(builder, max_lines.is_none());
             })
             .key_context("TextView")
             .track_focus(&focus_handle)

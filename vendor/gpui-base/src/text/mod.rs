@@ -1,3 +1,4 @@
+mod accessible_runs;
 mod backgrounds;
 mod block_object;
 mod control_navigation;
@@ -13,6 +14,7 @@ mod inline_semantics;
 #[cfg(test)]
 mod inline_virtual_tests;
 mod link_navigation;
+mod logical_accessibility;
 mod markdown_ext;
 mod node;
 mod range_geometry;

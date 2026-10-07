@@ -553,3 +553,81 @@ owner, visibility, modality, input policy and interaction generation. Nested
 TextRun placement, unpainted logical text, shaped character geometry and
 post-paint selection publication remain required integration work. No complete
 rich-document accessibility or VoiceOver acceptance follows from block bindings.
+
+## Native text-run publication (integration in progress)
+
+Laid-out Inline labels and link proxies now publish TextRun children beneath
+their existing semantic nodes. The rich-flow collector carries those runs into
+coalesced links without replacing native controls or their action owners. This is
+partial leaf publication; complete Document text, selection and actions are not
+yet exposed by this integration.
+
+Inline prepares its frame-owned `TextSelectionRun` during prepaint and reuses it
+for pointer registration during paint. Accessibility derives geometry from the
+same cached shaped clusters, including current bounds and alignment. It does not
+shape a second copy of each character. TextRuns split at line/direction changes,
+discontinuous geometry and transitions to missing geometry. Scalar character
+lengths treat CRLF as one character. Ambiguous overlapping clusters retain their
+text without an invented rectangle.
+
+Hard line breaks omitted from rich-flow glyph layout are explicit logical
+fragments, addressed by the original text item and byte offset. They retain the
+actual source link membership and publish a newline without glyph geometry or
+focus-outline fragments. Their source-order slots exist with accessibility both
+on and off, avoiding an activation-dependent change to later element keys.
+
+The native regression covers combining characters, emoji, RTL text and a long
+styled link with a hard break and soft wraps. Existing pointer fixtures address
+the owning labels rather than also counting their new TextRun descendants.
+Neither those tests nor leaf publication qualify OS selection. Remaining work
+includes semantic separators and atomic alternatives, complete offscreen logical
+content, visual-line adjacency, final-paint selection publication, guarded OS
+actions and actual platform tests.
+
+Published run IDs now incorporate the exact prepared fragment's endpoints.
+Replacing equal text retires those IDs while retaining native control identities.
+Ordinary text, rich-flow pieces and hard line breaks supply their canonical
+native owner and source interval; repeated strings are never used as identity.
+Same-part coordinate conversion resolves an interval's end against its owning
+part rather than accidentally choosing the following separator.
+
+The Document's final prepaint callback filters candidate run bindings through a
+read-only traversal of its actual completed descendants. Measurement-only rows
+and unrelated sibling subtrees cannot become addressable runs. Per-node character
+lookup and a sorted source interval index provide bidirectional conversion through
+the prepared scalar/CRLF coordinate index. Other windows, preparations and invalid
+character indices are rejected. Unrealized logical text still has no native run
+at this stage; complete offscreen publication remains required.
+
+These conversions describe the last Document prepaint, not an action capability.
+Ancestor clipping can subsequently hide nodes; later unmount, modality, input
+policy or interaction changes can also invalidate an action. The eventual OS
+handler must validate those conditions against current native ownership.
+
+## Logical text for unrealized blocks (integration in progress)
+
+The existing Document now merges prepared top-level semantic owners with its
+actual native attachments. Realized blocks keep their original subtrees and
+control actions. Unrealized blocks receive structured logical descendants,
+including headings, lists, table rows/cells and links. Their text comes from
+prepared part intervals, including structural separators and empty-object U+FFFC
+alternatives; it is never recovered by matching repeated strings. An explicit
+work stack handles semantic nesting without input-sized call-stack recursion.
+
+Logical TextRuns split at hard line breaks, preserve CRLF as one AccessKit
+character, and have no fabricated bounds, character rectangles or input handlers.
+Native-widget alternatives can contain multiple readable characters, but only
+an object's outer edges are valid native selection positions. The run index uses
+global accessible UTF-16 offsets so that reading positions inside such an
+alternative do not collapse onto the same native byte/slot pair. Empty documents
+have a zero-character caret run. Clamped previews do not expand into the full
+logical document.
+
+This supersedes the earlier absence of offscreen runs. It does not complete the
+Document contract: separators and atomic alternatives inside **realized nested**
+structures still need integration, as do visual-line adjacency, final-paint
+selection, guarded reveal/activation and OS selection actions. Offscreen link
+roles and URLs do not imply an implemented activation handler. Publication cost
+for large accessibility trees also needs qualification; current grouping uses the
+existing subtree builder. Actual macOS accessibility and VoiceOver acceptance
+remain separate from TestPlatform coverage.

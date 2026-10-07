@@ -446,8 +446,12 @@ impl A11y {
     }
 
     fn remove_hidden_actions(&mut self, update: &mut TreeUpdate) {
-        let mut pending: Vec<_> = update.nodes.iter()
-            .filter(|(_, node)| node.is_hidden()).map(|(id, _)| *id).collect();
+        let mut pending: Vec<_> = update
+            .nodes
+            .iter()
+            .filter(|(_, node)| node.is_hidden())
+            .map(|(id, _)| *id)
+            .collect();
         if pending.is_empty() {
             return;
         }
@@ -467,7 +471,11 @@ impl A11y {
         self.node_bounds.retain(|id, _| !hidden.contains(id));
         self.focus_ids.retain(|id, _| !hidden.contains(id));
         if hidden.contains(&update.focus) {
-            update.focus = self.nodes.focus.filter(|id| !hidden.contains(id)).unwrap_or(ROOT_NODE_ID);
+            update.focus = self
+                .nodes
+                .focus
+                .filter(|id| !hidden.contains(id))
+                .unwrap_or(ROOT_NODE_ID);
             self.nodes.active_descendant = None;
         }
     }
@@ -577,6 +585,28 @@ impl<'a> A11ySubtreeBuilder<'a> {
             );
         }
         pushed
+    }
+
+    /// Visit this element's completed descendants in reverse postorder. The current
+    /// parent is excluded. Rolled-back candidates and unrelated siblings are
+    /// never visited. This read-only traversal does not authorize actions.
+    pub fn visit_descendants(&self, mut visit: impl FnMut(NodeId, &accesskit::Node)) {
+        let mut pending: FxHashSet<_> = self
+            .nodes
+            .nodes_stack
+            .last()
+            .into_iter()
+            .flat_map(|node| node.children().iter().copied())
+            .collect();
+        for (id, node) in self.nodes.all_nodes.iter().rev() {
+            if pending.is_empty() {
+                break;
+            }
+            if pending.remove(id) {
+                pending.extend(node.children().iter().copied());
+                visit(*id, node);
+            }
+        }
     }
 
     /// Clip this subtree's finalized descendant bounds in accessibility (scaled

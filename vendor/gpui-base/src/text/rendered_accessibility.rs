@@ -314,6 +314,86 @@ impl RenderedText {
         let part = self.accessible_parts.get(end.checked_sub(1)?)?;
         Some((part.id, part.character_for_position(position)?))
     }
+    /// Exact same-part character interval for a painted native fragment. The
+    /// end is resolved against the owning part, not the following boundary part.
+    pub(in crate::text) fn accessible_fragment(
+        &self,
+        fragment: &super::RenderedFragment,
+    ) -> Option<(RenderedAccessiblePartId, Range<usize>)> {
+        let start = self.captured_position(fragment.edge(false))?;
+        let end = self.captured_position(fragment.edge(true))?;
+        let (id, first) = self.accessible_coordinates(&start)?;
+        let last = self.accessible_character_in_part(id, &end)?;
+        (first <= last).then_some((id, first..last))
+    }
+
+    pub(in crate::text) fn accessible_character_in_part(
+        &self,
+        id: RenderedAccessiblePartId,
+        position: &RenderedTextPosition,
+    ) -> Option<usize> {
+        self.offset(position)?;
+        self.accessible_part(id)?.character_for_position(position)
+    }
+
+    pub(in crate::text) fn accessible_character_utf16(
+        &self,
+        id: RenderedAccessiblePartId,
+        character: usize,
+    ) -> Option<usize> {
+        let part = self.accessible_part(id)?;
+        Some(part.utf16_start + part.characters.boundary(character)?.1)
+    }
+
+    pub(in crate::text) fn accessible_part_slice(
+        &self,
+        id: RenderedAccessiblePartId,
+        characters: Range<usize>,
+    ) -> Option<&str> {
+        let part = self.accessible_part(id)?;
+        let start = part.characters.boundary(characters.start)?.0;
+        let end = part.characters.boundary(characters.end)?.0;
+        self.accessible_part_text(id)?.get(start..end)
+    }
+
+    pub(in crate::text) fn accessible_part_character_at_byte(
+        &self,
+        id: RenderedAccessiblePartId,
+        byte: usize,
+    ) -> Option<usize> {
+        self.accessible_part(id)?.characters.character(byte, false)
+    }
+
+    pub(in crate::text) fn accessible_part_byte(
+        &self,
+        id: RenderedAccessiblePartId,
+        character: usize,
+    ) -> Option<usize> {
+        Some(self.accessible_part(id)?.characters.boundary(character)?.0)
+    }
+
+    pub(in crate::text) fn accessible_slices(
+        &self,
+        span: Range<usize>,
+    ) -> impl Iterator<Item = (&RenderedAccessiblePart, Range<usize>)> {
+        let start = self
+            .accessible_parts
+            .partition_point(|part| part.utf16_range().end <= span.start);
+        self.accessible_parts[start..]
+            .iter()
+            .take_while(move |part| part.utf16_start < span.end)
+            .filter_map(move |part| {
+                let range = part.utf16_range();
+                let start = part
+                    .characters
+                    .character(span.start.max(range.start) - range.start, true)?;
+                let end = part
+                    .characters
+                    .character(span.end.min(range.end) - range.start, true)?;
+                (start < end).then_some((part, start..end))
+            })
+    }
+
     /// Global AX UTF-16 coordinate, distinct from bridge UTF-8 offsets.
     pub fn accessible_utf16_offset(&self, position: &RenderedTextPosition) -> Option<usize> {
         let (id, character) = self.accessible_coordinates(position)?;

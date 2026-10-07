@@ -10,7 +10,8 @@ use gpui::{
     LayoutId, Pixels, Window, accesskit::NodeId,
 };
 
-use super::{RenderedSemanticId, RenderedText};
+use super::rendered_text::RenderedFragment;
+use super::{RenderedAccessiblePartId, RenderedSemanticId, RenderedText, RenderedTextPosition};
 
 /// A prepared top-level owner and its actual current-frame native subtree.
 /// This is not a text-run ID or authorization to dispatch an accessibility action.
@@ -30,12 +31,43 @@ impl RenderedSemanticAttachment {
     }
 }
 
+#[derive(Clone, Copy)]
+pub(super) struct TextRun {
+    node: NodeId,
+    part: RenderedAccessiblePartId,
+    first: usize,
+    len: usize,
+    source_start: usize,
+}
+
+impl TextRun {
+    pub(super) fn new(
+        projection: &RenderedText,
+        node: NodeId,
+        part: RenderedAccessiblePartId,
+        characters: std::ops::Range<usize>,
+    ) -> Option<Self> {
+        let source_start = projection.accessible_character_utf16(part, characters.start)?;
+        projection.accessible_character_utf16(part, characters.end)?;
+        (characters.start <= characters.end).then_some(Self {
+            node,
+            part,
+            first: characters.start,
+            len: characters.len(),
+            source_start,
+        })
+    }
+}
+
 #[derive(Default)]
 struct State {
     window: Option<gpui::WindowId>,
     projection: Weak<RenderedText>,
     candidates: HashMap<NodeId, RenderedSemanticId>,
     published: Vec<RenderedSemanticAttachment>,
+    candidate_runs: HashMap<NodeId, TextRun>,
+    runs: HashMap<NodeId, TextRun>,
+    ordered_runs: Vec<TextRun>,
 }
 
 #[derive(Clone, Default)]
@@ -48,6 +80,9 @@ impl Frame {
         state.window = Some(window);
         state.candidates.clear();
         state.published.clear();
+        state.candidate_runs.clear();
+        state.runs.clear();
+        state.ordered_runs.clear();
     }
 
     fn record(&self, owner: RenderedSemanticId, node: NodeId) {
@@ -63,7 +98,8 @@ impl Frame {
 
     /// Filter against the existing Document's finalized direct children. A row
     /// prepainted only for measurement or a rolled-back attempt is not attached.
-    pub fn finish(&self, children: &[NodeId]) {
+    pub fn finish(&self, builder: &mut gpui::A11ySubtreeBuilder, complete: bool) {
+        let children = builder.parent_node().children().to_vec();
         let mut state = self.0.lock().expect("semantic attachment frame");
         let mut seen = HashSet::new();
         let mut ambiguous = HashSet::new();
@@ -81,6 +117,87 @@ impl Frame {
             .published
             .retain(|item| !ambiguous.contains(&item.owner));
         state.candidates.clear();
+        let mut actual = Vec::new();
+        builder.visit_descendants(|id, node| {
+            if node.role() == gpui::Role::TextRun
+                && !node.is_hidden()
+                && let Some(run) = state.candidate_runs.get(&id)
+            {
+                actual.push(*run);
+            }
+        });
+        state.candidate_runs.clear();
+        if complete
+            && ambiguous.is_empty()
+            && let Some(projection) = state.projection.upgrade()
+        {
+            actual.extend(super::logical_accessibility::publish(
+                &projection,
+                &state.published,
+                builder,
+            ));
+        }
+        state.runs = actual.iter().map(|run| (run.node, *run)).collect();
+        actual.sort_by_key(|run| run.source_start);
+        state.ordered_runs = actual;
+    }
+
+    pub fn record_run(&self, node: NodeId, fragment: &RenderedFragment, count: usize) {
+        let mut state = self.0.lock().expect("semantic attachment frame");
+        let Some(projection) = state.projection.upgrade() else {
+            return;
+        };
+        let Some((part, characters)) = projection.accessible_fragment(fragment) else {
+            return;
+        };
+        if characters.len() != count {
+            return;
+        }
+        if let Some(run) = TextRun::new(&projection, node, part, characters) {
+            state.candidate_runs.insert(node, run);
+        }
+    }
+
+    pub fn position(
+        &self,
+        window: gpui::WindowId,
+        projection: &Arc<RenderedText>,
+        position: gpui::accesskit::TextPosition,
+    ) -> Option<RenderedTextPosition> {
+        let state = self.0.lock().expect("semantic attachment frame");
+        if state.window != Some(window) || !state.projection.ptr_eq(&Arc::downgrade(projection)) {
+            return None;
+        }
+        let run = state.runs.get(&position.node)?;
+        if position.character_index > run.len {
+            return None;
+        }
+        projection.accessible_position(run.part, run.first + position.character_index)
+    }
+
+    pub fn text_position(
+        &self,
+        window: gpui::WindowId,
+        projection: &Arc<RenderedText>,
+        position: &RenderedTextPosition,
+    ) -> Option<gpui::accesskit::TextPosition> {
+        let source = projection.accessible_utf16_offset(position)?;
+        let state = self.0.lock().expect("semantic attachment frame");
+        if state.window != Some(window) || !state.projection.ptr_eq(&Arc::downgrade(projection)) {
+            return None;
+        }
+        let index = state
+            .ordered_runs
+            .partition_point(|run| run.source_start <= source)
+            .checked_sub(1)?;
+        let run = state.ordered_runs.get(index)?;
+        let character = projection
+            .accessible_character_in_part(run.part, position)?
+            .checked_sub(run.first)?;
+        (character <= run.len).then_some(gpui::accesskit::TextPosition {
+            node: run.node,
+            character_index: character,
+        })
     }
 
     pub fn snapshot(

@@ -90,6 +90,13 @@ struct InlineFlowLayout {
 
 #[derive(Clone)]
 enum PositionedFragment {
+    // Hard line breaks occupy logical text but have no painted glyph fragment.
+    LineBreak {
+        item_ix: usize,
+        offset: usize,
+        origin: gpui::Point<Pixels>,
+        height: Pixels,
+    },
     Object {
         item_ix: usize,
         origin: gpui::Point<Pixels>,
@@ -365,6 +372,66 @@ impl Element for InlineFlow {
 
         for fragment in fragments {
             match fragment {
+                PositionedFragment::LineBreak {
+                    item_ix,
+                    offset,
+                    origin,
+                    height,
+                } => {
+                    let InlineFlowItem::Text {
+                        text,
+                        links,
+                        state: source_state,
+                        ..
+                    } = &self.items[item_ix]
+                    else {
+                        unreachable!("line break belongs to a text item")
+                    };
+                    let area = Bounds::new(bounds.origin + origin, size(Pixels::ZERO, height));
+                    let link = links
+                        .iter()
+                        .find(|(range, _)| range.contains(&offset))
+                        .map(|(_, link)| link.clone());
+                    let snapshot = window.is_a11y_active().then(|| {
+                        super::accessible_runs::Snapshot::new(
+                            text.clone(),
+                            &[],
+                            offset..offset + 1,
+                            window.scale_factor(),
+                        )
+                        .with_binding(
+                            crate::GlobalState::global(cx)
+                                .text_view_state()
+                                .and_then(|view| {
+                                    let view = view.read(cx);
+                                    let projection = view.rendered_text()?;
+                                    let fragment = source_state
+                                        .lock()
+                                        .ok()?
+                                        .rendered_fragment
+                                        .clone()?
+                                        .slice(offset..offset + 1)?;
+                                    fragment
+                                        .matches(&projection, "\n")
+                                        .then(|| (view.semantic_attachments.clone(), fragment))
+                                }),
+                        )
+                    });
+                    collector.line_break(elements.len(), area, link, snapshot);
+                    // Keep the source-order slot present even when accessibility
+                    // is inactive; toggling it must not remount later controls.
+                    let mut element = visual_slot(elements.len(), div().w(px(0.)).h(height));
+                    element.prepaint_as_root(
+                        area.origin,
+                        size(
+                            AvailableSpace::Definite(px(0.)),
+                            AvailableSpace::Definite(height),
+                        ),
+                        window,
+                        cx,
+                    );
+                    elements.push((element, None));
+                }
                 PositionedFragment::Object {
                     item_ix,
                     origin,
@@ -389,6 +456,7 @@ impl Element for InlineFlow {
                             Bounds::new(bounds.origin + origin, object_size),
                             accessibility_label,
                             Some(link.clone()),
+                            None,
                         );
                     } else {
                         collector.native(elements.len());
@@ -547,6 +615,7 @@ impl Element for InlineFlow {
                             Bounds::new(bounds.origin + origin, fragment_size),
                             title,
                             Some(link.clone()),
+                            None,
                         );
                     } else {
                         collector.native(elements.len());
@@ -788,6 +857,14 @@ fn layout_measured_flow(
     let mut fragments = Vec::new();
     let mut max_width = Pixels::ZERO;
     let mut y = Pixels::ZERO;
+    let mut offset = 0;
+    let item_ends: Vec<_> = items
+        .iter()
+        .map(|item| {
+            offset += item.len();
+            offset
+        })
+        .collect();
 
     for line_range in line_ranges {
         let mut line_fragments = Vec::new();
@@ -945,6 +1022,21 @@ fn layout_measured_flow(
             fragments.push(positioned);
         }
 
+        // A soft-wrap boundary is only geometry. A hard newline remains part
+        // of the exact source item/link, including leading or repeated breaks.
+        let item_ix = item_ends.partition_point(|end| *end <= line_range.end);
+        if let Some(MeasureItem::Text { text, .. }) = items.get(item_ix) {
+            let start = item_ix.checked_sub(1).map_or(0, |index| item_ends[index]);
+            let offset = line_range.end - start;
+            if text.as_bytes().get(offset) == Some(&b'\n') {
+                fragments.push(PositionedFragment::LineBreak {
+                    item_ix,
+                    offset,
+                    origin: point(x, y),
+                    height: line_ascent + line_descent,
+                });
+            }
+        }
         max_width = max_width.max(line_width);
         y += line_ascent + line_descent;
     }
@@ -1451,7 +1543,9 @@ mod tests {
             .iter()
             .filter_map(|fragment| match fragment {
                 PositionedFragment::Text { text, origin, .. } => Some((text.trim(), origin.y)),
-                PositionedFragment::Image { .. } | PositionedFragment::Object { .. } => None,
+                PositionedFragment::Image { .. }
+                | PositionedFragment::Object { .. }
+                | PositionedFragment::LineBreak { .. } => None,
             })
             .collect::<Vec<_>>();
         let first_y = text_lines[0].1;
