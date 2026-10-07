@@ -1,7 +1,7 @@
 [workspace]
 members = ["rust/protocol", "rust/native", "rust/table", "rust/plot", "rust/foundation", "rust/portal", "rust/wayland", "rust/extension-sdk", "rust/document-sdk", "examples/extension_package/rust", "examples/document_profile_package/rust"]
 resolver = "3"
-exclude = ["vendor/gpui", "vendor/gpui-macos", "vendor/gpui-apple", "vendor/gpui-base", "vendor/accesskit-macos", "vendor/taffy"]
+exclude = ["vendor/gpui", "vendor/gpui-macos", "vendor/gpui-apple", "vendor/gpui-base", "vendor/accesskit-macos", "vendor/accesskit-consumer", "vendor/taffy"]
 
 [workspace.package]
 version = "0.0.0"
@@ -19,6 +19,7 @@ opt-level = 1
 gpuio-document-sdk = { path = "rust/document-sdk" }
 gpuio-extension-sdk = { path = "rust/extension-sdk" }
 accesskit_macos = { path = "vendor/accesskit-macos" }
+accesskit_consumer = { path = "vendor/accesskit-consumer" }
 taffy = { path = "vendor/taffy" }
 
 [patch."https://github.com/zed-industries/zed.git"]

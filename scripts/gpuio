@@ -57,6 +57,8 @@ case "$command" in
     check_environment
     opam_run dune runtest -j "$GPUIO_JOBS" "$@"
     opam_run cargo test --workspace --locked -j "$GPUIO_JOBS"
+    # This patched dependency's own regressions are outside workspace membership.
+    opam_run cargo test -p accesskit_consumer --locked -j "$GPUIO_JOBS"
     # TestPlatform phase/routing checks need GPUI test support, but no OS window.
     # Keep --lib: enabling this feature for workspace integration tests would also
     # run desktop fixtures on displayless Linux jobs.

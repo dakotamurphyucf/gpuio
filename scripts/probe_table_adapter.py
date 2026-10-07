@@ -72,7 +72,8 @@ def main():
         r'\[profile.dev\].*?\[workspace.metadata.typos\]',
         '[profile.dev]\ndebug = 0\n\n[profile.dev.package."*"]\nopt-level = 1\n\n'
         '[patch.crates-io]\n'
-        f'accesskit_macos = {{ path = "{root / "vendor/accesskit-macos"}" }}\n\n'
+        f'accesskit_macos = {{ path = "{root / "vendor/accesskit-macos"}" }}\n'
+        f'accesskit_consumer = {{ path = "{root / "vendor/accesskit-consumer"}" }}\n\n'
         '[patch."https://github.com/zed-industries/zed.git"]\n'
         f'gpui = {{ path = "{root / "vendor/gpui"}" }}\n'
         f'gpui_macos = {{ path = "{root / "vendor/gpui-macos"}" }}\n'

@@ -39,3 +39,15 @@ output. Review binding/symbol, registration, Cargo/Dune and lockfile together;
 select the resulting virtual implementation explicitly. This module has no
 independent test: catalog validation and isolated consumer linking/native smoke
 exercise different portions of its boundary.
+
+The generated [Cargo manifest](Cargo.toml) also carries a `[patch.crates-io]`
+entry for GPUIO's pinned `accesskit_consumer` 0.38.0
+[text-scope fork](../../../vendor/accesskit-consumer/GPUIO.md). Each composed
+backend is a separate Cargo workspace, so patches in dependency manifests do not
+carry into its build. The fork keeps nested editors, Documents and Terminals out
+of their parent's text range while preserving the semantic tree. The generated
+[Dune rule](dune) tracks `vendor/accesskit-consumer` with `source_tree`, so changes
+to those sources trigger rebuilding the native archive. Keep both entries when
+adapting this backend. This dependency prepares text-scope isolation; rich
+accessibility publication, OS selection actions and VoiceOver acceptance still
+require their own implementation and validation.

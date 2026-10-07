@@ -5,6 +5,14 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **O
 Markdown walkthroughs for every example component; its documentation acceptance is complete. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
+[Independent accessibility text scopes](evidence/accessible-text-scopes-och17.md)
+now keep nested editor/Document/Terminal ranges out of their parent text range
+while retaining their semantics and own text APIs. The exact pre-patch regression
+fails and all 207 consumer tests pass after the patch. Native 1,118 tests (2 ignored),
+actual macOS editor/document checks, workspace tests, strict lint, full Dune and
+source reconstruction pass. Rich AX publication/actions and VoiceOver remain open.
+Full native notice collection still has 26 missing texts; release review is incomplete.
+
 [Opaque block selection and frozen Copy](evidence/rendered-block-selection-och17.md)
 now cover whole native block objects, empty alternatives, child controls and
 unpainted owners. The hosted terminal-newline Copy regression reproduces locally

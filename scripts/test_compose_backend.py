@@ -44,6 +44,8 @@ class CompositionTests(unittest.TestCase):
         self.assertEqual(cargo["patch"]["crates-io"]["gpuio-document-sdk"]["path"], str(ROOT / "rust/document-sdk"))
         self.assertIn("registrations::install([], [document_profile_0::reader::factory()])", files["registration.rs"])
         self.assertIn('(source_tree "../reader")', files["dune"])
+        self.assertEqual(cargo["patch"]["crates-io"]["accesskit_consumer"]["path"], str(ROOT / "vendor/accesskit-consumer"))
+        self.assertIn('(universe)', files["dune"])  # external checkout sources
         self.assertEqual(self.generate(), files)  # deterministic repeated generation
 
     def test_shared_package_has_one_cargo_identity_and_both_factories(self):

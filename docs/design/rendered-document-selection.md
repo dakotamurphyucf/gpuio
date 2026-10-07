@@ -439,3 +439,25 @@ cleanup. Tests of a native child Input's focus/typing do not establish its compl
 AX adapter. The block container is not rich TextRun/AX selection publication;
 that work and broader physical/virtualized/reflow/performance acceptance remain
 required.
+
+## Accessibility text-root boundaries
+
+The pinned AccessKit consumer traversed into nested text inputs when collecting
+an ancestor Document's text runs. A standalone probe and a before/after consumer
+regression demonstrate that `before` + embedded `editor` + `after` became one
+parent range. That conflicts with the independent native selection owners.
+
+The scoped [consumer adaptation](../../vendor/accesskit-consumer/GPUIO.md) stops
+text-range traversal at nested text inputs, Documents and Terminals. It preserves
+their semantic children, actions and their own text ranges. Labels, links, headings
+and table/cell structure remain in their owning document's reading order; lack of
+painted geometry does not remove a run. This does not by itself publish GPUIO's
+rendered selection or authorize any OS action.
+
+The same probe establishes another conversion constraint: two empty TextRuns
+produce a degenerate AccessKit range with identical UTF-16 offsets. Distinct native
+empty-object edges therefore cannot be exposed merely as two empty runs. The rich
+adapter still needs an explicit reversible accessible-object representation;
+its representation must not insert placeholders into clipboard text, source or
+public protocol offsets. Full rich AX publication and native qualification remain
+unimplemented at this checkpoint.

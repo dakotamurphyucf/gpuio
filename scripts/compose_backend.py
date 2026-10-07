@@ -44,7 +44,7 @@ def generate(manifest, output):
     dependency_specs = []
     feature_sets = {}
     factories = []
-    source_paths = [root / "rust", root / "vendor/gpui-base", root / "vendor/gpui", root / "vendor/gpui-macos", root / "vendor/gpui-apple", root / "vendor/accesskit-macos", root / "vendor/taffy"]
+    source_paths = [root / "rust", root / "vendor/gpui-base", root / "vendor/gpui", root / "vendor/gpui-macos", root / "vendor/gpui-apple", root / "vendor/accesskit-macos", root / "vendor/accesskit-consumer", root / "vendor/taffy"]
     component_paths = set()
     aliases = {}
     document_factories = []
@@ -131,6 +131,7 @@ ocaml-interop = {{ git = {json.dumps(interop['git'])}, rev = {json.dumps(interop
     if profiles:
         cargo += f'gpuio-document-sdk = {{ path = {json.dumps(relative(root / "rust/document-sdk"))} }}\n'
     cargo += f'accesskit_macos = {{ path = {json.dumps(relative(root / "vendor/accesskit-macos"))} }}\n'
+    cargo += f'accesskit_consumer = {{ path = {json.dumps(relative(root / "vendor/accesskit-consumer"))} }}\n'
     cargo += f'taffy = {{ path = {json.dumps(relative(root / "vendor/taffy"))} }}\n'
     cargo += '\n[patch."https://github.com/zed-industries/zed.git"]\n'
     cargo += f'gpui = {{ path = {json.dumps(relative(root / "vendor/gpui"))} }}\n'
