@@ -111,14 +111,18 @@ impl TextViewSelectionAdapter {
                         };
                         let snapshot = *snapshot;
                         view.update(cx, |state, cx| {
+                            if state.selection_adapter.selection.snapshot(cx) != snapshot {
+                                return;
+                            }
                             blocks_for_events
                                 .borrow_mut()
                                 .update(snapshot, selection_id);
                             // Clear handlers synchronously reset the old owners.
                             // Their queued None event must not retire a newer
-                            // local selection installed by the same mouse press.
+                            // local range or explicit caret installed afterward.
                             if snapshot.is_none()
-                                && state.selection_adapter.selection.has_local_selection(cx)
+                                && (state.selection_adapter.selection.has_local_selection(cx)
+                                    || state.requested_rendered_selection().is_some())
                             {
                                 return;
                             }
@@ -457,6 +461,10 @@ impl TextViewSelectionAdapter {
 
     pub(super) fn set_local_selection(&self, active: bool, cx: &mut App) {
         self.selection.set_local_selection(active, cx);
+    }
+
+    pub(super) fn handle(&self) -> TextSelectionHandle {
+        self.selection.clone()
     }
 
     pub(super) fn rebind_content_positions(

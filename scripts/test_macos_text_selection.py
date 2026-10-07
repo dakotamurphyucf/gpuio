@@ -16,7 +16,7 @@ import time
 from mac_input_source import foreground_keys
 from mac_clipboard import preserved_clipboard
 from test_agent_chat import Mac
-from test_gallery import TITLE, expect_field, focus_gallery_control
+from test_gallery import TITLE, expect_field, expect_focus, focus_gallery_control
 
 
 class Range(C.Structure):
@@ -65,9 +65,63 @@ class Selection:
             time.sleep(.025)
 
 
-def exercise(mac, board, *, source_only):
+def exercise_rendered(mac, board):
+    """Use the OS range setter, then read the same native selection through Copy."""
     selection = Selection(mac)
     observations = []
+    mac.press(TITLE, 'Markdown & code')
+    mac.wait_text(TITLE, 'Markdown preview')
+    mac.wait_text(TITLE, 'A place for ideas')
+    node = mac.wait_find(TITLE, 'Document content', 'AXGroup')
+
+    def copy():
+        sequence = board.call(board.board, 'changeCount', result=C.c_long)
+        mac.key(8, flags=1 << 20)
+        deadline = time.monotonic() + 5
+        while board.call(board.board, 'changeCount', result=C.c_long) == sequence:
+            assert time.monotonic() < deadline, 'Rendered Copy did not update pasteboard'
+            time.sleep(.025)
+        return board.text()
+
+    try:
+        mac.set(node, 'AXFocused', mac.true)
+        foreground_keys(mac)
+        expect_focus(mac, 'Document content', 'AXGroup')
+        mac.key(0, flags=1 << 20)
+        deadline = time.monotonic() + 5
+        while True:
+            text = mac.text(node, 'AXSelectedText') or ''
+            if 'A place for ideas' in text and 'let next_step' in text:
+                break
+            assert time.monotonic() < deadline, 'Missing rendered Select All'
+            time.sleep(.025)
+        whole = selection.expect(node, text, 0, utf16(text))
+        copied = copy()
+        assert copied.endswith('let next_step = "Explore"')
+        # Existing plain window Copy trims the one terminal logical separator.
+        assert text == copied + '\n', 'Unexpected rendered Copy/AX difference'
+        observations.append({'case': 'rendered-native-select-all', **whole, 'copied': copied})
+        for term in ['A place for ideas', '世界', '👨‍👩‍👧‍👦', 'Explore']:
+            index = text.rfind(term) if term == 'Explore' else text.index(term)
+            start, length = utf16(text[:index]), utf16(term)
+            selection.set(node, start, length)
+            observed = selection.expect(node, term, start, length)
+            expect_focus(mac, 'Document content', 'AXGroup')
+            copied = copy()
+            assert copied == term, (copied, term)
+            observations.append({'case': 'rendered-ax-selection-copy', **observed, 'copied': copied})
+        selection.set(node, start, 0)
+        observations.append({'case': 'rendered-caret', **selection.expect(node, '', start, 0)})
+        time.sleep(.2)
+        assert selection.read(node) == [start, 0], 'A queued event erased the caret'
+    finally:
+        mac.release(node)
+    return observations
+
+
+def exercise(mac, board, *, source_only):
+    selection = Selection(mac)
+    observations = [] if source_only else exercise_rendered(mac, board)
     mac.press(TITLE, 'Markdown & code')
     mac.press(TITLE, 'Code')
     focus_gallery_control(mac, 'Code preview', 'AXTextArea')
@@ -135,7 +189,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', required=True, type=Path)
     parser.add_argument('--executable', type=Path)
-    parser.add_argument('--source-only', action='store_true')
+    scope = parser.add_mutually_exclusive_group()
+    scope.add_argument('--source-only', action='store_true')
+    scope.add_argument('--rendered-only', action='store_true')
     args = parser.parse_args()
     Mac.require_accessibility()
     repo = Path(__file__).resolve().parent.parent
@@ -144,7 +200,7 @@ def main():
     with executable.open('rb') as binary:
         digest = hashlib.file_digest(binary, 'sha256').hexdigest()
     report = {'platform': platform.platform(), 'executable': str(executable), 'sha256': digest,
-              'source_only': args.source_only,
+              'source_only': args.source_only, 'rendered_only': args.rendered_only,
               'revision': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=repo, text=True).strip(),
               'dirty': bool(subprocess.check_output(['git', 'status', '--porcelain'], cwd=repo, text=True))}
     (args.output / 'executable.json').write_text(json.dumps(report, indent=2) + '\n')
@@ -154,7 +210,8 @@ def main():
         mac = None
         try:
             mac = Mac(child.pid, child)
-            report['observations'] = exercise(mac, board, source_only=args.source_only)
+            report['observations'] = (exercise_rendered(mac, board) if args.rendered_only
+                                      else exercise(mac, board, source_only=args.source_only))
             mac.close(TITLE)
             assert child.wait(timeout=15) == 0
             report['result'] = 'pass'
@@ -175,7 +232,8 @@ def main():
             (args.output / 'report.json').write_text(json.dumps(report, indent=2, ensure_ascii=False) + '\n')
     report['clipboard_restored'] = True
     (args.output / 'report.json').write_text(json.dumps(report, indent=2, ensure_ascii=False) + '\n')
-    scope = 'source' if args.source_only else 'source and editor'
+    scope = ('rendered document' if args.rendered_only else
+             'source' if args.source_only else 'source, rendered document and editor')
     print(f'GPUIO_MACOS_TEXT_SELECTION_OK: {scope} AX ranges, Unicode, native selection, read-only copy, shutdown')
 
 

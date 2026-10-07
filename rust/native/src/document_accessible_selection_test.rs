@@ -574,3 +574,216 @@ fn accessible_request_requires_current_paint_interaction_and_host_authorization(
         )
     });
 }
+
+#[test]
+fn accessibility_action_replaces_window_selection_and_preserves_a_caret() {
+    let mut app = TestAppContext::single();
+    app.update(gpui_base::init);
+    let (view, cx) = app.add_window_view(|_, cx| {
+        let make = |cx: &mut Context<TextViewState>| {
+            let mut state = TextViewState::externally_prepared(cx);
+            state.set_prepared(
+                PreparedText::parse("first λ🙂 last", MarkdownExtensions::default()).unwrap(),
+                None,
+                cx,
+            );
+            state
+        };
+        GuardedDocuments {
+            first: cx.new(make),
+            second: cx.new(make),
+            allowed: Arc::new(std::sync::atomic::AtomicBool::new(true)),
+            mounted: true,
+        }
+    });
+    let (first, second, allowed) = view.read_with(cx, |view, _| {
+        (
+            view.first.clone(),
+            view.second.clone(),
+            view.allowed.clone(),
+        )
+    });
+    cx.simulate_a11y_active(true);
+    draw(cx);
+    first.update(cx, |state, cx| state.select_all(cx));
+    second.update(cx, |state, cx| state.select_all(cx));
+    draw(cx);
+    let range = native_range(&first, cx, 6, 12);
+    let document = cx
+        .a11y_tree()
+        .unwrap()
+        .nodes
+        .into_iter()
+        .find(|(_, node)| {
+            node.role() == accesskit::Role::Document
+                && node
+                    .text_selection()
+                    .is_some_and(|s| s.anchor.node == range.anchor.node)
+        })
+        .unwrap()
+        .0;
+    let before = cx.update(gpui_base::TextSelection::selected_text);
+    let send = |cx: &mut VisualTestContext, range| {
+        cx.simulate_a11y_action(accesskit::ActionRequest {
+            action: accesskit::Action::SetTextSelection,
+            target_node: document,
+            target_tree: accesskit::TreeId::ROOT,
+            data: Some(accesskit::ActionData::SetTextSelection(range)),
+        });
+        draw(cx);
+    };
+    let mut invalid = range;
+    invalid.focus.character_index = usize::MAX;
+    send(cx, invalid);
+    assert_eq!(cx.update(gpui_base::TextSelection::selected_text), before);
+    allowed.store(false, Ordering::Relaxed);
+    send(cx, range);
+    assert_eq!(cx.update(gpui_base::TextSelection::selected_text), before);
+    allowed.store(true, Ordering::Relaxed);
+    send(cx, range);
+    assert_eq!(cx.update(gpui_base::TextSelection::selected_text), "λ🙂");
+    assert_eq!(second.read_with(cx, |state, _| state.selected_text()), "");
+    cx.update(|window, cx| assert!(first.read(cx).focus_handle().is_focused(window)));
+    let backwards = native_range(&first, cx, 12, 6);
+    send(cx, backwards);
+    assert_eq!(cx.update(gpui_base::TextSelection::selected_text), "λ🙂");
+    let caret = native_range(&first, cx, 6, 6);
+    send(cx, caret);
+    assert_eq!(cx.update(gpui_base::TextSelection::selected_text), "");
+    assert!(first.read_with(cx, |state, _| {
+        state.rendered_selection().unwrap().is_collapsed()
+    }));
+    draw(cx);
+    assert!(first.read_with(cx, |state, _| {
+        state.rendered_selection().unwrap().is_collapsed()
+    }));
+    cx.update(gpui_base::TextSelection::clear);
+    draw(cx);
+    assert!(first.read_with(cx, |state, _| state.rendered_selection().is_none()));
+}
+
+struct ScrollableSelectedDocument(Entity<TextViewState>);
+impl Render for ScrollableSelectedDocument {
+    fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+        div()
+            .w(px(440.))
+            .h(px(200.))
+            .child(gpui_base::TextSelectionLayer)
+            .child(TextView::new(&self.0).scrollable(true))
+    }
+}
+
+#[test]
+fn accessibility_selection_realizes_and_reveals_offscreen_and_tall_block_heads() {
+    for code in [false, true] {
+        let mut app = TestAppContext::single();
+        app.update(gpui_base::init);
+        let source = if code {
+            format!(
+                "```txt\n{}target λ🙂 end\n```",
+                "line before target\n".repeat(120)
+            )
+        } else {
+            format!(
+                "{}target λ🙂 end",
+                "paragraph before target\n\n".repeat(120)
+            )
+        };
+        let (view, cx) = app.add_window_view(|_, cx| {
+            ScrollableSelectedDocument(cx.new(|cx| {
+                let mut state = TextViewState::externally_prepared(cx);
+                state.set_prepared(
+                    PreparedText::parse(&source, MarkdownExtensions::default()).unwrap(),
+                    None,
+                    cx,
+                );
+                state
+            }))
+        });
+        let text = view.read_with(cx, |view, _| view.0.clone());
+        cx.simulate_a11y_active(true);
+        draw(cx);
+        let (start, end) = text.read_with(cx, |state, _| {
+            let projection = state.rendered_text().unwrap();
+            let start = projection.text().rfind("target λ🙂 end").unwrap();
+            (start, projection.text().len())
+        });
+        let range = native_range(&text, cx, start, end);
+        let document = cx
+            .a11y_tree()
+            .unwrap()
+            .nodes
+            .into_iter()
+            .find(|(_, node)| node.role() == accesskit::Role::Document)
+            .unwrap()
+            .0;
+        cx.simulate_a11y_action(accesskit::ActionRequest {
+            action: accesskit::Action::SetTextSelection,
+            target_node: document,
+            target_tree: accesskit::TreeId::ROOT,
+            data: Some(accesskit::ActionData::SetTextSelection(range)),
+        });
+        draw(cx);
+        assert_eq!(
+            cx.update(gpui_base::TextSelection::selected_text),
+            "target λ🙂 end",
+            "code={code}"
+        );
+        let current = native_range(&text, cx, start, start + "target λ🙂 end".len() - 1);
+        let tree = cx.a11y_tree().unwrap();
+        let node = &tree
+            .nodes
+            .iter()
+            .find(|(id, _)| *id == current.focus.node)
+            .unwrap()
+            .1;
+        let bounds = node.bounds().unwrap_or_else(|| {
+            panic!(
+                "code={code}: last selected glyph has no bounds: {:?}",
+                node.value()
+            )
+        });
+        let scale = cx.update(|window, _| f64::from(window.scale_factor()));
+        assert!(
+            bounds.y0 >= 0. && bounds.y1 <= 200. * scale + 0.1,
+            "code={code}: {bounds:?}, scale={scale}"
+        );
+        cx.update(|window, cx| assert!(text.read(cx).focus_handle().is_focused(window)));
+    }
+}
+
+#[test]
+fn queued_window_clear_cannot_erase_new_native_caret() {
+    let mut app = TestAppContext::single();
+    app.update(gpui_base::init);
+    let (view, cx) = app.add_window_view(|_, cx| {
+        SelectedDocument(cx.new(|cx| {
+            let mut state = TextViewState::externally_prepared(cx);
+            state.set_prepared(
+                PreparedText::parse("abc", MarkdownExtensions::default()).unwrap(),
+                None,
+                cx,
+            );
+            state
+        }))
+    });
+    let text = view.read_with(cx, |view, _| view.0.clone());
+    draw(cx);
+    text.update(cx, |state, cx| state.select_all(cx));
+    cx.update(|window, cx| {
+        gpui_base::TextSelection::clear(window, cx);
+        text.update(cx, |state, cx| {
+            let projection = state.rendered_text().unwrap();
+            let caret = projection.position(1).unwrap();
+            let request = state.prepare_rendered_selection(&caret, &caret).unwrap();
+            state.apply_rendered_selection(request, cx).unwrap();
+        });
+    });
+    draw(cx);
+    assert!(text.read_with(cx, |state, _| {
+        state.rendered_selection().unwrap().is_collapsed()
+    }));
+    cx.update(gpui_base::TextSelection::clear);
+    draw(cx);
+    assert!(text.read_with(cx, |state, _| state.rendered_selection().is_none()));
+}

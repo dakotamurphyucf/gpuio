@@ -293,6 +293,11 @@ impl Element for InlineObject {
                 cx,
             );
         }
+        if let Some(view) = GlobalState::global(cx).text_view_state().cloned() {
+            view.update(cx, |state, _| {
+                state.reveal_selection_object(&self.selected, bounds, window)
+            });
+        }
         if let Some(view) = GlobalState::global(cx).text_view_state() {
             let state = view.read(cx);
             if state.max_lines.is_some()

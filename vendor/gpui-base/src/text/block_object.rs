@@ -99,6 +99,11 @@ impl Element for BlockObject {
     ) -> Hitbox {
         let hitbox = window.insert_hitbox(bounds, HitboxBehavior::Normal);
         self.content.prepaint(window, cx);
+        if let Some(view) = GlobalState::global(cx).text_view_state().cloned() {
+            view.update(cx, |state, _| {
+                state.reveal_selection_object(&self.selected, bounds, window)
+            });
+        }
         if let Some(view) = GlobalState::global(cx).text_view_state() {
             let state = view.read(cx);
             if state.max_lines.is_some()

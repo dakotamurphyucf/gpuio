@@ -2,8 +2,8 @@
 
 Implementation plan for the remaining OCH-17/OCH-41 accessibility work. The
 native text-projection, request primitive and painted AX selection publication
-are implemented. **OS selection mutation/focus/reveal and full accessibility
-acceptance remain incomplete.** The historical [macOS baseline](../evidence/rendered-selection-baseline-och17.md)
+are implemented, together with native selection dispatch and endpoint reveal.
+**Complete OS action and accessibility qualification remain incomplete.** The historical [macOS baseline](../evidence/rendered-selection-baseline-och17.md)
 records the earlier state in which native rendered-text copying worked while
 document-level AX selection attributes were absent. The source-editor adapter is a separate implementation.
 
@@ -742,6 +742,43 @@ Preparation is read-only and returns the existing checked native request. It doe
 not register `SetTextSelection`, clear another participant, focus a document or
 reveal an endpoint. A dispatcher must repeat authorization immediately before
 mutation; the low-level request's epoch check alone does not grant lasting window
-visibility or host focus permission. Connecting that dispatcher and proving
-atomic-owner, shared-window Copy, virtualized reveal and actual OS mutation remain
-required. This API is not evidence that those operations are already supported.
+visibility or host focus permission. The native dispatcher below builds on this preparation step. Preparation alone
+is not evidence of completed OS action or accessibility qualification.
+
+
+## Native selection dispatch and reveal
+
+Selectable prepared TextViews register `SetTextSelection` on their existing
+Document node. The listener retains a weak native entity and accepts only a
+text-selection payload. The window selection controller first checks that this
+participant is registered in its active selection scope. The document then repeats
+current-frame/projection/interaction/host-policy validation immediately before
+applying the existing staged native-owner operation. Failure does not clear
+another participant or change focus.
+
+After successful application, the controller removes the previous drag geometry.
+It detaches the target's old geometry snapshot and Copy cache while retaining its
+new participant-local range flag. It does not queue a clear event to that target.
+Other participant clear callbacks run outside the entity leases after the new
+selection is installed. The adapter also ignores snapshots superseded by newer
+handle state; a queued empty snapshot cannot erase a newer explicit request,
+including a collapsed caret. A subsequent explicit clear still retires it.
+
+The accepted request focuses the document, cancels link/control traversal and
+retains a logical head position for reveal. A virtual document first realizes the
+head's top-level block. Native prepaint then requests autoscroll using the actual
+shaped caret; atomic objects use their actual beginning/end bounds. Structural
+separators reveal the preceding native owner edge without changing selection
+coordinates or Copy. This permits reveal within a block taller than the viewport.
+Geometry remains in logical pixels internally; exported AccessKit rectangles use
+physical pixels. No fabricated offscreen rectangle is published.
+
+Successful paint consumes a claimed reveal; selection retirement cancels it. The
+retained request contains only a prepared position, not a text/AST copy. Native
+platform-action tests cover shared-window Copy, rejection, directed and collapsed
+selection, focus, queued clear events, offscreen paragraphs and tall code blocks.
+The [actual macOS range/Copy probe](../evidence/rendered-selection-dispatch-och17.md)
+qualifies heading, CJK, joined-emoji and code selections plus a stable caret.
+Broader atomic reveal, cancellation during competing user interaction, cached
+scenes and full accessibility acceptance remain open; native test-context
+results alone are not OS screen-reader evidence.

@@ -19417,3 +19417,409 @@
          }
      }
  }
+--- a/src/text/block_object.rs
++++ b/src/text/block_object.rs
+@@ -99,6 +99,11 @@
+     ) -> Hitbox {
+         let hitbox = window.insert_hitbox(bounds, HitboxBehavior::Normal);
+         self.content.prepaint(window, cx);
++        if let Some(view) = GlobalState::global(cx).text_view_state().cloned() {
++            view.update(cx, |state, _| {
++                state.reveal_selection_object(&self.selected, bounds, window)
++            });
++        }
+         if let Some(view) = GlobalState::global(cx).text_view_state() {
+             let state = view.read(cx);
+             if state.max_lines.is_some()
+--- a/src/text/inline.rs
++++ b/src/text/inline.rs
+@@ -886,6 +886,32 @@
+                 },
+             )
+         });
++        if let Some(view) = GlobalState::global(cx).text_view_state().cloned() {
++            let target = {
++                let state = view.read(cx);
++                state
++                    .selection_reveal
++                    .as_ref()
++                    .filter(|_| !state.selection_reveal_claimed)
++                    .cloned()
++            };
++            if let Some(target) = target
++                && let Some((_, fragment)) = self.semantic_binding(0..self.text.len(), cx)
++                && let Some(index) = fragment.local_offset(&target)
++                && let Some(position) = selection_run
++                    .as_ref()
++                    .and_then(|run| run.position_for_index(index))
++            {
++                window.request_autoscroll(Bounds::from_corners(
++                    position,
++                    point(
++                        position.x + px(2.),
++                        position.y + self.styled_text.layout().line_height(),
++                    ),
++                ));
++                view.update(cx, |state, _| state.selection_reveal_claimed = true);
++            }
++        }
+         let glyphs = if window.is_a11y_active() {
+             selection_run
+                 .as_ref()
+--- a/src/text/inline_object.rs
++++ b/src/text/inline_object.rs
+@@ -292,6 +292,11 @@
+                 window,
+                 cx,
+             );
++        }
++        if let Some(view) = GlobalState::global(cx).text_view_state().cloned() {
++            view.update(cx, |state, _| {
++                state.reveal_selection_object(&self.selected, bounds, window)
++            });
+         }
+         if let Some(view) = GlobalState::global(cx).text_view_state() {
+             let state = view.read(cx);
+--- a/src/text/rendered_text.rs
++++ b/src/text/rendered_text.rs
+@@ -39,6 +39,10 @@
+ }
+ 
+ impl RenderedFragment {
++    pub(super) fn local_offset(&self, position: &RenderedTextPosition) -> Option<usize> {
++        let local = position.byte.checked_sub(self.bytes.start)?;
++        (self.position(local)? == position.content_position()).then_some(local)
++    }
+     pub(super) fn selection(&self, projection: &RenderedText) -> Option<RenderedSelection> {
+         let start = projection.captured_position(self.edge(false))?;
+         let end = projection.captured_position(self.edge(true))?;
+@@ -357,6 +361,31 @@
+     }
+     pub fn parts(&self) -> &[RenderedTextPart] {
+         &self.parts
++    }
++
++    /// Structural separators have no glyph of their own. Reveal the preceding
++    /// native owner edge without changing the requested logical selection.
++    pub(super) fn reveal_position(
++        &self,
++        position: &RenderedTextPosition,
++    ) -> Option<RenderedTextPosition> {
++        let byte = self.offset(position)?;
++        let index = self.parts.partition_point(|part| part.bytes.end < byte);
++        let Some(part) = self.parts.get(index) else {
++            return Some(position.clone());
++        };
++        if !part.is_separator() {
++            return Some(position.clone());
++        }
++        if let Some(previous) = (0..index)
++            .rev()
++            .find(|index| !self.parts[*index].is_separator())
++        {
++            return Some(self.selection_for_part(previous)?.head().clone());
++        }
++        let next =
++            (index + 1..self.parts.len()).find(|index| !self.parts[*index].is_separator())?;
++        Some(self.selection_for_part(next)?.anchor().clone())
+     }
+ 
+     pub(super) fn object_fragment<T>(&self, owner: &Arc<Mutex<T>>) -> Option<RenderedFragment> {
+--- a/src/text/selection_adapter.rs
++++ b/src/text/selection_adapter.rs
+@@ -111,14 +111,18 @@
+                         };
+                         let snapshot = *snapshot;
+                         view.update(cx, |state, cx| {
++                            if state.selection_adapter.selection.snapshot(cx) != snapshot {
++                                return;
++                            }
+                             blocks_for_events
+                                 .borrow_mut()
+                                 .update(snapshot, selection_id);
+                             // Clear handlers synchronously reset the old owners.
+                             // Their queued None event must not retire a newer
+-                            // local selection installed by the same mouse press.
++                            // local range or explicit caret installed afterward.
+                             if snapshot.is_none()
+-                                && state.selection_adapter.selection.has_local_selection(cx)
++                                && (state.selection_adapter.selection.has_local_selection(cx)
++                                    || state.requested_rendered_selection().is_some())
+                             {
+                                 return;
+                             }
+@@ -459,6 +463,10 @@
+         self.selection.set_local_selection(active, cx);
+     }
+ 
++    pub(super) fn handle(&self) -> TextSelectionHandle {
++        self.selection.clone()
++    }
++
+     pub(super) fn rebind_content_positions(
+         &self,
+         compatible: bool,
+--- a/src/text/state.rs
++++ b/src/text/state.rs
+@@ -162,6 +162,8 @@
+     select_all: bool,
+     selection_epoch: Arc<()>,
+     painted_selection_epoch: Option<Arc<()>>,
++    pub(super) selection_reveal: Option<super::RenderedTextPosition>,
++    pub(super) selection_reveal_claimed: bool,
+     rendered_selection: Option<RetainedRenderedSelection>,
+     pub(super) auto_scroll: AutoScroll,
+     pub(super) selection_adapter: TextViewSelectionAdapter,
+@@ -349,6 +351,86 @@
+         }
+     }
+ 
++    pub(super) fn apply_accessible_selection(
++        &mut self,
++        selection: &gpui::accesskit::TextSelection,
++        window: &mut Window,
++        cx: &mut Context<Self>,
++    ) -> bool {
++        let Some(request) = self.prepare_accessible_selection(selection, window, cx) else {
++            return false;
++        };
++        let head = request.selection.head().clone();
++        if self.apply_rendered_selection(request, cx).is_err() {
++            return false;
++        }
++        let head = self
++            .rendered_text()
++            .and_then(|text| text.reveal_position(&head))
++            .unwrap_or(head);
++        self.selection_reveal = Some(head.clone());
++        if self.scrollable
++            && let Some(text) = self.rendered_text()
++        {
++            // Realize the logical owner first. Prepaint then reveals its actual
++            // caret, including blocks taller than the viewport.
++            let block = (0..self.parsed_content.document.blocks.len())
++                .rev()
++                .find(|block| {
++                    text.semantic_block(*block)
++                        .and_then(|owner| text.semantic_selection(owner))
++                        .is_some_and(|range| range.anchor().order_key() <= head.order_key())
++                });
++            if let Some(block) = block {
++                self.list_state.scroll_to_reveal_item(block);
++            }
++        }
++        self.control_navigation.cancel();
++        self.link_navigation.active = None;
++        self.link_reveal = None;
++        self.focus_handle.focus(window, cx);
++        true
++    }
++
++    pub(super) fn reveal_selection_object<T>(
++        &mut self,
++        owner: &Arc<Mutex<T>>,
++        bounds: Bounds<Pixels>,
++        window: &mut Window,
++    ) {
++        if self.selection_reveal_claimed {
++            return;
++        }
++        let Some(target) = self.selection_reveal.as_ref() else {
++            return;
++        };
++        let Some(fragment) = self
++            .rendered_text()
++            .and_then(|text| text.object_fragment(owner))
++        else {
++            return;
++        };
++        let position = target.content_position();
++        let end = position == fragment.edge(true);
++        if !end && position != fragment.edge(false) {
++            return;
++        }
++        let extent = gpui::size(
++            bounds.size.width.min(px(2.)),
++            bounds.size.height.min(px(2.)),
++        );
++        let origin = if end {
++            gpui::point(
++                bounds.right() - extent.width,
++                bounds.bottom() - extent.height,
++            )
++        } else {
++            bounds.origin
++        };
++        window.request_autoscroll(Bounds::new(origin, extent));
++        self.selection_reveal_claimed = true;
++    }
++
+     /// Apply a previously prepared native request atomically. No focus/reveal
+     /// or OS authorization is implied by this low-level adapter operation.
+     pub fn apply_rendered_selection(
+@@ -473,6 +555,7 @@
+     }
+ 
+     pub(super) fn retire_rendered_selection(&mut self) {
++        self.selection_reveal = None;
+         // Ordinary pointer motion has no queued adapter request. Avoid an
+         // allocation there while still invalidating every outstanding stamp.
+         if Arc::strong_count(&self.selection_epoch) > 1 {
+@@ -702,6 +785,8 @@
+             select_all: false,
+             selection_epoch: Arc::new(()),
+             painted_selection_epoch: None,
++            selection_reveal: None,
++            selection_reveal_claimed: false,
+             rendered_selection: None,
+             selectable: false,
+             selection_format: SelectionFormat::default(),
+--- a/src/text/text_view.rs
++++ b/src/text/text_view.rs
+@@ -632,6 +632,8 @@
+         });
+ 
+         let select_all_state = state.downgrade();
++        let selection_state = state.downgrade();
++        let accepts_selection = self.selectable && state.read(cx).rendered_text().is_some();
+         let select_all_listener = window.listener_for(&state, TextViewState::on_action_select_all);
+         let focus_handle = state.read(cx).focus_handle.clone();
+         let list_state = state.read(cx).list_state.clone();
+@@ -654,6 +656,26 @@
+             })
+             .key_context("TextView")
+             .track_focus(&focus_handle)
++            .when(accepts_selection, |el| {
++                el.on_a11y_action(
++                    gpui::AccessibleAction::SetTextSelection,
++                    move |data, window, cx| {
++                        let Some(gpui::accesskit::ActionData::SetTextSelection(selection)) = data
++                        else {
++                            return;
++                        };
++                        let Some(state) = selection_state.upgrade() else {
++                            return;
++                        };
++                        let handle = state.read(cx).selection_adapter.handle();
++                        handle.replace_local_in_window(window, cx, |window, cx| {
++                            state.update(cx, |state, cx| {
++                                state.apply_accessible_selection(selection, window, cx)
++                            })
++                        });
++                    },
++                )
++            })
+             .on_key_down(window.listener_for(&state, TextViewState::on_link_key))
+             .on_mouse_down(
+                 MouseButton::Left,
+@@ -738,6 +760,7 @@
+             let max_lines_active = state.read(cx).max_lines.is_some();
+             state.update(cx, |state, _| {
+                 state.link_reveal_claimed = false;
++                state.selection_reveal_claimed = false;
+                 state.link_active_owner = None;
+             });
+             if max_lines_active {
+@@ -872,6 +895,9 @@
+             }
+             if state.link_reveal_claimed {
+                 state.link_reveal = None;
++            }
++            if state.selection_reveal_claimed {
++                state.selection_reveal = None;
+             }
+         });
+         if self.selectable {
+--- a/src/text_selection.rs
++++ b/src/text_selection.rs
+@@ -883,6 +883,58 @@
+     /// Returns whether participant-local selection is active.
+     pub fn has_local_selection(&self, cx: &App) -> bool {
+         self.0.read(cx).local_selection
++    }
++
++    /// Replace the window gesture with this participant's checked local range.
++    /// `apply` must perform its fallible native mutation atomically and must not
++    /// run application callbacks or change registration. Failed admission/apply
++    /// leaves other participants untouched. Their clear callbacks run only after
++    /// success and outside both the window-selection and caller's entity leases.
++    pub(crate) fn replace_local_in_window(
++        &self,
++        window: &mut Window,
++        cx: &mut App,
++        apply: impl FnOnce(&mut Window, &mut App) -> bool,
++    ) -> bool {
++        let Some(state) = live_text_selection_state(window, cx) else {
++            return false;
++        };
++        let id = self.entity_id();
++        let allowed = {
++            let state = state.read(cx);
++            state.participants.get(&id).is_some_and(|entry| {
++                entry.registration.scope == state.active_scope
++                    && entry.participant.upgrade().is_some()
++            })
++        };
++        if !allowed || !apply(window, cx) {
++            return false;
++        }
++        let handlers = state.update(cx, |state, cx| {
++            state.clear_geometry(cx);
++            state
++                .participants
++                .values()
++                .filter_map(|entry| entry.participant.upgrade())
++                .filter_map(|participant| {
++                    participant.update(cx, |state, cx| {
++                        if participant.entity_id() == id {
++                            // The caller already installed its native range and
++                            // local flag. Detach old geometry without queuing a
++                            // clear event that would erase the new caret/range.
++                            state.snapshot = None;
++                            state.projected_copy_text = None;
++                            state.local_anchor = None;
++                            None
++                        } else {
++                            state.clear_state(cx)
++                        }
++                    })
++                })
++                .collect()
++        });
++        dispatch_clear_handlers(handlers, cx);
++        true
+     }
+ 
+     /// Rebind captured endpoints while their participant replaces prepared text.
+@@ -1345,13 +1397,7 @@
+         except: Option<EntityId>,
+         cx: &mut App,
+     ) -> Vec<ClearHandler> {
+-        self.stop_anchor_auto_scroll(cx);
+-        self.anchor = None;
+-        self.cursor = None;
+-        self.pending_extension_anchor = None;
+-        self.is_selecting = false;
+-        self.did_hit_text = false;
+-        self.prune_dead_participants();
++        self.clear_geometry(cx);
+         self.participants
+             .values()
+             .filter_map(|registration| registration.participant.upgrade())
+@@ -1364,6 +1410,16 @@
+                 }
+             })
+             .collect()
++    }
++
++    fn clear_geometry(&mut self, cx: &mut App) {
++        self.stop_anchor_auto_scroll(cx);
++        self.anchor = None;
++        self.cursor = None;
++        self.pending_extension_anchor = None;
++        self.is_selecting = false;
++        self.did_hit_text = false;
++        self.prune_dead_participants();
+     }
+ 
+     fn copy_items(&self, cx: &App) -> Vec<CopyItem> {

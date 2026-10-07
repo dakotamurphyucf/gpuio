@@ -1,0 +1,130 @@
+{
+  "archive_sha256": "87c905948831a469c0a93e908b8bc86f81a01064189e56be0f48ef772c36081a",
+  "files": [
+    {
+      "path": "ax-dispatch-base-reconstruction.log",
+      "bytes": 7763,
+      "sha256": "bb5e7b51388b791020ec061802cf03d5e32768903758504cb80b4e444cf6afc8"
+    },
+    {
+      "path": "ax-dispatch-checked-clippy.log",
+      "bytes": 588624,
+      "sha256": "4bc5e83e36acf6c8a0635df584602ca577fa015cd415c6384f291c95288968d2"
+    },
+    {
+      "path": "ax-dispatch-checked-desktop.log",
+      "bytes": 590701,
+      "sha256": "f7a235ab5cf5f33223451e52d3435cc70057b587a502b2a514a3cb1a47165336"
+    },
+    {
+      "path": "ax-dispatch-checked-fmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "ax-dispatch-checked-gallery.log",
+      "bytes": 100213,
+      "sha256": "f1c0a9c26882126820bd84dc269162f8c34b0905343396b1867c97cab20ad27a"
+    },
+    {
+      "path": "ax-dispatch-checked-native.log",
+      "bytes": 714110,
+      "sha256": "441b4a1a63022a416c3d875ef390132e842af1362f59d8621f2935b0ac073e73"
+    },
+    {
+      "path": "ax-dispatch-checked-results.json",
+      "bytes": 2355,
+      "sha256": "7c17f889b93e67f869747d1efee261a81877a85b777b00560da365efe26aef9b"
+    },
+    {
+      "path": "ax-dispatch-checked-workspace.log",
+      "bytes": 783032,
+      "sha256": "2c5d85e5b5f5a350226ec0a562ab25ee1490da0b234afaf4ac4eb30cbcee05ba"
+    },
+    {
+      "path": "ax-dispatch-checked.py",
+      "bytes": 1902,
+      "sha256": "8d75df9ed7c7beb2c61f020af9c0bb508ca7c5bf1d67940262fb9bff3adddd81"
+    },
+    {
+      "path": "ax-dispatch-initial.log",
+      "bytes": 589161,
+      "sha256": "f02fd0c0011a02a68b1c5f66add6c2ffd88bc0693469bb0beeeb1711378b4e1b"
+    },
+    {
+      "path": "ax-dispatch-maintained-os/application.log",
+      "bytes": 52,
+      "sha256": "4b7efb90808b044cf2b79f21733d78f17068047c9d17d9fc04715ac7773bad46"
+    },
+    {
+      "path": "ax-dispatch-maintained-os/executable.json",
+      "bytes": 344,
+      "sha256": "0b6b1af69499bed69bb669d99d9a7b4efe07c3cb03b6038427c5c6485cf4f1e4"
+    },
+    {
+      "path": "ax-dispatch-maintained-os/report.json",
+      "bytes": 2308,
+      "sha256": "49d845a54b7dfd6c50e668a71a3d2748d79f14fbbaa751aa88397fa9e2b438f6"
+    },
+    {
+      "path": "ax-dispatch-maintained-os-driver.log",
+      "bytes": 188,
+      "sha256": "b32676248da86dfefa0aa402dde2860885f89b47da69a549b768f1ed4da91dfa"
+    },
+    {
+      "path": "ax-dispatch-metadata.json",
+      "bytes": 7409,
+      "sha256": "83a237fa2e48c3cb432924cdfa621b879d5bb5e14ef25f352eb2e151eba647ef"
+    },
+    {
+      "path": "ax-dispatch-os-probe-app.log",
+      "bytes": 52,
+      "sha256": "4b7efb90808b044cf2b79f21733d78f17068047c9d17d9fc04715ac7773bad46"
+    },
+    {
+      "path": "ax-dispatch-os-probe-driver.log",
+      "bytes": 4033,
+      "sha256": "d650b4c99c4aee223ad804dce4353e95d4bdcf0f69fc92f4d33c9f42b1c9634c"
+    },
+    {
+      "path": "ax-dispatch-os-probe.json",
+      "bytes": 3957,
+      "sha256": "718ad292a38dc992e61c1a2fa5f9b330cbe22e664a98fac9504b64458b4094fc"
+    },
+    {
+      "path": "ax-dispatch-os-probe.py",
+      "bytes": 3985,
+      "sha256": "5b7b0348514e6759453beaeb8e9fde707139ecaa7b7d12c1018482442c4ef68b"
+    },
+    {
+      "path": "ax-dispatch-reconstruction-result.json",
+      "bytes": 36,
+      "sha256": "1764dce0955dee042db5eab13026183d65ef6fe1c51932144d06404288e8f476"
+    },
+    {
+      "path": "ax-dispatch-reveal-glyph.log",
+      "bytes": 589382,
+      "sha256": "35b9766f0716cf57a313629d337a2baa2dcc9b96c71c6cf547b7ede0bb38787b"
+    },
+    {
+      "path": "ax-dispatch-reveal-scaled.log",
+      "bytes": 589733,
+      "sha256": "ee1614367d5cc288d7aa97f5857cfac9d1ff1c245002674fdf90f600fe7fe33f"
+    },
+    {
+      "path": "ax-dispatch-reveal-tests.log",
+      "bytes": 590702,
+      "sha256": "524170a4fe4a114f2a92509bd09a11e6fbfc5e06a1c76b2e7fde99baaa87f321"
+    },
+    {
+      "path": "ax-dispatch-route-test.log",
+      "bytes": 588614,
+      "sha256": "8feb9885fdf5311721f7e8021d39d6b71dc5e6d2a37a61ca14e13938ed5a771b"
+    },
+    {
+      "path": "ax-dispatch-sources.tar.gz",
+      "bytes": 280783,
+      "sha256": "a883bae9d82f84d3960d91cbca0aa986703ff13a6b94691fe67d8ba362281a6c"
+    }
+  ]
+}

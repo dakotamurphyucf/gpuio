@@ -885,6 +885,58 @@ impl TextSelectionHandle {
         self.0.read(cx).local_selection
     }
 
+    /// Replace the window gesture with this participant's checked local range.
+    /// `apply` must perform its fallible native mutation atomically and must not
+    /// run application callbacks or change registration. Failed admission/apply
+    /// leaves other participants untouched. Their clear callbacks run only after
+    /// success and outside both the window-selection and caller's entity leases.
+    pub(crate) fn replace_local_in_window(
+        &self,
+        window: &mut Window,
+        cx: &mut App,
+        apply: impl FnOnce(&mut Window, &mut App) -> bool,
+    ) -> bool {
+        let Some(state) = live_text_selection_state(window, cx) else {
+            return false;
+        };
+        let id = self.entity_id();
+        let allowed = {
+            let state = state.read(cx);
+            state.participants.get(&id).is_some_and(|entry| {
+                entry.registration.scope == state.active_scope
+                    && entry.participant.upgrade().is_some()
+            })
+        };
+        if !allowed || !apply(window, cx) {
+            return false;
+        }
+        let handlers = state.update(cx, |state, cx| {
+            state.clear_geometry(cx);
+            state
+                .participants
+                .values()
+                .filter_map(|entry| entry.participant.upgrade())
+                .filter_map(|participant| {
+                    participant.update(cx, |state, cx| {
+                        if participant.entity_id() == id {
+                            // The caller already installed its native range and
+                            // local flag. Detach old geometry without queuing a
+                            // clear event that would erase the new caret/range.
+                            state.snapshot = None;
+                            state.projected_copy_text = None;
+                            state.local_anchor = None;
+                            None
+                        } else {
+                            state.clear_state(cx)
+                        }
+                    })
+                })
+                .collect()
+        });
+        dispatch_clear_handlers(handlers, cx);
+        true
+    }
+
     /// Rebind captured endpoints while their participant replaces prepared text.
     /// The mapper is pure and must validate the old identity and new boundary.
     /// Stage every endpoint before committing. A failed mapping cancels the
@@ -1345,13 +1397,7 @@ impl WindowSelectionState {
         except: Option<EntityId>,
         cx: &mut App,
     ) -> Vec<ClearHandler> {
-        self.stop_anchor_auto_scroll(cx);
-        self.anchor = None;
-        self.cursor = None;
-        self.pending_extension_anchor = None;
-        self.is_selecting = false;
-        self.did_hit_text = false;
-        self.prune_dead_participants();
+        self.clear_geometry(cx);
         self.participants
             .values()
             .filter_map(|registration| registration.participant.upgrade())
@@ -1364,6 +1410,16 @@ impl WindowSelectionState {
                 }
             })
             .collect()
+    }
+
+    fn clear_geometry(&mut self, cx: &mut App) {
+        self.stop_anchor_auto_scroll(cx);
+        self.anchor = None;
+        self.cursor = None;
+        self.pending_extension_anchor = None;
+        self.is_selecting = false;
+        self.did_hit_text = false;
+        self.prune_dead_participants();
     }
 
     fn copy_items(&self, cx: &App) -> Vec<CopyItem> {

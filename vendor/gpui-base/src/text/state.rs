@@ -162,6 +162,8 @@ pub struct TextViewState {
     select_all: bool,
     selection_epoch: Arc<()>,
     painted_selection_epoch: Option<Arc<()>>,
+    pub(super) selection_reveal: Option<super::RenderedTextPosition>,
+    pub(super) selection_reveal_claimed: bool,
     rendered_selection: Option<RetainedRenderedSelection>,
     pub(super) auto_scroll: AutoScroll,
     pub(super) selection_adapter: TextViewSelectionAdapter,
@@ -349,6 +351,86 @@ impl TextViewState {
         }
     }
 
+    pub(super) fn apply_accessible_selection(
+        &mut self,
+        selection: &gpui::accesskit::TextSelection,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> bool {
+        let Some(request) = self.prepare_accessible_selection(selection, window, cx) else {
+            return false;
+        };
+        let head = request.selection.head().clone();
+        if self.apply_rendered_selection(request, cx).is_err() {
+            return false;
+        }
+        let head = self
+            .rendered_text()
+            .and_then(|text| text.reveal_position(&head))
+            .unwrap_or(head);
+        self.selection_reveal = Some(head.clone());
+        if self.scrollable
+            && let Some(text) = self.rendered_text()
+        {
+            // Realize the logical owner first. Prepaint then reveals its actual
+            // caret, including blocks taller than the viewport.
+            let block = (0..self.parsed_content.document.blocks.len())
+                .rev()
+                .find(|block| {
+                    text.semantic_block(*block)
+                        .and_then(|owner| text.semantic_selection(owner))
+                        .is_some_and(|range| range.anchor().order_key() <= head.order_key())
+                });
+            if let Some(block) = block {
+                self.list_state.scroll_to_reveal_item(block);
+            }
+        }
+        self.control_navigation.cancel();
+        self.link_navigation.active = None;
+        self.link_reveal = None;
+        self.focus_handle.focus(window, cx);
+        true
+    }
+
+    pub(super) fn reveal_selection_object<T>(
+        &mut self,
+        owner: &Arc<Mutex<T>>,
+        bounds: Bounds<Pixels>,
+        window: &mut Window,
+    ) {
+        if self.selection_reveal_claimed {
+            return;
+        }
+        let Some(target) = self.selection_reveal.as_ref() else {
+            return;
+        };
+        let Some(fragment) = self
+            .rendered_text()
+            .and_then(|text| text.object_fragment(owner))
+        else {
+            return;
+        };
+        let position = target.content_position();
+        let end = position == fragment.edge(true);
+        if !end && position != fragment.edge(false) {
+            return;
+        }
+        let extent = gpui::size(
+            bounds.size.width.min(px(2.)),
+            bounds.size.height.min(px(2.)),
+        );
+        let origin = if end {
+            gpui::point(
+                bounds.right() - extent.width,
+                bounds.bottom() - extent.height,
+            )
+        } else {
+            bounds.origin
+        };
+        window.request_autoscroll(Bounds::new(origin, extent));
+        self.selection_reveal_claimed = true;
+    }
+
     /// Apply a previously prepared native request atomically. No focus/reveal
     /// or OS authorization is implied by this low-level adapter operation.
     pub fn apply_rendered_selection(
@@ -473,6 +555,7 @@ impl TextViewState {
     }
 
     pub(super) fn retire_rendered_selection(&mut self) {
+        self.selection_reveal = None;
         // Ordinary pointer motion has no queued adapter request. Avoid an
         // allocation there while still invalidating every outstanding stamp.
         if Arc::strong_count(&self.selection_epoch) > 1 {
@@ -702,6 +785,8 @@ impl TextViewState {
             select_all: false,
             selection_epoch: Arc::new(()),
             painted_selection_epoch: None,
+            selection_reveal: None,
+            selection_reveal_claimed: false,
             rendered_selection: None,
             selectable: false,
             selection_format: SelectionFormat::default(),

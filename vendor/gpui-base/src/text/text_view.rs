@@ -632,6 +632,8 @@ impl Element for TextView {
         });
 
         let select_all_state = state.downgrade();
+        let selection_state = state.downgrade();
+        let accepts_selection = self.selectable && state.read(cx).rendered_text().is_some();
         let select_all_listener = window.listener_for(&state, TextViewState::on_action_select_all);
         let focus_handle = state.read(cx).focus_handle.clone();
         let list_state = state.read(cx).list_state.clone();
@@ -654,6 +656,26 @@ impl Element for TextView {
             })
             .key_context("TextView")
             .track_focus(&focus_handle)
+            .when(accepts_selection, |el| {
+                el.on_a11y_action(
+                    gpui::AccessibleAction::SetTextSelection,
+                    move |data, window, cx| {
+                        let Some(gpui::accesskit::ActionData::SetTextSelection(selection)) = data
+                        else {
+                            return;
+                        };
+                        let Some(state) = selection_state.upgrade() else {
+                            return;
+                        };
+                        let handle = state.read(cx).selection_adapter.handle();
+                        handle.replace_local_in_window(window, cx, |window, cx| {
+                            state.update(cx, |state, cx| {
+                                state.apply_accessible_selection(selection, window, cx)
+                            })
+                        });
+                    },
+                )
+            })
             .on_key_down(window.listener_for(&state, TextViewState::on_link_key))
             .on_mouse_down(
                 MouseButton::Left,
@@ -738,6 +760,7 @@ impl Element for TextView {
             let max_lines_active = state.read(cx).max_lines.is_some();
             state.update(cx, |state, _| {
                 state.link_reveal_claimed = false;
+                state.selection_reveal_claimed = false;
                 state.link_active_owner = None;
             });
             if max_lines_active {
@@ -872,6 +895,9 @@ impl Element for TextView {
             }
             if state.link_reveal_claimed {
                 state.link_reveal = None;
+            }
+            if state.selection_reveal_claimed {
+                state.selection_reveal = None;
             }
         });
         if self.selectable {

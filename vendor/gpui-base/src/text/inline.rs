@@ -886,6 +886,32 @@ impl Element for Inline {
                 },
             )
         });
+        if let Some(view) = GlobalState::global(cx).text_view_state().cloned() {
+            let target = {
+                let state = view.read(cx);
+                state
+                    .selection_reveal
+                    .as_ref()
+                    .filter(|_| !state.selection_reveal_claimed)
+                    .cloned()
+            };
+            if let Some(target) = target
+                && let Some((_, fragment)) = self.semantic_binding(0..self.text.len(), cx)
+                && let Some(index) = fragment.local_offset(&target)
+                && let Some(position) = selection_run
+                    .as_ref()
+                    .and_then(|run| run.position_for_index(index))
+            {
+                window.request_autoscroll(Bounds::from_corners(
+                    position,
+                    point(
+                        position.x + px(2.),
+                        position.y + self.styled_text.layout().line_height(),
+                    ),
+                ));
+                view.update(cx, |state, _| state.selection_reveal_claimed = true);
+            }
+        }
         let glyphs = if window.is_a11y_active() {
             selection_run
                 .as_ref()

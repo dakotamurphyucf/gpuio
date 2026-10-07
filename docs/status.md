@@ -5,6 +5,15 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **O
 Markdown walkthroughs for every example component; its documentation acceptance is complete. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
+[Rendered-document selection dispatch](evidence/rendered-selection-dispatch-och17.md)
+now applies validated OS requests through the native window selection controller,
+with focus and endpoint reveal. The real macOS gallery passes AX-set heading,
+CJK, joined-emoji and code ranges, exact native Copy and stable caret checks. All
+1,162 native tests (2 isolated private-bus fixtures ignored), strict lint/formatting,
+workspace, actual desktop, gallery rebuild and exact Base reconstruction pass.
+Atomic-object/competing-input qualification, cached AX, VoiceOver and full release
+gates remain open.
+
 [Accessible selection request preparation](evidence/rendered-selection-authorization-och17.md)
 now validates final painted Document scope, live accessibility activation, current
 window/projection, interaction epoch, selectability and host policy before creating

@@ -39,6 +39,10 @@ pub(super) struct RenderedFragment {
 }
 
 impl RenderedFragment {
+    pub(super) fn local_offset(&self, position: &RenderedTextPosition) -> Option<usize> {
+        let local = position.byte.checked_sub(self.bytes.start)?;
+        (self.position(local)? == position.content_position()).then_some(local)
+    }
     pub(super) fn selection(&self, projection: &RenderedText) -> Option<RenderedSelection> {
         let start = projection.captured_position(self.edge(false))?;
         let end = projection.captured_position(self.edge(true))?;
@@ -357,6 +361,31 @@ impl RenderedText {
     }
     pub fn parts(&self) -> &[RenderedTextPart] {
         &self.parts
+    }
+
+    /// Structural separators have no glyph of their own. Reveal the preceding
+    /// native owner edge without changing the requested logical selection.
+    pub(super) fn reveal_position(
+        &self,
+        position: &RenderedTextPosition,
+    ) -> Option<RenderedTextPosition> {
+        let byte = self.offset(position)?;
+        let index = self.parts.partition_point(|part| part.bytes.end < byte);
+        let Some(part) = self.parts.get(index) else {
+            return Some(position.clone());
+        };
+        if !part.is_separator() {
+            return Some(position.clone());
+        }
+        if let Some(previous) = (0..index)
+            .rev()
+            .find(|index| !self.parts[*index].is_separator())
+        {
+            return Some(self.selection_for_part(previous)?.head().clone());
+        }
+        let next =
+            (index + 1..self.parts.len()).find(|index| !self.parts[*index].is_separator())?;
+        Some(self.selection_for_part(next)?.anchor().clone())
     }
 
     pub(super) fn object_fragment<T>(&self, owner: &Arc<Mutex<T>>) -> Option<RenderedFragment> {
