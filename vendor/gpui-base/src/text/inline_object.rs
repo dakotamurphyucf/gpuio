@@ -388,12 +388,24 @@ impl Element for InlineObject {
             let text = self.text.to_string();
             let current_view = window.current_view();
             let line_bounds = self.line_bounds;
+            let selection_revision = view
+                .as_ref()
+                .and_then(|view| view.read(cx).rendered_text_revision());
             window.on_mouse_event(move |event: &MouseDownEvent, phase, window, cx| {
                 if !phase.bubble()
                     || !hitbox.is_hovered(window)
                     || event.button != MouseButton::Left
-                    || !(2..=3).contains(&event.click_count)
                 {
+                    return;
+                }
+                if view
+                    .as_ref()
+                    .is_some_and(|view| !view.read(cx).accepts_selection_frame(selection_revision))
+                {
+                    GlobalState::suppress_text_selection(cx);
+                    return;
+                }
+                if !(2..=3).contains(&event.click_count) {
                     return;
                 }
                 GlobalState::suppress_text_selection(cx);

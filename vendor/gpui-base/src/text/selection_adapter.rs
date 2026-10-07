@@ -454,6 +454,15 @@ impl TextViewSelectionAdapter {
         self.selection.set_local_selection(active, cx);
     }
 
+    pub(super) fn rebind_content_positions(
+        &self,
+        compatible: bool,
+        map: impl Fn(crate::TextSelectionContentPosition) -> Option<crate::TextSelectionContentPosition>,
+        cx: &mut App,
+    ) -> bool {
+        self.selection.rebind_content_positions(compatible, map, cx)
+    }
+
     pub(super) fn is_part_of_window_selection(&self, cx: &App) -> bool {
         let id = self.selection.entity_id();
         self.selection.snapshot(cx).is_some_and(|snapshot| {

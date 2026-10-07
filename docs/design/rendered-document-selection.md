@@ -241,8 +241,8 @@ geometry as ordinary selectable runs. Actual single-row native checks cover
 Hebrew, mixed-direction spans, Arabic, combining marks and joined emoji. Wrapped
 and aligned rich-selection qualification still needs completion.
 
-Preserved Select All overrides need explicit integration; custom
-glyph/copy-alternative mapping and zero-byte atomic selection also remain required.
+Custom glyph/copy-alternative mapping and zero-byte atomic selection remain
+required; streamed Select All and held-gesture rebinding are described below.
 An absent common range must not be interpreted as no native selection.
 The staged native-owner update currently scans the bounded projection; pointer
 hot-path cost and possible coalescing/delta updates need measured qualification.
@@ -302,3 +302,38 @@ without publishing a fabricated logical range. Zero-byte atomic alternatives nee
 an explicit object-selection representation: a collapsed text range would erase
 the visible object's selected state. That integration and custom declared-glyph
 versus Copy-alternative mapping remain required before complete AX acceptance.
+
+
+## Streaming and native frame identity
+
+Genuine Select All becomes a frozen directed range when a compatible append
+arrives. Its provenance stays distinct from pointer, multi-click and explicit
+adapter requests. Source-format Copy retains the original source snapshot;
+plain Copy uses the current mapped native range. Newly appended content is not
+implicitly selected.
+
+Structural separators require affinity to their original content edge. If a
+terminal synthetic separator moves or becomes newly appended owned text, its
+endpoint clamps to the old content edge. If it remains the same structural
+separator, the offset stays. Owned code linebreaks are never trimmed by this
+rule. Endpoint mapping validates preparation identity and the unchanged prefix;
+it does not search for the selected string. Separator-only or empty selections
+can become collapsed ranges with no active local Copy.
+
+The window controller also rebinds captured anchor, cursor and pending extension
+positions when a participant installs compatible prepared text or refreshes
+compatible renderer resources. All endpoints are staged before mutation. The
+controller retains gesture, virtual block keys and autoscroll ownership. Failed
+mapping or incompatible replacement cancels the old window gesture, including
+other participants. Cleanup runs outside the window-state lease; the initiating
+view resets its own native owners instead of invoking its own clear callback
+while its lease is held. There is no deferred unguarded cleanup that can erase a
+subsequent local selection.
+
+Painted inline text and object callbacks carry the installed bounded projection
+revision. A callback from an obsolete frame rejects the press before mutating
+owners or entering the legacy copied-string fallback. The guard also checks
+selection policy. It is separate from the selection-request epoch, since an
+ordinary mouse-down intentionally clears previous selection before handling the
+current press. This does not replace the owner/window/visibility/action guards
+required by future accessibility actions.

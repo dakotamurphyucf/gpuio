@@ -6,6 +6,7 @@ fn backward_pointer(
     cx: &mut AsyncApp,
     handle: WindowHandle<View>,
     text: &Entity<gpui_base::TextViewState>,
+    held: bool,
 ) {
     let bounds = text.read_with(cx, |text, _| text.bounds());
     let end = gpui::point(bounds.left() + px(1.), bounds.top() + px(10.));
@@ -14,8 +15,10 @@ fn backward_pointer(
     mouse(cx, handle, start, true);
     move_mouse(cx, handle, end, true);
     draw(cx, handle);
-    mouse(cx, handle, end, false);
-    draw(cx, handle);
+    if !held {
+        mouse(cx, handle, end, false);
+        draw(cx, handle);
+    }
 }
 
 fn parent_style(color: Option<i64>) -> Vec<Style> {
@@ -228,11 +231,13 @@ pub(super) async fn exercise(
     source: ResourceId,
     p: &Entity<Presentation>,
 ) {
-    for (mode, requested, pointer) in [
-        (Mode::Code("txt".into()), false, false),
-        (Mode::Markdown, false, false),
-        (Mode::Markdown, true, false),
-        (Mode::Markdown, false, true),
+    for (mode, requested, pointer, same_paragraph, held) in [
+        (Mode::Code("txt".into()), false, false, false, false),
+        (Mode::Markdown, false, false, false, false),
+        (Mode::Markdown, true, false, false, false),
+        (Mode::Markdown, false, true, false, false),
+        (Mode::Markdown, false, false, true, false),
+        (Mode::Markdown, false, true, false, true),
     ] {
         let (base, generation) = p.read_with(cx, |p, _| {
             let source = p.installed.as_ref().unwrap();
@@ -295,7 +300,7 @@ pub(super) async fn exercise(
             .unwrap();
         draw(cx, handle);
         if pointer {
-            backward_pointer(cx, handle, markdown.as_ref().unwrap());
+            backward_pointer(cx, handle, markdown.as_ref().unwrap(), held);
         }
         let exact_copy = (requested || pointer).then(|| {
             markdown.as_ref().unwrap().read_with(cx, |state, _| {
@@ -399,7 +404,11 @@ pub(super) async fn exercise(
                 ))])],
             )],
         );
-        let suffix = "\ncontinued β\n";
+        let suffix = if same_paragraph {
+            "continued β\n"
+        } else {
+            "\ncontinued β\n"
+        };
         let revision = snapshot.revision + 1;
         publish_streaming(
             &mut session.borrow_mut(),
@@ -419,9 +428,35 @@ pub(super) async fn exercise(
             "{mode:?}: streamed installation keeps selection color"
         );
         if let Some(markdown) = &markdown {
+            let selected_text = selected_text.unwrap();
+            let expected = if same_paragraph {
+                selected_text.strip_suffix('\n').unwrap()
+            } else {
+                &selected_text
+            };
             assert_eq!(
                 markdown.read_with(cx, |state, _| state.selected_text()),
-                selected_text.unwrap()
+                expected
+            );
+            markdown.read_with(cx, |state, _| {
+                let range = state
+                    .rendered_selection()
+                    .expect("streamed current logical range");
+                assert_eq!(
+                    state.rendered_text().unwrap().selected_text(&range),
+                    Some(expected)
+                );
+                if same_paragraph {
+                    assert_eq!(range.bytes(), 0.."aaa selected words".len());
+                }
+            });
+            crate::host::editor_test::key(cx, handle, "secondary-c");
+            assert_eq!(
+                cx.update(|cx| cx
+                    .read_from_clipboard()
+                    .and_then(|item| item.text())
+                    .unwrap()),
+                expected.trim()
             );
             if let Some(expected) = &exact_copy {
                 assert!(
@@ -438,6 +473,34 @@ pub(super) async fn exercise(
                 );
                 eprintln!(
                     "GPUIO_RENDERED_SELECTION_RANGE_GPU_OK: requested={requested}, pointer={pointer}, backward range, actual selection pixels, window Copy, restyle and streamed retention"
+                );
+            }
+            if held {
+                let before = markdown.read_with(cx, |s, _| s.rendered_selection().unwrap());
+                let bounds = markdown.read_with(cx, |s, _| s.bounds());
+                let end = gpui::point(bounds.left() + px(21.), bounds.top() + px(10.));
+                move_mouse(cx, handle, end, true);
+                mouse(cx, handle, end, false);
+                draw(cx, handle);
+                let selected = markdown.read_with(cx, |s, _| {
+                    let text = s.rendered_text().unwrap();
+                    let after = s.rendered_selection().expect("continued streamed drag");
+                    assert_eq!(text.offset(after.anchor()), text.offset(before.anchor()));
+                    assert!(
+                        text.offset(after.head()).unwrap() > text.offset(before.head()).unwrap()
+                    );
+                    assert!(after.is_backward());
+                    text.selected_text(&after).unwrap().trim().to_owned()
+                });
+                assert!(!selected.is_empty());
+                assert!(pixels(cx, handle, [0, 255, 255, 255]) > 20);
+                crate::host::editor_test::key(cx, handle, "secondary-c");
+                assert_eq!(
+                    cx.update(|cx| cx.read_from_clipboard().unwrap().text().unwrap()),
+                    selected
+                );
+                eprintln!(
+                    "GPUIO_RENDERED_HELD_STREAM_OK: current anchor, continued drag, GPU pixels and keyboard Copy"
                 );
             }
         } else {

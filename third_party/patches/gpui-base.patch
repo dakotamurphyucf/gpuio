@@ -13109,3 +13109,443 @@
      }
  
      pub(super) fn set_auto_scroll(&mut self, delta: Option<Pixels>, cx: &mut Context<Self>) {
+--- a/src/text/inline.rs
++++ b/src/text/inline.rs
+@@ -1032,12 +1032,22 @@
+                 let inline_state = self.state.clone();
+                 let text = self.text.clone();
+                 let text_view_state = GlobalState::global(cx).text_view_state().cloned();
++                let selection_revision = text_view_state
++                    .as_ref()
++                    .and_then(|view| view.read(cx).rendered_text_revision());
+                 let line_bounds = self.selection_bounds;
+                 move |event: &MouseDownEvent, phase, window, cx| {
+                     if !phase.bubble()
+                         || !hitbox.is_hovered(window)
+                         || event.button != MouseButton::Left
+                     {
++                        return;
++                    }
++
++                    if text_view_state.as_ref().is_some_and(|view| {
++                        !view.read(cx).accepts_selection_frame(selection_revision)
++                    }) {
++                        GlobalState::suppress_text_selection(cx);
+                         return;
+                     }
+ 
+--- a/src/text/inline_object.rs
++++ b/src/text/inline_object.rs
+@@ -388,12 +388,24 @@
+             let text = self.text.to_string();
+             let current_view = window.current_view();
+             let line_bounds = self.line_bounds;
++            let selection_revision = view
++                .as_ref()
++                .and_then(|view| view.read(cx).rendered_text_revision());
+             window.on_mouse_event(move |event: &MouseDownEvent, phase, window, cx| {
+                 if !phase.bubble()
+                     || !hitbox.is_hovered(window)
+                     || event.button != MouseButton::Left
+-                    || !(2..=3).contains(&event.click_count)
+                 {
++                    return;
++                }
++                if view
++                    .as_ref()
++                    .is_some_and(|view| !view.read(cx).accepts_selection_frame(selection_revision))
++                {
++                    GlobalState::suppress_text_selection(cx);
++                    return;
++                }
++                if !(2..=3).contains(&event.click_count) {
+                     return;
+                 }
+                 GlobalState::suppress_text_selection(cx);
+--- a/src/text/rendered_text.rs
++++ b/src/text/rendered_text.rs
+@@ -145,6 +145,65 @@
+     }
+ }
+ impl RenderedText {
++    pub(super) fn revision(&self) -> TextSelectionContentRevision {
++        self.identity
++    }
++
++    /// Rebind a compatible append after native owners have transferred their
++    /// selections. Terminal structural separators stay attached to the old
++    /// content edge if they moved or became newly appended owned characters.
++    pub(super) fn rebind_append_selection(
++        &self,
++        old: &Self,
++        selection: &RenderedSelection,
++    ) -> Option<RenderedSelection> {
++        let terminal = old
++            .parts
++            .iter()
++            .rev()
++            .take_while(|part| part.is_separator())
++            .last()
++            .map_or(old.text.len(), |part| part.bytes.start);
++        let endpoint = |position: &RenderedTextPosition| {
++            let byte = old.offset(position)?;
++            let prefix = byte.min(terminal);
++            if old.text.get(..prefix) != self.text.get(..prefix) {
++                return None;
++            }
++            let byte = if byte > terminal {
++                let mut covered = terminal;
++                let same_separators = self
++                    .parts
++                    .iter()
++                    .filter(|part| {
++                        !part.bytes.is_empty()
++                            && part.bytes.end > terminal
++                            && part.bytes.start < byte
++                    })
++                    .all(|part| {
++                        if !part.is_separator() || part.bytes.start > covered {
++                            return false;
++                        }
++                        covered = part.bytes.end.min(byte);
++                        true
++                    });
++                if same_separators
++                    && covered == byte
++                    && old.text.get(..byte) == self.text.get(..byte)
++                {
++                    byte
++                } else {
++                    terminal
++                }
++            } else {
++                byte
++            };
++            self.position(byte)
++        };
++        self.selection(&endpoint(selection.anchor())?, &endpoint(selection.head())?)
++            .ok()
++    }
++
+     pub(super) fn prepare(
+         document: &ParsedDocument,
+         displayed: &DisplayedText,
+--- a/src/text/selection_adapter.rs
++++ b/src/text/selection_adapter.rs
+@@ -454,6 +454,15 @@
+         self.selection.set_local_selection(active, cx);
+     }
+ 
++    pub(super) fn rebind_content_positions(
++        &self,
++        compatible: bool,
++        map: impl Fn(crate::TextSelectionContentPosition) -> Option<crate::TextSelectionContentPosition>,
++        cx: &mut App,
++    ) -> bool {
++        self.selection.rebind_content_positions(compatible, map, cx)
++    }
++
+     pub(super) fn is_part_of_window_selection(&self, cx: &App) -> bool {
+         let id = self.selection.entity_id();
+         self.selection.snapshot(cx).is_some_and(|snapshot| {
+--- a/src/text/state.rs
++++ b/src/text/state.rs
+@@ -85,14 +85,16 @@
+     Request(super::RenderedSelection),
+     Pointer(super::RenderedSelection),
+     MultiClick(super::RenderedSelection),
++    SelectAll(super::RenderedSelection),
+ }
+ 
+ impl RetainedRenderedSelection {
+     fn selection(&self) -> &super::RenderedSelection {
+         match self {
+-            Self::Request(selection) | Self::Pointer(selection) | Self::MultiClick(selection) => {
+-                selection
+-            }
++            Self::Request(selection)
++            | Self::Pointer(selection)
++            | Self::MultiClick(selection)
++            | Self::SelectAll(selection) => selection,
+         }
+     }
+ 
+@@ -101,6 +103,7 @@
+             Self::Request(_) => Self::Request(selection),
+             Self::Pointer(_) => Self::Pointer(selection),
+             Self::MultiClick(_) => Self::MultiClick(selection),
++            Self::SelectAll(_) => Self::SelectAll(selection),
+         }
+     }
+ }
+@@ -216,6 +219,20 @@
+         self.parsed_content.rendered_text.clone()
+     }
+ 
++    pub(super) fn rendered_text_revision(&self) -> Option<crate::TextSelectionContentRevision> {
++        self.parsed_content
++            .rendered_text
++            .as_deref()
++            .map(super::RenderedText::revision)
++    }
++
++    pub(super) fn accepts_selection_frame(
++        &self,
++        revision: Option<crate::TextSelectionContentRevision>,
++    ) -> bool {
++        self.selectable && self.rendered_text_revision() == revision
++    }
++
+     /// Prepare an adapter request without changing native state. Positions must
+     /// belong to the installed bounded text, including for equal-text views.
+     pub fn prepare_rendered_selection(
+@@ -273,7 +290,9 @@
+         match &self.rendered_selection {
+             Some(RetainedRenderedSelection::Request(selection)) => Some(selection),
+             Some(
+-                RetainedRenderedSelection::Pointer(_) | RetainedRenderedSelection::MultiClick(_),
++                RetainedRenderedSelection::Pointer(_)
++                | RetainedRenderedSelection::MultiClick(_)
++                | RetainedRenderedSelection::SelectAll(_),
+             )
+             | None => None,
+         }
+@@ -367,6 +386,34 @@
+         self.rendered_selection = None;
+     }
+ 
++    fn rebind_window_selection(
++        &self,
++        old: Option<&super::RenderedText>,
++        compatible: bool,
++        cx: &mut App,
++    ) -> bool {
++        let new = self.rendered_text();
++        // Legacy unbounded TextViews do not install logical endpoint revisions.
++        if old.is_none() && new.is_none() {
++            return true;
++        }
++        self.selection_adapter.rebind_content_positions(
++            compatible,
++            |position| {
++                let old = old?;
++                let position = old.captured_position(position)?;
++                let collapsed = old.selection(&position, &position).ok()?;
++                Some(
++                    new.as_ref()?
++                        .rebind_append_selection(old, &collapsed)?
++                        .anchor()
++                        .content_position(),
++                )
++            },
++            cx,
++        )
++    }
++
+     /// Install a single-use snapshot from an externally bounded worker. No
+     /// parser work or source queue is started by this operation. The caller
+     /// rejects stale document generations/revisions before calling it.
+@@ -377,7 +424,14 @@
+         unchanged_prefix: Option<usize>,
+         cx: &mut Context<Self>,
+     ) {
+-        let previous_request = self.rendered_selection.clone();
++        let previous_selection = self.rendered_selection.clone().or_else(|| {
++            self.select_all
++                .then(|| {
++                    self.rendered_selection()
++                        .map(RetainedRenderedSelection::SelectAll)
++                })
++                .flatten()
++        });
+         let previous_text = self.rendered_text();
+         self.retire_rendered_selection();
+         // HTML lacks trustworthy source spans. Never transfer an old selection
+@@ -431,22 +485,24 @@
+         self.text = prepared.content.document.source.to_string();
+         self.markdown_extensions = prepared.content.node_cx.markdown_extensions.clone();
+         self.parsed_content = prepared.content;
++        if !self.rebind_window_selection(previous_text.as_deref(), preserve, cx) {
++            preserve = false;
++            self.reset_selection_and_adapter(cx);
++        }
+         if preserve
+             && let (Some(selection), Some(old), Some(new)) =
+-                (previous_request, previous_text, self.rendered_text())
+-            && old.text().get(..selection.selection().bytes().end)
+-                == new.text().get(..selection.selection().bytes().end)
+-            && let (Some(anchor), Some(head)) = (
+-                old.offset(selection.selection().anchor())
+-                    .and_then(|byte| new.position(byte)),
+-                old.offset(selection.selection().head())
+-                    .and_then(|byte| new.position(byte)),
+-            )
++                (previous_selection, previous_text, self.rendered_text())
++            && let Some(range) = new.rebind_append_selection(&old, selection.selection())
++            && new.apply_selection(&range).is_ok()
+         {
+-            self.rendered_selection = new
+-                .selection(&anchor, &head)
+-                .ok()
+-                .map(|range| selection.rebind(range));
++            if !matches!(&selection, RetainedRenderedSelection::Pointer(_)) {
++                self.selection_adapter
++                    .set_local_selection(!range.bytes().is_empty(), cx);
++            }
++            if all {
++                self.selected_text_override = None;
++            }
++            self.rendered_selection = Some(selection.rebind(range));
+         }
+         self.text_backgrounds = None;
+         self.refresh_links(unchanged_prefix);
+@@ -820,22 +876,32 @@
+                 // Renderer resources can change declared glyphs without a new
+                 // AST. Keep only ranges that still map to the current native
+                 // owners; never apply an old copy offset to different glyphs.
+-                let rebound = previous_text
+-                    .zip(self.rendered_text())
+-                    .and_then(|(old, new)| {
+-                        if old.text() != new.text() {
+-                            return None;
+-                        }
+-                        let anchor = new.position(old.offset(selection.selection().anchor())?)?;
+-                        let head = new.position(old.offset(selection.selection().head())?)?;
+-                        let range = new.selection(&anchor, &head).ok()?;
+-                        new.apply_selection(&range).ok()?;
+-                        Some(selection.rebind(range))
+-                    });
++                let rebound =
++                    previous_text
++                        .as_ref()
++                        .zip(self.rendered_text())
++                        .and_then(|(old, new)| {
++                            if old.text() != new.text() {
++                                return None;
++                            }
++                            let anchor =
++                                new.position(old.offset(selection.selection().anchor())?)?;
++                            let head = new.position(old.offset(selection.selection().head())?)?;
++                            let range = new.selection(&anchor, &head).ok()?;
++                            new.apply_selection(&range).ok()?;
++                            Some(selection.rebind(range))
++                        });
+                 if rebound.is_none() {
+                     self.reset_selection_and_adapter(cx);
+                 }
+                 self.rendered_selection = rebound;
++            }
++            let compatible = previous_text
++                .as_ref()
++                .zip(self.rendered_text())
++                .is_some_and(|(old, new)| old.text() == new.text());
++            if !self.rebind_window_selection(previous_text.as_deref(), compatible, cx) {
++                self.reset_selection_and_adapter(cx);
+             }
+             self.invalidate_inline_layout(cx);
+         }
+--- a/src/text_selection.rs
++++ b/src/text_selection.rs
+@@ -860,6 +860,71 @@
+         self.0.read(cx).local_selection
+     }
+ 
++    /// Rebind captured endpoints while their participant replaces prepared text.
++    /// The mapper is pure and must validate the old identity and new boundary.
++    /// Stage every endpoint before committing. A failed mapping cancels the
++    /// entire gesture; the caller must reset its own native owners on false.
++    /// Its clear callback is deliberately omitted because the caller may hold
++    /// that view's lease. Other participant callbacks run outside the window lease.
++    pub(crate) fn rebind_content_positions(
++        &self,
++        compatible: bool,
++        map: impl Fn(TextSelectionContentPosition) -> Option<TextSelectionContentPosition>,
++        cx: &mut App,
++    ) -> bool {
++        if !cx.has_global::<SelectionStateRegistry>() {
++            return true;
++        }
++        let windows = cx
++            .global::<SelectionStateRegistry>()
++            .0
++            .values()
++            .filter_map(WeakEntity::upgrade)
++            .collect::<Vec<_>>();
++        let id = self.entity_id();
++        let mut valid = true;
++        for window in windows {
++            let handlers = window.update(cx, |state, cx| {
++                if !compatible
++                    && state.participants.contains_key(&id)
++                    && self.snapshot(cx).is_some()
++                {
++                    valid = false;
++                    return state.clear_state_except_handler(Some(id), cx);
++                }
++                let mut endpoints = [
++                    state.anchor.clone(),
++                    state.cursor.clone(),
++                    state.pending_extension_anchor.clone(),
++                ];
++                let mut changed = false;
++                for endpoint in endpoints.iter_mut().flatten() {
++                    if endpoint.entity_id() != Some(id) {
++                        continue;
++                    }
++                    let rebound = endpoint
++                        .content_key
++                        .filter(|_| compatible)
++                        .and_then(|key| Some(key.with_position(map(key.position()?)?)));
++                    let Some(key) = rebound else {
++                        valid = false;
++                        return state.clear_state_except_handler(Some(id), cx);
++                    };
++                    endpoint.content_key = Some(key);
++                    endpoint.content_key_resolver = None;
++                    changed = true;
++                }
++                if changed {
++                    [state.anchor, state.cursor, state.pending_extension_anchor] = endpoints;
++                    state.publish_snapshots(cx);
++                }
++                Vec::new()
++            });
++            dispatch_clear_handlers(handlers, cx);
++        }
++        valid
++    }
++
+     /// Registers this participant and its geometry for the current frame.
+     pub fn register(
+         &self,
+@@ -1247,6 +1312,14 @@
+     }
+ 
+     fn clear_state(&mut self, cx: &mut App) -> Vec<ClearHandler> {
++        self.clear_state_except_handler(None, cx)
++    }
++
++    fn clear_state_except_handler(
++        &mut self,
++        except: Option<EntityId>,
++        cx: &mut App,
++    ) -> Vec<ClearHandler> {
+         self.stop_anchor_auto_scroll(cx);
+         self.anchor = None;
+         self.cursor = None;
+@@ -1257,7 +1330,14 @@
+         self.participants
+             .values()
+             .filter_map(|registration| registration.participant.upgrade())
+-            .filter_map(|participant| participant.update(cx, |state, cx| state.clear_state(cx)))
++            .filter_map(|participant| {
++                let handler = participant.update(cx, |state, cx| state.clear_state(cx));
++                if Some(participant.entity_id()) == except {
++                    None
++                } else {
++                    handler
++                }
++            })
+             .collect()
+     }
+ 

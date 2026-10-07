@@ -85,14 +85,16 @@ enum RetainedRenderedSelection {
     Request(super::RenderedSelection),
     Pointer(super::RenderedSelection),
     MultiClick(super::RenderedSelection),
+    SelectAll(super::RenderedSelection),
 }
 
 impl RetainedRenderedSelection {
     fn selection(&self) -> &super::RenderedSelection {
         match self {
-            Self::Request(selection) | Self::Pointer(selection) | Self::MultiClick(selection) => {
-                selection
-            }
+            Self::Request(selection)
+            | Self::Pointer(selection)
+            | Self::MultiClick(selection)
+            | Self::SelectAll(selection) => selection,
         }
     }
 
@@ -101,6 +103,7 @@ impl RetainedRenderedSelection {
             Self::Request(_) => Self::Request(selection),
             Self::Pointer(_) => Self::Pointer(selection),
             Self::MultiClick(_) => Self::MultiClick(selection),
+            Self::SelectAll(_) => Self::SelectAll(selection),
         }
     }
 }
@@ -216,6 +219,20 @@ impl TextViewState {
         self.parsed_content.rendered_text.clone()
     }
 
+    pub(super) fn rendered_text_revision(&self) -> Option<crate::TextSelectionContentRevision> {
+        self.parsed_content
+            .rendered_text
+            .as_deref()
+            .map(super::RenderedText::revision)
+    }
+
+    pub(super) fn accepts_selection_frame(
+        &self,
+        revision: Option<crate::TextSelectionContentRevision>,
+    ) -> bool {
+        self.selectable && self.rendered_text_revision() == revision
+    }
+
     /// Prepare an adapter request without changing native state. Positions must
     /// belong to the installed bounded text, including for equal-text views.
     pub fn prepare_rendered_selection(
@@ -273,7 +290,9 @@ impl TextViewState {
         match &self.rendered_selection {
             Some(RetainedRenderedSelection::Request(selection)) => Some(selection),
             Some(
-                RetainedRenderedSelection::Pointer(_) | RetainedRenderedSelection::MultiClick(_),
+                RetainedRenderedSelection::Pointer(_)
+                | RetainedRenderedSelection::MultiClick(_)
+                | RetainedRenderedSelection::SelectAll(_),
             )
             | None => None,
         }
@@ -367,6 +386,34 @@ impl TextViewState {
         self.rendered_selection = None;
     }
 
+    fn rebind_window_selection(
+        &self,
+        old: Option<&super::RenderedText>,
+        compatible: bool,
+        cx: &mut App,
+    ) -> bool {
+        let new = self.rendered_text();
+        // Legacy unbounded TextViews do not install logical endpoint revisions.
+        if old.is_none() && new.is_none() {
+            return true;
+        }
+        self.selection_adapter.rebind_content_positions(
+            compatible,
+            |position| {
+                let old = old?;
+                let position = old.captured_position(position)?;
+                let collapsed = old.selection(&position, &position).ok()?;
+                Some(
+                    new.as_ref()?
+                        .rebind_append_selection(old, &collapsed)?
+                        .anchor()
+                        .content_position(),
+                )
+            },
+            cx,
+        )
+    }
+
     /// Install a single-use snapshot from an externally bounded worker. No
     /// parser work or source queue is started by this operation. The caller
     /// rejects stale document generations/revisions before calling it.
@@ -377,7 +424,14 @@ impl TextViewState {
         unchanged_prefix: Option<usize>,
         cx: &mut Context<Self>,
     ) {
-        let previous_request = self.rendered_selection.clone();
+        let previous_selection = self.rendered_selection.clone().or_else(|| {
+            self.select_all
+                .then(|| {
+                    self.rendered_selection()
+                        .map(RetainedRenderedSelection::SelectAll)
+                })
+                .flatten()
+        });
         let previous_text = self.rendered_text();
         self.retire_rendered_selection();
         // HTML lacks trustworthy source spans. Never transfer an old selection
@@ -431,22 +485,24 @@ impl TextViewState {
         self.text = prepared.content.document.source.to_string();
         self.markdown_extensions = prepared.content.node_cx.markdown_extensions.clone();
         self.parsed_content = prepared.content;
+        if !self.rebind_window_selection(previous_text.as_deref(), preserve, cx) {
+            preserve = false;
+            self.reset_selection_and_adapter(cx);
+        }
         if preserve
             && let (Some(selection), Some(old), Some(new)) =
-                (previous_request, previous_text, self.rendered_text())
-            && old.text().get(..selection.selection().bytes().end)
-                == new.text().get(..selection.selection().bytes().end)
-            && let (Some(anchor), Some(head)) = (
-                old.offset(selection.selection().anchor())
-                    .and_then(|byte| new.position(byte)),
-                old.offset(selection.selection().head())
-                    .and_then(|byte| new.position(byte)),
-            )
+                (previous_selection, previous_text, self.rendered_text())
+            && let Some(range) = new.rebind_append_selection(&old, selection.selection())
+            && new.apply_selection(&range).is_ok()
         {
-            self.rendered_selection = new
-                .selection(&anchor, &head)
-                .ok()
-                .map(|range| selection.rebind(range));
+            if !matches!(&selection, RetainedRenderedSelection::Pointer(_)) {
+                self.selection_adapter
+                    .set_local_selection(!range.bytes().is_empty(), cx);
+            }
+            if all {
+                self.selected_text_override = None;
+            }
+            self.rendered_selection = Some(selection.rebind(range));
         }
         self.text_backgrounds = None;
         self.refresh_links(unchanged_prefix);
@@ -820,22 +876,32 @@ impl TextViewState {
                 // Renderer resources can change declared glyphs without a new
                 // AST. Keep only ranges that still map to the current native
                 // owners; never apply an old copy offset to different glyphs.
-                let rebound = previous_text
-                    .zip(self.rendered_text())
-                    .and_then(|(old, new)| {
-                        if old.text() != new.text() {
-                            return None;
-                        }
-                        let anchor = new.position(old.offset(selection.selection().anchor())?)?;
-                        let head = new.position(old.offset(selection.selection().head())?)?;
-                        let range = new.selection(&anchor, &head).ok()?;
-                        new.apply_selection(&range).ok()?;
-                        Some(selection.rebind(range))
-                    });
+                let rebound =
+                    previous_text
+                        .as_ref()
+                        .zip(self.rendered_text())
+                        .and_then(|(old, new)| {
+                            if old.text() != new.text() {
+                                return None;
+                            }
+                            let anchor =
+                                new.position(old.offset(selection.selection().anchor())?)?;
+                            let head = new.position(old.offset(selection.selection().head())?)?;
+                            let range = new.selection(&anchor, &head).ok()?;
+                            new.apply_selection(&range).ok()?;
+                            Some(selection.rebind(range))
+                        });
                 if rebound.is_none() {
                     self.reset_selection_and_adapter(cx);
                 }
                 self.rendered_selection = rebound;
+            }
+            let compatible = previous_text
+                .as_ref()
+                .zip(self.rendered_text())
+                .is_some_and(|(old, new)| old.text() == new.text());
+            if !self.rebind_window_selection(previous_text.as_deref(), compatible, cx) {
+                self.reset_selection_and_adapter(cx);
             }
             self.invalidate_inline_layout(cx);
         }

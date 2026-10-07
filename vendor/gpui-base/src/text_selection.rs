@@ -860,6 +860,71 @@ impl TextSelectionHandle {
         self.0.read(cx).local_selection
     }
 
+    /// Rebind captured endpoints while their participant replaces prepared text.
+    /// The mapper is pure and must validate the old identity and new boundary.
+    /// Stage every endpoint before committing. A failed mapping cancels the
+    /// entire gesture; the caller must reset its own native owners on false.
+    /// Its clear callback is deliberately omitted because the caller may hold
+    /// that view's lease. Other participant callbacks run outside the window lease.
+    pub(crate) fn rebind_content_positions(
+        &self,
+        compatible: bool,
+        map: impl Fn(TextSelectionContentPosition) -> Option<TextSelectionContentPosition>,
+        cx: &mut App,
+    ) -> bool {
+        if !cx.has_global::<SelectionStateRegistry>() {
+            return true;
+        }
+        let windows = cx
+            .global::<SelectionStateRegistry>()
+            .0
+            .values()
+            .filter_map(WeakEntity::upgrade)
+            .collect::<Vec<_>>();
+        let id = self.entity_id();
+        let mut valid = true;
+        for window in windows {
+            let handlers = window.update(cx, |state, cx| {
+                if !compatible
+                    && state.participants.contains_key(&id)
+                    && self.snapshot(cx).is_some()
+                {
+                    valid = false;
+                    return state.clear_state_except_handler(Some(id), cx);
+                }
+                let mut endpoints = [
+                    state.anchor.clone(),
+                    state.cursor.clone(),
+                    state.pending_extension_anchor.clone(),
+                ];
+                let mut changed = false;
+                for endpoint in endpoints.iter_mut().flatten() {
+                    if endpoint.entity_id() != Some(id) {
+                        continue;
+                    }
+                    let rebound = endpoint
+                        .content_key
+                        .filter(|_| compatible)
+                        .and_then(|key| Some(key.with_position(map(key.position()?)?)));
+                    let Some(key) = rebound else {
+                        valid = false;
+                        return state.clear_state_except_handler(Some(id), cx);
+                    };
+                    endpoint.content_key = Some(key);
+                    endpoint.content_key_resolver = None;
+                    changed = true;
+                }
+                if changed {
+                    [state.anchor, state.cursor, state.pending_extension_anchor] = endpoints;
+                    state.publish_snapshots(cx);
+                }
+                Vec::new()
+            });
+            dispatch_clear_handlers(handlers, cx);
+        }
+        valid
+    }
+
     /// Registers this participant and its geometry for the current frame.
     pub fn register(
         &self,
@@ -1247,6 +1312,14 @@ impl WindowSelectionState {
     }
 
     fn clear_state(&mut self, cx: &mut App) -> Vec<ClearHandler> {
+        self.clear_state_except_handler(None, cx)
+    }
+
+    fn clear_state_except_handler(
+        &mut self,
+        except: Option<EntityId>,
+        cx: &mut App,
+    ) -> Vec<ClearHandler> {
         self.stop_anchor_auto_scroll(cx);
         self.anchor = None;
         self.cursor = None;
@@ -1257,7 +1330,14 @@ impl WindowSelectionState {
         self.participants
             .values()
             .filter_map(|registration| registration.participant.upgrade())
-            .filter_map(|participant| participant.update(cx, |state, cx| state.clear_state(cx)))
+            .filter_map(|participant| {
+                let handler = participant.update(cx, |state, cx| state.clear_state(cx));
+                if Some(participant.entity_id()) == except {
+                    None
+                } else {
+                    handler
+                }
+            })
             .collect()
     }
 

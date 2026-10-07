@@ -145,6 +145,65 @@ impl PartialEq for RenderedText {
     }
 }
 impl RenderedText {
+    pub(super) fn revision(&self) -> TextSelectionContentRevision {
+        self.identity
+    }
+
+    /// Rebind a compatible append after native owners have transferred their
+    /// selections. Terminal structural separators stay attached to the old
+    /// content edge if they moved or became newly appended owned characters.
+    pub(super) fn rebind_append_selection(
+        &self,
+        old: &Self,
+        selection: &RenderedSelection,
+    ) -> Option<RenderedSelection> {
+        let terminal = old
+            .parts
+            .iter()
+            .rev()
+            .take_while(|part| part.is_separator())
+            .last()
+            .map_or(old.text.len(), |part| part.bytes.start);
+        let endpoint = |position: &RenderedTextPosition| {
+            let byte = old.offset(position)?;
+            let prefix = byte.min(terminal);
+            if old.text.get(..prefix) != self.text.get(..prefix) {
+                return None;
+            }
+            let byte = if byte > terminal {
+                let mut covered = terminal;
+                let same_separators = self
+                    .parts
+                    .iter()
+                    .filter(|part| {
+                        !part.bytes.is_empty()
+                            && part.bytes.end > terminal
+                            && part.bytes.start < byte
+                    })
+                    .all(|part| {
+                        if !part.is_separator() || part.bytes.start > covered {
+                            return false;
+                        }
+                        covered = part.bytes.end.min(byte);
+                        true
+                    });
+                if same_separators
+                    && covered == byte
+                    && old.text.get(..byte) == self.text.get(..byte)
+                {
+                    byte
+                } else {
+                    terminal
+                }
+            } else {
+                byte
+            };
+            self.position(byte)
+        };
+        self.selection(&endpoint(selection.anchor())?, &endpoint(selection.head())?)
+            .ok()
+    }
+
     pub(super) fn prepare(
         document: &ParsedDocument,
         displayed: &DisplayedText,

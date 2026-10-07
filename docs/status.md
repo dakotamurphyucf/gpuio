@@ -5,6 +5,14 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **O
 Markdown walkthroughs for every example component; its documentation acceptance is complete. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
+[Streamed selection and stale native input](evidence/rendered-stream-selection-och17.md)
+now preserve a frozen Select All range and rebind held drag endpoints through
+compatible appends/resource refreshes. Obsolete painted callbacks reject replaced
+text; incompatible replacement cancels the old drag without erasing a new local
+selection. Full Rust workspace, 1,102 native tests, lint, Dune, exact reconstruction,
+actual GPU/keyboard Copy and fresh-gallery shutdown pass locally. Custom/empty-
+object mapping, richer reflow qualification, AX and release gates remain open.
+
 [Mapped multi-click selection](evidence/rendered-multiclick-selection-och17.md)
 now shares owner-based word/paragraph/visual-line ranges with native paint and
 Copy, including rich fragments and nonempty inline objects. Repeated text,

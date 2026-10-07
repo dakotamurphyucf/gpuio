@@ -259,6 +259,77 @@ fn rendered_request_preserves_compatible_streamed_selection_but_retires_queued_r
     assert_eq!(copy(&state, &app), "**世界**");
 }
 
+#[test]
+fn streamed_select_all_keeps_old_glyphs_and_separator_ownership() {
+    for (source, suffix, expected) in [
+        ("Before **世界** after", " and more", "Before 世界 after"),
+        ("Before **世界** after", "\n\nTail", "Before 世界 after\n"),
+        ("> quoted", " more", "quoted"),
+        ("```txt\nold", "\nnew", "old"),
+        ("```txt\nold\n\n", "new", "old\n"),
+    ] {
+        for backward in [false, true] {
+            let (mut app, state) = mount(parse(source));
+            if backward {
+                let len = state.read_with(&app, |s, _| s.rendered_text().unwrap().text().len());
+                apply(&state, &mut app, len, 0);
+            } else {
+                state.update(&mut app, |s, cx| s.select_all(cx));
+            }
+            let queued = request(&state, &app, 0, 0);
+            state.update(&mut app, |s, cx| {
+                s.set_prepared(parse(&format!("{source}{suffix}")), Some(source.len()), cx)
+            });
+            state.read_with(&app, |s, _| {
+                let selection = s.rendered_selection().expect("streamed Select All range");
+                assert_eq!(
+                    selection.bytes(),
+                    0..expected.len(),
+                    "source={source:?} suffix={suffix:?}"
+                );
+                assert_eq!(selection.is_backward(), backward);
+                assert_eq!(
+                    s.rendered_text().unwrap().selected_text(&selection),
+                    Some(expected)
+                );
+                assert_eq!(s.requested_rendered_selection().is_some(), backward);
+            });
+            assert_eq!(copy(&state, &app), expected);
+            assert_eq!(
+                state.update(&mut app, |s, cx| s.apply_rendered_selection(queued, cx)),
+                Err(Error::StaleRequest)
+            );
+            state.update(&mut app, |s, cx| {
+                s.set_selection_format(SelectionFormat::Source, cx)
+            });
+            assert_eq!(copy(&state, &app), source);
+        }
+    }
+}
+
+#[test]
+fn streamed_structural_separator_collapses_without_selecting_new_text() {
+    let (mut app, state) = mount(parse("Word"));
+    apply(&state, &mut app, 5, 4);
+    assert_eq!(copy(&state, &app), "\n");
+    state.update(&mut app, |s, cx| {
+        s.set_prepared(parse("Word more"), Some(4), cx)
+    });
+    state.read_with(&app, |s, _| {
+        assert_eq!(s.rendered_selection().unwrap().bytes(), 4..4);
+        assert!(!s.has_local_selection());
+        assert_eq!(s.selected_text(), "");
+    });
+    let (mut app, state) = mount(parse(""));
+    state.update(&mut app, |s, cx| s.select_all(cx));
+    state.update(&mut app, |s, cx| s.set_prepared(parse("new"), Some(0), cx));
+    state.read_with(&app, |s, _| {
+        assert_eq!(s.rendered_selection().unwrap().bytes(), 0..0);
+        assert!(!s.has_local_selection());
+        assert_eq!(s.selected_text(), "");
+    });
+}
+
 struct DifferentGlyphs(bool);
 impl MarkdownPlugin for DifferentGlyphs {
     fn name(&self) -> &str {

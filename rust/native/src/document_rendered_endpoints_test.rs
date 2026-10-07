@@ -133,8 +133,8 @@ fn pointer_endpoints_keep_direction_and_duplicate_owner_then_expire_on_replaceme
         assert!(projection.offset(before_stream.anchor()).is_none());
         assert!(state.rendered_selection().unwrap().is_backward());
     });
-    // Equal source is still a different preparation. Captured coordinates may
-    // remain in the window controller, but cannot address the replacement.
+    // An incompatible preparation retires both the document range and the
+    // window gesture, even if source text is repeated.
     text.update(cx, |state, cx| {
         state.set_prepared(
             gpui_base::text::PreparedText::parse(&source, Default::default()).unwrap(),
@@ -198,4 +198,170 @@ fn captured_pointer_anchor_survives_virtualization_without_retaining_layout_hist
     assert!(text.read_with(cx, |state, cx| {
         state.captured_rendered_pointer_selection(cx).is_none()
     }));
+}
+
+#[test]
+fn held_drag_keeps_anchor_identity_through_streaming() {
+    let mut app = TestAppContext::single();
+    let (f, cx) = mount(&mut app, Mode::Markdown);
+    let source = "Anchor repeated words for a continued drag";
+    publish(&f, cx, 2, 2, source);
+    ready(&f.presentation, cx);
+    draw(cx);
+    let (text, extensions) = f.presentation.read_with(cx, |p, _| {
+        (p.markdown.clone().unwrap(), p.markdown_extensions.clone())
+    });
+    let bounds = text.read_with(cx, |state, _| state.bounds());
+    let start = bounds.origin + gpui::point(px(1.), px(10.));
+    let middle = start + gpui::point(px(45.), px(0.));
+    cx.simulate_mouse_move(start, None, Default::default());
+    cx.simulate_mouse_down(start, gpui::MouseButton::Left, Default::default());
+    cx.simulate_mouse_move(middle, Some(gpui::MouseButton::Left), Default::default());
+    draw(cx);
+    let before = captured(&text, cx);
+    text.update(cx, |state, cx| {
+        state.set_prepared(
+            gpui_base::text::PreparedText::parse(&format!("{source} appended"), extensions.clone())
+                .unwrap(),
+            Some(source.len()),
+            cx,
+        )
+    });
+    draw(cx);
+    let end = middle + gpui::point(px(30.), px(0.));
+    cx.simulate_mouse_move(end, Some(gpui::MouseButton::Left), Default::default());
+    draw(cx);
+    let after = captured(&text, cx);
+    assert_eq!(after.0, before.0);
+    assert!(after.1 > before.1);
+    cx.simulate_mouse_up(end, gpui::MouseButton::Left, Default::default());
+    draw(cx);
+    text.read_with(cx, |state, _| {
+        let range = state.rendered_selection().unwrap();
+        assert_eq!(
+            state.selected_text(),
+            state
+                .rendered_text()
+                .unwrap()
+                .selected_text(&range)
+                .unwrap()
+        );
+    });
+}
+
+#[test]
+fn held_anchor_before_first_move_survives_append_and_resource_refresh() {
+    for refresh_resources in [false, true] {
+        let mut app = TestAppContext::single();
+        let (f, cx) = mount(&mut app, Mode::Markdown);
+        let source = "Anchor repeated words for a continued drag";
+        publish(&f, cx, 2, 2, source);
+        ready(&f.presentation, cx);
+        // Install the fixture after the source pipeline has selected its profile.
+        // Keep its parser names stable during the resource-only refresh below.
+        f.presentation.update(cx, |p, cx| {
+            p.markdown_extensions = p
+                .markdown_extensions
+                .clone()
+                .block_renderer("unused", |_, _, _| gpui::div());
+            p.markdown.as_ref().unwrap().update(cx, |state, cx| {
+                state.set_prepared(
+                    gpui_base::text::PreparedText::parse(source, p.markdown_extensions.clone())
+                        .unwrap(),
+                    None,
+                    cx,
+                );
+            });
+        });
+        draw(cx);
+        let (text, extensions) = f.presentation.read_with(cx, |p, _| {
+            (p.markdown.clone().unwrap(), p.markdown_extensions.clone())
+        });
+        let start =
+            text.read_with(cx, |state, _| state.bounds().origin) + gpui::point(px(1.), px(10.));
+        cx.simulate_mouse_move(start, None, Default::default());
+        cx.simulate_mouse_down(start, gpui::MouseButton::Left, Default::default());
+        text.update(cx, |state, cx| {
+            if refresh_resources {
+                state.set_markdown_extensions(
+                    Arc::new(
+                        extensions
+                            .clone()
+                            .block_renderer("unused", |_, _, _| gpui::div()),
+                    ),
+                    cx,
+                );
+            } else {
+                state.set_prepared(
+                    gpui_base::text::PreparedText::parse(&format!("{source} appended"), extensions)
+                        .unwrap(),
+                    Some(source.len()),
+                    cx,
+                );
+            }
+        });
+        draw(cx);
+        let end = start + gpui::point(px(65.), px(0.));
+        cx.simulate_mouse_move(end, Some(gpui::MouseButton::Left), Default::default());
+        draw(cx);
+        assert!(
+            text.read_with(cx, |s, cx| s
+                .captured_rendered_pointer_selection(cx)
+                .is_some()),
+            "first move after refresh_resources={refresh_resources}"
+        );
+        let selection = captured(&text, cx);
+        assert_eq!(selection.0, 0);
+        assert!(selection.1 > 0);
+        cx.simulate_mouse_up(end, gpui::MouseButton::Left, Default::default());
+        draw(cx);
+        assert_eq!(captured(&text, cx), selection);
+    }
+}
+
+#[test]
+fn incompatible_replacement_cancels_held_drag_without_erasing_a_new_local_selection() {
+    for select_new in [false, true] {
+        let mut app = TestAppContext::single();
+        let (f, cx) = mount(&mut app, Mode::Markdown);
+        let source = "Original content to select";
+        publish(&f, cx, 2, 2, source);
+        ready(&f.presentation, cx);
+        draw(cx);
+        let (text, extensions) = f.presentation.read_with(cx, |p, _| {
+            (p.markdown.clone().unwrap(), p.markdown_extensions.clone())
+        });
+        let start =
+            text.read_with(cx, |state, _| state.bounds().origin) + gpui::point(px(1.), px(10.));
+        let end = start + gpui::point(px(65.), px(0.));
+        cx.simulate_mouse_move(start, None, Default::default());
+        cx.simulate_mouse_down(start, gpui::MouseButton::Left, Default::default());
+        cx.simulate_mouse_move(end, Some(gpui::MouseButton::Left), Default::default());
+        draw(cx);
+        assert!(captured(&text, cx).1 > 0);
+        text.update(cx, |state, cx| {
+            state.set_prepared(
+                gpui_base::text::PreparedText::parse("Replacement content", extensions).unwrap(),
+                None,
+                cx,
+            );
+            if select_new {
+                state.select_all(cx);
+            }
+        });
+        draw(cx);
+        let end = end + gpui::point(px(30.), px(0.));
+        cx.simulate_mouse_move(end, Some(gpui::MouseButton::Left), Default::default());
+        cx.simulate_mouse_up(end, gpui::MouseButton::Left, Default::default());
+        draw(cx);
+        assert_eq!(
+            cx.update(gpui_base::TextSelection::selected_text),
+            if select_new {
+                "Replacement content"
+            } else {
+                ""
+            }
+        );
+        assert!(text.read_with(cx, |state, _| !state.is_selecting()));
+    }
 }

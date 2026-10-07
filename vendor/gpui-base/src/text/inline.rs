@@ -1032,12 +1032,22 @@ impl Element for Inline {
                 let inline_state = self.state.clone();
                 let text = self.text.clone();
                 let text_view_state = GlobalState::global(cx).text_view_state().cloned();
+                let selection_revision = text_view_state
+                    .as_ref()
+                    .and_then(|view| view.read(cx).rendered_text_revision());
                 let line_bounds = self.selection_bounds;
                 move |event: &MouseDownEvent, phase, window, cx| {
                     if !phase.bubble()
                         || !hitbox.is_hovered(window)
                         || event.button != MouseButton::Left
                     {
+                        return;
+                    }
+
+                    if text_view_state.as_ref().is_some_and(|view| {
+                        !view.read(cx).accepts_selection_frame(selection_revision)
+                    }) {
+                        GlobalState::suppress_text_selection(cx);
                         return;
                     }
 

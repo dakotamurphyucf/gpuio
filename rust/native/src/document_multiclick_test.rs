@@ -226,3 +226,72 @@ fn multiclick_keeps_combining_and_joined_graphemes_whole() {
         assert_selection(&text, cx, cluster.len() + 1..2 * cluster.len() + 1, cluster);
     }
 }
+
+#[test]
+fn obsolete_frame_multiclick_cannot_restore_replaced_text() {
+    for (atomic, click_count) in [false, true]
+        .into_iter()
+        .flat_map(|atomic| (1..=3).map(move |count| (atomic, count)))
+    {
+        let mut app = TestAppContext::single();
+        app.update(gpui_base::init);
+        let extensions = if atomic {
+            MarkdownExtensions::default().plugin(Atom)
+        } else {
+            MarkdownExtensions::default()
+        };
+        let source = if atomic { "`old`" } else { "Obsolete text" };
+        let (view, cx) = app.add_window_view(|_, cx| Scene {
+            text: cx.new(|cx| {
+                let mut state = TextViewState::externally_prepared(cx);
+                state.set_prepared(
+                    PreparedText::parse(source, extensions.clone()).unwrap(),
+                    None,
+                    cx,
+                );
+                state
+            }),
+            extensions: extensions.clone(),
+            width: 450.,
+        });
+        cx.simulate_a11y_active(true);
+        draw(cx);
+        let text = view.read_with(cx, |view, _| view.text.clone());
+        let bounds = text.read_with(cx, |state, _| state.bounds());
+        let point = bounds.origin + gpui::point(px(2.), px(10.));
+        cx.simulate_mouse_move(point, None, Default::default());
+        // Keep replacement and dispatch inside one update: no repaint can
+        // refresh the old hitbox or its installed callback between them.
+        cx.update(|window, cx| {
+            text.update(cx, |state, cx| {
+                state.set_prepared(
+                    PreparedText::parse("Current content", extensions.clone()).unwrap(),
+                    None,
+                    cx,
+                )
+            });
+            window.dispatch_event(
+                gpui::PlatformInput::MouseDown(gpui::MouseDownEvent {
+                    button: gpui::MouseButton::Left,
+                    position: point,
+                    click_count,
+                    modifiers: Default::default(),
+                    first_mouse: false,
+                }),
+                cx,
+            );
+        });
+        cx.simulate_mouse_up(point, gpui::MouseButton::Left, Default::default());
+        assert!(
+            text.read_with(cx, |state, _| state.selected_text().is_empty()),
+            "old frame restored selection; atomic={atomic}"
+        );
+        draw(cx);
+        assert!(
+            cx.update(gpui_base::TextSelection::selected_text)
+                .is_empty()
+        );
+        click(cx, "Current content", 0, 2);
+        assert_selection(&text, cx, 0..7, "Current");
+    }
+}
