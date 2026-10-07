@@ -110,7 +110,8 @@ fn bar_ramps_follow_value_direction_and_preserve_clipped_plateaus() {
 
 fn source() -> Data {
     Data {
-        version: 2,
+        version: 3,
+        bar_baselines: vec![],
         bar_backgrounds: vec![],
         contents: Contents::Cartesian(vec![data::Layer::Bar(data::Series {
             id: 55,

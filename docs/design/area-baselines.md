@@ -50,7 +50,7 @@ values, native GPU pixels and a public root/installed gallery walkthrough with
 source selection and cleanup. Unit geometry alone does not establish GPU or
 application acceptance.
 
-Per-bar baselines and arbitrary dense per-datum backgrounds remain explicit
-catalog work. They require a separate bounded source/style representation with
-aggregation and provenance semantics; this scalar area option does not close
-those gaps.
+[Per-bar baselines](bar-baselines.md) and [dense bar backgrounds](dense-bar-backgrounds.md)
+now have separate bounded source-sidecar representations, with aggregation and
+provenance contracts. Their data schema is 3; the area style schema remains -9.
+Arbitrary pixel-bound callbacks remain an explicit catalog difference.

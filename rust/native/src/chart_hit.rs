@@ -481,7 +481,7 @@ mod tests {
     }
     #[test]
     fn spatial_pruning_agrees_with_exhaustive_marks_for_every_family() {
-        for fixture in include_str!("../../../test/fixtures/chart-v2-data.hex").lines() {
+        for fixture in include_str!("../../../test/fixtures/chart-v3-data.hex").lines() {
             let (_, hex) = fixture.split_once(' ').unwrap();
             let bytes = (0..hex.len())
                 .step_by(2)
@@ -532,7 +532,8 @@ mod tests {
     #[test]
     fn hundred_thousand_points_stay_bounded_and_queries_prune_work() {
         let data = Data {
-            version: 2,
+            version: 3,
+            bar_baselines: vec![],
             bar_backgrounds: vec![],
             contents: Contents::Cartesian(vec![Layer::Line(Series {
                 id: 1,
@@ -578,14 +579,16 @@ mod tests {
     #[test]
     fn empty_and_nearest_sample_queries_do_not_invent_data() {
         let empty = Data {
-            version: 2,
+            version: 3,
+            bar_baselines: vec![],
             bar_backgrounds: vec![],
             contents: Contents::Cartesian(vec![]),
         };
         let (plan, index) = prepared(&empty, Policy::default(), Orientation::Vertical);
         assert_eq!(index.query(&plan, Point { x: 50., y: 50. }, true), None);
         let data = Data {
-            version: 2,
+            version: 3,
+            bar_baselines: vec![],
             bar_backgrounds: vec![],
             contents: Contents::Cartesian(vec![Layer::Line(Series {
                 id: 1,

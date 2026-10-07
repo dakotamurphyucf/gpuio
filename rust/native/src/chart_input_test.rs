@@ -65,7 +65,8 @@ pub(super) fn publish_input(
         base,
         generation,
         &Data {
-            version: 2,
+            version: 3,
+            bar_baselines: vec![],
             bar_backgrounds: vec![],
             contents: Contents::Pie(values),
         },

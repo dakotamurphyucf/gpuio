@@ -207,7 +207,8 @@ pub(super) async fn exercise(
             .collect();
         axes.rotate_right(index);
         let data = Data {
-            version: 2,
+            version: 3,
+            bar_baselines: vec![],
             bar_backgrounds: vec![],
             contents: Contents::Radar(axes, vec![]),
         };

@@ -38,7 +38,8 @@ fn config(source: ResourceId, color: i64) -> Config {
 }
 fn data(value: f64) -> Data {
     Data {
-        version: 2,
+        version: 3,
+        bar_baselines: vec![],
         bar_backgrounds: vec![],
         contents: Contents::Pie(vec![Slice {
             id: 1,
@@ -316,7 +317,8 @@ async fn exercise(
     // Dense native legend has bounded visible height, real scroll extent and
     // stable scroll position across ordinary updates; reset clears that state.
     let dense = Data {
-        version: 2,
+        version: 3,
+        bar_baselines: vec![],
         bar_backgrounds: vec![],
         contents: Contents::Pie(
             (1..=256)

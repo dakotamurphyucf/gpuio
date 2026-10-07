@@ -11,7 +11,8 @@ fn tick(position: TickPosition, text: &str) -> Tick {
 }
 fn data() -> data::Data {
     data::Data {
-        version: 2,
+        version: 3,
+        bar_baselines: vec![],
         bar_backgrounds: vec![],
         contents: data::Contents::Cartesian(vec![data::Layer::Line(data::Series {
             id: 1,
@@ -137,7 +138,8 @@ fn category_targets_follow_ids_across_reordering_and_empty_caption_keeps_grid() 
         label: format!("original {id}"),
     };
     let mut source = data::Data {
-        version: 2,
+        version: 3,
+        bar_baselines: vec![],
         bar_backgrounds: vec![],
         contents: data::Contents::Categorical(vec![category(7), category(9)], vec![]),
     };

@@ -308,7 +308,7 @@ impl<'a> Index<'a> {
     pub fn bar_values(&self, plan: &geometry::Plan, index: usize) -> Result<(f64, f64), Error> {
         match plan.summary(index) {
             Some(geometry::Summary::Stacked { lower, upper, .. }) => Ok((lower, upper)),
-            Some(geometry::Summary::Bar(value)) => Ok((0., value)),
+            Some(geometry::Summary::Bar { value, baseline }) => Ok((baseline, value)),
             _ => {
                 let geometry::Source::Cartesian { series, start, end } = plan.marks[index].source
                 else {

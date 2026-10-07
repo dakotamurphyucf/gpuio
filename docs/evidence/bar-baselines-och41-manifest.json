@@ -1,0 +1,121 @@
+{
+  "archive": "bar-baselines-och41-logs.tar.gz",
+  "sha256": "a9883f7a584f3c5a5fc13205fd38db12b33695dfb59ed36f9a07affb5b0c14ec",
+  "members": [
+    {
+      "path": "bar-baseline-format.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "bar-baseline-rustfmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "bar-baseline-native-final.log",
+      "bytes": 701453,
+      "sha256": "be8b36c89329d4758c55b3fb8dfe76d660226d4dc475f0ddaa67f8b56ef85dc9"
+    },
+    {
+      "path": "bar-baseline-gpu.log",
+      "bytes": 588646,
+      "sha256": "481fa788b2e5e6a6b82a7c4dca85af2b07ba1eabceb4b3bdd8dca4f92a426bdf"
+    },
+    {
+      "path": "bar-baseline-gpu-second.log",
+      "bytes": 631737,
+      "sha256": "1432ee7a0d60b065b91bd261bcbffb09310a99a2a9d96e64e69f808717c13072"
+    },
+    {
+      "path": "bar-baseline-clippy.log",
+      "bytes": 588425,
+      "sha256": "3dc8712d0db447a3c59f4959c84906ea932c33b6ce17e1e3421378d29a4fbd9d"
+    },
+    {
+      "path": "bar-baseline-dune.log",
+      "bytes": 705904,
+      "sha256": "cae47821f3d7806f5b7657a883769f3cae31466b8754263b5fafc5b46c20b3c1"
+    },
+    {
+      "path": "bar-baseline-native-first.log",
+      "bytes": 703381,
+      "sha256": "893c0e3bad046a1c89033b5a13c0ef676cc1e9a7c4747e9c2472bf31b5de1a42"
+    },
+    {
+      "path": "bar-baseline-native-second.log",
+      "bytes": 701340,
+      "sha256": "2a81764445d2858de6ba92637bddec6763c5d0b0f6f7903d89f543bbfe4e61ca"
+    },
+    {
+      "path": "bar-baseline-focused-final.log",
+      "bytes": 589047,
+      "sha256": "f2c3112270a994daae17b7729561269f9911f439fc25a76ffa7e26ff171e8fc3"
+    },
+    {
+      "path": "bar-baseline-protocol.log",
+      "bytes": 60044,
+      "sha256": "2efc5204c5376ea370ccb044d21ff07bd0729606bfe0e8b5c5f0e095996253e1"
+    },
+    {
+      "path": "bar-baseline-ocaml-first.log",
+      "bytes": 1023,
+      "sha256": "00e22449306ab4b847902e2b370c24f179f3c129715a77cd2d2d08816ee7b4ec"
+    },
+    {
+      "path": "bar-baseline-gallery.log",
+      "bytes": 14012,
+      "sha256": "d7952f10bda358c10c2b736111a10b5ce1783e137cd7adff875f68459ac66be5"
+    },
+    {
+      "path": "bar-baseline-gallery-second.log",
+      "bytes": 14012,
+      "sha256": "530fd0a733a7644b27a87a106e1c8754c5859ee05c7157302e2de596e7d4c59d"
+    },
+    {
+      "path": "bar-baseline-gallery-third.log",
+      "bytes": 8500,
+      "sha256": "27abfca20f82c4540a99d0f7af3a7987c4f1db48a485f8bc9b42c34f66b91c5e"
+    },
+    {
+      "path": "bar-baseline-consumer-build.log",
+      "bytes": 100829,
+      "sha256": "1792038b9df891f73b118b167f93c2ec12e11b8a24642e6f56e273b6dbbc2d2a"
+    },
+    {
+      "path": "bar-baseline-consumer-native.log",
+      "bytes": 8552,
+      "sha256": "d468f3e584f9ad6a0755d015343001d2b8464b9bd7e3a76fc517d1d24f99183d"
+    },
+    {
+      "path": "bar-baseline-doc-audit.log",
+      "bytes": 139,
+      "sha256": "613252b2b1e5fbc0302ecc84f7f62dd0ee3c8de88d4ba2245b03e1b2471f21e4"
+    },
+    {
+      "path": "bar-baseline-metadata.json",
+      "bytes": 12826,
+      "sha256": "1de11990dac6240677b1b61e5caf9ccd74deae76105d1f55b8e500731a5eda0b"
+    },
+    {
+      "path": "bar-baseline-gallery-images/gallery-failure.png",
+      "bytes": 529040,
+      "sha256": "071d7063b2b76b56af5b2e92ac7674088b249191819bb6e5ca4cc04b20db6cff"
+    },
+    {
+      "path": "bar-baseline-gallery-images-second/gallery-failure.png",
+      "bytes": 529040,
+      "sha256": "071d7063b2b76b56af5b2e92ac7674088b249191819bb6e5ca4cc04b20db6cff"
+    },
+    {
+      "path": "bar-baseline-gallery-images-third/gallery-backgrounds-intervals-reordered.png",
+      "bytes": 416116,
+      "sha256": "7f7bd0c1c72ecd33ec38d300d731b926a242d874f13b3702f636bd59e1d95bf2"
+    },
+    {
+      "path": "bar-baseline-consumer-images/gallery-backgrounds-intervals-reordered.png",
+      "bytes": 416116,
+      "sha256": "7f7bd0c1c72ecd33ec38d300d731b926a242d874f13b3702f636bd59e1d95bf2"
+    }
+  ]
+}

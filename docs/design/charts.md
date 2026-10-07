@@ -68,7 +68,7 @@ data-table adapters without an unchecked constructor for validated datasets.
 
 ## Binary data boundary
 
-`Chart_data.Expert.encode/decode` and Rust `decode_chart_data` share a version-1
+`Chart_data.Expert.encode/decode` and Rust `decode_chart_data` share an explicitly versioned
 standalone bin_prot envelope, capped at 16 MiB. The payload tags are Cartesian,
 pie, radar, candlestick and Sankey; Cartesian layer tags distinguish line/area/bar.
 Typed Core IDs convert only at this boundary. These are resource payloads, not
@@ -766,3 +766,23 @@ still required at that checkpoint. The subsequent [initial renderer](../evidence
 adds experimental `View.chart` attachment and native Card/Overlay content with
 ordinary-button/focus/retirement evidence. Broader child-widget and public-gallery
 qualification remains open. Existing applications default to an empty inspection list.
+
+## Data-owned bar intervals and backgrounds — data schema 3
+
+[Per-observation baselines](bar-baselines.md) and
+[dense backgrounds](dense-bar-backgrounds.md) are immutable source sidecars keyed
+by series/datum identity. Baselines are data-unit origins; original numeric or
+categorical values remain endpoints. Exact marks use both bounds. Sum and Mean
+require a common baseline within each bucket; Sum adds relative contributions
+and the baseline once, while Mean averages endpoints. Stacking requires a shared
+baseline at each populated position and preserves natural-order contributions.
+Incompatible baselines report Invalid_config rather than silently discarding an
+origin. Original-data browsing and native inspection retain source values.
+
+Baseline and brush counts are bounded independently at 100,000 entries, but both
+share the existing 16 MiB encoded-source and retained-memory limits with the
+original observations. Source publication owns their lifetime atomically.
+Schema 3 appends the baseline records after the background list; previous schemas
+are rejected. Current view/options/style/data versions are **-2/9/-9/3**. Matching
+packages are required. Earlier dated sections describe historical increments;
+their fixtures and evidence do not establish current-source release acceptance.

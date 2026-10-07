@@ -1,7 +1,8 @@
 # Bar backgrounds: Bonsai state and scoped chart publication
 
 **Charts & data → Bar backgrounds** demonstrates dense, data-owned brushes,
-stable batch identity, sparse highlighting and explicit mean aggregation. It is
+stable batch identity, per-bar baselines, sparse highlighting and explicit mean
+aggregation. It is
 an OCaml application example using public APIs; no Rust plotting callback is
 required. Read the [pure fixture walkthrough](chart_backgrounds_data.md) first.
 
@@ -56,7 +57,8 @@ Deactivation cancels the child scope and releases the native registration;
 late acquisition replies are suppressed. The notice resets to preparing.
 Reentering the same branch creates a new native source from the retained fixture
 and last applied source theme, and clears the selected target. Fixture phase,
-order, pattern mode, color count and Bonsai control choices remain in the branch's
+order, pattern mode, baseline choice, color count and Bonsai control choices remain
+in the branch's
 OCaml graph across reentry. Another window has its own graph and resource scope.
 The borrowed handle does not prolong a cancelled source's lifetime. This example
 uses the application's Eio chart service; it introduces no file I/O, custom worker
@@ -81,7 +83,27 @@ and `Registered.data source`, then
 `Gpuio_chart_samples.describe_selection`. Thus requested fixture data is never
 used to explain a selection against an older published source.
 
+For an exact Cartesian target, the component pattern-matches
+`aggregation = Exact` and queries `Chart_data.bar_baseline data ~series
+~datum:span.first` on that published source. A stored value is appended as
+`baseline %.3g`; absent metadata leaves the ordinary endpoint description alone.
+Thus Zero mode renders from zero without an explicit baseline suffix. Aggregate
+targets retain the sample helper's source-span description; the component does
+not treat an aggregate as a single datum or invent a baseline for it.
+
 ## Source brushes, view style and sampling
+
+The baseline row uses `List.map Data.Baselines.all` to construct three buttons:
+**Zero baselines**, **Shared baseline 40** and **Individual baselines**.
+`Data.Baselines.equal candidate (Data.baselines current)` derives each selected
+state with typed equality. Clicking a button runs
+`publish (fun data -> Data.with_baselines data candidate)`: the function changes
+the immutable fixture, and the surrounding effect rebuilds and explicitly
+publishes the source. This is data metadata, so a baseline button uploads data;
+the orientation and appearance switches instead rebuild chart configuration.
+Shared uses 40 for all 24 bars; Individual cycles 20, 40 and 60 by original batch
+index, so IDs, original endpoints and baseline associations survive reversal.
+See the [fixture walkthrough](chart_backgrounds_data.md) for construction.
 
 The initial source uses `Theme.default`. Changing the preview palette updates
 chart axes, labels, grid, selection, size and ordinary view styling, but it does
@@ -101,6 +123,17 @@ The two axis controls map to the four explicit Cartesian orientations.
 **Mean background bars** chooses `Chart_sampling.Bar.mean ~max_buckets:6`;
 otherwise `Bar.exact` preserves exact bars. Mean is an explicit reduction of
 presentation, while inspection and **View data** retain original values.
+Mean also requires the defined observations in each bucket to share an effective
+baseline. Zero and Shared satisfy that condition. Individual deliberately gives
+the combined observations different baselines, so preparation reports
+`Chart.Error.Invalid_config`. `on_event` handles `Failed error` by displaying the
+typed error's sexp in the notice. Source publication can succeed while chart
+preparation fails; the baseline buttons can therefore show the admitted choice
+alongside that error. Return to **Shared baseline 40** or turn Mean off to request
+a compatible configuration. The [local baseline walkthrough](../../docs/evidence/bar-baselines-och41.md)
+checks this failure/recovery sequence in the root and fresh installed consumer,
+alongside original-data inspection and source cleanup.
+
 **Uniform background agreement** selects `Chart_appearance.Aggregates.Uniform`;
 otherwise the policy is `Inherit_series`. This choice is independent of Mean and
 does not aggregate on its own. Uniform requires agreement among participating
@@ -111,6 +144,19 @@ whole mixed bucket. See [appearance](../../lib/core/chart_appearance.mli),
 [chart contract](../../docs/design/charts.md).
 
 ## Trace an interaction and adapt it
+
+Starting with Exact at phase zero, choose **Shared baseline 40**. The native
+button action runs its stored effect, `publish` reads the latest fixture and
+`Data.with_baselines` selects Shared without changing Batch 01's endpoint 30.
+`data_exn` rebuilds brushes using the last applied source theme and attaches 40
+to each stable pair; local `Registered.set` success then stores the fixture and
+sets the publishing notice. Bonsai observes the new model and marks the Shared
+button selected. After publication and preparation, selecting Batch 01 uses the
+published data to describe endpoint 30 and baseline 40, representing a downward
+40→30 interval. In Individual mode its baseline becomes 20 while its endpoint
+remains 30; enabling Mean requests incompatible buckets and routes the explicit
+failure through `on_event`. Returning to Shared requests recovery through another
+publication. Neither a selected button nor local admission proves native paint.
 
 Select Batch 01, then choose **Reorder batches**. The native button event runs the
 stored effect; `publish Data.reorder` reads the current fixture and rebuilds
@@ -125,6 +171,8 @@ uploading data, and continues to address the same datum at its new position.
 For a realistic adaptation, add a second highlighted batch in `appearance` using
 its stable series/datum pair; do not use the current screen index as identity.
 Keep sparse exceptions in `Chart_appearance` and dense per-record brushes in
-`Chart_data.with_bar_backgrounds`. For external datasets, replace fixture `_exn`
+`Chart_data.with_bar_backgrounds`; keep interval origins in the independent
+`Chart_data.with_bar_baselines` sidecar, rather than rewriting endpoints.
+For external datasets, replace fixture `_exn`
 unwrapping with recoverable validation, preserve the scope owner and published
 data guard, and present admitted requests separately from native acceptance.

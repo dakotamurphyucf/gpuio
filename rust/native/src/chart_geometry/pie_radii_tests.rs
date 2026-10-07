@@ -4,7 +4,8 @@ use gpuio_protocol::chart_selection::Selection;
 
 fn dataset(ids: &[i64]) -> data::Data {
     data::Data {
-        version: 2,
+        version: 3,
+        bar_baselines: vec![],
         bar_backgrounds: vec![],
         contents: data::Contents::Pie(
             ids.iter()

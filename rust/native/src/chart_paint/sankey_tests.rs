@@ -4,7 +4,8 @@ use gpuio_protocol::chart_data::{Contents, Edge, Node};
 
 fn data() -> Data {
     Data {
-        version: 2,
+        version: 3,
+        bar_baselines: vec![],
         bar_backgrounds: vec![],
         contents: Contents::Sankey(
             vec![

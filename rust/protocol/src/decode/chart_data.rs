@@ -137,7 +137,7 @@ pub fn decode_chart_data(bytes: &[u8]) -> Result<Data, DecodeError> {
     }
     let mut decoder = Decoder(Cursor::new(bytes));
     let version = decoder.int()?;
-    if version != 2 {
+    if version != 3 {
         return Err(DecodeError::Malformed);
     }
     let contents = decoder.chart_contents(&mut Budget {
@@ -151,6 +151,13 @@ pub fn decode_chart_data(bytes: &[u8]) -> Result<Data, DecodeError> {
             brush: d.chart_brush()?,
         })
     })?;
+    let bar_baselines = decoder.list(MAX_POINTS, |d| {
+        Ok(BarBaseline {
+            series: d.int()?,
+            datum: d.int()?,
+            baseline: d.float()?,
+        })
+    })?;
     if decoder.remaining() != 0 {
         return Err(DecodeError::Malformed);
     }
@@ -158,6 +165,7 @@ pub fn decode_chart_data(bytes: &[u8]) -> Result<Data, DecodeError> {
         version,
         contents,
         bar_backgrounds,
+        bar_baselines,
     };
     data.validate().map_err(|error| match error {
         ValidationError::InvalidData => DecodeError::Malformed,

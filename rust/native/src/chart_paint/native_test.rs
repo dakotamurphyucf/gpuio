@@ -49,7 +49,8 @@ fn series() -> data::Series {
 }
 fn dataset(contents: data::Contents) -> Data {
     Data {
-        version: 2,
+        version: 3,
+        bar_baselines: vec![],
         bar_backgrounds: vec![],
         contents,
     }
@@ -408,6 +409,88 @@ fn cases() -> Vec<Case> {
                 options,
                 style,
                 samples,
+            );
+        }
+    }
+    for categorical in [false, true] {
+        for orientation in [
+            Orientation::Vertical,
+            Orientation::VerticalReversed,
+            Orientation::Horizontal,
+            Orientation::HorizontalReversed,
+        ] {
+            let mut intervals = bars.clone();
+            intervals.points[0].y = Some(1.);
+            intervals.points[1].y = Some(3.);
+            let mut data = if categorical {
+                dataset(data::Contents::Categorical(
+                    vec![
+                        data::Category {
+                            id: 1,
+                            label: "A".into(),
+                        },
+                        data::Category {
+                            id: 2,
+                            label: "B".into(),
+                        },
+                    ],
+                    vec![data::CategoricalLayer::Bar(data::CategoricalSeries {
+                        id: intervals.id,
+                        name: intervals.name.clone(),
+                        points: intervals
+                            .points
+                            .iter()
+                            .enumerate()
+                            .map(|(i, p)| data::CategoricalPoint {
+                                id: p.id,
+                                category: i as i64 + 1,
+                                value: p.y,
+                                label: String::new(),
+                            })
+                            .collect(),
+                    })],
+                ))
+            } else {
+                dataset(data::Contents::Cartesian(vec![data::Layer::Bar(
+                    intervals.clone(),
+                )]))
+            };
+            data.bar_baselines = intervals
+                .points
+                .iter()
+                .map(|p| data::BarBaseline {
+                    series: intervals.id,
+                    datum: p.id,
+                    baseline: 2.,
+                })
+                .collect();
+            data.bar_baselines.sort_by_key(|b| (b.series, b.datum));
+            let mut config = options();
+            config.cartesian.orientation = orientation;
+            let pixel = |category: usize, unit: f32, filled: bool| {
+                let projected = if orientation.is_reversed() {
+                    1. - unit
+                } else {
+                    unit
+                };
+                let (x, y) = if orientation.is_horizontal() {
+                    (projected * 200., (category as f32 + 0.5) * 80.)
+                } else {
+                    ((category as f32 + 0.5) * 100., (1. - projected) * 160.)
+                };
+                sample(x, y, if filled { 255 } else { 0 }, 0, 0)
+            };
+            add(
+                "bar-baseline",
+                data,
+                config,
+                style(),
+                vec![
+                    pixel(0, 0.25, true),
+                    pixel(0, 0.75, false),
+                    pixel(1, 0.25, false),
+                    pixel(1, 0.75, true),
+                ],
             );
         }
     }

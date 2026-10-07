@@ -1,8 +1,9 @@
 # Bar-background data: stable batches and resolved brushes
 
 This pure OCaml fixture supplies the gallery's **Charts & data → Bar backgrounds**
-preview. It creates 24 categorical bars whose source-owned colors follow batch
-identity through value updates and reversal. Read this before the
+preview. It creates 24 categorical bars whose source-owned colors and optional
+data-unit baselines follow batch identity through value updates and reversal.
+Read this before the
 [Bonsai preview walkthrough](chart_backgrounds.md); no Rust knowledge is needed.
 
 Build and run the owning application with the repository's isolated toolchain:
@@ -22,9 +23,13 @@ input, accessibility or pixel acceptance.
 
 [chart_backgrounds_data.mli](chart_backgrounds_data.mli) exposes an abstract `t`
 and pure operations. [chart_backgrounds_data.ml](chart_backgrounds_data.ml) defines
-the record: `phase`, `reordered` and `patterns`. `initial` starts at phase zero,
-original order and solid fills. `advance` increments modulo 13; `reorder` and
-`toggle_patterns` return updated records. `[@@deriving equal]` generates typed
+the record: `phase`, `reordered`, `patterns` and `baselines`. `Baselines.t` is a
+variant with three alternatives: `Zero`, `Shared` and `Individual`. `all` lists
+the choices in button order and `label` supplies their visible text. `initial`
+starts at phase zero, original order, solid fills and `Baselines.Zero`.
+`advance` increments modulo 13; `reorder`, `toggle_patterns` and receiver-first
+`with_baselines t choice` return updated records, preserving the other fields.
+`baselines t` reads the choice. `[@@deriving equal]` generates typed
 equality. None of these functions mutates state, starts Eio work or constructs a
 Bonsai graph; the caller owns storage and publication.
 
@@ -45,6 +50,25 @@ in this order:
    display `order`. `D.Bar_background.create ~series ~datum` associates a brush
    by typed identity. `D.with_bar_backgrounds` validates references, canonicalizes
    descriptors and resolves color tokens against the supplied `Theme.t`.
+5. Baseline descriptors also use original `indices`. `List.filter_map` keeps
+   only the `Some` results returned for those indices; `Option.map` converts
+   each present number into a validated descriptor. `Zero` returns `None` for
+   every index, supplying an empty list: the default zero baseline without
+   explicitly stored entries.
+   `Shared` supplies 40 for every batch. `Individual` uses
+   `20 + 20 * (index % 3)`, cycling 20, 40 and 60 by original batch index.
+   `D.Bar_baseline.create ~series ~datum base` validates each data-unit value;
+   `D.with_bar_baselines data baselines` attaches the complete sidecar to the
+   already colored source. An empty list clears baselines while keeping brushes.
+
+An endpoint is still the formula in step 3: selecting a baseline does not subtract
+it from the stored value or change any ID, label or ordering. At phase zero, Batch
+01 keeps endpoint 30; its interval is 0→30 in Zero mode, 40→30 in Shared mode and
+20→30 in Individual mode. Reversal preserves each batch's baseline because the
+descriptor uses its original ID. Native preparation projects those intervals;
+this fixture creates no pixel coordinates. See the
+[baseline contract](../../docs/design/bar-baselines.md) for validation and
+aggregation rules.
 
 `background t index` cycles accent, muted and foreground tokens. In solid mode it
 uses `Background.solid`. Pattern mode retains a solid brush for remainder zero,
@@ -67,6 +91,10 @@ When **Reorder batches** runs, the preview reads its current `t`, calls `reorder
 and supplies the result to `data_exn` with the last applied source theme. Categories
 and points reverse together; Batch 01 keeps its datum/category IDs and value.
 Background descriptors still arrive in original order and resolve to those IDs.
+Baseline descriptors do too: Batch 01 retains 20 in Individual mode regardless
+of its new screen position. Choosing **Shared baseline 40** calls
+`with_baselines` through the same publication path, keeping values, brushes and
+order while replacing the baseline sidecar.
 The preview submits the resulting dataset, then stores the new model after local
 admission succeeds. Native publication and presentation happen later; this pure
 module cannot acknowledge either.
@@ -77,6 +105,9 @@ index 35, so replace that formula before growing beyond 35 batches.
 Preserve unique typed IDs and derive backgrounds from original
 identity rather than the current display position. To accept missing values, use
 `None` deliberately and review selection descriptions and aggregation behavior.
+Baselines for missing observations remain source metadata even though no bar is
+drawn; defined observations with different baselines in one Mean bucket are
+incompatible. Keep that error recoverable in an application using external data.
 To change colors, change the tokens in `background` and provide a theme that
 defines them. Colors resolve when constructing data; merely changing a chart's
 view theme does not rewrite the stored brushes.

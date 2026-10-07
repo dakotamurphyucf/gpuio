@@ -118,10 +118,17 @@ pub struct BarBackground {
     pub brush: crate::chart_appearance::Brush,
 }
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]
+pub struct BarBaseline {
+    pub series: i64,
+    pub datum: i64,
+    pub baseline: f64,
+}
+#[derive(Clone, Debug, PartialEq, BinProtWrite)]
 pub struct Data {
     pub version: i64,
     pub contents: Contents,
     pub bar_backgrounds: Vec<BarBackground>,
+    pub bar_baselines: Vec<BarBaseline>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -178,8 +185,15 @@ impl Stats {
     }
 }
 impl Data {
+    pub fn bar_baseline(&self, series: i64, datum: i64) -> Option<f64> {
+        self.bar_baselines
+            .binary_search_by_key(&(series, datum), |b| (b.series, b.datum))
+            .ok()
+            .map(|i| self.bar_baselines[i].baseline)
+    }
     pub fn validate(&self) -> Result<Stats, ValidationError> {
-        require(self.version == 2)?;
+        require(self.version == 3)?;
+        limit(self.bar_baselines.len() <= MAX_POINTS)?;
         limit(self.bar_backgrounds.len() <= MAX_POINTS)?;
         let mut stats = Stats::default();
         match &self.contents {
@@ -324,11 +338,16 @@ impl Data {
                 require(visited == nodes.len())?;
             }
         }
-        if !self.bar_backgrounds.is_empty() {
+        if !self.bar_backgrounds.is_empty() || !self.bar_baselines.is_empty() {
             require(
                 self.bar_backgrounds
                     .windows(2)
                     .all(|pair| (pair[0].series, pair[0].datum) < (pair[1].series, pair[1].datum)),
+            )?;
+            require(
+                self.bar_baselines
+                    .windows(2)
+                    .all(|p| (p[0].series, p[0].datum) < (p[1].series, p[1].datum)),
             )?;
             let mut keys = BTreeSet::new();
             match &self.contents {
@@ -348,6 +367,11 @@ impl Data {
                 }
                 _ => {}
             }
+            require(
+                self.bar_baselines
+                    .iter()
+                    .all(|b| number(b.baseline) && keys.contains(&(b.series, b.datum))),
+            )?;
             require(
                 self.bar_backgrounds
                     .iter()

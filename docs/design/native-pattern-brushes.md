@@ -44,7 +44,8 @@ controls, including transparent gaps; chart evidence must include path and quad
 families, orientations, themes, source selection and cleanup in root/installed
 consumers. Decoder or compilation success alone does not establish that evidence.
 
-Scalar area and per-bar baselines remain separate work. The pinned low-level
+[Scalar area](area-baselines.md) and [per-bar baselines](bar-baselines.md) are
+implemented by separate contracts. The pinned low-level
 area shape accepts one `y0` coordinate and the bar shape a per-datum base accessor.
 Their GPUIO contract must define coordinate units, domain inclusion, stacking,
 aggregation, source provenance and bounded storage without synchronous OCaml

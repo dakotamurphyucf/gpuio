@@ -147,10 +147,20 @@ module Bar_background = struct
   [@@deriving bin_io, equal, sexp_of]
 end
 
+module Bar_baseline = struct
+  type t =
+    { series : int64
+    ; datum : int64
+    ; baseline : float
+    }
+  [@@deriving bin_io, equal, sexp_of]
+end
+
 type t =
   { version : int64
   ; contents : Contents.t
   ; bar_backgrounds : Bar_background.t list
+  ; bar_baselines : Bar_baseline.t list
   }
 [@@deriving bin_io, equal, sexp_of]
 
@@ -286,7 +296,7 @@ let bin_read_t buffer ~pos_ref =
     | _ -> fail ()
   in
   let version = int () in
-  if not (Int64.equal version 2L) then fail ();
+  if not (Int64.equal version 3L) then fail ();
   let contents =
     match tag () with
     | 0 -> Contents.Cartesian (list max_series layer)
@@ -319,7 +329,15 @@ let bin_read_t buffer ~pos_ref =
       if not (Chart_appearance_wire.Brush.valid brush) then fail ();
       { Bar_background.series; datum; brush })
   in
-  { version; contents; bar_backgrounds }
+  let bar_baselines =
+    list max_points (fun () ->
+      let series = int () in
+      let datum = int () in
+      let baseline = float () in
+      if not (Float.is_finite baseline && Float.(abs baseline <= 1e100)) then fail ();
+      { Bar_baseline.series; datum; baseline })
+  in
+  { version; contents; bar_backgrounds; bar_baselines }
 ;;
 
 let bin_reader_t = { bin_reader_t with read = bin_read_t }
@@ -358,7 +376,10 @@ let within_bounds t =
       points_remaining := !points_remaining - count;
       true)
   in
-  List.length t.bar_backgrounds <= max_points
+  List.length t.bar_baselines <= max_points
+  && List.for_all t.bar_baselines ~f:(fun b ->
+    Float.is_finite b.Bar_baseline.baseline && Float.(abs b.baseline <= 1e100))
+  && List.length t.bar_backgrounds <= max_points
   && List.for_all t.bar_backgrounds ~f:(fun b ->
     Chart_appearance_wire.Brush.valid b.Bar_background.brush)
   && (match t.contents with

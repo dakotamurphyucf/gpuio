@@ -4,7 +4,8 @@ use gpuio_protocol::{chart_data::*, chart_options::*, chart_sampling::*, chart_s
 use std::sync::atomic::AtomicBool;
 fn source() -> Data {
     Data {
-        version: 2,
+        version: 3,
+        bar_baselines: vec![],
         bar_backgrounds: vec![],
         contents: Contents::Categorical(
             [42, 7, 99]
@@ -132,7 +133,13 @@ fn categorical_aggregation_excludes_missing_arithmetic_but_preserves_domain_inte
         };
         let plan = plan(&data, &options, policy);
         assert_eq!(plan.marks.len(), 1);
-        assert_eq!(plan.summary(0), Some(geometry::Summary::Bar(want)));
+        assert_eq!(
+            plan.summary(0),
+            Some(geometry::Summary::Bar {
+                value: want,
+                baseline: 0.
+            })
+        );
         let geometry::Shape::Bar(r) = plan.marks[0].shape else {
             panic!()
         };
@@ -201,7 +208,8 @@ fn point_band_empty_singleton_and_explicit_padding_are_finite() {
 #[test]
 fn category_reduction_buckets_follow_padded_positions_and_keep_large_source_indices() {
     let data = Data {
-        version: 2,
+        version: 3,
+        bar_baselines: vec![],
         bar_backgrounds: vec![],
         contents: Contents::Categorical(
             (1..=4)
@@ -250,7 +258,8 @@ fn category_reduction_buckets_follow_padded_positions_and_keep_large_source_indi
     assert_eq!((bars[1].source.start(), bars[1].source.end()), (1, 3));
     let count = 100_000;
     let data = Data {
-        version: 2,
+        version: 3,
+        bar_baselines: vec![],
         bar_backgrounds: vec![],
         contents: Contents::Categorical(
             (0..count)
@@ -351,7 +360,8 @@ fn signed_categorical_mixed_curves_share_centers_and_keep_area_gaps() {
         .collect(),
     };
     let data = Data {
-        version: 2,
+        version: 3,
+        bar_baselines: vec![],
         bar_backgrounds: vec![],
         contents: Contents::Categorical(
             categories,

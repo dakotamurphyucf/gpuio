@@ -193,7 +193,8 @@ mod tests {
             disabled: false,
         };
         let source = Data {
-            version: 2,
+            version: 3,
+            bar_baselines: vec![],
             bar_backgrounds: vec![],
             contents: Contents::Cartesian(vec![]),
         };
@@ -234,7 +235,8 @@ mod tests {
         config.style.y_axis.position = Some(0.5);
         config.style.y_axis.font_size = 24.;
         let source = Data {
-            version: 2,
+            version: 3,
+            bar_baselines: vec![],
             bar_backgrounds: vec![],
             contents: Contents::Cartesian(vec![]),
         };

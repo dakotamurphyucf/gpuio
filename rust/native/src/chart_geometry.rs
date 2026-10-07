@@ -15,6 +15,7 @@ pub const MAX_PLAN_BYTES: usize = 64 * 1024 * 1024;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Error {
     InvalidInput,
+    InvalidConfiguration,
     Cancelled,
     RenderLimit,
 }
@@ -221,8 +222,12 @@ impl Domain {
 }
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Summary {
-    Bar(f64),
+    Bar {
+        value: f64,
+        baseline: f64,
+    },
     Stacked {
+        baseline: f64,
         value: f64,
         lower: f64,
         upper: f64,
@@ -355,9 +360,6 @@ impl Coordinates {
             |p| p.center(x),
         )
     }
-    fn rect(self, x: f64, value: f64, offset: f64, width: f64) -> Rect {
-        self.rect_between(x, 0., value, offset, width)
-    }
     fn rect_between(self, x: f64, lower: f64, value: f64, offset: f64, width: f64) -> Rect {
         let c = self.category(x) + offset;
         let a = self.value(lower);
@@ -468,7 +470,6 @@ fn cartesian(
     let has_values = layers
         .iter()
         .any(|l| l.points.iter().any(|p| p.y.is_some()));
-    let zero = layers.iter().any(|l| l.kind == Kind::Bar);
     let area_bases = layers
         .iter()
         .enumerate()
@@ -484,7 +485,7 @@ fn cartesian(
     let aggregate_y = reduced
         .iter()
         .flat_map(|s| s.bars())
-        .flat_map(|(b, bounds)| bounds.map_or([0., b.value], |s| [s.lower, s.upper]));
+        .flat_map(|(b, bounds)| bounds.map_or([b.baseline, b.value], |s| [s.lower, s.upper]));
     let area_y = reduced.iter().enumerate().flat_map(|(i, s)| {
         let points = match s {
             reduce::Series::StackedArea(points) => points.as_slice(),
@@ -494,6 +495,13 @@ fn cartesian(
             .iter()
             .flat_map(move |p| [p.bounds.lower + baseline(i), p.bounds.upper + baseline(i)])
     });
+    // Preserve the legacy zero domain contribution of an empty zero-based bar
+    // layer. Any rendered nonzero baseline instead supplies its actual bounds.
+    let zero = layers.iter().any(|l| l.kind == Kind::Bar)
+        && reduced
+            .iter()
+            .flat_map(|s| s.bars())
+            .all(|(b, _)| b.baseline == 0.);
     let y = Domain::from(
         source_y.chain(aggregate_y).chain(area_y).chain(area_bases),
         zero,
@@ -557,14 +565,20 @@ fn cartesian(
                         plan.summaries.push((
                             plan.marks.len(),
                             Summary::Stacked {
+                                baseline: b.baseline,
                                 value: b.value,
                                 lower: bounds.lower,
                                 upper: bounds.upper,
                             },
                         ));
-                    } else if b.source.len() > 1 {
-                        plan.summaries
-                            .push((plan.marks.len(), Summary::Bar(b.value)));
+                    } else if b.source.len() > 1 || b.baseline != 0. {
+                        plan.summaries.push((
+                            plan.marks.len(),
+                            Summary::Bar {
+                                value: b.value,
+                                baseline: b.baseline,
+                            },
+                        ));
                     }
                     plan.marks.push(Mark {
                         layer: series,
@@ -574,7 +588,7 @@ fn cartesian(
                             end: b.source.end(),
                         },
                         shape: Shape::Bar(bounds.map_or_else(
-                            || c.rect(b.x, b.value, offset, bar_width),
+                            || c.rect_between(b.x, b.baseline, b.value, offset, bar_width),
                             |s| c.rect_between(b.x, s.lower, s.upper, offset, bar_width),
                         )),
                     });
@@ -1297,12 +1311,10 @@ pub(crate) fn prepare_with_presentation(
         options,
         cancel,
     )
-    .map_err(|e| {
-        if e == reduce::Error::Cancelled {
-            Error::Cancelled
-        } else {
-            Error::InvalidInput
-        }
+    .map_err(|e| match e {
+        reduce::Error::Cancelled => Error::Cancelled,
+        reduce::Error::IncompatibleBarBaselines => Error::InvalidConfiguration,
+        _ => Error::InvalidInput,
     })?;
     let mut plan = Plan {
         width,

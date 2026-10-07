@@ -533,11 +533,13 @@ pub fn prepare_with_text(
     )
     .map_err(|e| match e {
         geometry::Error::InvalidInput => Error::InvalidInput,
+        geometry::Error::InvalidConfiguration => Error::InvalidConfiguration,
         geometry::Error::Cancelled => Error::Cancelled,
         geometry::Error::RenderLimit => Error::RenderLimit,
     })?;
     crate::chart_node_labels::apply(&mut geometry, data, style, cancel).map_err(|e| match e {
         geometry::Error::InvalidInput => Error::InvalidInput,
+        geometry::Error::InvalidConfiguration => Error::InvalidConfiguration,
         geometry::Error::Cancelled => Error::Cancelled,
         geometry::Error::RenderLimit => Error::RenderLimit,
     })?;

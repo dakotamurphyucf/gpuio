@@ -41,9 +41,17 @@ pub(crate) fn row(data: &Data, mut index: usize) -> Option<Row> {
                 Kind::Area => "Area",
                 Kind::Bar => "Bar",
             };
+            let baseline = if layer.kind == Kind::Bar && !data.bar_baselines.is_empty() {
+                format!(
+                    " · baseline: {}",
+                    data.bar_baseline(layer.id, point.id).unwrap_or(0.)
+                )
+            } else {
+                String::new()
+            };
             Row {
                 name: format!("{kind} · {}", layer.name),
-                value: match &data.contents {
+                value: (match &data.contents {
                     Contents::Categorical(categories, _) => {
                         let c = categories.get(position)?;
                         format!(
@@ -58,7 +66,7 @@ pub(crate) fn row(data: &Data, mut index: usize) -> Option<Row> {
                         point.x,
                         point.y.map_or_else(|| "Missing".into(), |v| v.to_string())
                     ),
-                },
+                }) + &baseline,
                 detail: format!(
                     "Series {} · datum {}{}",
                     layer.id,
@@ -185,7 +193,8 @@ mod tests {
     #[test]
     fn pages_reach_every_original_including_gaps_without_materializing_all_rows() {
         let data = Data {
-            version: 2,
+            version: 3,
+            bar_baselines: vec![],
             bar_backgrounds: vec![],
             contents: Contents::Cartesian(vec![Layer::Line(Series {
                 id: 9,
@@ -219,7 +228,7 @@ mod tests {
     }
     #[test]
     fn all_families_expose_original_values_and_flow_nodes_and_edges() {
-        for fixture in include_str!("../../../test/fixtures/chart-v2-data.hex").lines() {
+        for fixture in include_str!("../../../test/fixtures/chart-v3-data.hex").lines() {
             let (_, hex) = fixture.split_once(' ').unwrap();
             let bytes = (0..hex.len())
                 .step_by(2)
@@ -237,7 +246,8 @@ mod tests {
             }
         }
         let pie = Data {
-            version: 2,
+            version: 3,
+            bar_baselines: vec![],
             bar_backgrounds: vec![],
             contents: Contents::Pie(vec![Slice {
                 id: 7,
@@ -247,7 +257,8 @@ mod tests {
         };
         assert_eq!(row(&pie, 0).unwrap().value, "0");
         let radar = Data {
-            version: 2,
+            version: 3,
+            bar_baselines: vec![],
             bar_backgrounds: vec![],
             contents: Contents::Radar(
                 vec![RadarAxis {
@@ -267,7 +278,8 @@ mod tests {
     #[test]
     fn isolated_nodes_have_zero_totals_and_do_not_disappear() {
         let data = Data {
-            version: 2,
+            version: 3,
+            bar_baselines: vec![],
             bar_backgrounds: vec![],
             contents: Contents::Sankey(
                 vec![Node {

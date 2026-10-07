@@ -88,6 +88,7 @@ pub(super) fn area(
             plan.summaries.push((
                 plan.marks.len(),
                 Summary::Stacked {
+                    baseline: 0.,
                     value,
                     lower: p.bounds.lower + c.value_offset,
                     upper: p.bounds.upper + c.value_offset,

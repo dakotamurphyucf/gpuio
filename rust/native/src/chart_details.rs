@@ -94,7 +94,7 @@ pub(crate) fn describe_with_radar_labels(
                 return None;
             }
             let value = match plan.summary(index) {
-                Some(Summary::Bar(value) | Summary::Stacked { value, .. }) => value,
+                Some(Summary::Bar { value, .. } | Summary::Stacked { value, .. }) => value,
                 None if count == 1 => first.y?,
                 _ => return None,
             };
@@ -137,6 +137,23 @@ pub(crate) fn describe_with_radar_labels(
                 } else {
                     format!("{label}x: {}\ny: {}", x(first.x), y(value))
                 }
+            };
+            let text = if series.kind == crate::chart_cartesian::Kind::Bar
+                && !data.bar_baselines.is_empty()
+            {
+                let baseline = match plan.summary(index) {
+                    Some(Summary::Bar { baseline, .. } | Summary::Stacked { baseline, .. }) => {
+                        baseline
+                    }
+                    _ => data.bar_baseline(series.id, first.id).unwrap_or(0.),
+                };
+                format!(
+                    "{text}\nSource baseline: {}\nEndpoint: {}",
+                    y(baseline),
+                    y(value)
+                )
+            } else {
+                text
             };
             let text = if let Some(Summary::Stacked { lower, upper, .. }) = plan.summary(index) {
                 format!(
@@ -274,7 +291,8 @@ mod tests {
     #[test]
     fn aggregate_tooltips_use_reduced_values_and_original_interval() {
         let data = Data {
-            version: 2,
+            version: 3,
+            bar_baselines: vec![],
             bar_backgrounds: vec![],
             contents: Contents::Cartesian(vec![Layer::Bar(Series {
                 id: 9,
@@ -297,7 +315,13 @@ mod tests {
                 ..Default::default()
             };
             let plan = prepare(&data, policy);
-            assert_eq!(plan.summary(0), Some(Summary::Bar(value)));
+            assert_eq!(
+                plan.summary(0),
+                Some(Summary::Bar {
+                    value,
+                    baseline: 0.
+                })
+            );
             let details = describe(&data, &policy, &Options::default(), &plan, 0).unwrap();
             assert_eq!(details.title, "Throughput");
             assert_eq!(
@@ -311,7 +335,8 @@ mod tests {
             );
         }
         let candles = Data {
-            version: 2,
+            version: 3,
+            bar_baselines: vec![],
             bar_backgrounds: vec![],
             contents: Contents::Candlestick(vec![
                 Candle {
@@ -346,7 +371,8 @@ mod tests {
     #[test]
     fn custom_radar_content_omits_only_its_axis_title() {
         let data = Data {
-            version: 2,
+            version: 3,
+            bar_baselines: vec![],
             bar_backgrounds: vec![],
             contents: Contents::Radar(
                 [7, 9, 11]
@@ -387,7 +413,7 @@ mod tests {
 
     #[test]
     fn every_family_describes_actual_marks_and_rejects_unrelated_sources() {
-        for fixture in include_str!("../../../test/fixtures/chart-v2-data.hex").lines() {
+        for fixture in include_str!("../../../test/fixtures/chart-v3-data.hex").lines() {
             let (_, hex) = fixture.split_once(' ').unwrap();
             let bytes = (0..hex.len())
                 .step_by(2)
@@ -402,7 +428,8 @@ mod tests {
                 assert!(!details.text.is_empty());
                 assert!(details.anchor.x.is_finite() && details.anchor.y.is_finite());
                 let empty = Data {
-                    version: 2,
+                    version: 3,
+                    bar_baselines: vec![],
                     bar_backgrounds: vec![],
                     contents: Contents::Pie(vec![]),
                 };

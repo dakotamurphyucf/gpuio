@@ -135,6 +135,54 @@ def exercise(mac, images):
     press('Back to chart')
     select('Batch 01 (category 101) · value 33')
 
+    # Source endpoints stay unchanged as their baselines change. The first
+    # interval now points downward (40 -> 33), in every orientation.
+    press('Shared baseline 40')
+    ready()
+    select('Batch 01 (category 101) · value 33 · baseline 40')
+    mac.wait_text(TITLE, 'Source baseline: 40')
+    for control, direction in [
+            ('Horizontal background bars', 'Horizontal'),
+            ('Reverse background axis', 'Horizontal reversed'),
+            ('Horizontal background bars', 'Vertical reversed'),
+            ('Reverse background axis', 'Vertical')]:
+        toggle(control)
+        ready(direction)
+        select('Batch 01 (category 101) · value 33 · baseline 40')
+    press('View data')
+    mac.release(mac.wait_find(TITLE, label + ' · original data', 'AXTable'))
+    mac.key(115)
+    mac.release(mac.wait_find(
+        TITLE, 'Category: Batch 01 (101) · value: 33 · baseline: 40',
+        contains=True, search_files=True))
+    press('Back to chart')
+    toggle('Mean background bars')
+    ready(policy='Mean')
+    select('4 categories selected')
+    mac.wait_text(TITLE, 'Source baseline: 40')
+    mac.wait_text(TITLE, 'Endpoint: 49.5')
+    press('Individual baselines')
+    mac.wait_text(TITLE, 'Invalid_config')
+    press('Shared baseline 40')
+    ready(policy='Mean')
+    select('4 categories selected')
+    toggle('Mean background bars')
+    ready()
+    press('Individual baselines')
+    ready()
+    select('Batch 01 (category 101) · value 33 · baseline 20')
+    press('Reorder batches')
+    ready()
+    select('Batch 24 (category 124) · value 51 · baseline 60')
+    select('Batch 01 (category 101) · value 33 · baseline 20', end=True)
+    if images:
+        screenshot(mac, images / 'gallery-backgrounds-intervals-reordered.png', title=TITLE)
+    press('Reorder batches')
+    press('Zero baselines')
+    ready()
+    select('Batch 01 (category 101) · value 33')
+    print('GALLERY_BAR_BASELINES_OK: source endpoints, four directions, browser, mean, incompatible-base failure/recovery, stable reorder', flush=True)
+
     # Switching branches retires the source. Bonsai fixture choices persist,
     # while reacquisition clears the committed selection and republishes data.
     press('Chart families')

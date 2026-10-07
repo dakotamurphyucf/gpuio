@@ -53,7 +53,8 @@ fn series_style(id: i64) -> a::Series {
 #[test]
 fn marker_datum_radius_matches_exact_hit_bounds_and_hidden_markers_keep_selection() {
     let data = Data {
-        version: 2,
+        version: 3,
+        bar_baselines: vec![],
         bar_backgrounds: vec![],
         contents: d::Contents::Cartesian(vec![d::Layer::Line(series(11, &[1., 2., 3.]))]),
     };
@@ -119,7 +120,8 @@ fn marker_datum_radius_matches_exact_hit_bounds_and_hidden_markers_keep_selectio
 #[test]
 fn series_paths_have_independent_brushes_widths_curves_and_legend_colors() {
     let data = Data {
-        version: 2,
+        version: 3,
+        bar_baselines: vec![],
         bar_backgrounds: vec![],
         contents: d::Contents::Cartesian(vec![d::Layer::Area(series(11, &[1., 3., 2.]))]),
     };
@@ -164,7 +166,8 @@ fn series_paths_have_independent_brushes_widths_curves_and_legend_colors() {
 #[test]
 fn stack_curves_require_matching_effective_area_curves() {
     let data = Data {
-        version: 2,
+        version: 3,
+        bar_baselines: vec![],
         bar_backgrounds: vec![],
         contents: d::Contents::Cartesian(vec![
             d::Layer::Area(series(11, &[1., 3., 2.])),
@@ -201,7 +204,8 @@ fn stack_curves_require_matching_effective_area_curves() {
 #[test]
 fn bar_brushes_follow_signed_stack_bounds_and_physical_corners() {
     let data = Data {
-        version: 2,
+        version: 3,
+        bar_baselines: vec![],
         bar_backgrounds: vec![],
         contents: d::Contents::Cartesian(vec![
             d::Layer::Bar(series(11, &[-2., 3.])),
@@ -262,7 +266,8 @@ fn bar_brushes_follow_signed_stack_bounds_and_physical_corners() {
 #[test]
 fn sampled_bar_uses_agreement_instead_of_first_source_color() {
     let data = Data {
-        version: 2,
+        version: 3,
+        bar_baselines: vec![],
         bar_backgrounds: vec![],
         contents: d::Contents::Cartesian(vec![d::Layer::Bar(series(11, &[1., 2., 3., 4.]))]),
     };
@@ -299,13 +304,20 @@ fn sampled_bar_uses_agreement_instead_of_first_source_color() {
     style.appearance.data[3].bar = None;
     let p = make(&style);
     assert_eq!(p.quads[0].brush, solid(style.color(0)));
-    assert_eq!(p.geometry.summary(0), Some(geometry::Summary::Bar(10.)));
+    assert_eq!(
+        p.geometry.summary(0),
+        Some(geometry::Summary::Bar {
+            value: 10.,
+            baseline: 0.
+        })
+    );
 }
 
 #[test]
 fn radar_appearance_uses_axis_identity_and_preserves_original_selection() {
     let data = Data {
-        version: 2,
+        version: 3,
+        bar_baselines: vec![],
         bar_backgrounds: vec![],
         contents: d::Contents::Radar(
             [90, 7, 42]
@@ -382,7 +394,8 @@ fn area_baseline_changes_domain_and_fill_without_rewriting_source() {
     for categorical in [false, true] {
         let source = series(11, &[10., 20., 15.]);
         let data = Data {
-            version: 2,
+            version: 3,
+            bar_baselines: vec![],
             bar_backgrounds: vec![],
             contents: if categorical {
                 d::Contents::Categorical(
@@ -462,7 +475,8 @@ fn area_baseline_changes_domain_and_fill_without_rewriting_source() {
 #[test]
 fn stacked_area_baseline_offsets_bounds_and_requires_shared_effective_value() {
     let data = Data {
-        version: 2,
+        version: 3,
+        bar_baselines: vec![],
         bar_backgrounds: vec![],
         contents: d::Contents::Cartesian(vec![
             d::Layer::Area(series(11, &[2., -3., 4.])),
@@ -489,6 +503,7 @@ fn stacked_area_baseline_offsets_bounds_and_requires_shared_effective_value() {
         assert_eq!(
             p.geometry.summary(0),
             Some(geometry::Summary::Stacked {
+                baseline: 0.,
                 value: 2.,
                 lower: 20.,
                 upper: 22.
@@ -497,6 +512,7 @@ fn stacked_area_baseline_offsets_bounds_and_requires_shared_effective_value() {
         assert_eq!(
             p.geometry.summary(3),
             Some(geometry::Summary::Stacked {
+                baseline: 0.,
                 value: 5.,
                 lower: 22.,
                 upper: 27.
@@ -505,6 +521,7 @@ fn stacked_area_baseline_offsets_bounds_and_requires_shared_effective_value() {
         assert_eq!(
             p.geometry.summary(4),
             Some(geometry::Summary::Stacked {
+                baseline: 0.,
                 value: -7.,
                 lower: 17.,
                 upper: 10.
@@ -534,7 +551,8 @@ fn area_baseline_preserves_gaps_empty_domains_and_non_area_layers() {
     let mut source = series(11, &[1., 2., 3.]);
     source.points[1].y = None;
     let data = Data {
-        version: 2,
+        version: 3,
+        bar_baselines: vec![],
         bar_backgrounds: vec![],
         contents: d::Contents::Cartesian(vec![d::Layer::Area(source.clone())]),
     };
@@ -553,7 +571,8 @@ fn area_baseline_preserves_gaps_empty_domains_and_non_area_layers() {
         point.y = None;
     }
     let empty = Data {
-        version: 2,
+        version: 3,
+        bar_baselines: vec![],
         bar_backgrounds: vec![],
         contents: d::Contents::Cartesian(vec![d::Layer::Area(source)]),
     };
@@ -569,7 +588,8 @@ fn area_baseline_preserves_gaps_empty_domains_and_non_area_layers() {
         d::Layer::Bar(series(11, &[10., 12.])),
     ] {
         let data = Data {
-            version: 2,
+            version: 3,
+            bar_baselines: vec![],
             bar_backgrounds: vec![],
             contents: d::Contents::Cartesian(vec![layer]),
         };
@@ -579,4 +599,37 @@ fn area_baseline_preserves_gaps_empty_domains_and_non_area_layers() {
         assert_eq!(default.geometry.paths, override_.geometry.paths);
         assert_eq!(default.geometry.marks, override_.geometry.marks);
     }
+}
+
+#[test]
+fn incompatible_bar_baselines_are_configuration_errors_not_render_limits() {
+    let data = Data {
+        version: 3,
+        contents: d::Contents::Cartesian(vec![d::Layer::Bar(series(7, &[25., 27.]))]),
+        bar_backgrounds: vec![],
+        bar_baselines: vec![
+            d::BarBaseline {
+                series: 7,
+                datum: 1,
+                baseline: 20.,
+            },
+            d::BarBaseline {
+                series: 7,
+                datum: 2,
+                baseline: 21.,
+            },
+        ],
+    };
+    let result = prepare(
+        &data,
+        Policy {
+            bars: chart_sampling::Bar::Sum(1),
+            ..Default::default()
+        },
+        &options(),
+        &Style::default(),
+        Layout::new(600., 300., 1.).unwrap(),
+        &AtomicBool::new(false),
+    );
+    assert!(matches!(result, Err(Error::InvalidConfiguration)));
 }

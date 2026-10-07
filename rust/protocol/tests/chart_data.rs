@@ -22,7 +22,8 @@ fn series(id: i64, name: &str, points: Vec<Point>) -> Series {
 }
 fn data(contents: Contents) -> Data {
     Data {
-        version: 2,
+        version: 3,
+        bar_baselines: vec![],
         bar_backgrounds: vec![],
         contents,
     }
@@ -120,7 +121,7 @@ fn fixtures() -> Vec<(&'static str, Data)> {
 }
 #[test]
 fn all_families_match_independent_fixture_and_reject_every_truncation() {
-    let fixture = include_str!("../../../test/fixtures/chart-v2-data.hex");
+    let fixture = include_str!("../../../test/fixtures/chart-v3-data.hex");
     let lines = fixture.lines().collect::<Vec<_>>();
     let values = fixtures();
     assert_eq!(lines.len(), values.len());
@@ -223,7 +224,7 @@ fn domain_validation_cannot_be_bypassed_by_valid_binprot_structure() {
         assert!(decode_chart_data(&encode(&candidate)).is_err());
     }
     let mut future = fixtures()[0].1.clone();
-    future.version = 3;
+    future.version = 4;
     assert!(decode_chart_data(&encode(&future)).is_err());
     for name in ["\u{a0}", "\u{2003}"] {
         assert!(
@@ -239,7 +240,7 @@ fn domain_validation_cannot_be_bypassed_by_valid_binprot_structure() {
 }
 #[test]
 fn bounded_decoder_checks_aggregate_counts_text_and_utf8_before_allocation() {
-    let mut huge = b"\x02\x00\x01\x00\x01\x01A".to_vec();
+    let mut huge = b"\x03\x00\x01\x00\x01\x01A".to_vec();
     binprot::Nat0((MAX_POINTS + 1) as u64)
         .binprot_write(&mut huge)
         .unwrap();
@@ -248,8 +249,8 @@ fn bounded_decoder_checks_aggregate_counts_text_and_utf8_before_allocation() {
         decode_chart_data(&vec![0; MAX_BYTES + 1]),
         Err(DecodeError::LimitExceeded)
     );
-    assert!(decode_chart_data(&[2, 255]).is_err());
-    let mut invalid_utf8 = b"\x02\x01\x01\x01\x01\xff".to_vec();
+    assert!(decode_chart_data(&[3, 255]).is_err());
+    let mut invalid_utf8 = b"\x03\x01\x01\x01\x01\xff".to_vec();
     invalid_utf8.extend(0f64.to_le_bytes());
     assert_eq!(
         decode_chart_data(&invalid_utf8),

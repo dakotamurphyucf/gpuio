@@ -374,6 +374,7 @@ type t =
   ; value_count : int
   ; text_bytes : int
   ; bar_backgrounds : Gpuio_protocol.Chart_data_wire.Bar_background.t list
+  ; bar_baselines : Gpuio_protocol.Chart_data_wire.Bar_baseline.t list
   }
 [@@deriving equal, sexp_of]
 
@@ -385,7 +386,7 @@ let finish contents ~value_count ~text_bytes =
   let%map.Or_error () =
     require (text_bytes <= max_text_bytes) "chart text budget exceeded"
   in
-  { contents; value_count; text_bytes; bar_backgrounds = [] }
+  { contents; value_count; text_bytes; bar_backgrounds = []; bar_baselines = [] }
 ;;
 
 let categorical ~categories layers =
@@ -596,7 +597,23 @@ module Bar_background = struct
   let create ~series ~datum background = { series; datum; background }
 end
 
-module Background_key = struct
+module Bar_baseline = struct
+  type t =
+    { series : Series_id.t
+    ; datum : Datum_id.t
+    ; baseline : float
+    }
+  [@@deriving equal, sexp_of]
+
+  let create ~series ~datum baseline =
+    let%map.Or_error () =
+      require (valid_number baseline) "bar baseline must be finite within +/-1e100"
+    in
+    { series; datum; baseline }
+  ;;
+end
+
+module Bar_key = struct
   module T = struct
     type t = int64 * int64 [@@deriving compare, sexp]
   end
@@ -609,23 +626,21 @@ let background_key (b : Gpuio_protocol.Chart_data_wire.Bar_background.t) =
   b.series, b.datum
 ;;
 
-let validate_backgrounds t backgrounds =
-  let module W = Gpuio_protocol.Chart_data_wire in
+let validate_bar_pairs t entries ~name ~key ~valid =
   let%bind.Or_error () =
-    require (List.length backgrounds <= max_points) "chart background limit exceeded"
+    require (List.length entries <= max_points) (name ^ " limit exceeded")
   in
   let%bind.Or_error () =
     require
       (let rec strictly_ordered = function
          | [] | [ _ ] -> true
          | first :: (second :: _ as rest) ->
-           Background_key.compare (background_key first) (background_key second) < 0
-           && strictly_ordered rest
+           Bar_key.compare (key first) (key second) < 0 && strictly_ordered rest
        in
-       strictly_ordered backgrounds)
-      "chart background pairs must be strictly ordered and unique"
+       strictly_ordered entries)
+      (name ^ " pairs must be strictly ordered and unique")
   in
-  if List.is_empty backgrounds
+  if List.is_empty entries
   then Ok ()
   else (
     let keys =
@@ -644,12 +659,32 @@ let validate_backgrounds t backgrounds =
               Series_id.to_int64 s.id, Datum_id.to_int64 p.Categorical_point.id))
       | Pie _ | Radar _ | Candlestick _ | Sankey _ -> []
     in
-    let keys = Set.of_list (module Background_key) keys in
+    let keys = Set.of_list (module Bar_key) keys in
     require
-      (List.for_all backgrounds ~f:(fun b ->
-         Gpuio_protocol.Chart_appearance_wire.Brush.valid b.W.Bar_background.brush
-         && Set.mem keys (background_key b)))
-      "chart backgrounds must be valid brushes referring to existing bar observations")
+      (List.for_all entries ~f:(fun b -> valid b && Set.mem keys (key b)))
+      (name ^ " entries must be valid and refer to existing bar observations"))
+;;
+
+let validate_backgrounds t entries =
+  validate_bar_pairs
+    t
+    entries
+    ~name:"chart background"
+    ~key:background_key
+    ~valid:(fun b -> Gpuio_protocol.Chart_appearance_wire.Brush.valid b.brush)
+;;
+
+let baseline_key (b : Gpuio_protocol.Chart_data_wire.Bar_baseline.t) = b.series, b.datum
+
+let validate_baselines t entries =
+  validate_bar_pairs t entries ~name:"chart baseline" ~key:baseline_key ~valid:(fun b ->
+    valid_number b.baseline)
+;;
+
+let bar_baseline t ~series ~datum =
+  let key = Series_id.to_int64 series, Datum_id.to_int64 datum in
+  List.find_map t.bar_baselines ~f:(fun b ->
+    if Bar_key.compare (baseline_key b) key = 0 then Some b.baseline else None)
 ;;
 
 module Expert = struct
@@ -672,6 +707,7 @@ module Expert = struct
     in
     65_536
     + (512 * List.length t.bar_backgrounds)
+    + (128 * List.length t.bar_baselines)
     + (512 * t.value_count)
     + (128 * categories)
     + (4 * t.text_bytes)
@@ -886,12 +922,16 @@ module Expert = struct
         Wire.Contents.Sankey
           (List.map nodes ~f:node_to_wire, List.map edges ~f:edge_to_wire)
     in
-    { Wire.version = 2L; contents; bar_backgrounds = t.bar_backgrounds }
+    { Wire.version = 3L
+    ; contents
+    ; bar_backgrounds = t.bar_backgrounds
+    ; bar_baselines = t.bar_baselines
+    }
   ;;
 
   let of_wire (wire : Wire.t) =
     let%bind.Or_error () =
-      require (Int64.equal wire.version 2L) "unsupported chart data version"
+      require (Int64.equal wire.version 3L) "unsupported chart data version"
     in
     let%bind.Or_error () =
       require (Wire.within_bounds wire) "chart wire envelope exceeds its resource bounds"
@@ -920,8 +960,9 @@ module Expert = struct
         let%bind.Or_error edges = convert edges ~f:edge_of_wire in
         sankey ~nodes ~edges
     in
-    let%map.Or_error () = validate_backgrounds t wire.bar_backgrounds in
-    { t with bar_backgrounds = wire.bar_backgrounds }
+    let%bind.Or_error () = validate_backgrounds t wire.bar_backgrounds in
+    let%map.Or_error () = validate_baselines t wire.bar_baselines in
+    { t with bar_backgrounds = wire.bar_backgrounds; bar_baselines = wire.bar_baselines }
   ;;
 
   let encode t =
@@ -954,10 +995,33 @@ let with_bar_backgrounds t ?(theme = Theme.default) backgrounds =
   in
   let bar_backgrounds =
     List.sort bar_backgrounds ~compare:(fun a b ->
-      Background_key.compare (background_key a) (background_key b))
+      Bar_key.compare (background_key a) (background_key b))
   in
   let%bind.Or_error () = validate_backgrounds t bar_backgrounds in
   let result = { t with bar_backgrounds } in
+  let%map.Or_error () =
+    require
+      (W.bin_size_t (Expert.to_wire result) <= W.max_bytes)
+      "chart data exceeds 16 MiB"
+  in
+  result
+;;
+
+let with_bar_baselines t entries =
+  let module W = Gpuio_protocol.Chart_data_wire in
+  let%bind.Or_error () =
+    require (List.length entries <= max_points) "chart baseline limit exceeded"
+  in
+  let bar_baselines =
+    List.map entries ~f:(fun (b : Bar_baseline.t) ->
+      { W.Bar_baseline.series = Series_id.to_int64 b.series
+      ; datum = Datum_id.to_int64 b.datum
+      ; baseline = b.baseline
+      })
+    |> List.sort ~compare:(fun a b -> Bar_key.compare (baseline_key a) (baseline_key b))
+  in
+  let%bind.Or_error () = validate_baselines t bar_baselines in
+  let result = { t with bar_baselines } in
   let%map.Or_error () =
     require
       (W.bin_size_t (Expert.to_wire result) <= W.max_bytes)

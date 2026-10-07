@@ -383,7 +383,8 @@ mod tests {
         ];
         for (target, contents) in &families {
             Data {
-                version: 2,
+                version: 3,
+                bar_baselines: vec![],
                 bar_backgrounds: vec![],
                 contents: contents.clone(),
             }
@@ -425,7 +426,8 @@ mod tests {
         };
         edges[0].value = 0.;
         Data {
-            version: 2,
+            version: 3,
+            bar_baselines: vec![],
             bar_backgrounds: vec![],
             contents: zero_edge.clone(),
         }

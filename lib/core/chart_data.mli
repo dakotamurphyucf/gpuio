@@ -210,6 +210,29 @@ end
     independently. Aggregate appearance follows Chart_appearance.Aggregates. *)
 val with_bar_backgrounds : t -> ?theme:Theme.t -> Bar_background.t list -> t Or_error.t
 
+module Bar_baseline : sig
+  type t [@@deriving equal, sexp_of]
+
+  (** Source-owned baseline in data units, finite within +/-1e100. The existing
+      point value is the endpoint, not the difference from this baseline. *)
+  val create : series:Series_id.t -> datum:Datum_id.t -> float -> t Or_error.t
+end
+
+(** Replace all baselines; [[]] clears them without changing backgrounds or
+    source values. At most 100,000 unique live numeric/categorical bar pairs.
+    Omitted baselines render at zero. Combined encoding must fit 16 MiB.
+    Sum/Mean buckets require a common baseline among defined observations;
+    Sum combines endpoint-minus-baseline contributions, adding the baseline once.
+    Mean averages endpoints. Stacking requires a common baseline at each populated
+    position/bucket and stacks contributions in natural series order. Mismatches
+    fail native preparation with Invalid_config. Missing values do not contribute.
+    Original baseline/endpoint values remain available for inspection. *)
+val with_bar_baselines : t -> Bar_baseline.t list -> t Or_error.t
+
+(** Explicit stored baseline, or None for an omitted or unknown pair. Linear in
+    sidecar length; intended for occasional source inspection, not a render loop. *)
+val bar_baseline : t -> series:Series_id.t -> datum:Datum_id.t -> float option
+
 (** Line/area accept missing values as gaps; bars require every y value. Numeric
     x coordinates determine positions; labels never act as identity or scale.
     Empty input is valid. These constructors perform no implicit aggregation. *)

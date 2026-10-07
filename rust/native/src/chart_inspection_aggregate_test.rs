@@ -9,7 +9,8 @@ use gpuio_protocol::{
 fn data(count: usize, candles: bool) -> Data {
     let ids = [7, 2, 9, 3];
     Data {
-        version: 2,
+        version: 3,
+        bar_baselines: vec![],
         bar_backgrounds: vec![],
         contents: if candles {
             Contents::Candlestick(

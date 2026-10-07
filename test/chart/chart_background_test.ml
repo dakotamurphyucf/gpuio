@@ -54,7 +54,7 @@ let%expect_test "background pairs canonicalize without changing source identity 
   assert (D.equal original (D.with_bar_backgrounds styled [] |> ok));
   Eio_main.run (fun env ->
     let expected =
-      Eio.Path.load Eio.Path.(Eio.Stdenv.cwd env / "chart-v2-backgrounds.hex") |> from_hex
+      Eio.Path.load Eio.Path.(Eio.Stdenv.cwd env / "chart-v3-backgrounds.hex") |> from_hex
     in
     assert (String.equal expected (D.Expert.encode styled |> ok));
     assert (D.equal styled (D.Expert.decode expected |> ok));

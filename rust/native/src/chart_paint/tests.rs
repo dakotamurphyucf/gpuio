@@ -3,7 +3,8 @@ use gpuio_protocol::chart_data as data;
 fn render(contents: data::Contents) -> Result<Prepared, Error> {
     prepare(
         &Data {
-            version: 2,
+            version: 3,
+            bar_baselines: vec![],
             bar_backgrounds: vec![],
             contents,
         },
@@ -18,7 +19,8 @@ fn render(contents: data::Contents) -> Result<Prepared, Error> {
 #[test]
 fn custom_axis_strokes_have_independent_brushes_positions_and_visibility() {
     let source = Data {
-        version: 2,
+        version: 3,
+        bar_baselines: vec![],
         bar_backgrounds: vec![],
         contents: data::Contents::Cartesian(vec![]),
     };
@@ -72,7 +74,8 @@ fn custom_axis_strokes_have_independent_brushes_positions_and_visibility() {
 fn categorical_axis_strokes_do_not_require_a_numeric_x_domain() {
     use gpuio_protocol::chart_options::Orientation;
     let source = Data {
-        version: 2,
+        version: 3,
+        bar_baselines: vec![],
         bar_backgrounds: vec![],
         contents: data::Contents::Categorical(
             vec![data::Category {
@@ -211,7 +214,8 @@ fn wedges_ribbons_and_candle_noncolor_geometry_prepare() {
 #[test]
 fn invalid_style_cancel_and_unbounded_exact_paths_fail_atomically() {
     let data = Data {
-        version: 2,
+        version: 3,
+        bar_baselines: vec![],
         bar_backgrounds: vec![],
         contents: data::Contents::Pie(vec![]),
     };
@@ -253,7 +257,8 @@ fn invalid_style_cancel_and_unbounded_exact_paths_fail_atomically() {
         })
         .collect();
     let data = Data {
-        version: 2,
+        version: 3,
+        bar_baselines: vec![],
         bar_backgrounds: vec![],
         contents: data::Contents::Cartesian(vec![data::Layer::Line(data::Series {
             id: 1,
@@ -316,7 +321,8 @@ fn large_exact_line_and_all_sampled_curve_modes_have_real_meshes() {
     let layout = Layout::new(800., 400., 2.).unwrap();
     let p = prepare(
         &Data {
-            version: 2,
+            version: 3,
+            bar_baselines: vec![],
             bar_backgrounds: vec![],
             contents: contents(true),
         },
@@ -342,7 +348,8 @@ fn large_exact_line_and_all_sampled_curve_modes_have_real_meshes() {
         options.cartesian.curve = curve;
         let p = prepare(
             &Data {
-                version: 2,
+                version: 3,
+                bar_baselines: vec![],
                 bar_backgrounds: vec![],
                 contents: contents(false),
             },
@@ -385,7 +392,8 @@ fn radar_projection_prepares_meshes_and_preserves_off_plot_selection() {
         chart_selection::Selection,
     };
     let source = Data {
-        version: 2,
+        version: 3,
+        bar_baselines: vec![],
         bar_backgrounds: vec![],
         contents: data::Contents::Radar(
             (1..=3)
@@ -442,7 +450,8 @@ fn radar_projection_prepares_meshes_and_preserves_off_plot_selection() {
 #[test]
 fn maximum_pie_radius_prepares_bounded_meshes_without_changing_raw_data() {
     let data = Data {
-        version: 2,
+        version: 3,
+        bar_baselines: vec![],
         bar_backgrounds: vec![],
         contents: data::Contents::Pie(vec![data::Slice {
             id: 7,

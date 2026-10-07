@@ -93,7 +93,8 @@ mod tests {
     use std::sync::atomic::AtomicBool;
     fn source(ids: &[i64]) -> data::Data {
         data::Data {
-            version: 2,
+            version: 3,
+            bar_baselines: vec![],
             bar_backgrounds: vec![],
             contents: data::Contents::Pie(
                 ids.iter()

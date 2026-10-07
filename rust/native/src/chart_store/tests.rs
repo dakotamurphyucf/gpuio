@@ -4,7 +4,8 @@ use chart_data::{Contents, Layer, Point, Series};
 
 fn bytes(count: usize) -> Vec<u8> {
     let data = Data {
-        version: 2,
+        version: 3,
+        bar_baselines: vec![],
         bar_backgrounds: vec![],
         contents: Contents::Cartesian(vec![Layer::Line(Series {
             id: 1,
@@ -81,7 +82,7 @@ fn publication_is_atomic_and_readers_remain_charged_until_drop() {
 fn dense_backgrounds_publish_atomically_and_retired_snapshots_stay_charged() {
     let count = chart_data::MAX_POINTS;
     let mut data = Data {
-        version: 2,
+        version: 3,
         contents: Contents::Cartesian(vec![Layer::Bar(Series {
             id: 1,
             name: "Dense".into(),
@@ -94,6 +95,7 @@ fn dense_backgrounds_publish_atomically_and_retired_snapshots_stay_charged() {
                 })
                 .collect(),
         })]),
+        bar_baselines: vec![],
         bar_backgrounds: vec![],
     };
     let empty_charge = data_charge(&data);
@@ -104,9 +106,17 @@ fn dense_backgrounds_publish_atomically_and_retired_snapshots_stay_charged() {
             brush: gpuio_protocol::chart_appearance::Brush::Solid(id as i64),
         })
         .collect();
+    data.bar_baselines = (1..=count)
+        .map(|id| chart_data::BarBaseline {
+            series: 1,
+            datum: id as i64,
+            baseline: 0.5,
+        })
+        .collect();
     assert_eq!(
         data_charge(&data) - empty_charge,
         data.bar_backgrounds.capacity() * size_of::<chart_data::BarBackground>()
+            + data.bar_baselines.capacity() * size_of::<chart_data::BarBaseline>()
     );
     let mut bytes = vec![];
     data.binprot_write(&mut bytes).unwrap();
@@ -117,8 +127,10 @@ fn dense_backgrounds_publish_atomically_and_retired_snapshots_stay_charged() {
     let lease = store.acquire(id).unwrap();
     let old = lease.snapshot().unwrap();
     assert_eq!(old.data().bar_backgrounds.len(), count);
+    assert_eq!(old.data().bar_baselines.len(), count);
     let old_charge = old._reservation.bytes;
     data.bar_backgrounds.clear();
+    data.bar_baselines.clear();
     bytes.clear();
     data.binprot_write(&mut bytes).unwrap();
     stage(&mut store, id, 2, 1, &bytes);

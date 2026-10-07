@@ -20,7 +20,8 @@ fn series(id: i64, values: &[Option<f64>]) -> data::Series {
 }
 fn numeric(layers: Vec<Layer>) -> Data {
     Data {
-        version: 2,
+        version: 3,
+        bar_baselines: vec![],
         bar_backgrounds: vec![],
         contents: Contents::Cartesian(layers),
     }
@@ -31,7 +32,8 @@ fn categorical(data: &Data) -> Data {
     };
     let count = layers[0].series().points.len();
     Data {
-        version: 2,
+        version: 3,
+        bar_baselines: vec![],
         bar_backgrounds: vec![],
         contents: Contents::Categorical(
             (0..count)
@@ -88,6 +90,7 @@ fn bounds(plan: &Plan, series: usize, source: usize) -> (f64, f64, f64) {
         })
         .unwrap();
     let Some(Summary::Stacked {
+        baseline: _,
         value,
         lower,
         upper,

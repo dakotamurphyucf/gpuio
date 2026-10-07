@@ -53,7 +53,8 @@ pub(super) async fn exercise(
     use observed::Kind::{Click, MouseDown, MouseUp};
     let original = session.borrow().chart(source).unwrap().snapshot().unwrap();
     let data = Data {
-        version: 2,
+        version: 3,
+        bar_baselines: vec![],
         bar_backgrounds: vec![],
         contents: Contents::Radar(
             [7, 9, 11]

@@ -8,7 +8,7 @@ fn encode(data: &Data) -> Vec<u8> {
 }
 fn source() -> Data {
     Data {
-        version: 2,
+        version: 3,
         contents: Contents::Cartesian(vec![Layer::Bar(Series {
             id: 7,
             name: "Bars".into(),
@@ -22,6 +22,7 @@ fn source() -> Data {
                 })
                 .collect(),
         })]),
+        bar_baselines: vec![],
         bar_backgrounds: vec![
             BarBackground {
                 series: 7,
@@ -38,7 +39,7 @@ fn source() -> Data {
 }
 #[test]
 fn paired_background_fixture_and_every_truncation() {
-    let text = include_str!("../../../test/fixtures/chart-v2-backgrounds.hex").trim();
+    let text = include_str!("../../../test/fixtures/chart-v3-backgrounds.hex").trim();
     let bytes = (0..text.len())
         .step_by(2)
         .map(|i| u8::from_str_radix(&text[i..i + 2], 16).unwrap())
@@ -59,7 +60,8 @@ fn sidecar_count_is_bounded_before_allocating_entries() {
     let mut data = source();
     data.bar_backgrounds.clear();
     let mut bytes = encode(&data);
-    assert_eq!(bytes.pop(), Some(0));
+    assert_eq!(bytes.pop(), Some(0)); // empty baselines
+    assert_eq!(bytes.pop(), Some(0)); // empty backgrounds
     binprot::Nat0((MAX_POINTS + 1) as u64)
         .binprot_write(&mut bytes)
         .unwrap();
@@ -150,7 +152,7 @@ fn dense_100k_source_roundtrips_without_growing_point_records() {
 #[test]
 fn combined_encoding_limit_applies_even_when_counts_and_text_fit() {
     let data = Data {
-        version: 2,
+        version: 3,
         contents: Contents::Cartesian(vec![Layer::Bar(Series {
             id: i64::MAX,
             name: "Dense".into(),
@@ -163,6 +165,7 @@ fn combined_encoding_limit_applies_even_when_counts_and_text_fit() {
                 })
                 .collect(),
         })]),
+        bar_baselines: vec![],
         bar_backgrounds: (0..MAX_POINTS)
             .rev()
             .map(|i| BarBackground {

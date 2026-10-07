@@ -95,17 +95,17 @@ without changing these limits. A maximally populated parent style, including axi
 captions and all appearance overrides, is tested against this envelope and the
 outer 1 MiB message limit. Matching OCaml and Rust packages are required.
 
-The existing `Background` API covers solids and two-stop gradients. GPUI's other
-background patterns, arbitrary per-datum baselines and the low-level area shape's
-scalar `y0` baseline are separate catalog work, not capabilities established by
-these paint overrides. Rich inspection remains required separately. The pinned
+The `Background` API covers solids, two-stop gradients and the subsequently added
+[native patterns](native-pattern-brushes.md). Separate extensions now provide
+[per-bar baselines](bar-baselines.md), [scalar area baselines](area-baselines.md)
+and [rich inspection](chart-inspection-content.md). The pinned
 area shape has a scalar optional `y0` and a `y1` accessor; it does not establish
 arbitrary per-datum lower and upper accessors. See the
 [pinned shape source](../catalog/sources/component-plot-shape-area.rs.txt) and
 [bar gradient source](../catalog/sources/component-chart-bar_chart.rs.txt).
-Dense per-datum styling beyond the sparse limit still needs a bounded resource
-design if required for the catalog equivalent; the limit does not create a
-post-v1 deferral or establish full arbitrary-background parity.
+[Dense per-datum bar backgrounds](dense-bar-backgrounds.md) use a bounded source
+sidecar outside the sparse override limit. These extensions do not establish
+full arbitrary pixel-bound fill-callback parity.
 
 Validation must cover paired bytes and rejection, theme resolution, stable IDs,
 aggregate/missing-value rules, stack curve admission, all four directions,

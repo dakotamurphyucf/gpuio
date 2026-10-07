@@ -1120,9 +1120,16 @@ with native point/band layout, equal labels with distinct IDs and missing values
 
 **Charts & data → Bar backgrounds** is a separate reactive branch beside
 **Chart families**. Its [component walkthrough](chart_backgrounds.md) explains
-scoped publication, retained controls, sparse highlighting and Mean/Uniform
+scoped publication, retained controls, per-bar baselines, sparse highlighting and
+Mean/Uniform
 choices; its [pure data walkthrough](chart_backgrounds_data.md) explains stable
-batch IDs, reversal and brush construction. Source colors initially resolve
+batch IDs, reversal, brush construction and immutable baseline sidecars.
+**Zero baselines** stores no baseline entries; **Shared baseline 40** uses 40 for
+every bar; **Individual baselines** cycles 20/40/60 by original batch index.
+These buttons explicitly republish metadata while keeping endpoints and IDs.
+Mean requires compatible baselines and surfaces `Invalid_config` when a bucket
+combines differing individual baselines. The new baseline interactions remain
+under validation. Source colors initially resolve
 against `Theme.default`; **Apply preview colors** explicitly republishes them
 from the current preview palette. View theme changes alone do not rewrite those
 brushes. Switching branches recreates native sources and clears selection while

@@ -2,6 +2,17 @@
     batches, independently of their display order or background representation. *)
 type t [@@deriving equal]
 
+module Baselines : sig
+  type t =
+    | Zero
+    | Shared
+    | Individual
+  [@@deriving equal]
+
+  val all : t list
+  val label : t -> string
+end
+
 val initial : t
 val advance : t -> t
 val reorder : t -> t
@@ -9,6 +20,8 @@ val toggle_patterns : t -> t
 val phase : t -> int
 val is_reordered : t -> bool
 val has_patterns : t -> bool
+val baselines : t -> Baselines.t
+val with_baselines : t -> Baselines.t -> t
 
 (** 24 categorical bars with descending, noncontiguous IDs. Resolves accent,
     foreground and muted tokens using the supplied theme. This small validated

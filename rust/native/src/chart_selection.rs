@@ -176,7 +176,7 @@ mod tests {
     }
     #[test]
     fn actual_geometry_for_every_family_resolves_to_stable_source_ids() {
-        for fixture in include_str!("../../../test/fixtures/chart-v2-data.hex").lines() {
+        for fixture in include_str!("../../../test/fixtures/chart-v3-data.hex").lines() {
             let (_, hex) = fixture.split_once(' ').unwrap();
             let bytes = (0..hex.len())
                 .step_by(2)
@@ -241,7 +241,8 @@ mod tests {
             })
             .collect::<Vec<_>>();
         let data = Data {
-            version: 2,
+            version: 3,
+            bar_baselines: vec![],
             bar_backgrounds: vec![],
             contents: Contents::Cartesian(vec![Layer::Bar(Series {
                 id: 9,
@@ -274,7 +275,8 @@ mod tests {
             );
         }
         let candles = Data {
-            version: 2,
+            version: 3,
+            bar_baselines: vec![],
             bar_backgrounds: vec![],
             contents: Contents::Candlestick(
                 points
@@ -347,7 +349,8 @@ mod tests {
             })
             .collect();
         let data = Data {
-            version: 2,
+            version: 3,
+            bar_baselines: vec![],
             bar_backgrounds: vec![],
             contents: Contents::Cartesian(vec![Layer::Line(Series {
                 id: 8,
@@ -376,7 +379,8 @@ mod tests {
     #[test]
     fn stable_lookup_follows_identity_after_source_positions_change() {
         let original = Data {
-            version: 2,
+            version: 3,
+            bar_baselines: vec![],
             bar_backgrounds: vec![],
             contents: Contents::Cartesian(vec![Layer::Line(Series {
                 id: 9,
@@ -421,7 +425,8 @@ mod tests {
     #[test]
     fn aggregated_membership_is_not_inferred_from_endpoint_identity() {
         let data = Data {
-            version: 2,
+            version: 3,
+            bar_baselines: vec![],
             bar_backgrounds: vec![],
             contents: Contents::Cartesian(vec![Layer::Bar(Series {
                 id: 9,

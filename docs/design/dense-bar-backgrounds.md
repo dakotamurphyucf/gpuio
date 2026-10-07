@@ -177,8 +177,9 @@ with access to current native pixel bounds. Existing declarative signed/domain/
 value gradients cover some geometry-aware cases; the remaining difference from
 the pinned fill closure must stay explicit in the catalog.
 
-Per-bar baselines are separate work. The pinned low-level Bar has independent
-base and endpoint accessors. An interval API must preserve both values in the
-source browser and define Sum/Mean/stacking semantics; adding origins together
-or dropping differing bases silently would be incorrect. The area scalar
-baseline and this background sidecar do not close that requirement.
+The separate [per-bar baseline contract](bar-baselines.md) now implements
+independent data-unit origins while preserving original endpoints, source
+identity and brushes. It defines compatible Sum/Mean/stacking semantics and
+rejects differing participating bases explicitly. That addition advances the
+data schema from this document's original 2 to 3; both sidecars share the same
+encoded-source and retained-memory limits.

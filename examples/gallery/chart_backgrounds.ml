@@ -146,7 +146,18 @@ let component app window palette graph =
       then None
       else
         Option.bind (Registered.data source) ~f:(fun data ->
-          Option.bind selection ~f:(Gpuio_chart_samples.describe_selection data))
+          Option.bind selection ~f:(fun selection ->
+            Option.map
+              (Gpuio_chart_samples.describe_selection data selection)
+              ~f:(fun text ->
+                match selection with
+                | Chart_selection.Cartesian { series; span; aggregation = Exact } ->
+                  Option.value_map
+                    (Chart_data.bar_baseline data ~series ~datum:span.first)
+                    ~default:text
+                    ~f:(fun baseline -> sprintf "%s · baseline %.3g" text baseline)
+                | Cartesian { aggregation = Sum | Mean; _ }
+                | Slice _ | Radar _ | Candlestick _ | Node _ | Edge _ -> text)))
     in
     let sampling =
       Chart_sampling.create
@@ -217,6 +228,19 @@ let component app window palette graph =
               ~on_toggle:toggle_uniform
               "Uniform background agreement"
           ]
+      ; V.row
+          ~style:(style [ Gap (px 8.); Wrap Wrap ])
+          (List.map Data.Baselines.all ~f:(fun candidate ->
+             Palette.button
+               p
+               ~selected:(Data.Baselines.equal candidate (Data.baselines current))
+               (Data.Baselines.label candidate)
+               (publish (fun data -> Data.with_baselines data candidate))))
+      ; Palette.text
+          p
+          ~muted:true
+          "Intervals retain their original endpoints. Mean requires a shared baseline; \
+           individual baselines show an explicit error when combined."
       ; chart
       ; Palette.text p notice
       ; Palette.text

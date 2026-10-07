@@ -13,6 +13,7 @@ pub enum Error {
     InvalidPolicy,
     InvalidWidth,
     MisalignedStack,
+    IncompatibleBarBaselines,
     Cancelled,
 }
 
@@ -51,6 +52,7 @@ pub struct LinePoint {
 }
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Bar {
+    pub baseline: f64,
     pub source: SourceSpan,
     pub x: f64,
     pub value: f64,
@@ -292,6 +294,8 @@ impl Sum {
     }
 }
 fn bars(
+    data: &data::Data,
+    series: i64,
     points: Points<'_>,
     policy: policy::Bar,
     domain: Domain,
@@ -308,25 +312,42 @@ fn bars(
     while start < points.len() {
         checkpoint(start, cancel)?;
         let mut end = start + 1;
-        let mut sum = Sum::default();
-        sum.add(points.get(start).unwrap().y.unwrap_or(0.));
-        let mut present = usize::from(points.get(start).unwrap().y.is_some());
         if let Some(buckets) = buckets {
             let bucket = domain.bucket(points.get(start).unwrap().x, buckets);
             while end < points.len() && domain.bucket(points.get(end).unwrap().x, buckets) == bucket
             {
                 checkpoint(end, cancel)?;
-                sum.add(points.get(end).unwrap().y.unwrap_or(0.));
-                present += usize::from(points.get(end).unwrap().y.is_some());
                 end += 1;
             }
         }
-        let value = sum.value();
-        if present == 0 {
+        let mut sum = Sum::default();
+        let mut baseline = None;
+        let mut present = 0;
+        for index in start..end {
+            checkpoint(index, cancel)?;
+            let point = points.get(index).unwrap();
+            let Some(value) = point.y else { continue };
+            let base = data.bar_baseline(series, point.id).unwrap_or(0.);
+            if baseline.is_some_and(|b| b != base) {
+                return Err(Error::IncompatibleBarBaselines);
+            }
+            // Sum endpoints with one baseline removed per additional value.
+            // One-value buckets retain the exact original endpoint; subtracting
+            // and re-adding a huge baseline could otherwise erase a small value.
+            if present > 0 && !mean {
+                sum.add(-base);
+            }
+            sum.add(value);
+            baseline = Some(base);
+            present += 1;
+        }
+        let Some(baseline) = baseline else {
             start = end;
             continue;
-        }
+        };
+        let value = sum.value();
         output.push(Bar {
+            baseline,
             source: SourceSpan { start, end },
             x: midpoint(points.get(start).unwrap().x, points.get(end - 1).unwrap().x),
             value: if mean { value / present as f64 } else { value },
@@ -455,9 +476,15 @@ pub(crate) fn prepare_with_options(
                         Kind::Area => {
                             Series::Area(line(layer.points, policy.line, domain, width, cancel)?)
                         }
-                        Kind::Bar => {
-                            Series::Bar(bars(layer.points, policy.bars, domain, width, cancel)?)
-                        }
+                        Kind::Bar => Series::Bar(bars(
+                            data,
+                            layer.id,
+                            layer.points,
+                            policy.bars,
+                            domain,
+                            width,
+                            cancel,
+                        )?),
                     });
                 }
                 if options.cartesian.stacking == gpuio_protocol::chart_options::Stacking::Stacked {
@@ -493,3 +520,6 @@ mod stacking;
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod baseline_tests;

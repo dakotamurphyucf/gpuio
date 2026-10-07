@@ -99,7 +99,8 @@ mod tests {
             nodes.reverse();
         }
         Data {
-            version: 2,
+            version: 3,
+            bar_baselines: vec![],
             bar_backgrounds: vec![],
             contents: Contents::Sankey(
                 nodes,

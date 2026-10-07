@@ -39,15 +39,22 @@ pub(super) fn apply(
 fn stack_bars(output: &mut [Series], count: usize, cancel: &AtomicBool) -> Result<(), Error> {
     // Aligned inputs and a shared bucket domain guarantee identical intervals.
     // Missing buckets do not shift subsequent series; use the source start.
-    let mut cumulative = vec![0.; count];
+    let mut cumulative: Vec<Option<(f64, f64)>> = vec![None; count];
     for series in output {
         let Series::Bar(bars) = series else { continue };
         let mut stacked = Vec::with_capacity(bars.len());
         for (index, bar) in bars.iter().copied().enumerate() {
             checkpoint(index, cancel)?;
-            let lower = cumulative[bar.source.start()];
-            let upper = lower + bar.value;
-            cumulative[bar.source.start()] = upper;
+            let (lower, upper) = match cumulative[bar.source.start()] {
+                None => (bar.baseline, bar.value),
+                Some((baseline, previous)) => {
+                    if baseline != bar.baseline {
+                        return Err(Error::IncompatibleBarBaselines);
+                    }
+                    (previous, previous + (bar.value - bar.baseline))
+                }
+            };
+            cumulative[bar.source.start()] = Some((bar.baseline, upper));
             stacked.push(StackedBar {
                 bar,
                 bounds: StackBounds { lower, upper },
