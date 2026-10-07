@@ -30,7 +30,9 @@ pub use inline_element::*;
 pub use markdown_ext::*;
 pub use node::{CodeBlock, ImageNode as HtmlImage, TableData};
 pub use range_geometry::ReorderedTextGeometry;
-pub use rendered_text::{RenderedText, RenderedTextPart, RenderedTextPosition};
+pub use rendered_text::{
+    RenderedSelection, RenderedSelectionError, RenderedText, RenderedTextPart, RenderedTextPosition,
+};
 pub use state::*;
 pub use style::*;
 pub use text_view::*;

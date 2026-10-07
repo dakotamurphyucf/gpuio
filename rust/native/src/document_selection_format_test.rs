@@ -169,6 +169,28 @@ fn copy_format(mode: Mode, text: &str) {
             "the window copy provider must preserve source whitespace"
         );
     }
+    // Exercise the new native request through mounted document layout and the
+    // window Copy provider, not just the immutable projection's slice helper.
+    let start = plain.find("世界").unwrap();
+    let end = start + "世界".len();
+    let request = markdown.read_with(cx, |m, _| {
+        m.prepare_rendered_selection(
+            &rendered.position(end).unwrap(),
+            &rendered.position(start).unwrap(),
+        )
+        .unwrap()
+    });
+    markdown
+        .update(cx, |m, cx| m.apply_rendered_selection(request, cx))
+        .unwrap();
+    draw(cx);
+    assert_eq!(
+        cx.update(gpui_base::TextSelection::selected_text),
+        if html { "世界" } else { "**世界**" }
+    );
+    assert!(markdown.read_with(cx, |m, _| {
+        m.requested_rendered_selection().unwrap().is_backward()
+    }));
     let weak = presentation.downgrade();
     drop(presentation);
     drop(markdown);

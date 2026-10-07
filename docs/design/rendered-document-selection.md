@@ -1,7 +1,7 @@
 # Rendered-document accessible selection
 
 Implementation plan for the remaining OCH-17/OCH-41 accessibility work. The
-native text-projection foundation below is implemented; **AX selection publication
+native text-projection foundation and request primitive below are implemented; **AX selection publication
 and mutation are not implemented or accepted yet**. The [macOS baseline](../evidence/rendered-selection-baseline-och17.md)
 proves that native rendered-text copying works while document-level AX selection
 attributes are absent. The source-editor adapter is a separate implementation.
@@ -117,7 +117,9 @@ It does not expose a new OCaml API or publish AX attributes by itself.
   not change the projection.
 - `parts()` gives contiguous byte intervals classified as native text owners,
   atomic copy alternatives, or structural separators. Owner references are weak;
-  keeping the immutable projection cannot keep a native document alive.
+  keeping the immutable projection cannot keep a native document alive. Empty
+  owner intervals remain represented so a request can clear their old native
+  selection without inventing copy text.
 - `position(byte)` validates Unicode scalar boundaries, treating CRLF as one
   break. `offset(position)` accepts only a token from that same preparation,
   including when a different document has equal text. These are UTF-8 positions,
@@ -139,3 +141,44 @@ admission units, not measured process RSS or performance acceptance.
 The remaining stages above must preserve this distinction: matching whole-copy
 text is not enough to infer a native directed selection or to construct a correct
 rich accessibility hierarchy.
+
+## Native selection request primitive
+
+`RenderedSelection` preserves distinct anchor/head positions from the same
+preparation, including backward and collapsed ranges. `RenderedText::selection`
+rejects foreign positions and endpoints inside atomic alternatives. Declared
+text blocks remain text, while opaque/non-text block alternatives are atomic.
+
+`TextViewState::prepare_rendered_selection` captures the installed positions and
+the view's interaction epoch. `apply_rendered_selection` rejects a foreign/stale
+request or disabled selection before mutation, upgrades and locks all participating
+native owners, then commits their ranges together. Lock failure and an unmapped
+declared-text/copy-alternative pair leave the existing selection unchanged.
+Unpainted ordinary runs acquire their prepared text without shaping or parsing.
+The window Copy provider reads the same native selection; source-format Copy
+continues to use existing Markdown reconstruction.
+
+The state retains the accepted directed range for exact plain-text Copy and
+repainting. Copy-format changes do not invalidate it. Native selection gestures,
+clear, Select All, disabled selection and prepared replacement expire queued
+requests. Compatible native owner transfer can retain the range across a streamed
+update only when the logical prefix through both endpoints still matches; the
+retained positions are rebound to the new preparation. Ordinary pointer events
+do not allocate epoch tokens when no request is outstanding.
+
+A renderer-resource refresh can replace declared glyphs without reparsing the
+AST. That path rebuilds both text projections and expires pending requests.
+An accepted range is rebound only when copy text is unchanged and applying it
+to the current native owners still succeeds; otherwise its selection clears.
+Thus an empty declared presentation cannot be mistaken for an unpainted run.
+
+This is a low-level Rust adapter primitive, not a new OCaml command or an OS
+authorization boundary. The future AX action handler must also validate its
+current window, visibility, modality and semantic action identity. The
+`requested_rendered_selection()` accessor describes only accepted requests;
+pointer/multi-click endpoint capture, full Select All/override remapping and
+whole-document TextRun publication still require integration. A declared custom
+text block whose glyphs differ from its copy alternative currently returns
+`UnmappedOwner` when selected by this primitive, including empty declared glyphs.
+That mapping remains required work before general rendered-document AX acceptance;
+it is not an intentional v1 exclusion.

@@ -66,7 +66,11 @@ pub(super) async fn exercise(
     source: ResourceId,
     p: &Entity<Presentation>,
 ) {
-    for mode in [Mode::Code("txt".into()), Mode::Markdown] {
+    for (mode, requested) in [
+        (Mode::Code("txt".into()), false),
+        (Mode::Markdown, false),
+        (Mode::Markdown, true),
+    ] {
         let (base, generation) = p.read_with(cx, |p, _| {
             let source = p.installed.as_ref().unwrap();
             (source.revision, source.generation + 1)
@@ -104,7 +108,20 @@ pub(super) async fn exercise(
                 window.activate_window();
                 if matches!(mode, Mode::Markdown) {
                     let markdown = markdown.as_ref().unwrap();
-                    markdown.update(cx, |state, cx| state.select_all(cx));
+                    markdown.update(cx, |state, cx| {
+                        if requested {
+                            let text = state.rendered_text().unwrap();
+                            let request = state
+                                .prepare_rendered_selection(
+                                    &text.position(3).unwrap(),
+                                    &text.position(0).unwrap(),
+                                )
+                                .unwrap();
+                            state.apply_rendered_selection(request, cx).unwrap();
+                        } else {
+                            state.select_all(cx);
+                        }
+                    });
                     let focus = markdown.read(cx).focus_handle().clone();
                     window.focus(&focus, cx);
                 } else {
@@ -114,6 +131,19 @@ pub(super) async fn exercise(
             })
             .unwrap();
         draw(cx, handle);
+        if requested {
+            assert_eq!(
+                handle
+                    .update(cx, |_, window, cx| gpui_base::TextSelection::selected_text(
+                        window, cx
+                    ))
+                    .unwrap(),
+                "aaa"
+            );
+            assert!(markdown.as_ref().unwrap().read_with(cx, |s, _| {
+                s.requested_rendered_selection().unwrap().is_backward()
+            }));
+        }
         assert!(
             pixels(cx, handle, [255, 0, 255, 255]) > 20,
             "{mode:?}: inherited selection color reaches GPU"
@@ -215,6 +245,22 @@ pub(super) async fn exercise(
                 markdown.read_with(cx, |state, _| state.selected_text()),
                 selected_text.unwrap()
             );
+            if requested {
+                assert!(markdown.read_with(cx, |s, _| {
+                    s.requested_rendered_selection().unwrap().is_backward()
+                }));
+                assert_eq!(
+                    handle
+                        .update(cx, |_, window, cx| gpui_base::TextSelection::selected_text(
+                            window, cx
+                        ))
+                        .unwrap(),
+                    "aaa"
+                );
+                eprintln!(
+                    "GPUIO_RENDERED_SELECTION_REQUEST_GPU_OK: backward native request, actual selection pixels, window Copy, restyle and streamed retention"
+                );
+            }
         } else {
             assert_eq!(
                 editor.read_with(cx, |editor, _| editor.bridge_selection()),

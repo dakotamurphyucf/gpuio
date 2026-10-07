@@ -5,6 +5,15 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **O
 Markdown walkthroughs for every example component; its documentation acceptance is complete. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
+[Native rendered-selection requests](evidence/rendered-selection-requests-och17.md)
+now retain directed ranges, validate view/interaction identity before updating
+native owners, and preserve plain/source Copy across compatible streaming and
+renderer-resource refresh. A stale-refresh regression fails before the guard and
+passes afterward. Local 1,090 native tests, strict lint, full Dune, vendor
+reconstruction, actual selection pixels/Copy/style/streaming and shutdown checks
+pass. AX publication/actions, pointer endpoint capture, custom-object mapping
+and broader platform/release qualification remain open.
+
 [A rendered Markdown selection baseline](evidence/rendered-selection-baseline-och17.md)
 now reproduces missing `AXSelectedText` / `AXSelectedTextRange` on the actual macOS
 document. Native Select All/Copy and rich reading order work. The separate
@@ -12,7 +21,7 @@ document. Native Select All/Copy and rich reading order work. The separate
 structure, native selection ownership and offscreen ranges. Its
 [native projection foundation](evidence/rendered-text-projection-och17.md) now
 prepares bounded copy-text provenance with checked positions and weak native
-owners. Selection publication and mutation remain unimplemented.
+owners. AX selection publication and mutation remain unimplemented.
 Source-editor selection/geometry coverage does not qualify this rendered path.
 The foundation passes 1,081 native tests, strict lint, full Dune and actual
 document/Copy checks locally. Validation also exposed a deferred selection

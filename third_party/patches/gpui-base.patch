@@ -10810,3 +10810,550 @@
      content.bounded = false;
      let mut node_cx = NodeContext {
          markdown_extensions: options.markdown_extensions.clone(),
+--- a/src/text/mod.rs
++++ b/src/text/mod.rs
+@@ -30,7 +30,9 @@
+ pub use markdown_ext::*;
+ pub use node::{CodeBlock, ImageNode as HtmlImage, TableData};
+ pub use range_geometry::ReorderedTextGeometry;
+-pub use rendered_text::{RenderedText, RenderedTextPart, RenderedTextPosition};
++pub use rendered_text::{
++    RenderedSelection, RenderedSelectionError, RenderedText, RenderedTextPart, RenderedTextPosition,
++};
+ pub use state::*;
+ pub use style::*;
+ pub use text_view::*;
+--- a/src/text/rendered_text.rs
++++ b/src/text/rendered_text.rs
+@@ -1,6 +1,7 @@
+ //! Immutable logical copy text with native-owner provenance. Geometry and AX
+ //! node identities are separate: virtualizing a block must not change offsets.
+ use super::{
++    DisplayedText,
+     document::ParsedDocument,
+     inline::InlineState,
+     node::{BlockNode, Paragraph},
+@@ -19,6 +20,8 @@
+ #[derive(Clone, Debug)]
+ enum Owner {
+     Text(Weak<Mutex<InlineState>>),
++    UnmappedText(Weak<Mutex<InlineState>>),
++    BlockObject(Weak<Mutex<InlineState>>),
+     Object(Weak<Mutex<bool>>),
+     Separator,
+ }
+@@ -34,7 +37,7 @@
+         self.bytes.clone()
+     }
+     pub fn is_atomic(&self) -> bool {
+-        matches!(self.owner, Owner::Object(_))
++        matches!(self.owner, Owner::Object(_) | Owner::BlockObject(_))
+     }
+     pub fn is_separator(&self) -> bool {
+         matches!(self.owner, Owner::Separator)
+@@ -48,6 +51,39 @@
+ pub struct RenderedTextPosition {
+     identity: Arc<()>,
+     byte: usize,
++}
++
++/// Directed logical range in one prepared document. Native scalar positions
++/// are distinct from grapheme-aware keyboard movement and OS UTF-16 indices.
++#[derive(Clone, Debug)]
++pub struct RenderedSelection {
++    anchor: RenderedTextPosition,
++    head: RenderedTextPosition,
++}
++impl RenderedSelection {
++    pub fn anchor(&self) -> &RenderedTextPosition {
++        &self.anchor
++    }
++    pub fn head(&self) -> &RenderedTextPosition {
++        &self.head
++    }
++    pub fn bytes(&self) -> Range<usize> {
++        self.anchor.byte.min(self.head.byte)..self.anchor.byte.max(self.head.byte)
++    }
++    pub fn is_backward(&self) -> bool {
++        self.head.byte < self.anchor.byte
++    }
++}
++
++#[derive(Clone, Copy, Debug, PartialEq, Eq)]
++pub enum RenderedSelectionError {
++    NoPreparedText,
++    ForeignPosition,
++    AtomicBoundary,
++    OwnerUnavailable,
++    UnmappedOwner,
++    StaleRequest,
++    NotSelectable,
+ }
+ 
+ /// Bounded rendered plain text, including structural separators and object copy
+@@ -65,8 +101,15 @@
+     }
+ }
+ impl RenderedText {
+-    pub(super) fn prepare(document: &ParsedDocument) -> Result<Arc<Self>, SharedString> {
+-        let mut builder = Builder::default();
++    pub(super) fn prepare(
++        document: &ParsedDocument,
++        displayed: &DisplayedText,
++    ) -> Result<Arc<Self>, SharedString> {
++        let mut builder = Builder {
++            text: String::new(),
++            parts: Vec::new(),
++            displayed,
++        };
+         for block in document.blocks.iter() {
+             builder.block(block)?;
+         }
+@@ -105,6 +148,117 @@
+     pub fn offset(&self, position: &RenderedTextPosition) -> Option<usize> {
+         Arc::ptr_eq(&self.identity, &position.identity).then_some(position.byte)
+     }
++    pub fn selection(
++        &self,
++        anchor: &RenderedTextPosition,
++        head: &RenderedTextPosition,
++    ) -> Result<RenderedSelection, RenderedSelectionError> {
++        let anchor_byte = self
++            .offset(anchor)
++            .ok_or(RenderedSelectionError::ForeignPosition)?;
++        let head_byte = self
++            .offset(head)
++            .ok_or(RenderedSelectionError::ForeignPosition)?;
++        if self.parts.iter().any(|part| {
++            part.is_atomic()
++                && [anchor_byte, head_byte]
++                    .into_iter()
++                    .any(|byte| part.bytes.start < byte && byte < part.bytes.end)
++        }) {
++            return Err(RenderedSelectionError::AtomicBoundary);
++        }
++        Ok(RenderedSelection {
++            anchor: anchor.clone(),
++            head: head.clone(),
++        })
++    }
++    pub fn selected_text(&self, selection: &RenderedSelection) -> Option<&str> {
++        self.offset(&selection.anchor)?;
++        self.offset(&selection.head)?;
++        self.text.get(selection.bytes())
++    }
++
++    /// Validate and lock every native owner before modifying any of them. The
++    /// caller must additionally validate its view/interaction and input policy.
++    pub(super) fn apply_selection(
++        &self,
++        selection: &RenderedSelection,
++    ) -> Result<(), RenderedSelectionError> {
++        use crate::input::Selection;
++        use std::sync::MutexGuard;
++        enum Strong {
++            Text(Arc<Mutex<InlineState>>),
++            Object(Arc<Mutex<bool>>),
++            Separator,
++        }
++        enum Locked<'a> {
++            Text(MutexGuard<'a, InlineState>, &'a str, Option<Selection>),
++            Object(MutexGuard<'a, bool>, bool),
++            Separator,
++        }
++        let selection = self.selection(&selection.anchor, &selection.head)?;
++        let range = selection.bytes();
++        let owners = self
++            .parts
++            .iter()
++            .map(|part| {
++                match &part.owner {
++                    Owner::Text(owner) | Owner::UnmappedText(owner) | Owner::BlockObject(owner) => {
++                        owner.upgrade().map(Strong::Text)
++                    }
++                    Owner::Object(owner) => owner.upgrade().map(Strong::Object),
++                    Owner::Separator => Some(Strong::Separator),
++                }
++                .ok_or(RenderedSelectionError::OwnerUnavailable)
++            })
++            .collect::<Result<Vec<_>, _>>()?;
++        let mut locks = Vec::with_capacity(owners.len());
++        for (owner, part) in owners.iter().zip(&self.parts) {
++            let start = range.start.max(part.bytes.start);
++            let end = range.end.min(part.bytes.end);
++            let selected = (start < end)
++                .then(|| Selection::new(start - part.bytes.start, end - part.bytes.start));
++            if selected.is_some() && matches!(part.owner, Owner::UnmappedText(_)) {
++                return Err(RenderedSelectionError::UnmappedOwner);
++            }
++            locks.push(match owner {
++                Strong::Text(owner) => {
++                    // try_lock also rejects accidentally aliased owners without
++                    // deadlocking or partially updating a malformed snapshot.
++                    let state = owner
++                        .try_lock()
++                        .map_err(|_| RenderedSelectionError::OwnerUnavailable)?;
++                    let text = &self.text[part.bytes.clone()];
++                    if selected.is_some() && !state.text.is_empty() && state.text.as_ref() != text {
++                        return Err(RenderedSelectionError::UnmappedOwner);
++                    }
++                    Locked::Text(state, text, selected)
++                }
++                Strong::Object(owner) => Locked::Object(
++                    owner
++                        .try_lock()
++                        .map_err(|_| RenderedSelectionError::OwnerUnavailable)?,
++                    selected.is_some(),
++                ),
++                Strong::Separator => Locked::Separator,
++            });
++        }
++        for lock in locks {
++            match lock {
++                Locked::Text(mut state, text, selected) => {
++                    // Unpainted virtual blocks still need their canonical text
++                    // for native plain/source Copy. This does not shape text.
++                    if selected.is_some() && state.text.is_empty() {
++                        state.text = text.to_owned().into();
++                    }
++                    state.selection = selected;
++                }
++                Locked::Object(mut state, selected) => *state = selected,
++                Locked::Separator => {}
++            }
++        }
++        Ok(())
++    }
+     /// Current local fragment selections only. Select-all, cross-view coverage,
+     /// direction and virtual endpoint retention belong to TextViewState; this
+     /// method must not be treated as the document's complete selection snapshot.
+@@ -112,7 +266,7 @@
+         self.parts
+             .iter()
+             .filter_map(|part| match &part.owner {
+-                Owner::Text(owner) => {
++                Owner::Text(owner) | Owner::UnmappedText(owner) | Owner::BlockObject(owner) => {
+                     let owner = owner.upgrade()?;
+                     let state = owner.lock().ok()?;
+                     if state.text.as_ref() != &self.text[part.bytes.clone()] {
+@@ -136,14 +290,16 @@
+     }
+ }
+ 
+-#[derive(Default)]
+-struct Builder {
++struct Builder<'a> {
+     text: String,
+     parts: Vec<RenderedTextPart>,
+-}
+-impl Builder {
++    displayed: &'a DisplayedText,
++}
++impl Builder<'_> {
+     fn push(&mut self, text: &str, owner: Owner) -> Result<(), SharedString> {
+-        if text.is_empty() {
++        // Empty alternatives still own native selection state that a later
++        // request must clear, even though they occupy no logical copy bytes.
++        if text.is_empty() && matches!(owner, Owner::Separator) {
+             return Ok(());
+         }
+         if text.len() > MAX_BYTES - self.text.len() || self.parts.len() >= MAX_PARTS {
+@@ -223,7 +379,21 @@
+                 }
+             }
+             BlockNode::Custom(node) => {
+-                self.text(node.as_text(), &node.block_text)?;
++                let owner = if let Some(state) = self.displayed.object_block_text(node) {
++                    // Empty declared glyphs are still a known presentation,
++                    // not an unpainted ordinary run we can initialize later.
++                    if state
++                        .lock()
++                        .is_ok_and(|state| state.text.as_ref() == node.as_text())
++                    {
++                        Owner::Text(Arc::downgrade(&node.block_text))
++                    } else {
++                        Owner::UnmappedText(Arc::downgrade(&node.block_text))
++                    }
++                } else {
++                    Owner::BlockObject(Arc::downgrade(&node.block_text))
++                };
++                self.push(node.as_text(), owner)?;
+                 if self.text.len() > start {
+                     self.separator("\n")?;
+                 }
+--- a/src/text/selection_adapter.rs
++++ b/src/text/selection_adapter.rs
+@@ -93,6 +93,7 @@
+                         };
+                         let snapshot = *snapshot;
+                         view.update(cx, |state, cx| {
++                            state.retire_rendered_selection();
+                             state.preserve_inline_selection = false;
+                             blocks_for_events
+                                 .borrow_mut()
+--- a/src/text/state.rs
++++ b/src/text/state.rs
+@@ -70,6 +70,14 @@
+     /// reconstructed as Markdown from the parsed nodes (e.g. selecting inside
+     /// a `**bold**` run yields `**bold**`).
+     Source,
++}
++
++/// Native adapter request for one view and interaction epoch. The OS adapter
++/// must also check current window visibility, modality and action eligibility.
++#[derive(Clone, Debug)]
++pub struct RenderedSelectionRequest {
++    epoch: Arc<()>,
++    selection: super::RenderedSelection,
+ }
+ 
+ /// One text element's laid-out vertical extent, reported by `Inline` during
+@@ -117,6 +125,8 @@
+     selected_text_override: Option<String>,
+     prepared_source_selection: Option<String>,
+     select_all: bool,
++    selection_epoch: Arc<()>,
++    requested_rendered_selection: Option<super::RenderedSelection>,
+     pub(super) auto_scroll: AutoScroll,
+     pub(super) selection_adapter: TextViewSelectionAdapter,
+ 
+@@ -181,6 +191,72 @@
+         self.parsed_content.rendered_text.clone()
+     }
+ 
++    /// Prepare an adapter request without changing native state. Positions must
++    /// belong to the installed bounded text, including for equal-text views.
++    pub fn prepare_rendered_selection(
++        &self,
++        anchor: &super::RenderedTextPosition,
++        head: &super::RenderedTextPosition,
++    ) -> Result<RenderedSelectionRequest, super::RenderedSelectionError> {
++        use super::RenderedSelectionError as Error;
++        if !self.selectable {
++            return Err(Error::NotSelectable);
++        }
++        let text = self.rendered_text().ok_or(Error::NoPreparedText)?;
++        Ok(RenderedSelectionRequest {
++            epoch: self.selection_epoch.clone(),
++            selection: text.selection(anchor, head)?,
++        })
++    }
++
++    /// Apply a previously prepared native request atomically. No focus/reveal
++    /// or OS authorization is implied by this low-level adapter operation.
++    pub fn apply_rendered_selection(
++        &mut self,
++        request: RenderedSelectionRequest,
++        cx: &mut Context<Self>,
++    ) -> Result<(), super::RenderedSelectionError> {
++        use super::RenderedSelectionError as Error;
++        if !self.selectable {
++            return Err(Error::NotSelectable);
++        }
++        if !Arc::ptr_eq(&self.selection_epoch, &request.epoch) {
++            return Err(Error::StaleRequest);
++        }
++        let text = self.rendered_text().ok_or(Error::NoPreparedText)?;
++        text.apply_selection(&request.selection)?;
++        self.retire_rendered_selection();
++        self.multi_click_selection = None;
++        self.selected_text_override = None;
++        self.prepared_source_selection = None;
++        self.select_all = !request.selection.bytes().is_empty()
++            && request.selection.bytes() == (0..text.text().len());
++        self.preserve_inline_selection = true;
++        self.is_selecting = false;
++        self.auto_scroll.stop();
++        self.selection_adapter
++            .set_local_selection(!request.selection.bytes().is_empty(), cx);
++        self.requested_rendered_selection = Some(request.selection);
++        cx.notify();
++        Ok(())
++    }
++
++    /// Directed range from the native request path only. Pointer/multi-click
++    /// snapshots must be captured separately from their actual layout endpoints;
++    /// local fragment bounds cannot recover their direction.
++    pub fn requested_rendered_selection(&self) -> Option<&super::RenderedSelection> {
++        self.requested_rendered_selection.as_ref()
++    }
++
++    pub(super) fn retire_rendered_selection(&mut self) {
++        // Ordinary pointer motion has no queued adapter request. Avoid an
++        // allocation there while still invalidating every outstanding stamp.
++        if Arc::strong_count(&self.selection_epoch) > 1 {
++            self.selection_epoch = Arc::new(());
++        }
++        self.requested_rendered_selection = None;
++    }
++
+     /// Install a single-use snapshot from an externally bounded worker. No
+     /// parser work or source queue is started by this operation. The caller
+     /// rejects stale document generations/revisions before calling it.
+@@ -191,6 +267,9 @@
+         unchanged_prefix: Option<usize>,
+         cx: &mut Context<Self>,
+     ) {
++        let previous_request = self.requested_rendered_selection.clone();
++        let previous_text = self.rendered_text();
++        self.retire_rendered_selection();
+         // HTML lacks trustworthy source spans. Never transfer an old selection
+         // across a replacement or a format change.
+         let unchanged_prefix =
+@@ -242,6 +321,19 @@
+         self.text = prepared.content.document.source.to_string();
+         self.markdown_extensions = prepared.content.node_cx.markdown_extensions.clone();
+         self.parsed_content = prepared.content;
++        if preserve
++            && let (Some(selection), Some(old), Some(new)) =
++                (previous_request, previous_text, self.rendered_text())
++            && old.text().get(..selection.bytes().end) == new.text().get(..selection.bytes().end)
++            && let (Some(anchor), Some(head)) = (
++                old.offset(selection.anchor())
++                    .and_then(|byte| new.position(byte)),
++                old.offset(selection.head())
++                    .and_then(|byte| new.position(byte)),
++            )
++        {
++            self.requested_rendered_selection = new.selection(&anchor, &head).ok();
++        }
+         self.text_backgrounds = None;
+         self.refresh_links(unchanged_prefix);
+         self.parsed_error = None;
+@@ -324,6 +416,8 @@
+             selected_text_override: None,
+             prepared_source_selection: None,
+             select_all: false,
++            selection_epoch: Arc::new(()),
++            requested_rendered_selection: None,
+             selectable: false,
+             selection_format: SelectionFormat::default(),
+             scrollable: false,
+@@ -572,7 +666,7 @@
+ 
+     /// Replace prepared renderer resources. For bounded externally prepared
+     /// documents with unchanged parser configuration, this rebuilds only the
+-    /// displayed-text projection, not the AST. Parser changes use the normal
++    /// text projections, not the AST. Parser changes use the normal
+     /// content-update path and require a new bounded preparation for decoration.
+     /// Callers must invalidate their enclosing query source after this operation.
+     pub fn set_markdown_extensions(
+@@ -592,12 +686,43 @@
+             let text = self.text.clone();
+             self.increment_update(&text, false, cx);
+         } else if self.parsed_content.bounded {
++            let previous_selection = self.requested_rendered_selection.clone();
++            let previous_text = self.rendered_text();
++            self.retire_rendered_selection();
+             self.text_backgrounds = None;
+             self.parsed_content.displayed_text = super::DisplayedText::prepare(
+                 &self.parsed_content.document,
+                 &self.markdown_extensions,
+             )
+             .ok();
++            self.parsed_content.rendered_text = self
++                .parsed_content
++                .displayed_text
++                .as_ref()
++                .and_then(|displayed| {
++                    super::RenderedText::prepare(&self.parsed_content.document, displayed).ok()
++                });
++            if let Some(selection) = previous_selection {
++                // Renderer resources can change declared glyphs without a new
++                // AST. Keep only ranges that still map to the current native
++                // owners; never apply an old copy offset to different glyphs.
++                let rebound = previous_text
++                    .zip(self.rendered_text())
++                    .and_then(|(old, new)| {
++                        if old.text() != new.text() {
++                            return None;
++                        }
++                        let anchor = new.position(old.offset(selection.anchor())?)?;
++                        let head = new.position(old.offset(selection.head())?)?;
++                        let selection = new.selection(&anchor, &head).ok()?;
++                        new.apply_selection(&selection).ok()?;
++                        Some(selection)
++                    });
++                if rebound.is_none() {
++                    self.reset_selection_and_adapter(cx);
++                }
++                self.requested_rendered_selection = rebound;
++            }
+             self.invalidate_inline_layout(cx);
+         }
+     }
+@@ -605,6 +730,10 @@
+     /// Return the selected text, in the view's [`SelectionFormat`].
+     pub fn has_local_selection(&self) -> bool {
+         self.select_all
++            || self
++                .requested_rendered_selection
++                .as_ref()
++                .is_some_and(|selection| !selection.bytes().is_empty())
+             || self.selected_text_override.is_some()
+             || self
+                 .parsed_content
+@@ -654,6 +783,16 @@
+             }
+ 
+             return self.parsed_content.document.text();
++        }
++
++        if format == SelectionFormat::Plain
++            && let (Some(selection), Some(text)) = (
++                &self.requested_rendered_selection,
++                &self.parsed_content.rendered_text,
++            )
++            && let Some(selected) = text.selected_text(selection)
++        {
++            return selected.to_string();
+         }
+ 
+         // A multi-click stores the plain text it selected, which is a shortcut
+@@ -820,6 +959,10 @@
+     /// independent of the window-level selection.
+     pub(super) fn has_view_selection(&self) -> bool {
+         self.select_all
++            || self
++                .requested_rendered_selection
++                .as_ref()
++                .is_some_and(|selection| !selection.bytes().is_empty())
+             || self.multi_click_selection.is_some()
+             || self.selected_text_override.is_some()
+     }
+@@ -829,6 +972,7 @@
+     }
+ 
+     pub(super) fn reset_selection(&mut self) {
++        self.retire_rendered_selection();
+         self.preserve_inline_selection = false;
+         self.multi_click_selection = None;
+         self.selected_text_override = None;
+@@ -863,6 +1007,7 @@
+ 
+     /// Select all rendered text in this view.
+     pub fn select_all(&mut self, cx: &mut Context<Self>) {
++        self.retire_rendered_selection();
+         self.multi_click_selection = None;
+         self.selected_text_override = None;
+         self.prepared_source_selection = None;
+@@ -880,6 +1025,7 @@
+         selected_text: String,
+         cx: &mut App,
+     ) {
++        self.retire_rendered_selection();
+         self.preserve_inline_selection = false;
+         let scroll_offset = self.scroll_offset();
+         let pos = pos - self.bounds.origin - scroll_offset;
+@@ -1135,7 +1281,10 @@
+             &document,
+             &node_cx.markdown_extensions,
+         )?);
+-        let rendered_text = Some(super::RenderedText::prepare(&document)?);
++        let rendered_text = Some(super::RenderedText::prepare(
++            &document,
++            displayed_text.as_ref().expect("prepared above"),
++        )?);
+         Ok(Self {
+             format,
+             content: ParsedContent {

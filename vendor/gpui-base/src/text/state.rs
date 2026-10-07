@@ -72,6 +72,14 @@ pub enum SelectionFormat {
     Source,
 }
 
+/// Native adapter request for one view and interaction epoch. The OS adapter
+/// must also check current window visibility, modality and action eligibility.
+#[derive(Clone, Debug)]
+pub struct RenderedSelectionRequest {
+    epoch: Arc<()>,
+    selection: super::RenderedSelection,
+}
+
 /// One text element's laid-out vertical extent, reported by `Inline` during
 /// prepaint so `TextView` can snap its `max_lines` clip to a whole-line
 /// boundary.
@@ -117,6 +125,8 @@ pub struct TextViewState {
     selected_text_override: Option<String>,
     prepared_source_selection: Option<String>,
     select_all: bool,
+    selection_epoch: Arc<()>,
+    requested_rendered_selection: Option<super::RenderedSelection>,
     pub(super) auto_scroll: AutoScroll,
     pub(super) selection_adapter: TextViewSelectionAdapter,
 
@@ -181,6 +191,72 @@ impl TextViewState {
         self.parsed_content.rendered_text.clone()
     }
 
+    /// Prepare an adapter request without changing native state. Positions must
+    /// belong to the installed bounded text, including for equal-text views.
+    pub fn prepare_rendered_selection(
+        &self,
+        anchor: &super::RenderedTextPosition,
+        head: &super::RenderedTextPosition,
+    ) -> Result<RenderedSelectionRequest, super::RenderedSelectionError> {
+        use super::RenderedSelectionError as Error;
+        if !self.selectable {
+            return Err(Error::NotSelectable);
+        }
+        let text = self.rendered_text().ok_or(Error::NoPreparedText)?;
+        Ok(RenderedSelectionRequest {
+            epoch: self.selection_epoch.clone(),
+            selection: text.selection(anchor, head)?,
+        })
+    }
+
+    /// Apply a previously prepared native request atomically. No focus/reveal
+    /// or OS authorization is implied by this low-level adapter operation.
+    pub fn apply_rendered_selection(
+        &mut self,
+        request: RenderedSelectionRequest,
+        cx: &mut Context<Self>,
+    ) -> Result<(), super::RenderedSelectionError> {
+        use super::RenderedSelectionError as Error;
+        if !self.selectable {
+            return Err(Error::NotSelectable);
+        }
+        if !Arc::ptr_eq(&self.selection_epoch, &request.epoch) {
+            return Err(Error::StaleRequest);
+        }
+        let text = self.rendered_text().ok_or(Error::NoPreparedText)?;
+        text.apply_selection(&request.selection)?;
+        self.retire_rendered_selection();
+        self.multi_click_selection = None;
+        self.selected_text_override = None;
+        self.prepared_source_selection = None;
+        self.select_all = !request.selection.bytes().is_empty()
+            && request.selection.bytes() == (0..text.text().len());
+        self.preserve_inline_selection = true;
+        self.is_selecting = false;
+        self.auto_scroll.stop();
+        self.selection_adapter
+            .set_local_selection(!request.selection.bytes().is_empty(), cx);
+        self.requested_rendered_selection = Some(request.selection);
+        cx.notify();
+        Ok(())
+    }
+
+    /// Directed range from the native request path only. Pointer/multi-click
+    /// snapshots must be captured separately from their actual layout endpoints;
+    /// local fragment bounds cannot recover their direction.
+    pub fn requested_rendered_selection(&self) -> Option<&super::RenderedSelection> {
+        self.requested_rendered_selection.as_ref()
+    }
+
+    pub(super) fn retire_rendered_selection(&mut self) {
+        // Ordinary pointer motion has no queued adapter request. Avoid an
+        // allocation there while still invalidating every outstanding stamp.
+        if Arc::strong_count(&self.selection_epoch) > 1 {
+            self.selection_epoch = Arc::new(());
+        }
+        self.requested_rendered_selection = None;
+    }
+
     /// Install a single-use snapshot from an externally bounded worker. No
     /// parser work or source queue is started by this operation. The caller
     /// rejects stale document generations/revisions before calling it.
@@ -191,6 +267,9 @@ impl TextViewState {
         unchanged_prefix: Option<usize>,
         cx: &mut Context<Self>,
     ) {
+        let previous_request = self.requested_rendered_selection.clone();
+        let previous_text = self.rendered_text();
+        self.retire_rendered_selection();
         // HTML lacks trustworthy source spans. Never transfer an old selection
         // across a replacement or a format change.
         let unchanged_prefix =
@@ -242,6 +321,19 @@ impl TextViewState {
         self.text = prepared.content.document.source.to_string();
         self.markdown_extensions = prepared.content.node_cx.markdown_extensions.clone();
         self.parsed_content = prepared.content;
+        if preserve
+            && let (Some(selection), Some(old), Some(new)) =
+                (previous_request, previous_text, self.rendered_text())
+            && old.text().get(..selection.bytes().end) == new.text().get(..selection.bytes().end)
+            && let (Some(anchor), Some(head)) = (
+                old.offset(selection.anchor())
+                    .and_then(|byte| new.position(byte)),
+                old.offset(selection.head())
+                    .and_then(|byte| new.position(byte)),
+            )
+        {
+            self.requested_rendered_selection = new.selection(&anchor, &head).ok();
+        }
         self.text_backgrounds = None;
         self.refresh_links(unchanged_prefix);
         self.parsed_error = None;
@@ -324,6 +416,8 @@ impl TextViewState {
             selected_text_override: None,
             prepared_source_selection: None,
             select_all: false,
+            selection_epoch: Arc::new(()),
+            requested_rendered_selection: None,
             selectable: false,
             selection_format: SelectionFormat::default(),
             scrollable: false,
@@ -572,7 +666,7 @@ impl TextViewState {
 
     /// Replace prepared renderer resources. For bounded externally prepared
     /// documents with unchanged parser configuration, this rebuilds only the
-    /// displayed-text projection, not the AST. Parser changes use the normal
+    /// text projections, not the AST. Parser changes use the normal
     /// content-update path and require a new bounded preparation for decoration.
     /// Callers must invalidate their enclosing query source after this operation.
     pub fn set_markdown_extensions(
@@ -592,12 +686,43 @@ impl TextViewState {
             let text = self.text.clone();
             self.increment_update(&text, false, cx);
         } else if self.parsed_content.bounded {
+            let previous_selection = self.requested_rendered_selection.clone();
+            let previous_text = self.rendered_text();
+            self.retire_rendered_selection();
             self.text_backgrounds = None;
             self.parsed_content.displayed_text = super::DisplayedText::prepare(
                 &self.parsed_content.document,
                 &self.markdown_extensions,
             )
             .ok();
+            self.parsed_content.rendered_text = self
+                .parsed_content
+                .displayed_text
+                .as_ref()
+                .and_then(|displayed| {
+                    super::RenderedText::prepare(&self.parsed_content.document, displayed).ok()
+                });
+            if let Some(selection) = previous_selection {
+                // Renderer resources can change declared glyphs without a new
+                // AST. Keep only ranges that still map to the current native
+                // owners; never apply an old copy offset to different glyphs.
+                let rebound = previous_text
+                    .zip(self.rendered_text())
+                    .and_then(|(old, new)| {
+                        if old.text() != new.text() {
+                            return None;
+                        }
+                        let anchor = new.position(old.offset(selection.anchor())?)?;
+                        let head = new.position(old.offset(selection.head())?)?;
+                        let selection = new.selection(&anchor, &head).ok()?;
+                        new.apply_selection(&selection).ok()?;
+                        Some(selection)
+                    });
+                if rebound.is_none() {
+                    self.reset_selection_and_adapter(cx);
+                }
+                self.requested_rendered_selection = rebound;
+            }
             self.invalidate_inline_layout(cx);
         }
     }
@@ -605,6 +730,10 @@ impl TextViewState {
     /// Return the selected text, in the view's [`SelectionFormat`].
     pub fn has_local_selection(&self) -> bool {
         self.select_all
+            || self
+                .requested_rendered_selection
+                .as_ref()
+                .is_some_and(|selection| !selection.bytes().is_empty())
             || self.selected_text_override.is_some()
             || self
                 .parsed_content
@@ -654,6 +783,16 @@ impl TextViewState {
             }
 
             return self.parsed_content.document.text();
+        }
+
+        if format == SelectionFormat::Plain
+            && let (Some(selection), Some(text)) = (
+                &self.requested_rendered_selection,
+                &self.parsed_content.rendered_text,
+            )
+            && let Some(selected) = text.selected_text(selection)
+        {
+            return selected.to_string();
         }
 
         // A multi-click stores the plain text it selected, which is a shortcut
@@ -820,6 +959,10 @@ impl TextViewState {
     /// independent of the window-level selection.
     pub(super) fn has_view_selection(&self) -> bool {
         self.select_all
+            || self
+                .requested_rendered_selection
+                .as_ref()
+                .is_some_and(|selection| !selection.bytes().is_empty())
             || self.multi_click_selection.is_some()
             || self.selected_text_override.is_some()
     }
@@ -829,6 +972,7 @@ impl TextViewState {
     }
 
     pub(super) fn reset_selection(&mut self) {
+        self.retire_rendered_selection();
         self.preserve_inline_selection = false;
         self.multi_click_selection = None;
         self.selected_text_override = None;
@@ -863,6 +1007,7 @@ impl TextViewState {
 
     /// Select all rendered text in this view.
     pub fn select_all(&mut self, cx: &mut Context<Self>) {
+        self.retire_rendered_selection();
         self.multi_click_selection = None;
         self.selected_text_override = None;
         self.prepared_source_selection = None;
@@ -880,6 +1025,7 @@ impl TextViewState {
         selected_text: String,
         cx: &mut App,
     ) {
+        self.retire_rendered_selection();
         self.preserve_inline_selection = false;
         let scroll_offset = self.scroll_offset();
         let pos = pos - self.bounds.origin - scroll_offset;
@@ -1135,7 +1281,10 @@ impl PreparedText {
             &document,
             &node_cx.markdown_extensions,
         )?);
-        let rendered_text = Some(super::RenderedText::prepare(&document)?);
+        let rendered_text = Some(super::RenderedText::prepare(
+            &document,
+            displayed_text.as_ref().expect("prepared above"),
+        )?);
         Ok(Self {
             format,
             content: ParsedContent {

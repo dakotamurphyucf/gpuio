@@ -1,6 +1,7 @@
 //! Immutable logical copy text with native-owner provenance. Geometry and AX
 //! node identities are separate: virtualizing a block must not change offsets.
 use super::{
+    DisplayedText,
     document::ParsedDocument,
     inline::InlineState,
     node::{BlockNode, Paragraph},
@@ -19,6 +20,8 @@ const MAX_PARTS: usize = 16_384;
 #[derive(Clone, Debug)]
 enum Owner {
     Text(Weak<Mutex<InlineState>>),
+    UnmappedText(Weak<Mutex<InlineState>>),
+    BlockObject(Weak<Mutex<InlineState>>),
     Object(Weak<Mutex<bool>>),
     Separator,
 }
@@ -34,7 +37,7 @@ impl RenderedTextPart {
         self.bytes.clone()
     }
     pub fn is_atomic(&self) -> bool {
-        matches!(self.owner, Owner::Object(_))
+        matches!(self.owner, Owner::Object(_) | Owner::BlockObject(_))
     }
     pub fn is_separator(&self) -> bool {
         matches!(self.owner, Owner::Separator)
@@ -48,6 +51,39 @@ impl RenderedTextPart {
 pub struct RenderedTextPosition {
     identity: Arc<()>,
     byte: usize,
+}
+
+/// Directed logical range in one prepared document. Native scalar positions
+/// are distinct from grapheme-aware keyboard movement and OS UTF-16 indices.
+#[derive(Clone, Debug)]
+pub struct RenderedSelection {
+    anchor: RenderedTextPosition,
+    head: RenderedTextPosition,
+}
+impl RenderedSelection {
+    pub fn anchor(&self) -> &RenderedTextPosition {
+        &self.anchor
+    }
+    pub fn head(&self) -> &RenderedTextPosition {
+        &self.head
+    }
+    pub fn bytes(&self) -> Range<usize> {
+        self.anchor.byte.min(self.head.byte)..self.anchor.byte.max(self.head.byte)
+    }
+    pub fn is_backward(&self) -> bool {
+        self.head.byte < self.anchor.byte
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RenderedSelectionError {
+    NoPreparedText,
+    ForeignPosition,
+    AtomicBoundary,
+    OwnerUnavailable,
+    UnmappedOwner,
+    StaleRequest,
+    NotSelectable,
 }
 
 /// Bounded rendered plain text, including structural separators and object copy
@@ -65,8 +101,15 @@ impl PartialEq for RenderedText {
     }
 }
 impl RenderedText {
-    pub(super) fn prepare(document: &ParsedDocument) -> Result<Arc<Self>, SharedString> {
-        let mut builder = Builder::default();
+    pub(super) fn prepare(
+        document: &ParsedDocument,
+        displayed: &DisplayedText,
+    ) -> Result<Arc<Self>, SharedString> {
+        let mut builder = Builder {
+            text: String::new(),
+            parts: Vec::new(),
+            displayed,
+        };
         for block in document.blocks.iter() {
             builder.block(block)?;
         }
@@ -105,6 +148,117 @@ impl RenderedText {
     pub fn offset(&self, position: &RenderedTextPosition) -> Option<usize> {
         Arc::ptr_eq(&self.identity, &position.identity).then_some(position.byte)
     }
+    pub fn selection(
+        &self,
+        anchor: &RenderedTextPosition,
+        head: &RenderedTextPosition,
+    ) -> Result<RenderedSelection, RenderedSelectionError> {
+        let anchor_byte = self
+            .offset(anchor)
+            .ok_or(RenderedSelectionError::ForeignPosition)?;
+        let head_byte = self
+            .offset(head)
+            .ok_or(RenderedSelectionError::ForeignPosition)?;
+        if self.parts.iter().any(|part| {
+            part.is_atomic()
+                && [anchor_byte, head_byte]
+                    .into_iter()
+                    .any(|byte| part.bytes.start < byte && byte < part.bytes.end)
+        }) {
+            return Err(RenderedSelectionError::AtomicBoundary);
+        }
+        Ok(RenderedSelection {
+            anchor: anchor.clone(),
+            head: head.clone(),
+        })
+    }
+    pub fn selected_text(&self, selection: &RenderedSelection) -> Option<&str> {
+        self.offset(&selection.anchor)?;
+        self.offset(&selection.head)?;
+        self.text.get(selection.bytes())
+    }
+
+    /// Validate and lock every native owner before modifying any of them. The
+    /// caller must additionally validate its view/interaction and input policy.
+    pub(super) fn apply_selection(
+        &self,
+        selection: &RenderedSelection,
+    ) -> Result<(), RenderedSelectionError> {
+        use crate::input::Selection;
+        use std::sync::MutexGuard;
+        enum Strong {
+            Text(Arc<Mutex<InlineState>>),
+            Object(Arc<Mutex<bool>>),
+            Separator,
+        }
+        enum Locked<'a> {
+            Text(MutexGuard<'a, InlineState>, &'a str, Option<Selection>),
+            Object(MutexGuard<'a, bool>, bool),
+            Separator,
+        }
+        let selection = self.selection(&selection.anchor, &selection.head)?;
+        let range = selection.bytes();
+        let owners = self
+            .parts
+            .iter()
+            .map(|part| {
+                match &part.owner {
+                    Owner::Text(owner) | Owner::UnmappedText(owner) | Owner::BlockObject(owner) => {
+                        owner.upgrade().map(Strong::Text)
+                    }
+                    Owner::Object(owner) => owner.upgrade().map(Strong::Object),
+                    Owner::Separator => Some(Strong::Separator),
+                }
+                .ok_or(RenderedSelectionError::OwnerUnavailable)
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        let mut locks = Vec::with_capacity(owners.len());
+        for (owner, part) in owners.iter().zip(&self.parts) {
+            let start = range.start.max(part.bytes.start);
+            let end = range.end.min(part.bytes.end);
+            let selected = (start < end)
+                .then(|| Selection::new(start - part.bytes.start, end - part.bytes.start));
+            if selected.is_some() && matches!(part.owner, Owner::UnmappedText(_)) {
+                return Err(RenderedSelectionError::UnmappedOwner);
+            }
+            locks.push(match owner {
+                Strong::Text(owner) => {
+                    // try_lock also rejects accidentally aliased owners without
+                    // deadlocking or partially updating a malformed snapshot.
+                    let state = owner
+                        .try_lock()
+                        .map_err(|_| RenderedSelectionError::OwnerUnavailable)?;
+                    let text = &self.text[part.bytes.clone()];
+                    if selected.is_some() && !state.text.is_empty() && state.text.as_ref() != text {
+                        return Err(RenderedSelectionError::UnmappedOwner);
+                    }
+                    Locked::Text(state, text, selected)
+                }
+                Strong::Object(owner) => Locked::Object(
+                    owner
+                        .try_lock()
+                        .map_err(|_| RenderedSelectionError::OwnerUnavailable)?,
+                    selected.is_some(),
+                ),
+                Strong::Separator => Locked::Separator,
+            });
+        }
+        for lock in locks {
+            match lock {
+                Locked::Text(mut state, text, selected) => {
+                    // Unpainted virtual blocks still need their canonical text
+                    // for native plain/source Copy. This does not shape text.
+                    if selected.is_some() && state.text.is_empty() {
+                        state.text = text.to_owned().into();
+                    }
+                    state.selection = selected;
+                }
+                Locked::Object(mut state, selected) => *state = selected,
+                Locked::Separator => {}
+            }
+        }
+        Ok(())
+    }
     /// Current local fragment selections only. Select-all, cross-view coverage,
     /// direction and virtual endpoint retention belong to TextViewState; this
     /// method must not be treated as the document's complete selection snapshot.
@@ -112,7 +266,7 @@ impl RenderedText {
         self.parts
             .iter()
             .filter_map(|part| match &part.owner {
-                Owner::Text(owner) => {
+                Owner::Text(owner) | Owner::UnmappedText(owner) | Owner::BlockObject(owner) => {
                     let owner = owner.upgrade()?;
                     let state = owner.lock().ok()?;
                     if state.text.as_ref() != &self.text[part.bytes.clone()] {
@@ -136,14 +290,16 @@ impl RenderedText {
     }
 }
 
-#[derive(Default)]
-struct Builder {
+struct Builder<'a> {
     text: String,
     parts: Vec<RenderedTextPart>,
+    displayed: &'a DisplayedText,
 }
-impl Builder {
+impl Builder<'_> {
     fn push(&mut self, text: &str, owner: Owner) -> Result<(), SharedString> {
-        if text.is_empty() {
+        // Empty alternatives still own native selection state that a later
+        // request must clear, even though they occupy no logical copy bytes.
+        if text.is_empty() && matches!(owner, Owner::Separator) {
             return Ok(());
         }
         if text.len() > MAX_BYTES - self.text.len() || self.parts.len() >= MAX_PARTS {
@@ -223,7 +379,21 @@ impl Builder {
                 }
             }
             BlockNode::Custom(node) => {
-                self.text(node.as_text(), &node.block_text)?;
+                let owner = if let Some(state) = self.displayed.object_block_text(node) {
+                    // Empty declared glyphs are still a known presentation,
+                    // not an unpainted ordinary run we can initialize later.
+                    if state
+                        .lock()
+                        .is_ok_and(|state| state.text.as_ref() == node.as_text())
+                    {
+                        Owner::Text(Arc::downgrade(&node.block_text))
+                    } else {
+                        Owner::UnmappedText(Arc::downgrade(&node.block_text))
+                    }
+                } else {
+                    Owner::BlockObject(Arc::downgrade(&node.block_text))
+                };
+                self.push(node.as_text(), owner)?;
                 if self.text.len() > start {
                     self.separator("\n")?;
                 }

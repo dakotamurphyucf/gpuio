@@ -93,6 +93,7 @@ impl TextViewSelectionAdapter {
                         };
                         let snapshot = *snapshot;
                         view.update(cx, |state, cx| {
+                            state.retire_rendered_selection();
                             state.preserve_inline_selection = false;
                             blocks_for_events
                                 .borrow_mut()

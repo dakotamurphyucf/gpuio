@@ -35,6 +35,10 @@ pub(super) struct State {
 mod rendered_text_test;
 
 #[cfg(all(test, feature = "native-image-tests"))]
+#[path = "document_rendered_selection_test.rs"]
+mod rendered_selection_test;
+
+#[cfg(all(test, feature = "native-image-tests"))]
 #[path = "document_selection_format_test.rs"]
 mod selection_format_test;
 
