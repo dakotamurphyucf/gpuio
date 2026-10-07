@@ -1,5 +1,22 @@
 //! Selection colors cascade into source and Markdown without replacing content.
 use super::*;
+use crate::host::native_test::{mouse, move_mouse};
+
+fn backward_pointer(
+    cx: &mut AsyncApp,
+    handle: WindowHandle<View>,
+    text: &Entity<gpui_base::TextViewState>,
+) {
+    let bounds = text.read_with(cx, |text, _| text.bounds());
+    let end = gpui::point(bounds.left() + px(1.), bounds.top() + px(10.));
+    let start = end + gpui::point(px(45.), px(0.));
+    move_mouse(cx, handle, start, false);
+    mouse(cx, handle, start, true);
+    move_mouse(cx, handle, end, true);
+    draw(cx, handle);
+    mouse(cx, handle, end, false);
+    draw(cx, handle);
+}
 
 fn parent_style(color: Option<i64>) -> Vec<Style> {
     let mut fields = vec![
@@ -66,10 +83,11 @@ pub(super) async fn exercise(
     source: ResourceId,
     p: &Entity<Presentation>,
 ) {
-    for (mode, requested) in [
-        (Mode::Code("txt".into()), false),
-        (Mode::Markdown, false),
-        (Mode::Markdown, true),
+    for (mode, requested, pointer) in [
+        (Mode::Code("txt".into()), false, false),
+        (Mode::Markdown, false, false),
+        (Mode::Markdown, true, false),
+        (Mode::Markdown, false, true),
     ] {
         let (base, generation) = p.read_with(cx, |p, _| {
             let source = p.installed.as_ref().unwrap();
@@ -131,18 +149,33 @@ pub(super) async fn exercise(
             })
             .unwrap();
         draw(cx, handle);
-        if requested {
+        if pointer {
+            backward_pointer(cx, handle, markdown.as_ref().unwrap());
+        }
+        let exact_copy = (requested || pointer).then(|| {
+            markdown.as_ref().unwrap().read_with(cx, |state, _| {
+                let range = state.rendered_selection().unwrap();
+                assert!(range.is_backward());
+                assert_eq!(state.requested_rendered_selection().is_some(), requested);
+                let text = state.rendered_text().unwrap();
+                let selected = text.selected_text(&range).unwrap().trim().to_owned();
+                assert!(!selected.is_empty());
+                assert!(selected.len() < text.text().trim().len());
+                if requested {
+                    assert_eq!(selected, "aaa");
+                }
+                selected
+            })
+        });
+        if let Some(expected) = &exact_copy {
             assert_eq!(
                 handle
                     .update(cx, |_, window, cx| gpui_base::TextSelection::selected_text(
                         window, cx
                     ))
                     .unwrap(),
-                "aaa"
+                *expected
             );
-            assert!(markdown.as_ref().unwrap().read_with(cx, |s, _| {
-                s.requested_rendered_selection().unwrap().is_backward()
-            }));
         }
         assert!(
             pixels(cx, handle, [255, 0, 255, 255]) > 20,
@@ -245,20 +278,21 @@ pub(super) async fn exercise(
                 markdown.read_with(cx, |state, _| state.selected_text()),
                 selected_text.unwrap()
             );
-            if requested {
-                assert!(markdown.read_with(cx, |s, _| {
-                    s.requested_rendered_selection().unwrap().is_backward()
-                }));
+            if let Some(expected) = &exact_copy {
+                assert!(
+                    markdown
+                        .read_with(cx, |s, _| { s.rendered_selection().unwrap().is_backward() })
+                );
                 assert_eq!(
                     handle
                         .update(cx, |_, window, cx| gpui_base::TextSelection::selected_text(
                             window, cx
                         ))
                         .unwrap(),
-                    "aaa"
+                    *expected
                 );
                 eprintln!(
-                    "GPUIO_RENDERED_SELECTION_REQUEST_GPU_OK: backward native request, actual selection pixels, window Copy, restyle and streamed retention"
+                    "GPUIO_RENDERED_SELECTION_RANGE_GPU_OK: requested={requested}, pointer={pointer}, backward range, actual selection pixels, window Copy, restyle and streamed retention"
                 );
             }
         } else {

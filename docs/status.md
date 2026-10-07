@@ -5,6 +5,13 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **O
 Markdown walkthroughs for every example component; its documentation acceptance is complete. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
+[Native pointer selection](evidence/rendered-pointer-selection-och17.md) now
+adopts mapped same-document drags into the range shared by native painting and
+exact plain Copy. Direction survives resize and compatible streaming. Local
+1,092 native tests, strict lint, full Dune, reconstruction, actual GPU
+selection/Copy and rebuilt-gallery shutdown checks pass. Multi-click/cross-participant/custom mapping, bidi geometry,
+hot-path performance and rich accessibility publication/actions remain open.
+
 [Icon readback capacity](evidence/icon-readback-capacity-och17.md) now reproduces
 the hosted out-of-bounds sample locally and repairs the test fixture's logical
 and native drawable sizing. The complete local native image suite passes with

@@ -11871,3 +11871,309 @@
      }
  }
  
+--- a/src/text/selection_adapter.rs
++++ b/src/text/selection_adapter.rs
+@@ -118,6 +118,7 @@
+                                 .update(snapshot, selection_id);
+                             state.is_selecting =
+                                 snapshot.is_some_and(|snapshot| snapshot.is_selecting());
++                            state.adopt_rendered_pointer_selection(snapshot);
+                             cx.notify();
+                         });
+                     }
+@@ -286,7 +287,15 @@
+         text: &super::RenderedText,
+         cx: &App,
+     ) -> Option<super::RenderedSelection> {
+-        let snapshot = self.selection.snapshot(cx)?;
++        self.rendered_selection_from_snapshot(text, self.selection.snapshot(cx))
++    }
++
++    pub(super) fn rendered_selection_from_snapshot(
++        &self,
++        text: &super::RenderedText,
++        snapshot: Option<TextSelectionSnapshot>,
++    ) -> Option<super::RenderedSelection> {
++        let snapshot = snapshot?;
+         if snapshot.coverage() != TextSelectionCoverage::Bounded
+             || snapshot.anchor().entity_id() != Some(self.selection.entity_id())
+             || snapshot.cursor().entity_id() != Some(self.selection.entity_id())
+--- a/src/text/state.rs
++++ b/src/text/state.rs
+@@ -78,6 +78,27 @@
+ pub struct RenderedSelectionRequest {
+     epoch: Arc<()>,
+     selection: super::RenderedSelection,
++}
++
++#[derive(Clone)]
++enum RetainedRenderedSelection {
++    Request(super::RenderedSelection),
++    Pointer(super::RenderedSelection),
++}
++
++impl RetainedRenderedSelection {
++    fn selection(&self) -> &super::RenderedSelection {
++        match self {
++            Self::Request(selection) | Self::Pointer(selection) => selection,
++        }
++    }
++
++    fn rebind(self, selection: super::RenderedSelection) -> Self {
++        match self {
++            Self::Request(_) => Self::Request(selection),
++            Self::Pointer(_) => Self::Pointer(selection),
++        }
++    }
+ }
+ 
+ /// One text element's laid-out vertical extent, reported by `Inline` during
+@@ -126,7 +147,7 @@
+     prepared_source_selection: Option<String>,
+     select_all: bool,
+     selection_epoch: Arc<()>,
+-    requested_rendered_selection: Option<super::RenderedSelection>,
++    rendered_selection: Option<RetainedRenderedSelection>,
+     pub(super) auto_scroll: AutoScroll,
+     pub(super) selection_adapter: TextViewSelectionAdapter,
+ 
+@@ -236,7 +257,7 @@
+         self.auto_scroll.stop();
+         self.selection_adapter
+             .set_local_selection(!request.selection.bytes().is_empty(), cx);
+-        self.requested_rendered_selection = Some(request.selection);
++        self.rendered_selection = Some(RetainedRenderedSelection::Request(request.selection));
+         cx.notify();
+         Ok(())
+     }
+@@ -245,20 +266,80 @@
+     /// snapshots must be captured separately from their actual layout endpoints;
+     /// local fragment bounds cannot recover their direction.
+     pub fn requested_rendered_selection(&self) -> Option<&super::RenderedSelection> {
+-        self.requested_rendered_selection.as_ref()
++        match &self.rendered_selection {
++            Some(RetainedRenderedSelection::Request(selection)) => Some(selection),
++            Some(RetainedRenderedSelection::Pointer(_)) | None => None,
++        }
++    }
++
++    /// The logical range shared by native requests or mapped pointer selection
++    /// and Copy/paint. Genuine Select All covers the whole installed text.
++    /// Multi-click, cross-participant and unmapped selections are not yet
++    /// represented here; absence must not be interpreted as no native selection.
++    pub fn rendered_selection(&self) -> Option<super::RenderedSelection> {
++        if !self.selectable {
++            return None;
++        }
++        let text = self.rendered_text()?;
++        if let Some(selection) = &self.rendered_selection {
++            text.selected_text(selection.selection())?;
++            return Some(selection.selection().clone());
++        }
++        if self.select_all {
++            return text
++                .selection(&text.position(0)?, &text.position(text.text().len())?)
++                .ok();
++        }
++        None
++    }
++
++    pub(super) fn adopt_rendered_pointer_selection(
++        &mut self,
++        snapshot: Option<crate::TextSelectionSnapshot>,
++    ) {
++        if !self.selectable || self.multi_click_selection.is_some() {
++            return;
++        }
++        let Some(text) = self.rendered_text() else {
++            return;
++        };
++        let Some(selection) = self
++            .selection_adapter
++            .rendered_selection_from_snapshot(&text, snapshot)
++        else {
++            return;
++        };
++        if text.apply_selection(&selection).is_err() {
++            return;
++        }
++        // The window controller still owns the gesture and auto-scroll. Do not
++        // turn a drag into participant-local selection or end it as an AX-style
++        // request would. Only its native text projection changes here.
++        self.select_all = false;
++        self.selected_text_override = None;
++        self.prepared_source_selection = None;
++        self.preserve_inline_selection = true;
++        self.rendered_selection = Some(RetainedRenderedSelection::Pointer(selection));
+     }
+ 
+     /// Captured same-document pointer endpoints in the installed preparation.
+-    /// This does not yet replace the native geometric paint/Copy selection,
+-    /// cover multi-click/cross-participant selection, or publish AX attributes.
++    /// A mapped pointer range is shared with native paint/Copy; a raw capture
++    /// can still be returned when a custom owner prevented adoption. This is
++    /// not a complete multi-click/cross-participant or AX selection accessor.
+     pub fn captured_rendered_pointer_selection(
+         &self,
+         cx: &App,
+     ) -> Option<super::RenderedSelection> {
++        if matches!(
++            self.rendered_selection,
++            Some(RetainedRenderedSelection::Pointer(_))
++        ) {
++            return self.rendered_selection();
++        }
+         if !self.selectable
+             || self.select_all
+             || self.multi_click_selection.is_some()
+-            || self.requested_rendered_selection.is_some()
++            || self.rendered_selection.is_some()
+             || self.preserve_inline_selection
+         {
+             return None;
+@@ -274,7 +355,7 @@
+         if Arc::strong_count(&self.selection_epoch) > 1 {
+             self.selection_epoch = Arc::new(());
+         }
+-        self.requested_rendered_selection = None;
++        self.rendered_selection = None;
+     }
+ 
+     /// Install a single-use snapshot from an externally bounded worker. No
+@@ -287,7 +368,7 @@
+         unchanged_prefix: Option<usize>,
+         cx: &mut Context<Self>,
+     ) {
+-        let previous_request = self.requested_rendered_selection.clone();
++        let previous_request = self.rendered_selection.clone();
+         let previous_text = self.rendered_text();
+         self.retire_rendered_selection();
+         // HTML lacks trustworthy source spans. Never transfer an old selection
+@@ -344,15 +425,19 @@
+         if preserve
+             && let (Some(selection), Some(old), Some(new)) =
+                 (previous_request, previous_text, self.rendered_text())
+-            && old.text().get(..selection.bytes().end) == new.text().get(..selection.bytes().end)
++            && old.text().get(..selection.selection().bytes().end)
++                == new.text().get(..selection.selection().bytes().end)
+             && let (Some(anchor), Some(head)) = (
+-                old.offset(selection.anchor())
++                old.offset(selection.selection().anchor())
+                     .and_then(|byte| new.position(byte)),
+-                old.offset(selection.head())
++                old.offset(selection.selection().head())
+                     .and_then(|byte| new.position(byte)),
+             )
+         {
+-            self.requested_rendered_selection = new.selection(&anchor, &head).ok();
++            self.rendered_selection = new
++                .selection(&anchor, &head)
++                .ok()
++                .map(|range| selection.rebind(range));
+         }
+         self.text_backgrounds = None;
+         self.refresh_links(unchanged_prefix);
+@@ -437,7 +522,7 @@
+             prepared_source_selection: None,
+             select_all: false,
+             selection_epoch: Arc::new(()),
+-            requested_rendered_selection: None,
++            rendered_selection: None,
+             selectable: false,
+             selection_format: SelectionFormat::default(),
+             scrollable: false,
+@@ -706,7 +791,7 @@
+             let text = self.text.clone();
+             self.increment_update(&text, false, cx);
+         } else if self.parsed_content.bounded {
+-            let previous_selection = self.requested_rendered_selection.clone();
++            let previous_selection = self.rendered_selection.clone();
+             let previous_text = self.rendered_text();
+             self.retire_rendered_selection();
+             self.text_backgrounds = None;
+@@ -732,16 +817,16 @@
+                         if old.text() != new.text() {
+                             return None;
+                         }
+-                        let anchor = new.position(old.offset(selection.anchor())?)?;
+-                        let head = new.position(old.offset(selection.head())?)?;
+-                        let selection = new.selection(&anchor, &head).ok()?;
+-                        new.apply_selection(&selection).ok()?;
+-                        Some(selection)
++                        let anchor = new.position(old.offset(selection.selection().anchor())?)?;
++                        let head = new.position(old.offset(selection.selection().head())?)?;
++                        let range = new.selection(&anchor, &head).ok()?;
++                        new.apply_selection(&range).ok()?;
++                        Some(selection.rebind(range))
+                     });
+                 if rebound.is_none() {
+                     self.reset_selection_and_adapter(cx);
+                 }
+-                self.requested_rendered_selection = rebound;
++                self.rendered_selection = rebound;
+             }
+             self.invalidate_inline_layout(cx);
+         }
+@@ -751,9 +836,9 @@
+     pub fn has_local_selection(&self) -> bool {
+         self.select_all
+             || self
+-                .requested_rendered_selection
++                .rendered_selection
+                 .as_ref()
+-                .is_some_and(|selection| !selection.bytes().is_empty())
++                .is_some_and(|selection| !selection.selection().bytes().is_empty())
+             || self.selected_text_override.is_some()
+             || self
+                 .parsed_content
+@@ -806,11 +891,9 @@
+         }
+ 
+         if format == SelectionFormat::Plain
+-            && let (Some(selection), Some(text)) = (
+-                &self.requested_rendered_selection,
+-                &self.parsed_content.rendered_text,
+-            )
+-            && let Some(selected) = text.selected_text(selection)
++            && let (Some(selection), Some(text)) =
++                (&self.rendered_selection, &self.parsed_content.rendered_text)
++            && let Some(selected) = text.selected_text(selection.selection())
+         {
+             return selected.to_string();
+         }
+@@ -980,9 +1063,9 @@
+     pub(super) fn has_view_selection(&self) -> bool {
+         self.select_all
+             || self
+-                .requested_rendered_selection
++                .rendered_selection
+                 .as_ref()
+-                .is_some_and(|selection| !selection.bytes().is_empty())
++                .is_some_and(|selection| !selection.selection().bytes().is_empty())
+             || self.multi_click_selection.is_some()
+             || self.selected_text_override.is_some()
+     }
+@@ -1216,6 +1299,7 @@
+                     has_selection_snapshot,
+                     is_selecting,
+                     compatible_layout_update,
++                    has_logical_range,
+                 ) = {
+                     let state = state.read(cx);
+                     (
+@@ -1224,6 +1308,7 @@
+                         state.selection_adapter.has_selection_snapshot(cx),
+                         state.is_selecting,
+                         state.compatible_layout_update,
++                        state.rendered_selection().is_some(),
+                     )
+                 };
+                 let mut revision_changed = false;
+@@ -1235,6 +1320,7 @@
+                     state.compatible_layout_update = false;
+                 });
+                 if !is_selecting
++                    && !has_logical_range
+                     && ((size_changed && selection_involves_view && !compatible_layout_update)
+                         || (revision_changed && has_selection_snapshot))
+                 {

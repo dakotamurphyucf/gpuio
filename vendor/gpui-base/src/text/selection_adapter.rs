@@ -118,6 +118,7 @@ impl TextViewSelectionAdapter {
                                 .update(snapshot, selection_id);
                             state.is_selecting =
                                 snapshot.is_some_and(|snapshot| snapshot.is_selecting());
+                            state.adopt_rendered_pointer_selection(snapshot);
                             cx.notify();
                         });
                     }
@@ -286,7 +287,15 @@ impl TextViewSelectionAdapter {
         text: &super::RenderedText,
         cx: &App,
     ) -> Option<super::RenderedSelection> {
-        let snapshot = self.selection.snapshot(cx)?;
+        self.rendered_selection_from_snapshot(text, self.selection.snapshot(cx))
+    }
+
+    pub(super) fn rendered_selection_from_snapshot(
+        &self,
+        text: &super::RenderedText,
+        snapshot: Option<TextSelectionSnapshot>,
+    ) -> Option<super::RenderedSelection> {
+        let snapshot = snapshot?;
         if snapshot.coverage() != TextSelectionCoverage::Bounded
             || snapshot.anchor().entity_id() != Some(self.selection.entity_id())
             || snapshot.cursor().entity_id() != Some(self.selection.entity_id())

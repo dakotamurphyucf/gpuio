@@ -160,7 +160,10 @@ fn frontmatter_descriptions_partial_selection_survives_append_but_not_metadata_r
     cx.simulate_mouse_up(end, gpui::MouseButton::Left, Default::default());
     draw(cx);
     let selected = text.read_with(cx, |t, _| t.selected_text());
-    assert_eq!(selected, "Native 世界\n");
+    // Endpoints cover the value glyphs only. Exact logical Copy no longer
+    // appends the description block's unselected structural newline.
+    assert_eq!(selected, "Native 世界");
+    assert_eq!(cx.update(gpui_base::TextSelection::selected_text), selected);
     view.update(cx, |v, cx| {
         v.selection_format = SelectionFormat::Source;
         cx.notify();

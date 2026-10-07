@@ -59,6 +59,26 @@ fn pointer_endpoints_keep_direction_and_duplicate_owner_then_expire_on_replaceme
         let forward = captured(&text, cx);
         assert_eq!(forward.0, occurrence * (label.len() + 1));
         assert!(forward.1 > forward.0);
+        let logical = text.read_with(cx, |state, _| {
+            assert!(
+                state.requested_rendered_selection().is_none(),
+                "a pointer drag is not an adapter request"
+            );
+            let selection = state
+                .rendered_selection()
+                .expect("native logical selection");
+            assert_eq!(selection.bytes(), forward.0..forward.1);
+            state
+                .rendered_text()
+                .unwrap()
+                .selected_text(&selection)
+                .unwrap()
+                .to_owned()
+        });
+        assert_eq!(
+            cx.update(gpui_base::TextSelection::selected_text),
+            logical.trim()
+        );
         // A nonvirtual endpoint must not introduce a block-zero-only Copy filter.
         assert!(
             !cx.update(gpui_base::TextSelection::selected_text)
@@ -66,7 +86,53 @@ fn pointer_endpoints_keep_direction_and_duplicate_owner_then_expire_on_replaceme
         );
         drag(cx, label, occurrence, true);
         assert_eq!(captured(&text, cx), (forward.1, forward.0));
+        assert!(text.read_with(cx, |state, _| {
+            state.rendered_selection().unwrap().is_backward()
+        }));
     }
+    let before_resize = captured(&text, cx);
+    cx.simulate_resize(gpui::size(px(400.), px(1800.)));
+    draw(cx);
+    assert!(
+        text.read_with(cx, |state, _| state.rendered_selection().is_some()),
+        "logical range after resize"
+    );
+    assert_eq!(
+        captured(&text, cx),
+        before_resize,
+        "reflow preserves a logical selection"
+    );
+    let before_stream = text.read_with(cx, |state, _| state.rendered_selection().unwrap());
+    let extensions = f
+        .presentation
+        .read_with(cx, |p, _| p.markdown_extensions.clone());
+    text.update(cx, |state, cx| {
+        state.set_prepared(
+            gpui_base::text::PreparedText::parse(&format!("{source} and more"), extensions)
+                .unwrap(),
+            Some(source.len()),
+            cx,
+        );
+        assert!(
+            state.rendered_selection().is_some(),
+            "logical range immediately after append"
+        );
+    });
+    draw(cx);
+    assert!(
+        text.read_with(cx, |state, _| state.rendered_selection().is_some()),
+        "logical range after append"
+    );
+    assert_eq!(
+        captured(&text, cx),
+        before_resize,
+        "compatible stream keeps pointer direction"
+    );
+    text.read_with(cx, |state, _| {
+        let projection = state.rendered_text().unwrap();
+        assert!(projection.offset(before_stream.anchor()).is_none());
+        assert!(state.rendered_selection().unwrap().is_backward());
+    });
     // Equal source is still a different preparation. Captured coordinates may
     // remain in the window controller, but cannot address the replacement.
     text.update(cx, |state, cx| {
@@ -116,6 +182,18 @@ fn captured_pointer_anchor_survives_virtualization_without_retaining_layout_hist
         "anchor must actually leave the realized tree"
     );
     assert_eq!(captured(&text, cx), before);
+    text.read_with(cx, |state, _| {
+        let logical = state.rendered_selection().unwrap();
+        assert!(logical.is_backward());
+        assert_eq!(
+            state.selected_text(),
+            state
+                .rendered_text()
+                .unwrap()
+                .selected_text(&logical)
+                .unwrap()
+        );
+    });
     cx.update(gpui_base::TextSelection::clear);
     assert!(text.read_with(cx, |state, cx| {
         state.captured_rendered_pointer_selection(cx).is_none()
