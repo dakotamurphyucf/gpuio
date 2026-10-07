@@ -5,6 +5,13 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **O
 Markdown walkthroughs for every example component; its documentation acceptance is complete. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
+[Hosted run 37579057201](evidence/hosted-run-37579057201.md) is terminal at
+`73b4e713`: Linux foundation and the fresh-runner macOS apps job pass. macOS
+foundation fails popup focus, navigation resize, an icon-transform snapshot
+dimension mismatch, and both zero-timestamp Metal presentation probes. Local
+popup/navigation passes do not establish their hosted causes. Current-source
+validation, physical presentation and release qualification remain open.
+
 [Native rendered-selection requests](evidence/rendered-selection-requests-och17.md)
 now retain directed ranges, validate view/interaction identity before updating
 native owners, and preserve plain/source Copy across compatible streaming and
