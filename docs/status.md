@@ -5,6 +5,14 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **O
 Markdown walkthroughs for every example component; its documentation acceptance is complete. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
+[Declared custom block selection](evidence/rendered-custom-selection-och17.md)
+now addresses displayed glyphs independently of whole-document Copy. Partial
+Unicode selection, declared whole Copy, streamed retention and empty-glyph Copy
+scope pass actual macOS GPU/keyboard checks. All 1,105 native tests (2 ignored),
+workspace tests, strict lint, full Dune, reconstruction and fresh-gallery shutdown
+pass locally. Empty atomic objects, richer custom behavior, AX and the full release
+gates remain open; this checkpoint does not establish release readiness.
+
 [Hosted run 37600285808](evidence/hosted-run-37600285808.md) is terminal at
 `627bf7fc`: Linux foundation and scoped extracted-app checks pass; macOS foundation
 fails only its two Metal presentation probes. GPUI reports 180 zero timestamps;

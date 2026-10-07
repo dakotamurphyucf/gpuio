@@ -239,3 +239,11 @@ output has no character-by-character mapping to source syntax. Plain copy uses
 the selected display text. Whole-document copy retains the existing declared
 copy-text/source contract. Inline custom objects retain their atomic selection
 contract; this does not introduce selection inside an arbitrary custom renderer.
+
+
+The logical selection projection now addresses declared block glyphs even when
+`MarkdownNode.text` specifies a different whole-document Copy representation.
+It does not expose that alternative as invisible selectable glyphs. Whole Copy
+and partial glyph Copy retain the distinction above through compatible streaming;
+empty presentations still retain independently bounded declared Copy data. See
+[the selection projection contract](rendered-document-selection.md#declared-custom-block-glyphs-versus-whole-document-copy).

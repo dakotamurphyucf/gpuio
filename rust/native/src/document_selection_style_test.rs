@@ -521,7 +521,153 @@ pub(super) async fn exercise(
             e.bridge_select(0, 0, cx);
         });
     }
+    custom_glyph_selection(cx, handle, p);
     eprintln!(
         "GPUIO_DOCUMENT_SELECTION_STYLE_OK: source/Markdown inherited color, last-local override, ancestor restyle, local/default restoration, GPU pixels and selected-source/native-entity retention through streamed publication"
+    );
+}
+
+struct DeclaredGlyphs(bool);
+impl gpui_base::text::MarkdownPlugin for DeclaredGlyphs {
+    fn name(&self) -> &str {
+        "selection-glyphs"
+    }
+    fn is_block(&self) -> bool {
+        true
+    }
+    fn parse(
+        &self,
+        node: &gpui_base::text::markdown_ast::Node,
+        _: &gpui_base::text::MarkdownParseContext<'_>,
+    ) -> Option<gpui_base::text::MarkdownNode> {
+        matches!(node, gpui_base::text::markdown_ast::Node::Blockquote(_)).then(|| {
+            gpui_base::text::MarkdownNode::new("selection-glyphs", ())
+                .text("copy representation")
+                .markdown("> custom")
+        })
+    }
+    fn presentation(
+        &self,
+        _: &gpui_base::text::MarkdownNode,
+    ) -> gpui_base::text::MarkdownPresentation {
+        gpui_base::text::MarkdownPresentation::Text(if self.0 { "" } else { "shown 世界" }.into())
+    }
+}
+
+fn custom_glyph_selection(cx: &mut AsyncApp, handle: WindowHandle<View>, p: &Entity<Presentation>) {
+    let (text, original_extensions, original_source) = p.read_with(cx, |p, _| {
+        (
+            p.markdown.clone().unwrap(),
+            p.markdown_extensions.clone(),
+            p.installed.as_ref().unwrap().text.to_string(),
+        )
+    });
+    let extensions = original_extensions.clone().plugin(DeclaredGlyphs(false));
+    p.update(cx, |p, _| p.markdown_extensions = extensions.clone());
+    let source = "Before\n\n> custom\n\nAfter";
+    text.update(cx, |state, cx| {
+        state.set_prepared(
+            gpui_base::text::PreparedText::parse(source, extensions.clone()).unwrap(),
+            None,
+            cx,
+        )
+    });
+    apply(
+        cx,
+        handle,
+        vec![Op::SetStyle(
+            node(1),
+            vec![Style::Fields(vec![Field::SelectionColor(Color::Rgba(
+                0x00ffffff,
+            ))])],
+        )],
+    );
+    draw(cx, handle);
+    assert_eq!(pixels(cx, handle, [0, 255, 255, 255]), 0);
+    let select_unicode = |cx: &mut AsyncApp| {
+        text.update(cx, |state, cx| {
+            let projection = state.rendered_text().unwrap();
+            assert_eq!(projection.text(), "Before\nshown 世界\nAfter\n");
+            let request = state
+                .prepare_rendered_selection(
+                    &projection.position(19).unwrap(),
+                    &projection.position(13).unwrap(),
+                )
+                .unwrap();
+            state.apply_rendered_selection(request, cx).unwrap();
+        })
+    };
+    select_unicode(cx);
+    draw(cx, handle);
+    assert!(pixels(cx, handle, [0, 255, 255, 255]) > 20);
+    crate::host::editor_test::key(cx, handle, "secondary-c");
+    assert_eq!(
+        cx.update(|cx| cx.read_from_clipboard().unwrap().text().unwrap()),
+        "世界"
+    );
+    text.update(cx, |state, cx| state.select_all(cx));
+    draw(cx, handle);
+    crate::host::editor_test::key(cx, handle, "secondary-c");
+    assert_eq!(
+        cx.update(|cx| cx.read_from_clipboard().unwrap().text().unwrap()),
+        "Before\ncopy representation\nAfter"
+    );
+    text.update(cx, |state, cx| {
+        state.set_prepared(
+            gpui_base::text::PreparedText::parse(&format!("{source} appended"), extensions)
+                .unwrap(),
+            Some(source.len()),
+            cx,
+        )
+    });
+    draw(cx, handle);
+    assert!(pixels(cx, handle, [0, 255, 255, 255]) > 20);
+    text.read_with(cx, |state, _| {
+        let range = state.rendered_selection().unwrap();
+        assert_eq!(
+            state.rendered_text().unwrap().selected_text(&range),
+            Some("Before\nshown 世界\nAfter")
+        );
+    });
+    crate::host::editor_test::key(cx, handle, "secondary-c");
+    assert_eq!(
+        cx.update(|cx| cx.read_from_clipboard().unwrap().text().unwrap()),
+        "Before\ncopy representation\nAfter"
+    );
+    let empty_extensions = original_extensions.clone().plugin(DeclaredGlyphs(true));
+    p.update(cx, |p, _| p.markdown_extensions = empty_extensions.clone());
+    text.update(cx, |state, cx| {
+        state.set_prepared(
+            gpui_base::text::PreparedText::parse("> custom", empty_extensions.clone()).unwrap(),
+            None,
+            cx,
+        );
+        state.select_all(cx);
+        state.set_prepared(
+            gpui_base::text::PreparedText::parse("> custom\n\nNew", empty_extensions).unwrap(),
+            Some(8),
+            cx,
+        );
+    });
+    draw(cx, handle);
+    crate::host::editor_test::key(cx, handle, "secondary-c");
+    assert_eq!(
+        cx.update(|cx| cx.read_from_clipboard().unwrap().text().unwrap()),
+        "copy representation"
+    );
+    p.update(cx, |p, _| {
+        p.markdown_extensions = original_extensions.clone()
+    });
+    text.update(cx, |state, cx| {
+        state.set_prepared(
+            gpui_base::text::PreparedText::parse(&original_source, original_extensions).unwrap(),
+            None,
+            cx,
+        )
+    });
+    apply(cx, handle, vec![Op::SetStyle(node(1), vec![])]);
+    draw(cx, handle);
+    eprintln!(
+        "GPUIO_CUSTOM_GLYPH_SELECTION_OK: displayed Unicode range, actual GPU pixels/keyboard Copy, declared whole Copy and frozen streamed selection"
     );
 }

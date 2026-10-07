@@ -80,6 +80,13 @@ pub struct RenderedSelectionRequest {
     selection: super::RenderedSelection,
 }
 
+// Whole-document Copy is a declared representation, distinct from selection
+// coordinates for custom Text glyphs. Preserve it when freezing All on append.
+struct PreparedWholeCopy {
+    source: String,
+    plain: Option<String>,
+}
+
 #[derive(Clone)]
 enum RetainedRenderedSelection {
     Request(super::RenderedSelection),
@@ -151,7 +158,7 @@ pub struct TextViewState {
     pub(super) preserve_inline_selection: bool,
     multi_click_selection: Option<TextViewMultiClickSelection>,
     selected_text_override: Option<String>,
-    prepared_source_selection: Option<String>,
+    prepared_whole_copy: Option<PreparedWholeCopy>,
     select_all: bool,
     selection_epoch: Arc<()>,
     rendered_selection: Option<RetainedRenderedSelection>,
@@ -270,7 +277,7 @@ impl TextViewState {
         self.retire_rendered_selection();
         self.multi_click_selection = None;
         self.selected_text_override = None;
-        self.prepared_source_selection = None;
+        self.prepared_whole_copy = None;
         self.select_all = !request.selection.bytes().is_empty()
             && request.selection.bytes() == (0..text.text().len());
         self.preserve_inline_selection = true;
@@ -344,7 +351,7 @@ impl TextViewState {
         // request would. Only its native text projection changes here.
         self.select_all = false;
         self.selected_text_override = None;
-        self.prepared_source_selection = None;
+        self.prepared_whole_copy = None;
         self.preserve_inline_selection = true;
         self.rendered_selection = Some(RetainedRenderedSelection::Pointer(selection));
     }
@@ -446,6 +453,14 @@ impl TextViewState {
         let all = self.select_all;
         let selected_plain = all.then(|| self.parsed_content.document.text());
         let selected_source = all.then(|| self.parsed_content.document.source.to_string());
+        let differing_plain = selected_plain
+            .as_ref()
+            .filter(|plain| {
+                previous_text
+                    .as_ref()
+                    .is_some_and(|text| text.text() != plain.as_str())
+            })
+            .cloned();
         let mut preserve = unchanged_prefix.is_some();
         let append_only = prepared
             .content
@@ -473,7 +488,10 @@ impl TextViewState {
         } else if all {
             self.select_all = false;
             self.selected_text_override = selected_plain;
-            self.prepared_source_selection = selected_source;
+            self.prepared_whole_copy = selected_source.map(|source| PreparedWholeCopy {
+                source,
+                plain: differing_plain,
+            });
         }
         self.revision = self
             .revision
@@ -496,8 +514,10 @@ impl TextViewState {
             && new.apply_selection(&range).is_ok()
         {
             if !matches!(&selection, RetainedRenderedSelection::Pointer(_)) {
-                self.selection_adapter
-                    .set_local_selection(!range.bytes().is_empty(), cx);
+                self.selection_adapter.set_local_selection(
+                    !range.bytes().is_empty() || self.has_frozen_whole_copy(),
+                    cx,
+                );
             }
             if all {
                 self.selected_text_override = None;
@@ -584,7 +604,7 @@ impl TextViewState {
             bounds: Bounds::default(),
             multi_click_selection: None,
             selected_text_override: None,
-            prepared_source_selection: None,
+            prepared_whole_copy: None,
             select_all: false,
             selection_epoch: Arc::new(()),
             rendered_selection: None,
@@ -907,9 +927,17 @@ impl TextViewState {
         }
     }
 
-    /// Return the selected text, in the view's [`SelectionFormat`].
+    fn has_frozen_whole_copy(&self) -> bool {
+        self.prepared_whole_copy.as_ref().is_some_and(|copy| {
+            !copy.source.is_empty() || copy.plain.as_ref().is_some_and(|plain| !plain.is_empty())
+        })
+    }
+
+    /// Whether a local range or whole-document Copy scope is selected. An
+    /// explicit custom representation can be nonempty with no displayed glyphs.
     pub fn has_local_selection(&self) -> bool {
         self.select_all
+            || self.has_frozen_whole_copy()
             || self
                 .rendered_selection
                 .as_ref()
@@ -951,10 +979,13 @@ impl TextViewState {
     /// [`ParsedDocument::selected_text`](crate::text::document::ParsedDocument).
     pub(super) fn selected_text_in(&self, blocks: Option<RangeInclusive<usize>>) -> String {
         let format = self.effective_format();
-        if format == SelectionFormat::Source
-            && let Some(source) = &self.prepared_source_selection
-        {
-            return source.clone();
+        if let Some(copy) = &self.prepared_whole_copy {
+            if format == SelectionFormat::Source {
+                return copy.source.clone();
+            }
+            if let Some(plain) = &copy.plain {
+                return plain.clone();
+            }
         }
 
         if self.select_all {
@@ -1137,6 +1168,7 @@ impl TextViewState {
     /// independent of the window-level selection.
     pub(super) fn has_view_selection(&self) -> bool {
         self.select_all
+            || self.has_frozen_whole_copy()
             || self
                 .rendered_selection
                 .as_ref()
@@ -1154,7 +1186,7 @@ impl TextViewState {
         self.preserve_inline_selection = false;
         self.multi_click_selection = None;
         self.selected_text_override = None;
-        self.prepared_source_selection = None;
+        self.prepared_whole_copy = None;
         self.select_all = false;
         self.is_selecting = false;
         self.auto_scroll.stop();
@@ -1188,7 +1220,7 @@ impl TextViewState {
         self.retire_rendered_selection();
         self.multi_click_selection = None;
         self.selected_text_override = None;
-        self.prepared_source_selection = None;
+        self.prepared_whole_copy = None;
         self.select_all = true;
         self.is_selecting = false;
         self.auto_scroll.stop();
@@ -1216,7 +1248,7 @@ impl TextViewState {
             line_bounds: None,
         });
         self.selected_text_override = Some(selected_text);
-        self.prepared_source_selection = None;
+        self.prepared_whole_copy = None;
         self.select_all = false;
         self.is_selecting = false;
         self.auto_scroll.stop();
@@ -1239,7 +1271,7 @@ impl TextViewState {
             cx,
         );
         self.selected_text_override = None;
-        self.prepared_source_selection = None;
+        self.prepared_whole_copy = None;
         let offset = self.bounds.origin + self.scroll_offset();
         if let Some(selection) = self.multi_click_selection.as_mut() {
             selection.line_bounds = Some(Bounds::new(bounds.origin - offset, bounds.size));
@@ -1271,7 +1303,7 @@ impl TextViewState {
         self.retire_rendered_selection();
         self.multi_click_selection = None;
         self.selected_text_override = None;
-        self.prepared_source_selection = None;
+        self.prepared_whole_copy = None;
         self.select_all = false;
         self.preserve_inline_selection = true;
         self.is_selecting = false;
@@ -1534,8 +1566,9 @@ impl PreparedText {
             .clone()
     }
 
-    /// Immutable rendered copy text and native-owner provenance, prepared with
-    /// the AST. This is not the search/decoration projection or an AX tree.
+    /// Immutable logical selection text and native-owner provenance, prepared
+    /// with the AST. Declared block glyphs can differ from whole-document Copy.
+    /// This is not the search/decoration projection or an AX tree.
     pub fn rendered_text(&self) -> Arc<super::RenderedText> {
         self.content
             .rendered_text

@@ -343,8 +343,11 @@ impl MarkdownPlugin for DifferentGlyphs {
         node: &gpui_base::text::markdown_ast::Node,
         _: &gpui_base::text::MarkdownParseContext<'_>,
     ) -> Option<MarkdownNode> {
-        matches!(node, gpui_base::text::markdown_ast::Node::Blockquote(_))
-            .then(|| MarkdownNode::new("block", ()).text("copy alternative"))
+        matches!(node, gpui_base::text::markdown_ast::Node::Blockquote(_)).then(|| {
+            MarkdownNode::new("block", ())
+                .text("copy alternative")
+                .markdown("> custom block")
+        })
     }
     fn presentation(&self, _: &MarkdownNode) -> MarkdownPresentation {
         MarkdownPresentation::Text(if self.0 { "" } else { "actual glyphs" }.into())
@@ -352,23 +355,66 @@ impl MarkdownPlugin for DifferentGlyphs {
 }
 
 #[test]
-fn rendered_request_owner_mapping_failure_leaves_previous_selection_intact() {
-    let prepared = PreparedText::parse(
-        "Before\n\n> custom block\n\nAfter",
-        MarkdownExtensions::default().plugin(DifferentGlyphs(false)),
-    )
-    .unwrap();
-    let (mut app, state) = mount(prepared);
-    let text = state.read_with(&app, |s, _| s.rendered_text().unwrap());
-    let start = text.text().find("After").unwrap();
-    apply(&state, &mut app, start, start + 5);
-    let queued = request(&state, &app, 0, start);
+fn declared_block_text_selection_addresses_glyphs_and_preserves_whole_copy_contract() {
+    let source = "Before\n\n> custom block\n\nAfter";
+    let extensions = MarkdownExtensions::default().plugin(DifferentGlyphs(false));
+    let prepared = PreparedText::parse(source, extensions.clone()).unwrap();
+    assert_eq!(prepared.plain_text(), "Before\ncopy alternative\nAfter\n");
     assert_eq!(
-        state.update(&mut app, |s, cx| s.apply_rendered_selection(queued, cx)),
-        Err(Error::UnmappedOwner)
+        prepared.rendered_text().text(),
+        "Before\nactual glyphs\nAfter\n"
     );
-    assert_eq!(copy(&state, &app), "After");
-    assert_eq!(text.selected_fragment_ranges(), vec![start..start + 5]);
+    let (mut app, state) = mount(prepared);
+    let start = "Before\nactual ".len();
+    apply(&state, &mut app, start + 6, start);
+    assert_eq!(copy(&state, &app), "glyphs");
+    state.update(&mut app, |s, cx| {
+        s.set_selection_format(SelectionFormat::Source, cx)
+    });
+    assert_eq!(copy(&state, &app), "glyphs");
+    apply(&state, &mut app, 7, 20);
+    assert_eq!(copy(&state, &app), "> custom block");
+    state.update(&mut app, |s, cx| {
+        s.set_selection_format(SelectionFormat::Plain, cx)
+    });
+    assert_eq!(copy(&state, &app), "actual glyphs");
+    state.update(&mut app, |s, cx| s.select_all(cx));
+    assert_eq!(copy(&state, &app), "Before\ncopy alternative\nAfter\n");
+    state.read_with(&app, |s, _| {
+        let range = s.rendered_selection().unwrap();
+        assert_eq!(
+            s.rendered_text().unwrap().selected_text(&range),
+            Some("Before\nactual glyphs\nAfter\n")
+        );
+    });
+    for suffix in [" appended", " appended again"] {
+        state.update(&mut app, |s, cx| {
+            s.set_prepared(
+                PreparedText::parse(&format!("{source}{suffix}"), extensions.clone()).unwrap(),
+                Some(source.len()),
+                cx,
+            )
+        });
+        assert_eq!(copy(&state, &app), "Before\ncopy alternative\nAfter\n");
+        state.read_with(&app, |s, _| {
+            let range = s.rendered_selection().unwrap();
+            assert_eq!(
+                s.rendered_text().unwrap().selected_text(&range),
+                Some("Before\nactual glyphs\nAfter")
+            );
+        });
+    }
+    state.update(&mut app, |s, cx| {
+        s.set_selection_format(SelectionFormat::Source, cx)
+    });
+    assert_eq!(copy(&state, &app), source);
+    // Explicit selection after frozen All leaves its old Copy snapshot behind.
+    apply(&state, &mut app, start + 6, start);
+    assert_eq!(copy(&state, &app), "glyphs");
+    state.update(&mut app, |s, cx| {
+        s.set_selection_format(SelectionFormat::Plain, cx)
+    });
+    assert_eq!(copy(&state, &app), "glyphs");
 }
 
 #[test]
@@ -389,22 +435,21 @@ fn rendered_request_empty_and_collapsed_ranges_do_not_activate_copy() {
 }
 
 #[test]
-fn rendered_request_distinguishes_empty_declared_glyphs_from_unpainted_text() {
+fn empty_declared_block_glyphs_do_not_fabricate_selectable_alternative_characters() {
     let prepared = PreparedText::parse(
         "Before\n\n> custom block\n\nAfter",
         MarkdownExtensions::default().plugin(DifferentGlyphs(true)),
     )
     .unwrap();
+    assert_eq!(prepared.rendered_text().text(), "Before\nAfter\n");
+    assert_eq!(prepared.plain_text(), "Before\ncopy alternative\nAfter\n");
     let (mut app, state) = mount(prepared);
-    apply(&state, &mut app, 0, 6);
-    let text = state.read_with(&app, |s, _| s.rendered_text().unwrap());
-    let start = text.text().find("copy alternative").unwrap();
-    let queued = request(&state, &app, start, start + "copy alternative".len());
-    assert_eq!(
-        state.update(&mut app, |s, cx| s.apply_rendered_selection(queued, cx)),
-        Err(Error::UnmappedOwner)
-    );
-    assert_eq!(copy(&state, &app), "Before");
+    apply(&state, &mut app, 7, 12);
+    assert_eq!(copy(&state, &app), "After");
+    apply(&state, &mut app, 7, 7);
+    assert_eq!(copy(&state, &app), "");
+    state.update(&mut app, |s, cx| s.select_all(cx));
+    assert_eq!(copy(&state, &app), "Before\ncopy alternative\nAfter\n");
 }
 
 struct ResourceGlyphs(std::sync::Arc<std::sync::atomic::AtomicBool>);
@@ -476,9 +521,79 @@ fn rendered_request_renderer_refresh_expires_requests_and_preserves_only_compati
     );
     assert_eq!(copy(&state, &app), "");
     assert!(state.read_with(&app, |s, _| s.requested_rendered_selection().is_none()));
-    let queued = request(&state, &app, start, start + "copy alternative".len());
-    assert_eq!(
-        state.update(&mut app, |s, cx| s.apply_rendered_selection(queued, cx)),
-        Err(Error::UnmappedOwner)
+    let current = state.read_with(&app, |s, _| s.rendered_text().unwrap());
+    let start = current.text().find("changed glyphs").unwrap();
+    apply(&state, &mut app, start, start + "changed glyphs".len());
+    assert_eq!(copy(&state, &app), "changed glyphs");
+}
+
+struct EmptyGlyphLargeCopy(usize);
+impl MarkdownPlugin for EmptyGlyphLargeCopy {
+    fn name(&self) -> &str {
+        "large-copy"
+    }
+    fn is_block(&self) -> bool {
+        true
+    }
+    fn parse(
+        &self,
+        node: &gpui_base::text::markdown_ast::Node,
+        _: &gpui_base::text::MarkdownParseContext<'_>,
+    ) -> Option<MarkdownNode> {
+        matches!(node, gpui_base::text::markdown_ast::Node::Blockquote(_))
+            .then(|| MarkdownNode::new("large-copy", ()).text("x".repeat(self.0)))
+    }
+    fn presentation(&self, _: &MarkdownNode) -> MarkdownPresentation {
+        MarkdownPresentation::Text("".into())
+    }
+}
+
+#[test]
+fn custom_glyph_projection_keeps_independent_copy_admission_bounds() {
+    let max = gpui_base::text::RenderedText::max_text_bytes();
+    let accepted = PreparedText::parse(
+        "> custom",
+        MarkdownExtensions::default().plugin(EmptyGlyphLargeCopy(max - 1)),
+    )
+    .unwrap();
+    assert_eq!(accepted.plain_text().len(), max);
+    assert_eq!(accepted.rendered_text().text(), "");
+    assert!(
+        PreparedText::parse(
+            "> custom",
+            MarkdownExtensions::default().plugin(EmptyGlyphLargeCopy(max))
+        )
+        .is_err()
     );
+    assert!(
+        PreparedText::parse(
+            "> first\n\n> second",
+            MarkdownExtensions::default().plugin(EmptyGlyphLargeCopy(max / 2))
+        )
+        .is_err()
+    );
+}
+
+#[test]
+fn frozen_whole_copy_keeps_its_scope_when_declared_glyphs_are_empty() {
+    let source = "> custom block";
+    let extensions = MarkdownExtensions::default().plugin(DifferentGlyphs(true));
+    let (mut app, state) = mount(PreparedText::parse(source, extensions.clone()).unwrap());
+    state.update(&mut app, |s, cx| s.select_all(cx));
+    state.update(&mut app, |s, cx| {
+        s.set_prepared(
+            PreparedText::parse(&format!("{source}\n\nNew"), extensions).unwrap(),
+            Some(source.len()),
+            cx,
+        )
+    });
+    assert_eq!(copy(&state, &app), "copy alternative\n");
+    state.read_with(&app, |s, _| {
+        assert!(s.has_local_selection());
+        assert_eq!(s.rendered_selection().unwrap().bytes(), 0..0);
+        assert_eq!(s.rendered_text().unwrap().text(), "New\n");
+    });
+    apply(&state, &mut app, 0, 0);
+    assert_eq!(copy(&state, &app), "");
+    assert!(!state.read_with(&app, |s, _| s.has_local_selection()));
 }

@@ -111,10 +111,11 @@ The Base adapter's `PreparedText::rendered_text()` now prepares an immutable
 returns that exact installed identity; ordinary unbounded parser updates clear it.
 It does not expose a new OCaml API or publish AX attributes by itself.
 
-- `text()` matches `PreparedText::plain_text()`, including the native copy
-  representation's structural separators. The window's current Copy adapter
-  separately trims outer plain-text separators. Markdown copy preferences do
-  not change the projection.
+- `text()` contains ordinary text, declared custom block glyphs, atomic
+  alternatives and structural separators. `PreparedText::plain_text()` retains
+  declared whole-document Copy representations, which can differ from custom
+  glyphs. The window's Copy adapter separately trims outer plain-text separators.
+  Markdown copy preferences do not change selection coordinates.
 - `parts()` gives contiguous byte intervals classified as native text owners,
   atomic copy alternatives, or structural separators. Owner references are weak;
   keeping the immutable projection cannot keep a native document alive. Empty
@@ -130,7 +131,8 @@ It does not expose a new OCaml API or publish AX attributes by itself.
   preserved selection overrides or a document-level selection snapshot. The
   complete selection controller must integrate those states explicitly.
 
-Preparation admits at most 1 MiB + 128 KiB of logical copy text and 16,384 parts.
+Preparation independently bounds logical selection text and declared whole Copy
+at 1 MiB + 128 KiB each, with at most 16,384 selection parts.
 The generated portion accommodates the extension SDK's existing 1 MiB aggregate
 string budget; ordinary source text and structural separators have a further
 128 KiB allowance. The previous 128 KiB combined limit incorrectly rejected
@@ -172,8 +174,9 @@ do not allocate epoch tokens when no request is outstanding.
 
 A renderer-resource refresh can replace declared glyphs without reparsing the
 AST. That path rebuilds both text projections and expires pending requests.
-An accepted range is rebound only when copy text is unchanged and applying it
-to the current native owners still succeeds; otherwise its selection clears.
+An accepted range is rebound only when logical glyph/alternative text is unchanged
+and applying it to the current native owners still succeeds; otherwise its selection
+clears.
 Thus an empty declared presentation cannot be mistaken for an unpainted run.
 
 This is a low-level Rust adapter primitive, not a new OCaml command or an OS
@@ -182,12 +185,10 @@ current window, visibility, modality and semantic action identity. The
 `requested_rendered_selection()` accessor describes only accepted requests;
 the common `rendered_selection()` accessor also represents adopted pointer ranges,
 including the local portion of a cross-participant drag and mapped multi-click
-gestures. Full Select All/override
-remapping and whole-document TextRun publication still require integration. A declared custom
-text block whose glyphs differ from its copy alternative currently returns
-`UnmappedOwner` when selected by this primitive, including empty declared glyphs.
-That mapping remains required work before general rendered-document AX acceptance;
-it is not an intentional v1 exclusion.
+gestures. Streamed Select All integration and declared block glyph coordinates
+are described below. Whole-document TextRun publication, zero-byte atomic
+selection and richer custom-object qualification remain required before general
+rendered-document AX acceptance; they are not intentional v1 exclusions.
 
 ## Native pointer endpoint capture
 
@@ -241,8 +242,9 @@ geometry as ordinary selectable runs. Actual single-row native checks cover
 Hebrew, mixed-direction spans, Arabic, combining marks and joined emoji. Wrapped
 and aligned rich-selection qualification still needs completion.
 
-Custom glyph/copy-alternative mapping and zero-byte atomic selection remain
-required; streamed Select All and held-gesture rebinding are described below.
+Zero-byte atomic selection and broader custom-object qualification remain
+required; declared block glyph selection, streamed Select All and held-gesture
+rebinding are described below.
 An absent common range must not be interpreted as no native selection.
 The staged native-owner update currently scans the bounded projection; pointer
 hot-path cost and possible coalescing/delta updates need measured qualification.
@@ -300,8 +302,8 @@ Explicit clearing, replacement and input policy still retire selections.
 Unbounded legacy views and unmapped owners retain their existing native behavior
 without publishing a fabricated logical range. Zero-byte atomic alternatives need
 an explicit object-selection representation: a collapsed text range would erase
-the visible object's selected state. That integration and custom declared-glyph
-versus Copy-alternative mapping remain required before complete AX acceptance.
+the visible object's selected state. That integration and broader custom-object
+qualification remain required before complete AX acceptance.
 
 
 ## Streaming and native frame identity
@@ -337,3 +339,36 @@ selection policy. It is separate from the selection-request epoch, since an
 ordinary mouse-down intentionally clears previous selection before handling the
 current press. This does not replace the owner/window/visibility/action guards
 required by future accessibility actions.
+
+
+## Declared custom block glyphs versus whole-document Copy
+
+The existing document SDK contract gives declared block `Text` to the reader's
+ordinary partial glyph selection. Its `MarkdownNode.text` can independently
+specify whole-document Copy. Selection coordinates therefore follow the declared
+glyphs, including an explicitly empty presentation; Copy alternatives are not
+fabricated as invisible selectable characters. Partial plain Copy uses the selected
+glyphs. Whole-block Source Copy uses declared Markdown, while partial Source Copy
+falls back to the selected glyphs when no character mapping exists.
+
+Genuine Select All, and an explicit request covering the entire document, retain
+the existing whole-document plain/source Copy policy. A compatible append freezes
+that old scope: its logical range follows the old glyphs; a separate immutable
+whole-Copy snapshot retains a differing declared representation. Ordinary matching
+Copy continues to use the logical range and its structural-separator affinity.
+Selecting a new range or clearing the selection discards the old Copy snapshot.
+A whole-Copy scope can remain active even with zero displayed characters; this
+adds no synthetic characters to the logical text.
+
+Preparation counts logical bytes and declared Copy bytes independently, including
+their different separator requirements, without allocating a second full Copy
+string just to check its size. An empty visual presentation cannot admit an
+oversized alternative or evade aggregate limits. Neither source admission nor the
+SDK's generated-string allowance is reduced.
+
+This addresses reader-owned custom block glyphs. Inline custom objects retain
+atomic selection, including when their presentation declares Text. Selecting an
+empty-copy atomic object still needs explicit ordered object edges; a collapsed
+byte range cannot represent that selection. Opaque/NonText block interaction,
+custom-object scope/virtualization and rich AX publication remain separate
+requirements.

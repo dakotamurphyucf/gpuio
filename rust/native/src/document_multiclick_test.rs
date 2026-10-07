@@ -23,13 +23,18 @@ struct Scene {
     text: Entity<TextViewState>,
     extensions: MarkdownExtensions,
     width: f32,
+    selection_format: gpui_base::text::SelectionFormat,
 }
 impl Render for Scene {
     fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
         div()
             .w(px(self.width))
             .child(gpui_base::TextSelectionLayer)
-            .child(TextView::new(&self.text).markdown_extensions(self.extensions.clone()))
+            .child(
+                TextView::new(&self.text)
+                    .markdown_extensions(self.extensions.clone())
+                    .selection_format(self.selection_format),
+            )
     }
 }
 
@@ -147,6 +152,7 @@ fn multiclick_combines_styled_fragments_and_atomic_line_ends() {
             }),
             extensions: extensions.clone(),
             width: 450.,
+            selection_format: gpui_base::text::SelectionFormat::Plain,
         });
         cx.simulate_a11y_active(true);
         draw(cx);
@@ -218,6 +224,7 @@ fn multiclick_keeps_combining_and_joined_graphemes_whole() {
             }),
             extensions: Default::default(),
             width: 450.,
+            selection_format: gpui_base::text::SelectionFormat::Plain,
         });
         cx.simulate_a11y_active(true);
         draw(cx);
@@ -253,6 +260,7 @@ fn obsolete_frame_multiclick_cannot_restore_replaced_text() {
             }),
             extensions: extensions.clone(),
             width: 450.,
+            selection_format: gpui_base::text::SelectionFormat::Plain,
         });
         cx.simulate_a11y_active(true);
         draw(cx);
@@ -294,4 +302,82 @@ fn obsolete_frame_multiclick_cannot_restore_replaced_text() {
         click(cx, "Current content", 0, 2);
         assert_selection(&text, cx, 0..7, "Current");
     }
+}
+
+struct DeclaredBlock;
+impl MarkdownPlugin for DeclaredBlock {
+    fn name(&self) -> &str {
+        "declared-block"
+    }
+    fn is_block(&self) -> bool {
+        true
+    }
+    fn parse(
+        &self,
+        node: &gpui_base::text::markdown_ast::Node,
+        _: &gpui_base::text::MarkdownParseContext<'_>,
+    ) -> Option<MarkdownNode> {
+        matches!(node, gpui_base::text::markdown_ast::Node::Blockquote(_)).then(|| {
+            MarkdownNode::new("declared-block", ())
+                .text("copy alternative")
+                .markdown("> custom source")
+        })
+    }
+    fn presentation(&self, _: &MarkdownNode) -> gpui_base::text::MarkdownPresentation {
+        gpui_base::text::MarkdownPresentation::Text("actual glyphs".into())
+    }
+}
+
+#[test]
+fn custom_block_glyph_multiclick_addresses_the_correct_repeated_owner() {
+    let extensions = MarkdownExtensions::default().plugin(DeclaredBlock);
+    let mut app = TestAppContext::single();
+    app.update(gpui_base::init);
+    let (view, cx) = app.add_window_view(|_, cx| Scene {
+        text: cx.new(|cx| {
+            let mut state = TextViewState::externally_prepared(cx);
+            state.set_prepared(
+                PreparedText::parse("> first\n\n> second", extensions.clone()).unwrap(),
+                None,
+                cx,
+            );
+            state
+        }),
+        extensions,
+        width: 450.,
+        selection_format: gpui_base::text::SelectionFormat::Plain,
+    });
+    cx.simulate_a11y_active(true);
+    draw(cx);
+    let text = view.read_with(cx, |view, _| view.text.clone());
+    click(cx, "actual glyphs", 1, 2);
+    assert_selection(&text, cx, 14..20, "actual");
+    click(cx, "actual glyphs", 1, 3);
+    assert_selection(&text, cx, 14..27, "actual glyphs");
+    view.update(cx, |scene, cx| {
+        scene.selection_format = gpui_base::text::SelectionFormat::Source;
+        cx.notify();
+    });
+    draw(cx);
+    assert_eq!(
+        cx.update(gpui_base::TextSelection::selected_text),
+        "> custom source"
+    );
+    view.update(cx, |scene, cx| {
+        scene.selection_format = gpui_base::text::SelectionFormat::Plain;
+        scene.text.update(cx, |state, cx| state.select_all(cx));
+        cx.notify();
+    });
+    draw(cx);
+    assert_eq!(
+        cx.update(gpui_base::TextSelection::selected_text),
+        "copy alternative\ncopy alternative"
+    );
+    text.read_with(cx, |state, _| {
+        let range = state.rendered_selection().unwrap();
+        assert_eq!(
+            state.rendered_text().unwrap().selected_text(&range),
+            Some("actual glyphs\nactual glyphs\n")
+        );
+    });
 }

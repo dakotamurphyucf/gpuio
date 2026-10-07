@@ -1,4 +1,4 @@
-//! Immutable logical copy text with native-owner provenance. Geometry and AX
+//! Immutable logical selection text with native-owner provenance. Geometry and AX
 //! node identities are separate: virtualizing a block must not change offsets.
 use super::{
     DisplayedText,
@@ -53,7 +53,6 @@ impl RenderedFragment {
 #[derive(Clone, Debug)]
 enum Owner {
     Text(Weak<Mutex<InlineState>>),
-    UnmappedText(Weak<Mutex<InlineState>>),
     BlockObject(Weak<Mutex<InlineState>>),
     Object(Weak<Mutex<bool>>),
     Separator,
@@ -127,8 +126,9 @@ pub enum RenderedSelectionError {
     NotSelectable,
 }
 
-/// Bounded rendered plain text, including structural separators and object copy
-/// alternatives. It is independent of Markdown clipboard formatting and does
+/// Bounded logical selection text, including declared block glyphs, structural
+/// separators and atomic copy alternatives. Whole-document Copy representations
+/// can differ. It is independent of Markdown clipboard formatting and does
 /// not itself publish accessibility nodes or authorize a selection mutation.
 #[derive(Debug)]
 pub struct RenderedText {
@@ -212,6 +212,7 @@ impl RenderedText {
         let mut builder = Builder {
             identity,
             text: String::new(),
+            copy_bytes: 0,
             parts: Vec::new(),
             displayed,
         };
@@ -238,8 +239,9 @@ impl RenderedText {
             object_parts: object_parts.into_boxed_slice(),
         }))
     }
-    /// Logical document text, before the window Copy adapter trims outer
-    /// paragraph separators. It equals PreparedText::plain_text().
+    /// Logical selection text: declared block glyphs, ordinary text, structural
+    /// separators and atomic alternatives. Whole-document Copy can differ:
+    /// PreparedText::plain_text() retains declared custom copy representations.
     pub fn text(&self) -> &str {
         &self.text
     }
@@ -310,8 +312,9 @@ impl RenderedText {
         }
         Some(part.bytes.start + range.start..part.bytes.start + range.end)
     }
-    /// Aggregate logical copy-text bound, including generated alternatives.
-    /// Hosts must separately enforce their source and plugin-generation limits.
+    /// Independent bounds for logical selection text and declared whole Copy,
+    /// including generated alternatives. Hosts separately enforce source and
+    /// plugin-generation limits; empty declared glyphs cannot bypass Copy limits.
     pub const fn max_text_bytes() -> usize {
         MAX_BYTES
     }
@@ -407,7 +410,7 @@ impl RenderedText {
             .iter()
             .map(|part| {
                 match &part.owner {
-                    Owner::Text(owner) | Owner::UnmappedText(owner) | Owner::BlockObject(owner) => {
+                    Owner::Text(owner) | Owner::BlockObject(owner) => {
                         owner.upgrade().map(Strong::Text)
                     }
                     Owner::Object(owner) => owner.upgrade().map(Strong::Object),
@@ -422,9 +425,6 @@ impl RenderedText {
             let end = range.end.min(part.bytes.end);
             let selected = (start < end)
                 .then(|| Selection::new(start - part.bytes.start, end - part.bytes.start));
-            if selected.is_some() && matches!(part.owner, Owner::UnmappedText(_)) {
-                return Err(RenderedSelectionError::UnmappedOwner);
-            }
             locks.push(match owner {
                 Strong::Text(owner) => {
                     // try_lock also rejects accidentally aliased owners without
@@ -470,7 +470,7 @@ impl RenderedText {
         self.parts
             .iter()
             .filter_map(|part| match &part.owner {
-                Owner::Text(owner) | Owner::UnmappedText(owner) | Owner::BlockObject(owner) => {
+                Owner::Text(owner) | Owner::BlockObject(owner) => {
                     let owner = owner.upgrade()?;
                     let state = owner.lock().ok()?;
                     if state.text.as_ref() != &self.text[part.bytes.clone()] {
@@ -497,11 +497,21 @@ impl RenderedText {
 struct Builder<'a> {
     identity: TextSelectionContentRevision,
     text: String,
+    copy_bytes: usize,
     parts: Vec<RenderedTextPart>,
     displayed: &'a DisplayedText,
 }
 impl Builder<'_> {
     fn push(&mut self, text: &str, owner: Owner) -> Result<(), SharedString> {
+        self.push_with_copy_len(text, text.len(), owner)
+    }
+    fn push_with_copy_len(
+        &mut self,
+        text: &str,
+        copy_len: usize,
+        owner: Owner,
+    ) -> Result<(), SharedString> {
+        self.charge_copy(copy_len)?;
         // Empty alternatives still own native selection state that a later
         // request must clear, even though they occupy no logical copy bytes.
         if text.is_empty() && matches!(owner, Owner::Separator) {
@@ -521,9 +531,32 @@ impl Builder<'_> {
     fn separator(&mut self, text: &str) -> Result<(), SharedString> {
         self.push(text, Owner::Separator)
     }
+    fn charge_copy(&mut self, len: usize) -> Result<(), SharedString> {
+        if len > MAX_BYTES - self.copy_bytes {
+            return Err("rendered copy text exceeds preparation limits".into());
+        }
+        self.copy_bytes += len;
+        Ok(())
+    }
+    fn block_separator(&mut self, start: usize, copy_start: usize) -> Result<(), SharedString> {
+        let copy_len = usize::from(self.copy_bytes > copy_start);
+        if self.text.len() > start {
+            self.push_with_copy_len("\n", copy_len, Owner::Separator)
+        } else {
+            self.charge_copy(copy_len)
+        }
+    }
     fn text(&mut self, text: &str, state: &Arc<Mutex<InlineState>>) -> Result<(), SharedString> {
+        self.text_with_copy_len(text, text.len(), state)
+    }
+    fn text_with_copy_len(
+        &mut self,
+        text: &str,
+        copy_len: usize,
+        state: &Arc<Mutex<InlineState>>,
+    ) -> Result<(), SharedString> {
         let start = self.text.len();
-        self.push(text, Owner::Text(Arc::downgrade(state)))?;
+        self.push_with_copy_len(text, copy_len, Owner::Text(Arc::downgrade(state)))?;
         state
             .lock()
             .map_err(|_| SharedString::from("invalid prepared inline state"))?
@@ -566,12 +599,11 @@ impl Builder<'_> {
     }
     fn block(&mut self, block: &BlockNode) -> Result<(), SharedString> {
         let start = self.text.len();
+        let copy_start = self.copy_bytes;
         match block {
             BlockNode::Root { children, .. } | BlockNode::Blockquote { children, .. } => {
                 self.children(children)?;
-                if self.text.len() > start {
-                    self.separator("\n")?;
-                }
+                self.block_separator(start, copy_start)?;
             }
             BlockNode::List { children, .. } | BlockNode::ListItem { children, .. } => {
                 self.children(children)?
@@ -582,43 +614,34 @@ impl Builder<'_> {
                 ..
             } => {
                 self.paragraph(paragraph)?;
-                if self.text.len() > start {
-                    self.separator("\n")?;
-                }
+                self.block_separator(start, copy_start)?;
             }
             BlockNode::CodeBlock(code) => {
                 self.text(&code.code(), &code.state)?;
-                if self.text.len() > start {
-                    self.separator("\n")?;
-                }
+                self.block_separator(start, copy_start)?;
             }
             BlockNode::Custom(node) => {
-                let owner = if let Some(state) = self.displayed.object_block_text(node) {
-                    // Empty declared glyphs are still a known presentation,
-                    // not an unpainted ordinary run we can initialize later.
-                    if state
+                if let Some(state) = self.displayed.object_block_text(node) {
+                    // A declared Text block belongs to the reader's glyph
+                    // selection. Its whole-document Copy alternative may have
+                    // unrelated bytes; those are not character coordinates.
+                    let glyphs = state
                         .lock()
-                        .is_ok_and(|state| state.text.as_ref() == node.as_text())
-                    {
-                        Owner::Text(Arc::downgrade(&node.block_text))
-                    } else {
-                        Owner::UnmappedText(Arc::downgrade(&node.block_text))
-                    }
-                } else {
-                    Owner::BlockObject(Arc::downgrade(&node.block_text))
-                };
-                if matches!(owner, Owner::Text(_)) {
-                    self.text(node.as_text(), &node.block_text)?;
+                        .map_err(|_| SharedString::from("invalid prepared inline state"))?
+                        .text
+                        .clone();
+                    self.text_with_copy_len(&glyphs, node.as_text().len(), &state)?;
                 } else {
                     node.block_text
                         .lock()
                         .map_err(|_| SharedString::from("invalid prepared inline state"))?
                         .rendered_fragment = None;
-                    self.push(node.as_text(), owner)?;
+                    self.push(
+                        node.as_text(),
+                        Owner::BlockObject(Arc::downgrade(&node.block_text)),
+                    )?;
                 }
-                if self.text.len() > start {
-                    self.separator("\n")?;
-                }
+                self.block_separator(start, copy_start)?;
             }
             BlockNode::Table(table) => {
                 for row in &table.children {
@@ -632,9 +655,7 @@ impl Builder<'_> {
                         self.separator("\n")?;
                     }
                 }
-                if self.text.len() > start {
-                    self.separator("\n")?;
-                }
+                self.block_separator(start, copy_start)?;
             }
             BlockNode::DescriptionList(list) => {
                 for entry in &list.entries {
