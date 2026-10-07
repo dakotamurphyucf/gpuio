@@ -161,6 +161,7 @@ pub struct TextViewState {
     prepared_whole_copy: Option<PreparedWholeCopy>,
     select_all: bool,
     selection_epoch: Arc<()>,
+    painted_selection_epoch: Option<Arc<()>>,
     rendered_selection: Option<RetainedRenderedSelection>,
     pub(super) auto_scroll: AutoScroll,
     pub(super) selection_adapter: TextViewSelectionAdapter,
@@ -298,6 +299,54 @@ impl TextViewState {
             epoch: self.selection_epoch.clone(),
             selection: text.selection(anchor, head)?,
         })
+    }
+
+    /// Validate an accessible range against the last painted frame and current
+    /// native interaction state. This neither applies it nor changes focus.
+    /// A dispatcher must revalidate immediately before mutation; this request
+    /// does not grant lasting visibility or host focus authorization.
+    pub fn prepare_accessible_selection(
+        &self,
+        selection: &gpui::accesskit::TextSelection,
+        window: &Window,
+        cx: &App,
+    ) -> Option<RenderedSelectionRequest> {
+        if !self
+            .painted_selection_epoch
+            .as_ref()
+            .is_some_and(|epoch| Arc::ptr_eq(epoch, &self.selection_epoch))
+            || self
+                .link_focus_guard
+                .as_ref()
+                .is_some_and(|guard| !guard(cx))
+        {
+            return None;
+        }
+        let projection = self.rendered_text()?;
+        let range = self
+            .semantic_attachments
+            .selection(window, &projection, selection)?;
+        self.prepare_rendered_selection(range.anchor(), range.head())
+            .ok()
+    }
+
+    pub(super) fn publish_accessible_selection(&mut self, window: &mut Window, cx: &App) {
+        self.painted_selection_epoch = None;
+        let Some(projection) = self.rendered_text() else {
+            return;
+        };
+        let selection = self
+            .rendered_selection()
+            .or_else(|| self.captured_rendered_pointer_selection(cx));
+        if self
+            .semantic_attachments
+            .publish_selection(window, &projection, selection.as_ref())
+        {
+            // Strong ownership matters: retiring an unshared epoch deliberately
+            // avoids allocation. This stamp must force retirement even when no
+            // native request has been prepared yet.
+            self.painted_selection_epoch = Some(self.selection_epoch.clone());
+        }
     }
 
     /// Apply a previously prepared native request atomically. No focus/reveal
@@ -652,6 +701,7 @@ impl TextViewState {
             prepared_whole_copy: None,
             select_all: false,
             selection_epoch: Arc::new(()),
+            painted_selection_epoch: None,
             rendered_selection: None,
             selectable: false,
             selection_format: SelectionFormat::default(),

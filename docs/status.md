@@ -5,6 +5,14 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **O
 Markdown walkthroughs for every example component; its documentation acceptance is complete. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
+[Accessible selection request preparation](evidence/rendered-selection-authorization-och17.md)
+now validates final painted Document scope, live accessibility activation, current
+window/projection, interaction epoch, selectability and host policy before creating
+a native request. Local 1,159 native tests (2 private-bus fixtures ignored), strict
+lint/formatting, workspace tests, actual macOS editor/document checks and exact
+GPUI/Base reconstruction pass. OS mutation/focus/reveal remain unconnected; this
+is preparation evidence, not complete action or release acceptance.
+
 [Painted document selection](evidence/rendered-accessible-selection-och17.md)
 now exposes the native range through macOS selected-text attributes. The real
 gallery probe passes UTF-16 range/text, Copy and normal close after repairing

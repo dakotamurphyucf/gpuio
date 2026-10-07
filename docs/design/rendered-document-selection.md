@@ -1,10 +1,11 @@
 # Rendered-document accessible selection
 
 Implementation plan for the remaining OCH-17/OCH-41 accessibility work. The
-native text-projection foundation and request primitive below are implemented; **AX selection publication
-and mutation are not implemented or accepted yet**. The [macOS baseline](../evidence/rendered-selection-baseline-och17.md)
-proves that native rendered-text copying works while document-level AX selection
-attributes are absent. The source-editor adapter is a separate implementation.
+native text-projection, request primitive and painted AX selection publication
+are implemented. **OS selection mutation/focus/reveal and full accessibility
+acceptance remain incomplete.** The historical [macOS baseline](../evidence/rendered-selection-baseline-och17.md)
+records the earlier state in which native rendered-text copying worked while
+document-level AX selection attributes were absent. The source-editor adapter is a separate implementation.
 
 ## Required behavior
 
@@ -715,3 +716,32 @@ cache reuse does not replay its accessibility nodes/listeners. Ordinary redraw
 tests do not qualify cached semantics, focus, actions or selection. The fix must
 preserve real cache reuse, current context and bounded frame storage, including
 accessibility activation, invalidation, disabled/hidden ancestry and unmount.
+
+
+## Preparing an accessible selection request
+
+The final-tree selection pass retains a compact per-window index of claimed
+Documents and their text-run IDs/scalar counts. `Window::accepts_document_selection`
+checks both endpoints against the same enabled, nonhidden Document scope after
+paint. Nested Documents, Terminal and input controls establish independent scopes.
+A `None` paint claim authorizes a new range even when no selection exists; an
+unclaimed Document has no authorization. The index expires at the next frame and
+stores neither text nor AST. Validation rejects calls during draw and observes
+accessibility deactivation immediately, without waiting for the next frame.
+
+`TextViewState::prepare_accessible_selection` adds the exact prepared projection,
+window identity, selectability and current native interaction epoch. Its strong
+painted epoch stamp ensures that clearing a selection or changing input policy
+retires authorization even when no earlier request holds the epoch. Equal-text
+replacement still changes preparation identity. The host's existing
+`link_focus_guard` predicate also covers this preparation path, consistent with
+its native-control traversal policy. A live guard can reject a pending or
+modal-blocked presentation without waiting for another paint.
+
+Preparation is read-only and returns the existing checked native request. It does
+not register `SetTextSelection`, clear another participant, focus a document or
+reveal an endpoint. A dispatcher must repeat authorization immediately before
+mutation; the low-level request's epoch check alone does not grant lasting window
+visibility or host focus permission. Connecting that dispatcher and proving
+atomic-owner, shared-window Copy, virtualized reveal and actual OS mutation remain
+required. This API is not evidence that those operations are already supported.

@@ -2,18 +2,36 @@
 use accesskit::{NodeId, Role, TextSelection, TreeUpdate};
 use collections::{FxHashMap, FxHashSet};
 
+#[derive(Default)]
+pub(crate) struct Scopes {
+    documents: FxHashSet<NodeId>,
+    runs: FxHashMap<NodeId, (NodeId, usize)>,
+}
+
+impl Scopes {
+    pub(crate) fn accepts(&self, document: NodeId, selection: &TextSelection) -> bool {
+        self.documents.contains(&document)
+            && [selection.anchor, selection.focus].iter().all(|position| {
+                self.runs
+                    .get(&position.node)
+                    .is_some_and(|(owner, length)| {
+                        *owner == document && position.character_index <= *length
+                    })
+            })
+    }
+}
+
 pub(super) fn publish(
     update: &mut TreeUpdate,
     claims: &FxHashMap<NodeId, Option<TextSelection>>,
-) {
+) -> Scopes {
+    let mut scopes = Scopes::default();
     if claims.is_empty() {
-        return;
+        return scopes;
     }
     let nodes: FxHashMap<_, _> = update.nodes.iter().map(|(id, node)| (*id, node)).collect();
     let mut pending = vec![(super::ROOT_NODE_ID, None, false)];
     let mut seen = FxHashSet::default();
-    let mut documents = FxHashSet::default();
-    let mut runs = FxHashMap::default();
     while let Some((id, inherited, excluded)) = pending.pop() {
         if !seen.insert(id) {
             continue;
@@ -23,8 +41,8 @@ pub(super) fn publish(
         };
         let excluded = excluded || node.is_hidden() || node.is_disabled();
         let scope = if node.role() == Role::Document {
-            if !excluded {
-                documents.insert(id);
+            if !excluded && claims.contains_key(&id) {
+                scopes.documents.insert(id);
             }
             Some(id)
         } else if independent_text_owner(node.role()) {
@@ -32,10 +50,19 @@ pub(super) fn publish(
         } else {
             inherited
         };
-        if !excluded && node.role() == Role::TextRun {
-            runs.insert(id, (scope, node.character_lengths().len()));
+        if !excluded
+            && node.role() == Role::TextRun
+            && let Some(owner) = scope.filter(|owner| claims.contains_key(owner))
+        {
+            scopes
+                .runs
+                .insert(id, (owner, node.character_lengths().len()));
         }
-        pending.extend(node.children().iter().map(|child| (*child, scope, excluded)));
+        pending.extend(
+            node.children()
+                .iter()
+                .map(|child| (*child, scope, excluded)),
+        );
     }
     for (id, node) in &mut update.nodes {
         let Some(selection) = claims.get(id) else {
@@ -44,20 +71,16 @@ pub(super) fn publish(
         if node.role() != Role::Document {
             continue;
         }
-        let valid = selection.as_ref().filter(|selection| {
-            documents.contains(id)
-                && [selection.anchor, selection.focus].iter().all(|position| {
-                    runs.get(&position.node).is_some_and(|(scope, length)| {
-                        *scope == Some(*id) && position.character_index <= *length
-                    })
-                })
-        });
+        let valid = selection
+            .as_ref()
+            .filter(|selection| scopes.accepts(*id, selection));
         if let Some(selection) = valid {
             node.set_text_selection(*selection);
         } else {
             node.clear_text_selection();
         }
     }
+    scopes
 }
 
 // Match the independent text scopes in the pinned AccessKit consumer's

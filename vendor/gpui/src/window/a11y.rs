@@ -174,6 +174,7 @@ pub(crate) struct A11y {
     pub(crate) node_bounds: FxHashMap<NodeId, Bounds<Pixels>>,
     pub(crate) action_listeners: FxHashMap<NodeId, Vec<(Action, A11yActionListener)>>,
     pub(crate) document_selections: FxHashMap<NodeId, Option<accesskit::TextSelection>>,
+    pub(crate) document_selection_scopes: document_selection::Scopes,
     /// The window's title, used to label the root node so assistive
     /// technology can tell windows apart.
     window_title: Option<SharedString>,
@@ -206,6 +207,7 @@ impl A11y {
             node_bounds: FxHashMap::default(),
             action_listeners: FxHashMap::default(),
             document_selections: FxHashMap::default(),
+            document_selection_scopes: Default::default(),
             window_title,
             last_focus_without_node: None,
             debug: debug::A11yDebug::default(),
@@ -244,6 +246,10 @@ impl A11y {
 
     pub(crate) fn is_active(&self) -> bool {
         self.active_this_frame
+    }
+
+    pub(crate) fn accepts_selection_actions(&self) -> bool {
+        self.is_active() && self.active_flag.load(Ordering::SeqCst)
     }
 
     pub(crate) fn set_focusable(&mut self, node_id: NodeId, focus_id: FocusId) {
@@ -422,6 +428,7 @@ impl A11y {
         self.node_bounds.clear();
         self.action_listeners.clear();
         self.document_selections.clear();
+        self.document_selection_scopes = Default::default();
         self.nodes.begin_frame(self.window_title.as_ref());
     }
 
@@ -436,7 +443,8 @@ impl A11y {
             self.nodes.set_active_descendant(node_id);
         }
         let mut update = self.nodes.finalize();
-        document_selection::publish(&mut update, &self.document_selections);
+        self.document_selection_scopes =
+            document_selection::publish(&mut update, &self.document_selections);
         self.remove_hidden_actions(&mut update);
         self.debug.capture(
             &update,

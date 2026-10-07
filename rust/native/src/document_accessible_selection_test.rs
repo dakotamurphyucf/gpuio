@@ -143,6 +143,10 @@ impl Render for SelectionClaim {
                             return;
                         }
                         let (id, selection) = (*published.lock().unwrap()).unwrap();
+                        assert!(!window.accepts_document_selection(id, &selection));
+                        if mode == 11 {
+                            return;
+                        }
                         assert!(
                             window.publish_document_selection(id, (mode != 8).then_some(selection))
                         );
@@ -151,6 +155,91 @@ impl Render for SelectionClaim {
                 .size_full(),
             )
     }
+}
+
+#[test]
+fn completed_document_scopes_validate_endpoints_without_requiring_a_selection() {
+    let mut app = TestAppContext::single();
+    let (view, cx) = app.add_window_view(|_, _| SelectionClaim { mode: 0 });
+    cx.simulate_a11y_active(true);
+    // The cleared-selection case (8) must still authorize a new selection.
+    // An unclaimed Document (11) must not inherit last frame's authorization.
+    for mode in [0, 8, 11, 0, 2, 3, 4, 5, 7, 9, 10, 0] {
+        view.update(cx, |view, cx| {
+            view.mode = mode;
+            cx.notify();
+        });
+        draw(cx);
+        let tree = cx.a11y_tree().unwrap();
+        let document = tree
+            .nodes
+            .iter()
+            .find(|(_, node)| node.label() == Some("Selection fixture"))
+            .unwrap()
+            .0;
+        let run = tree
+            .nodes
+            .iter()
+            .find(|(_, node)| node.role() == accesskit::Role::TextRun)
+            .unwrap()
+            .0;
+        cx.update(|window, _| {
+            for (anchor, focus) in [(0, 2), (2, 0), (1, 1)] {
+                let selection = accesskit::TextSelection {
+                    anchor: accesskit::TextPosition {
+                        node: run,
+                        character_index: anchor,
+                    },
+                    focus: accesskit::TextPosition {
+                        node: run,
+                        character_index: focus,
+                    },
+                };
+                assert_eq!(
+                    window.accepts_document_selection(document, &selection),
+                    mode == 0 || mode == 8,
+                    "mode {mode}"
+                );
+                assert!(!window.accepts_document_selection(run, &selection));
+                for bad in [
+                    accesskit::TextPosition {
+                        node: run,
+                        character_index: 3,
+                    },
+                    accesskit::TextPosition {
+                        node: accesskit::NodeId(u64::MAX),
+                        character_index: 0,
+                    },
+                ] {
+                    assert!(!window.accepts_document_selection(
+                        document,
+                        &accesskit::TextSelection {
+                            anchor: bad,
+                            ..selection
+                        }
+                    ));
+                    assert!(!window.accepts_document_selection(
+                        document,
+                        &accesskit::TextSelection {
+                            focus: bad,
+                            ..selection
+                        }
+                    ));
+                }
+            }
+        });
+    }
+    let tree = cx.a11y_tree().unwrap();
+    let (document, node) = tree
+        .nodes
+        .iter()
+        .find(|(_, node)| node.label() == Some("Selection fixture"))
+        .unwrap();
+    let selection = node.text_selection().unwrap();
+    cx.simulate_a11y_active(false);
+    cx.update(|window, _| assert!(!window.accepts_document_selection(*document, selection)));
+    draw(cx);
+    cx.update(|window, _| assert!(!window.accepts_document_selection(*document, selection)));
 }
 
 #[test]
@@ -264,4 +353,224 @@ fn native_document_selection_matches_prepared_direction_in_the_painted_frame() {
             .iter()
             .all(|(_, node)| node.text_selection().is_none())
     );
+}
+
+struct GuardedDocuments {
+    first: Entity<TextViewState>,
+    second: Entity<TextViewState>,
+    allowed: Arc<std::sync::atomic::AtomicBool>,
+    mounted: bool,
+}
+impl Render for GuardedDocuments {
+    fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+        let allowed = self.allowed.clone();
+        div()
+            .size_full()
+            .child(gpui_base::TextSelectionLayer)
+            .when(self.mounted, |view| {
+                view.child(
+                    TextView::new(&self.first)
+                        .link_focus_guard(move |_| allowed.load(Ordering::Relaxed)),
+                )
+            })
+            .child(TextView::new(&self.second))
+    }
+}
+
+fn native_range(
+    text: &Entity<TextViewState>,
+    cx: &mut VisualTestContext,
+    anchor: usize,
+    head: usize,
+) -> accesskit::TextSelection {
+    cx.update(|window, cx| {
+        let state = text.read(cx);
+        let projection = state.rendered_text().unwrap();
+        accesskit::TextSelection {
+            anchor: state
+                .rendered_accessible_text_position(window, &projection.position(anchor).unwrap())
+                .unwrap(),
+            focus: state
+                .rendered_accessible_text_position(window, &projection.position(head).unwrap())
+                .unwrap(),
+        }
+    })
+}
+
+#[test]
+fn accessible_request_requires_current_paint_interaction_and_host_authorization() {
+    let mut app = TestAppContext::single();
+    app.update(gpui_base::init);
+    let (view, cx) = app.add_window_view(|_, cx| {
+        let make = |cx: &mut Context<TextViewState>| {
+            let mut state = TextViewState::externally_prepared(cx);
+            state.set_prepared(
+                PreparedText::parse("first λ🙂 last", MarkdownExtensions::default()).unwrap(),
+                None,
+                cx,
+            );
+            state
+        };
+        GuardedDocuments {
+            first: cx.new(make),
+            second: cx.new(make),
+            allowed: Arc::new(std::sync::atomic::AtomicBool::new(true)),
+            mounted: true,
+        }
+    });
+    let (first, second, allowed) = view.read_with(cx, |view, _| {
+        (
+            view.first.clone(),
+            view.second.clone(),
+            view.allowed.clone(),
+        )
+    });
+    cx.simulate_a11y_active(true);
+    draw(cx);
+    for (anchor, head) in [(6, 12), (12, 6), (6, 6)] {
+        let range = native_range(&first, cx, anchor, head);
+        cx.update(|window, cx| {
+            let state = first.read(cx);
+            assert!(
+                state
+                    .prepare_accessible_selection(&range, window, cx)
+                    .is_some()
+            );
+            assert!(
+                second
+                    .read(cx)
+                    .prepare_accessible_selection(&range, window, cx)
+                    .is_none()
+            );
+        });
+        let foreign = native_range(&second, cx, anchor, head);
+        cx.update(|window, cx| {
+            assert!(
+                first
+                    .read(cx)
+                    .prepare_accessible_selection(
+                        &accesskit::TextSelection {
+                            focus: foreign.focus,
+                            ..range
+                        },
+                        window,
+                        cx
+                    )
+                    .is_none()
+            );
+            let request = first
+                .read(cx)
+                .prepare_accessible_selection(&range, window, cx)
+                .unwrap();
+            first
+                .update(cx, |state, cx| state.apply_rendered_selection(request, cx))
+                .unwrap();
+            // Applying or clearing invalidates the painted interaction stamp,
+            // even when text and run IDs have not changed.
+            assert!(
+                first
+                    .read(cx)
+                    .prepare_accessible_selection(&range, window, cx)
+                    .is_none()
+            );
+        });
+        draw(cx);
+        assert_eq!(
+            first.read_with(cx, |state, _| state.selected_text()),
+            if anchor == head { "" } else { "λ🙂" }
+        );
+    }
+    let range = native_range(&first, cx, 6, 12);
+    cx.update(|window, cx| {
+        first.update(cx, |state, cx| state.clear_selection(cx));
+        assert!(
+            first
+                .read(cx)
+                .prepare_accessible_selection(&range, window, cx)
+                .is_none()
+        )
+    });
+    draw(cx);
+    allowed.store(false, Ordering::Relaxed);
+    cx.update(|window, cx| {
+        assert!(
+            first
+                .read(cx)
+                .prepare_accessible_selection(&range, window, cx)
+                .is_none()
+        )
+    });
+    allowed.store(true, Ordering::Relaxed);
+    cx.update(|window, cx| {
+        assert!(
+            first
+                .read(cx)
+                .prepare_accessible_selection(&range, window, cx)
+                .is_some()
+        )
+    });
+    cx.update(|window, cx| {
+        first.update(cx, |state, cx| {
+            state.set_selectable(false, cx);
+            state.set_selectable(true, cx);
+        });
+        assert!(
+            first
+                .read(cx)
+                .prepare_accessible_selection(&range, window, cx)
+                .is_none()
+        )
+    });
+    draw(cx);
+    // Equal text still has a different preparation/owner identity.
+    cx.update(|window, cx| {
+        first.update(cx, |state, cx| {
+            state.set_prepared(
+                PreparedText::parse("first λ🙂 last", MarkdownExtensions::default()).unwrap(),
+                None,
+                cx,
+            )
+        });
+        assert!(
+            first
+                .read(cx)
+                .prepare_accessible_selection(&range, window, cx)
+                .is_none()
+        )
+    });
+    draw(cx);
+    let current = native_range(&first, cx, 6, 12);
+    cx.update(|window, cx| {
+        assert!(
+            first
+                .read(cx)
+                .prepare_accessible_selection(&current, window, cx)
+                .is_some()
+        )
+    });
+    let mut other_app = cx.cx.clone();
+    let (_, other_cx) = other_app.add_window_view(|_, _| SelectionClaim { mode: 0 });
+    other_cx.simulate_a11y_active(true);
+    draw(other_cx);
+    other_cx.update(|window, cx| {
+        assert!(
+            first
+                .read(cx)
+                .prepare_accessible_selection(&current, window, cx)
+                .is_none()
+        );
+    });
+    view.update(cx, |view, cx| {
+        view.mounted = false;
+        cx.notify();
+    });
+    draw(cx);
+    cx.update(|window, cx| {
+        assert!(
+            first
+                .read(cx)
+                .prepare_accessible_selection(&current, window, cx)
+                .is_none()
+        )
+    });
 }

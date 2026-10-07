@@ -328,17 +328,19 @@ impl Frame {
         window: &mut Window,
         projection: &Arc<RenderedText>,
         selection: Option<&super::RenderedSelection>,
-    ) {
+    ) -> bool {
         let document = {
             let state = self.0.lock().expect("semantic attachment frame");
             if state.window != Some(window.window_handle().window_id())
                 || !state.projection.ptr_eq(&Arc::downgrade(projection))
             {
-                return;
+                return false;
             }
             state.document
         };
-        let Some(document) = document else { return };
+        let Some(document) = document else {
+            return false;
+        };
         let selection = selection.and_then(|selection| {
             Some(gpui::accesskit::TextSelection {
                 anchor: self.text_position(
@@ -353,7 +355,32 @@ impl Frame {
                 )?,
             })
         });
-        window.publish_document_selection(document, selection);
+        window.publish_document_selection(document, selection)
+    }
+
+    pub fn selection(
+        &self,
+        window: &Window,
+        projection: &Arc<RenderedText>,
+        selection: &gpui::accesskit::TextSelection,
+    ) -> Option<super::RenderedSelection> {
+        let state = self.0.lock().expect("semantic attachment frame");
+        if state.window != Some(window.window_handle().window_id())
+            || !state.projection.ptr_eq(&Arc::downgrade(projection))
+            || !window.accepts_document_selection(state.document?, selection)
+        {
+            return None;
+        }
+        let position = |position: gpui::accesskit::TextPosition| {
+            let run = state.runs.get(&position.node)?;
+            if position.character_index > run.len {
+                return None;
+            }
+            projection.accessible_position(run.part, run.first + position.character_index)
+        };
+        projection
+            .selection(&position(selection.anchor)?, &position(selection.focus)?)
+            .ok()
     }
 
     pub fn wrap(&self, block: usize, owner: RenderedSemanticId, element: AnyElement) -> AnyElement {

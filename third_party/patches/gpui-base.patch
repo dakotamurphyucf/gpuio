@@ -19248,3 +19248,172 @@
      }
  }
  
+--- a/src/text/semantic_attachments.rs
++++ b/src/text/semantic_attachments.rs
+@@ -328,17 +328,19 @@
+         window: &mut Window,
+         projection: &Arc<RenderedText>,
+         selection: Option<&super::RenderedSelection>,
+-    ) {
++    ) -> bool {
+         let document = {
+             let state = self.0.lock().expect("semantic attachment frame");
+             if state.window != Some(window.window_handle().window_id())
+                 || !state.projection.ptr_eq(&Arc::downgrade(projection))
+             {
+-                return;
++                return false;
+             }
+             state.document
+         };
+-        let Some(document) = document else { return };
++        let Some(document) = document else {
++            return false;
++        };
+         let selection = selection.and_then(|selection| {
+             Some(gpui::accesskit::TextSelection {
+                 anchor: self.text_position(
+@@ -353,7 +355,32 @@
+                 )?,
+             })
+         });
+-        window.publish_document_selection(document, selection);
++        window.publish_document_selection(document, selection)
++    }
++
++    pub fn selection(
++        &self,
++        window: &Window,
++        projection: &Arc<RenderedText>,
++        selection: &gpui::accesskit::TextSelection,
++    ) -> Option<super::RenderedSelection> {
++        let state = self.0.lock().expect("semantic attachment frame");
++        if state.window != Some(window.window_handle().window_id())
++            || !state.projection.ptr_eq(&Arc::downgrade(projection))
++            || !window.accepts_document_selection(state.document?, selection)
++        {
++            return None;
++        }
++        let position = |position: gpui::accesskit::TextPosition| {
++            let run = state.runs.get(&position.node)?;
++            if position.character_index > run.len {
++                return None;
++            }
++            projection.accessible_position(run.part, run.first + position.character_index)
++        };
++        projection
++            .selection(&position(selection.anchor)?, &position(selection.focus)?)
++            .ok()
+     }
+ 
+     pub fn wrap(&self, block: usize, owner: RenderedSemanticId, element: AnyElement) -> AnyElement {
+--- a/src/text/state.rs
++++ b/src/text/state.rs
+@@ -161,6 +161,7 @@
+     prepared_whole_copy: Option<PreparedWholeCopy>,
+     select_all: bool,
+     selection_epoch: Arc<()>,
++    painted_selection_epoch: Option<Arc<()>>,
+     rendered_selection: Option<RetainedRenderedSelection>,
+     pub(super) auto_scroll: AutoScroll,
+     pub(super) selection_adapter: TextViewSelectionAdapter,
+@@ -298,6 +299,54 @@
+             epoch: self.selection_epoch.clone(),
+             selection: text.selection(anchor, head)?,
+         })
++    }
++
++    /// Validate an accessible range against the last painted frame and current
++    /// native interaction state. This neither applies it nor changes focus.
++    /// A dispatcher must revalidate immediately before mutation; this request
++    /// does not grant lasting visibility or host focus authorization.
++    pub fn prepare_accessible_selection(
++        &self,
++        selection: &gpui::accesskit::TextSelection,
++        window: &Window,
++        cx: &App,
++    ) -> Option<RenderedSelectionRequest> {
++        if !self
++            .painted_selection_epoch
++            .as_ref()
++            .is_some_and(|epoch| Arc::ptr_eq(epoch, &self.selection_epoch))
++            || self
++                .link_focus_guard
++                .as_ref()
++                .is_some_and(|guard| !guard(cx))
++        {
++            return None;
++        }
++        let projection = self.rendered_text()?;
++        let range = self
++            .semantic_attachments
++            .selection(window, &projection, selection)?;
++        self.prepare_rendered_selection(range.anchor(), range.head())
++            .ok()
++    }
++
++    pub(super) fn publish_accessible_selection(&mut self, window: &mut Window, cx: &App) {
++        self.painted_selection_epoch = None;
++        let Some(projection) = self.rendered_text() else {
++            return;
++        };
++        let selection = self
++            .rendered_selection()
++            .or_else(|| self.captured_rendered_pointer_selection(cx));
++        if self
++            .semantic_attachments
++            .publish_selection(window, &projection, selection.as_ref())
++        {
++            // Strong ownership matters: retiring an unshared epoch deliberately
++            // avoids allocation. This stamp must force retirement even when no
++            // native request has been prepared yet.
++            self.painted_selection_epoch = Some(self.selection_epoch.clone());
++        }
+     }
+ 
+     /// Apply a previously prepared native request atomically. No focus/reveal
+@@ -652,6 +701,7 @@
+             prepared_whole_copy: None,
+             select_all: false,
+             selection_epoch: Arc::new(()),
++            painted_selection_epoch: None,
+             rendered_selection: None,
+             selectable: false,
+             selection_format: SelectionFormat::default(),
+--- a/src/text/text_view.rs
++++ b/src/text/text_view.rs
+@@ -355,10 +355,10 @@
+         self
+     }
+ 
+-    /// Authorize direct accessibility focus before changing the logical link
+-    /// or the document's native focus. Hosts can reject stale presentations or
++    /// Authorize direct accessibility focus and selection before changing the
++    /// logical link or document selection/focus. Hosts can reject stale presentations or
+     /// modal-blocked content. This native predicate must not mutate the view.
+-    /// Without a guard, any current prepared link may receive focus.
++    /// Without a guard, current prepared content follows its native input policy.
+     pub fn link_focus_guard<F>(mut self, guard: F) -> Self
+     where
+         F: Fn(&App) -> bool + Send + Sync + 'static,
+@@ -896,17 +896,9 @@
+             );
+         }
+         if window.is_a11y_active() {
+-            let state = state.read(cx);
+-            if let Some(projection) = state.rendered_text() {
+-                let selection = state
+-                    .rendered_selection()
+-                    .or_else(|| state.captured_rendered_pointer_selection(cx));
+-                state.semantic_attachments.publish_selection(
+-                    window,
+-                    &projection,
+-                    selection.as_ref(),
+-                );
+-            }
++            state.update(cx, |state, cx| {
++                state.publish_accessible_selection(window, cx)
++            });
+         }
+     }
+ }

@@ -355,10 +355,10 @@ impl TextView {
         self
     }
 
-    /// Authorize direct accessibility focus before changing the logical link
-    /// or the document's native focus. Hosts can reject stale presentations or
+    /// Authorize direct accessibility focus and selection before changing the
+    /// logical link or document selection/focus. Hosts can reject stale presentations or
     /// modal-blocked content. This native predicate must not mutate the view.
-    /// Without a guard, any current prepared link may receive focus.
+    /// Without a guard, current prepared content follows its native input policy.
     pub fn link_focus_guard<F>(mut self, guard: F) -> Self
     where
         F: Fn(&App) -> bool + Send + Sync + 'static,
@@ -896,17 +896,9 @@ impl Element for TextView {
             );
         }
         if window.is_a11y_active() {
-            let state = state.read(cx);
-            if let Some(projection) = state.rendered_text() {
-                let selection = state
-                    .rendered_selection()
-                    .or_else(|| state.captured_rendered_pointer_selection(cx));
-                state.semantic_attachments.publish_selection(
-                    window,
-                    &projection,
-                    selection.as_ref(),
-                );
-            }
+            state.update(cx, |state, cx| {
+                state.publish_accessible_selection(window, cx)
+            });
         }
     }
 }

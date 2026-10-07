@@ -6961,6 +6961,19 @@ impl Window {
         true
     }
 
+    /// Validate an OS selection request against this window's last completed
+    /// painted Document scope. The host must additionally validate its current
+    /// text revision, interaction state and selection/focus policy.
+    pub fn accepts_document_selection(
+        &self,
+        document: accesskit::NodeId,
+        selection: &accesskit::TextSelection,
+    ) -> bool {
+        self.a11y.accepts_selection_actions()
+            && self.invalidator.inner.borrow().draw_phase == DrawPhase::None
+            && self.a11y.document_selection_scopes.accepts(document, selection)
+    }
+
     /// Register a listener for an accessibility action on a specific node.
     /// The listener will be called when a screen reader requests the given
     /// action on the node identified by `node_id`.
