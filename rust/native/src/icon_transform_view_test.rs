@@ -92,8 +92,12 @@ fn pixels(cx: &mut gpui::AsyncApp, window: WindowHandle<View>, samples: &[(f32, 
             let scale = window.scale_factor();
             let image = window.render_to_image().unwrap();
             for &(x, y, expected) in samples {
+                let point = ((x * scale).floor() as u32, (y * scale).floor() as u32);
+                assert!(point.0 < image.width() && point.1 < image.height(),
+                    "icon sample outside native drawable: density={scale}, logical=({x},{y}), pixel={point:?}, drawable={:?}, viewport={:?}",
+                    image.dimensions(), window.viewport_size());
                 let actual = image
-                    .get_pixel((x * scale).floor() as u32, (y * scale).floor() as u32)
+                    .get_pixel(point.0, point.1)
                     .0;
                 assert!(
                     actual[..3]
@@ -105,6 +109,31 @@ fn pixels(cx: &mut gpui::AsyncApp, window: WindowHandle<View>, samples: &[(f32, 
             }
         })
         .unwrap();
+}
+
+async fn resize_readback(
+    cx: &mut gpui::AsyncApp,
+    window: WindowHandle<View>,
+    size: gpui::Size<gpui::Pixels>,
+) -> (u32, u32) {
+    window.update(cx, |_, w, _| w.resize(size)).unwrap();
+    let mut ready = false;
+    for _ in 0..200 {
+        pause(cx).await;
+        ready = window
+            .update(cx, |_, w, _| w.viewport_size() == size)
+            .unwrap();
+        if ready {
+            break;
+        }
+    }
+    assert!(ready, "icon readback viewport did not resize to {size:?}");
+    pause(cx).await;
+    let dimensions = window
+        .update(cx, |_, w, _| w.render_to_image().unwrap().dimensions())
+        .unwrap();
+    eprintln!("GPUIO_ICON_READBACK_SIZE: viewport={size:?}, dimensions={dimensions:?}");
+    dimensions
 }
 pub(super) async fn exercise(
     cx: &mut gpui::AsyncApp,
@@ -154,6 +183,16 @@ pub(super) async fn exercise(
         .release(source)
         .unwrap();
     let original_scale = window.update(cx, |_, w, _| w.scale_factor()).unwrap();
+    // Start with the hosted runner's small native drawable even on Retina,
+    // then establish the actual fixture's logical and physical canvas. A
+    // synthetic scale override does not resize CAMetalLayer's drawable.
+    let small = gpui::size(px(144. / original_scale), px(96. / original_scale));
+    assert_eq!(resize_readback(cx, window, small).await, (144, 96));
+    let dimensions = resize_readback(cx, window, gpui::size(px(256.), px(192.))).await;
+    assert!(
+        dimensions.0 >= 192 && dimensions.1 >= 128,
+        "all 2x samples require a complete native drawable: {dimensions:?}"
+    );
     let cases = [
         (Transform::default(), (54., 39.), (71., 57.), (73., 38.)),
         (

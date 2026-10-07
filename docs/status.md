@@ -5,6 +5,12 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **O
 Markdown walkthroughs for every example component; its documentation acceptance is complete. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
+[Icon readback capacity](evidence/icon-readback-capacity-och17.md) now reproduces
+the hosted out-of-bounds sample locally and repairs the test fixture's logical
+and native drawable sizing. The complete local native image suite passes with
+all original density/transform/color checks; production rendering is unchanged.
+Hosted confirmation and broader release qualification remain open.
+
 [Rendered pointer endpoints](evidence/rendered-pointer-endpoints-och17.md) now
 retain direction and preparation identity after virtualization. Local 1,092
 native tests, strict lint, full Dune, reconstruction, actual document/Copy and

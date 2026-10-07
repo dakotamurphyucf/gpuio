@@ -1,0 +1,75 @@
+{
+  "archive_sha256": "dd11fd0c61e2620b76cd8304d5ceeee70d1bb11d7dcd04adf9251dafd5bc5b81",
+  "files": [
+    {
+      "path": "icon-readback-before.py",
+      "bytes": 1161,
+      "sha256": "b3696ac0bb17a0ca5068cdf1c4047e5f0a58d79ca802b870b251c04328d0171d"
+    },
+    {
+      "path": "icon-readback-before2.py",
+      "bytes": 1162,
+      "sha256": "14e579e942ba7e9ef98699093c06848b793a19b7a896e052ff3b11661b31a175"
+    },
+    {
+      "path": "icon-readback-after.py",
+      "bytes": 1159,
+      "sha256": "bac739f819f9b6803cb7888989d72f74eeb49ea879b8e9729de081538ac82579"
+    },
+    {
+      "path": "icon-readback-before-001.log",
+      "bytes": 596450,
+      "sha256": "0e001a31319eb825abae2d513a8d9971341e7dd54102fe3b86ed9b7aa96ecf41"
+    },
+    {
+      "path": "icon-readback-before-002.log",
+      "bytes": 596542,
+      "sha256": "ab8e478a6cb2c6464c1ccbdbb9b6946dfdc449afa5b7ef42c62683d36772c497"
+    },
+    {
+      "path": "icon-readback-after-003.log",
+      "bytes": 594583,
+      "sha256": "56239d698b5ebcf8bf9f80cfe0fcef54a64316cbdbb109c49a131fc3828b1664"
+    },
+    {
+      "path": "icon-readback-before-checks.json",
+      "bytes": 436,
+      "sha256": "545f0950cadba0c34a9f4f7617f40f880ccbf6f98fc3ac5de93f248d008956fd"
+    },
+    {
+      "path": "icon-readback-before2-checks.json",
+      "bytes": 436,
+      "sha256": "358a5eb28386643fcaa150577d6406f963d6215a8629cb17217eb8b977b5557f"
+    },
+    {
+      "path": "icon-readback-after-checks.json",
+      "bytes": 431,
+      "sha256": "95d313e2e26f5e0e5ef1d4870aca872defd06ac5bce234ed51628fa6c8040e41"
+    },
+    {
+      "path": "icon-readback-before2-source.rs",
+      "bytes": 16525,
+      "sha256": "c18765679503fed4db215e8d1d0b983fc07d7824b57c57f8a6677227d7b032c2"
+    },
+    {
+      "path": "icon-readback-clippy-004.log",
+      "bytes": 588275,
+      "sha256": "62d4616aeec6d3adb11da55e9354c3b3cc64fb94cb7942eabe1902330df636e6"
+    },
+    {
+      "path": "icon-readback-fmt-005.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "icon-readback-metadata.json",
+      "bytes": 2602,
+      "sha256": "6dbdfbb2d785c44f317d4ab0e30553c64d867444a76245a2c8267c21d1090505"
+    },
+    {
+      "path": "icon-readback-qualified.patch",
+      "bytes": 3029,
+      "sha256": "b4bd20008ce8728b1daaff390fbead69de8aa4b8ece722851904bbc1bee8023f"
+    }
+  ]
+}
