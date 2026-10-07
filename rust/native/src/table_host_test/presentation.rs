@@ -262,3 +262,60 @@ fn pointer_focus_does_not_scroll_a_visible_cell_away_before_release() {
         "non-pointer focus must continue to reveal"
     );
 }
+
+#[test]
+fn pointer_focus_observation_does_not_reborrow_the_root_view() {
+    let mut app = TestAppContext::single();
+    app.update(gpui_base::init);
+    let (_reader, writer) = UnixStream::pair().unwrap();
+    let transport = Arc::new(Transport::new(writer.as_raw_fd()).unwrap());
+    let session = Rc::new(RefCell::new(Session::default()));
+    session.borrow_mut().hello(VERSION, CAPABILITIES).unwrap();
+    session
+        .borrow_mut()
+        .open(1, window_id(), "Pointer capture", 520., 300.)
+        .unwrap();
+    let (view, cx) = app.add_window_view(|_, _| View::new(window_id(), session, transport));
+    apply(
+        &view,
+        cx,
+        vec![
+            Op::Create(node(0), Kind::Container, String::new(), None),
+            Op::SetStyle(
+                node(0),
+                vec![Style::Fields(vec![
+                    Field::Width(Length::Px(520.)),
+                    Field::Height(Length::Px(300.)),
+                ])],
+            ),
+            Op::SetRoot(Some(node(0))),
+        ],
+    );
+    // Native integration fixtures may dispatch while updating the root. The
+    // observer only records focus in its separately owned manager; it must not
+    // lease View again merely to obtain that manager.
+    cx.update(|window, cx| {
+        view.update(cx, |_, cx| {
+            window.dispatch_event(
+                gpui::PlatformInput::MouseDown(gpui::MouseDownEvent {
+                    position: gpui::point(px(10.), px(10.)),
+                    button: gpui::MouseButton::Left,
+                    modifiers: Default::default(),
+                    click_count: 1,
+                    first_mouse: false,
+                }),
+                cx,
+            );
+            window.dispatch_event(
+                gpui::PlatformInput::MouseUp(gpui::MouseUpEvent {
+                    position: gpui::point(px(10.), px(10.)),
+                    button: gpui::MouseButton::Left,
+                    modifiers: Default::default(),
+                    click_count: 1,
+                }),
+                cx,
+            );
+        });
+    });
+    cx.run_until_parked();
+}

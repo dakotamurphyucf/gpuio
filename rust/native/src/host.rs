@@ -1489,23 +1489,28 @@ impl Render for View {
             window,
             cx,
         );
+        // Observation needs only the separately owned focus manager. A Context
+        // listener would lease View again if native input is dispatched while
+        // the root is already being updated.
+        let pointer_down_focus = self.focus.clone();
+        let pointer_up_focus = self.focus.clone();
         let mut root = drag_drop::root(div(), self.id, cx)
             .child(gpui_base::TextSelectionLayer)
-            .capture_any_mouse_down(cx.listener(|view, _, window, cx| {
-                let focus = view.focus.clone();
+            .capture_any_mouse_down(move |_, window, cx| {
+                let focus = pointer_down_focus.clone();
                 // Bubble handlers, including GPUI's default pointer focus,
                 // run after this capture. Observe their final handle before
                 // post-paint automatic focus reveal decides to move ancestors.
                 window.defer(cx, move |window, cx| {
                     focus.borrow_mut().record_pointer_focus(window, cx);
                 });
-            }))
-            .capture_any_mouse_up(cx.listener(|view, _, window, cx| {
-                let focus = view.focus.clone();
+            })
+            .capture_any_mouse_up(move |_, window, cx| {
+                let focus = pointer_up_focus.clone();
                 window.defer(cx, move |window, cx| {
                     focus.borrow_mut().record_pointer_focus(window, cx);
                 });
-            }))
+            })
             .capture_key_down(cx.listener(|view, event: &gpui::KeyDownEvent, window, cx| {
                 if event.keystroke.key == "escape"
                     && (view.cancel_color_inputs(

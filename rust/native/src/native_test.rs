@@ -334,13 +334,20 @@ pub fn run() {
         window
             .update(cx, |_, window, _| window.activate_window())
             .unwrap();
+        let saved_clipboard = cx.read_from_clipboard();
         cx.spawn(async move |cx| {
             let result = protect(exercise(
                 cx, window, session, transport, window_id, handler, text,
             ))
             .await;
             *task_failure.borrow_mut() = result.err();
-            cx.update(stop_application);
+            cx.update(|cx| {
+                cx.write_to_clipboard(
+                    saved_clipboard
+                        .unwrap_or_else(|| gpui::ClipboardItem::new_string(String::new())),
+                );
+                stop_application(cx);
+            });
         })
         .detach();
     });

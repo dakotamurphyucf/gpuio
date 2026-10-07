@@ -683,6 +683,7 @@ pub(crate) fn run() {
         let Response::Created(source)=session.borrow_mut().document_request(Request::Create)else{panic!("source")};
         let text="aaa before\nbbb middle\naaa tail\n";publish(&mut session.borrow_mut(),source,0,text);
         let handle=cx.open_window(WindowOptions{window_bounds:Some(WindowBounds::Windowed(Bounds::centered(None,size(px(440.),px(340.)),cx))),focus:false,..Default::default()},|_,cx|cx.new(|_|View::new(id,session.clone(),transport.clone()))).unwrap();
+        let saved_clipboard=cx.read_from_clipboard();
         cx.spawn(async move|cx|{
             let checked=crate::host::native_test::protect(async{
                 apply(cx,handle,vec![Op::Create(node(0),Kind::HighlightScope,"".into(),Some(handler(1))),Op::SetHighlightScope(node(0),config(0.)),Op::SetStyle(node(0),vec![Style::Fields(vec![Field::Width(Length::Px(440.)),Field::Height(Length::Px(340.)),Field::Background(Fill::Solid(Color::Rgba(0xffffffff)))])]),Op::Create(node(1),Kind::DocumentView,"".into(),None),Op::SetDocument(node(1),document(source,Mode::Code("txt".into()))),Op::Splice(node(0),0,0,vec![node(1)]),Op::SetRoot(Some(node(0)))]);
@@ -745,7 +746,10 @@ pub(crate) fn run() {
             *task_failure.borrow_mut()=checked.err();
             let _=handle.update(cx,|_,window,_|window.remove_window());
             crate::highlight_host::shutdown(cx).await;crate::document_host::shutdown(cx).await;crate::image_host::shutdown(cx).await;
-            cx.update(crate::host::stop_application);
+            cx.update(|cx|{
+                cx.write_to_clipboard(saved_clipboard.unwrap_or_else(||gpui::ClipboardItem::new_string(String::new())));
+                crate::host::stop_application(cx);
+            });
         }).detach();
     });
     if let Some(error) = failure.borrow_mut().take() {

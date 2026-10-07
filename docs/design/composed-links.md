@@ -150,6 +150,11 @@ a compound owner's larger bounds must not move the clicked child between press
 and release. The host observes final focus after down/up dispatch, including
 GPUI's default focus handler. Explicit reveal requests retain priority, and focus
 redirected to a target elsewhere still reveals. This adds no polling or timer.
+The pointer observers capture the separate focus manager directly; they do not
+lease the root View through `Context::listener`. Native integrations can dispatch
+pointer input inside an existing root update, so even an observer must avoid
+reborrowing that entity. Observation still runs after bubble handlers and before
+the normal post-paint reveal decision.
 Each ordinary scroller moves the least distance on its
 actual scroll axes, clamped to native limits. Oversized targets align their leading
 edge. Projection intersects the resolved overflow mask, including visible borders,

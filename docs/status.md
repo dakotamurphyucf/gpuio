@@ -5,6 +5,21 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **O
 Markdown walkthroughs for every example component; its documentation acceptance is complete. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
+[Root pointer reentrancy](evidence/root-view-reentrancy-och17.md) now removes an
+unnecessary root View borrow from focus observers. A before/after regression,
+actual native UI/document checks, physical held-click, 1,073 native unit tests,
+strict lint and full Dune checks pass locally. An initial later document style-count
+failure remains unexplained despite instrumented passing repeats; phase/window
+diagnostics and failure-safe clipboard cleanup are retained. Current-source
+hosted/Linux and broader release qualification remain open.
+
+[Hosted run 37569701072](evidence/hosted-presentation-calibration-och17.md#hosted-run-37569701072)
+is terminal at earlier `90e7156b`: Linux foundation, the full Results workflow and
+all three fresh-runner macOS apps pass. macOS foundation fails native UI/document
+with the root-borrow panic repaired locally above, plus both Metal probes with
+zero presentation timestamps on Apple Paravirtual. This predates local Icon,
+editor geometry and root-observer changes. Physical presentation remains unqualified.
+
 [Editor accessibility geometry](evidence/editor-accessibility-geometry-och41.md)
 now publishes same-prepaint shaped bounds instead of empty AX range rectangles.
 Root and independently installed macOS galleries pass eight range/caret cases,

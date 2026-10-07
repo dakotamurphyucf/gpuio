@@ -12,7 +12,13 @@ fn pointer(cx: &mut AsyncApp, handle: WindowHandle<View>, x: f32, y: f32) {
     crate::host::native_test::move_mouse(cx, handle, gpui::point(px(x), px(y)), false);
     draw(cx, handle);
 }
-async fn count(cx: &mut AsyncApp, handle: WindowHandle<View>, transport: &Transport, total: i64) {
+async fn count(
+    cx: &mut AsyncApp,
+    handle: WindowHandle<View>,
+    transport: &Transport,
+    total: i64,
+    phase: &str,
+) {
     let expected = highlight::State::Ready(vec![highlight::Count {
         total,
         stored: total,
@@ -39,11 +45,14 @@ async fn count(cx: &mut AsyncApp, handle: WindowHandle<View>, transport: &Transp
         }
     }
     panic!(
-        "document wrapper did not settle at {total}: {:?}",
+        "document wrapper did not settle at {total} during {phase}: (observation, active, hovered, pointer) = {:?}",
         handle
-            .update(cx, |view, _, _| view.highlights[&node(0)]
-                .borrow()
-                .observation())
+            .update(cx, |view, window, _| (
+                view.highlights[&node(0)].borrow().observation(),
+                window.is_window_active(),
+                window.is_window_hovered(),
+                window.mouse_position(),
+            ))
             .unwrap()
     );
 }
@@ -84,6 +93,7 @@ pub(super) async fn exercise(
         .into_iter()
         .enumerate()
     {
+        eprintln!("DOCUMENT_STYLE_MODE {mode:?}");
         let base = p.read_with(cx, |p, _| p.installed.as_ref().unwrap().revision);
         pointer(cx, handle, 430., 330.);
         focus_root(cx, handle);
@@ -107,16 +117,16 @@ pub(super) async fn exercise(
             ],
         );
         installed_revision(cx, handle, transport, p, base + 1).await;
-        count(cx, handle, transport, 2).await;
+        count(cx, handle, transport, 2, "initial").await;
         assert!(red_pixels(cx, handle) > 20);
         let snapshot = p.read_with(cx, |p, _| p.installed.clone().unwrap());
         // Exposed wrapper padding avoids child editor/TextView hitbox occlusion.
         pointer(cx, handle, 10., 10.);
-        count(cx, handle, transport, 0).await;
+        count(cx, handle, transport, 0, "hover hidden").await;
         assert_eq!(red_pixels(cx, handle), 0);
         steady(cx, handle, transport).await;
         pointer(cx, handle, 430., 330.);
-        count(cx, handle, transport, 2).await;
+        count(cx, handle, transport, 2, "hover exit").await;
         assert!(red_pixels(cx, handle) > 20);
 
         apply(
@@ -128,10 +138,10 @@ pub(super) async fn exercise(
         pause(cx).await;
         pointer(cx, handle, 10., 10.);
         crate::host::native_test::mouse(cx, handle, gpui::point(px(10.), px(10.)), true);
-        count(cx, handle, transport, 0).await;
+        count(cx, handle, transport, 0, "press hidden").await;
         assert_eq!(red_pixels(cx, handle), 0);
         crate::host::native_test::mouse(cx, handle, gpui::point(px(430.), px(330.)), false);
-        count(cx, handle, transport, 2).await;
+        count(cx, handle, transport, 2, "release").await;
 
         for hidden in [Field::Visibility(1), Field::Display(3)] {
             apply(cx, handle, vec![Op::SetStyle(node(1), style(1, hidden))]);
@@ -141,10 +151,10 @@ pub(super) async fn exercise(
                     window.focus(&p.read(cx).primary_focus(cx), cx)
                 })
                 .unwrap();
-            count(cx, handle, transport, 0).await;
+            count(cx, handle, transport, 0, "primary focus hidden").await;
             assert_eq!(red_pixels(cx, handle), 0);
             focus_root(cx, handle);
-            count(cx, handle, transport, 2).await;
+            count(cx, handle, transport, 2, "primary blur").await;
             assert!(red_pixels(cx, handle) > 20);
         }
         // Toolbar focus belongs to the same document component.
@@ -153,9 +163,9 @@ pub(super) async fn exercise(
                 window.focus(&p.read(cx).buttons["document-copy"].clone(), cx)
             })
             .unwrap();
-        count(cx, handle, transport, 0).await;
+        count(cx, handle, transport, 0, "toolbar focus hidden").await;
         focus_root(cx, handle);
-        count(cx, handle, transport, 2).await;
+        count(cx, handle, transport, 2, "toolbar blur").await;
         assert!(
             p.read_with(cx, |p, _| Arc::ptr_eq(
                 &snapshot,

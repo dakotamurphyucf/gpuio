@@ -1,5 +1,35 @@
 # Hosted Metal calibration failure — OCH-17
 
+## Hosted run 37569701072
+
+[Run 37569701072](https://github.com/dakotamurphyucf/gpuio/actions/runs/37569701072)
+is terminal with failure at branch `90e7156b`, tested merge `8a582622` with the
+same source tree. Linux foundation and all three macOS applications on the
+independent fresh runner pass. The complete Agent Workspace Results workflow
+also passes, including single-click selection, Diagram → Back, retained columns,
+100k rows and cleanup; the earlier focus/reveal repair has hosted confirmation.
+
+macOS foundation fails four steps. Typed UI and document highlighting both panic
+because the root pointer observer uses `Context::listener` while a native test
+already holds a mutable root View update. The [local reentrancy repair](root-view-reentrancy-och17.md)
+reproduces this ownership conflict and removes the observer's unnecessary root
+borrow. That repair, Icon transforms and editor accessibility geometry postdate
+this hosted run and require current-source hosted validation.
+
+The other two failures remain the GPUI Metal presentation hook and standalone
+Metal calibration on Apple Paravirtual / macOS 15.7.9. Each GPUI window admits
+90 frames; all 180 callbacks report zero presentation time. Both sessions have
+zero pending, missing, duplicate, saturated or truncated records and close.
+Standalone Metal receives 120 active, visible, GPU-completed frames, all with
+zero presentation timestamps. Neither result establishes physical presentation
+or waives the release gate.
+
+[Raw failure logs, passing Results workflow and packaged-app evidence](hosted-presentation-calibration-och17/run-37569701072/reports.tar.gz)
+have a [verified 33-member manifest](hosted-presentation-calibration-och17/run-37569701072/manifest.json).
+Receiver verification records the producer checkout and matching transferred
+archive/executable hashes. These are scoped internal ad-hoc package checks;
+signed distribution and broader release acceptance remain open.
+
 ## Hosted run 37558498842
 
 [Run 37558498842](https://github.com/dakotamurphyucf/gpuio/actions/runs/37558498842)
