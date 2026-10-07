@@ -849,7 +849,10 @@ style. Deferred draws use the same range mechanism.
 Store one flat raw-node snapshot for a frame containing cached views, before
 output-only inheritance/repair; never store one snapshot per nested cache.
 Ordinary uncached frames avoid that node copy and release old callback owners
-immediately. Cache-containing frames may retain one prior frame until replacement.
+immediately. Cache-containing frames retain prior callbacks only until all current
+root/deferred/overlay painting finishes. Reused callbacks move into the current
+map; unused prior callbacks are then released, including controls removed from a
+mixed cached/uncached window. Old semantic snapshots remain frame-bounded.
 Raw registrations survive postorder parent hiding, but the current completed
 tree's blocked-action set gates explicit and fallback dispatch. This restores
 interaction when a cached child is shown again without making hidden or disabled

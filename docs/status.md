@@ -5,6 +5,15 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **O
 Markdown walkthroughs for every example component; its documentation acceptance is complete. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
+[Cached accessibility callback ownership](evidence/cached-accessibility-owners-och17.md)
+now releases removed uncached controls in the same completed frame even when the
+window also contains cached content. The single-frame regression fails before the
+fix and passes afterward; all 1,170 native tests pass (2 ignored). A separate real
+cached Base TextView diagnostic **fails**: selection registration is swept during
+cache reuse, clearing selection and triggering extra redraws. Its source and
+failure are preserved for the next lifecycle fix; cached TextView acceptance
+remains open.
+
 [Cached accessibility replay](evidence/cached-accessibility-replay-och17.md)
 now preserves native semantic nodes, actions and synthetic painted selection
 claims during actual view-cache reuse, including nested deferred content.

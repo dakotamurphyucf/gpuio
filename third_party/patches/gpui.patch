@@ -4453,3 +4453,30 @@
 +        }
 +    }
 +}
+--- a/src/window.rs
++++ b/src/window.rs
+@@ -3565,6 +3565,8 @@
+         #[cfg(any(feature = "inspector", debug_assertions))]
+         self.paint_inspector_hitbox(cx);
+ 
++        self.a11y.finish_cache_replay();
++
+         // a11y may have been activated/deactivated halfway through the frame
+         let a11y_active_start_of_frame = self.a11y.is_active();
+         self.a11y.sync_active_flag();
+--- a/src/window/a11y/cache.rs
++++ b/src/window/a11y/cache.rs
+@@ -32,6 +32,13 @@
+     provenance: FxHashMap<NodeId, debug::NodeDebugInfo>,
+ }
+ impl A11y {
++    /// All cached and deferred paint ranges have been consumed. Callbacks that
++    /// were not moved into this frame belong to retired content, and must not
++    /// keep its owners alive until another frame happens to be drawn.
++    pub(crate) fn finish_cache_replay(&mut self) {
++        self.cache.listeners.clear();
++    }
++
+     /// Advance even while inactive, so old callbacks and node snapshots cannot
+     /// accumulate or be mistaken for the immediately preceding frame.
+     pub(crate) fn advance_cache(&mut self) {

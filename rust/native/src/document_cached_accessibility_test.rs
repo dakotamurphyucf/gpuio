@@ -1,4 +1,6 @@
 //! Native cache reuse must preserve semantic content and action routing.
+#[path = "document_cached_owner_test.rs"]
+mod owners;
 use super::*;
 
 struct CachedDocument {

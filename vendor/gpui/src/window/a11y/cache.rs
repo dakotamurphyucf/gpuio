@@ -32,6 +32,13 @@ pub(crate) struct Cache {
     provenance: FxHashMap<NodeId, debug::NodeDebugInfo>,
 }
 impl A11y {
+    /// All cached and deferred paint ranges have been consumed. Callbacks that
+    /// were not moved into this frame belong to retired content, and must not
+    /// keep its owners alive until another frame happens to be drawn.
+    pub(crate) fn finish_cache_replay(&mut self) {
+        self.cache.listeners.clear();
+    }
+
     /// Advance even while inactive, so old callbacks and node snapshots cannot
     /// accumulate or be mistaken for the immediately preceding frame.
     pub(crate) fn advance_cache(&mut self) {

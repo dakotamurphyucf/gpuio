@@ -31,7 +31,9 @@ not contaminate the raw snapshot. Storage is bounded to current/previous frames;
 there is no retained node snapshot per nested cached view. A full-suite regression
 caught extra callback retention in ordinary uncached windows; those frames now
 drop prior registrations immediately, preserving their earlier release behavior.
-Cache-containing frames can retain the preceding frame until it is replaced.
+The follow-up [mixed-owner check](cached-accessibility-owners-och17.md) tightens
+callback retirement in cache-containing frames: after all paint replay finishes,
+unconsumed old callbacks are released in that removal frame.
 
 Postorder parent semantics can hide a child without re-rendering it. Keep raw
 registrations for replay, but reject explicit and fallback actions against the
