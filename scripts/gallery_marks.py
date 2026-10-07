@@ -19,9 +19,10 @@ def exercise(mac, images):
         mac.key(36)
         mac.wait_text(TITLE, 'Selected: ' + value)
 
-    paths = ['Styled paths', 'Styled markers']
+    patterns = ['Slash pattern', 'Checkerboard pattern']
+    paths = ['Styled paths', 'Styled markers'] + patterns
     bars = ['Base-to-tip bars', 'Domain-colored bars', 'Value-colored bars',
-            'Uniform aggregate colors']
+            'Uniform aggregate colors'] + patterns
     for family, count, value, presets in [
             ('Line', 48, 'Atlas · x 0 · value 30', paths),
             ('Area', 24, 'Active capacity · x 0 · value 30', paths),
@@ -32,12 +33,18 @@ def exercise(mac, images):
             ('Radar', 10, 'Atlas · Quality · 88 / 100', paths),
             ('Mixed layers', 72, 'Capacity · x 0 · value 30', paths + bars)]:
         press(family)
+        # Preparation needs a measured viewport; Radar's controls can push its
+        # chart entirely below the fold after returning to the family buttons.
+        reveal_gallery_control(mac, 'Chart preview: ' + family, 'AXGroup')
         mac.wait_text(TITLE, f'Ready: {family} · {count} source values')
         select(family, value)
+        selected = value
         for preset in presets:
             press(preset)
             mac.wait_text(TITLE, 'Default inspection · ' + preset)
-            mac.wait_text(TITLE, 'Selected: ' + value)
+            # Changing presentation retains the last committed observation.
+            # A new Home/Enter below selects under the new sampling policy.
+            mac.wait_text(TITLE, 'Selected: ' + selected)
             selected = value
             if preset == 'Uniform aggregate colors':
                 selected = {
@@ -54,15 +61,16 @@ def exercise(mac, images):
         mac.wait_text(TITLE, f'Ready: {family} · {count} source values')
         select(family, value)
         if family in ('Bar', 'Stacked bars'):
-            press('Base-to-tip bars')
-            for control, direction in [
-                    ('Horizontal axes', 'Horizontal'),
-                    ('Reverse value axis', 'Horizontal reversed'),
-                    ('Horizontal axes', 'Vertical reversed'),
-                    ('Reverse value axis', 'Vertical')]:
-                toggle(control)
-                mac.wait_text(TITLE, f'Ready: {family} · {count} source values · {direction}')
-                select(family, value)
+            for preset in ['Base-to-tip bars'] + patterns:
+                press(preset)
+                for control, direction in [
+                        ('Horizontal axes', 'Horizontal'),
+                        ('Reverse value axis', 'Horizontal reversed'),
+                        ('Horizontal axes', 'Vertical reversed'),
+                        ('Reverse value axis', 'Vertical')]:
+                    toggle(control)
+                    mac.wait_text(TITLE, f'Ready: {family} · {count} source values · {direction}')
+                    select(family, value)
         press('View data')
         mac.release(mac.wait_find(TITLE, f'Chart preview: {family} · original data', 'AXTable'))
         mac.key(119)
@@ -82,6 +90,20 @@ def exercise(mac, images):
     for label, next_label in [(initial, other), (other, initial)]:
         mac.press(TITLE, label)
         mac.release(mac.wait_find(TITLE, next_label, 'AXButton'))
+        select('Line', 'Atlas · x 0 · value 30')
+        for family, value in [('Area', 'Active capacity · x 0 · value 30'),
+                              ('Bar', 'Completed evaluations · x 0 · value 30')]:
+            press(family)
+            for preset in patterns:
+                press(preset)
+                select(family, value)
+                if images:
+                    reveal_gallery_control(mac, 'Chart preview: ' + family, 'AXGroup')
+                    screenshot(mac, images / ('gallery-pattern-theme-' + next_label.lower()
+                                             + '-' + family.lower() + '-'
+                                             + preset.lower().replace(' ', '-') + '.png'), title=TITLE)
+        press('Line')
+        press('Styled markers')
         select('Line', 'Atlas · x 0 · value 30')
     press('Update chart samples')
     mac.wait_text(TITLE, 'Selected: Atlas · x 0 · value 33')

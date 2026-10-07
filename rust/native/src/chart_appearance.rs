@@ -81,6 +81,12 @@ pub(crate) fn gradient(angle: f64, from: u32, to: u32) -> Brush {
 pub(crate) fn native_brush(brush: Brush) -> gpui::Background {
     match brush {
         Brush::Solid(color) => gpui::rgba(color as u32).into(),
+        Brush::PatternSlash(color, width, interval) => {
+            gpui::pattern_slash(gpui::rgba(color as u32), width as f32, interval as f32)
+        }
+        Brush::Checkerboard(color, size) => {
+            gpui::checkerboard(gpui::rgba(color as u32), size as f32)
+        }
         Brush::Linear {
             oklab,
             angle,

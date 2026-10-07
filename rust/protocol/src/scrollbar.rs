@@ -101,6 +101,13 @@ fn gradient(angle: f64, from: &Color, start: f64, to: &Color, stop: f64) -> bool
 fn fill(value: &Fill) -> bool {
     match value {
         Fill::Solid(value) => color(value),
+        Fill::PatternSlash(c, width, interval) => {
+            color(c)
+                && [width, interval]
+                    .into_iter()
+                    .all(|n| n.is_finite() && (0.5..=64.).contains(n))
+        }
+        Fill::Checkerboard(c, size) => color(c) && size.is_finite() && (0.5..=64.).contains(size),
         Fill::LinearGradient(angle, from, start, to, stop) => {
             gradient(*angle, from, *start, to, *stop)
         }

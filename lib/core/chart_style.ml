@@ -102,7 +102,7 @@ let create
     let%bind grid = Chart_grid.Expert.to_wire grid ~theme in
     let%bind appearance = Chart_appearance.Expert.to_wire appearance ~theme in
     let t =
-      { Wire.version = -7L
+      { Wire.version = -8L
       ; palette
       ; axis_color
       ; grid_color

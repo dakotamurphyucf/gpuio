@@ -11,10 +11,21 @@ type t =
   | Domain_bars
   | Value_bars
   | Uniform_buckets
+  | Slash_pattern
+  | Checkerboard
 [@@deriving equal]
 
 let all =
-  [ Default; Paths; Markers; Signed_bars; Domain_bars; Value_bars; Uniform_buckets ]
+  [ Default
+  ; Paths
+  ; Markers
+  ; Signed_bars
+  ; Domain_bars
+  ; Value_bars
+  ; Uniform_buckets
+  ; Slash_pattern
+  ; Checkerboard
+  ]
 ;;
 
 let label = function
@@ -25,6 +36,8 @@ let label = function
   | Domain_bars -> "Domain-colored bars"
   | Value_bars -> "Value-colored bars"
   | Uniform_buckets -> "Uniform aggregate colors"
+  | Slash_pattern -> "Slash pattern"
+  | Checkerboard -> "Checkerboard pattern"
 ;;
 
 let series data =
@@ -50,15 +63,25 @@ let configuration t palette data =
   let foreground = Palette.foreground palette in
   let gold = Color.rgb_exn 0xfbbf24 in
   let corners = A.Corners.create ~top_left:16. ~bottom_right:8. () |> ok in
+  let pattern =
+    match t with
+    | Slash_pattern -> Some (Background.pattern_slash accent ~width:2. ~interval:4. |> ok)
+    | Checkerboard -> Some (Background.checkerboard accent ~size:8. |> ok)
+    | Default | Paths | Markers | Signed_bars | Domain_bars | Value_bars | Uniform_buckets
+      -> None
+  in
   let path =
     A.Path.create
       ~stroke:(A.Stroke.create ~width:4. (Background.solid accent) |> ok)
       ~fill:
-        (Background.linear_gradient
-           ~angle:180.
-           ~from:(Color.with_opacity accent 0.65 |> ok, 0.)
-           ~to_:(Color.with_opacity accent 0.08 |> ok, 1.)
-         |> ok)
+        (Option.value
+           pattern
+           ~default:
+             (Background.linear_gradient
+                ~angle:180.
+                ~from:(Color.with_opacity accent 0.65 |> ok, 0.)
+                ~to_:(Color.with_opacity accent 0.08 |> ok, 1.)
+              |> ok))
       ~curve:Natural
       ()
   in
@@ -70,6 +93,7 @@ let configuration t palette data =
     | Signed_bars -> A.Bar_fill.base_to_tip ~from:muted ~to_:accent
     | Domain_bars -> A.Bar_fill.domain ~from:accent ~to_:gold
     | Value_bars -> A.Bar_fill.values ~from:(0., accent) ~to_:(20., gold) |> ok
+    | Slash_pattern | Checkerboard -> A.Bar_fill.background (Option.value_exn pattern)
     | Default | Paths | Markers | Uniform_buckets ->
       A.Bar_fill.background (Background.solid muted)
   in
@@ -81,12 +105,18 @@ let configuration t palette data =
       List.map source ~f:(fun (series, _) ->
         A.Series.create
           ~series
-          ?path:(Option.some_if (equal t Paths) path)
+          ?path:(Option.some_if (equal t Paths || Option.is_some pattern) path)
           ?marker:(Option.some_if (equal t Markers) marker)
           ?bar:
             (Option.some_if
                (List.mem
-                  [ Signed_bars; Domain_bars; Value_bars; Uniform_buckets ]
+                  [ Signed_bars
+                  ; Domain_bars
+                  ; Value_bars
+                  ; Uniform_buckets
+                  ; Slash_pattern
+                  ; Checkerboard
+                  ]
                   t
                   ~equal)
                (A.Bar.create ~fill:bar_fill ~corners ()))
@@ -112,7 +142,13 @@ let configuration t palette data =
               ~bar:
                 (A.Bar.create ~fill:(A.Bar_fill.background (Background.solid accent)) ())
               ())
-        | Default | Paths | Signed_bars | Domain_bars | Value_bars -> [])
+        | Default
+        | Paths
+        | Signed_bars
+        | Domain_bars
+        | Value_bars
+        | Slash_pattern
+        | Checkerboard -> [])
     in
     A.create ~series ~data ~aggregates:Uniform () |> ok)
 ;;
@@ -124,6 +160,12 @@ let sampling = function
     Chart_sampling.create
       ~bars:(Chart_sampling.Bar.sum ~max_buckets:2 |> Or_error.ok_exn)
       ()
-  | Default | Paths | Markers | Signed_bars | Domain_bars | Value_bars ->
-    Chart_sampling.default
+  | Default
+  | Paths
+  | Markers
+  | Signed_bars
+  | Domain_bars
+  | Value_bars
+  | Slash_pattern
+  | Checkerboard -> Chart_sampling.default
 ;;

@@ -14,6 +14,8 @@ impl Decoder<'_> {
                 to: self.int()?,
                 stop: self.float()?,
             },
+            2 => Brush::PatternSlash(self.int()?, self.float()?, self.float()?),
+            3 => Brush::Checkerboard(self.int()?, self.float()?),
             _ => return Err(DecodeError::Malformed),
         })
     }

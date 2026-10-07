@@ -272,6 +272,8 @@ module type S = sig
       | Solid of Color.t
       | Linear_gradient of float * Color.t * float * Color.t * float
       | Linear_gradient_in of int64 * float * Color.t * float * Color.t * float
+      | Pattern_slash of Color.t * float * float
+      | Checkerboard of Color.t * float
     [@@deriving bin_io, equal, sexp_of]
   end
 

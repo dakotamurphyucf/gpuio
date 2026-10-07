@@ -16,6 +16,12 @@ let resolve_brush brush theme =
   | Solid color ->
     let%map color = Theme.resolve theme color in
     Wire.Brush.Solid color
+  | Pattern_slash (color, width, interval) ->
+    let%map color = Theme.resolve theme color in
+    Wire.Brush.Pattern_slash (color, width, interval)
+  | Checkerboard (color, size) ->
+    let%map color = Theme.resolve theme color in
+    Wire.Brush.Checkerboard (color, size)
   | Linear_gradient (space, angle, (from, start), (to_, stop)) ->
     let%bind from = Theme.resolve theme from in
     let%map to_ = Theme.resolve theme to_ in

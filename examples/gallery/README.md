@@ -499,7 +499,11 @@ orientation, while candlestick axes remain vertical. These controls change
 presentation without publishing new source data and are still under qualification. Each page visit acquires one
 scoped registration; leaving releases it. Choices survive a revisit while source
 phase and selection start fresh. Read the pure [mark preset guide](chart_marks.md) for source-ID highlights,
-path/bar styling and explicit aggregate sampling in Cartesian/radar modes. Pie,
+path/bar styling and explicit aggregate sampling in Cartesian/radar modes. Its
+**Slash pattern** and **Checkerboard pattern** controls apply transparent-gap
+brushes to bars and filled paths; brush dimensions use physical pixels while
+chart geometry uses logical pixels. The guide traces their pure configuration
+through the page's Bonsai state; native qualification remains open. Pie,
 Candlestick, Ordinal colors and flow modes hide these controls; integration remains
 under qualification.
 The original-data table includes node records

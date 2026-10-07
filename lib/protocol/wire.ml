@@ -274,6 +274,8 @@ module Fill = struct
     | Solid of Color.t
     | Linear_gradient of float * Color.t * float * Color.t * float
     | Linear_gradient_in of int64 * float * Color.t * float * Color.t * float
+    | Pattern_slash of Color.t * float * float
+    | Checkerboard of Color.t * float
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -373,8 +375,13 @@ module Scrollbar = struct
     && color to_
   ;;
 
+  let pattern_dimension n = Float.is_finite n && Float.(n >= 0.5 && n <= 64.)
+
   let fill = function
     | Fill.Solid c -> color c
+    | Pattern_slash (c, width, interval) ->
+      color c && pattern_dimension width && pattern_dimension interval
+    | Checkerboard (c, size) -> color c && pattern_dimension size
     | Linear_gradient (angle, from, start, to_, stop) ->
       gradient angle from start to_ stop
     | Linear_gradient_in (space, angle, from, start, to_, stop) ->

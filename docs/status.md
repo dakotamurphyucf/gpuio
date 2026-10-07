@@ -5,6 +5,13 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **O
 Markdown walkthroughs for every example component; its documentation acceptance is complete. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
+[Native pattern brushes](evidence/native-pattern-brushes-och41.md) now pass ordinary
+View GPU pixel checks and root/fresh-installed gallery walkthroughs. Shared
+Background slash/checker brushes support chart paths and bars, with source
+selection, four bar directions, light/dark themes and zero-resource cleanup.
+Protocol/native/full Dune/lint checks pass locally. Chart style uses schema -8,
+requiring matching packages; dense per-datum styles and baselines remain open.
+
 [Public rich inspection gallery](evidence/chart-inspection-gallery-och41.md) now
 passes root and freshly installed consumer walkthroughs: structured rows,
 uncommitted keyboard entry, native editing/actions, themes/scales, Card/Overlay
@@ -69,7 +76,7 @@ radar/content wrapper validation and retained-memory accounting. Paired expects,
 the existing hidden-window chart regression and full Dune checks pass locally.
 That checkpoint predates the experimental attachment/renderer above; broader
 interaction qualification remains open.
-Current view/options/style/data schemas are -2/9/-7/1; matching packages are required.
+Current view/options/style/data schemas are -2/9/-8/1; matching packages are required.
 
 [Rich inspection content foundations](evidence/chart-inspection-content-foundation-och41.md)
 add validated OCaml target/content values and paired standalone metadata codecs.

@@ -755,6 +755,12 @@ module Expert = struct
     | Solid c ->
       let%map.Or_error c = color theme c in
       Wire.Fill.Solid c
+    | Pattern_slash (c, width, interval) ->
+      let%map.Or_error c = color theme c in
+      Wire.Fill.Pattern_slash (c, width, interval)
+    | Checkerboard (c, size) ->
+      let%map.Or_error c = color theme c in
+      Wire.Fill.Checkerboard (c, size)
     | Linear_gradient (space, angle, (from, start), (to_, stop)) ->
       let%bind.Or_error from = color theme from in
       let%map.Or_error to_ = color theme to_ in

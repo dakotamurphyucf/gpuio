@@ -69,7 +69,7 @@ fn within(value: f64, min: f64, max: f64) -> bool {
 }
 impl Style {
     pub fn is_valid(&self) -> bool {
-        self.version == -7
+        self.version == -8
             && (1..=32).contains(&self.palette.len())
             && self.palette.iter().all(|c| color(*c))
             && [
@@ -116,7 +116,7 @@ impl Style {
 impl Default for Style {
     fn default() -> Self {
         Self {
-            version: -7,
+            version: -8,
             palette: vec![
                 0x818cf8ff, 0x2dd4bfff, 0xfbbf24ff, 0xf472b6ff, 0x38bdf8ff, 0xfb923cff,
             ],

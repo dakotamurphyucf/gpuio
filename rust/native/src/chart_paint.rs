@@ -859,7 +859,10 @@ mod sankey_tests;
 #[cfg(test)]
 fn brush_color(brush: Brush) -> u32 {
     match brush {
-        Brush::Solid(c) | Brush::Linear { from: c, .. } => c as u32,
+        Brush::Solid(c)
+        | Brush::Linear { from: c, .. }
+        | Brush::PatternSlash(c, ..)
+        | Brush::Checkerboard(c, ..) => c as u32,
     }
 }
 #[cfg(test)]

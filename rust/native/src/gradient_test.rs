@@ -78,6 +78,55 @@ pub(super) async fn exercise(cx: &mut gpui::AsyncApp, window: WindowHandle<View>
             })
             .unwrap();
     }
+    for (fill, kind) in [
+        (Fill::Solid(Color::Rgba(0xff0000ff)), 0),
+        (Fill::Checkerboard(Color::Rgba(0xff0000ff), 8.), 1),
+        (Fill::PatternSlash(Color::Rgba(0xff0000ff), 2., 4.), 2),
+        (Fill::Solid(Color::Rgba(0)), 3),
+    ] {
+        apply(
+            cx,
+            window,
+            vec![Op::SetStyle(
+                node,
+                vec![Style::Fields(vec![
+                    Field::Width(Length::Percent(100.)),
+                    Field::Height(Length::Percent(100.)),
+                    Field::Background(fill),
+                ])],
+            )],
+        );
+        cx.update_window(window.into(), |_, window, cx| window.draw(cx).clear(cx))
+            .unwrap();
+        window
+            .update(cx, |_, window, _| {
+                let image = window.render_to_image().unwrap();
+                let red = |x, y| {
+                    let p = image.get_pixel(x, y).0;
+                    p[0] > 220 && p[1] < 40 && p[2] < 40
+                };
+                let colored = (32..96)
+                    .flat_map(|y| (32..96).map(move |x| (x, y)))
+                    .filter(|&(x, y)| red(x, y))
+                    .count();
+                match kind {
+                    0 => assert_eq!(colored, 4096),
+                    1 => {
+                        assert_eq!(colored, 2048);
+                        assert_eq!(red(35, 35), red(43, 43));
+                        assert_ne!(red(35, 35), red(43, 35));
+                        assert_ne!(red(35, 35), red(35, 43));
+                    }
+                    2 => assert!((600..2600).contains(&colored), "slash coverage {colored}"),
+                    3 => assert_eq!(colored, 0),
+                    _ => unreachable!(),
+                }
+            })
+            .unwrap();
+    }
+    eprintln!(
+        "GPUIO_NATIVE_PATTERN_OK: checkerboard alternating cells, slash coverage, transparent gaps and solid/empty controls on the same retained View"
+    );
     apply(cx, window, vec![Op::SetRoot(None), Op::Remove(node)]);
     eprintln!(
         "GPUIO_NATIVE_GRADIENT_OK: legacy and explicit sRGB identical GPU pixels, Oklab independent midpoint, clamped stops and same-node restyle back to sRGB"

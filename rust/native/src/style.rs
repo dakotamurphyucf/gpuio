@@ -81,6 +81,26 @@ fn color(v: &Color) -> Result<(), ErrorCode> {
 fn fill(v: &Fill) -> Result<(), ErrorCode> {
     match v {
         Fill::Solid(c) => color(c),
+        Fill::PatternSlash(c, width, interval) => {
+            color(c)?;
+            if [width, interval]
+                .into_iter()
+                .all(|n| n.is_finite() && (0.5..=64.).contains(n))
+            {
+                Ok(())
+            } else {
+                Err(ErrorCode::Malformed)
+            }
+        }
+        Fill::Checkerboard(c, size) => {
+            color(c)?;
+            if size.is_finite() && (0.5..=64.).contains(size) {
+                Ok(())
+            } else {
+                Err(ErrorCode::Malformed)
+            }
+        }
+
         Fill::LinearGradientIn(space, ..) if !(0..=1).contains(space) => Err(ErrorCode::Malformed),
         Fill::LinearGradient(angle, from, start, to, end)
         | Fill::LinearGradientIn(_, angle, from, start, to, end) => {
@@ -374,6 +394,12 @@ pub fn refine(style: &mut gpui::StyleRefinement, fields: &[Field]) {
             Field::Background(v) => {
                 style.background = Some(match v {
                     Fill::Solid(c) => gpui::Fill::from(gpui_color(c)),
+                    Fill::PatternSlash(c, width, interval) => {
+                        gpui::pattern_slash(gpui_color(c), *width as f32, *interval as f32).into()
+                    }
+                    Fill::Checkerboard(c, size) => {
+                        gpui::checkerboard(gpui_color(c), *size as f32).into()
+                    }
                     Fill::LinearGradient(angle, from, start, to, end) => gpui::linear_gradient(
                         *angle as f32,
                         gpui::linear_color_stop(gpui_color(from), *start as f32),
@@ -852,6 +878,35 @@ mod tests {
             validate_fields(&fields).unwrap();
             refine(&mut style, &fields);
             assert_eq!(style.text.text_overflow, Some(expected));
+        }
+    }
+}
+
+#[cfg(test)]
+mod pattern_validation_tests {
+    use super::*;
+    #[test]
+    fn pattern_dimensions_are_checked_before_native_brush_creation() {
+        for n in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY, 0., 0.49, 64.01] {
+            for value in [
+                Fill::PatternSlash(Color::Rgba(0), n, 4.),
+                Fill::PatternSlash(Color::Rgba(0), 2., n),
+                Fill::Checkerboard(Color::Rgba(0), n),
+            ] {
+                assert!(validate_fields(&[Field::Background(value)]).is_err());
+            }
+        }
+        for n in [0.5, 64.] {
+            for value in [
+                Fill::PatternSlash(Color::Rgba(0), n, n),
+                Fill::Checkerboard(Color::Rgba(0), n),
+            ] {
+                let fields = [Field::Background(value)];
+                assert!(validate_fields(&fields).is_ok());
+                let mut style = gpui::StyleRefinement::default();
+                refine(&mut style, &fields);
+                assert!(style.background.is_some());
+            }
         }
     }
 }

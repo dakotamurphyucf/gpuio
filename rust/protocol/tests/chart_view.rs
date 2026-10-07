@@ -12,7 +12,7 @@ fn config() -> Config {
         options: Default::default(),
         sampling: Default::default(),
         style: gpuio_protocol::chart_style::Style {
-            version: -7,
+            version: -8,
             palette: vec![1, 2],
             axis_color: 3,
             grid_color: 4,

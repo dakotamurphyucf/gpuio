@@ -341,6 +341,8 @@ pub enum Fill {
     LinearGradient(f64, Color, f64, Color, f64),
     /// Explicit interpolation: 0=sRGB, 1=Oklab. Legacy tag1 remains sRGB.
     LinearGradientIn(i64, f64, Color, f64, Color, f64),
+    PatternSlash(Color, f64, f64),
+    Checkerboard(Color, f64),
 }
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]
 pub struct Shadow {

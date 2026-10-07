@@ -20,7 +20,7 @@ let%expect_test "chart style resolves appearance and rejects forged nested value
   let theme = Gpuio.Theme.create [ "chart-appearance-style", alpha 7 ] |> ok in
   let style = S.create ~appearance ~theme () |> ok |> S.Expert.to_wire in
   assert (W.equal style.appearance (A.Expert.to_wire appearance ~theme |> ok));
-  assert (Int64.equal style.version (-7L));
+  assert (Int64.equal style.version (-8L));
   let first = List.hd_exn style.appearance.series in
   assert (
     Result.is_error
@@ -30,6 +30,7 @@ let%expect_test "chart style resolves appearance and rejects forged nested value
              { style.appearance with series = [ { first with legend = Some (-1L) } ] }
          }));
   assert (Result.is_error (S.Expert.of_wire { style with version = -4L }));
+  assert (Result.is_error (S.Expert.of_wire { style with version = -7L }));
   let bytes =
     Bin_prot.Utils.bin_dump
       Gpuio_protocol.Chart_view_wire.Observation.bin_writer_t
@@ -38,9 +39,9 @@ let%expect_test "chart style resolves appearance and rejects forged nested value
   in
   assert (String.equal bytes "\001\004");
   print_s
-    [%sexp "style schema -7; resolved nested colors; invalid config observation 01 04"];
+    [%sexp "style schema -8; resolved nested colors; invalid config observation 01 04"];
   [%expect
-    {| "style schema -7; resolved nested colors; invalid config observation 01 04" |}]
+    {| "style schema -8; resolved nested colors; invalid config observation 01 04" |}]
 ;;
 
 let%expect_test "appearance independently paired bytes preserve omission and variants" =
@@ -278,4 +279,41 @@ let%expect_test "maximum wire appearance fits an independently bounded envelope"
   assert (bytes <= 192 * 1024);
   print_s [%sexp (bytes : int)];
   [%expect {| 173447 |}]
+;;
+
+let%expect_test "native pattern brushes resolve once and have paired encodings" =
+  let brushes =
+    [ B.pattern_slash (alpha 0) ~width:2. ~interval:4. |> ok
+    ; B.checkerboard (alpha 0) ~size:8. |> ok
+    ]
+  in
+  List.iter brushes ~f:(fun fill ->
+    let value =
+      A.create
+        ~series:
+          [ A.Series.create
+              ~series:(sid 1)
+              ~path:(A.Path.create ~fill ())
+              ~bar:(A.Bar.create ~fill:(A.Bar_fill.background fill) ())
+              ()
+          ]
+        ()
+      |> ok
+      |> resolve
+    in
+    let series = List.hd_exn value.series in
+    let brush = (Option.value_exn series.path).fill |> Option.value_exn in
+    assert (
+      W.Bar_fill.equal
+        (Option.value_exn (Option.value_exn series.bar).fill)
+        (Background brush));
+    Bin_prot.Utils.bin_dump W.Brush.bin_writer_t brush
+    |> Bigstring.to_string
+    |> String.concat_map ~f:(fun c -> sprintf "%02x" (Char.to_int c))
+    |> print_endline);
+  [%expect
+    {|
+    020000000000000000400000000000001040
+    03000000000000002040
+    |}]
 ;;

@@ -599,6 +599,12 @@ impl Decoder<'_> {
                 self.color()?,
                 self.float()?,
             )),
+            3 => Ok(Fill::PatternSlash(
+                self.color()?,
+                self.float()?,
+                self.float()?,
+            )),
+            4 => Ok(Fill::Checkerboard(self.color()?, self.float()?)),
             _ => Err(DecodeError::Malformed),
         }
     }

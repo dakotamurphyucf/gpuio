@@ -281,3 +281,42 @@ fn largest_valid_encoding_fits_and_is_not_a_dense_source_allocation() {
     over.data.push(datum);
     rejected(over);
 }
+
+#[test]
+fn patterns_have_paired_bytes_and_validate_before_preparation() {
+    for (brush, hex) in [
+        (
+            Brush::PatternSlash(0, 2., 4.),
+            "020000000000000000400000000000001040",
+        ),
+        (Brush::Checkerboard(0, 8.), "03000000000000002040"),
+    ] {
+        assert_eq!(
+            encode(&brush)
+                .iter()
+                .map(|b| format!("{b:02x}"))
+                .collect::<String>(),
+            hex
+        );
+        let mut value = fixture();
+        value.series[0].path.as_mut().unwrap().fill = Some(brush);
+        value.data[0].bar.as_mut().unwrap().fill = Some(BarFill::Background(brush));
+        let bytes = encode(&value);
+        assert_eq!(decode_chart_appearance(&bytes), Ok(value));
+        for end in 0..bytes.len() {
+            assert!(decode_chart_appearance(&bytes[..end]).is_err());
+        }
+    }
+    for n in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY, 0., 0.49, 64.01] {
+        for brush in [
+            Brush::PatternSlash(0, n, 4.),
+            Brush::PatternSlash(0, 2., n),
+            Brush::Checkerboard(0, n),
+        ] {
+            let mut value = fixture();
+            value.series[0].path.as_mut().unwrap().fill = Some(brush);
+            assert!(!value.is_valid());
+            assert!(decode_chart_appearance(&encode(&value)).is_err());
+        }
+    }
+}

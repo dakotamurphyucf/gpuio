@@ -19,11 +19,17 @@ pub enum Brush {
         to: i64,
         stop: f64,
     },
+    PatternSlash(i64, f64, f64),
+    Checkerboard(i64, f64),
 }
 impl Brush {
     pub fn is_valid(&self) -> bool {
         match *self {
             Self::Solid(c) => color(c),
+            Self::PatternSlash(c, width, interval) => {
+                color(c) && within(width, 0.5, 64.) && within(interval, 0.5, 64.)
+            }
+            Self::Checkerboard(c, size) => color(c) && within(size, 0.5, 64.),
             Self::Linear {
                 oklab: _,
                 angle,

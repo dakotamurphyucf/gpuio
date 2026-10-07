@@ -2,7 +2,7 @@
 
 [chart_marks.ml](chart_marks.ml) implements the [interface](chart_marks.mli).
 `A = Chart_appearance` and `D = Chart_data` shorten public API names. This helper
-is pure: `all` orders seven choices, `label` names buttons, `configuration` builds
+is pure: `all` orders nine choices, `label` names buttons, `configuration` builds
 appearance from a choice/palette/dataset, `dots` chooses marker visibility and
 `sampling` chooses geometry policy. Bonsai state and native source ownership live
 in [Charts_page](charts_page.md), not in this module.
@@ -20,6 +20,31 @@ Native Ready acknowledges preparation; native `Selection_changed` is a separate
 event updating the page's selected source target. The page's scope retires its
 chart registration and native work when the preview leaves.
 
+The selected mark is a separate application observation. Charts_page creates
+`selected = B.Expert.Var.create None`, reads it reactively through
+`B.Expert.Var.value selected` in `let%arr`, and handles
+`Selection_changed target` with `E.of_thunk (fun () -> B.Expert.Var.set selected target)`.
+Here `target` is a `Chart.Selection.t option`; `None` represents an explicit
+clear. `E.of_thunk` defers that update until the event effect executes. The page
+uses the stored observation to derive its source-value description. The mark
+buttons execute only `set_marks candidate`: style or sampling changes do not
+rewrite this separately stored observation, and a Ready event updates only the
+notice. Native current selection and the page's last committed observation can
+therefore differ after a preparation change.
+
+For example, select a Bar value with **Home**, then **Enter**, and choose
+**Uniform aggregate colors**. The chooser changes `marks`, so the next `let%arr`
+builds its two-bucket Sum sampling configuration, while the page retains its
+previous committed selection description. Focus the chart and press **Home**
+then **Enter** again: Home previews a mark under the current sampling policy;
+Enter commits it, and the new `Selection_changed` effect replaces the stored
+observation. A Sum bar selection carries the represented source span and Sum
+aggregation, including when that span contains one point. Returning to a pattern
+preset restores default sampling but likewise does not rewrite the last stored
+observation until another selection event. See the
+[selection contract](../../lib/core/chart_selection.mli). Choosing a different
+chart mode or acquiring a fresh page source clears the page observation explicitly.
+
 `series data` examines `D.Expert.contents`. Cartesian/categorical layers supply
 their stable series IDs and first 32 point IDs; radar supplies series IDs and the
 first 32 axis IDs. Pie, candles and Sankey return no entries. This bounded prefix
@@ -27,7 +52,7 @@ is not the first 32 visible or defined observations: missing points can occupy
 positions, and sampling can omit a requested mark. No style override creates a
 new observation. Datum identity is scoped to its series, never a label or index.
 
-The seven presets use these public constructors:
+The nine presets use these public constructors:
 
 - Default returns `A.empty`; ordinary chart styles remain inherited.
 - Styled paths attaches `A.Path.create` to every extracted series: four-pixel
@@ -47,6 +72,40 @@ The seven presets use these public constructors:
 - Uniform aggregate colors starts with muted series bars, then supplies accent
   bar overrides for all extracted first-32 IDs. `sampling` explicitly requests
   `Chart_sampling.Bar.sum ~max_buckets:2`; all other presets use default sampling.
+- Slash pattern constructs `Background.pattern_slash accent ~width:2. ~interval:4.`;
+  Checkerboard pattern constructs `Background.checkerboard accent ~size:8.`.
+  Both attach that brush to filled paths and bars for every extracted series.
+  The paths also receive the same four-logical-pixel solid accent stroke and
+  Natural curve as Styled paths. Radar uses the fill/stroke while ignoring bars
+  and curve; a line without an area has no filled region to display the pattern.
+
+In `configuration`, `pattern` is `Some brush` for those last two choices and
+`None` otherwise. `Option.value pattern ~default:...` selects the path fill;
+`A.Bar_fill.background` wraps the same brush for bars. The `?path` and `?bar`
+arguments to `A.Series.create` are supplied through `Option.some_if`, so a
+pattern choice supplies both applicable overrides without creating datum
+overrides. Neither pattern choice enables Cartesian dots or requests aggregate
+sampling. `Or_error.ok_exn`, locally named `ok`, unwraps the fixed valid brush
+inputs; editable dimensions should retain and handle the constructor's error.
+
+Pattern dimensions are **physical pixels**, unlike logical-pixel stroke widths,
+marker radii and bar corners. The slash width 2 and interval 4, and checkerboard
+square size 8, pass to GPUI's packed native pattern brush without logical-layout
+scaling or rotation when chart orientation changes. GPUI quantizes these dimensions;
+the slash brush is not a precise vector hatch. Checkerboard starts at the painted
+shape's bounds. Slash gaps and alternating checkerboard cells are transparent,
+revealing the backing beneath the mark; they do not receive a second fill color.
+Explicit pattern fills replace ordinary area/radar opacity, as the gradient does.
+To soften the colored portion, supply an accent with explicit alpha.
+
+For a concrete interaction, choose an Area chart and press **Slash pattern**.
+Charts_page executes `set_marks Slash_pattern`; its `let%arr` reads the updated
+choice and calls this pure `configuration` with the current palette and dataset.
+The resulting series-ID path/bar overrides enter `Chart_style.create ~appearance`,
+then the chart config. Native paint uses the slash fill on the area's existing
+geometry. Selecting **Checkerboard pattern** replaces the brush through the same
+flow. Source IDs, values and publication revision remain unchanged, and committed
+selection continues through the page's existing event handler.
 
 Bar series use physical top-left radius 16 and bottom-right radius 8, with other
 corners zero. These corners stay physical through orientation changes and clamp
@@ -54,6 +113,11 @@ to the bar's bounds. Local background gradient angles also stay physical; signed
 domain and value ramps express value projection rather than a fixed screen angle.
 Every nondefault extracted series explicitly gets an accent legend swatch, which
 is separate from datum highlights and original source names.
+The pattern color is that same palette accent, but a legend swatch remains a
+single explicit color rather than the patterned fill. Background colors may be
+theme tokens; `Chart_style.create` resolves them before native preparation, so
+rebuild the appearance/style when changing themes. This module reads the supplied
+palette and owns no theme state.
 
 `A.create ~aggregates:Uniform` permits a multi-observation bar override only when
 all participating defined observations agree in effective appearance; otherwise
@@ -76,6 +140,12 @@ remains the master gate, including its isolated-point fallback; a visible overri
 does not enable suppressed dots. Hidden markers retain the default chart hit
 radius; visible markers use their effective radius. Borders default to zero width
 unless explicitly supplied.
+The [background interface](../../lib/core/background.mli) separately requires
+finite pattern width, interval and size in `[0.5, 64]` physical pixels. Patterns
+are series brushes, so their coverage is not limited to the helper's first 32
+datum IDs. That prefix still bounds marker highlights and Uniform buckets;
+the public appearance collections remain sparse overrides, not a dense per-record
+styling channel for a large source.
 
 Large markers can overlap nearby values or radar captions. The gallery's
 Radar label gap 24 control demonstrates reserving more caption space; marker
@@ -87,6 +157,9 @@ Keep a common effective curve for stacked areas. Extend Uniform buckets only whe
 all participating observations can be assigned consistently; never color an
 aggregate solely from its first item. See the
 [sampling contract](../../lib/core/chart_sampling.mli) and
-[appearance design](../../docs/design/chart-mark-appearance.md). Integration is
-under qualification; this source walkthrough establishes no GUI/platform acceptance.
+[appearance design](../../docs/design/chart-mark-appearance.md).
+[Recorded local qualification](../../docs/evidence/native-pattern-brushes-och41.md)
+covers ordinary-View GPU pattern pixels and root/installed gallery actions,
+themes, bar directions and cleanup. This walkthrough itself is a source guide;
+it does not establish broader GUI/platform acceptance.
 Use the gallery commands in the page guide; this helper has no executable.

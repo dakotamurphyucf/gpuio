@@ -14,10 +14,15 @@ module Brush = struct
         ; to_ : int64
         ; stop : float
         }
+    | Pattern_slash of int64 * float * float
+    | Checkerboard of int64 * float
   [@@deriving bin_io, equal, sexp_of]
 
   let valid = function
     | Solid n -> color n
+    | Pattern_slash (c, width, interval) ->
+      color c && within width 0.5 64. && within interval 0.5 64.
+    | Checkerboard (c, size) -> color c && within size 0.5 64.
     | Linear { oklab = _; angle; from; start; to_; stop } ->
       within angle 0. 360.
       && color from

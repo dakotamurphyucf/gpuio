@@ -9,6 +9,8 @@ type t =
   | Domain_bars
   | Value_bars
   | Uniform_buckets
+  | Slash_pattern
+  | Checkerboard
 [@@deriving equal]
 
 val all : t list
