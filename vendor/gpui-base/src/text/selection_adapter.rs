@@ -288,34 +288,35 @@ impl TextViewSelectionAdapter {
         if kind == super::TextViewMultiClickKind::Line && line.is_none() {
             return None;
         }
-        let range = if let Some(line) = line {
+        let selection = if let Some(line) = line {
             let mut ranges = Vec::new();
             for run in &self.endpoint_runs {
                 if line.contains(&run.run.bounds().center()) {
-                    ranges.push(run.fragment.as_ref()?.range(text)?);
+                    ranges.push(run.fragment.as_ref()?.selection(text)?);
                 }
             }
             for (bounds, fragment) in &self.object_runs {
                 if line.contains(&bounds.center()) {
-                    let range = fragment.as_ref()?.range(text)?;
-                    // A zero-byte object needs explicit object-selection state;
-                    // a text range alone cannot faithfully represent it yet.
-                    if range.is_empty() {
-                        return None;
-                    }
-                    ranges.push(range);
+                    ranges.push(fragment.as_ref()?.selection(text)?);
                 }
             }
-            // The gesture defines forward direction. Extrema combine current
-            // row fragments; they never reconstruct a prior selection's direction.
-            ranges.iter().map(|range| range.start).min()?
-                ..ranges.iter().map(|range| range.end).max()?
+            // The gesture is forward. Logical extrema include distinct empty
+            // object edges without inventing Copy characters.
+            let start = ranges
+                .iter()
+                .map(|r| r.anchor())
+                .min_by_key(|p| p.order_key())?;
+            let end = ranges
+                .iter()
+                .map(|r| r.head())
+                .max_by_key(|p| p.order_key())?;
+            text.selection(start, end).ok()?
         } else if let Some((_, fragment)) = self
             .object_runs
             .iter()
             .find(|(bounds, _)| bounds.contains(&point))
         {
-            fragment.as_ref()?.range(text)?
+            fragment.as_ref()?.selection(text)?
         } else {
             let run = self
                 .endpoint_runs
@@ -328,16 +329,19 @@ impl TextViewSelectionAdapter {
             let position = text.captured_position(position)?;
             text.multi_click_range(&position, kind == super::TextViewMultiClickKind::Paragraph)?
         };
-        if range.is_empty() {
-            return None;
-        }
-        text.selection(&text.position(range.start)?, &text.position(range.end)?)
-            .ok()
+        (!selection.is_collapsed()).then_some(selection)
     }
 
     fn endpoint_at(&self, point: Point<Pixels>) -> Option<crate::TextSelectionContentPosition> {
-        // No extrapolation across a custom object or paragraph gap. Unmapped
-        // painted runs are barriers, not permission to borrow adjacent text.
+        // Atomic objects have two physical edges, even with zero copy bytes.
+        // Do not extrapolate across a paragraph gap or an unmapped object.
+        if let Some((bounds, fragment)) = self
+            .object_runs
+            .iter()
+            .find(|(bounds, _)| bounds.contains(&point))
+        {
+            return Some(fragment.as_ref()?.edge(point.x >= bounds.center().x));
+        }
         let run = self
             .endpoint_runs
             .iter()
@@ -383,8 +387,9 @@ impl TextViewSelectionAdapter {
                     Ordering::Greater => true,
                     Ordering::Equal => return None,
                 };
-                let start = text.position(0)?;
-                let end = text.position(text.text().len())?;
+                let full = text.full_selection();
+                let start = full.anchor().clone();
+                let end = full.head().clone();
                 let (start, end) = match coverage {
                     TextSelectionCoverage::Full => {
                         if owns(snapshot.anchor()) || owns(snapshot.cursor()) {

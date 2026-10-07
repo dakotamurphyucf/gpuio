@@ -381,3 +381,140 @@ fn custom_block_glyph_multiclick_addresses_the_correct_repeated_owner() {
         );
     });
 }
+
+struct EmptyChip;
+impl MarkdownPlugin for EmptyChip {
+    fn name(&self) -> &str {
+        "empty-chip"
+    }
+    fn parse(
+        &self,
+        node: &gpui_base::text::markdown_ast::Node,
+        _: &gpui_base::text::MarkdownParseContext<'_>,
+    ) -> Option<MarkdownNode> {
+        if let gpui_base::text::markdown_ast::Node::Image(image) = node {
+            Some(
+                MarkdownNode::new("empty-chip", ())
+                    .text("")
+                    .markdown(format!("![]({})", image.url))
+                    .accessibility_label("chip"),
+            )
+        } else {
+            None
+        }
+    }
+    fn presentation(&self, _: &MarkdownNode) -> gpui_base::text::MarkdownPresentation {
+        gpui_base::text::MarkdownPresentation::Text("CHIP".into())
+    }
+}
+
+#[test]
+fn empty_atomic_native_multiclick_and_drag_keep_repeated_object_identity() {
+    let extensions = MarkdownExtensions::default().plugin(EmptyChip);
+    let mut app = TestAppContext::single();
+    app.update(gpui_base::init);
+    let (view, cx) = app.add_window_view(|_, cx| Scene {
+        text: cx.new(|cx| {
+            let mut state = TextViewState::externally_prepared(cx);
+            state.set_prepared(
+                PreparedText::parse("A![](one)![](two)Z", extensions.clone()).unwrap(),
+                None,
+                cx,
+            );
+            state
+        }),
+        extensions,
+        width: 450.,
+        selection_format: gpui_base::text::SelectionFormat::Source,
+    });
+    cx.simulate_a11y_active(true);
+    draw(cx);
+    let text = view.read_with(cx, |view, _| view.text.clone());
+    click(cx, "chip", 1, 2);
+    assert_selection(&text, cx, 1..1, "![](two)");
+    text.read_with(cx, |state, _| {
+        assert!(!state.rendered_selection().unwrap().is_collapsed())
+    });
+    click(cx, "chip", 1, 3);
+    assert_selection(&text, cx, 0..2, "A![](one)![](two)Z");
+    // Both physical directions through the second visual chip select its edges.
+    for backward in [false, true] {
+        let tree = cx.a11y_tree().unwrap();
+        let mut bounds = tree
+            .nodes
+            .iter()
+            .filter(|(_, n)| n.label() == Some("chip"))
+            .filter_map(|(_, n)| n.bounds())
+            .collect::<Vec<_>>();
+        bounds.sort_by(|a, b| a.x0.total_cmp(&b.x0));
+        let b = bounds[1];
+        let scale = cx.update(|w, _| f64::from(w.scale_factor()));
+        let left = gpui::point(
+            px((b.x0 / scale) as f32 + 1.),
+            px(((b.y0 + b.y1) / (2. * scale)) as f32),
+        );
+        let right = gpui::point(px((b.x1 / scale) as f32 - 1.), left.y);
+        let (start, end) = if backward {
+            (right, left)
+        } else {
+            (left, right)
+        };
+        cx.simulate_mouse_move(start, None, Default::default());
+        cx.simulate_event(gpui::MouseDownEvent {
+            button: gpui::MouseButton::Left,
+            position: start,
+            click_count: 1,
+            modifiers: Default::default(),
+            first_mouse: false,
+        });
+        cx.simulate_mouse_move(end, Some(gpui::MouseButton::Left), Default::default());
+        cx.simulate_mouse_up(end, gpui::MouseButton::Left, Default::default());
+        draw(cx);
+        text.read_with(cx, |s, _| {
+            let r = s.rendered_selection().expect("atomic pointer range");
+            assert!(!r.is_collapsed());
+            assert_eq!(r.is_backward(), backward);
+            assert_eq!(r.bytes(), 1..1);
+            assert_eq!(s.selected_text(), "![](two)");
+        });
+        assert_eq!(
+            cx.update(gpui_base::TextSelection::selected_text),
+            "![](two)"
+        );
+    }
+}
+
+#[test]
+fn empty_atomic_paragraph_does_not_join_the_following_text_paragraph() {
+    let extensions = MarkdownExtensions::default().plugin(EmptyChip);
+    let mut app = TestAppContext::single();
+    app.update(gpui_base::init);
+    let (view, cx) = app.add_window_view(|_, cx| Scene {
+        text: cx.new(|cx| {
+            let mut state = TextViewState::externally_prepared(cx);
+            state.set_prepared(
+                PreparedText::parse("![](one)\n\nAfter", extensions.clone()).unwrap(),
+                None,
+                cx,
+            );
+            state
+        }),
+        extensions,
+        width: 450.,
+        selection_format: gpui_base::text::SelectionFormat::Source,
+    });
+    cx.simulate_a11y_active(true);
+    draw(cx);
+    let text = view.read_with(cx, |v, _| v.text.clone());
+    click(cx, "After", 0, 3);
+    assert_selection(&text, cx, 0..5, "After");
+    assert_eq!(
+        text.read_with(cx, |s, _| s
+            .rendered_selection()
+            .unwrap()
+            .anchor()
+            .content_position()
+            .object_boundary()),
+        1
+    );
+}

@@ -522,6 +522,7 @@ pub(super) async fn exercise(
         });
     }
     custom_glyph_selection(cx, handle, p);
+    empty_atomic_selection(cx, handle, p);
     eprintln!(
         "GPUIO_DOCUMENT_SELECTION_STYLE_OK: source/Markdown inherited color, last-local override, ancestor restyle, local/default restoration, GPU pixels and selected-source/native-entity retention through streamed publication"
     );
@@ -669,5 +670,143 @@ fn custom_glyph_selection(cx: &mut AsyncApp, handle: WindowHandle<View>, p: &Ent
     draw(cx, handle);
     eprintln!(
         "GPUIO_CUSTOM_GLYPH_SELECTION_OK: displayed Unicode range, actual GPU pixels/keyboard Copy, declared whole Copy and frozen streamed selection"
+    );
+}
+
+struct EmptyNativeAtom;
+impl gpui_base::text::MarkdownPlugin for EmptyNativeAtom {
+    fn name(&self) -> &str {
+        "empty-native-atom"
+    }
+    fn parse(
+        &self,
+        node: &gpui_base::text::markdown_ast::Node,
+        _: &gpui_base::text::MarkdownParseContext<'_>,
+    ) -> Option<gpui_base::text::MarkdownNode> {
+        if let gpui_base::text::markdown_ast::Node::Image(image) = node {
+            Some(
+                gpui_base::text::MarkdownNode::new("empty-native-atom", ())
+                    .text("")
+                    .markdown(format!("![]({})", image.url)),
+            )
+        } else {
+            None
+        }
+    }
+    fn presentation(
+        &self,
+        _: &gpui_base::text::MarkdownNode,
+    ) -> gpui_base::text::MarkdownPresentation {
+        gpui_base::text::MarkdownPresentation::Text("CHIP".into())
+    }
+}
+fn empty_atomic_selection(cx: &mut AsyncApp, handle: WindowHandle<View>, p: &Entity<Presentation>) {
+    let (text, original_extensions, original_source, original_format) = p.read_with(cx, |p, _| {
+        (
+            p.markdown.clone().unwrap(),
+            p.markdown_extensions.clone(),
+            p.installed.as_ref().unwrap().text.to_string(),
+            p.selection_markdown,
+        )
+    });
+    let extensions = original_extensions.clone().plugin(EmptyNativeAtom);
+    p.update(cx, |p, _| p.markdown_extensions = extensions.clone());
+    let source = "A![](one)![](two)Z";
+    text.update(cx, |s, cx| {
+        s.set_prepared(
+            gpui_base::text::PreparedText::parse(source, extensions.clone()).unwrap(),
+            None,
+            cx,
+        )
+    });
+    apply(
+        cx,
+        handle,
+        vec![Op::SetStyle(
+            node(1),
+            vec![Style::Fields(vec![Field::SelectionColor(Color::Rgba(
+                0x00ffffff,
+            ))])],
+        )],
+    );
+    apply(
+        cx,
+        handle,
+        vec![Op::SetDocumentSelectionFormat(node(1), true)],
+    );
+    draw(cx, handle);
+    assert_eq!(pixels(cx, handle, [0, 255, 255, 255]), 0);
+    text.update(cx, |s, cx| {
+        let t = s.rendered_text().unwrap();
+        let index = t
+            .parts()
+            .iter()
+            .enumerate()
+            .filter(|(_, p)| p.is_atomic())
+            .nth(1)
+            .unwrap()
+            .0;
+        let range = t.selection_for_part(index).unwrap();
+        let request = s
+            .prepare_rendered_selection(range.head(), range.anchor())
+            .unwrap();
+        s.apply_rendered_selection(request, cx).unwrap();
+    });
+    draw(cx, handle);
+    assert!(pixels(cx, handle, [0, 255, 255, 255]) > 20);
+    for append in [false, true] {
+        if append {
+            text.update(cx, |s, cx| {
+                s.set_prepared(
+                    gpui_base::text::PreparedText::parse(
+                        &format!("{source}![](new)"),
+                        extensions.clone(),
+                    )
+                    .unwrap(),
+                    Some(source.len()),
+                    cx,
+                )
+            });
+            draw(cx, handle);
+        }
+        text.read_with(cx, |s, _| {
+            let range = s.rendered_selection().unwrap();
+            assert_eq!(range.bytes(), 1..1);
+            assert!(range.is_backward());
+            assert!(!range.is_collapsed());
+            assert_eq!(s.rendered_text().unwrap().selected_text(&range), Some(""));
+            assert_eq!(s.selected_text(), "![](two)");
+        });
+        assert!(pixels(cx, handle, [0, 255, 255, 255]) > 20);
+        crate::host::editor_test::key(cx, handle, "secondary-c");
+        assert_eq!(
+            cx.update(|cx| cx.read_from_clipboard().unwrap().text().unwrap()),
+            "![](two)"
+        );
+    }
+    text.update(cx, |s, cx| s.clear_selection(cx));
+    draw(cx, handle);
+    assert_eq!(pixels(cx, handle, [0, 255, 255, 255]), 0);
+    p.update(cx, |p, _| {
+        p.markdown_extensions = original_extensions.clone()
+    });
+    text.update(cx, |s, cx| {
+        s.set_prepared(
+            gpui_base::text::PreparedText::parse(&original_source, original_extensions).unwrap(),
+            None,
+            cx,
+        )
+    });
+    apply(
+        cx,
+        handle,
+        vec![
+            Op::SetStyle(node(1), vec![]),
+            Op::SetDocumentSelectionFormat(node(1), original_format),
+        ],
+    );
+    draw(cx, handle);
+    eprintln!(
+        "GPUIO_EMPTY_ATOMIC_SELECTION_OK: distinct empty object edges, actual GPU highlight and keyboard Source Copy, streamed identity and clear"
     );
 }

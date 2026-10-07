@@ -27,21 +27,50 @@ const MAX_PARTS: usize = 16_384;
 pub(super) struct RenderedFragment {
     identity: TextSelectionContentRevision,
     bytes: Range<usize>,
+    start_slot: usize,
+    end_slot: usize,
 }
 
 impl RenderedFragment {
-    pub(super) fn range(&self, projection: &RenderedText) -> Option<Range<usize>> {
-        (self.identity == projection.identity).then(|| self.bytes.clone())
+    pub(super) fn selection(&self, projection: &RenderedText) -> Option<RenderedSelection> {
+        let start = projection.captured_position(self.edge(false))?;
+        let end = projection.captured_position(self.edge(true))?;
+        projection.selection(&start, &end).ok()
+    }
+    pub(super) fn edge(&self, end: bool) -> TextSelectionContentPosition {
+        let (byte, slot) = if end {
+            (self.bytes.end, self.end_slot)
+        } else {
+            (self.bytes.start, self.start_slot)
+        };
+        self.identity.position(byte).with_object_boundary(slot)
     }
     pub(super) fn slice(&self, range: Range<usize>) -> Option<Self> {
         (range.start <= range.end && range.end <= self.bytes.len()).then(|| Self {
             identity: self.identity,
             bytes: self.bytes.start + range.start..self.bytes.start + range.end,
+            start_slot: if range.start == 0 { self.start_slot } else { 0 },
+            end_slot: if range.end == self.bytes.len() {
+                self.end_slot
+            } else {
+                0
+            },
         })
     }
 
     pub(super) fn position(&self, byte: usize) -> Option<TextSelectionContentPosition> {
-        (byte <= self.bytes.len()).then(|| self.identity.position(self.bytes.start + byte))
+        (byte <= self.bytes.len()).then(|| {
+            let slot = if byte == 0 {
+                self.start_slot
+            } else if byte == self.bytes.len() {
+                self.end_slot
+            } else {
+                0
+            };
+            self.identity
+                .position(self.bytes.start + byte)
+                .with_object_boundary(slot)
+        })
     }
 
     pub(super) fn matches(&self, projection: &RenderedText, text: &str) -> bool {
@@ -58,11 +87,33 @@ enum Owner {
     Separator,
 }
 
+// Immutable occurrence metadata, with no parent/native owner retained. Source
+// spans are used only after the caller establishes compatible source/AST transfer.
+#[derive(Debug)]
+struct ZeroSource {
+    key: Weak<()>,
+    span: Option<Range<usize>>,
+    name: SharedString,
+    markdown: SharedString,
+}
+impl ZeroSource {
+    fn compatible(&self, old: &Self) -> bool {
+        self.key.ptr_eq(&old.key)
+            || (self.span.is_some()
+                && self.span == old.span
+                && self.name == old.name
+                && self.markdown == old.markdown)
+    }
+}
+
 /// A contiguous native text owner, atomic alternative, or structural separator.
 #[derive(Debug)]
 pub struct RenderedTextPart {
     bytes: Range<usize>,
     owner: Owner,
+    start_slot: usize,
+    end_slot: usize,
+    zero_source: Option<ZeroSource>,
 }
 impl RenderedTextPart {
     pub fn bytes(&self) -> Range<usize> {
@@ -83,13 +134,20 @@ impl RenderedTextPart {
 pub struct RenderedTextPosition {
     identity: TextSelectionContentRevision,
     byte: usize,
+    slot: usize,
 }
 
 impl RenderedTextPosition {
+    pub(super) fn order_key(&self) -> (usize, usize) {
+        (self.byte, self.slot)
+    }
+
     /// Compact native endpoint; revalidate it with `captured_position` before
     /// addressing an installed document. Retains no old text or native owner.
     pub fn content_position(&self) -> TextSelectionContentPosition {
-        self.identity.position(self.byte)
+        self.identity
+            .position(self.byte)
+            .with_object_boundary(self.slot)
     }
 }
 
@@ -110,8 +168,12 @@ impl RenderedSelection {
     pub fn bytes(&self) -> Range<usize> {
         self.anchor.byte.min(self.head.byte)..self.anchor.byte.max(self.head.byte)
     }
+    /// A zero-byte object selection is noncollapsed even though bytes() is empty.
+    pub fn is_collapsed(&self) -> bool {
+        self.anchor.order_key() == self.head.order_key()
+    }
     pub fn is_backward(&self) -> bool {
-        self.head.byte < self.anchor.byte
+        self.head.order_key() < self.anchor.order_key()
     }
 }
 
@@ -198,7 +260,31 @@ impl RenderedText {
             } else {
                 byte
             };
-            self.position(byte)
+            // Preserve every zero-width occurrence up to this endpoint. Equal
+            // plain text alone cannot establish object identity or edge order.
+            let old_zeros = old.parts.iter().filter(|p| {
+                p.zero_source.is_some() && (p.bytes.end, p.end_slot) <= position.order_key()
+            });
+            let new_zeros = self.parts.iter().filter(|p| {
+                p.zero_source.is_some() && (p.bytes.end, p.end_slot) <= (byte, position.slot)
+            });
+            let mut new_zeros = new_zeros;
+            for old_part in old_zeros {
+                let new_part = new_zeros.next()?;
+                if old_part.bytes != new_part.bytes
+                    || old_part.end_slot != new_part.end_slot
+                    || !new_part
+                        .zero_source
+                        .as_ref()?
+                        .compatible(old_part.zero_source.as_ref()?)
+                {
+                    return None;
+                }
+            }
+            if new_zeros.next().is_some() {
+                return None;
+            }
+            self.position_with_slot(byte, position.slot)
         };
         self.selection(&endpoint(selection.anchor())?, &endpoint(selection.head())?)
             .ok()
@@ -213,6 +299,7 @@ impl RenderedText {
             identity,
             text: String::new(),
             copy_bytes: 0,
+            slot: 0,
             parts: Vec::new(),
             displayed,
         };
@@ -258,6 +345,8 @@ impl RenderedText {
         Some(RenderedFragment {
             identity: self.identity,
             bytes: part.bytes.clone(),
+            start_slot: part.start_slot,
+            end_slot: part.end_slot,
         })
     }
 
@@ -265,7 +354,7 @@ impl RenderedText {
         &self,
         position: &RenderedTextPosition,
         paragraph: bool,
-    ) -> Option<Range<usize>> {
+    ) -> Option<RenderedSelection> {
         let byte = self.offset(position)?;
         let index = self
             .parts
@@ -281,20 +370,21 @@ impl RenderedText {
                 .rev()
                 .take_while(|part| !part.is_separator())
                 .last()
-                .unwrap_or(part)
-                .bytes
-                .start;
+                .unwrap_or(part);
             let end = self.parts[index + 1..]
                 .iter()
                 .take_while(|part| !part.is_separator())
                 .last()
-                .unwrap_or(part)
-                .bytes
-                .end;
-            return Some(start..end);
+                .unwrap_or(part);
+            return self
+                .selection(
+                    &self.position_with_slot(start.bytes.start, start.start_slot)?,
+                    &self.position_with_slot(end.bytes.end, end.end_slot)?,
+                )
+                .ok();
         }
         if part.is_atomic() {
-            return Some(part.bytes.clone());
+            return self.selection_for_part(index);
         }
         let text = &self.text[part.bytes.clone()];
         let mut range = crate::text_boundary::word_range_at(text, byte - part.bytes.start)?;
@@ -310,7 +400,14 @@ impl RenderedText {
                 break;
             }
         }
-        Some(part.bytes.start + range.start..part.bytes.start + range.end)
+        let fragment = RenderedFragment {
+            identity: self.identity,
+            bytes: part.bytes.clone(),
+            start_slot: part.start_slot,
+            end_slot: part.end_slot,
+        }
+        .slice(range)?;
+        fragment.selection(self)
     }
     /// Independent bounds for logical selection text and declared whole Copy,
     /// including generated alternatives. Hosts separately enforce source and
@@ -325,22 +422,42 @@ impl RenderedText {
             + self.parts.capacity() * std::mem::size_of::<RenderedTextPart>()
             + self.parts.len() * std::mem::size_of::<Option<RenderedFragment>>()
             + std::mem::size_of_val(&*self.object_parts)
+            + self
+                .parts
+                .iter()
+                .filter_map(|p| p.zero_source.as_ref())
+                .map(|p| p.name.len() + p.markdown.len())
+                .sum::<usize>()
     }
     /// Reserve before a bounded background preparation, then reduce to the
     /// retained units after installation. At most two GPUIO workers run at once.
     pub fn max_preparation_units() -> usize {
-        256 + MAX_BYTES * 2
+        256 + MAX_BYTES * 4
             + MAX_PARTS
                 * (std::mem::size_of::<RenderedTextPart>()
                     + std::mem::size_of::<Option<RenderedFragment>>())
             + MAX_PARTS * std::mem::size_of::<(usize, usize)>()
     }
+    /// Canonical byte position before any zero-byte objects at this byte.
+    /// Use selection_for_part/full_selection when object edges are required.
     pub fn position(&self, byte: usize) -> Option<RenderedTextPosition> {
-        (self.text.is_char_boundary(byte)
+        self.position_with_slot(byte, 0)
+    }
+    fn max_slot(&self, byte: usize) -> usize {
+        let end = self.parts.partition_point(|p| p.bytes.end <= byte);
+        end.checked_sub(1)
+            .and_then(|i| self.parts.get(i))
+            .filter(|p| p.bytes.end == byte)
+            .map_or(0, |p| p.end_slot)
+    }
+    fn position_with_slot(&self, byte: usize, slot: usize) -> Option<RenderedTextPosition> {
+        (slot <= self.max_slot(byte)
+            && self.text.is_char_boundary(byte)
             && !(byte > 0 && self.text.as_bytes().get(byte - 1..=byte) == Some(b"\r\n")))
         .then(|| RenderedTextPosition {
             identity: self.identity,
             byte,
+            slot,
         })
     }
     pub fn offset(&self, position: &RenderedTextPosition) -> Option<usize> {
@@ -352,8 +469,34 @@ impl RenderedText {
         position: TextSelectionContentPosition,
     ) -> Option<RenderedTextPosition> {
         (self.identity == position.revision())
-            .then(|| self.position(position.byte_offset()))
+            .then(|| self.position_with_slot(position.byte_offset(), position.object_boundary()))
             .flatten()
+    }
+    /// Whole logical content, including objects with an empty copy alternative.
+    pub fn full_selection(&self) -> RenderedSelection {
+        RenderedSelection {
+            anchor: self.position(0).expect("document start"),
+            head: self
+                .position_with_slot(self.text.len(), self.max_slot(self.text.len()))
+                .expect("document end"),
+        }
+    }
+    /// Checked owner edges; an empty atomic part still has two distinct edges.
+    pub fn selection_for_part(&self, index: usize) -> Option<RenderedSelection> {
+        let part = self.parts.get(index)?;
+        self.selection(
+            &self.position_with_slot(part.bytes.start, part.start_slot)?,
+            &self.position_with_slot(part.bytes.end, part.end_slot)?,
+        )
+        .ok()
+    }
+    pub(super) fn covers_all(&self, selection: &RenderedSelection) -> bool {
+        let full = self.full_selection();
+        !selection.is_collapsed()
+            && ((selection.anchor.order_key() == full.anchor.order_key()
+                && selection.head.order_key() == full.head.order_key())
+                || (selection.head.order_key() == full.anchor.order_key()
+                    && selection.anchor.order_key() == full.head.order_key()))
     }
     pub fn selection(
         &self,
@@ -421,6 +564,19 @@ impl RenderedText {
             .collect::<Result<Vec<_>, _>>()?;
         let mut locks = Vec::with_capacity(owners.len());
         for (owner, part) in owners.iter().zip(&self.parts) {
+            let atomic_selected = !selection.is_collapsed()
+                && selection.anchor.order_key().min(selection.head.order_key())
+                    <= (part.bytes.start, part.start_slot)
+                && (part.bytes.end, part.end_slot)
+                    <= selection.anchor.order_key().max(selection.head.order_key());
+            // Opaque block widgets still need a native whole-object wrapper.
+            // Do not acknowledge a zero-width selection that cannot paint it.
+            if atomic_selected
+                && part.bytes.is_empty()
+                && matches!(part.owner, Owner::BlockObject(_))
+            {
+                return Err(RenderedSelectionError::UnmappedOwner);
+            }
             let start = range.start.max(part.bytes.start);
             let end = range.end.min(part.bytes.end);
             let selected = (start < end)
@@ -442,7 +598,7 @@ impl RenderedText {
                     owner
                         .try_lock()
                         .map_err(|_| RenderedSelectionError::OwnerUnavailable)?,
-                    selected.is_some(),
+                    atomic_selected,
                 ),
                 Strong::Separator => Locked::Separator,
             });
@@ -498,6 +654,7 @@ struct Builder<'a> {
     identity: TextSelectionContentRevision,
     text: String,
     copy_bytes: usize,
+    slot: usize,
     parts: Vec<RenderedTextPart>,
     displayed: &'a DisplayedText,
 }
@@ -514,17 +671,25 @@ impl Builder<'_> {
         self.charge_copy(copy_len)?;
         // Empty alternatives still own native selection state that a later
         // request must clear, even though they occupy no logical copy bytes.
-        if text.is_empty() && matches!(owner, Owner::Separator) {
-            return Ok(());
-        }
         if text.len() > MAX_BYTES - self.text.len() || self.parts.len() >= MAX_PARTS {
             return Err("rendered selection text exceeds preparation limits".into());
         }
         let start = self.text.len();
+        let start_slot = self.slot;
+        self.slot = if !text.is_empty() {
+            0
+        } else if matches!(owner, Owner::Object(_) | Owner::BlockObject(_)) {
+            self.slot + 1
+        } else {
+            self.slot
+        };
         self.text.push_str(text);
         self.parts.push(RenderedTextPart {
             bytes: start..self.text.len(),
             owner,
+            start_slot,
+            end_slot: self.slot,
+            zero_source: None,
         });
         Ok(())
     }
@@ -543,7 +708,9 @@ impl Builder<'_> {
         if self.text.len() > start {
             self.push_with_copy_len("\n", copy_len, Owner::Separator)
         } else {
-            self.charge_copy(copy_len)
+            // Keep paragraph boundaries even when their objects contribute no
+            // Copy bytes; paragraph multi-click must not cross that boundary.
+            self.push_with_copy_len("", copy_len, Owner::Separator)
         }
     }
     fn text(&mut self, text: &str, state: &Arc<Mutex<InlineState>>) -> Result<(), SharedString> {
@@ -556,6 +723,7 @@ impl Builder<'_> {
         state: &Arc<Mutex<InlineState>>,
     ) -> Result<(), SharedString> {
         let start = self.text.len();
+        let start_slot = self.slot;
         self.push_with_copy_len(text, copy_len, Owner::Text(Arc::downgrade(state)))?;
         state
             .lock()
@@ -563,19 +731,29 @@ impl Builder<'_> {
             .rendered_fragment = Some(RenderedFragment {
             identity: self.identity,
             bytes: start..self.text.len(),
+            start_slot,
+            end_slot: self.slot,
         });
         Ok(())
     }
     fn paragraph(&mut self, paragraph: &Paragraph) -> Result<(), SharedString> {
         let mut pending = String::new();
         for child in &paragraph.children {
-            if child.custom.is_some() {
+            if let Some(custom) = &child.custom {
                 self.text(&pending, &child.state)?;
                 pending.clear();
                 self.push(
                     &child.text,
                     Owner::Object(Arc::downgrade(&child.custom_selection)),
                 )?;
+                if child.text.is_empty() {
+                    self.parts.last_mut().unwrap().zero_source = Some(ZeroSource {
+                        key: Arc::downgrade(&custom.projection_key),
+                        span: custom.source_range(),
+                        name: custom.shared_name(),
+                        markdown: custom.shared_markdown(),
+                    });
+                }
             } else {
                 // Accumulate only bounded text; never allocate an unbounded
                 // temporary before the projection's admission check.

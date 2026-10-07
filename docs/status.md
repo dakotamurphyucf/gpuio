@@ -5,6 +5,14 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **O
 Markdown walkthroughs for every example component; its documentation acceptance is complete. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
+[Empty inline-object selection](evidence/rendered-zero-selection-och17.md)
+now distinguishes selecting an empty-copy object from a caret using checked,
+ordered owner edges. Repeated objects, native clicks/drags, resource refresh and
+streamed retention pass targeted tests; actual macOS GPU highlight/Source Copy
+and clear pass. All 1,110 native tests (2 ignored), full workspace, strict lint,
+Dune, reconstruction and rebuilt-gallery shutdown pass locally. Opaque block
+widgets, broader reflow/virtualization, rich AX and release gates remain open.
+
 [Declared custom block selection](evidence/rendered-custom-selection-och17.md)
 now addresses displayed glyphs independently of whole-document Copy. Partial
 Unicode selection, declared whole Copy, streamed retention and empty-glyph Copy

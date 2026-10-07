@@ -160,6 +160,13 @@ impl MarkdownNode {
         &self.name
     }
 
+    pub(super) fn shared_name(&self) -> SharedString {
+        self.name.clone()
+    }
+    pub(super) fn shared_markdown(&self) -> SharedString {
+        self.markdown.clone()
+    }
+
     /// Text representation of this custom node.
     pub fn as_text(&self) -> &str {
         &self.text

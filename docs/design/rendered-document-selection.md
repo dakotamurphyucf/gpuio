@@ -186,7 +186,7 @@ current window, visibility, modality and semantic action identity. The
 the common `rendered_selection()` accessor also represents adopted pointer ranges,
 including the local portion of a cross-participant drag and mapped multi-click
 gestures. Streamed Select All integration and declared block glyph coordinates
-are described below. Whole-document TextRun publication, zero-byte atomic
+are described below. Whole-document TextRun publication, opaque block
 selection and richer custom-object qualification remain required before general
 rendered-document AX acceptance; they are not intentional v1 exclusions.
 
@@ -300,9 +300,9 @@ must not then erase a newer local selection installed by that mouse press.
 Explicit clearing, replacement and input policy still retire selections.
 
 Unbounded legacy views and unmapped owners retain their existing native behavior
-without publishing a fabricated logical range. Zero-byte atomic alternatives need
-an explicit object-selection representation: a collapsed text range would erase
-the visible object's selected state. That integration and broader custom-object
+without publishing a fabricated logical range. Empty inline alternatives now use
+the explicit object edges described below; a byte interval alone cannot represent
+their selected state. Opaque block integration and broader custom-object
 qualification remain required before complete AX acceptance.
 
 
@@ -367,8 +367,41 @@ oversized alternative or evade aggregate limits. Neither source admission nor th
 SDK's generated-string allowance is reduced.
 
 This addresses reader-owned custom block glyphs. Inline custom objects retain
-atomic selection, including when their presentation declares Text. Selecting an
-empty-copy atomic object still needs explicit ordered object edges; a collapsed
-byte range cannot represent that selection. Opaque/NonText block interaction,
+atomic selection, including when their presentation declares Text. Empty-copy
+inline objects use the ordered edges described below; a collapsed byte range alone
+cannot represent that selection. Opaque/NonText block interaction,
 custom-object scope/virtualization and rich AX publication remain separate
 requirements.
+
+## Empty inline-object edges
+
+The native position model additionally orders zero-byte inline objects at a UTF-8
+byte boundary. An endpoint contains the immutable preparation identity, byte and
+object-boundary slot. This distinguishes selecting an object with an empty Copy
+alternative from placing a caret beside it; no U+FFFC or other placeholder is
+inserted into Copy. Slots are checked against the current bounded projection and
+are not OS UTF-16 indices or public OCaml protocol offsets.
+
+`position(byte)` addresses the canonical edge before empty objects at that byte.
+`selection_for_part(index)` returns a specific owner's checked edges, and
+`full_selection()` includes trailing empty objects, even in an all-empty document.
+Use `is_collapsed()` to test semantic collapse. `bytes()` and the diagnostic
+`selected_fragment_ranges()` retain real byte intervals and cannot independently
+identify which of several empty objects was selected.
+
+Pointer endpoints, multi-click, cross-participant coverage and explicit native
+requests preserve those edges. The inline object owns its highlight and Source
+Copy; a passive glyph child does not register a second text selection area.
+Structural boundaries remain present even where paragraphs contribute no Copy
+bytes, so paragraph selection cannot absorb a preceding empty-object paragraph.
+
+Append/resource rebinding checks ordered empty occurrences using a weak projection
+identity or matching source-span/name/Markdown metadata after the caller's existing
+compatible source/AST-transfer checks. Matching empty strings is insufficient.
+Projection/fragment and metadata storage is charged in preparation accounting;
+no strong parent AST or native view is retained by an endpoint.
+
+This integration covers inline atomic objects. Opaque/NonText block selection
+still needs its native whole-object wrapper; requests that would select a zero-byte
+block are rejected as unmapped until that integration is complete. Broader reflow/virtualization qualification, selection performance and rich AX
+remain required work.

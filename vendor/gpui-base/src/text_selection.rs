@@ -63,6 +63,7 @@ impl TextSelectionContentRevision {
         TextSelectionContentPosition {
             revision: self,
             byte_offset,
+            object_boundary: 0,
         }
     }
 }
@@ -78,9 +79,19 @@ impl Default for TextSelectionContentRevision {
 pub struct TextSelectionContentPosition {
     revision: TextSelectionContentRevision,
     byte_offset: usize,
+    object_boundary: usize,
 }
 
 impl TextSelectionContentPosition {
+    /// Ordered edge among zero-byte objects at this byte. A participant must
+    /// validate this against its own immutable projection before using it.
+    pub const fn object_boundary(self) -> usize {
+        self.object_boundary
+    }
+    pub(crate) const fn with_object_boundary(mut self, boundary: usize) -> Self {
+        self.object_boundary = boundary;
+        self
+    }
     pub const fn revision(self) -> TextSelectionContentRevision {
         self.revision
     }

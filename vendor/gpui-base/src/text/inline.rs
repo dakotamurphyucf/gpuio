@@ -866,21 +866,9 @@ impl Element for Inline {
         }
 
         if self.interaction != InlineInteraction::Text {
-            if let Some(view) = GlobalState::global(cx).text_view_state().cloned() {
-                view.update(cx, |state, _| {
-                    if state.is_selectable() && state.rendered_text().is_some() {
-                        state.selection_adapter.register_text_endpoint(
-                            crate::TextSelectionRun::new(
-                                self.text.clone(),
-                                text_layout.clone(),
-                                bounds,
-                            )
-                            .with_text_align(align),
-                            None,
-                        );
-                    }
-                });
-            }
+            // The owning InlineObject registers its checked atomic edges (or
+            // an unmapped barrier). Its glyph child must not register another
+            // text owner that blocks line selection through the same object.
             return;
         }
 

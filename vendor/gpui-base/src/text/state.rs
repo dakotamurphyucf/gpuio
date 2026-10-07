@@ -278,13 +278,12 @@ impl TextViewState {
         self.multi_click_selection = None;
         self.selected_text_override = None;
         self.prepared_whole_copy = None;
-        self.select_all = !request.selection.bytes().is_empty()
-            && request.selection.bytes() == (0..text.text().len());
+        self.select_all = text.covers_all(&request.selection);
         self.preserve_inline_selection = true;
         self.is_selecting = false;
         self.auto_scroll.stop();
         self.selection_adapter
-            .set_local_selection(!request.selection.bytes().is_empty(), cx);
+            .set_local_selection(!request.selection.is_collapsed(), cx);
         self.rendered_selection = Some(RetainedRenderedSelection::Request(request.selection));
         cx.notify();
         Ok(())
@@ -320,9 +319,7 @@ impl TextViewState {
             return Some(selection.selection().clone());
         }
         if self.select_all {
-            return text
-                .selection(&text.position(0)?, &text.position(text.text().len())?)
-                .ok();
+            return Some(text.full_selection());
         }
         None
     }
@@ -514,10 +511,8 @@ impl TextViewState {
             && new.apply_selection(&range).is_ok()
         {
             if !matches!(&selection, RetainedRenderedSelection::Pointer(_)) {
-                self.selection_adapter.set_local_selection(
-                    !range.bytes().is_empty() || self.has_frozen_whole_copy(),
-                    cx,
-                );
+                self.selection_adapter
+                    .set_local_selection(!range.is_collapsed() || self.has_frozen_whole_copy(), cx);
             }
             if all {
                 self.selected_text_override = None;
@@ -904,10 +899,7 @@ impl TextViewState {
                             if old.text() != new.text() {
                                 return None;
                             }
-                            let anchor =
-                                new.position(old.offset(selection.selection().anchor())?)?;
-                            let head = new.position(old.offset(selection.selection().head())?)?;
-                            let range = new.selection(&anchor, &head).ok()?;
+                            let range = new.rebind_append_selection(old, selection.selection())?;
                             new.apply_selection(&range).ok()?;
                             Some(selection.rebind(range))
                         });
@@ -941,7 +933,7 @@ impl TextViewState {
             || self
                 .rendered_selection
                 .as_ref()
-                .is_some_and(|selection| !selection.selection().bytes().is_empty())
+                .is_some_and(|selection| !selection.selection().is_collapsed())
             || self.selected_text_override.is_some()
             || self
                 .parsed_content
@@ -1172,7 +1164,7 @@ impl TextViewState {
             || self
                 .rendered_selection
                 .as_ref()
-                .is_some_and(|selection| !selection.selection().bytes().is_empty())
+                .is_some_and(|selection| !selection.selection().is_collapsed())
             || self.multi_click_selection.is_some()
             || self.selected_text_override.is_some()
     }
@@ -1309,7 +1301,7 @@ impl TextViewState {
         self.is_selecting = false;
         self.auto_scroll.stop();
         self.selection_adapter
-            .set_local_selection(!selection.bytes().is_empty(), cx);
+            .set_local_selection(!selection.is_collapsed(), cx);
         self.rendered_selection = Some(RetainedRenderedSelection::MultiClick(selection));
         true
     }

@@ -597,3 +597,181 @@ fn frozen_whole_copy_keeps_its_scope_when_declared_glyphs_are_empty() {
     assert_eq!(copy(&state, &app), "");
     assert!(!state.read_with(&app, |s, _| s.has_local_selection()));
 }
+
+struct EmptyAtomic;
+impl MarkdownPlugin for EmptyAtomic {
+    fn name(&self) -> &str {
+        "empty-atomic"
+    }
+    fn parse(
+        &self,
+        node: &gpui_base::text::markdown_ast::Node,
+        _: &gpui_base::text::MarkdownParseContext<'_>,
+    ) -> Option<MarkdownNode> {
+        if let gpui_base::text::markdown_ast::Node::Image(code) = node {
+            Some(
+                MarkdownNode::new("empty-atomic", ())
+                    .text("")
+                    .markdown(format!("![]({})", code.url)),
+            )
+        } else {
+            None
+        }
+    }
+}
+fn empty_atomic(source: &str) -> PreparedText {
+    PreparedText::parse(source, MarkdownExtensions::default().plugin(EmptyAtomic)).unwrap()
+}
+
+#[test]
+fn empty_atomic_edges_select_the_actual_owner_without_copy_placeholders() {
+    let (mut app, state) = mount(empty_atomic("A![](one)![](two)Z"));
+    let text = state.read_with(&app, |s, _| s.rendered_text().unwrap());
+    let objects = text
+        .parts()
+        .iter()
+        .enumerate()
+        .filter(|(_, p)| p.is_atomic())
+        .map(|(i, _)| i)
+        .collect::<Vec<_>>();
+    assert_eq!(objects.len(), 2);
+    assert_eq!(text.text(), "AZ\n");
+    let first = text.selection_for_part(objects[0]).unwrap();
+    let second = text.selection_for_part(objects[1]).unwrap();
+    assert_eq!(first.bytes(), 1..1);
+    assert_eq!(second.bytes(), 1..1);
+    assert!(!second.is_collapsed());
+    assert_ne!(
+        first.anchor().content_position(),
+        second.anchor().content_position()
+    );
+    assert_eq!(
+        first.head().content_position(),
+        second.anchor().content_position()
+    );
+    let selected = state.read_with(&app, |s, _| {
+        s.prepare_rendered_selection(second.head(), second.anchor())
+            .unwrap()
+    });
+    state
+        .update(&mut app, |s, cx| s.apply_rendered_selection(selected, cx))
+        .unwrap();
+    assert_eq!(copy(&state, &app), "");
+    state.read_with(&app, |s, _| {
+        assert!(s.has_local_selection());
+        assert!(s.rendered_selection().unwrap().is_backward());
+        assert!(!s.rendered_selection().unwrap().is_collapsed());
+        assert_eq!(
+            s.rendered_text().unwrap().selected_fragment_ranges(),
+            vec![1..1]
+        );
+    });
+    state.update(&mut app, |s, cx| {
+        s.set_selection_format(SelectionFormat::Source, cx)
+    });
+    assert_eq!(copy(&state, &app), "![](two)");
+    let collapsed = state.read_with(&app, |s, _| {
+        s.prepare_rendered_selection(second.anchor(), second.anchor())
+            .unwrap()
+    });
+    state
+        .update(&mut app, |s, cx| s.apply_rendered_selection(collapsed, cx))
+        .unwrap();
+    assert_eq!(copy(&state, &app), "");
+    assert!(!state.read_with(&app, |s, _| s.has_local_selection()));
+}
+
+#[test]
+fn empty_atomic_all_objects_have_ordered_edges_and_stream_without_selecting_new_objects() {
+    let source = "![](one)![](two)";
+    let (mut app, state) = mount(empty_atomic(source));
+    let text = state.read_with(&app, |s, _| s.rendered_text().unwrap());
+    assert_eq!(text.text(), "");
+    state.update(&mut app, |s, cx| s.select_all(cx));
+    let full = state.read_with(&app, |s, _| s.rendered_selection().unwrap());
+    assert_eq!(full.bytes(), 0..0);
+    assert!(!full.is_collapsed());
+    let old_end = full.head().content_position();
+    assert_eq!(old_end.object_boundary(), 2);
+    state.update(&mut app, |s, cx| {
+        s.set_prepared(
+            empty_atomic("![](one)![](two)![](new)"),
+            Some(source.len()),
+            cx,
+        )
+    });
+    assert_eq!(copy(&state, &app), "");
+    state.update(&mut app, |s, cx| {
+        s.set_selection_format(SelectionFormat::Source, cx)
+    });
+    assert_eq!(copy(&state, &app), source);
+    state.read_with(&app, |s, _| {
+        let new = s.rendered_text().unwrap();
+        assert!(new.captured_position(old_end).is_none());
+        let retained = s.rendered_selection().unwrap();
+        assert!(!retained.is_collapsed());
+        assert_eq!(retained.head().content_position().object_boundary(), 2);
+        assert_eq!(
+            new.full_selection()
+                .head()
+                .content_position()
+                .object_boundary(),
+            3
+        );
+        assert_eq!(new.selected_fragment_ranges(), vec![0..0, 0..0]);
+    });
+}
+
+#[test]
+fn empty_atomic_resource_refresh_keeps_edges_but_replacement_retires_them() {
+    let extensions = MarkdownExtensions::default()
+        .plugin(EmptyAtomic)
+        .block_renderer("refresh", |_, _, _| gpui::div());
+    let source = "A![](one)![](two)Z";
+    let (mut app, state) = mount(PreparedText::parse(source, extensions.clone()).unwrap());
+    let text = state.read_with(&app, |s, _| s.rendered_text().unwrap());
+    let index = text
+        .parts()
+        .iter()
+        .enumerate()
+        .filter(|(_, p)| p.is_atomic())
+        .nth(1)
+        .unwrap()
+        .0;
+    let selection = text.selection_for_part(index).unwrap();
+    let make_request = || {
+        state.read_with(&app, |s, _| {
+            s.prepare_rendered_selection(selection.anchor(), selection.head())
+                .unwrap()
+        })
+    };
+    let active = make_request();
+    let queued = make_request();
+    state
+        .update(&mut app, |s, cx| s.apply_rendered_selection(active, cx))
+        .unwrap();
+    state.update(&mut app, |s, cx| {
+        s.set_selection_format(SelectionFormat::Source, cx);
+        s.set_markdown_extensions(
+            std::sync::Arc::new(extensions.block_renderer("refresh", |_, _, _| gpui::div())),
+            cx,
+        );
+    });
+    assert_eq!(copy(&state, &app), "![](two)");
+    state.read_with(&app, |s, _| {
+        let selected = s.rendered_selection().unwrap();
+        assert!(!selected.is_collapsed());
+        assert_eq!(selected.anchor().content_position().object_boundary(), 1);
+        assert_eq!(selected.head().content_position().object_boundary(), 2);
+    });
+    assert_eq!(
+        state.update(&mut app, |s, cx| s.apply_rendered_selection(queued, cx)),
+        Err(Error::StaleRequest)
+    );
+    // Same empty logical text and byte offsets are insufficient: source identity changed.
+    state.update(&mut app, |s, cx| {
+        s.set_prepared(empty_atomic("A![](two)![](one)Z"), None, cx)
+    });
+    assert_eq!(copy(&state, &app), "");
+    assert!(!state.read_with(&app, |s, _| s.has_local_selection()));
+}
