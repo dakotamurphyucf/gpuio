@@ -144,6 +144,7 @@ type t =
   ; mutable motion : Gpuio.Animation.Preference.t option
   ; mutable welcomed : bool
   ; mutable stopping : bool
+  ; mutable native_closed : bool
   ; mutable stopped : bool
   ; mutable stats : Stats.t
   }
@@ -264,8 +265,10 @@ let correlation t =
 ;;
 
 let queue t message =
-  Queue.enqueue t.commands message;
-  Inbox.wake t.inbox
+  if not t.native_closed
+  then (
+    Queue.enqueue t.commands message;
+    Inbox.wake t.inbox)
 ;;
 
 let set_motion t preference =
@@ -2161,6 +2164,9 @@ let process t = function
   | Failed (_, code) | Rejected (_, _, code) -> Error.raise (native_error code)
   | Overloaded _ -> failwith "native input mailbox overloaded"
   | Stopped ->
+    t.native_closed <- true;
+    Queue.clear t.commands;
+    t.motion <- None;
     t.stopped <- true;
     t.stopping <- true;
     t.on_desktop_pending <- (fun () -> Bonsai.Effect.Ignore);
@@ -2197,21 +2203,39 @@ let process t = function
     Map.iter canvases ~f:(fun complete -> complete (Wire.Canvas.Response.Failed Closed))
 ;;
 
-let submit_commands t =
+(* Native closure can race the preceding event drain. The mailbox guarantees a
+   final Stopped after earlier responses. Stop submitting immediately, but leave
+   request completion/disposal to that authoritative event and normal cleanup. *)
+let submit_message ~submit t message =
+  if t.native_closed
+  then false
+  else (
+    match submit t.native message with
+    | Ok () -> true
+    | Error Wire.Error_code.Busy -> false
+    | Error Closed ->
+      t.native_closed <- true;
+      t.stopping <- true;
+      t.motion <- None;
+      Queue.clear t.commands;
+      Inbox.wake t.inbox;
+      false
+    | Error code -> Error.raise (native_error code))
+;;
+
+let submit_commands ?(submit = Gpuio_native.submit) t =
   let rec loop remaining =
     if remaining > 0
     then (
       match Queue.peek t.commands with
       | None -> ()
       | Some message ->
-        (match Gpuio_native.submit t.native message with
-         | Ok () ->
-           ignore (Queue.dequeue_exn t.commands : Wire.Message.t);
-           loop (remaining - 1)
-         | Error Busy -> ()
-         | Error code -> Error.raise (native_error code)))
+        if submit_message ~submit t message
+        then (
+          ignore (Queue.dequeue_exn t.commands : Wire.Message.t);
+          loop (remaining - 1)))
   in
-  if t.welcomed
+  if t.welcomed && not t.native_closed
   then (
     let ready =
       match t.motion with
@@ -2223,17 +2247,16 @@ let submit_commands t =
           | Reduce -> Reduce
           | Full -> Full
         in
-        (match Gpuio_native.submit t.native (Set_motion preference) with
-         | Ok () ->
-           t.motion <- None;
-           true
-         | Error Busy -> false
-         | Error code -> Error.raise (native_error code))
+        if submit_message ~submit t (Set_motion preference)
+        then (
+          t.motion <- None;
+          true)
+        else false
     in
     if ready then loop 64)
 ;;
 
-let step t =
+let step ?(submit = Gpuio_native.submit) t =
   t.stats <- { t.stats with turns = t.stats.turns + 1 };
   let events = Gpuio_native.drain t.native |> Or_error.ok_exn in
   if
@@ -2287,7 +2310,7 @@ let step t =
           (Bonsai.Effect.map
              (Expert.canvas_request t ~limit:64 request)
              ~f:(Canvas_registry.complete t.canvas_registry)));
-    submit_commands t;
+    submit_commands ~submit t;
     if not t.stopping
     then (
       let now = t.now () in
@@ -2298,12 +2321,10 @@ let step t =
           if (not t.stopping) && not (Window.is_closed window)
           then
             Option.iter (Driver.next_message driver) ~f:(fun message ->
-              match Gpuio_native.submit t.native message with
-              | Ok () ->
+              if submit_message ~submit t message
+              then (
                 Driver.submitted driver;
-                t.stats <- { t.stats with commits = t.stats.commits + 1 }
-              | Error Busy -> ()
-              | Error code -> Error.raise (native_error code))
+                t.stats <- { t.stats with commits = t.stats.commits + 1 }))
         | (Opening | Closing_before_open | Closing | Closed), _ | Open, _ -> ())))
 ;;
 
@@ -2360,6 +2381,7 @@ let create_runtime ~document_defaults ~native ~inbox ~scope ~now ~motion ~deskto
   ; motion = Some motion
   ; welcomed = false
   ; stopping = false
+  ; native_closed = false
   ; stopped = false
   ; stats = { turns = 0; clock_ticks = 0; commits = 0; rendered = 0; completed_jobs = 0 }
   }
@@ -2431,9 +2453,14 @@ let worker native read ~document_defaults ~tick_hz ~max_tasks ~motion ~desktop i
                 tick (if Mtime.compare candidate now <= 0 then next now else candidate))
             in
             tick (next (Eio.Time.Mono.now clock)));
-          Gpuio_native.submit native (Hello (Wire.version, Wire.capabilities))
-          |> Result.map_error ~f:native_error
-          |> Or_error.ok_exn;
+          if
+            (not
+               (submit_message
+                  ~submit:Gpuio_native.submit
+                  app
+                  (Hello (Wire.version, Wire.capabilities))))
+            && not app.native_closed
+          then Error.raise (native_error Busy);
           Option.iter desktop ~f:(fun identity ->
             Bonsai.Effect.Expert.handle
               (Bonsai.Effect.map
@@ -2448,7 +2475,7 @@ let worker native read ~document_defaults ~tick_hz ~max_tasks ~motion ~desktop i
                        [%sexp
                          "desktop initialization failed"
                        , (response : Wire.Desktop.Response.t)])));
-          initialize (env :> Eio_unix.Stdenv.base) app;
+          if not app.native_closed then initialize (env :> Eio_unix.Stdenv.base) app;
           while not app.stopped do
             step app;
             if not app.stopped then Inbox.await inbox
@@ -2643,6 +2670,83 @@ let%test_module "pending picker command lifecycle" =
                 ~finally:(fun () -> dispose_runtime app)
                 ~f:(fun () ->
                   Eio.Time.with_timeout_exn (Eio.Stdenv.clock env) 5. (fun () -> f sw app)))))
+    ;;
+
+    let%expect_test "native close between drain and submission waits for terminal cleanup"
+      =
+      List.iter [ `Queued; `Motion; `Frame ] ~f:(fun path ->
+        with_runtime (fun _ app ->
+          process app (Welcome (Wire.version, Wire.capabilities));
+          let completed = ref 0 in
+          app.assets
+          <- Map.set app.assets ~key:99L ~data:(function
+               | Wire.Asset.Response.Failed Closed -> Int.incr completed
+               | _ -> failwith "expected terminal cancellation");
+          let calls = ref 0 in
+          let submit _ (message : Wire.Message.t) =
+            Int.incr calls;
+            (match path, message with
+             | `Queued, Shutdown | `Motion, Set_motion _ | `Frame, Apply _ -> ()
+             | _ -> failwith "unexpected race location");
+            Error Wire.Error_code.Closed
+          in
+          (match path with
+           | `Queued ->
+             app.motion <- None;
+             queue app Shutdown;
+             submit_commands ~submit app
+           | `Motion -> submit_commands ~submit app
+           | `Frame ->
+             app.motion <- None;
+             let window =
+               open_window
+                 app
+                 ~focus:false
+                 ~title:"Close race"
+                 ~width:400.
+                 ~height:300.
+                 (fun _ _ -> Bonsai.Cont.return (Gpuio.View.text "Pending frame"))
+               |> ok
+             in
+             process app (Opened (app.correlation, window.id));
+             Queue.clear app.commands;
+             step ~submit app);
+          assert (app.stopping && not app.stopped);
+          assert (!completed = 0 && Map.length app.assets = 1);
+          assert (Queue.is_empty app.commands);
+          queue app Shutdown;
+          assert (Queue.is_empty app.commands);
+          submit_commands ~submit app;
+          assert (!calls = 1);
+          process app Stopped;
+          assert (app.stopped && !completed = 1 && Map.is_empty app.assets);
+          process app Stopped;
+          assert (!completed = 1)));
+      print_endline
+        "queued, motion and frame races await Stopped; callbacks complete once";
+      [%expect
+        {| queued, motion and frame races await Stopped; callbacks complete once |}]
+    ;;
+
+    let%expect_test
+        "submission backpressure retains commands and protocol errors still fail"
+      =
+      with_runtime (fun _ app ->
+        process app (Welcome (Wire.version, Wire.capabilities));
+        app.motion <- None;
+        queue app Shutdown;
+        submit_commands ~submit:(fun _ _ -> Error Wire.Error_code.Busy) app;
+        assert (Queue.length app.commands = 1 && not app.stopping);
+        let failure =
+          Or_error.try_with (fun () ->
+            submit_commands ~submit:(fun _ _ -> Error Wire.Error_code.Malformed) app)
+        in
+        assert (Result.is_error failure);
+        assert (Queue.length app.commands = 1 && not app.native_closed);
+        submit_commands ~submit:(fun _ _ -> Ok ()) app;
+        assert (Queue.is_empty app.commands && not app.stopping));
+      print_endline "Busy retries; Malformed fails; success dequeues";
+      [%expect {| Busy retries; Malformed fails; success dequeues |}]
     ;;
 
     let%expect_test "window observations can precede command readiness" =

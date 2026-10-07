@@ -1045,3 +1045,58 @@ fn opaque_block_atomic_unpainted_ranges_retire_requests_and_release_owners() {
         assert!(old.selected_fragment_ranges().is_empty());
     }
 }
+
+#[test]
+fn accessible_empty_object_edges_drive_native_selection_without_copy_placeholders() {
+    let (mut app, state) = mount(empty_atomic("A![](one)![](two)Z"));
+    let text = state.read_with(&app, |s, _| s.rendered_text().unwrap());
+    let accessible = text
+        .accessible_parts()
+        .iter()
+        .map(|part| text.accessible_part_text(part.id()).unwrap())
+        .collect::<String>();
+    assert_eq!(accessible, "A\u{fffc}\u{fffc}Z\n");
+    assert_eq!(text.text(), "AZ\n");
+    let parts = text
+        .accessible_parts()
+        .iter()
+        .filter(|part| text.accessible_part_text(part.id()) == Some("\u{fffc}"))
+        .collect::<Vec<_>>();
+    assert_eq!(parts.len(), 2);
+    for (index, part) in parts.iter().enumerate() {
+        let start = text.accessible_position(part.id(), 0).unwrap();
+        let end = text.accessible_position(part.id(), 1).unwrap();
+        assert_ne!(start.content_position(), end.content_position());
+        assert_eq!(text.accessible_utf16_offset(&start), Some(index + 1));
+        assert_eq!(text.accessible_utf16_offset(&end), Some(index + 2));
+        assert_eq!(
+            text.position_from_accessible_utf16(index + 1)
+                .unwrap()
+                .content_position(),
+            start.content_position()
+        );
+        assert_eq!(
+            text.position_from_accessible_utf16(index + 2)
+                .unwrap()
+                .content_position(),
+            end.content_position()
+        );
+        let request = state.read_with(&app, |s, _| {
+            s.prepare_rendered_selection(&end, &start).unwrap()
+        });
+        state
+            .update(&mut app, |s, cx| s.apply_rendered_selection(request, cx))
+            .unwrap();
+        assert_eq!(copy(&state, &app), "");
+        let selected = state.read_with(&app, |s, _| s.rendered_selection().unwrap());
+        assert!(!selected.is_collapsed());
+        assert!(selected.is_backward());
+        state.update(&mut app, |s, cx| {
+            s.set_selection_format(SelectionFormat::Source, cx)
+        });
+        assert_eq!(copy(&state, &app), ["![](one)", "![](two)"][index]);
+        state.update(&mut app, |s, cx| {
+            s.set_selection_format(SelectionFormat::Plain, cx)
+        });
+    }
+}

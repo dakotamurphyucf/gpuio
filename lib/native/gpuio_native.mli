@@ -17,6 +17,10 @@ val create_with_options : exit_on_last_window:bool -> file_descr -> t
 
 val run : t -> unit
 
+(** [Error Closed] means the native mailbox has closed, potentially after the
+    caller's most recent [drain]. A final [Stopped] follows earlier queued output.
+    Stop submitting and keep draining for ordered completion; do not treat this as
+    an acknowledgement for the rejected message or dispose before [run] returns. *)
 val submit
   :  t
   -> Gpuio_protocol.Wire.Message.t

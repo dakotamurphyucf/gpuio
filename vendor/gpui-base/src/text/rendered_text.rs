@@ -1,5 +1,9 @@
 //! Immutable logical selection text with native-owner provenance. Geometry and AX
 //! node identities are separate: virtualizing a block must not change offsets.
+#[path = "rendered_accessibility.rs"]
+mod accessibility;
+pub use accessibility::{RenderedAccessiblePart, RenderedAccessiblePartId};
+
 use super::{
     DisplayedText,
     document::ParsedDocument,
@@ -200,6 +204,7 @@ pub struct RenderedText {
     // Sorted native-owner address -> part index. Weak owners in `parts` keep
     // these allocation identities alive; lookup never dereferences an address.
     object_parts: Box<[(usize, usize)]>,
+    accessible_parts: Box<[RenderedAccessiblePart]>,
 }
 impl PartialEq for RenderedText {
     fn eq(&self, other: &Self) -> bool {
@@ -317,12 +322,15 @@ impl RenderedText {
             })
             .collect::<Vec<_>>();
         object_parts.sort_unstable_by_key(|(owner, _)| *owner);
-        Ok(Arc::new(Self {
+        let mut projection = Self {
             identity,
             text: builder.text.into(),
             parts: builder.parts,
             object_parts: object_parts.into_boxed_slice(),
-        }))
+            accessible_parts: Box::new([]),
+        };
+        projection.prepare_accessible_parts();
+        Ok(Arc::new(projection))
     }
     /// Logical selection text: declared block glyphs, ordinary text, structural
     /// separators and atomic alternatives. Whole-document Copy can differ:
@@ -416,7 +424,8 @@ impl RenderedText {
     /// Conservative allocation admission units, not process RSS. Weak owner
     /// references retain no AST or native view. Includes vector capacity.
     pub fn retained_units(&self) -> usize {
-        256 + self.text.len() * 2
+        256 + self.accessible_retained_units()
+            + self.text.len() * 2
             + self.parts.capacity() * std::mem::size_of::<RenderedTextPart>()
             + self.parts.len() * std::mem::size_of::<Option<RenderedFragment>>()
             + std::mem::size_of_val(&*self.object_parts)
@@ -430,7 +439,8 @@ impl RenderedText {
     /// Reserve before a bounded background preparation, then reduce to the
     /// retained units after installation. At most two GPUIO workers run at once.
     pub fn max_preparation_units() -> usize {
-        256 + MAX_BYTES * 4
+        256 + Self::accessible_max_units()
+            + MAX_BYTES * 4
             + MAX_PARTS
                 * (std::mem::size_of::<RenderedTextPart>()
                     + std::mem::size_of::<Option<RenderedFragment>>())

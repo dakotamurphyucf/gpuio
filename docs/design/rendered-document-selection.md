@@ -456,8 +456,41 @@ rendered selection or authorize any OS action.
 
 The same probe establishes another conversion constraint: two empty TextRuns
 produce a degenerate AccessKit range with identical UTF-16 offsets. Distinct native
-empty-object edges therefore cannot be exposed merely as two empty runs. The rich
-adapter still needs an explicit reversible accessible-object representation;
-its representation must not insert placeholders into clipboard text, source or
-public protocol offsets. Full rich AX publication and native qualification remain
-unimplemented at this checkpoint.
+empty-object edges therefore cannot be exposed merely as two empty runs. The prepared
+coordinate adapter below supplies a reversible accessible-object representation
+without inserting placeholders into clipboard text, source or public protocol
+offsets. Full rich AX publication and native qualification remain unimplemented.
+
+## Prepared accessible coordinates
+
+The native projection now prepares an accessibility coordinate index beside its
+existing selection owners. Each logical part has an opaque identity tied to the
+exact preparation. Styled or wrapped TextRuns may later split a part, but must
+map back through that identity; a repeated string or an old ordinal is insufficient.
+These are logical parts, not a second published semantic document.
+
+An empty atomic alternative contributes one U+FFFC **only to accessible text**.
+Its character edges map reversibly to the native object's ordered boundary slots.
+Copy, source text and public protocol offsets remain unchanged. Nonempty atomic
+alternatives remain readable, but requests inside them are rejected because the
+native widget has no corresponding partial selection. An empty document has one
+zero-character part for its caret.
+
+The index distinguishes UTF-8 bytes, scalar/CRLF character indices and global
+accessible UTF-16 units. Surrogate interiors, mid-CRLF positions, foreign part IDs
+and atomic interior endpoints are rejected. Shared boundaries canonically prefer
+the following part; adjacent empty objects retain distinct positions. Logical
+coordinates do not depend on the visible viewport or shaped geometry.
+
+ASCII parts allocate no character table. Other parts store one encoded byte per
+character and byte/UTF-16 checkpoints every 64 characters. Conversion uses binary
+search and at most 63 intervening widths, without rescanning a whole document or
+reshaping text. The existing preparation reservation and retained accounting
+include the index; string admission limits are unchanged.
+
+This implements coordinate conversion only. Semantic TextRun publication must
+preserve the actual hierarchy and native children, split runs where needed for
+line/directional geometry, and attach only current shaped bounds. OS action
+handlers must still check owner/window/visibility/modal/input/generation policy
+before applying the existing native selection request. Actual platform/VoiceOver
+acceptance remains outstanding.

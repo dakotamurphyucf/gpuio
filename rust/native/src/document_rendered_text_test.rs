@@ -198,3 +198,243 @@ fn rendered_projection_retires_when_switching_to_unbounded_parser_updates() {
     assert_eq!(old.offset(&position), Some(0));
     assert_eq!(old.text(), "Old 世界\n");
 }
+
+#[test]
+fn accessible_coordinates_round_trip_unicode_and_unpainted_structure() {
+    let source = "# A😀\n\nRepeat e\u{301} 👨‍👩‍👧‍👦 **世界** [עברית](test:link).\n\n| a | b |\n| - | - |\n| العربية | e\u{301} |\n\n```txt\nline one\nline two\n```\n";
+    let prepared = PreparedText::parse(source, MarkdownExtensions::default()).unwrap();
+    let text = prepared.rendered_text();
+    let accessible = text
+        .accessible_parts()
+        .iter()
+        .map(|part| text.accessible_part_text(part.id()).unwrap())
+        .collect::<String>();
+    assert_eq!(accessible, text.text());
+    for byte in 0..=text.text().len() {
+        if let Some(position) = text.position(byte) {
+            let utf16 = text.text()[..byte].encode_utf16().count();
+            assert_eq!(text.accessible_utf16_offset(&position), Some(utf16));
+            assert_eq!(
+                text.position_from_accessible_utf16(utf16)
+                    .unwrap()
+                    .content_position(),
+                position.content_position()
+            );
+            let (part, character) = text.accessible_coordinates(&position).unwrap();
+            assert_eq!(
+                text.accessible_position(part, character)
+                    .unwrap()
+                    .content_position(),
+                position.content_position()
+            );
+        }
+    }
+    let emoji = accessible.find('😀').unwrap();
+    let surrogate_middle = accessible[..emoji].encode_utf16().count() + 1;
+    assert!(
+        text.position_from_accessible_utf16(surrogate_middle)
+            .is_none()
+    );
+    assert!(text.position_from_accessible_utf16(usize::MAX).is_none());
+    for part in text.accessible_parts() {
+        assert_eq!(
+            part.character_lengths().map(usize::from).sum::<usize>(),
+            text.accessible_part_text(part.id()).unwrap().len()
+        );
+        assert!(text.accessible_position(part.id(), usize::MAX).is_none());
+    }
+    let other = PreparedText::parse(source, MarkdownExtensions::default())
+        .unwrap()
+        .rendered_text();
+    assert!(
+        other
+            .accessible_position(text.accessible_parts()[0].id(), 0)
+            .is_none()
+    );
+    assert!(
+        other
+            .accessible_part_text(text.accessible_parts()[0].id())
+            .is_none()
+    );
+    assert!(
+        other
+            .accessible_coordinates(&text.position(0).unwrap())
+            .is_none()
+    );
+    assert!(text.retained_units() <= gpui_base::text::RenderedText::max_preparation_units());
+}
+
+#[test]
+fn accessible_atomic_text_is_readable_but_internal_selection_is_rejected() {
+    let prepared = PreparedText::parse(
+        "Before `object` after.",
+        MarkdownExtensions::default().plugin(AtomicAlternative),
+    )
+    .unwrap();
+    let text = prepared.rendered_text();
+    let part = text
+        .accessible_parts()
+        .iter()
+        .find(|part| text.accessible_part_text(part.id()) == Some("World\r\n世界"))
+        .unwrap();
+    assert_eq!(part.character_count(), 8);
+    assert_eq!(
+        part.character_lengths().collect::<Vec<_>>(),
+        [1, 1, 1, 1, 1, 2, 3, 3]
+    );
+    assert_eq!(part.utf16_range().len(), 9);
+    let start = text.accessible_position(part.id(), 0).unwrap();
+    let end = text.accessible_position(part.id(), 8).unwrap();
+    assert_eq!(
+        text.selected_text(&text.selection(&end, &start).unwrap()),
+        Some("World\r\n世界")
+    );
+    for character in 1..8 {
+        assert!(text.accessible_position(part.id(), character).is_none());
+    }
+    for offset in part.utf16_range().start + 1..part.utf16_range().end {
+        assert!(text.position_from_accessible_utf16(offset).is_none());
+    }
+}
+
+#[test]
+fn accessible_empty_document_retains_a_checked_caret_without_fabricated_text() {
+    let text = PreparedText::parse("", MarkdownExtensions::default())
+        .unwrap()
+        .rendered_text();
+    assert_eq!(text.accessible_parts().len(), 1);
+    let part = &text.accessible_parts()[0];
+    assert_eq!(text.accessible_part_text(part.id()), Some(""));
+    assert_eq!(part.character_count(), 0);
+    let position = text.accessible_position(part.id(), 0).unwrap();
+    assert_eq!(text.offset(&position), Some(0));
+    assert_eq!(text.accessible_utf16_offset(&position), Some(0));
+    assert!(text.position_from_accessible_utf16(1).is_none());
+    assert!(text.retained_units() <= gpui_base::text::RenderedText::max_preparation_units());
+}
+
+#[test]
+fn accessible_checkpoint_edges_match_utf16_without_linear_document_scans() {
+    for length in [63, 64, 65, 127, 128, 129, 1025] {
+        let source = (0..length)
+            .map(|index| match index % 5 {
+                0 => "😀",
+                1 => "e\u{301}",
+                2 => "א",
+                _ => "a",
+            })
+            .collect::<String>();
+        let text = PreparedText::parse(&source, MarkdownExtensions::default())
+            .unwrap()
+            .rendered_text();
+        for (byte, _) in text
+            .text()
+            .char_indices()
+            .chain(std::iter::once((text.text().len(), '\0')))
+        {
+            let position = text.position(byte).unwrap();
+            let utf16 = text.text()[..byte].encode_utf16().count();
+            assert_eq!(text.accessible_utf16_offset(&position), Some(utf16));
+            assert_eq!(
+                text.position_from_accessible_utf16(utf16)
+                    .unwrap()
+                    .content_position(),
+                position.content_position()
+            );
+        }
+        assert!(text.retained_units() <= gpui_base::text::RenderedText::max_preparation_units());
+    }
+}
+
+struct AccessibleGlyphs(String);
+impl gpui_base::text::MarkdownPlugin for AccessibleGlyphs {
+    fn name(&self) -> &str {
+        "accessible-glyphs"
+    }
+    fn is_block(&self) -> bool {
+        true
+    }
+    fn parse(
+        &self,
+        node: &gpui_base::text::markdown_ast::Node,
+        _: &gpui_base::text::MarkdownParseContext<'_>,
+    ) -> Option<MarkdownNode> {
+        matches!(node, gpui_base::text::markdown_ast::Node::Blockquote(_))
+            .then(|| MarkdownNode::new("accessible-glyphs", ()).text(self.0.clone()))
+    }
+    fn presentation(&self, _: &MarkdownNode) -> gpui_base::text::MarkdownPresentation {
+        gpui_base::text::MarkdownPresentation::Text(self.0.clone().into())
+    }
+}
+fn accessible_glyphs(glyphs: String) -> std::sync::Arc<gpui_base::text::RenderedText> {
+    PreparedText::parse(
+        "> custom",
+        MarkdownExtensions::default().plugin(AccessibleGlyphs(glyphs)),
+    )
+    .unwrap()
+    .rendered_text()
+}
+
+#[test]
+fn accessible_owned_crlf_round_trips_both_units_as_one_character() {
+    let text = accessible_glyphs("A\r\n😀B".into());
+    let part = &text.accessible_parts()[0];
+    assert_eq!(part.character_count(), 4);
+    assert_eq!(part.character_lengths().collect::<Vec<_>>(), [1, 2, 4, 1]);
+    for (character, byte, utf16) in [(0, 0, 0), (1, 1, 1), (2, 3, 3), (3, 7, 5), (4, 8, 6)] {
+        let position = text.accessible_position(part.id(), character).unwrap();
+        assert_eq!(text.offset(&position), Some(byte));
+        assert_eq!(text.accessible_utf16_offset(&position), Some(utf16));
+        assert_eq!(
+            text.position_from_accessible_utf16(utf16)
+                .unwrap()
+                .content_position(),
+            position.content_position()
+        );
+    }
+    assert!(text.position_from_accessible_utf16(2).is_none());
+    assert!(text.position_from_accessible_utf16(4).is_none());
+}
+
+struct AccessibleLargeAlternative(String);
+impl gpui_base::text::MarkdownPlugin for AccessibleLargeAlternative {
+    fn name(&self) -> &str {
+        "large-alternative"
+    }
+    fn parse(
+        &self,
+        node: &gpui_base::text::markdown_ast::Node,
+        _: &gpui_base::text::MarkdownParseContext<'_>,
+    ) -> Option<MarkdownNode> {
+        matches!(node, gpui_base::text::markdown_ast::Node::InlineCode(_))
+            .then(|| MarkdownNode::new("large-alternative", ()).text(self.0.clone()))
+    }
+}
+fn accessible_large_alternative(text: String) -> std::sync::Arc<gpui_base::text::RenderedText> {
+    PreparedText::parse(
+        "`large`",
+        MarkdownExtensions::default().plugin(AccessibleLargeAlternative(text)),
+    )
+    .unwrap()
+    .rendered_text()
+}
+
+#[test]
+fn accessible_large_generated_index_stays_compact_and_within_admission() {
+    let bytes = 1024 * 1024;
+    let ascii = accessible_large_alternative("a".repeat(bytes));
+    let unicode = accessible_large_alternative(format!("{}😀", "a".repeat(bytes - 4)));
+    assert_eq!(ascii.text().len(), unicode.text().len());
+    // A single Unicode character must not allocate two full offsets per byte.
+    assert!(unicode.retained_units() - ascii.retained_units() < bytes * 2);
+    assert!(unicode.retained_units() <= gpui_base::text::RenderedText::max_preparation_units());
+    let position = unicode.position(bytes).unwrap();
+    assert_eq!(unicode.accessible_utf16_offset(&position), Some(bytes - 2));
+    assert_eq!(
+        unicode
+            .position_from_accessible_utf16(bytes - 2)
+            .unwrap()
+            .content_position(),
+        position.content_position()
+    );
+}

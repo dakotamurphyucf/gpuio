@@ -69,6 +69,15 @@ before opening or from a lifecycle callback is supported without reentering the
 driver. By default closing the last window exits the app; set
 `~exit_on_last_window:false` for background work and call `App.shutdown` explicitly.
 
+Native command intake can close between the UI loop's event drain and its next
+submission. A synchronous `Closed` response marks transport closure, retires
+unsent commands and prevents further submissions, including motion/frame updates.
+The UI loop continues draining until the native `Stopped` event, which follows
+previously queued output. Pending completions and disposal retain their normal
+shutdown ordering; the rejected command is never acknowledged as submitted.
+Backpressure still preserves commands for retry, and other submission errors
+still propagate. This does not dispose the bridge before the native runner exits.
+
 `Stream.create ~scope ~capacity ~on_batch` batches values in order into one effect
 per scheduler delivery. `push` is for UI-domain producers, never yields, and
 returns an error without accepting the value when the scheduler queue or batch

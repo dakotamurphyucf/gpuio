@@ -5,6 +5,15 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **O
 Markdown walkthroughs for every example component; its documentation acceptance is complete. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
+[Prepared accessible coordinates](evidence/rendered-accessible-coordinates-och17.md)
+now map Unicode/CRLF/UTF-16 positions and empty-object edges through the existing
+native selection owners, with a compact bounded index and unchanged Copy text.
+All 1,125 native tests (2 ignored), actual macOS editor/document checks, workspace,
+strict lint, full Dune and exact 239-file reconstruction pass. Final gallery
+validation exposed a native-close/submission race; deterministic Eio regressions
+and the rebuilt gallery pass after its repair. Rich AX publication/actions,
+VoiceOver and the full release gates remain open.
+
 [Independent accessibility text scopes](evidence/accessible-text-scopes-och17.md)
 now keep nested editor/Document/Terminal ranges out of their parent text range
 while retaining their semantics and own text APIs. The exact pre-patch regression
