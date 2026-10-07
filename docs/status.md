@@ -5,6 +5,17 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **O
 Markdown walkthroughs for every example component; its documentation acceptance is complete. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
+[Cached accessibility replay](evidence/cached-accessibility-replay-och17.md)
+now preserves native semantic nodes, actions and synthetic painted selection
+claims during actual view-cache reuse, including nested deferred content.
+Context/dirty-state changes remain current; hidden/disabled actions are gated and
+unmount releases callbacks. All 1,169 native tests (2 ignored), strict lint/format,
+workspace, actual desktop, gallery rebuild, exact GPUI reconstruction and real
+macOS range/Copy regression pass. Cached Base TextView, dedicated rollback/context
+and mixed-owner lifetime qualification, VoiceOver and full release gates remain
+open. The direct upstream GPUI unit-suite command is unavailable for this
+non-workspace dependency; no upstream-unit pass is claimed.
+
 [Flow-document selection reveal](evidence/rendered-selection-flow-och17.md)
 now routes measured text targets through the host's post-paint scroll path,
 including nested scroll ancestors and repeated selections without a focus change.

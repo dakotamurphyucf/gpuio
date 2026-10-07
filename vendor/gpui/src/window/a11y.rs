@@ -100,6 +100,7 @@
 
 use crate::*;
 
+pub(crate) mod cache;
 pub(crate) mod debug;
 mod document_selection;
 
@@ -172,7 +173,9 @@ pub(crate) struct A11y {
     prepaint_mutations: Vec<PrepaintMutation>,
     pub(crate) focus_ids: FxHashMap<NodeId, FocusId>,
     pub(crate) node_bounds: FxHashMap<NodeId, Bounds<Pixels>>,
-    pub(crate) action_listeners: FxHashMap<NodeId, Vec<(Action, A11yActionListener)>>,
+    pub(crate) action_listeners: cache::Listeners,
+    cache: cache::Cache,
+    pub(crate) blocked_actions: FxHashSet<NodeId>,
     pub(crate) document_selections: FxHashMap<NodeId, Option<accesskit::TextSelection>>,
     pub(crate) document_selection_scopes: document_selection::Scopes,
     /// The window's title, used to label the root node so assistive
@@ -206,6 +209,8 @@ impl A11y {
             focus_ids: FxHashMap::default(),
             node_bounds: FxHashMap::default(),
             action_listeners: FxHashMap::default(),
+            cache: cache::Cache::default(),
+            blocked_actions: FxHashSet::default(),
             document_selections: FxHashMap::default(),
             document_selection_scopes: Default::default(),
             window_title,
@@ -423,6 +428,7 @@ impl A11y {
 
     /// Clear per-frame state and push the root node to start a new frame.
     pub(crate) fn begin_frame(&mut self) {
+        self.blocked_actions.clear();
         self.focus_ids.clear();
         self.explicit_active_descendant = None;
         self.node_bounds.clear();
@@ -442,6 +448,7 @@ impl A11y {
         {
             self.nodes.set_active_descendant(node_id);
         }
+        self.capture_cache_nodes();
         let mut update = self.nodes.finalize();
         self.document_selection_scopes =
             document_selection::publish(&mut update, &self.document_selections);
@@ -459,6 +466,12 @@ impl A11y {
     }
 
     fn remove_hidden_actions(&mut self, update: &mut TreeUpdate) {
+        self.blocked_actions = update
+            .nodes
+            .iter()
+            .filter(|(_, node)| node.is_disabled())
+            .map(|(id, _)| *id)
+            .collect();
         let mut pending: Vec<_> = update
             .nodes
             .iter()
@@ -477,12 +490,9 @@ impl A11y {
                 pending.extend(node.children().iter().copied());
             }
         }
-        // Remove both explicit handlers and fallback click/focus targets. These
-        // mappings are rebuilt every frame, so revealing the subtree restores
-        // behavior without changing its identities or losing its descendants.
-        self.action_listeners.retain(|id, _| !hidden.contains(id));
-        self.node_bounds.retain(|id, _| !hidden.contains(id));
-        self.focus_ids.retain(|id, _| !hidden.contains(id));
+        // Keep raw registrations for cached replay, but gate both explicit and
+        // fallback dispatch using the current completed tree's hidden closure.
+        self.blocked_actions.extend(hidden.iter().copied());
         if hidden.contains(&update.focus) {
             update.focus = self
                 .nodes

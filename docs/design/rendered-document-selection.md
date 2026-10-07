@@ -829,3 +829,37 @@ These are native test-context results. Dedicated flow-document hard-clip cases,
 other host input-cancellation paths, reset/remount/installed-consumer OS scenarios,
 cached scenes, visual-line adjacency and full accessibility acceptance remain
 open; native test-context results alone are not OS screen-reader evidence.
+
+
+## GPUI cached-frame accessibility replay
+
+GPUI's cached-view prepaint and paint indices now include accessibility ranges.
+A cached subtree's raw closed nodes are attached to the current semantic parent;
+internal child links, registered focus owners, bounds and debug provenance are
+replayed. Focus is matched against the current physical owner, and a retained
+active-descendant claim can only come from that cached range. Replayed mappings
+use the same mutation journal as ordinary prepaint for transaction restoration.
+
+Paint ranges move mutable accessibility listeners and republish Document selection
+claims. The completed tree still runs ordinary selection-scope validation and
+hidden/disabled policy. Cache validity includes accessibility activation, current
+focus and inherited disabled/hidden context as well as bounds, mask and text
+style. Deferred draws use the same range mechanism.
+
+Store one flat raw-node snapshot for a frame containing cached views, before
+output-only inheritance/repair; never store one snapshot per nested cache.
+Ordinary uncached frames avoid that node copy and release old callback owners
+immediately. Cache-containing frames may retain one prior frame until replacement.
+Raw registrations survive postorder parent hiding, but the current completed
+tree's blocked-action set gates explicit and fallback dispatch. This restores
+interaction when a cached child is shown again without making hidden or disabled
+controls actionable.
+
+The [cached accessibility evidence](../evidence/cached-accessibility-replay-och17.md)
+separates actual cache reuse (unchanged render counters) from ordinary redraws.
+It covers semantic identity, synthetic painted selection claims, action ownership,
+hidden/disabled restoration, unmount, nested deferred content, focus, activation
+and dirty source changes. This is not end-to-end cached Base TextView selection
+qualification. The initial TextView fixture rerendered and cannot establish that
+contract. Dedicated rollback/context/mixed-owner lifetime cases and actual
+screen-reader acceptance remain open.

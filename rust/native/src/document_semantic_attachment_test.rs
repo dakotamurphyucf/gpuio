@@ -1,4 +1,6 @@
 //! Real GPUI prepaint bindings; not OS accessibility or VoiceOver acceptance.
+#[path = "document_cached_accessibility_test.rs"]
+mod cached;
 #[path = "document_inline_accessibility_test.rs"]
 mod inline;
 #[path = "document_accessible_selection_test.rs"]

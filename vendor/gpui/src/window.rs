@@ -1000,6 +1000,7 @@ pub(crate) struct Frame {
 
 #[derive(Clone, Default)]
 pub(crate) struct PrepaintStateIndex {
+    a11y_index: usize,
     hitboxes_index: usize,
     tooltips_index: usize,
     deferred_draws_index: usize,
@@ -1010,6 +1011,7 @@ pub(crate) struct PrepaintStateIndex {
 
 #[derive(Clone, Default)]
 pub(crate) struct PaintIndex {
+    a11y_index: a11y::cache::PaintIndex,
     scene_index: usize,
     mouse_listeners_index: usize,
     input_handlers_index: usize,
@@ -3478,6 +3480,7 @@ impl Window {
         self.tooltip_bounds.take();
 
         self.a11y.sync_active_flag();
+        self.a11y.advance_cache();
         if self.a11y.is_active() {
             self.a11y.begin_frame();
         }
@@ -3777,6 +3780,7 @@ impl Window {
 
     pub(crate) fn prepaint_index(&self) -> PrepaintStateIndex {
         PrepaintStateIndex {
+            a11y_index: self.a11y.prepaint_index(),
             hitboxes_index: self.next_frame.hitboxes.len(),
             tooltips_index: self.next_frame.tooltip_requests.len(),
             deferred_draws_index: self.next_frame.deferred_draws.len(),
@@ -3787,6 +3791,8 @@ impl Window {
     }
 
     pub(crate) fn reuse_prepaint(&mut self, range: Range<PrepaintStateIndex>) {
+        self.a11y
+            .reuse_prepaint(range.start.a11y_index..range.end.a11y_index, self.focus);
         self.next_frame.hitboxes.extend(
             self.rendered_frame.hitboxes[range.start.hitboxes_index..range.end.hitboxes_index]
                 .iter()
@@ -3839,6 +3845,7 @@ impl Window {
 
     pub(crate) fn paint_index(&self) -> PaintIndex {
         PaintIndex {
+            a11y_index: self.a11y.paint_index(),
             scene_index: self.next_frame.scene.len(),
             mouse_listeners_index: self.next_frame.mouse_listeners.len(),
             input_handlers_index: self.next_frame.input_handlers.len(),
@@ -3850,6 +3857,8 @@ impl Window {
     }
 
     pub(crate) fn reuse_paint(&mut self, range: Range<PaintIndex>) {
+        self.a11y
+            .reuse_paint(range.start.a11y_index..range.end.a11y_index);
         self.next_frame.cursor_styles.extend(
             self.rendered_frame.cursor_styles
                 [range.start.cursor_styles_index..range.end.cursor_styles_index]
@@ -6952,12 +6961,11 @@ impl Window {
         document: accesskit::NodeId,
         selection: Option<accesskit::TextSelection>,
     ) -> bool {
-        if !self.is_a11y_active()
-            || self.invalidator.inner.borrow().draw_phase != DrawPhase::Paint
+        if !self.is_a11y_active() || self.invalidator.inner.borrow().draw_phase != DrawPhase::Paint
         {
             return false;
         }
-        self.a11y.document_selections.insert(document, selection);
+        self.a11y.publish_selection(document, selection);
         true
     }
 
@@ -6971,7 +6979,10 @@ impl Window {
     ) -> bool {
         self.a11y.accepts_selection_actions()
             && self.invalidator.inner.borrow().draw_phase == DrawPhase::None
-            && self.a11y.document_selection_scopes.accepts(document, selection)
+            && self
+                .a11y
+                .document_selection_scopes
+                .accepts(document, selection)
     }
 
     /// Register a listener for an accessibility action on a specific node.
@@ -6986,21 +6997,23 @@ impl Window {
         listener: impl FnMut(Option<&accesskit::ActionData>, &mut Window, &mut App) + 'static,
     ) {
         self.a11y
-            .action_listeners
-            .entry(node_id)
-            .or_default()
-            .push((action, Box::new(listener)));
+            .register_action(node_id, action, Box::new(listener));
     }
 
     #[cfg(not(target_family = "wasm"))]
     pub(crate) fn handle_a11y_action(&mut self, request: accesskit::ActionRequest, cx: &mut App) {
+        if self.a11y.blocked_actions.contains(&request.target_node) {
+            return;
+        }
         // Take listeners out temporarily so the closures can borrow Window
         // mutably, then restore them afterward.
         if let Some(mut listeners) = self.a11y.action_listeners.remove(&request.target_node) {
             let extra_data = request.data.as_ref();
             let mut matched = false;
             for (action, listener) in &mut listeners {
-                if *action == request.action {
+                if *action == request.action
+                    && let Some(listener) = listener
+                {
                     listener(extra_data, self, cx);
                     matched = true;
                 }

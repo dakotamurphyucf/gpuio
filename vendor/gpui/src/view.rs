@@ -290,6 +290,7 @@ struct ViewElementState {
 }
 
 struct ViewElementCacheKey {
+    a11y: crate::window::a11y::cache::Context,
     bounds: Bounds<Pixels>,
     content_mask: ContentMask<Pixels>,
     text_style: TextStyle,
@@ -382,8 +383,10 @@ impl<V: View> Element for ViewElement<V> {
                     |element_state, window| {
                         let content_mask = window.content_mask();
                         let text_style = window.text_style();
+                        let a11y = window.a11y.cache_context(window.focus);
 
                         if let Some(mut element_state) = element_state
+                            && element_state.cache_key.a11y == a11y
                             && element_state.cache_key.bounds == bounds
                             && element_state.cache_key.content_mask == content_mask
                             && element_state.cache_key.text_style == text_style
@@ -424,6 +427,7 @@ impl<V: View> Element for ViewElement<V> {
                                 prepaint_range: prepaint_start..prepaint_end,
                                 paint_range: PaintIndex::default()..PaintIndex::default(),
                                 cache_key: ViewElementCacheKey {
+                                    a11y,
                                     bounds,
                                     content_mask,
                                     text_style,
