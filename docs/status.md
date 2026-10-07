@@ -5,6 +5,13 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **O
 Markdown walkthroughs for every example component; its documentation acceptance is complete. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
+[Hosted run 37600285808](evidence/hosted-run-37600285808.md) is terminal at
+`627bf7fc`: Linux foundation and scoped extracted-app checks pass; macOS foundation
+fails only its two Metal presentation probes. GPUI reports 180 zero timestamps;
+the independent probe reports 120 on Apple Paravirtual. Both informational Linux
+GUI smokes fail. Later local selection commits and full release acceptance remain
+separate from this hosted evidence.
+
 [Streamed selection and stale native input](evidence/rendered-stream-selection-och17.md)
 now preserve a frozen Select All range and rebind held drag endpoints through
 compatible appends/resource refreshes. Obsolete painted callbacks reject replaced
