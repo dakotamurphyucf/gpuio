@@ -494,3 +494,30 @@ line/directional geometry, and attach only current shaped bounds. OS action
 handlers must still check owner/window/visibility/modal/input/generation policy
 before applying the existing native selection request. Actual platform/VoiceOver
 acceptance remains outstanding.
+
+## Prepared structural ownership
+
+`RenderedText` also carries a preorder arena of semantic owners prepared during
+the existing logical-text traversal. Headings, paragraphs, blockquotes, lists,
+list items, code, tables/rows/cells, frontmatter terms/definitions and custom
+blocks retain their ancestry before any block is laid out. Table cells record
+row/column indices and header status. Separators belong to their structural
+parent rather than being appended to a neighboring cell's text.
+
+Each `RenderedSemanticId` belongs to one exact preparation. Foreign IDs are
+rejected even when the text matches; keeping an ID or the arena retains no AST
+or native view. Direct-child iteration skips whole subtrees. Structural nodes
+address contiguous logical parts, while links additionally retain exact byte and
+empty-object edges, allowing several links within one native inline owner.
+Known source identity coalesces styled pieces of one link; equal destinations
+alone do not merge separate links. Reference URLs and titles use the renderer's
+current `NodeContext` resolution, including resource-refresh preparation.
+
+The arena has a 32,768-node bound. Preparation reservation and retained accounting
+include node capacity and unique shared URL/title bytes; repeated references do
+not copy a long destination per occurrence. Existing source/generated-text
+admission limits are unchanged. This is structural metadata for the future
+publication adapter, **not** an additional hidden accessibility tree or evidence
+of OS behavior. Native control attachment, TextRun splitting/geometry, final-frame
+selection publication and guarded actions still require implementation and actual
+platform qualification.

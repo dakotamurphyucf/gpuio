@@ -893,7 +893,12 @@ impl TextViewState {
                 .displayed_text
                 .as_ref()
                 .and_then(|displayed| {
-                    super::RenderedText::prepare(&self.parsed_content.document, displayed).ok()
+                    super::RenderedText::prepare(
+                        &self.parsed_content.document,
+                        displayed,
+                        &self.parsed_content.node_cx,
+                    )
+                    .ok()
                 });
             if let Some(selection) = previous_selection {
                 // Renderer resources can change declared glyphs without a new
@@ -1544,6 +1549,7 @@ impl PreparedText {
         let rendered_text = Some(super::RenderedText::prepare(
             &document,
             displayed_text.as_ref().expect("prepared above"),
+            &node_cx,
         )?);
         Ok(Self {
             format,

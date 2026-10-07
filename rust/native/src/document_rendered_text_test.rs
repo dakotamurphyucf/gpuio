@@ -438,3 +438,268 @@ fn accessible_large_generated_index_stays_compact_and_within_admission() {
         position.content_position()
     );
 }
+
+#[test]
+fn prepared_semantic_structure_preserves_nested_roles_and_table_coordinates() {
+    use gpui_base::text::RenderedSemanticKind as Kind;
+    let source = "# Title\n\n> Quote\n>\n> - first\n> - second\n\n| Name | Value |\n| - | - |\n| A | 世界 |\n\n```txt\ncode\n```\n";
+    let prepared = PreparedText::parse(source, MarkdownExtensions::default()).unwrap();
+    let text = prepared.rendered_text();
+    let nodes = text.semantic_nodes();
+    let kinds = nodes.iter().map(|node| node.kind()).collect::<Vec<_>>();
+    assert!(kinds.contains(&&Kind::Heading { level: 1 }));
+    assert!(kinds.contains(&&Kind::Blockquote));
+    assert!(kinds.contains(&&Kind::List));
+    assert!(kinds.contains(&&Kind::ListItem));
+    assert!(kinds.contains(&&Kind::Code));
+    let table = nodes
+        .iter()
+        .find(|node| matches!(node.kind(), Kind::Table { .. }))
+        .unwrap();
+    assert_eq!(
+        table.kind(),
+        &Kind::Table {
+            rows: 2,
+            columns: 2
+        }
+    );
+    let rows = text.semantic_children(Some(table.id())).collect::<Vec<_>>();
+    assert_eq!(rows.len(), 2);
+    for (row_index, row) in rows.iter().enumerate() {
+        assert_eq!(row.kind(), &Kind::Row { index: row_index });
+        assert_eq!(text.semantic_parent(row.id()), Some(table.id()));
+        let cells = text.semantic_children(Some(row.id())).collect::<Vec<_>>();
+        assert_eq!(cells.len(), 2);
+        for (column, cell) in cells.iter().enumerate() {
+            assert_eq!(
+                cell.kind(),
+                &Kind::Cell {
+                    row: row_index,
+                    column,
+                    header: row_index == 0
+                }
+            );
+            let parts = text.semantic_parts(cell.id()).unwrap();
+            assert!(!parts.is_empty());
+            assert_eq!(text.semantic_parent(cell.id()), Some(row.id()));
+            assert!(text.semantic_children(Some(cell.id())).next().is_none());
+        }
+    }
+    let mut end = 0;
+    for root in text.semantic_children(None) {
+        assert_eq!(root.parts().start, end);
+        end = root.parts().end;
+        assert_eq!(text.semantic_parent(root.id()), None);
+    }
+    assert_eq!(end, text.parts().len());
+    for node in nodes {
+        assert!(node.parts().end <= text.parts().len());
+        for child in text.semantic_children(Some(node.id())) {
+            assert!(
+                node.parts().start <= child.parts().start && child.parts().end <= node.parts().end
+            );
+        }
+    }
+    assert_eq!(text.text(), prepared.plain_text());
+}
+
+#[test]
+fn prepared_semantic_owners_survive_virtualization_without_retaining_the_ast() {
+    let source = (0..200)
+        .map(|i| format!("## Item {i}\n\n"))
+        .collect::<String>();
+    let prepared = PreparedText::parse(&source, MarkdownExtensions::default()).unwrap();
+    let text = prepared.rendered_text();
+    assert_eq!(text.semantic_children(None).count(), 200);
+    let first = text.semantic_children(None).next().unwrap().id();
+    let last = text.semantic_children(None).last().unwrap().id();
+    let second = PreparedText::parse(&source, MarkdownExtensions::default())
+        .unwrap()
+        .rendered_text();
+    assert!(second.semantic_node(first).is_none());
+    assert!(second.semantic_parts(first).is_none());
+    assert!(second.semantic_selection(first).is_none());
+    assert!(second.semantic_children(Some(first)).next().is_none());
+    drop(prepared);
+    let parts = text.semantic_parts(last).unwrap();
+    assert_eq!(&text.text()[parts[0].bytes()], "Item 199");
+    assert!(text.selected_fragment_ranges().is_empty());
+    assert!(text.retained_units() <= gpui_base::text::RenderedText::max_preparation_units());
+}
+
+#[test]
+fn prepared_semantics_include_frontmatter_and_declared_native_block_owners() {
+    use gpui_base::text::RenderedSemanticKind as Kind;
+    let prepared = PreparedText::parse(
+        "---\nname: Demo\nstatus: Draft\n---\n\n> custom",
+        MarkdownExtensions::default()
+            .frontmatter_description_list()
+            .plugin(AccessibleGlyphs("Native glyphs".into())),
+    )
+    .unwrap();
+    let text = prepared.rendered_text();
+    let kinds = text
+        .semantic_nodes()
+        .iter()
+        .map(|node| node.kind())
+        .collect::<Vec<_>>();
+    assert!(kinds.contains(&&Kind::DescriptionList));
+    assert_eq!(kinds.iter().filter(|kind| ***kind == Kind::Term).count(), 2);
+    assert_eq!(
+        kinds
+            .iter()
+            .filter(|kind| ***kind == Kind::Definition)
+            .count(),
+        2
+    );
+    let custom = text
+        .semantic_nodes()
+        .iter()
+        .find(|node| *node.kind() == Kind::NativeObject)
+        .unwrap();
+    let parts = text.semantic_parts(custom.id()).unwrap();
+    assert_eq!(&text.text()[parts[0].bytes()], "Native glyphs");
+    assert!(!parts[0].is_atomic());
+    assert_eq!(text.text(), prepared.plain_text());
+}
+
+#[test]
+fn prepared_semantic_links_keep_logical_identity_across_styles_and_references() {
+    use gpui_base::text::RenderedSemanticKind as Kind;
+    let source = "[one **bold** `code` 世界](test:same) and [again](test:same).\n\n[reference][target]\n\n[target]: test:resolved \"Title\"\n";
+    let text = PreparedText::parse(source, MarkdownExtensions::default())
+        .unwrap()
+        .rendered_text();
+    let links = text
+        .semantic_nodes()
+        .iter()
+        .filter(|node| matches!(node.kind(), Kind::Link { .. }))
+        .collect::<Vec<_>>();
+    assert_eq!(links.len(), 3);
+    let labels = links
+        .iter()
+        .map(|node| {
+            text.selected_text(&text.semantic_selection(node.id()).unwrap())
+                .unwrap()
+                .to_owned()
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(labels, ["one bold code 世界", "again", "reference"]);
+    assert_ne!(links[0].id(), links[1].id());
+    let Kind::Link {
+        source_start: first,
+        url,
+        ..
+    } = links[0].kind()
+    else {
+        unreachable!()
+    };
+    assert_eq!(url.as_ref(), "test:same");
+    let Kind::Link {
+        source_start: second,
+        ..
+    } = links[1].kind()
+    else {
+        unreachable!()
+    };
+    assert_ne!(first, second);
+    let Kind::Link { url, title, .. } = links[2].kind() else {
+        unreachable!()
+    };
+    assert_eq!(url.as_ref(), "test:resolved");
+    assert_eq!(title.as_deref(), Some("Title"));
+    assert!(text.retained_units() <= gpui_base::text::RenderedText::max_preparation_units());
+}
+
+struct SemanticEmptyObject;
+impl gpui_base::text::MarkdownPlugin for SemanticEmptyObject {
+    fn name(&self) -> &str {
+        "empty-link-object"
+    }
+    fn parse(
+        &self,
+        node: &gpui_base::text::markdown_ast::Node,
+        _: &gpui_base::text::MarkdownParseContext<'_>,
+    ) -> Option<MarkdownNode> {
+        matches!(node, gpui_base::text::markdown_ast::Node::Image(_))
+            .then(|| MarkdownNode::new("empty-link-object", ()).text(""))
+    }
+}
+
+#[test]
+fn prepared_semantic_empty_link_owns_both_atomic_objects_without_invented_copy() {
+    use gpui_base::text::RenderedSemanticKind as Kind;
+    let text = PreparedText::parse(
+        "[![](one)![](two)](test:objects)",
+        MarkdownExtensions::default().plugin(SemanticEmptyObject),
+    )
+    .unwrap()
+    .rendered_text();
+    let links = text
+        .semantic_nodes()
+        .iter()
+        .filter(|node| matches!(node.kind(), Kind::Link { .. }))
+        .collect::<Vec<_>>();
+    assert_eq!(links.len(), 1);
+    let selection = text.semantic_selection(links[0].id()).unwrap();
+    assert!(!selection.is_collapsed());
+    assert_eq!(selection.bytes(), 0..0);
+    assert_eq!(text.selected_text(&selection), Some(""));
+    assert_eq!(text.accessible_utf16_offset(selection.anchor()), Some(0));
+    assert_eq!(text.accessible_utf16_offset(selection.head()), Some(2));
+}
+
+#[test]
+fn prepared_semantic_html_links_preserve_adjacent_equal_targets_and_unicode_ranges() {
+    use gpui_base::text::RenderedSemanticKind as Kind;
+    let prepared = PreparedText::parse_html(
+        "<p>前<a href='test:same'>😀<b>é</b></a><a href='test:same'>終</a>後</p>",
+        MarkdownExtensions::default(),
+        |_| unreachable!("fixture contains no images"),
+    )
+    .unwrap();
+    let text = prepared.rendered_text();
+    let links = text
+        .semantic_nodes()
+        .iter()
+        .filter(|node| matches!(node.kind(), Kind::Link { .. }))
+        .collect::<Vec<_>>();
+    assert_eq!(links.len(), 2);
+    let selections = links
+        .iter()
+        .map(|node| text.semantic_selection(node.id()).unwrap())
+        .collect::<Vec<_>>();
+    assert_eq!(text.selected_text(&selections[0]), Some("😀é"));
+    assert_eq!(text.selected_text(&selections[1]), Some("終"));
+    assert_eq!(
+        text.accessible_utf16_offset(selections[0].anchor()),
+        Some(1)
+    );
+    assert_eq!(text.accessible_utf16_offset(selections[0].head()), Some(5));
+    assert_eq!(text.accessible_utf16_offset(selections[1].head()), Some(6));
+    assert_eq!(text.text(), prepared.plain_text());
+}
+
+#[test]
+fn prepared_semantic_repeated_references_share_long_target_storage() {
+    use gpui_base::text::RenderedSemanticKind as Kind;
+    let target = format!("test:{}", "a".repeat(8000));
+    let source = format!("{}\n\n[ref]: {target}\n", "[x][ref] ".repeat(500));
+    let prepared = PreparedText::parse(&source, MarkdownExtensions::default()).unwrap();
+    let text = prepared.rendered_text();
+    let urls = text
+        .semantic_nodes()
+        .iter()
+        .filter_map(|node| match node.kind() {
+            Kind::Link { url, .. } => Some(url),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(urls.len(), 500);
+    for url in &urls {
+        assert_eq!(url.as_ref(), target);
+        assert_eq!(url.as_ptr(), urls[0].as_ptr());
+    }
+    assert!(text.retained_units() < target.len() * urls.len());
+    assert!(text.retained_units() <= gpui_base::text::RenderedText::max_preparation_units());
+}

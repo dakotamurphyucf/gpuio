@@ -1,0 +1,115 @@
+{
+  "archive_sha256": "984cd6d32c8970bbb4fb3d01a775325288581fb2c14a3c441e7dbf2fa0ee5215",
+  "files": [
+    {
+      "path": "ax-structure-clippy-009.log",
+      "bytes": 588624,
+      "sha256": "02faecb6befc74cfc2f773cbca9d01d398858ace707e373f44c94f6a91e054c8"
+    },
+    {
+      "path": "ax-structure-desktop-007.log",
+      "bytes": 590701,
+      "sha256": "ee81b70a982825019f91eec408e8332d416eb98b54d30dbc684be023bf3f0fde"
+    },
+    {
+      "path": "ax-structure-doc-audit.log",
+      "bytes": 139,
+      "sha256": "6a6c48d5844d1ffdb3732cf30e5bb603cac1b615504a84bb2ee3b168cab6ce0b"
+    },
+    {
+      "path": "ax-structure-dune-010.log",
+      "bytes": 705936,
+      "sha256": "526c90a3aecad5c154ef728138c3484e610c359db36174ac77f2ee1910c19d25"
+    },
+    {
+      "path": "ax-structure-final-checks.json",
+      "bytes": 2046,
+      "sha256": "e2c0c681190509b747825e9ff1398cfa19aa51875ae9c9766075c349b5a67d75"
+    },
+    {
+      "path": "ax-structure-final-checks.py",
+      "bytes": 1838,
+      "sha256": "eca1723b0ee6243116a6ca5b830533e9083b7ca6c247e3f4187819a5cbb66205"
+    },
+    {
+      "path": "ax-structure-fmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "ax-structure-metadata.json",
+      "bytes": 4448,
+      "sha256": "a640674a6f550ebe764bb43784b891c012fd8f48c29841b82dca9345fec31fdd"
+    },
+    {
+      "path": "ax-structure-native-006.log",
+      "bytes": 710361,
+      "sha256": "976bc38857374a7e415048d2a50c5f32e3f9d27503fb3c73f1c9306b86426a6d"
+    },
+    {
+      "path": "ax-structure-reconstruction-001.log",
+      "bytes": 5889,
+      "sha256": "36b97f836d6f145ab24e10a86ed71a0e99045986370ae3e1248b02e2d9d1391f"
+    },
+    {
+      "path": "ax-structure-reconstruction-comparison.json",
+      "bytes": 156,
+      "sha256": "46357d4169b09390e13727a6388f70605e0d4596d7f6fa30c85d38f5c9ccc51e"
+    },
+    {
+      "path": "ax-structure-shutdown-check.json",
+      "bytes": 299,
+      "sha256": "3c69a457ef441c901f84b1c9f0d5dfecb96edec127c4e78fd59c2db36383c50c"
+    },
+    {
+      "path": "ax-structure-shutdown-check.py",
+      "bytes": 809,
+      "sha256": "2279f13c7a7f0932aae705d8d9577be061e0f125e90453653e191fed7953fbc2"
+    },
+    {
+      "path": "ax-structure-shutdown-driver.log",
+      "bytes": 164,
+      "sha256": "99423232a2037bb904ac26adf4bcb1fcc2b116f2108c8fcc55d5f9e44edee641"
+    },
+    {
+      "path": "ax-structure-shutdown.json",
+      "bytes": 1916,
+      "sha256": "81f4f012a4ac1aba461125b032e88a6ce42f7134b6661c561880481f92af8f00"
+    },
+    {
+      "path": "ax-structure-shutdown.log",
+      "bytes": 52,
+      "sha256": "4b7efb90808b044cf2b79f21733d78f17068047c9d17d9fc04715ac7773bad46"
+    },
+    {
+      "path": "ax-structure-targeted-001.log",
+      "bytes": 589767,
+      "sha256": "f325cd57ddd77e6ac845f1576453060afc01089269991aeefd3f1bdc2bb95608"
+    },
+    {
+      "path": "ax-structure-targeted-002.log",
+      "bytes": 589093,
+      "sha256": "1180f1a5e25caaaa7d23d93d8e48432c6cfe25bbf288a426a883fd802389aff7"
+    },
+    {
+      "path": "ax-structure-targeted-003.log",
+      "bytes": 588929,
+      "sha256": "a37928cf65a5778780dcab19ab710871560a321e867e267554eb1e564e355f47"
+    },
+    {
+      "path": "ax-structure-targeted-004.log",
+      "bytes": 589350,
+      "sha256": "7fc50557fee17b3113be44bae1dab0217af836c1439f11bb919a38cbe8b15fc0"
+    },
+    {
+      "path": "ax-structure-targeted-005.log",
+      "bytes": 589361,
+      "sha256": "39a968f0dc57ab495a4ea30dbd0815d87f89e10a455e18eaed48fb30cde33936"
+    },
+    {
+      "path": "ax-structure-workspace-008.log",
+      "bytes": 783032,
+      "sha256": "66f84bfba7ee89b7010bc3497e654cb87d9170fee075aea30f365f5a4dc6713b"
+    }
+  ]
+}

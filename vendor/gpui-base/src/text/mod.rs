@@ -33,7 +33,8 @@ pub use node::{CodeBlock, ImageNode as HtmlImage, TableData};
 pub use range_geometry::ReorderedTextGeometry;
 pub use rendered_text::{
     RenderedAccessiblePart, RenderedAccessiblePartId, RenderedSelection, RenderedSelectionError,
-    RenderedText, RenderedTextPart, RenderedTextPosition,
+    RenderedSemanticId, RenderedSemanticKind, RenderedSemanticNode, RenderedText, RenderedTextPart,
+    RenderedTextPosition,
 };
 pub use state::*;
 pub use style::*;

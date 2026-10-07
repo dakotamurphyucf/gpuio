@@ -3,12 +3,15 @@
 #[path = "rendered_accessibility.rs"]
 mod accessibility;
 pub use accessibility::{RenderedAccessiblePart, RenderedAccessiblePartId};
+#[path = "rendered_structure.rs"]
+mod structure;
+pub use structure::{RenderedSemanticId, RenderedSemanticKind, RenderedSemanticNode};
 
 use super::{
     DisplayedText,
     document::ParsedDocument,
     inline::InlineState,
-    node::{BlockNode, Paragraph},
+    node::{BlockNode, NodeContext, Paragraph},
 };
 use crate::{TextSelectionContentPosition, TextSelectionContentRevision};
 use gpui::SharedString;
@@ -205,6 +208,8 @@ pub struct RenderedText {
     // these allocation identities alive; lookup never dereferences an address.
     object_parts: Box<[(usize, usize)]>,
     accessible_parts: Box<[RenderedAccessiblePart]>,
+    semantic_nodes: Vec<RenderedSemanticNode>,
+    semantic_string_bytes: usize,
 }
 impl PartialEq for RenderedText {
     fn eq(&self, other: &Self) -> bool {
@@ -298,6 +303,7 @@ impl RenderedText {
     pub(super) fn prepare(
         document: &ParsedDocument,
         displayed: &DisplayedText,
+        node_cx: &NodeContext,
     ) -> Result<Arc<Self>, SharedString> {
         let identity = TextSelectionContentRevision::new();
         let mut builder = Builder {
@@ -306,7 +312,10 @@ impl RenderedText {
             copy_bytes: 0,
             slot: 0,
             parts: Vec::new(),
+            semantic_nodes: Vec::new(),
+            semantic_parent: None,
             displayed,
+            node_cx,
         };
         for block in document.blocks.iter() {
             builder.block(block)?;
@@ -328,8 +337,11 @@ impl RenderedText {
             parts: builder.parts,
             object_parts: object_parts.into_boxed_slice(),
             accessible_parts: Box::new([]),
+            semantic_nodes: builder.semantic_nodes,
+            semantic_string_bytes: 0,
         };
         projection.prepare_accessible_parts();
+        projection.semantic_string_bytes = projection.semantic_string_bytes();
         Ok(Arc::new(projection))
     }
     /// Logical selection text: declared block glyphs, ordinary text, structural
@@ -424,7 +436,8 @@ impl RenderedText {
     /// Conservative allocation admission units, not process RSS. Weak owner
     /// references retain no AST or native view. Includes vector capacity.
     pub fn retained_units(&self) -> usize {
-        256 + self.accessible_retained_units()
+        256 + self.semantic_retained_units()
+            + self.accessible_retained_units()
             + self.text.len() * 2
             + self.parts.capacity() * std::mem::size_of::<RenderedTextPart>()
             + self.parts.len() * std::mem::size_of::<Option<RenderedFragment>>()
@@ -439,7 +452,8 @@ impl RenderedText {
     /// Reserve before a bounded background preparation, then reduce to the
     /// retained units after installation. At most two GPUIO workers run at once.
     pub fn max_preparation_units() -> usize {
-        256 + Self::accessible_max_units()
+        256 + Self::semantic_max_units()
+            + Self::accessible_max_units()
             + MAX_BYTES * 4
             + MAX_PARTS
                 * (std::mem::size_of::<RenderedTextPart>()
@@ -675,6 +689,9 @@ struct Builder<'a> {
     slot: usize,
     parts: Vec<RenderedTextPart>,
     displayed: &'a DisplayedText,
+    node_cx: &'a NodeContext,
+    semantic_nodes: Vec<RenderedSemanticNode>,
+    semantic_parent: Option<usize>,
 }
 impl Builder<'_> {
     fn push(&mut self, text: &str, owner: Owner) -> Result<(), SharedString> {
@@ -756,7 +773,51 @@ impl Builder<'_> {
     }
     fn paragraph(&mut self, paragraph: &Paragraph) -> Result<(), SharedString> {
         let mut pending = String::new();
+        let mut links: Vec<(super::node::LinkMark, RenderedFragment)> = Vec::new();
         for child in &paragraph.children {
+            let base = self.text.len() + pending.len();
+            let slot = if pending.is_empty() { self.slot } else { 0 };
+            for (range, mark) in &child.marks {
+                let Some(mark) = &mark.link else {
+                    continue;
+                };
+                let mark = mark.resolved(&self.node_cx.link_refs);
+                let object = child.custom.is_some();
+                let range = if object || child.image.is_some() {
+                    0..child.text.len()
+                } else {
+                    range.clone()
+                };
+                if range.start > range.end
+                    || !child.text.is_char_boundary(range.start)
+                    || !child.text.is_char_boundary(range.end)
+                {
+                    continue;
+                }
+                let fragment = RenderedFragment {
+                    identity: self.identity,
+                    bytes: base + range.start..base + range.end,
+                    start_slot: if range.start == 0 { slot } else { 0 },
+                    end_slot: if object && child.text.is_empty() {
+                        slot + 1
+                    } else if range.end == 0 {
+                        slot
+                    } else {
+                        0
+                    },
+                };
+                if let Some((previous_mark, previous)) = links.last_mut()
+                    && mark.source_start.is_some()
+                    && *previous_mark == mark
+                    && (previous.bytes.end, previous.end_slot)
+                        == (fragment.bytes.start, fragment.start_slot)
+                {
+                    previous.bytes.end = fragment.bytes.end;
+                    previous.end_slot = fragment.end_slot;
+                } else {
+                    links.push((mark, fragment));
+                }
+            }
             if let Some(custom) = &child.custom {
                 self.text(&pending, &child.state)?;
                 pending.clear();
@@ -785,7 +846,30 @@ impl Builder<'_> {
                 }
             }
         }
-        self.text(&pending, &paragraph.state)
+        self.text(&pending, &paragraph.state)?;
+        links.sort_by_key(|(_, fragment)| (fragment.bytes.start, fragment.start_slot));
+        let mut normalized: Vec<(super::node::LinkMark, RenderedFragment)> = Vec::new();
+        for (mark, fragment) in links {
+            if let Some((previous_mark, previous)) = normalized.last_mut() {
+                let end = (previous.bytes.end, previous.end_slot);
+                let start = (fragment.bytes.start, fragment.start_slot);
+                // Match the visual semantic partition: nested style marks must
+                // not duplicate the containing link's text/action.
+                if start < end {
+                    continue;
+                }
+                if start == end && mark.source_start.is_some() && *previous_mark == mark {
+                    previous.bytes.end = fragment.bytes.end;
+                    previous.end_slot = fragment.end_slot;
+                    continue;
+                }
+            }
+            normalized.push((mark, fragment));
+        }
+        for (mark, fragment) in normalized {
+            self.semantic_link(mark, fragment)?;
+        }
+        Ok(())
     }
     fn children(&mut self, children: &[BlockNode]) -> Result<(), SharedString> {
         for child in children {
@@ -794,6 +878,33 @@ impl Builder<'_> {
         Ok(())
     }
     fn block(&mut self, block: &BlockNode) -> Result<(), SharedString> {
+        let kind = match block {
+            BlockNode::Root { .. } => RenderedSemanticKind::Group,
+            BlockNode::Blockquote { .. } => RenderedSemanticKind::Blockquote,
+            BlockNode::List { .. } => RenderedSemanticKind::List,
+            BlockNode::ListItem { .. } => RenderedSemanticKind::ListItem,
+            BlockNode::Paragraph(_) => RenderedSemanticKind::Paragraph,
+            BlockNode::Heading { level, .. } => RenderedSemanticKind::Heading { level: *level },
+            BlockNode::CodeBlock(_) => RenderedSemanticKind::Code,
+            BlockNode::Custom(_) => RenderedSemanticKind::NativeObject,
+            BlockNode::Table(table) => RenderedSemanticKind::Table {
+                rows: table.children.len(),
+                columns: table
+                    .children
+                    .iter()
+                    .map(|row| row.children.len())
+                    .max()
+                    .unwrap_or(0),
+            },
+            BlockNode::DescriptionList(_) => RenderedSemanticKind::DescriptionList,
+            BlockNode::Break { .. }
+            | BlockNode::HorizontalRule { .. }
+            | BlockNode::Definition { .. }
+            | BlockNode::Unknown => return self.block_content(block),
+        };
+        self.semantic_scope(kind, |builder| builder.block_content(block))
+    }
+    fn block_content(&mut self, block: &BlockNode) -> Result<(), SharedString> {
         let start = self.text.len();
         let copy_start = self.copy_bytes;
         match block {
@@ -866,23 +977,38 @@ impl Builder<'_> {
                 self.block_separator(start, copy_start)?;
             }
             BlockNode::Table(table) => {
-                for row in &table.children {
-                    for (index, cell) in row.children.iter().enumerate() {
-                        if index > 0 {
-                            self.separator(" ")?;
-                        }
-                        self.paragraph(&cell.children)?;
-                    }
-                    if !row.children.is_empty() {
-                        self.separator("\n")?;
-                    }
+                for (row_index, row) in table.children.iter().enumerate() {
+                    self.semantic_scope(
+                        RenderedSemanticKind::Row { index: row_index },
+                        |builder| {
+                            for (index, cell) in row.children.iter().enumerate() {
+                                if index > 0 {
+                                    builder.separator(" ")?;
+                                }
+                                builder.semantic_scope(
+                                    RenderedSemanticKind::Cell {
+                                        row: row_index,
+                                        column: index,
+                                        header: row_index == 0,
+                                    },
+                                    |builder| builder.paragraph(&cell.children),
+                                )?;
+                            }
+                            if !row.children.is_empty() {
+                                builder.separator("\n")?;
+                            }
+                            Ok(())
+                        },
+                    )?;
                 }
                 self.block_separator(start, copy_start)?;
             }
             BlockNode::DescriptionList(list) => {
                 for entry in &list.entries {
                     let row_start = self.text.len();
-                    self.paragraph(&entry.label)?;
+                    self.semantic_scope(RenderedSemanticKind::Term, |builder| {
+                        builder.paragraph(&entry.label)
+                    })?;
                     let has_label = self.text.len() > row_start;
                     // Metadata prepared by the parser, not a render callback.
                     if has_label
@@ -894,7 +1020,9 @@ impl Builder<'_> {
                     {
                         self.separator(" ")?;
                     }
-                    self.paragraph(&entry.value)?;
+                    self.semantic_scope(RenderedSemanticKind::Definition, |builder| {
+                        builder.paragraph(&entry.value)
+                    })?;
                     if self.text.len() > row_start {
                         self.separator("\n")?;
                     }

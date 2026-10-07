@@ -5,6 +5,14 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **O
 Markdown walkthroughs for every example component; its documentation acceptance is complete. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
+[Prepared semantic ownership](evidence/rendered-semantic-structure-och17.md) now
+retains structural ancestry and exact link ranges independently of layout, with
+current reference resolution and bounded shared storage. All 1,132 native tests
+(2 ignored), actual macOS editor/document checks, workspace, strict lint, full
+Dune, exact 240-file reconstruction and rebuilt-gallery Copy/close pass locally.
+Actual rich TextRun publication/actions and VoiceOver remain unimplemented; the
+full catalog and release gates stay open.
+
 [Prepared accessible coordinates](evidence/rendered-accessible-coordinates-och17.md)
 now map Unicode/CRLF/UTF-16 positions and empty-object edges through the existing
 native selection owners, with a compact bounded index and unchanged Copy text.
