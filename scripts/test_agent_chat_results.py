@@ -203,8 +203,34 @@ class Results(Review):
             time.sleep(.05)
         raise RuntimeError('Native table did not copy the complete Unicode finding')
 
+    def reveal_column_headers(self):
+        # The inspector is itself scrollable. AX can expose an unclipped header
+        # rectangle above its page viewport, so reveal the page before pointer
+        # input. Use the gutter, preserving the table's own vertical/horizontal
+        # scroll state and its retained column order/widths.
+        table, _ = self.bounds('Run results', 'AXTable')
+        window, size = self.bounds(TITLE, 'AXWindow')
+        point = Point(table.x - 8, window.y + size.y / 2)
+        if not window.x < point.x < window.x + size.x:
+            raise RuntimeError('Results page gutter is outside the owned window')
+        self.send(5, point)  # Includes the existing child-window ownership guard.
+        wheel = self.cg.CGEventCreateScrollWheelEvent
+        wheel.restype, wheel.argtypes = C.c_void_p, [C.c_void_p, C.c_uint, C.c_uint, C.c_int]
+        locate = self.cg.CGEventSetLocation
+        locate.restype, locate.argtypes = None, [C.c_void_p, Point]
+        event = wheel(None, 0, 1, 5000)
+        if not event:
+            raise RuntimeError('Cannot create Results page scroll event')
+        try:
+            locate(event, point)
+            self.key_flags(event, 0)
+            self.post(0, event)
+        finally:
+            self.release(event)
+
     def columns(self):
         # Resize the pinned ID boundary, then reorder two unpinned columns.
+        self.reveal_column_headers()
         position, before = self.bounds('RESULT', 'AXColumnHeader')
         self.drag(Point(position.x + before.x - 1, position.y + before.y / 2),
                   Point(position.x + before.x + 19, position.y + before.y / 2))
@@ -258,6 +284,7 @@ class Results(Review):
             raise RuntimeError('Column reorder was not accepted')
         self.press(TITLE, 'Diagram')
         self.press(TITLE, 'Back')
+        self.reveal_column_headers()
         _, after = self.bounds('RESULT', 'AXColumnHeader')
         tool, _ = self.bounds('TOOL', 'AXColumnHeader')
         score, _ = self.bounds('SCORE', 'AXColumnHeader')

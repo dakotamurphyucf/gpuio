@@ -155,3 +155,110 @@ fn scoped_presentation_preserves_geometry_and_refines_native_interaction_states(
         0
     );
 }
+
+#[test]
+fn pointer_focus_does_not_scroll_a_visible_cell_away_before_release() {
+    let mut app = TestAppContext::single();
+    app.update(|cx| {
+        gpui_base::init(cx);
+        gpuio_table_adapter::init(cx);
+    });
+    let (_reader, writer) = UnixStream::pair().unwrap();
+    let transport = Arc::new(Transport::new(writer.as_raw_fd()).unwrap());
+    let session = Rc::new(RefCell::new(Session::default()));
+    session.borrow_mut().hello(VERSION, CAPABILITIES).unwrap();
+    session
+        .borrow_mut()
+        .open(1, window_id(), "Scrolled table", 520., 400.)
+        .unwrap();
+    let (view, cx) = app.add_window_view(|_, _| View::new(window_id(), session.clone(), transport));
+    cx.simulate_a11y_active(true);
+    cx.update(|window, cx| {
+        window.activate_window();
+        window.blur(cx);
+    });
+    let mut ops = initial();
+    ops.extend([
+        Op::SetStyle(
+            node(0),
+            vec![Style::Fields(vec![
+                Field::Width(Length::Px(520.)),
+                Field::Height(Length::Px(300.)),
+                Field::Shrink(0.),
+                Field::MarginTop(Length::Px(80.)),
+            ])],
+        ),
+        Op::Create(node(61), Kind::Container, String::new(), None),
+        Op::SetStyle(
+            node(61),
+            vec![Style::Fields(vec![
+                Field::Width(Length::Px(520.)),
+                Field::Height(Length::Px(250.)),
+                Field::OverflowY(3),
+            ])],
+        ),
+        Op::Splice(node(61), 0, 0, vec![node(0)]),
+        Op::SetRoot(Some(node(61))),
+    ]);
+    apply(&view, cx, ops);
+    let center = view.read_with(cx, |v, _| v.probes.borrow()[&node(3)].bounds.center());
+    let offset = view.read_with(cx, |v, _| v.scrolls[&node(61)].handle.offset());
+    cx.simulate_mouse_move(center, None, Default::default());
+    cx.simulate_mouse_down(center, gpui::MouseButton::Left, Default::default());
+    // A real user holds the button across frames. Sending down/up before one
+    // draw hides ancestor focus reveal that can move the target under the hand.
+    draw(cx);
+    draw(cx);
+    let during = view.read_with(cx, |v, _| v.probes.borrow()[&node(3)].bounds.center());
+    assert_eq!(
+        during, center,
+        "pointer focus moved the cell before release"
+    );
+    assert_eq!(
+        view.read_with(cx, |v, _| v.scrolls[&node(61)].handle.offset()),
+        offset,
+        "pointer focus must preserve the user's ancestor scroll position"
+    );
+    cx.simulate_mouse_up(center, gpui::MouseButton::Left, Default::default());
+    draw(cx);
+    let native = view.read_with(cx, |v, _| v.tables[&node(0)].borrow().native.clone());
+    assert_eq!(
+        native.read_with(cx, |state, _| state.selection().clone()),
+        Selection::Cell {
+            row: gpuio_table_adapter::table::RowKey(1),
+            column: "name".into()
+        }
+    );
+    assert_eq!(
+        view.read_with(cx, |v, _| v.scrolls[&node(61)].handle.offset()),
+        offset,
+        "click completion must also preserve ancestor scroll"
+    );
+    // An explicit reveal remains effective even without another focus change.
+    view.read_with(cx, |v, _| v.focus.borrow().request_reveal());
+    draw(cx);
+    draw(cx);
+    assert_ne!(
+        view.read_with(cx, |v, _| v.scrolls[&node(61)].handle.offset()),
+        offset,
+        "pointer focus must not suppress an explicit reveal"
+    );
+    // Restore the user's viewport, then focus the table without pointer input.
+    // Ordinary keyboard/programmatic focus still performs its automatic reveal.
+    view.read_with(cx, |v, _| v.scrolls[&node(61)].handle.set_offset(offset));
+    cx.update(|window, cx| window.blur(cx));
+    draw(cx);
+    draw(cx);
+    assert_eq!(
+        view.read_with(cx, |v, _| v.scrolls[&node(61)].handle.offset()),
+        offset
+    );
+    cx.update(|window, cx| native.focus_handle(cx).focus(window, cx));
+    draw(cx);
+    draw(cx);
+    assert_ne!(
+        view.read_with(cx, |v, _| v.scrolls[&node(61)].handle.offset()),
+        offset,
+        "non-pointer focus must continue to reveal"
+    );
+}

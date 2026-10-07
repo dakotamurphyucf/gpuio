@@ -1,5 +1,10 @@
 # Results column geometry readiness — OCH-17
 
+**Subsequent repair:** [Pointer focus reveal](pointer-focus-reveal-och17.md) now
+reproduces and fixes the moving target, with a passing complete local Results
+workflow and physical held-click comparison. The record below preserves the
+earlier failing checkpoint and its investigation limits.
+
 This checkpoint repairs a test-driver readiness condition. **The full native
 Results flow still fails locally and is not accepted.** No runtime behavior,
 pointer assertion, release threshold or platform requirement is relaxed.

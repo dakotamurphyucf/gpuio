@@ -5,19 +5,19 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **O
 Markdown walkthroughs for every example component; its documentation acceptance is complete. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
-[Results column readiness](evidence/results-column-readiness-och17.md) now waits
-for measured, stable header geometry and passes portable regression tests. The
-native flow still fails locally: a diagnostic records the target row moving
-49.5 logical pixels between mouse-down and mouse-up. Root-cause investigation
-and complete native requalification remain required; this is not a passing
-Results or release checkpoint.
+[Pointer focus reveal](evidence/pointer-focus-reveal-och17.md) now fixes ancestor
+scrolling moving a clicked table cell before release. The before/after native
+regression, explicit/non-pointer reveal controls, full physical Results workflow,
+held-click comparison, native link/table suites, 1,067 native unit tests, strict
+lint and full Dune checks pass locally. Current-source hosted/Linux confirmation
+and the broader release requirements remain open.
 
 [Hosted run 37558498842](evidence/hosted-presentation-calibration-och17.md#hosted-run-37558498842)
 is terminal at earlier `8a98315`: Linux foundation and fresh-runner macOS apps
 pass. macOS foundation fails Results header geometry after page return and both
 Metal probes, which again receive zero presentation timestamps on Apple
-Paravirtual. Results repair and native requalification remain in progress;
-physical presentation and wider release acceptance remain open.
+Paravirtual. The local Results repair above postdates that run; hosted
+confirmation, physical presentation and wider release acceptance remain open.
 
 [Current chart-gallery integration](evidence/chart-catalog-current-och41.md) now
 passes the complete local chart sequence at `46b291d`, including the baseline

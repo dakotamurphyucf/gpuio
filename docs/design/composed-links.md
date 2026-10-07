@@ -143,8 +143,14 @@ A target with no visible portion after clamped projection is excluded from the
 fallback order and explicit generic AX focus. A clipped target also disables the
 native fast path, so default index-zero traversal cannot reintroduce it.
 
-A newly focused target, Tab request, or explicit generic AX focus request reveals
-once after complete paint. Each ordinary scroller moves the least distance on its
+A newly focused target from keyboard/programmatic input, Tab request, or explicit
+generic AX focus request reveals once after complete paint. Pointer-origin focus
+on an eligible target containing the pointer preserves ancestor scroll: revealing
+a compound owner's larger bounds must not move the clicked child between press
+and release. The host observes final focus after down/up dispatch, including
+GPUI's default focus handler. Explicit reveal requests retain priority, and focus
+redirected to a target elsewhere still reveals. This adds no polling or timer.
+Each ordinary scroller moves the least distance on its
 actual scroll axes, clamped to native limits. Oversized targets align their leading
 edge. Projection intersects the resolved overflow mask, including visible borders,
 before passing the visible portion to an outer owner. An owner never scrolls its

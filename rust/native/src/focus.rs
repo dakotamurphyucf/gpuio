@@ -1472,6 +1472,17 @@ impl Manager {
     pub(super) fn request_reveal(&self) {
         self.reveal_requested.set(true);
     }
+    /// Record focus after pointer dispatch without revealing an ancestor. The
+    /// pointer already reached the target; revealing a compound owner's bounds
+    /// here can move that target between mouse-down and mouse-up. Explicit
+    /// programmatic/AX reveal requests remain pending and retain their priority.
+    pub(super) fn record_pointer_focus(&mut self, window: &Window, cx: &App) {
+        if self.focused_entry(window, cx).is_some_and(|entry| {
+            self.eligible(entry.node) && entry.bounds.contains(&window.mouse_position())
+        }) {
+            self.last_focus = window.focused(cx).map(|handle| handle.downgrade());
+        }
+    }
     fn reachable(&self, target: NodeId, bounds: Bounds<Pixels>) -> bool {
         self.paint_path
             .iter()

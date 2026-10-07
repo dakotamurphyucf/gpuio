@@ -1491,6 +1491,21 @@ impl Render for View {
         );
         let mut root = drag_drop::root(div(), self.id, cx)
             .child(gpui_base::TextSelectionLayer)
+            .capture_any_mouse_down(cx.listener(|view, _, window, cx| {
+                let focus = view.focus.clone();
+                // Bubble handlers, including GPUI's default pointer focus,
+                // run after this capture. Observe their final handle before
+                // post-paint automatic focus reveal decides to move ancestors.
+                window.defer(cx, move |window, cx| {
+                    focus.borrow_mut().record_pointer_focus(window, cx);
+                });
+            }))
+            .capture_any_mouse_up(cx.listener(|view, _, window, cx| {
+                let focus = view.focus.clone();
+                window.defer(cx, move |window, cx| {
+                    focus.borrow_mut().record_pointer_focus(window, cx);
+                });
+            }))
             .capture_key_down(cx.listener(|view, event: &gpui::KeyDownEvent, window, cx| {
                 if event.keystroke.key == "escape"
                     && (view.cancel_color_inputs(
