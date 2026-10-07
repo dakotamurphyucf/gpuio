@@ -18,6 +18,7 @@ use gpui::{
 pub(super) fn publish(
     projection: &RenderedText,
     native: &[RenderedSemanticAttachment],
+    has_native_caret: bool,
     builder: &mut A11ySubtreeBuilder,
 ) -> Vec<TextRun> {
     let original = builder.parent_node().children().to_vec();
@@ -57,40 +58,7 @@ pub(super) fn publish(
                     order.push(child);
                 }
             }
-            // Top-level block ownership includes its boundary separators,
-            // while native glyph subtrees contain only the block content.
-            let parts = projection
-                .semantic_parts(owner.id())
-                .expect("prepared block parts");
-            let part_range = owner.parts();
-            let leading = parts.iter().take_while(|part| part.is_separator()).count();
-            let trailing = parts
-                .iter()
-                .rev()
-                .take_while(|part| part.is_separator())
-                .count();
-            if let Some(span) = &span {
-                if leading < parts.len() {
-                    let content_start = projection.accessible_parts()[part_range.start + leading]
-                        .utf16_range()
-                        .start;
-                    order.extend(emit_text(
-                        projection,
-                        span.start..content_start,
-                        builder,
-                        &mut runs,
-                    ));
-                }
-            }
             order.push(*id);
-            if let Some(span) = &span {
-                if trailing > 0 {
-                    let tail = projection.accessible_parts()[part_range.end - trailing]
-                        .utf16_range()
-                        .start;
-                    order.extend(emit_text(projection, tail..span.end, builder, &mut runs));
-                }
-            }
         } else {
             order.push(emit_owner(projection, owner.id(), builder, &mut runs));
         }
@@ -103,7 +71,7 @@ pub(super) fn publish(
         .last()
         .map_or(0, |part| part.utf16_range().end);
     order.extend(emit_text(projection, cursor..end, builder, &mut runs));
-    if end == 0 && order.is_empty() {
+    if end == 0 && !has_native_caret {
         if let Some(part) = projection.accessible_parts().first() {
             order.push(emit_part(projection, part.id(), 0..0, builder, &mut runs));
         }
@@ -113,12 +81,54 @@ pub(super) fn publish(
     runs
 }
 
-fn semantic_span(projection: &RenderedText, owner: RenderedSemanticId) -> Option<Range<usize>> {
+pub(super) fn semantic_span(
+    projection: &RenderedText,
+    owner: RenderedSemanticId,
+) -> Option<Range<usize>> {
     let selection = projection.semantic_selection(owner)?;
     Some(
         projection.accessible_utf16_offset(selection.anchor())?
             ..projection.accessible_utf16_offset(selection.head())?,
     )
+}
+
+/// Complete one native owner's direct-child intervals before that owner is
+/// finalized. Existing child identities/actions and postorder stay unchanged.
+/// Ambiguous/out-of-order intervals leave the original tree untouched.
+pub(super) fn complete_native(
+    projection: &RenderedText,
+    span: Range<usize>,
+    children: &[(NodeId, Option<Range<usize>>)],
+    builder: &mut A11ySubtreeBuilder,
+) -> Option<Vec<TextRun>> {
+    let mut cursor = span.start;
+    for (_, range) in children {
+        if let Some(range) = range {
+            if range.start < cursor || range.end > span.end || range.start > range.end {
+                return None;
+            }
+            cursor = range.end;
+        }
+    }
+    builder.parent_node().set_children(Vec::<NodeId>::new());
+    let mut order = Vec::new();
+    let mut runs = Vec::new();
+    let mut cursor = span.start;
+    for (child, range) in children {
+        if let Some(range) = range {
+            order.extend(emit_text(
+                projection,
+                cursor..range.start,
+                builder,
+                &mut runs,
+            ));
+            cursor = range.end;
+        }
+        order.push(*child);
+    }
+    order.extend(emit_text(projection, cursor..span.end, builder, &mut runs));
+    builder.parent_node().set_children(order);
+    Some(runs)
 }
 
 // Explicit work stack avoids recursion proportional to document nesting.

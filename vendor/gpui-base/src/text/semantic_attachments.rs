@@ -61,6 +61,8 @@ impl TextRun {
 
 #[derive(Default)]
 struct State {
+    complete: bool,
+    completed: HashMap<NodeId, std::ops::Range<usize>>,
     window: Option<gpui::WindowId>,
     projection: Weak<RenderedText>,
     candidates: HashMap<NodeId, RenderedSemanticId>,
@@ -74,10 +76,17 @@ struct State {
 pub(super) struct Frame(Arc<Mutex<State>>);
 
 impl Frame {
-    pub fn begin(&self, window: gpui::WindowId, projection: Option<&Arc<RenderedText>>) {
+    pub fn begin(
+        &self,
+        window: gpui::WindowId,
+        projection: Option<&Arc<RenderedText>>,
+        complete: bool,
+    ) {
         let mut state = self.0.lock().expect("semantic attachment frame");
         state.projection = projection.map_or_else(Weak::new, Arc::downgrade);
         state.window = Some(window);
+        state.complete = complete;
+        state.completed.clear();
         state.candidates.clear();
         state.published.clear();
         state.candidate_runs.clear();
@@ -93,6 +102,88 @@ impl Frame {
             .is_some_and(|projection| projection.semantic_node(owner).is_some())
         {
             state.candidates.insert(node, owner);
+        }
+    }
+
+    pub fn complete_owner(
+        &self,
+        owner: RenderedSemanticId,
+        builder: &mut gpui::A11ySubtreeBuilder,
+    ) {
+        self.complete_owners(owner, owner, builder);
+    }
+
+    pub fn complete_owners(
+        &self,
+        first: RenderedSemanticId,
+        last: RenderedSemanticId,
+        builder: &mut gpui::A11ySubtreeBuilder,
+    ) {
+        let mut state = self.0.lock().expect("semantic attachment frame");
+        if !state.complete {
+            return;
+        }
+        let Some(projection) = state.projection.upgrade() else {
+            return;
+        };
+        if projection.semantic_node(first).is_none() || projection.semantic_node(last).is_none() {
+            return;
+        }
+        let first = super::logical_accessibility::semantic_span(&projection, first);
+        let last = super::logical_accessibility::semantic_span(&projection, last);
+        let span = match (first, last) {
+            (Some(first), Some(last)) if first.start <= last.end => first.start..last.end,
+            (Some(span), None) | (None, Some(span)) => span,
+            _ => return,
+        };
+        let mut children: Vec<_> = builder
+            .parent_node()
+            .children()
+            .iter()
+            .map(|id| (*id, None::<std::ops::Range<usize>>))
+            .collect();
+        let mut roots: HashMap<_, _> = children
+            .iter()
+            .enumerate()
+            .map(|(index, (id, _))| (*id, index))
+            .collect();
+        // Descendants arrive parent first in reverse postorder. Route each
+        // represented interval to the direct child that already owns it.
+        builder.visit_descendants(|id, node| {
+            let Some(index) = roots.remove(&id) else {
+                return;
+            };
+            if let Some(range) = state.completed.get(&id) {
+                let current = &mut children[index].1;
+                *current = Some(current.as_ref().map_or_else(
+                    || range.clone(),
+                    |old| old.start.min(range.start)..old.end.max(range.end),
+                ));
+                return;
+            }
+            roots.extend(node.children().iter().map(|child| (*child, index)));
+            if let Some(run) = state.candidate_runs.get(&id) {
+                let end = projection
+                    .accessible_character_utf16(run.part, run.first + run.len)
+                    .expect("recorded run range");
+                let range = run.source_start..end;
+                let current = &mut children[index].1;
+                *current = Some(current.as_ref().map_or_else(
+                    || range.clone(),
+                    |old| old.start.min(range.start)..old.end.max(range.end),
+                ));
+            }
+        });
+        if let Some(runs) = super::logical_accessibility::complete_native(
+            &projection,
+            span.clone(),
+            &children,
+            builder,
+        ) {
+            state
+                .candidate_runs
+                .extend(runs.into_iter().map(|run| (run.node, run)));
+            state.completed.insert(builder.parent_id(), span);
         }
     }
 
@@ -134,6 +225,7 @@ impl Frame {
             actual.extend(super::logical_accessibility::publish(
                 &projection,
                 &state.published,
+                actual.iter().any(|run| run.len == 0),
                 builder,
             ));
         }
@@ -257,6 +349,7 @@ impl Element for Scope {
     }
 
     fn a11y_synthetic_children(&mut self, _: &mut (), builder: &mut gpui::A11ySubtreeBuilder) {
+        self.frame.complete_owner(self.owner, builder);
         self.frame.record(self.owner, builder.parent_id());
     }
 

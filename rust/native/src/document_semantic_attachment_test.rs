@@ -927,3 +927,101 @@ fn large_logical_document_keeps_complete_text_and_stable_redraw_ids() {
         );
     }
 }
+
+fn assert_realized_complete(source: &str) -> accesskit::TreeUpdate {
+    assert_realized_with_extensions(source, Default::default())
+}
+
+fn assert_realized_with_extensions(
+    source: &str,
+    extensions: MarkdownExtensions,
+) -> accesskit::TreeUpdate {
+    let mut app = TestAppContext::single();
+    app.update(gpui_base::init);
+    let (view, cx) = app.add_window_view(|_, cx| Documents {
+        text: cx.new(|cx| {
+            let mut state = TextViewState::externally_prepared(cx);
+            state.set_prepared(
+                PreparedText::parse(source, extensions.clone()).unwrap(),
+                None,
+                cx,
+            );
+            state
+        }),
+        scrollable: false,
+        max_lines: None,
+        clicks: Arc::default(),
+        extensions: extensions.clone(),
+    });
+    cx.simulate_a11y_active(true);
+    draw(cx);
+    let text = view.read_with(cx, |view, _| view.text.clone());
+    assert_complete_text(&text, cx);
+    cx.update(|window, cx| {
+        let state = text.read(cx);
+        let projection = state.rendered_text().unwrap();
+        for part in projection.accessible_parts() {
+            for character in 0..=part.character_count() {
+                if let Some(logical) = projection.accessible_position(part.id(), character) {
+                    let native = state
+                        .rendered_accessible_text_position(window, &logical)
+                        .expect("every legal prepared endpoint is published");
+                    assert_eq!(
+                        state
+                            .rendered_accessible_position(window, native)
+                            .unwrap()
+                            .content_position(),
+                        logical.content_position()
+                    );
+                }
+            }
+        }
+    });
+    cx.a11y_tree().unwrap()
+}
+
+#[test]
+fn realized_nested_list_has_complete_accessible_text() {
+    assert_realized_complete("- first\n  - nested [λ🙂](test:nested) text\n- last\n");
+}
+
+#[test]
+fn realized_table_has_complete_accessible_text() {
+    assert_realized_complete("| First | Second |\n| --- | --- |\n| α | β |\n");
+}
+
+#[test]
+fn realized_blockquote_has_complete_accessible_text() {
+    assert_realized_complete("> first\n>\n> second λ🙂\n");
+}
+
+#[test]
+fn realized_description_list_has_complete_accessible_text() {
+    let tree = assert_realized_with_extensions(
+        "---\nname: λ🙂\nstatus: Draft\n---\n\nBody",
+        MarkdownExtensions::default().frontmatter_description_list(),
+    );
+    assert!(tree.nodes.iter().any(
+        |(_, node)| node.role() == accesskit::Role::DescriptionList && node.bounds().is_some()
+    ));
+}
+
+#[test]
+fn realized_atomic_blocks_have_readable_alternatives_and_selection_edges() {
+    assert_realized_with_extensions(
+        "> alternative\n\nBetween\n\n> empty\n",
+        MarkdownExtensions::default().plugin(AtomicAlternative),
+    );
+}
+
+#[test]
+fn realized_lists_keep_original_child_slots_and_distinct_paragraph_ids() {
+    assert_realized_complete("- first\n\n  second λ🙂\n\n  ---\n\n  final\n\n- next\n");
+}
+
+#[test]
+fn realized_empty_owners_keep_a_document_caret() {
+    for source in ["# ", "```\n```", "---"] {
+        assert_realized_complete(source);
+    }
+}

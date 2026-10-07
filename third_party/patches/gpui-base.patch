@@ -18198,3 +18198,654 @@
          }) {
              return Err(RenderedSelectionError::AtomicBoundary);
          }
+--- a/src/text/document.rs
++++ b/src/text/document.rs
+@@ -19,6 +19,8 @@
+ 
+ #[derive(Default, Clone, Copy)]
+ pub(crate) struct NodeRenderOptions {
++    pub(crate) semantic_owner: Option<super::RenderedSemanticId>,
++    pub(crate) semantic_nested: bool,
+     pub(crate) ix: usize,
+     pub(crate) in_list: bool,
+     pub(crate) todo: bool,
+@@ -28,6 +30,18 @@
+ }
+ 
+ impl NodeRenderOptions {
++    pub(crate) fn child(self, ix: usize, context: &NodeContext) -> Self {
++        let owner = context
++            .semantic_attachments
++            .as_ref()
++            .and_then(|(projection, _)| projection.semantic_child_block(self.semantic_owner?, ix));
++        Self {
++            ix,
++            semantic_owner: owner,
++            semantic_nested: true,
++            ..self
++        }
++    }
+     pub(crate) fn is_last(mut self, is_last: bool) -> Self {
+         self.is_last = is_last;
+         self
+@@ -192,6 +206,10 @@
+                     let element = node.render_block(
+                         NodeRenderOptions {
+                             ix,
++                            semantic_owner: node_cx
++                                .semantic_attachments
++                                .as_ref()
++                                .and_then(|(projection, _)| projection.semantic_block(ix)),
+                             is_last,
+                             ..Default::default()
+                         },
+@@ -222,6 +240,10 @@
+                     let element = blocks[ix].render_block(
+                         NodeRenderOptions {
+                             ix,
++                            semantic_owner: node_cx
++                                .semantic_attachments
++                                .as_ref()
++                                .and_then(|(projection, _)| projection.semantic_block(ix)),
+                             is_last,
+                             ..options
+                         },
+--- a/src/text/logical_accessibility.rs
++++ b/src/text/logical_accessibility.rs
+@@ -18,6 +18,7 @@
+ pub(super) fn publish(
+     projection: &RenderedText,
+     native: &[RenderedSemanticAttachment],
++    has_native_caret: bool,
+     builder: &mut A11ySubtreeBuilder,
+ ) -> Vec<TextRun> {
+     let original = builder.parent_node().children().to_vec();
+@@ -57,40 +58,7 @@
+                     order.push(child);
+                 }
+             }
+-            // Top-level block ownership includes its boundary separators,
+-            // while native glyph subtrees contain only the block content.
+-            let parts = projection
+-                .semantic_parts(owner.id())
+-                .expect("prepared block parts");
+-            let part_range = owner.parts();
+-            let leading = parts.iter().take_while(|part| part.is_separator()).count();
+-            let trailing = parts
+-                .iter()
+-                .rev()
+-                .take_while(|part| part.is_separator())
+-                .count();
+-            if let Some(span) = &span {
+-                if leading < parts.len() {
+-                    let content_start = projection.accessible_parts()[part_range.start + leading]
+-                        .utf16_range()
+-                        .start;
+-                    order.extend(emit_text(
+-                        projection,
+-                        span.start..content_start,
+-                        builder,
+-                        &mut runs,
+-                    ));
+-                }
+-            }
+             order.push(*id);
+-            if let Some(span) = &span {
+-                if trailing > 0 {
+-                    let tail = projection.accessible_parts()[part_range.end - trailing]
+-                        .utf16_range()
+-                        .start;
+-                    order.extend(emit_text(projection, tail..span.end, builder, &mut runs));
+-                }
+-            }
+         } else {
+             order.push(emit_owner(projection, owner.id(), builder, &mut runs));
+         }
+@@ -103,7 +71,7 @@
+         .last()
+         .map_or(0, |part| part.utf16_range().end);
+     order.extend(emit_text(projection, cursor..end, builder, &mut runs));
+-    if end == 0 && order.is_empty() {
++    if end == 0 && !has_native_caret {
+         if let Some(part) = projection.accessible_parts().first() {
+             order.push(emit_part(projection, part.id(), 0..0, builder, &mut runs));
+         }
+@@ -113,12 +81,54 @@
+     runs
+ }
+ 
+-fn semantic_span(projection: &RenderedText, owner: RenderedSemanticId) -> Option<Range<usize>> {
++pub(super) fn semantic_span(
++    projection: &RenderedText,
++    owner: RenderedSemanticId,
++) -> Option<Range<usize>> {
+     let selection = projection.semantic_selection(owner)?;
+     Some(
+         projection.accessible_utf16_offset(selection.anchor())?
+             ..projection.accessible_utf16_offset(selection.head())?,
+     )
++}
++
++/// Complete one native owner's direct-child intervals before that owner is
++/// finalized. Existing child identities/actions and postorder stay unchanged.
++/// Ambiguous/out-of-order intervals leave the original tree untouched.
++pub(super) fn complete_native(
++    projection: &RenderedText,
++    span: Range<usize>,
++    children: &[(NodeId, Option<Range<usize>>)],
++    builder: &mut A11ySubtreeBuilder,
++) -> Option<Vec<TextRun>> {
++    let mut cursor = span.start;
++    for (_, range) in children {
++        if let Some(range) = range {
++            if range.start < cursor || range.end > span.end || range.start > range.end {
++                return None;
++            }
++            cursor = range.end;
++        }
++    }
++    builder.parent_node().set_children(Vec::<NodeId>::new());
++    let mut order = Vec::new();
++    let mut runs = Vec::new();
++    let mut cursor = span.start;
++    for (child, range) in children {
++        if let Some(range) = range {
++            order.extend(emit_text(
++                projection,
++                cursor..range.start,
++                builder,
++                &mut runs,
++            ));
++            cursor = range.end;
++        }
++        order.push(*child);
++    }
++    order.extend(emit_text(projection, cursor..span.end, builder, &mut runs));
++    builder.parent_node().set_children(order);
++    Some(runs)
+ }
+ 
+ // Explicit work stack avoids recursion proportional to document nesting.
+--- a/src/text/node.rs
++++ b/src/text/node.rs
+@@ -1219,19 +1219,26 @@
+     fn render(
+         &self,
+         ix: usize,
++        owner: Option<super::RenderedSemanticId>,
+         node_cx: &NodeContext,
+         window: &mut Window,
+         cx: &mut App,
+     ) -> AnyElement {
++        let owners = node_cx.semantic_children(owner);
+         v_flex()
+             .id(("description", ix))
+             .role(gpui::Role::DescriptionList)
++            .a11y_synthetic_children(node_cx.semantic_callback(owner))
+             .w_full()
+             .min_w_0()
+             .gap(rems(0.5))
+             .children(self.entries.iter().enumerate().map(|(row, entry)| {
++                let term = owners.get(row * 2).copied();
++                let definition = owners.get(row * 2 + 1).copied();
+                 h_flex()
+                     .id(("entry", row))
++                    .role(gpui::Role::Group)
++                    .a11y_synthetic_children(node_cx.semantic_pair_callback(term.zip(definition)))
+                     .items_start()
+                     .w_full()
+                     .min_w_0()
+@@ -1240,6 +1247,7 @@
+                         div()
+                             .id("term")
+                             .role(gpui::Role::Term)
++                            .a11y_synthetic_children(node_cx.semantic_callback(term))
+                             .w(rems(12.))
+                             .max_w(relative(0.4))
+                             .min_w_0()
+@@ -1252,6 +1260,7 @@
+                         div()
+                             .id("definition")
+                             .role(gpui::Role::Definition)
++                            .a11y_synthetic_children(node_cx.semantic_callback(definition))
+                             .flex_1()
+                             .min_w_0()
+                             .child(entry.value.render(node_cx, window, cx)),
+@@ -1659,6 +1668,49 @@
+ }
+ 
+ impl NodeContext {
++    fn semantic_children(
++        &self,
++        owner: Option<super::RenderedSemanticId>,
++    ) -> Vec<super::RenderedSemanticId> {
++        match (&self.semantic_attachments, owner) {
++            (Some((projection, _)), Some(owner)) => projection
++                .semantic_children(Some(owner))
++                .map(|node| node.id())
++                .collect(),
++            _ => Vec::new(),
++        }
++    }
++    fn semantic_callback(
++        &self,
++        owner: Option<super::RenderedSemanticId>,
++    ) -> impl Fn(&mut gpui::A11ySubtreeBuilder) + 'static {
++        self.semantic_pair_callback(owner.zip(owner))
++    }
++    fn semantic_pair_callback(
++        &self,
++        owners: Option<(super::RenderedSemanticId, super::RenderedSemanticId)>,
++    ) -> impl Fn(&mut gpui::A11ySubtreeBuilder) + 'static {
++        let binding = self
++            .semantic_attachments
++            .as_ref()
++            .map(|(_, frame)| frame.clone())
++            .zip(owners);
++        move |builder| {
++            if let Some((frame, (first, last))) = &binding {
++                frame.complete_owners(*first, *last, builder);
++            }
++        }
++    }
++    fn wrap_semantic(&self, options: NodeRenderOptions, element: AnyElement) -> AnyElement {
++        if options.semantic_nested
++            && let Some((_, frame)) = &self.semantic_attachments
++            && let Some(owner) = options.semantic_owner
++        {
++            frame.wrap(options.ix, owner, element)
++        } else {
++            element
++        }
++    }
+     pub(super) fn add_ref(&mut self, identifier: SharedString, link: LinkMark) {
+         self.link_refs.insert(identifier, link);
+     }
+@@ -2354,7 +2406,7 @@
+         window: &mut Window,
+         cx: &mut App,
+     ) -> AnyElement {
+-        match item {
++        let element = match item {
+             BlockNode::ListItem {
+                 children,
+                 spread,
+@@ -2380,7 +2432,7 @@
+                                         depth: options.depth + 1,
+                                         todo: checked.is_some(),
+                                         is_last: true,
+-                                        ..options
++                                        ..options.child(child_ix, node_cx)
+                                     },
+                                     node_cx,
+                                     window,
+@@ -2420,7 +2472,7 @@
+                                         depth: options.depth + 1,
+                                         todo: checked.is_some(),
+                                         is_last: true,
+-                                        ..options
++                                        ..options.child(child_ix, node_cx)
+                                     },
+                                     node_cx,
+                                     window,
+@@ -2440,7 +2492,7 @@
+                                         depth: options.depth + 1,
+                                         todo: checked.is_some(),
+                                         is_last: true,
+-                                        ..options
++                                        ..options.child(child_ix, node_cx)
+                                     },
+                                     node_cx,
+                                     window,
+@@ -2480,7 +2532,8 @@
+                 })
+                 .into_any_element(),
+             _ => div().into_any_element(),
+-        }
++        };
++        node_cx.wrap_semantic(options, element)
+     }
+ 
+     /// Render a Markdown table. Dispatches to a horizontally scrollable layout
+@@ -2596,7 +2649,10 @@
+             .clone();
+         let row_count = table.children.len();
+         let mut rows = Vec::with_capacity(row_count);
++        let row_owners = node_cx.semantic_children(options.semantic_owner);
+         for (row_ix, row) in table.children.iter().enumerate() {
++            let row_owner = row_owners.get(row_ix).copied();
++            let cell_owners = node_cx.semantic_children(row_owner);
+             let mut cells = Vec::with_capacity(row.children.len());
+             for (ix, cell) in row.children.iter().enumerate() {
+                 let align = table.column_align(ix);
+@@ -2613,6 +2669,9 @@
+                         })
+                         .aria_row_index(row_ix)
+                         .aria_column_index(ix)
++                        .a11y_synthetic_children(
++                            node_cx.semantic_callback(cell_owners.get(ix).copied()),
++                        )
+                         // Measured max-content width is the flex-basis;
+                         // `flex_grow` (proportional to it) distributes extra
+                         // space so a narrow table still fills the frame, while
+@@ -2640,6 +2699,7 @@
+                     .id(("row", row_ix))
+                     .role(gpui::Role::Row)
+                     .aria_row_index(row_ix)
++                    .a11y_synthetic_children(node_cx.semantic_callback(row_owner))
+                     .w_full()
+                     .when(row_ix < row_count - 1, |this| this.border_b_1())
+                     .border_color(style.border())
+@@ -2724,7 +2784,10 @@
+         let style = &node_cx.style;
+         let row_count = table.children.len();
+         let mut rows = Vec::with_capacity(row_count);
++        let row_owners = node_cx.semantic_children(options.semantic_owner);
+         for (row_ix, row) in table.children.iter().enumerate() {
++            let row_owner = row_owners.get(row_ix).copied();
++            let cell_owners = node_cx.semantic_children(row_owner);
+             let mut cells = Vec::with_capacity(row.children.len());
+             for (ix, cell) in row.children.iter().enumerate() {
+                 let align = table.column_align(ix);
+@@ -2745,6 +2808,9 @@
+                         })
+                         .aria_row_index(row_ix)
+                         .aria_column_index(ix)
++                        .a11y_synthetic_children(
++                            node_cx.semantic_callback(cell_owners.get(ix).copied()),
++                        )
+                         .overflow_hidden()
+                         .when(align == ColumnumnAlign::Center, |this| this.text_center())
+                         .when(align == ColumnumnAlign::Right, |this| this.text_right())
+@@ -2765,6 +2831,7 @@
+                     .id(("row", row_ix))
+                     .role(gpui::Role::Row)
+                     .aria_row_index(row_ix)
++                    .a11y_synthetic_children(node_cx.semantic_callback(row_owner))
+                     .w_full()
+                     .when(row_ix < row_count - 1, |this| this.border_b_1())
+                     .border_color(style.border())
+@@ -2822,6 +2889,17 @@
+         window: &mut Window,
+         cx: &mut App,
+     ) -> AnyElement {
++        let element = self.render_block_content(options, node_cx, window, cx);
++        node_cx.wrap_semantic(options, element)
++    }
++
++    fn render_block_content(
++        &self,
++        options: NodeRenderOptions,
++        node_cx: &NodeContext,
++        window: &mut Window,
++        cx: &mut App,
++    ) -> AnyElement {
+         let ix = options.ix;
+         let mb = if options.in_list || options.is_last {
+             rems(0.)
+@@ -2833,7 +2911,7 @@
+             BlockNode::Root { children, .. } => div()
+                 .id(("div", ix))
+                 .children(children.into_iter().enumerate().map(move |(ix, node)| {
+-                    node.render_block(NodeRenderOptions { ix, ..options }, node_cx, window, cx)
++                    node.render_block(options.child(ix, node_cx), node_cx, window, cx)
+                 }))
+                 .into_any_element(),
+             BlockNode::Paragraph(paragraph) => div()
+@@ -2886,7 +2964,12 @@
+                             let children_len = children.len();
+                             children.into_iter().enumerate().map(move |(index, c)| {
+                                 let is_last = index == children_len - 1;
+-                                c.render_block(options.is_last(is_last), node_cx, window, cx)
++                                c.render_block(
++                                    options.child(index, node_cx).is_last(is_last),
++                                    node_cx,
++                                    window,
++                                    cx,
++                                )
+                             })
+                         }),
+                 )
+@@ -2909,9 +2992,8 @@
+                             item,
+                             item_index,
+                             NodeRenderOptions {
+-                                ix,
+                                 ordered: *ordered,
+-                                ..options
++                                ..options.child(ix, node_cx)
+                             },
+                             node_cx,
+                             window,
+@@ -2927,7 +3009,7 @@
+                 .into_any_element(),
+             BlockNode::DescriptionList(list) => div()
+                 .pb(mb)
+-                .child(list.render(ix, node_cx, window, cx))
++                .child(list.render(ix, options.semantic_owner, node_cx, window, cx))
+                 .into_any_element(),
+             BlockNode::CodeBlock(code_block) => code_block.render(&options, node_cx, window, cx),
+             BlockNode::Custom(node) => {
+--- a/src/text/rendered_structure.rs
++++ b/src/text/rendered_structure.rs
+@@ -58,6 +58,8 @@
+     pub(super) parts: Range<usize>,
+     pub(super) subtree_end: usize,
+     pub(super) fragment: Option<RenderedFragment>,
++    // Original AST child slots, including rules/definitions without an owner.
++    pub(super) block_children: Vec<Option<RenderedSemanticId>>,
+ }
+ impl RenderedSemanticNode {
+     pub fn id(&self) -> RenderedSemanticId {
+@@ -76,6 +78,17 @@
+     /// and rules retain their slot but have no logical text owner.
+     pub fn semantic_block(&self, block: usize) -> Option<RenderedSemanticId> {
+         self.semantic_blocks.get(block).copied().flatten()
++    }
++    pub(in crate::text) fn semantic_child_block(
++        &self,
++        owner: RenderedSemanticId,
++        index: usize,
++    ) -> Option<RenderedSemanticId> {
++        self.semantic_node(owner)?
++            .block_children
++            .get(index)
++            .copied()
++            .flatten()
+     }
+     /// Complete prepared structure, independent of block realization. This is
+     /// metadata for native publication, not a duplicate hidden accessibility tree.
+@@ -145,6 +158,14 @@
+         self.semantic_nodes.capacity() * std::mem::size_of::<RenderedSemanticNode>()
+             + std::mem::size_of_val(&*self.semantic_blocks)
+             + self.semantic_string_bytes
++            + self
++                .semantic_nodes
++                .iter()
++                .map(|node| {
++                    node.block_children.capacity()
++                        * std::mem::size_of::<Option<RenderedSemanticId>>()
++                })
++                .sum::<usize>()
+     }
+     pub(super) fn semantic_max_units() -> usize {
+         // Growth capacity is bounded separately from text. AST admission remains
+@@ -152,6 +173,7 @@
+         MAX_NODES * std::mem::size_of::<RenderedSemanticNode>() * 2
+             + MAX_NODES * std::mem::size_of::<Option<RenderedSemanticId>>()
+             + super::MAX_BYTES * 2
++            + MAX_NODES * std::mem::size_of::<Option<RenderedSemanticId>>() * 2
+     }
+ }
+ 
+@@ -200,6 +222,7 @@
+             parts: self.parts.len()..self.parts.len(),
+             subtree_end: index + 1,
+             fragment: None,
++            block_children: Vec::new(),
+         });
+         self.semantic_parent = Some(index);
+         let result = f(self);
+--- a/src/text/rendered_text.rs
++++ b/src/text/rendered_text.rs
+@@ -883,8 +883,15 @@
+         Ok(())
+     }
+     fn children(&mut self, children: &[BlockNode]) -> Result<(), SharedString> {
++        let parent = self.semantic_parent;
++        let mut owners = Vec::with_capacity(children.len());
+         for child in children {
++            let start = self.semantic_nodes.len();
+             self.block(child)?;
++            owners.push(self.semantic_nodes.get(start).map(|node| node.id()));
++        }
++        if let Some(parent) = parent {
++            self.semantic_nodes[parent].block_children = owners;
+         }
+         Ok(())
+     }
+--- a/src/text/semantic_attachments.rs
++++ b/src/text/semantic_attachments.rs
+@@ -61,6 +61,8 @@
+ 
+ #[derive(Default)]
+ struct State {
++    complete: bool,
++    completed: HashMap<NodeId, std::ops::Range<usize>>,
+     window: Option<gpui::WindowId>,
+     projection: Weak<RenderedText>,
+     candidates: HashMap<NodeId, RenderedSemanticId>,
+@@ -74,10 +76,17 @@
+ pub(super) struct Frame(Arc<Mutex<State>>);
+ 
+ impl Frame {
+-    pub fn begin(&self, window: gpui::WindowId, projection: Option<&Arc<RenderedText>>) {
++    pub fn begin(
++        &self,
++        window: gpui::WindowId,
++        projection: Option<&Arc<RenderedText>>,
++        complete: bool,
++    ) {
+         let mut state = self.0.lock().expect("semantic attachment frame");
+         state.projection = projection.map_or_else(Weak::new, Arc::downgrade);
+         state.window = Some(window);
++        state.complete = complete;
++        state.completed.clear();
+         state.candidates.clear();
+         state.published.clear();
+         state.candidate_runs.clear();
+@@ -93,6 +102,88 @@
+             .is_some_and(|projection| projection.semantic_node(owner).is_some())
+         {
+             state.candidates.insert(node, owner);
++        }
++    }
++
++    pub fn complete_owner(
++        &self,
++        owner: RenderedSemanticId,
++        builder: &mut gpui::A11ySubtreeBuilder,
++    ) {
++        self.complete_owners(owner, owner, builder);
++    }
++
++    pub fn complete_owners(
++        &self,
++        first: RenderedSemanticId,
++        last: RenderedSemanticId,
++        builder: &mut gpui::A11ySubtreeBuilder,
++    ) {
++        let mut state = self.0.lock().expect("semantic attachment frame");
++        if !state.complete {
++            return;
++        }
++        let Some(projection) = state.projection.upgrade() else {
++            return;
++        };
++        if projection.semantic_node(first).is_none() || projection.semantic_node(last).is_none() {
++            return;
++        }
++        let first = super::logical_accessibility::semantic_span(&projection, first);
++        let last = super::logical_accessibility::semantic_span(&projection, last);
++        let span = match (first, last) {
++            (Some(first), Some(last)) if first.start <= last.end => first.start..last.end,
++            (Some(span), None) | (None, Some(span)) => span,
++            _ => return,
++        };
++        let mut children: Vec<_> = builder
++            .parent_node()
++            .children()
++            .iter()
++            .map(|id| (*id, None::<std::ops::Range<usize>>))
++            .collect();
++        let mut roots: HashMap<_, _> = children
++            .iter()
++            .enumerate()
++            .map(|(index, (id, _))| (*id, index))
++            .collect();
++        // Descendants arrive parent first in reverse postorder. Route each
++        // represented interval to the direct child that already owns it.
++        builder.visit_descendants(|id, node| {
++            let Some(index) = roots.remove(&id) else {
++                return;
++            };
++            if let Some(range) = state.completed.get(&id) {
++                let current = &mut children[index].1;
++                *current = Some(current.as_ref().map_or_else(
++                    || range.clone(),
++                    |old| old.start.min(range.start)..old.end.max(range.end),
++                ));
++                return;
++            }
++            roots.extend(node.children().iter().map(|child| (*child, index)));
++            if let Some(run) = state.candidate_runs.get(&id) {
++                let end = projection
++                    .accessible_character_utf16(run.part, run.first + run.len)
++                    .expect("recorded run range");
++                let range = run.source_start..end;
++                let current = &mut children[index].1;
++                *current = Some(current.as_ref().map_or_else(
++                    || range.clone(),
++                    |old| old.start.min(range.start)..old.end.max(range.end),
++                ));
++            }
++        });
++        if let Some(runs) = super::logical_accessibility::complete_native(
++            &projection,
++            span.clone(),
++            &children,
++            builder,
++        ) {
++            state
++                .candidate_runs
++                .extend(runs.into_iter().map(|run| (run.node, run)));
++            state.completed.insert(builder.parent_id(), span);
+         }
+     }
+ 
+@@ -134,6 +225,7 @@
+             actual.extend(super::logical_accessibility::publish(
+                 &projection,
+                 &state.published,
++                actual.iter().any(|run| run.len == 0),
+                 builder,
+             ));
+         }
+@@ -257,6 +349,7 @@
+     }
+ 
+     fn a11y_synthetic_children(&mut self, _: &mut (), builder: &mut gpui::A11ySubtreeBuilder) {
++        self.frame.complete_owner(self.owner, builder);
+         self.frame.record(self.owner, builder.parent_id());
+     }
+ 
+--- a/src/text/text_view.rs
++++ b/src/text/text_view.rs
+@@ -732,6 +732,7 @@
+                 state.semantic_attachments.begin(
+                     window.window_handle().window_id(),
+                     state.rendered_text().as_ref(),
++                    state.max_lines.is_none(),
+                 );
+             }
+             let max_lines_active = state.read(cx).max_lines.is_some();

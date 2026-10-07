@@ -19,6 +19,8 @@ pub(crate) struct ParsedDocument {
 
 #[derive(Default, Clone, Copy)]
 pub(crate) struct NodeRenderOptions {
+    pub(crate) semantic_owner: Option<super::RenderedSemanticId>,
+    pub(crate) semantic_nested: bool,
     pub(crate) ix: usize,
     pub(crate) in_list: bool,
     pub(crate) todo: bool,
@@ -28,6 +30,18 @@ pub(crate) struct NodeRenderOptions {
 }
 
 impl NodeRenderOptions {
+    pub(crate) fn child(self, ix: usize, context: &NodeContext) -> Self {
+        let owner = context
+            .semantic_attachments
+            .as_ref()
+            .and_then(|(projection, _)| projection.semantic_child_block(self.semantic_owner?, ix));
+        Self {
+            ix,
+            semantic_owner: owner,
+            semantic_nested: true,
+            ..self
+        }
+    }
     pub(crate) fn is_last(mut self, is_last: bool) -> Self {
         self.is_last = is_last;
         self
@@ -192,6 +206,10 @@ impl ParsedDocument {
                     let element = node.render_block(
                         NodeRenderOptions {
                             ix,
+                            semantic_owner: node_cx
+                                .semantic_attachments
+                                .as_ref()
+                                .and_then(|(projection, _)| projection.semantic_block(ix)),
                             is_last,
                             ..Default::default()
                         },
@@ -222,6 +240,10 @@ impl ParsedDocument {
                     let element = blocks[ix].render_block(
                         NodeRenderOptions {
                             ix,
+                            semantic_owner: node_cx
+                                .semantic_attachments
+                                .as_ref()
+                                .and_then(|(projection, _)| projection.semantic_block(ix)),
                             is_last,
                             ..options
                         },

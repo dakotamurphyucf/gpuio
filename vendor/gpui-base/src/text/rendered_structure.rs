@@ -58,6 +58,8 @@ pub struct RenderedSemanticNode {
     pub(super) parts: Range<usize>,
     pub(super) subtree_end: usize,
     pub(super) fragment: Option<RenderedFragment>,
+    // Original AST child slots, including rules/definitions without an owner.
+    pub(super) block_children: Vec<Option<RenderedSemanticId>>,
 }
 impl RenderedSemanticNode {
     pub fn id(&self) -> RenderedSemanticId {
@@ -76,6 +78,17 @@ impl RenderedText {
     /// and rules retain their slot but have no logical text owner.
     pub fn semantic_block(&self, block: usize) -> Option<RenderedSemanticId> {
         self.semantic_blocks.get(block).copied().flatten()
+    }
+    pub(in crate::text) fn semantic_child_block(
+        &self,
+        owner: RenderedSemanticId,
+        index: usize,
+    ) -> Option<RenderedSemanticId> {
+        self.semantic_node(owner)?
+            .block_children
+            .get(index)
+            .copied()
+            .flatten()
     }
     /// Complete prepared structure, independent of block realization. This is
     /// metadata for native publication, not a duplicate hidden accessibility tree.
@@ -145,6 +158,14 @@ impl RenderedText {
         self.semantic_nodes.capacity() * std::mem::size_of::<RenderedSemanticNode>()
             + std::mem::size_of_val(&*self.semantic_blocks)
             + self.semantic_string_bytes
+            + self
+                .semantic_nodes
+                .iter()
+                .map(|node| {
+                    node.block_children.capacity()
+                        * std::mem::size_of::<Option<RenderedSemanticId>>()
+                })
+                .sum::<usize>()
     }
     pub(super) fn semantic_max_units() -> usize {
         // Growth capacity is bounded separately from text. AST admission remains
@@ -152,6 +173,7 @@ impl RenderedText {
         MAX_NODES * std::mem::size_of::<RenderedSemanticNode>() * 2
             + MAX_NODES * std::mem::size_of::<Option<RenderedSemanticId>>()
             + super::MAX_BYTES * 2
+            + MAX_NODES * std::mem::size_of::<Option<RenderedSemanticId>>() * 2
     }
 }
 
@@ -200,6 +222,7 @@ impl super::Builder<'_> {
             parts: self.parts.len()..self.parts.len(),
             subtree_end: index + 1,
             fragment: None,
+            block_children: Vec::new(),
         });
         self.semantic_parent = Some(index);
         let result = f(self);

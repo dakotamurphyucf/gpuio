@@ -732,6 +732,7 @@ impl Element for TextView {
                 state.semantic_attachments.begin(
                     window.window_handle().window_id(),
                     state.rendered_text().as_ref(),
+                    state.max_lines.is_none(),
                 );
             }
             let max_lines_active = state.read(cx).max_lines.is_some();

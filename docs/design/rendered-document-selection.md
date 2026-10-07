@@ -624,8 +624,8 @@ have a zero-character caret run. Clamped previews do not expand into the full
 logical document.
 
 This supersedes the earlier absence of offscreen runs. It does not complete the
-Document contract: separators and atomic alternatives inside **realized nested**
-structures still need integration, as do visual-line adjacency, final-paint
+Document contract: inline-object/link interiors and clipped nested content still
+need dedicated integration coverage, as do visual-line adjacency, final-paint
 selection, guarded reveal/activation and OS selection actions. Offscreen link
 roles and URLs do not imply an implemented activation handler. Actual macOS
 accessibility and VoiceOver acceptance remain separate from TestPlatform coverage.
@@ -639,3 +639,24 @@ empty-object boundaries and foreign-position checks retain their contracts.
 The [publication diagnostic](../evidence/rendered-publication-cost-och17.md)
 records the measured debug improvement and its limits. Optimized workload and
 physical presentation qualification remain separate requirements.
+
+## Completing visible native scopes (integration in progress)
+
+Prepared semantic nodes retain original nested block slots, including slots with
+no semantic owner. `NodeRenderOptions` carries the current owner without cloning
+the link-reference map or using a prepared revision as a native element key.
+Nested blocks, native table cells/rows and description-list scopes complete
+missing text during their synchronous prepaint callback. Actual descendant runs
+and completed scopes identify each direct child's text extent; missing intervals
+are inserted only after checking ordering and containment. Native controls retain
+their own nodes and actions. Already finalized descendant nodes are not mutated,
+so the builder's postorder and rollback contracts remain intact.
+
+Blockquote and list continuation paragraphs use distinct original sibling indices.
+Root publication treats completed native scopes as represented, preventing duplicate
+boundary separators. Empty semantic blocks still provide a document caret, and
+clamped previews do not acquire complete-document text. The extra prepared slot
+storage is included in retention and admission accounting. See
+[native scope evidence](../evidence/rendered-native-scopes-och17.md) for the
+reproduced failures, coverage and remaining limitations. This does not authorize
+actions from last-prepaint coordinates or establish OS accessibility acceptance.

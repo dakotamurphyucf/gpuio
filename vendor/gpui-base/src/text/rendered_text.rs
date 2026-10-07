@@ -883,8 +883,15 @@ impl Builder<'_> {
         Ok(())
     }
     fn children(&mut self, children: &[BlockNode]) -> Result<(), SharedString> {
+        let parent = self.semantic_parent;
+        let mut owners = Vec::with_capacity(children.len());
         for child in children {
+            let start = self.semantic_nodes.len();
             self.block(child)?;
+            owners.push(self.semantic_nodes.get(start).map(|node| node.id()));
+        }
+        if let Some(parent) = parent {
+            self.semantic_nodes[parent].block_children = owners;
         }
         Ok(())
     }

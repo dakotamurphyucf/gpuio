@@ -1219,19 +1219,26 @@ impl DescriptionList {
     fn render(
         &self,
         ix: usize,
+        owner: Option<super::RenderedSemanticId>,
         node_cx: &NodeContext,
         window: &mut Window,
         cx: &mut App,
     ) -> AnyElement {
+        let owners = node_cx.semantic_children(owner);
         v_flex()
             .id(("description", ix))
             .role(gpui::Role::DescriptionList)
+            .a11y_synthetic_children(node_cx.semantic_callback(owner))
             .w_full()
             .min_w_0()
             .gap(rems(0.5))
             .children(self.entries.iter().enumerate().map(|(row, entry)| {
+                let term = owners.get(row * 2).copied();
+                let definition = owners.get(row * 2 + 1).copied();
                 h_flex()
                     .id(("entry", row))
+                    .role(gpui::Role::Group)
+                    .a11y_synthetic_children(node_cx.semantic_pair_callback(term.zip(definition)))
                     .items_start()
                     .w_full()
                     .min_w_0()
@@ -1240,6 +1247,7 @@ impl DescriptionList {
                         div()
                             .id("term")
                             .role(gpui::Role::Term)
+                            .a11y_synthetic_children(node_cx.semantic_callback(term))
                             .w(rems(12.))
                             .max_w(relative(0.4))
                             .min_w_0()
@@ -1252,6 +1260,7 @@ impl DescriptionList {
                         div()
                             .id("definition")
                             .role(gpui::Role::Definition)
+                            .a11y_synthetic_children(node_cx.semantic_callback(definition))
                             .flex_1()
                             .min_w_0()
                             .child(entry.value.render(node_cx, window, cx)),
@@ -1659,6 +1668,49 @@ pub(crate) struct NodeContext {
 }
 
 impl NodeContext {
+    fn semantic_children(
+        &self,
+        owner: Option<super::RenderedSemanticId>,
+    ) -> Vec<super::RenderedSemanticId> {
+        match (&self.semantic_attachments, owner) {
+            (Some((projection, _)), Some(owner)) => projection
+                .semantic_children(Some(owner))
+                .map(|node| node.id())
+                .collect(),
+            _ => Vec::new(),
+        }
+    }
+    fn semantic_callback(
+        &self,
+        owner: Option<super::RenderedSemanticId>,
+    ) -> impl Fn(&mut gpui::A11ySubtreeBuilder) + 'static {
+        self.semantic_pair_callback(owner.zip(owner))
+    }
+    fn semantic_pair_callback(
+        &self,
+        owners: Option<(super::RenderedSemanticId, super::RenderedSemanticId)>,
+    ) -> impl Fn(&mut gpui::A11ySubtreeBuilder) + 'static {
+        let binding = self
+            .semantic_attachments
+            .as_ref()
+            .map(|(_, frame)| frame.clone())
+            .zip(owners);
+        move |builder| {
+            if let Some((frame, (first, last))) = &binding {
+                frame.complete_owners(*first, *last, builder);
+            }
+        }
+    }
+    fn wrap_semantic(&self, options: NodeRenderOptions, element: AnyElement) -> AnyElement {
+        if options.semantic_nested
+            && let Some((_, frame)) = &self.semantic_attachments
+            && let Some(owner) = options.semantic_owner
+        {
+            frame.wrap(options.ix, owner, element)
+        } else {
+            element
+        }
+    }
     pub(super) fn add_ref(&mut self, identifier: SharedString, link: LinkMark) {
         self.link_refs.insert(identifier, link);
     }
@@ -2354,7 +2406,7 @@ impl BlockNode {
         window: &mut Window,
         cx: &mut App,
     ) -> AnyElement {
-        match item {
+        let element = match item {
             BlockNode::ListItem {
                 children,
                 spread,
@@ -2380,7 +2432,7 @@ impl BlockNode {
                                         depth: options.depth + 1,
                                         todo: checked.is_some(),
                                         is_last: true,
-                                        ..options
+                                        ..options.child(child_ix, node_cx)
                                     },
                                     node_cx,
                                     window,
@@ -2420,7 +2472,7 @@ impl BlockNode {
                                         depth: options.depth + 1,
                                         todo: checked.is_some(),
                                         is_last: true,
-                                        ..options
+                                        ..options.child(child_ix, node_cx)
                                     },
                                     node_cx,
                                     window,
@@ -2440,7 +2492,7 @@ impl BlockNode {
                                         depth: options.depth + 1,
                                         todo: checked.is_some(),
                                         is_last: true,
-                                        ..options
+                                        ..options.child(child_ix, node_cx)
                                     },
                                     node_cx,
                                     window,
@@ -2480,7 +2532,8 @@ impl BlockNode {
                 })
                 .into_any_element(),
             _ => div().into_any_element(),
-        }
+        };
+        node_cx.wrap_semantic(options, element)
     }
 
     /// Render a Markdown table. Dispatches to a horizontally scrollable layout
@@ -2596,7 +2649,10 @@ impl BlockNode {
             .clone();
         let row_count = table.children.len();
         let mut rows = Vec::with_capacity(row_count);
+        let row_owners = node_cx.semantic_children(options.semantic_owner);
         for (row_ix, row) in table.children.iter().enumerate() {
+            let row_owner = row_owners.get(row_ix).copied();
+            let cell_owners = node_cx.semantic_children(row_owner);
             let mut cells = Vec::with_capacity(row.children.len());
             for (ix, cell) in row.children.iter().enumerate() {
                 let align = table.column_align(ix);
@@ -2613,6 +2669,9 @@ impl BlockNode {
                         })
                         .aria_row_index(row_ix)
                         .aria_column_index(ix)
+                        .a11y_synthetic_children(
+                            node_cx.semantic_callback(cell_owners.get(ix).copied()),
+                        )
                         // Measured max-content width is the flex-basis;
                         // `flex_grow` (proportional to it) distributes extra
                         // space so a narrow table still fills the frame, while
@@ -2640,6 +2699,7 @@ impl BlockNode {
                     .id(("row", row_ix))
                     .role(gpui::Role::Row)
                     .aria_row_index(row_ix)
+                    .a11y_synthetic_children(node_cx.semantic_callback(row_owner))
                     .w_full()
                     .when(row_ix < row_count - 1, |this| this.border_b_1())
                     .border_color(style.border())
@@ -2724,7 +2784,10 @@ impl BlockNode {
         let style = &node_cx.style;
         let row_count = table.children.len();
         let mut rows = Vec::with_capacity(row_count);
+        let row_owners = node_cx.semantic_children(options.semantic_owner);
         for (row_ix, row) in table.children.iter().enumerate() {
+            let row_owner = row_owners.get(row_ix).copied();
+            let cell_owners = node_cx.semantic_children(row_owner);
             let mut cells = Vec::with_capacity(row.children.len());
             for (ix, cell) in row.children.iter().enumerate() {
                 let align = table.column_align(ix);
@@ -2745,6 +2808,9 @@ impl BlockNode {
                         })
                         .aria_row_index(row_ix)
                         .aria_column_index(ix)
+                        .a11y_synthetic_children(
+                            node_cx.semantic_callback(cell_owners.get(ix).copied()),
+                        )
                         .overflow_hidden()
                         .when(align == ColumnumnAlign::Center, |this| this.text_center())
                         .when(align == ColumnumnAlign::Right, |this| this.text_right())
@@ -2765,6 +2831,7 @@ impl BlockNode {
                     .id(("row", row_ix))
                     .role(gpui::Role::Row)
                     .aria_row_index(row_ix)
+                    .a11y_synthetic_children(node_cx.semantic_callback(row_owner))
                     .w_full()
                     .when(row_ix < row_count - 1, |this| this.border_b_1())
                     .border_color(style.border())
@@ -2822,6 +2889,17 @@ impl BlockNode {
         window: &mut Window,
         cx: &mut App,
     ) -> AnyElement {
+        let element = self.render_block_content(options, node_cx, window, cx);
+        node_cx.wrap_semantic(options, element)
+    }
+
+    fn render_block_content(
+        &self,
+        options: NodeRenderOptions,
+        node_cx: &NodeContext,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> AnyElement {
         let ix = options.ix;
         let mb = if options.in_list || options.is_last {
             rems(0.)
@@ -2833,7 +2911,7 @@ impl BlockNode {
             BlockNode::Root { children, .. } => div()
                 .id(("div", ix))
                 .children(children.into_iter().enumerate().map(move |(ix, node)| {
-                    node.render_block(NodeRenderOptions { ix, ..options }, node_cx, window, cx)
+                    node.render_block(options.child(ix, node_cx), node_cx, window, cx)
                 }))
                 .into_any_element(),
             BlockNode::Paragraph(paragraph) => div()
@@ -2886,7 +2964,12 @@ impl BlockNode {
                             let children_len = children.len();
                             children.into_iter().enumerate().map(move |(index, c)| {
                                 let is_last = index == children_len - 1;
-                                c.render_block(options.is_last(is_last), node_cx, window, cx)
+                                c.render_block(
+                                    options.child(index, node_cx).is_last(is_last),
+                                    node_cx,
+                                    window,
+                                    cx,
+                                )
                             })
                         }),
                 )
@@ -2909,9 +2992,8 @@ impl BlockNode {
                             item,
                             item_index,
                             NodeRenderOptions {
-                                ix,
                                 ordered: *ordered,
-                                ..options
+                                ..options.child(ix, node_cx)
                             },
                             node_cx,
                             window,
@@ -2927,7 +3009,7 @@ impl BlockNode {
                 .into_any_element(),
             BlockNode::DescriptionList(list) => div()
                 .pb(mb)
-                .child(list.render(ix, node_cx, window, cx))
+                .child(list.render(ix, options.semantic_owner, node_cx, window, cx))
                 .into_any_element(),
             BlockNode::CodeBlock(code_block) => code_block.render(&options, node_cx, window, cx),
             BlockNode::Custom(node) => {
