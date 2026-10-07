@@ -209,6 +209,7 @@ pub struct RenderedText {
     object_parts: Box<[(usize, usize)]>,
     accessible_parts: Box<[RenderedAccessiblePart]>,
     semantic_nodes: Vec<RenderedSemanticNode>,
+    semantic_blocks: Box<[Option<RenderedSemanticId>]>,
     semantic_string_bytes: usize,
 }
 impl PartialEq for RenderedText {
@@ -317,8 +318,11 @@ impl RenderedText {
             displayed,
             node_cx,
         };
+        let mut semantic_blocks = Vec::with_capacity(document.blocks.len());
         for block in document.blocks.iter() {
+            let start = builder.semantic_nodes.len();
             builder.block(block)?;
+            semantic_blocks.push(builder.semantic_nodes.get(start).map(|node| node.id()));
         }
         let mut object_parts = builder
             .parts
@@ -338,6 +342,7 @@ impl RenderedText {
             object_parts: object_parts.into_boxed_slice(),
             accessible_parts: Box::new([]),
             semantic_nodes: builder.semantic_nodes,
+            semantic_blocks: semantic_blocks.into_boxed_slice(),
             semantic_string_bytes: 0,
         };
         projection.prepare_accessible_parts();

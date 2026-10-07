@@ -521,3 +521,35 @@ publication adapter, **not** an additional hidden accessibility tree or evidence
 of OS behavior. Native control attachment, TextRun splitting/geometry, final-frame
 selection publication and guarded actions still require implementation and actual
 platform qualification.
+
+## Real block subtree attachments
+
+The renderer now binds prepared top-level block owners to their real native
+accessibility subtrees. `semantic_block` addresses the original parsed block
+slot, including empty slots for definitions/rules; ignoring a non-text block
+cannot shift the next owner's identity. A transparent element scope delegates
+the original layout, prepaint and paint without replacing headings, links,
+table cells, native controls or their actions. Its element key uses the stable
+block slot, never the preparation identity that changes during updates.
+
+`TextView` already contains a native `Document` element named `Document content`.
+Its synthetic-child callback filters recorded scope IDs against that element's
+actual final children. Virtual-list measurement and rolled-back prepaint can
+record candidates, but only nodes present in the resulting document subtree
+become attachments. Multiple surviving candidates for one logical owner are
+rejected rather than selected arbitrarily.
+
+The attachment frame holds a weak projection reference and plain IDs. It resets
+at each TextView prepaint and records its window. The native
+`rendered_semantic_attachments(window)` accessor returns the last completed
+prepaint's bindings only for the exact installed preparation and window.
+Replacing text rejects an old frame before redraw. Offscreen logical owners
+remain in the prepared arena, with no invented native subtree or geometry.
+
+This is a read-only mapping, not an action capability or a promise that an owner
+remains visible after a later hide/unmount. Publication must use it within the
+current document frame; OS actions must independently validate current tree,
+owner, visibility, modality, input policy and interaction generation. Nested
+TextRun placement, unpainted logical text, shaped character geometry and
+post-paint selection publication remain required integration work. No complete
+rich-document accessibility or VoiceOver acceptance follows from block bindings.

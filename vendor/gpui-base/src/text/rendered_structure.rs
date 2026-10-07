@@ -72,6 +72,11 @@ impl RenderedSemanticNode {
 }
 
 impl RenderedText {
+    /// Prepared owner for an original top-level block slot. Non-text definitions
+    /// and rules retain their slot but have no logical text owner.
+    pub fn semantic_block(&self, block: usize) -> Option<RenderedSemanticId> {
+        self.semantic_blocks.get(block).copied().flatten()
+    }
     /// Complete prepared structure, independent of block realization. This is
     /// metadata for native publication, not a duplicate hidden accessibility tree.
     pub fn semantic_nodes(&self) -> &[RenderedSemanticNode] {
@@ -138,12 +143,15 @@ impl RenderedText {
     }
     pub(super) fn semantic_retained_units(&self) -> usize {
         self.semantic_nodes.capacity() * std::mem::size_of::<RenderedSemanticNode>()
+            + std::mem::size_of_val(&*self.semantic_blocks)
             + self.semantic_string_bytes
     }
     pub(super) fn semantic_max_units() -> usize {
         // Growth capacity is bounded separately from text. AST admission remains
         // 4096 nodes; extra row/cell/description wrappers fit this conservative cap.
-        MAX_NODES * std::mem::size_of::<RenderedSemanticNode>() * 2 + super::MAX_BYTES * 2
+        MAX_NODES * std::mem::size_of::<RenderedSemanticNode>() * 2
+            + MAX_NODES * std::mem::size_of::<Option<RenderedSemanticId>>()
+            + super::MAX_BYTES * 2
     }
 }
 

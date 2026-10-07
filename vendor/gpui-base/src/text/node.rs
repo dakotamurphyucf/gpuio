@@ -1643,6 +1643,8 @@ impl CodeBlock {
 /// A context for rendering nodes, contains link references.
 #[derive(Default, Clone)]
 pub(crate) struct NodeContext {
+    pub(super) semantic_attachments:
+        Option<(Arc<super::RenderedText>, super::semantic_attachments::Frame)>,
     pub(crate) displayed_text: Option<Arc<super::DisplayedText>>,
     /// The byte offset of the node in the original markdown text.
     /// Used for incremental updates.

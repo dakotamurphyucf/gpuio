@@ -635,6 +635,7 @@ impl Element for TextView {
         let select_all_listener = window.listener_for(&state, TextViewState::on_action_select_all);
         let focus_handle = state.read(cx).focus_handle.clone();
         let list_state = state.read(cx).list_state.clone();
+        let semantic_attachments = state.read(cx).semantic_attachments.clone();
         // Cap the box at `n` body-text lines (the effective text style may be
         // refined by this view's own style, e.g. `.text_sm()`); hidden
         // overflow also clips descendant hitboxes to the box during prepaint.
@@ -648,6 +649,9 @@ impl Element for TextView {
             .id(("text-view-scroll", state.entity_id()))
             .role(gpui::Role::Document)
             .aria_label("Document content")
+            .a11y_synthetic_children(move |builder| {
+                semantic_attachments.finish(builder.parent_node().children());
+            })
             .key_context("TextView")
             .track_focus(&focus_handle)
             .on_key_down(window.listener_for(&state, TextViewState::on_link_key))
@@ -723,6 +727,13 @@ impl Element for TextView {
     ) -> Self::PrepaintState {
         window.with_prepaint_clip(|window| {
             let state = request_layout.state.clone();
+            {
+                let state = state.read(cx);
+                state.semantic_attachments.begin(
+                    window.window_handle().window_id(),
+                    state.rendered_text().as_ref(),
+                );
+            }
             let max_lines_active = state.read(cx).max_lines.is_some();
             state.update(cx, |state, _| {
                 state.link_reveal_claimed = false;

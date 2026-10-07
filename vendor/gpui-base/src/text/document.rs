@@ -199,7 +199,7 @@ impl ParsedDocument {
                         window,
                         cx,
                     );
-                    wrap_block(ix, scopes.get(&ix), element)
+                    wrap_block(ix, scopes.get(&ix), element, node_cx)
                 }));
         };
 
@@ -229,7 +229,7 @@ impl ParsedDocument {
                         window,
                         cx,
                     );
-                    wrap_block(ix, scopes.get(&ix), element).into_any_element()
+                    wrap_block(ix, scopes.get(&ix), element, &node_cx).into_any_element()
                 }
             })
             .size_full(),
@@ -241,8 +241,9 @@ fn wrap_block(
     ix: usize,
     scope: Option<&gpui::FocusHandle>,
     element: impl IntoElement,
+    node_cx: &NodeContext,
 ) -> gpui::AnyElement {
-    if let Some(scope) = scope {
+    let element = if let Some(scope) = scope {
         div()
             .id(("document-block", ix))
             .w_full()
@@ -251,5 +252,12 @@ fn wrap_block(
             .into_any_element()
     } else {
         element.into_any_element()
+    };
+    if let Some((projection, frame)) = &node_cx.semantic_attachments
+        && let Some(owner) = projection.semantic_block(ix)
+    {
+        frame.wrap(ix, owner, element)
+    } else {
+        element
     }
 }

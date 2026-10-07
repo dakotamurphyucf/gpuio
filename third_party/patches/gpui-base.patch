@@ -16246,3 +16246,397 @@
          )?);
          Ok(Self {
              format,
+--- a/src/text/document.rs
++++ b/src/text/document.rs
+@@ -199,7 +199,7 @@
+                         window,
+                         cx,
+                     );
+-                    wrap_block(ix, scopes.get(&ix), element)
++                    wrap_block(ix, scopes.get(&ix), element, node_cx)
+                 }));
+         };
+ 
+@@ -229,7 +229,7 @@
+                         window,
+                         cx,
+                     );
+-                    wrap_block(ix, scopes.get(&ix), element).into_any_element()
++                    wrap_block(ix, scopes.get(&ix), element, &node_cx).into_any_element()
+                 }
+             })
+             .size_full(),
+@@ -241,8 +241,9 @@
+     ix: usize,
+     scope: Option<&gpui::FocusHandle>,
+     element: impl IntoElement,
++    node_cx: &NodeContext,
+ ) -> gpui::AnyElement {
+-    if let Some(scope) = scope {
++    let element = if let Some(scope) = scope {
+         div()
+             .id(("document-block", ix))
+             .w_full()
+@@ -251,5 +252,12 @@
+             .into_any_element()
+     } else {
+         element.into_any_element()
+-    }
+-}
++    };
++    if let Some((projection, frame)) = &node_cx.semantic_attachments
++        && let Some(owner) = projection.semantic_block(ix)
++    {
++        frame.wrap(ix, owner, element)
++    } else {
++        element
++    }
++}
+--- a/src/text/mod.rs
++++ b/src/text/mod.rs
+@@ -37,6 +37,8 @@
+     RenderedTextPosition,
+ };
+ pub use state::*;
++mod semantic_attachments;
++pub use semantic_attachments::RenderedSemanticAttachment;
+ pub use style::*;
+ pub use text_view::*;
+ 
+--- a/src/text/node.rs
++++ b/src/text/node.rs
+@@ -1643,6 +1643,8 @@
+ /// A context for rendering nodes, contains link references.
+ #[derive(Default, Clone)]
+ pub(crate) struct NodeContext {
++    pub(super) semantic_attachments:
++        Option<(Arc<super::RenderedText>, super::semantic_attachments::Frame)>,
+     pub(crate) displayed_text: Option<Arc<super::DisplayedText>>,
+     /// The byte offset of the node in the original markdown text.
+     /// Used for incremental updates.
+--- a/src/text/rendered_structure.rs
++++ b/src/text/rendered_structure.rs
+@@ -72,6 +72,11 @@
+ }
+ 
+ impl RenderedText {
++    /// Prepared owner for an original top-level block slot. Non-text definitions
++    /// and rules retain their slot but have no logical text owner.
++    pub fn semantic_block(&self, block: usize) -> Option<RenderedSemanticId> {
++        self.semantic_blocks.get(block).copied().flatten()
++    }
+     /// Complete prepared structure, independent of block realization. This is
+     /// metadata for native publication, not a duplicate hidden accessibility tree.
+     pub fn semantic_nodes(&self) -> &[RenderedSemanticNode] {
+@@ -138,12 +143,15 @@
+     }
+     pub(super) fn semantic_retained_units(&self) -> usize {
+         self.semantic_nodes.capacity() * std::mem::size_of::<RenderedSemanticNode>()
++            + std::mem::size_of_val(&*self.semantic_blocks)
+             + self.semantic_string_bytes
+     }
+     pub(super) fn semantic_max_units() -> usize {
+         // Growth capacity is bounded separately from text. AST admission remains
+         // 4096 nodes; extra row/cell/description wrappers fit this conservative cap.
+-        MAX_NODES * std::mem::size_of::<RenderedSemanticNode>() * 2 + super::MAX_BYTES * 2
++        MAX_NODES * std::mem::size_of::<RenderedSemanticNode>() * 2
++            + MAX_NODES * std::mem::size_of::<Option<RenderedSemanticId>>()
++            + super::MAX_BYTES * 2
+     }
+ }
+ 
+--- a/src/text/rendered_text.rs
++++ b/src/text/rendered_text.rs
+@@ -209,6 +209,7 @@
+     object_parts: Box<[(usize, usize)]>,
+     accessible_parts: Box<[RenderedAccessiblePart]>,
+     semantic_nodes: Vec<RenderedSemanticNode>,
++    semantic_blocks: Box<[Option<RenderedSemanticId>]>,
+     semantic_string_bytes: usize,
+ }
+ impl PartialEq for RenderedText {
+@@ -317,8 +318,11 @@
+             displayed,
+             node_cx,
+         };
++        let mut semantic_blocks = Vec::with_capacity(document.blocks.len());
+         for block in document.blocks.iter() {
++            let start = builder.semantic_nodes.len();
+             builder.block(block)?;
++            semantic_blocks.push(builder.semantic_nodes.get(start).map(|node| node.id()));
+         }
+         let mut object_parts = builder
+             .parts
+@@ -338,6 +342,7 @@
+             object_parts: object_parts.into_boxed_slice(),
+             accessible_parts: Box::new([]),
+             semantic_nodes: builder.semantic_nodes,
++            semantic_blocks: semantic_blocks.into_boxed_slice(),
+             semantic_string_bytes: 0,
+         };
+         projection.prepare_accessible_parts();
+--- /dev/null
++++ b/src/text/semantic_attachments.rs
+@@ -0,0 +1,180 @@
++//! Frame-owned bindings to real block subtrees. These do not publish a second
++//! document or replace native descendants and their input/action ownership.
++use std::{
++    collections::{HashMap, HashSet},
++    sync::{Arc, Mutex, Weak},
++};
++
++use gpui::{
++    AnyElement, App, Bounds, Element, ElementId, GlobalElementId, InspectorElementId, IntoElement,
++    LayoutId, Pixels, Window, accesskit::NodeId,
++};
++
++use super::{RenderedSemanticId, RenderedText};
++
++/// A prepared top-level owner and its actual current-frame native subtree.
++/// This is not a text-run ID or authorization to dispatch an accessibility action.
++#[derive(Clone, Copy, Debug, PartialEq, Eq)]
++pub struct RenderedSemanticAttachment {
++    owner: RenderedSemanticId,
++    node: NodeId,
++}
++
++impl RenderedSemanticAttachment {
++    pub fn owner(&self) -> RenderedSemanticId {
++        self.owner
++    }
++
++    pub fn node(&self) -> NodeId {
++        self.node
++    }
++}
++
++#[derive(Default)]
++struct State {
++    window: Option<gpui::WindowId>,
++    projection: Weak<RenderedText>,
++    candidates: HashMap<NodeId, RenderedSemanticId>,
++    published: Vec<RenderedSemanticAttachment>,
++}
++
++#[derive(Clone, Default)]
++pub(super) struct Frame(Arc<Mutex<State>>);
++
++impl Frame {
++    pub fn begin(&self, window: gpui::WindowId, projection: Option<&Arc<RenderedText>>) {
++        let mut state = self.0.lock().expect("semantic attachment frame");
++        state.projection = projection.map_or_else(Weak::new, Arc::downgrade);
++        state.window = Some(window);
++        state.candidates.clear();
++        state.published.clear();
++    }
++
++    fn record(&self, owner: RenderedSemanticId, node: NodeId) {
++        let mut state = self.0.lock().expect("semantic attachment frame");
++        if state
++            .projection
++            .upgrade()
++            .is_some_and(|projection| projection.semantic_node(owner).is_some())
++        {
++            state.candidates.insert(node, owner);
++        }
++    }
++
++    /// Filter against the existing Document's finalized direct children. A row
++    /// prepainted only for measurement or a rolled-back attempt is not attached.
++    pub fn finish(&self, children: &[NodeId]) {
++        let mut state = self.0.lock().expect("semantic attachment frame");
++        let mut seen = HashSet::new();
++        let mut ambiguous = HashSet::new();
++        state.published = children
++            .iter()
++            .filter_map(|node| {
++                let owner = *state.candidates.get(node)?;
++                if !seen.insert(owner) {
++                    ambiguous.insert(owner);
++                }
++                Some(RenderedSemanticAttachment { owner, node: *node })
++            })
++            .collect();
++        state
++            .published
++            .retain(|item| !ambiguous.contains(&item.owner));
++        state.candidates.clear();
++    }
++
++    pub fn snapshot(
++        &self,
++        window: gpui::WindowId,
++        projection: &Arc<RenderedText>,
++    ) -> Vec<RenderedSemanticAttachment> {
++        let state = self.0.lock().expect("semantic attachment frame");
++        if state.window == Some(window) && state.projection.ptr_eq(&Arc::downgrade(projection)) {
++            state.published.clone()
++        } else {
++            Vec::new()
++        }
++    }
++
++    pub fn wrap(&self, block: usize, owner: RenderedSemanticId, element: AnyElement) -> AnyElement {
++        Scope {
++            block,
++            owner,
++            frame: self.clone(),
++            element,
++        }
++        .into_any_element()
++    }
++}
++
++struct Scope {
++    block: usize,
++    owner: RenderedSemanticId,
++    frame: Frame,
++    element: AnyElement,
++}
++
++impl IntoElement for Scope {
++    type Element = Self;
++    fn into_element(self) -> Self {
++        self
++    }
++}
++
++impl Element for Scope {
++    type RequestLayoutState = ();
++    type PrepaintState = ();
++
++    fn id(&self) -> Option<ElementId> {
++        // Stable across compatible preparation changes; never put the prepared
++        // identity into native element keys, which would remount child controls.
++        Some(("rendered-block-scope", self.block).into())
++    }
++
++    fn source_location(&self) -> Option<&'static core::panic::Location<'static>> {
++        None
++    }
++
++    fn a11y_role(&self) -> Option<gpui::Role> {
++        Some(gpui::Role::GenericContainer)
++    }
++
++    fn a11y_synthetic_children(&mut self, _: &mut (), builder: &mut gpui::A11ySubtreeBuilder) {
++        self.frame.record(self.owner, builder.parent_id());
++    }
++
++    fn request_layout(
++        &mut self,
++        _: Option<&GlobalElementId>,
++        _: Option<&InspectorElementId>,
++        window: &mut Window,
++        cx: &mut App,
++    ) -> (LayoutId, ()) {
++        (self.element.request_layout(window, cx), ())
++    }
++
++    fn prepaint(
++        &mut self,
++        _: Option<&GlobalElementId>,
++        _: Option<&InspectorElementId>,
++        _: Bounds<Pixels>,
++        _: &mut (),
++        window: &mut Window,
++        cx: &mut App,
++    ) {
++        self.element.prepaint(window, cx);
++    }
++
++    fn paint(
++        &mut self,
++        _: Option<&GlobalElementId>,
++        _: Option<&InspectorElementId>,
++        _: Bounds<Pixels>,
++        _: &mut (),
++        _: &mut (),
++        window: &mut Window,
++        cx: &mut App,
++    ) {
++        self.element.paint(window, cx);
++    }
++}
+--- a/src/text/state.rs
++++ b/src/text/state.rs
+@@ -164,6 +164,7 @@
+     rendered_selection: Option<RetainedRenderedSelection>,
+     pub(super) auto_scroll: AutoScroll,
+     pub(super) selection_adapter: TextViewSelectionAdapter,
++    pub(super) semantic_attachments: super::semantic_attachments::Frame,
+ 
+     pub(super) parsed_content: ParsedContent,
+     pub(super) text_backgrounds: Option<std::rc::Rc<super::TextBackgrounds>>,
+@@ -224,6 +225,19 @@
+     /// not advertise this contract. Selection/AX publication is separate.
+     pub fn rendered_text(&self) -> Option<Arc<super::RenderedText>> {
+         self.parsed_content.rendered_text.clone()
++    }
++
++    /// Real block subtrees from the last completed prepaint for this window and
++    /// exact installed preparation. Offscreen blocks have no attachment. This
++    /// read-only mapping does not authorize actions or supply character geometry.
++    pub fn rendered_semantic_attachments(
++        &self,
++        window: &Window,
++    ) -> Vec<super::RenderedSemanticAttachment> {
++        self.rendered_text().map_or_else(Vec::new, |projection| {
++            self.semantic_attachments
++                .snapshot(window.window_handle().window_id(), &projection)
++        })
+     }
+ 
+     pub(super) fn rendered_text_revision(&self) -> Option<crate::TextSelectionContentRevision> {
+@@ -634,6 +648,7 @@
+             preserve_inline_selection: false,
+             auto_scroll: AutoScroll::default(),
+             selection_adapter,
++            semantic_attachments: Default::default(),
+             parsed_content: Default::default(),
+             text_backgrounds: None,
+             control_navigation: Default::default(),
+@@ -1419,6 +1434,9 @@
+         self.control_navigation.prepare(&document, cx);
+         let mut node_cx = self.parsed_content.node_cx.clone();
+         node_cx.displayed_text = self.parsed_content.displayed_text.clone();
++        node_cx.semantic_attachments = self
++            .rendered_text()
++            .map(|projection| (projection, self.semantic_attachments.clone()));
+ 
+         node_cx.code_block_actions = self.code_block_actions.clone();
+         node_cx.code_block_highlighter = self.code_block_highlighter.clone();
+--- a/src/text/text_view.rs
++++ b/src/text/text_view.rs
+@@ -635,6 +635,7 @@
+         let select_all_listener = window.listener_for(&state, TextViewState::on_action_select_all);
+         let focus_handle = state.read(cx).focus_handle.clone();
+         let list_state = state.read(cx).list_state.clone();
++        let semantic_attachments = state.read(cx).semantic_attachments.clone();
+         // Cap the box at `n` body-text lines (the effective text style may be
+         // refined by this view's own style, e.g. `.text_sm()`); hidden
+         // overflow also clips descendant hitboxes to the box during prepaint.
+@@ -648,6 +649,9 @@
+             .id(("text-view-scroll", state.entity_id()))
+             .role(gpui::Role::Document)
+             .aria_label("Document content")
++            .a11y_synthetic_children(move |builder| {
++                semantic_attachments.finish(builder.parent_node().children());
++            })
+             .key_context("TextView")
+             .track_focus(&focus_handle)
+             .on_key_down(window.listener_for(&state, TextViewState::on_link_key))
+@@ -723,6 +727,13 @@
+     ) -> Self::PrepaintState {
+         window.with_prepaint_clip(|window| {
+             let state = request_layout.state.clone();
++            {
++                let state = state.read(cx);
++                state.semantic_attachments.begin(
++                    window.window_handle().window_id(),
++                    state.rendered_text().as_ref(),
++                );
++            }
+             let max_lines_active = state.read(cx).max_lines.is_some();
+             state.update(cx, |state, _| {
+                 state.link_reveal_claimed = false;

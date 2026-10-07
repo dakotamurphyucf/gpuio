@@ -35,6 +35,10 @@ pub(super) struct State {
 mod rendered_text_test;
 
 #[cfg(all(test, feature = "native-image-tests"))]
+#[path = "document_semantic_attachment_test.rs"]
+mod semantic_attachment_test;
+
+#[cfg(all(test, feature = "native-image-tests"))]
 #[path = "document_rendered_selection_test.rs"]
 mod rendered_selection_test;
 

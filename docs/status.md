@@ -5,6 +5,14 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **O
 Markdown walkthroughs for every example component; its documentation acceptance is complete. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
+[Rendered block semantic attachments](evidence/rendered-semantic-attachments-och17.md)
+now bind prepared top-level owners to real GPUI subtrees while preserving native
+control actions and stable identities across replacement/resource refresh. All
+1,135 native tests (2 ignored), actual macOS editor/document checks, workspace,
+strict lint, full Dune, exact 241-file reconstruction and rebuilt-gallery Copy/close
+pass locally. Rich TextRun publication/actions and VoiceOver remain open; this
+does not establish release readiness.
+
 [Hosted run 37629820030](evidence/hosted-run-37629820030.md) is terminal at
 `e4630996`: Linux foundation and scoped extracted-app checks pass. The repaired
 streaming-document check passes; macOS foundation fails only the two Metal probes,

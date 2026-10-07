@@ -37,6 +37,8 @@ pub use rendered_text::{
     RenderedTextPosition,
 };
 pub use state::*;
+mod semantic_attachments;
+pub use semantic_attachments::RenderedSemanticAttachment;
 pub use style::*;
 pub use text_view::*;
 

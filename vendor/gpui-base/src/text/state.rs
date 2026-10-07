@@ -164,6 +164,7 @@ pub struct TextViewState {
     rendered_selection: Option<RetainedRenderedSelection>,
     pub(super) auto_scroll: AutoScroll,
     pub(super) selection_adapter: TextViewSelectionAdapter,
+    pub(super) semantic_attachments: super::semantic_attachments::Frame,
 
     pub(super) parsed_content: ParsedContent,
     pub(super) text_backgrounds: Option<std::rc::Rc<super::TextBackgrounds>>,
@@ -224,6 +225,19 @@ impl TextViewState {
     /// not advertise this contract. Selection/AX publication is separate.
     pub fn rendered_text(&self) -> Option<Arc<super::RenderedText>> {
         self.parsed_content.rendered_text.clone()
+    }
+
+    /// Real block subtrees from the last completed prepaint for this window and
+    /// exact installed preparation. Offscreen blocks have no attachment. This
+    /// read-only mapping does not authorize actions or supply character geometry.
+    pub fn rendered_semantic_attachments(
+        &self,
+        window: &Window,
+    ) -> Vec<super::RenderedSemanticAttachment> {
+        self.rendered_text().map_or_else(Vec::new, |projection| {
+            self.semantic_attachments
+                .snapshot(window.window_handle().window_id(), &projection)
+        })
     }
 
     pub(super) fn rendered_text_revision(&self) -> Option<crate::TextSelectionContentRevision> {
@@ -634,6 +648,7 @@ impl TextViewState {
             preserve_inline_selection: false,
             auto_scroll: AutoScroll::default(),
             selection_adapter,
+            semantic_attachments: Default::default(),
             parsed_content: Default::default(),
             text_backgrounds: None,
             control_navigation: Default::default(),
@@ -1419,6 +1434,9 @@ impl Render for TextViewState {
         self.control_navigation.prepare(&document, cx);
         let mut node_cx = self.parsed_content.node_cx.clone();
         node_cx.displayed_text = self.parsed_content.displayed_text.clone();
+        node_cx.semantic_attachments = self
+            .rendered_text()
+            .map(|projection| (projection, self.semantic_attachments.clone()));
 
         node_cx.code_block_actions = self.code_block_actions.clone();
         node_cx.code_block_highlighter = self.code_block_highlighter.clone();

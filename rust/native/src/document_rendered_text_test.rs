@@ -703,3 +703,26 @@ fn prepared_semantic_repeated_references_share_long_target_storage() {
     assert!(text.retained_units() < target.len() * urls.len());
     assert!(text.retained_units() <= gpui_base::text::RenderedText::max_preparation_units());
 }
+
+#[test]
+fn prepared_semantic_block_slots_do_not_shift_over_nontext_blocks() {
+    use gpui_base::text::RenderedSemanticKind as Kind;
+    let text = PreparedText::parse("# Heading\n\n---\n\nParagraph\n", Default::default())
+        .unwrap()
+        .rendered_text();
+    assert_eq!(
+        text.semantic_node(text.semantic_block(0).unwrap())
+            .unwrap()
+            .kind(),
+        &Kind::Heading { level: 1 }
+    );
+    assert!(text.semantic_block(1).is_none());
+    assert_eq!(
+        text.semantic_node(text.semantic_block(2).unwrap())
+            .unwrap()
+            .kind(),
+        &Kind::Paragraph
+    );
+    assert!(text.semantic_block(3).is_none());
+    assert!(text.semantic_block(usize::MAX).is_none());
+}
