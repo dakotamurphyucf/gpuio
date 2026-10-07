@@ -5,6 +5,13 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **O
 Markdown walkthroughs for every example component; its documentation acceptance is complete. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
+[A rendered Markdown selection baseline](evidence/rendered-selection-baseline-och17.md)
+now reproduces missing `AXSelectedText` / `AXSelectedTextRange` on the actual macOS
+document. Native Select All/Copy and rich reading order work. The separate
+[implementation plan](design/rendered-document-selection.md) preserves semantic
+structure, native selection ownership and offscreen ranges; it is not implemented.
+Source-editor selection/geometry coverage does not qualify this rendered path.
+
 [Root pointer reentrancy](evidence/root-view-reentrancy-och17.md) now removes an
 unnecessary root View borrow from focus observers. A before/after regression,
 actual native UI/document checks, physical held-click, 1,073 native unit tests,

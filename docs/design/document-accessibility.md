@@ -27,11 +27,15 @@ plain-text inputs and textareas; hidden and revealed passwords publish neither
 text runs nor accessible selection actions. No synchronous OCaml callback or
 whole-source materialization is involved.
 
-These runs currently describe logical source lines. They do not supply visual
-wrapped-line geometry, character rectangles or editor word-navigation metadata.
-Selection text/range checks alone do not establish caret magnification, visual
-screen-reader tracking or complete VoiceOver behavior. Rendered Markdown has a
-separate selection projection and is not covered by this source-editor adapter.
+The [source-editor geometry adapter](editor-accessibility-geometry.md) now supplies
+same-prepaint shaped range/caret rectangles, wrapped visual runs and directional
+line links. It keeps logical selection order and omits unavailable off-layout
+geometry; word-navigation metadata remains separate. Geometry and selection
+queries do not establish complete VoiceOver reading or tracking. Rendered Markdown
+has a separate selection projection and is not covered by this source-editor
+adapter. Its [accessible-selection implementation plan](rendered-document-selection.md)
+records the reproduced missing document-level AX selection attributes and required
+ownership, semantic-tree and virtualization behavior; that plan is not implemented.
 
 Rendered Markdown exposes text from the actual painted nodes in reading order,
 with headings, lists, table structure, image alternatives and links. Do not add a
