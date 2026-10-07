@@ -1117,6 +1117,13 @@ values, missing observations and a Grouped/Stacked presentation toggle.
 The [ordinal color sample](../charts/samples/ordinal_colors.md) demonstrates stable typed slice colors
 under source reordering and an explicit unknown-key policy.
 
+**Charts & data → Pie** also has [structured and interactive inspection content](chart_content.md):
+keyed Weight/Share rows, a Bonsai activation counter and one native note on slice
+ID 1. Compare Card and Overlay, then remove interactive content to observe the
+native draft lifecycle. The guide explains code and ownership; the
+[local walkthrough](../../docs/evidence/chart-inspection-gallery-och41.md) records root
+and freshly installed consumer input, theme/scale and teardown checks.
+
 [Chart inspection presets](../charts/samples/inspection.md) explain native card, crosshair and marker
 configuration and their separation from Bonsai state and scoped source ownership. Cursor details moves the card with native pointer
 motion even within one mark; marker/crosshair remain data-anchored. Keyboard and

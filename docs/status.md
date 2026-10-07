@@ -5,11 +5,19 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **O
 Markdown walkthroughs for every example component; its documentation acceptance is complete. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
+[Public rich inspection gallery](evidence/chart-inspection-gallery-och41.md) now
+passes root and freshly installed consumer walkthroughs: structured rows,
+uncommitted keyboard entry, native editing/actions, themes/scales, Card/Overlay
+retention, hide/browser recovery, deliberate draft destruction and zero-resource
+cleanup. The modular OCaml example has a reviewed beginner guide. Full Dune
+checks pass; documentation coverage is now 423 sources / 263 reviewed groups.
+This is scoped feature evidence, not completion of the remaining catalog/release.
+
 [Structured inspection rows](evidence/chart-inspection-rows-och41.md) now have a
 stateless `Presentation.Chart_inspection` helper for rich titles and keyed
 swatch/label/value rows. Duplicate keys are rejected; reconciliation tests retain
 controls and current callbacks across reorder/title/theme/style changes without
-chart metadata updates. Rendered public-gallery qualification remains open.
+chart metadata updates. Public-gallery qualification follows above.
 
 [Inspection isolation](evidence/chart-inspection-isolation-och41.md) now passes
 two Card/Overlay charts in each of two native windows with identical local node

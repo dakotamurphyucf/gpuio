@@ -201,6 +201,7 @@ let component app window palette graph =
   let axes, set_axes = B.state Chart_axes.Default graph in
   let marks, set_marks = B.state Chart_marks.Default graph in
   let inspection, set_inspection = B.state Samples.Inspection.Default graph in
+  let inspection_content = Chart_content.component window palette graph in
   let flow_style, set_flow_style = B.state Samples.Sankey_presentation.Default graph in
   let narrow_flow, toggle_narrow_flow = B.toggle ~default_model:false graph in
   let outside, toggle_outside = B.toggle ~default_model:true graph in
@@ -257,6 +258,7 @@ let component app window palette graph =
   and set_marks = set_marks
   and inspection = inspection
   and set_inspection = set_inspection
+  and inspection_content = inspection_content
   and narrow_flow = narrow_flow
   and toggle_narrow_flow = toggle_narrow_flow
   and outside = outside
@@ -512,6 +514,10 @@ let component app window palette graph =
       V.chart
         ~key:(Key.of_string_exn "gallery-chart")
         ~on_event
+        ~inspection_content:
+          (if Mode.equal current_mode (Family Pie)
+           then Chart_content.content inspection_content (Registered.data source.chart)
+           else Chart_inspection_content.empty)
         ~radar_labels:
           (radar_labels
              p
@@ -601,7 +607,8 @@ let component app window palette graph =
           | Ordinal_colors | Flow_styling | Flow_labels -> [])
        @ (if Mode.equal current_mode (Family Pie)
           then
-            [ V.row
+            [ Chart_content.controls inspection_content
+            ; V.row
                 ~style:(style [ Gap (px 12.); Wrap Wrap ])
                 [ V.switch
                     ~checked:fixed_pie

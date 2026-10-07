@@ -56,9 +56,9 @@ records scoped qualification and remaining limits.
 | Arc, pie, line, area, bar and radial-line shapes | Prepared family geometry supplies the existing widgets. Chart_appearance supplies independent path fill/stroke/curve, marker fill/border/radius, and bar backgrounds/corners through bounded immutable values. Lower-level arbitrary angle ranges and per-datum baselines are still not a public general-purpose plot API. Canvas offers separate retained drawing; it does not grant chart selection/data-table semantics automatically. |
 | `Stack` | Source computes cumulative lower/upper values, substituting zero for missing values. Typed opt-in Stacked now implements natural signed accumulation, bars after explicit aggregation and areas with matching cumulative curves. Raw source IDs/values remain intact. Numeric layers must align within each kind; own missing observations retain gaps. [Local native, GPU and installed-gallery qualification](../evidence/stacked-charts-och41.md) passes; no whole-catalog acceptance is implied. |
 | Sankey topology/layout and ribbon path helpers | Bounded native preparation owns graph validation/layout and retained geometry. [Dependency provenance](../../third_party/sources.json) and reconstruction records govern compiled source; raw catalog snapshots are evidence only. |
-| Tooltip state, title/rows, cross lines, dots and appearance | [`Chart_inspection`](../../lib/core/chart_inspection.mli) now supplies card visibility/title/values, bounded anchor/corner placement and appearance; crosshair axes, dashed/solid bands and color; independent marker size/fill/stroke/status. Hover/drag previews stay native and OCaml observes committed selection. [Scoped qualification](../evidence/chart-inspection-och41.md) covers actual pixels and public gallery behavior. [Cursor-following cards](../design/chart-cursor-inspection.md) now have [actual native pixels and root/installed gallery evidence](../evidence/chart-cursor-inspection-och41.md), preserving data-anchored guides and keyboard fallback. [Independent guide spans](../design/chart-guide-spans.md) now configure clipped pixel/fractional intervals; [local qualification](../evidence/chart-guide-spans-och41.md) covers paired codecs, GPU pixels, resize and root/installed gallery behavior. Arbitrary rich rows and per-datum annotations remain separate public-surface work. |
+| Tooltip state, title/rows, cross lines, dots and appearance | [`Chart_inspection`](../../lib/core/chart_inspection.mli) now supplies card visibility/title/values, bounded anchor/corner placement and appearance; crosshair axes, dashed/solid bands and color; independent marker size/fill/stroke/status. Hover/drag previews stay native and OCaml observes committed selection. [Scoped qualification](../evidence/chart-inspection-och41.md) covers actual pixels and public gallery behavior. [Cursor-following cards](../design/chart-cursor-inspection.md) now have [actual native pixels and root/installed gallery evidence](../evidence/chart-cursor-inspection-och41.md), preserving data-anchored guides and keyboard fallback. [Independent guide spans](../design/chart-guide-spans.md) now configure clipped pixel/fractional intervals; [local qualification](../evidence/chart-guide-spans-och41.md) covers paired codecs, GPU pixels, resize and root/installed gallery behavior. Typed inspected-target content now supports ordinary rich Views and structured rows; the detailed evidence and remaining scope appear below. |
 
-The [rich inspection contract](../design/chart-inspection-content.md) drafts
+The [rich inspection contract](../design/chart-inspection-content.md) describes
 ordinary OCaml View content alongside a title/row convenience API. The current
 foundation supplies validated stable/publication-bound targets, paired metadata
 codecs and [schema -2 parent admission](../evidence/chart-inspection-parent-och41.md).
@@ -74,8 +74,12 @@ cover callback-button routes, stale gestures/AX objects and actual AppKit menu
 tracking retirement in Card/Overlay. [Two-window inspection isolation](../evidence/chart-inspection-isolation-och41.md)
 qualifies exact button routing, per-chart gates, shared-source retirement and
 independent teardown. The [structured-row helper](../evidence/chart-inspection-rows-och41.md)
-now composes rich keyed rows with callback/reconciliation evidence. Rendered
-public-gallery qualification remains required; this does not close the Tooltip row above.
+now composes rich keyed rows with callback/reconciliation evidence. The
+[public gallery](../evidence/chart-inspection-gallery-och41.md) passes root and fresh
+installed-consumer rows, keyboard entry, native editing/actions, theme/scale and
+Card/Overlay retention, hiding/removal and zero-resource cleanup. These scoped
+checks cover the Tooltip composition surface; physical IME/VoiceOver, every
+arbitrary child combination and broader catalog/release acceptance are not implied.
 
 [`Chart_appearance`](../../lib/core/chart_appearance.mli) now attaches to
 `Chart_style.create`: 128 series overrides and 1,024 unique series/datum pairs,
@@ -88,7 +92,7 @@ owns resolution, gradient coordinates and hit bounds; paint never calls OCaml.
 physical corners, signed/value ramps, hit semantics and the -5 style schema.
 [Local native/GPU, full integration and root/fresh-installed gallery evidence](../evidence/chart-mark-appearance-och41.md)
 passes with original selection/data and zero-resource cleanup. Dense arbitrary backgrounds, patterns,
-bar baselines, scalar area baseline and rich inspection remain explicit work.
+bar baselines and scalar area baseline remain explicit work.
 
 These missing public options remain explicit catalog work/decisions; this review
 does not create a new post-v1 deferral. Any extension must use bounded serialized

@@ -7,7 +7,9 @@ are now implemented. [Initial interaction evidence](../evidence/chart-inspection
 covers ordinary buttons and target/focus retention. [Editor and aggregate checks](../evidence/chart-inspection-editors-och41.md)
 now cover retained drafts, AppKit composition, source-generation retirement and
 publication-bound aggregate content. Structured rows now have an ordinary-View
-composition helper described below; native gallery qualification remains required.
+composition helper described below. The [public gallery walkthrough](../evidence/chart-inspection-gallery-och41.md)
+now passes native root and installed-consumer checks for structured rows, editor
+and action content, theme/scale retention, Card/Overlay and resource cleanup.
 
 ## Source capability and interface
 
@@ -180,7 +182,8 @@ actual PlatformContext popup leases canceled on source retirement or original-da
 browsing in both Card and Overlay. [Inspection isolation](../evidence/chart-inspection-isolation-och41.md)
 adds two charts per window across two windows with shared sources, exact callback
 routing, independent hide/unmount/close and peer gesture preservation. These are
-scoped ordinary-button cases; public-gallery integration remains required.
+scoped ordinary-button cases. Public-gallery integration is qualified separately
+by the walkthrough linked above.
 Aggregate selection clears on publication: rebinding metadata alone does not
 create a new preview. A fresh native preview or commit makes matching new-publication
 content eligible.

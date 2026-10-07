@@ -4900,6 +4900,8 @@ def exercise_charts(mac, images):
     exercise_axes(mac, images)
     from gallery_pie import exercise as exercise_pie
     exercise_pie(mac, images)
+    from gallery_inspection_content import exercise as exercise_content
+    exercise_content(mac, images)
     from gallery_radar import exercise as exercise_radar
     exercise_radar(mac, images)
     exercise_chart_inspection(mac, images)
@@ -7149,7 +7151,7 @@ def main():
     parser.add_argument('--trace-canvas', action='store_true')
     parser.add_argument('--trace-motion', action='store_true')
     parser.add_argument('--trace-windows', action='store_true')
-    parser.add_argument('--section', choices=['all', 'core', 'shell', 'settings', 'settings-windows', 'settings-composition', 'settings-fields', 'forms', 'editor-groups', 'avatar-groups', 'sliders', 'numbers', 'otp', 'rating', 'spinners', 'progress', 'selection', 'buttons', 'button-appearance', 'menu-observation', 'menu-placement', 'split-buttons', 'split-paint', 'command-tooltip', 'checkable-navigation', 'control-appearance', 'status-regions', 'badges', 'labels', 'shimmer', 'markers', 'alerts', 'tags', 'keyboard-labels', 'binding-observations', 'descriptions', 'chat-composition', 'chat-list', 'attachments', 'attachment-paint', 'groups', 'links', 'empty', 'separators', 'styles', 'borders', 'aspect-ratio', 'pickers', 'color-preview', 'calendar-viewport', 'choice-pickers', 'overlays', 'navigation', 'feedback', 'native-popup', 'journeys', 'collections', 'selectable-lists', 'structural-tables', 'documents', 'document-links', 'document-images', 'highlighting', 'canvas', 'assets', 'clipboard', 'charts', 'chart-inspection', 'chart-labels', 'chart-radar', 'chart-pie', 'chart-axes', 'chart-marks', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
+    parser.add_argument('--section', choices=['all', 'core', 'shell', 'settings', 'settings-windows', 'settings-composition', 'settings-fields', 'forms', 'editor-groups', 'avatar-groups', 'sliders', 'numbers', 'otp', 'rating', 'spinners', 'progress', 'selection', 'buttons', 'button-appearance', 'menu-observation', 'menu-placement', 'split-buttons', 'split-paint', 'command-tooltip', 'checkable-navigation', 'control-appearance', 'status-regions', 'badges', 'labels', 'shimmer', 'markers', 'alerts', 'tags', 'keyboard-labels', 'binding-observations', 'descriptions', 'chat-composition', 'chat-list', 'attachments', 'attachment-paint', 'groups', 'links', 'empty', 'separators', 'styles', 'borders', 'aspect-ratio', 'pickers', 'color-preview', 'calendar-viewport', 'choice-pickers', 'overlays', 'navigation', 'feedback', 'native-popup', 'journeys', 'collections', 'selectable-lists', 'structural-tables', 'documents', 'document-links', 'document-images', 'highlighting', 'canvas', 'assets', 'clipboard', 'charts', 'chart-inspection', 'chart-content', 'chart-labels', 'chart-radar', 'chart-pie', 'chart-axes', 'chart-marks', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
     args = parser.parse_args()
     Mac.require_accessibility()
     if args.images:
@@ -7347,6 +7349,13 @@ def main():
                 from gallery_pie import exercise as exercise_pie
                 mac.press(TITLE, 'Charts & data')
                 exercise_pie(mac, args.images)
+                mac.press(TITLE, 'Runtime & windows')
+                wait_for_resource_cleanup(mac)
+                mac.wait_text(TITLE, 'Registered source bytes: 0')
+            if args.section == 'chart-content':
+                from gallery_inspection_content import exercise as exercise_content
+                mac.press(TITLE, 'Charts & data')
+                exercise_content(mac, args.images)
                 mac.press(TITLE, 'Runtime & windows')
                 wait_for_resource_cleanup(mac)
                 mac.wait_text(TITLE, 'Registered source bytes: 0')

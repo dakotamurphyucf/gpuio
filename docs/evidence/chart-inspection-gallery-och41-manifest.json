@@ -1,0 +1,110 @@
+{
+  "commands.json": {
+    "bytes": 2092,
+    "sha256": "ccea6b2c80bdc2a4cf0cf05cccb4ec2574ae6844c3adf26a6173649364ef263f"
+  },
+  "inspection-gallery-build-second.log": {
+    "bytes": 71,
+    "sha256": "22123947a145f448a522ca123bf67954da146ea87a8612b67548a3c86b2b6866"
+  },
+  "inspection-gallery-build.log": {
+    "bytes": 71,
+    "sha256": "22123947a145f448a522ca123bf67954da146ea87a8612b67548a3c86b2b6866"
+  },
+  "inspection-gallery-consumer-build.log": {
+    "bytes": 100871,
+    "sha256": "9542abe992549d3d519af83e2115309d7260dba2f26ef1ff6af7aba81078fd2a"
+  },
+  "inspection-gallery-consumer-native.log": {
+    "bytes": 3502,
+    "sha256": "7680584dd0848d662360b94d2364698ee35c7e7c98ddfabdaf49e76b6e090133"
+  },
+  "inspection-gallery-dune-final.log": {
+    "bytes": 71,
+    "sha256": "22123947a145f448a522ca123bf67954da146ea87a8612b67548a3c86b2b6866"
+  },
+  "inspection-gallery-dune-full.log": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "inspection-gallery-final-images/gallery-failure.png": {
+    "bytes": 426233,
+    "sha256": "d9418202a90cde4ff43367e3ff7a2669907a8682130a749502990056bace77c6"
+  },
+  "inspection-gallery-final.log": {
+    "bytes": 10259,
+    "sha256": "e568720766d3677bc050ade5709c3f0465a91703558a47abc29d453b6bfef52b"
+  },
+  "inspection-gallery-first.log": {
+    "bytes": 10428,
+    "sha256": "5b8c8e49e4919a6d656ad5cf3679af016644a982e7c67567e57b9af84cb79a9a"
+  },
+  "inspection-gallery-format-final.log": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "inspection-gallery-format-second.log": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "inspection-gallery-format.log": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "inspection-gallery-images/gallery-first-failure.png": {
+    "bytes": 420386,
+    "sha256": "ce09382c2d0fbf8cd9c2dfda1ebdca290f79b272e2b5f0b7bcb1984bd66d73ad"
+  },
+  "inspection-gallery-installed-images/gallery-inspection-card-dark.png": {
+    "bytes": 418597,
+    "sha256": "499beebf6e8a58e54035950006f9e72c282ba3e37211cb2d002eff67c28cc13e"
+  },
+  "inspection-gallery-installed-images/gallery-inspection-card-light.png": {
+    "bytes": 415757,
+    "sha256": "3d6e4da9e03a52fe6de40b6b189cc47672adbea07c2ef6f5727f8213062a0209"
+  },
+  "inspection-gallery-installed-images/gallery-inspection-overlay.png": {
+    "bytes": 405958,
+    "sha256": "32a03159055bef066495dee0afa7f0a5415ddf5b7194dc6bf4f410187f39b03f"
+  },
+  "inspection-gallery-installed-images/gallery-inspection-rows.png": {
+    "bytes": 411707,
+    "sha256": "fcd96c5b1e9014f11c95daf9aded80d285cb51676f4f3bac5c2430ed48ab11d6"
+  },
+  "inspection-gallery-installed-images/gallery-interactive-inspection.png": {
+    "bytes": 406662,
+    "sha256": "e864b557bf50002f6f944329abb282d96ff03cc7a2e7492bea9902981756be92"
+  },
+  "inspection-gallery-reveal-images/gallery-inspection-card-dark.png": {
+    "bytes": 418597,
+    "sha256": "499beebf6e8a58e54035950006f9e72c282ba3e37211cb2d002eff67c28cc13e"
+  },
+  "inspection-gallery-reveal-images/gallery-inspection-card-light.png": {
+    "bytes": 415757,
+    "sha256": "3d6e4da9e03a52fe6de40b6b189cc47672adbea07c2ef6f5727f8213062a0209"
+  },
+  "inspection-gallery-reveal-images/gallery-inspection-overlay.png": {
+    "bytes": 405958,
+    "sha256": "32a03159055bef066495dee0afa7f0a5415ddf5b7194dc6bf4f410187f39b03f"
+  },
+  "inspection-gallery-reveal-images/gallery-inspection-rows.png": {
+    "bytes": 411707,
+    "sha256": "fcd96c5b1e9014f11c95daf9aded80d285cb51676f4f3bac5c2430ed48ab11d6"
+  },
+  "inspection-gallery-reveal-images/gallery-interactive-inspection.png": {
+    "bytes": 406662,
+    "sha256": "e864b557bf50002f6f944329abb282d96ff03cc7a2e7492bea9902981756be92"
+  },
+  "inspection-gallery-reveal.log": {
+    "bytes": 3347,
+    "sha256": "54642dfbdf952924dd12f1142a743bb61467c86727679d4e251b14381da1cbab"
+  },
+  "inspection-gallery-second.log": {
+    "bytes": 2191,
+    "sha256": "ee88ca3232dfad2050eae0c2e38a8d64f0cacc7c1e481fdbc516ec493e97b7c0"
+  },
+  "source-identity.json": {
+    "bytes": 932,
+    "sha256": "e3db9661040e007403907afdce20dc146fb68dd1104df32f6acad1387ef051c8"
+  }
+}
