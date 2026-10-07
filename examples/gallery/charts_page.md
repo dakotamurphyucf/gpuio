@@ -315,6 +315,92 @@ remain independent. See the [preset walkthrough](../charts/samples/inspection.md
 for validated constructors and adaptation, and the
 [scoped evidence](../../docs/evidence/chart-guide-spans-och41.md) for local validation.
 
+### Optional adaptation: structured inspection rows
+
+The live page above submits inspection **style presets**; `charts_page.ml` does
+not currently attach `~inspection_content` or demonstrate structured child rows.
+For an application adaptation, the stateless
+[`Presentation.Chart_inspection`](../../lib/core/presentation.mli) helper composes
+an optional rich title and keyed swatch/label/value rows from ordinary Views.
+It does not infer values from a chart. The application supplies text, units,
+colors and a typed target from its own data.
+
+For example, this pure helper could be called inside the page's `Ready source`
+branch and outer `let%arr`, using its current palette and chart config. The
+`target` argument is a `Chart_inspection_content.Target.t`; for Pie, construct
+it with `Target.slice slice_id`, using the same `Chart_data.Datum_id.t` as the
+dataset. `formatted_value` must describe that slice in the matching publication:
+
+```ocaml
+let chart_with_details p config ~target ~formatted_value =
+  let module Rows = Presentation.Chart_inspection in
+  let open Or_error.Let_syntax in
+  let%bind content =
+    Rows.view
+      (Palette.appearance p)
+      ~key:(Key.of_string_exn "inspection-details")
+      ~title:(Gpuio.View.text "Research")
+      [ Rows.Row.text
+          ~key:(Key.of_string_exn "research-value")
+          ~color:(Palette.accent p)
+          ~label:"Research share"
+          ~value:formatted_value
+      ]
+  in
+  let%map inspection_content =
+    Chart_inspection_content.create
+      [ Chart_inspection_content.Entry.create
+          ~target
+          ~container:Chart_inspection_content.Container.Card
+          content
+      ]
+  in
+  V.chart ~key:(Key.of_string_exn "chart") ~inspection_content config
+```
+
+Here `let%bind` and `let%map` belong to `Or_error.Let_syntax`: they propagate
+constructor failures, rather than reading reactive values like Bonsai's
+`let%arr`. Handle the result with `Ok view` / `Error error` in the caller and
+render a useful error notice. `Rows.view` rejects duplicate row keys;
+`Chart_inspection_content.create` separately rejects duplicate targets and
+collections above 128 entries. The fixed literal keys use `_exn` because they
+are application constants; validate keys obtained from external input.
+
+`Gpuio.View` is the Core library's pure view type, parameterized by the action
+returned by callbacks. `V = Gpuio_bonsai.View` specializes that action to
+`unit Bonsai.Effect.t`; the text-only content above gains that type through
+`V.chart`. To include a control, replace `Row.text` with `Row.create ~label ~value`
+and put a Bonsai `V.button` or editor View in either slot. Keep its state in
+`B.state` or an appropriate scoped owner, and pass the current setter effect
+from `let%arr`. Constructing the helper does not execute effects.
+
+Preserve the chart key, content key, each row's semantic key and keyed controls
+across reorder, theme changes or adding/removing the title. Use meaning such as
+`"research-value"` rather than a row index or its formatted value. The helper
+keeps title and row wrappers separate so adding a title does not shift row
+identity; label/value slots keep their own callbacks and styles. Swatches are
+decorative, so the label must convey their meaning without color. Root `~style`
+and `~row_style` refine defaults. Card supplies the native backing; choosing
+Overlay instead uses ordinary layout in a plot-sized container.
+
+Adaptation trace: a Bonsai control changes an application value → its effect
+updates state → `let%arr` rebuilds the keyed rows → `V.chart` submits the new
+child content → native inspection displays it when the typed target matches.
+This content update requires no dataset publication. If the underlying value
+changes, separately publish data through the existing source owner and keep
+the displayed text consistent with the accepted publication. Singular targets
+follow stable source IDs; aggregate targets from `Target.of_selection` bind
+the exact resource, generation and revision and must be rebuilt for a new
+publication. An unmatched target uses the native summary.
+
+The helper owns no registration, selection, editor, task or source lifetime.
+`Preview_scope` and `Source` continue to own registration and cancellation;
+retaining an entry cannot keep a cancelled handle alive or make an absent datum
+present. The [attachment interface](../../lib/core/chart_inspection_content.mli)
+and [View contract](../../lib/core/view.mli) describe the experimental integration.
+This optional code adaptation is not a rendered public-gallery demonstration or
+native/platform acceptance evidence.
+
 ## Sankey presentation
 
 Flow styling uses the [Sankey presentation sample](../charts/samples/sankey_presentation.md):

@@ -5,11 +5,17 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **O
 Markdown walkthroughs for every example component; its documentation acceptance is complete. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
+[Structured inspection rows](evidence/chart-inspection-rows-och41.md) now have a
+stateless `Presentation.Chart_inspection` helper for rich titles and keyed
+swatch/label/value rows. Duplicate keys are rejected; reconciliation tests retain
+controls and current callbacks across reorder/title/theme/style changes without
+chart metadata updates. Rendered public-gallery qualification remains open.
+
 [Inspection isolation](evidence/chart-inspection-isolation-och41.md) now passes
 two Card/Overlay charts in each of two native windows with identical local node
 IDs. Actual AX callbacks route to the exact window/control; per-chart hiding,
 shared-source updates, unmount and close preserve peers. Pointer/keyboard recovery
-and source-memory cleanup pass. Rich-row helpers and public-gallery work remain.
+and source-memory cleanup pass. Structured rows advance above; public-gallery work remains.
 
 [Inspection commands and native popups](evidence/chart-inspection-commands-och41.md)
 now pass native command-button routing and stale pointer/AX rejection in Card and

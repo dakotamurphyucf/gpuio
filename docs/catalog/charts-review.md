@@ -73,8 +73,9 @@ focus retirement on native resize. [Command and popup checks](../evidence/chart-
 cover callback-button routes, stale gestures/AX objects and actual AppKit menu
 tracking retirement in Card/Overlay. [Two-window inspection isolation](../evidence/chart-inspection-isolation-och41.md)
 qualifies exact button routing, per-chart gates, shared-source retirement and
-independent teardown. Rich-row helpers and public-gallery qualification remain
-required; this does not close the Tooltip row above.
+independent teardown. The [structured-row helper](../evidence/chart-inspection-rows-och41.md)
+now composes rich keyed rows with callback/reconciliation evidence. Rendered
+public-gallery qualification remains required; this does not close the Tooltip row above.
 
 [`Chart_appearance`](../../lib/core/chart_appearance.mli) now attaches to
 `Chart_style.create`: 128 series overrides and 1,024 unique series/datum pairs,

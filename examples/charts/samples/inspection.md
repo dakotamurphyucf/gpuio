@@ -29,6 +29,26 @@ combines `Card.create`, `Crosshair.create` and `Marker.create` results;
 `Or_error.ok_exn` is used only for known fixture inputs. All dimensions/colors
 are validated public constructor inputs.
 
+`module I = Chart_inspection` is a short name for the public API, and
+`let ok = Or_error.ok_exn` gives the local unwrapping function its short name.
+For example, `I.Crosshair.create ~axis:Vertical ~color:accent () |> ok` passes
+labelled arguments, finishes the optional-argument constructor with `()`, then
+pipes its result to `ok`. The inner constructors return `t Or_error.t`: valid
+inputs yield `Ok` values, while invalid dimensions yield an error. The outer
+`I.create` returns the combined configuration directly because its children are
+already validated. Editable user inputs should handle errors before replacing
+the current configuration rather than using the fixture's raising `ok` helper.
+
+Omitted fields matter when reading each branch. The defaults are a visible
+280-logical-pixel card in the top-right corner, with title and values enabled;
+an Off crosshair; and a visible 16-pixel marker with its status glyph enabled.
+Vertical and Band replace only the crosshair, retaining that card and marker.
+Anchored and Cursor retain the default title/value flags and status glyph while
+setting their card and marker dimensions explicitly. Marker only hides the
+card and status glyph, leaves the crosshair Off, and keeps the 20-pixel accent
+marker visible. It does not hide the original-data button. Every number here
+is in logical pixels, independent of the display's backing scale.
+
 The [gallery page](../../gallery/charts_page.ml) owns a Bonsai state value for the
 selected preset. `B = Bonsai.Cont`; `B.state Samples.Inspection.Default graph`
 creates a reactive model in the page graph and returns its current value plus
@@ -41,6 +61,15 @@ with a stable chart key and borrowed source handle. Native workers prepare a
 matching immutable result. The Ready notice acknowledges preparation,
 not physical display presentation. Hover and keyboard previews remain native;
 only committed selection crosses back to the page's OCaml selection state.
+
+In that caller, `let%arr ... and ...` reads several reactive values together;
+inside its body, `inspection` is the current ordinary preset value. It builds
+the chooser with `List.map Samples.Inspection.all`, passing
+`Samples.Inspection.equal candidate inspection` to each button's `~selected`
+argument and `set_inspection candidate` as its activation effect. Constructing
+these effects while deriving the view does not execute them. Button activation
+executes the chosen effect, so the next derived view both highlights that button
+and uses the same preset in `Chart_style.create`.
 
 This configuration does not perform Eio work. The page separately owns its
 scoped chart data registration; changing inspection neither republishes data nor

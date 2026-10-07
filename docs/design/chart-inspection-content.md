@@ -6,8 +6,8 @@ admission. `View.chart` attachment and an experimental native Card/Overlay adapt
 are now implemented. [Initial interaction evidence](../evidence/chart-inspection-renderer-och41.md)
 covers ordinary buttons and target/focus retention. [Editor and aggregate checks](../evidence/chart-inspection-editors-och41.md)
 now cover retained drafts, AppKit composition, source-generation retirement and
-publication-bound aggregate content. Broader widget/lifecycle, rich-row helpers
-and public-gallery qualification remain required.
+publication-bound aggregate content. Structured rows now have an ordinary-View
+composition helper described below; native gallery qualification remains required.
 
 ## Source capability and interface
 
@@ -29,10 +29,49 @@ operations will carry the actual View children.
 The `View.chart ~inspection_content` attachment coexists with
 `~radar_labels`. Each target owns an internal wrapper keyed by target identity,
 not entry order, caption or current hover index. Normal child keys remain local
-to that wrapper. A convenience function for title/swatch/label/value rows will
-compose ordinary Views, sharing the arbitrary-content renderer rather than
+to that wrapper. `Presentation.Chart_inspection.view` composes title/swatch/label/value
+rows from ordinary Views, sharing the arbitrary-content renderer rather than
 introducing a separate callback/serialization path. Rich annotations are supplied
 as application-formatted text or arbitrary content before submission.
+
+### Structured rows
+
+`Presentation.Chart_inspection.Row.create` takes a stable row key, swatch color
+and ordinary label/value Views. `Row.text` supplies the common string-label/value
+case; the application formats numbers and units. The `view` helper takes the
+application's `Presentation.Appearance`, an optional rich title, root/row style
+refinements and a row list. Duplicate row keys fail before reconciliation.
+
+The title and rows have separate internal key namespaces. Within each row,
+label and value slots also have stable wrappers. Reordering rows or adding/removing
+a title therefore preserves keyed rich controls and refreshes their current
+callbacks. Root/row styles refine defaults, while child Views can override inherited
+colors and typography. Label/value wrappers retain Term/Definition semantics;
+the swatch is decorative and introduces no action or focus stop.
+
+For example, the same rows can be attached to a native inspection target:
+
+```ocaml
+let module Rows = Gpuio.Presentation.Chart_inspection in
+let content =
+  Rows.view appearance
+    ~title:(Gpuio.View.text "Request usage")
+    [ Rows.Row.text
+        ~key:(Gpuio.Key.of_string_exn "tokens")
+        ~color:(Gpuio.Color.rgb_exn 0x22aabb)
+        ~label:"Tokens" ~value:"1,024"
+    ]
+  |> Core.Or_error.ok_exn
+in
+Gpuio.Chart_inspection_content.Entry.create ~target content
+```
+
+The helper is stateless: it owns no chart resource, selection, tasks or editor
+controllers. It does not publish chart data, serialize a separate row protocol or
+provide implicit hover callbacks. Ordinary View budgets still apply; an enclosing
+Card supplies its backing, while Overlay supplies plot-sized layout. The
+[reconciliation evidence](../evidence/chart-inspection-rows-och41.md) covers callback
+and key stability; rendered gallery/theme/input qualification remains separate.
 
 ## Target identity and provenance
 

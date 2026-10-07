@@ -1014,6 +1014,118 @@ let settings_group (p : Appearance.t) ?key ?style ~title ?description children =
   group_box p ?key ?style ~header children
 ;;
 
+module Chart_inspection = struct
+  module Row = struct
+    type 'action t =
+      { key : Key.t
+      ; color : Color.t
+      ; label : 'action View.t
+      ; value : 'action View.t
+      }
+
+    let create ~key ~color ~label ~value = { key; color; label; value }
+
+    let text ~key ~color ~label ~value =
+      create ~key ~color ~label:(View.text label) ~value:(View.text value)
+    ;;
+  end
+
+  let view
+        (p : Appearance.t)
+        ?key
+        ?style:(custom = Style.empty)
+        ?(row_style = Style.empty)
+        ?title
+        rows
+    =
+    let open Or_error.Let_syntax in
+    let%bind () =
+      match
+        List.find_a_dup (List.map rows ~f:(fun row -> row.Row.key)) ~compare:Key.compare
+      with
+      | None -> Ok ()
+      | Some key ->
+        Or_error.errorf "duplicate chart inspection row key: %s" (Key.to_string key)
+    in
+    let row { Row.key; color; label; value } =
+      let swatch =
+        View.column
+          ~key:(internal_key "swatch")
+          ~style:
+            (style
+               [ Width (px 8.)
+               ; Height (px 8.)
+               ; Shrink 0.
+               ; Radius 2.
+               ; Background (solid color)
+               ])
+          []
+      in
+      let label =
+        View.column
+          ~key:(internal_key "label")
+          ~style:(style [ Min_width (px 0.); Foreground p.muted ])
+          [ label ]
+        |> semantic Term
+      in
+      let value =
+        View.column
+          ~key:(internal_key "value")
+          ~style:(style [ Min_width (px 0.); Align_items End ])
+          [ value ]
+        |> semantic Definition
+      in
+      View.row
+        ~key
+        ~style:
+          (Style.merge
+             [ style
+                 [ Min_width (px 0.)
+                 ; Gap (px 12.)
+                 ; Align_items Center
+                 ; Justify_content Space_between
+                 ]
+             ; row_style
+             ])
+        [ View.row
+            ~key:(internal_key "label-group")
+            ~style:(style [ Min_width (px 0.); Grow 1.; Gap (px 6.); Align_items Center ])
+            [ swatch; label ]
+        ; value
+        ]
+    in
+    let title =
+      Option.map title ~f:(fun title ->
+        View.column
+          ~key:(internal_key "title")
+          ~style:(style [ Min_width (px 0.); Font_weight 600 ])
+          [ title ])
+    in
+    let rows =
+      View.column
+        ~key:(internal_key "rows")
+        ~style:(style [ Min_width (px 0.); Gap (px 4.) ])
+        (List.map rows ~f:row)
+      |> semantic Description_list
+    in
+    return
+      (View.column
+         ?key
+         ~style:
+           (Style.merge
+              [ style
+                  [ Min_width (px 0.)
+                  ; Gap (px 4.)
+                  ; Font_size 12.
+                  ; Foreground p.foreground
+                  ]
+              ; custom
+              ])
+         (Option.to_list title @ [ rows ])
+       |> semantic Group)
+  ;;
+end
+
 module Description = struct
   type 'action t =
     { key : Key.t

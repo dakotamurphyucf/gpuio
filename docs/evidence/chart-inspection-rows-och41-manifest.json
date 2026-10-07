@@ -1,0 +1,22 @@
+{
+  "commands.json": {
+    "bytes": 497,
+    "sha256": "ac37da4e0dc8d7f4ef9e8c96af3fe4d5f6f819441695d76fb5920648f681a52d"
+  },
+  "inspection-rows-dune-full.log": {
+    "bytes": 705584,
+    "sha256": "b7f5c77b9361a9a9ebe9088b68eb7be151a2934879d9c304d692022f2d352069"
+  },
+  "inspection-rows-expects.log": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "inspection-rows-format.log": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "source-identity.json": {
+    "bytes": 411,
+    "sha256": "8222aea199528babb06e04739d49228ed99afe338d69781176eeb37a7e02b3cb"
+  }
+}

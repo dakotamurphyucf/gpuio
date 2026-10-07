@@ -413,6 +413,43 @@ val settings_group
   -> 'action View.t list
   -> 'action View.t
 
+module Chart_inspection : sig
+  module Row : sig
+    type 'action t
+
+    (** Stable row identity, decorative swatch, and ordinary rich label/value
+        slots. Slot styles refine inherited muted/foreground colors. *)
+    val create
+      :  key:Key.t
+      -> color:Color.t
+      -> label:'action View.t
+      -> value:'action View.t
+      -> 'action t
+
+    (** Plain-text convenience; format numbers and units in the application. *)
+    val text : key:Key.t -> color:Color.t -> label:string -> value:string -> 'action t
+  end
+
+  (** Compose a title and keyed swatch/label/value rows for an inspection Entry,
+      or any ordinary View container. Duplicate row keys are rejected. Rows keep
+      their identity when reordered or when the optional title changes. Rich
+      slots retain their own callbacks and styling. Root and row styles refine
+      defaults; swatches are decorative, so labels must convey their meaning.
+
+      This helper owns no chart source, selection, task or editor. Attach the
+      result with [Chart_inspection_content.Entry.create] and
+      [View.chart ~inspection_content]. The enclosing Card supplies its backing;
+      Overlay uses ordinary plot-sized layout. Normal View limits still apply. *)
+  val view
+    :  Appearance.t
+    -> ?key:Key.t
+    -> ?style:Style.t
+    -> ?row_style:Style.t
+    -> ?title:'action View.t
+    -> 'action Row.t list
+    -> 'action View.t Or_error.t
+end
+
 module Description : sig
   type 'action t
 
