@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Native chat results flow; simulated queries, public table, owned app cleanup."""
 import ctypes as C
+import math
 import os
 from pathlib import Path
 import signal
@@ -81,6 +82,8 @@ class Results(Review):
             # macOS maps headers and data cells to AXCell; both share the
             # column label. Only the header lacks the data cell's AXValue.
             def header(node):
+                if time.monotonic() >= deadline:
+                    return None
                 if (self.text(node, 'AXRole') == 'AXCell'
                         and label in [self.text(node, 'AXTitle'), self.text(node, 'AXDescription')]
                         and self.text(node, 'AXValue') is None):
@@ -95,40 +98,66 @@ class Results(Review):
                     for child in children:
                         self.release(child)
                 return None
-            # Returning to the retained page can expose the table root before
-            # its visible headers are published. Reacquire the current tree;
-            # an absent header must still fail within a bounded deadline.
+            # Returning to the retained page can publish a header before its
+            # geometry. Reacquire and release the current tree on every sample;
+            # never send pointer input using an old or unmeasured AX object.
             deadline = time.monotonic() + 5
-            node = None
+            reason = 'Missing visible column header'
+            previous, stable_since = None, None
             while time.monotonic() < deadline:
-                root = self.find(TITLE, 'Run results', 'AXTable', search_files=True)
+                node = None
+                geometry = None
+                root = self.find(TITLE, 'Run results', 'AXTable', search_files=True,
+                                 deadline=deadline)
                 if root:
                     try:
                         node = header(root)
                     finally:
                         self.release(root)
                 if node:
-                    break
+                    try:
+                        geometry, reason = self.read_geometry(node)
+                    finally:
+                        self.release(node)
+                else:
+                    reason = 'Missing visible column header'
+                now = time.monotonic()
+                if geometry is not None:
+                    position, size = geometry
+                    sample = (position.x, position.y, size.x, size.y)
+                    if sample != previous:
+                        previous, stable_since = sample, now
+                    elif now - stable_since >= .1 and now < deadline:
+                        return geometry
+                    reason = 'Geometry is still settling'
+                else:
+                    previous, stable_since = None, None
                 time.sleep(.03)
-            if not node:
-                raise RuntimeError(f'Missing visible column header: {label}')
-        else:
-            node = self.wait_find(TITLE, label, role, search_files=True)
+            raise RuntimeError(f'Column geometry did not become ready: {label} ({reason})')
+        node = self.wait_find(TITLE, label, role, search_files=True)
         try:
-            position, size = Point(), Point()
-            for name, kind, result in [('AXPosition', 1, position), ('AXSize', 2, size)]:
-                raw = self.attr(node, name)
-                try:
-                    if not raw or not self.value(raw, kind, C.byref(result)):
-                        raise RuntimeError(f'Missing geometry: {label}')
-                finally:
-                    if raw:
-                        self.release(raw)
-            if size.x <= 0 or size.y <= 0:
-                raise RuntimeError(f'Invisible element: {label}')
-            return position, size
+            geometry, reason = self.read_geometry(node)
+            if geometry is None:
+                raise RuntimeError(f'{reason}: {label}')
+            return geometry
         finally:
             self.release(node)
+
+    def read_geometry(self, node):
+        position, size = Point(), Point()
+        for name, kind, result in [('AXPosition', 1, position), ('AXSize', 2, size)]:
+            raw = self.attr(node, name)
+            try:
+                if not raw or not self.value(raw, kind, C.byref(result)):
+                    return None, f'Missing {name}'
+            finally:
+                if raw:
+                    self.release(raw)
+        if not all(math.isfinite(value) for value in (position.x, position.y, size.x, size.y)):
+            return None, 'Nonfinite geometry'
+        if size.x <= 0 or size.y <= 0:
+            return None, 'Invisible element'
+        return (position, size), 'Geometry available'
 
     def cell(self, label):
         position, size = self.bounds(label, 'AXCell')
