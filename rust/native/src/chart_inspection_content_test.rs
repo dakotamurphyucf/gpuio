@@ -8,6 +8,8 @@ use gpuio_protocol::chart_selection::Selection;
 mod accessibility;
 #[path = "chart_inspection_aggregate_test.rs"]
 mod aggregate;
+#[path = "chart_inspection_command_test.rs"]
+mod commands;
 #[path = "chart_inspection_editor_test.rs"]
 mod editor;
 use gpuio_protocol::chart_inspection_content::{Container, Entry, Target};
@@ -332,4 +334,5 @@ pub(super) async fn exercise(
     );
     editor::exercise(cx, handle, source, session, transport).await;
     aggregate::exercise(cx, handle, source, session, transport).await;
+    commands::exercise(cx, handle, source, session, transport).await;
 }

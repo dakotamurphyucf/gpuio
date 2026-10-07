@@ -10,6 +10,8 @@ use std::{
     time::{Duration, Instant},
 };
 
+#[path = "menu_popup_inspection_test.rs"]
+mod chart_inspection;
 #[path = "menu_popup_chart_test.rs"]
 mod chart_labels;
 
@@ -255,6 +257,7 @@ async fn exercise(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>) {
     eprintln!("POPUP_QUEUED_CURRENT_RECOVERY_OK");
 
     chart_labels::exercise(cx, handle, owner).await;
+    chart_inspection::exercise(cx, handle, owner).await;
     let before_close = popup::tracking_calls();
 
     handle

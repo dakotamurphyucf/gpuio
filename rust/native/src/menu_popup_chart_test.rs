@@ -11,19 +11,13 @@ use gpuio_protocol::{
 fn id(slot: i64) -> NodeId {
     NodeId::from_parts(slot, 1).unwrap()
 }
-fn immediate(session: &host::SharedSession, request: Request) -> Response {
+pub(super) fn immediate(session: &host::SharedSession, request: Request) -> Response {
     match session.borrow_mut().chart_request(request) {
         crate::session::ChartDispatch::Immediate(response) => response,
         _ => panic!("immediate request"),
     }
 }
 fn publish(session: &host::SharedSession, source: ResourceId, first_axis: i64, cx: &mut App) {
-    let base = session
-        .borrow()
-        .chart(source)
-        .ok()
-        .and_then(|lease| lease.snapshot())
-        .map_or(0, |s| s.revision());
     let data = Data {
         version: 1,
         contents: Contents::Radar(
@@ -38,6 +32,20 @@ fn publish(session: &host::SharedSession, source: ResourceId, first_axis: i64, c
             vec![],
         ),
     };
+    publish_data(session, source, &data, cx);
+}
+pub(super) fn publish_data(
+    session: &host::SharedSession,
+    source: ResourceId,
+    data: &Data,
+    cx: &mut App,
+) {
+    let base = session
+        .borrow()
+        .chart(source)
+        .ok()
+        .and_then(|lease| lease.snapshot())
+        .map_or(0, |s| s.revision());
     let mut bytes = vec![];
     data.binprot_write(&mut bytes).unwrap();
     assert_eq!(
@@ -90,7 +98,7 @@ async fn ready(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, owner: NodeI
         assert!(Instant::now() < deadline, "radar label not eligible");
     }
 }
-fn assert_retired(handle: WindowHandle<View>, owner: NodeId, cx: &mut App) {
+pub(super) fn assert_retired(handle: WindowHandle<View>, owner: NodeId, cx: &mut App) {
     let retired = handle
         .update(cx, |view, window, cx| {
             let retired = !view.menus[&owner].borrow().tracking();
@@ -104,7 +112,7 @@ fn assert_retired(handle: WindowHandle<View>, owner: NodeId, cx: &mut App) {
         .unwrap();
     assert!(
         retired,
-        "hidden radar label must retire its popup lease before paint"
+        "hidden chart content must retire its popup lease before paint"
     );
 }
 pub(super) async fn exercise(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, owner: NodeId) {

@@ -69,7 +69,9 @@ retirement evidence. [Native editor and aggregate cases](../evidence/chart-inspe
 now qualify Input/Textarea text-client composition/draft retirement and explicit
 publication-bound Sum/Mean/OHLC content. [Button AX and clipping cases](../evidence/chart-inspection-actions-och41.md)
 qualify actual AppKit activation, queued/retired-object rejection and nested
-focus retirement on native resize. Rich-row helpers, broader command/popup/isolation
+focus retirement on native resize. [Command and popup checks](../evidence/chart-inspection-commands-och41.md)
+cover callback-button routes, stale gestures/AX objects and actual AppKit menu
+tracking retirement in Card/Overlay. Rich-row helpers, multi-window isolation
 and public-gallery qualification remain required; this does not close the Tooltip row above.
 
 [`Chart_appearance`](../../lib/core/chart_appearance.mli) now attaches to

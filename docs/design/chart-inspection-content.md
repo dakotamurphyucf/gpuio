@@ -135,8 +135,11 @@ scoped evidence. [Button accessibility and clipping checks](../evidence/chart-in
 also exercise actual AppKit actions in Card/Overlay, reject queued actions and
 retired objects across source removal/return, and retire a clipped nested button's
 focus and old AX object without a tree update. This does not qualify VoiceOver,
-every widget or physical IME candidate panels. Command/popup actions and
-multi-window interaction combinations still need qualification.
+every widget or physical IME candidate panels. [Command and popup checks](../evidence/chart-inspection-commands-och41.md)
+now cover native command-button routes, their queued/retired AppKit actions, and
+actual PlatformContext popup leases canceled on source retirement or original-data
+browsing in both Card and Overlay. Multi-window inspection combinations and
+public-gallery integration still need qualification.
 Aggregate selection clears on publication: rebinding metadata alone does not
 create a new preview. A fresh native preview or commit makes matching new-publication
 content eligible.

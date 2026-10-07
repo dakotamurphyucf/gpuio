@@ -5,11 +5,17 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **O
 Markdown walkthroughs for every example component; its documentation acceptance is complete. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
+[Inspection commands and native popups](evidence/chart-inspection-commands-och41.md)
+now pass native command-button routing and stale pointer/AX rejection in Card and
+Overlay. Actual AppKit popup tests reject queued tracking and cancel an open
+popup when its source target retires; original-data browsing cancels queued
+tracking too. Multi-window inspection isolation and public-gallery work remain.
+
 [Inspection button actions and clipping](evidence/chart-inspection-actions-och41.md)
 now pass actual AppKit activation in Card/Overlay, queued/retired action rejection,
 and nested clipping that clears focus without a tree/source update. Fresh semantic
-actions recover. These are scoped ordinary-button checks; broader command/popup,
-isolation and public-gallery requirements remain open.
+actions recover. These are scoped ordinary-button checks; command/popup cases are
+qualified separately above, and isolation/public-gallery requirements remain open.
 
 [Hosted run 37538145025](evidence/hosted-presentation-calibration-och17.md#hosted-run-37538145025)
 is terminal at tree-equivalent `e41b7d6`: Linux and all three extracted macOS apps
