@@ -492,3 +492,36 @@ qualify an existing Mac with development directories denied, not clean-machine
 or release approval. Their packaging revision is recorded; they do not attest
 the binary build revision. Release signing, clean-machine distribution, physical
 presentation and broader catalog/accessibility/performance requirements remain.
+
+## Hosted run 37549499328
+
+[Run 37549499328](https://github.com/dakotamurphyucf/gpuio/actions/runs/37549499328)
+is terminal. Linux foundation and the fresh-runner macOS extracted-app job pass.
+The only failed macOS foundation steps are the GPUI Metal presentation hook and
+standalone Metal presentation API calibration. Signal Studio streaming/lifetimes,
+mounted charts/public gallery and the other executed macOS checks pass. This
+confirms the [opening-readiness and drawable-backing repairs](window-readiness-and-pie-backing-och17.md)
+in the hosted environment; it does not qualify later local additions.
+
+Checkout `6f4978c09551ebccaa09ead01d75ca7e9ae89ccc` has tree
+`76fd9499516187b917d10c325efd989bc7d6a768`, identical to branch head
+`54173d2d5cea63bf35eb9b1ac5fe5b268503a367`. The log records 384 desired updates,
+96 render samples, 12 commands, 12 close/reopen cycles and 24 native component/
+callback lifetimes with final source release. The production chart-view GPU and
+public Charts walkthrough success markers are retained.
+
+Each GPUI hook window receives 90 zero-time callbacks, with no missing callbacks,
+no pending submissions and closed windows. Standalone Metal submits 120 frames
+and records 120 zero presentation times on Apple Paravirtual / macOS 15.7.9.
+The standalone failure rules out GPUIO as the sole explanation for this host's
+missing presentation timestamps. It does not establish physical display timing
+or waive either presentation gate. Rendering pixels and GPU completion remain
+separate evidence.
+
+[Primary reports, failed-step excerpts and source identity](hosted-presentation-calibration-och17/run-37549499328/reports.tar.gz)
+and the [verified manifest](hosted-presentation-calibration-och17/run-37549499328/manifest.json)
+retain 13 files (233,575 uncompressed bytes). Extracted gallery, agent-chat and
+Signal Studio reports qualify an existing Mac with development directories denied,
+not clean-machine or release approval. Their packaging revision is the recorded
+merge; it does not attest the binary build revision. Physical presentation,
+remaining catalog/accessibility/performance and distribution gates remain open.

@@ -5,6 +5,12 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **O
 Markdown walkthroughs for every example component; its documentation acceptance is complete. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
+[Hosted run 37549499328](evidence/hosted-presentation-calibration-och17.md#hosted-run-37549499328)
+is terminal at earlier `54173d2`: Linux foundation and fresh-runner macOS apps
+pass; macOS foundation fails only the two Metal presentation probes. The repaired
+Signal Studio and chart checks pass. Both probes receive zero presentation times
+on Apple Paravirtual; physical presentation and release acceptance remain open.
+
 [Area baselines](evidence/area-baselines-och41.md) now pass local codec, native
 unit/GPU, full Dune/lint and root/fresh-installed gallery checks. Per-series
 data-unit baselines affect domain/fill and shared stacked bounds while preserving
