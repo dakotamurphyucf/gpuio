@@ -61,19 +61,29 @@ fn ready(owner: &Entity<View>, cx: &mut VisualTestContext, id: NodeId, tint: u32
     cx.update(|window, cx| {
         owner.update(cx, |view, cx| {
             let binding = view.images[&id].binding.borrow();
-            assert_eq!(binding.rendered.tint, Some(tint));
+            assert!(binding.mask);
+            assert_eq!(binding.rendered.tint, None);
             assert!(binding.pending.is_none());
             assert!(binding.resize_error.is_none());
             assert!(matches!(binding.rendered.size, asset_svg::Size::Exact(_)));
             let handle = binding.current.as_ref().unwrap();
-            let image = image_host::image(handle, window, cx).unwrap().unwrap();
-            assert!(window.has_image_atlas_entry(&image));
+            let image = image_host::image_mask(handle, window, cx).unwrap().unwrap();
+            assert!(window.has_image_mask_atlas_entry(&image, 0));
+            assert!(!window.has_image_atlas_entry(&image));
             let bytes = image.as_bytes(0).unwrap();
-            // RenderImage stores BGRA; both source SVGs are solid opaque rectangles.
-            let [r, g, b, a] = tint.to_be_bytes();
-            assert_eq!(
-                &bytes[bytes.len() / 8 * 4..bytes.len() / 8 * 4 + 4],
-                &[b, g, r, a]
+            // Both source SVGs are opaque. Tint is now native scene state,
+            // while decoded alpha and the mask atlas entry remain reusable.
+            assert_eq!(bytes[bytes.len() / 8 * 4 + 3], 255);
+            let center = view.probes.borrow()[&id]
+                .bounds
+                .center()
+                .scale(window.scale_factor());
+            assert!(
+                window
+                    .painted_monochrome_sprites()
+                    .iter()
+                    .any(|sprite| sprite.bounds.contains(&center)
+                        && sprite.color == crate::host::color(&Color::Rgba(tint.into())))
             );
         })
     });

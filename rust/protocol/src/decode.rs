@@ -1382,6 +1382,22 @@ impl Decoder<'_> {
             125 => Op::SetPaletteOptions(self.node()?, self.option(Self::palette_options)?),
             126 => Op::SetPaletteLayout(self.node()?, self.option(Self::palette_layout)?),
             127 => Op::SetPaletteObserved(self.node()?, self.boolean()?),
+            128 => Op::SetIconTransform(
+                self.node()?,
+                self.option(|d| {
+                    let transform = crate::icon_transform::Transform {
+                        scale_x: d.float()?,
+                        scale_y: d.float()?,
+                        rotation_degrees: d.float()?,
+                        translate_x: d.float()?,
+                        translate_y: d.float()?,
+                    };
+                    if !transform.is_valid() {
+                        return Err(DecodeError::Malformed);
+                    }
+                    Ok(transform)
+                })?,
+            ),
             122 => Op::SetWindowRegion(
                 self.node()?,
                 self.option(|d| {

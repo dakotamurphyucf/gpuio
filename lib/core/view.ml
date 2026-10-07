@@ -298,6 +298,7 @@ type 'action document =
 
 type 'action image =
   { config : Image.Config.t
+  ; icon_transform : Icon.Transform.t option
   ; on_change : (Image.State.t -> 'action) option
   }
 
@@ -620,7 +621,10 @@ let animate ?key ?(style = Style.empty) ?on_event config children =
 ;;
 
 let image ?key ?(style = Style.empty) ?on_change config =
-  { (text ?key ~style "") with kind = Image; image = Some { config; on_change } }
+  { (text ?key ~style "") with
+    kind = Image
+  ; image = Some { config; icon_transform = None; on_change }
+  }
 ;;
 
 let chart
@@ -726,7 +730,13 @@ let with_document_profile t instance ~on_event =
 ;;
 
 let icon ?key ?style ?on_change config =
-  { (image ?key ?style ?on_change (Icon.Expert.image config)) with kind = Icon }
+  let view = image ?key ?style ?on_change (Icon.Expert.image config) in
+  { view with
+    kind = Icon
+  ; image =
+      Option.map view.image ~f:(fun image ->
+        { image with icon_transform = Icon.Expert.transform config })
+  }
 ;;
 
 let container ?key ?(style = Style.empty) defaults children =
@@ -3613,7 +3623,8 @@ let avatar ?key ?(style = Style.empty) ?on_change config =
     kind = Avatar
   ; avatar = Some config
   ; image =
-      Option.map (Avatar.Expert.image config) ~f:(fun config -> { config; on_change })
+      Option.map (Avatar.Expert.image config) ~f:(fun config ->
+        { config; icon_transform = None; on_change })
   }
 ;;
 
@@ -3634,7 +3645,7 @@ let spinner ?key ?(style = Style.empty) ?on_icon_change ~config () =
   ; loading = Some (Spinner.Expert.loading config)
   ; image =
       Option.map (Spinner.Expert.image config) ~f:(fun config ->
-        { config; on_change = on_icon_change })
+        { config; icon_transform = None; on_change = on_icon_change })
   }
 ;;
 
@@ -4083,6 +4094,7 @@ module Expert = struct
 
   type nonrec 'action image = 'action image =
     { config : Image.Config.t
+    ; icon_transform : Icon.Transform.t option
     ; on_change : (Image.State.t -> 'action) option
     }
 

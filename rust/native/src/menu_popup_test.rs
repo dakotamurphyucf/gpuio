@@ -151,6 +151,13 @@ fn mounted_native_icon_survives_release_and_resamples_bounded_target_pixels() {
                     label: None,
                 },
             ),
+            Op::SetIconTransform(
+                id(3),
+                Some(gpuio_protocol::icon_transform::Transform {
+                    rotation_degrees: 90.,
+                    ..Default::default()
+                }),
+            ),
             Op::Splice(id(2), 0, 0, vec![id(3)]),
             Op::Splice(id(0), 0, 0, vec![id(1), id(2)]),
             Op::SetRoot(Some(id(0))),
@@ -180,7 +187,7 @@ fn mounted_native_icon_survives_release_and_resamples_bounded_target_pixels() {
         let session = session.borrow();
         assert!(session.acquire_image(asset).is_err());
         let items = view.popup_items(session.tree(wid).unwrap(), id(0), (&config.menus[0], &[0]), (window, cx), &mut Vec::new(), false);
-        assert!(matches!(&items[0], popup::Item::Row { icon: Some(icon), .. } if Arc::ptr_eq(icon, &image)));
+        assert!(matches!(&items[0], popup::Item::Row { icon: Some(icon), .. } if Arc::ptr_eq(&icon.pixels, &image) && icon.transform.is_some_and(|transform| transform.rotation_degrees == 90.)));
     }));
     cx.update(|window, cx| {
         view.update(cx, |view, cx| {

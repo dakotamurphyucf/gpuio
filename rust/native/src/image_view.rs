@@ -146,6 +146,7 @@ fn menu_request(scale: f32) -> Result<asset_svg::Request, ImageError> {
         density,
         fit: ImageFit::Contain,
         tint: Some(0x000000ff),
+        corners: Default::default(),
     })
 }
 
@@ -162,8 +163,9 @@ fn platform_menu_icon(tree: &Tree, node: &Node) -> bool {
 
 // An avatar must know which slot it will display before laying out a rich
 // fallback. Freeze its SVG observation during prepaint; the paint pass consumes
-// exactly this frame instead of polling the worker again. Ordinary tinted icons
-// still prepare during paint, when the current hover/pressed foreground is known.
+// exactly this frame instead of polling the worker again. Icons still prepare
+// during paint, when computed hover/pressed corner radii are known. Their native
+// foreground is applied to the reusable alpha mask without rasterizing again.
 struct VectorFrame {
     image: Option<Arc<gpui::RenderImage>>,
     status: ImageState,
@@ -184,6 +186,7 @@ fn vector_request(
         density: asset_svg::Density::new(scale)?,
         fit: fitting,
         tint,
+        corners: Default::default(),
     })
 }
 
@@ -227,7 +230,7 @@ fn prepare_vector(
 fn vector(
     binding: &Rc<RefCell<Binding>>,
     fitting: ImageFit,
-    icon: bool,
+    icon: Option<gpuio_protocol::icon_transform::Transform>,
     corners: image_corners::Shared,
     fallback: Option<Arc<str>>,
     owner: gpui::WeakEntity<View>,
@@ -263,14 +266,22 @@ fn vector(
                 return;
             }
             let frame = prepared.unwrap_or_else(|| {
-                let tint = icon.then(|| {
-                    let color = window.text_style().color.to_rgb();
-                    u32::from_be_bytes(
-                        [color.r, color.g, color.b, color.a]
-                            .map(|channel| (channel.clamp(0., 1.) * 255.).round() as u8),
-                    )
-                });
-                let desired = vector_request(bounds, window.scale_factor(), fitting, tint);
+                let desired = vector_request(bounds, window.scale_factor(), fitting, None)
+                    .and_then(|mut request| {
+                        if icon.is_some() {
+                            let radii = corners
+                                .get()
+                                .clamp_radii_for_quad_size(bounds.size)
+                                .scale(window.scale_factor());
+                            request.corners = asset_svg::ClipRadii::new([
+                                radii.top_left.0,
+                                radii.top_right.0,
+                                radii.bottom_right.0,
+                                radii.bottom_left.0,
+                            ])?;
+                        }
+                        Ok(request)
+                    });
                 prepare_vector(&mut binding, desired, &owner, rendered_status, window, cx)
             });
             if let Some(text) = &fallback
@@ -289,21 +300,46 @@ fn paint_vector_frame(
     frame: VectorFrame,
     bounds: gpui::Bounds<gpui::Pixels>,
     fitting: ImageFit,
-    icon: bool,
+    icon: Option<gpuio_protocol::icon_transform::Transform>,
     corners: &image_corners::Shared,
     window: &mut Window,
 ) {
     if let Some(image) = frame.image {
-        if icon && frame.rendered.tint.is_none() {
-            return;
-        }
         let image_bounds = match frame.rendered.size {
             asset_svg::Size::Intrinsic => fit(fitting).get_bounds(bounds, image.size(0)),
             asset_svg::Size::Exact(_) => bounds,
         };
-        // Both color SVGs and tinted masks are decoded off-thread. GPUI
-        // only uploads/paints the ready bitmap at the measured bounds.
-        let painted = window.paint_image(bounds, image_bounds, corners.get(), image, 0, false);
+        let painted = if let Some(transform) = icon {
+            // Initial intrinsic pixels have neither viewport fitting nor the
+            // rounded clip yet. Keep the existing first-icon readiness boundary;
+            // subsequent changes can reuse the last completed viewport mask.
+            if matches!(frame.rendered.size, asset_svg::Size::Intrinsic)
+                || frame.rendered.tint.is_some()
+                || transform.scale_x == 0.
+                || transform.scale_y == 0.
+            {
+                return;
+            }
+            let scale = window.scale_factor();
+            let center = bounds.center().scale(scale);
+            let offset = gpui::point(
+                gpui::ScaledPixels(transform.translate_x as f32 * scale),
+                gpui::ScaledPixels(transform.translate_y as f32 * scale),
+            );
+            let matrix = gpui::TransformationMatrix::unit()
+                .translate(center + offset)
+                .rotate(gpui::radians(
+                    (transform.rotation_degrees as f32).to_radians(),
+                ))
+                .scale(gpui::size(
+                    transform.scale_x as f32,
+                    transform.scale_y as f32,
+                ))
+                .translate(bounds.center().scale(-scale));
+            window.paint_image_mask(bounds, image, 0, matrix, window.text_style().color)
+        } else {
+            window.paint_image(bounds, image_bounds, corners.get(), image, 0, false)
+        };
         if painted.is_err() && binding.resize_error != Some(ImageError::NativeFailure) {
             binding.resize_error = Some(ImageError::NativeFailure);
             window.refresh();
@@ -394,7 +430,8 @@ impl View {
                     ImageSource::Unavailable(error) => Err(error),
                 }
             };
-            let mut binding = Binding::new(handle, node.spinner.is_some());
+            let mut binding =
+                Binding::new(handle, node.kind == Kind::Icon || node.spinner.is_some());
             binding.native_menu = native_menu;
             if let Some(Ok(request)) = request {
                 binding.requested = Some(request);
@@ -492,8 +529,13 @@ impl View {
         if let Some(metadata) = binding.intrinsic {
             element = element
                 .w(px(metadata.width_px as f32))
-                .h(px(metadata.height_px as f32))
-                .overflow_hidden();
+                .h(px(metadata.height_px as f32));
+            // Icon masks already clip fitting/corners before their visual
+            // transform. Default overflow must allow translated/scaled artwork;
+            // explicit caller/ancestor overflow still clips normally.
+            if node.kind != Kind::Icon {
+                element = element.overflow_hidden();
+            }
         }
         if node.avatar.is_some() && !node.children.is_empty() {
             drop(binding);
@@ -513,7 +555,7 @@ impl View {
             element = element.child(vector(
                 &state.binding,
                 config.fit,
-                node.kind == Kind::Icon,
+                (node.kind == Kind::Icon).then(|| node.icon_transform.unwrap_or_default()),
                 corners.clone(),
                 node.avatar.as_ref().map(|c| c.fallback.clone().into()),
                 cx.entity().downgrade(),
@@ -581,7 +623,7 @@ impl View {
                                 frame,
                                 bounds,
                                 fitting,
-                                false,
+                                None,
                                 &corners,
                                 window,
                             );

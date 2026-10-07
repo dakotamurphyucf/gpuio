@@ -9,6 +9,8 @@ mod buttons;
 mod control_appearance;
 #[path = "gradient_test.rs"]
 mod gradients;
+#[path = "icon_transform_view_test.rs"]
+mod icon_transforms;
 #[path = "progress_native_test.rs"]
 mod progress_pixels;
 #[path = "avatar_rich_test.rs"]
@@ -217,6 +219,7 @@ pub(crate) fn run() {
                 window.update(cx, |view, _, _| assert!(view.images.is_empty())).unwrap();
                 assert_eq!(session.borrow_mut().assets().unwrap().stats().retired, 0);
                 svg::exercise(cx, window, &session).await;
+                icon_transforms::exercise(cx, window, &session).await;
                 buttons::exercise(cx, window, &session, &transport).await;
                 avatars::exercise(cx, window, &session, &transport).await;
                 gradients::exercise(cx, window).await;

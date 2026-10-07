@@ -57,6 +57,7 @@ pub mod file_dialog;
 pub mod file_path;
 pub mod grid_location;
 pub mod highlight;
+pub mod icon_transform;
 mod id;
 pub mod image;
 pub mod input;

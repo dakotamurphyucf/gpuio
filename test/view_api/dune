@@ -3,6 +3,8 @@
  (libraries core gpuio gpuio.protocol eio_main)
  (inline_tests
   (deps
+   icon-transform.hex
+   icon-transform-clear.hex
    platform-context-menu-operation.hex
    menu-content-public.hex
    calendar-content-public.hex
@@ -581,3 +583,5 @@
 (copy_files ../fixtures/menu-content-public.hex)
 
 (copy_files ../fixtures/platform-context-menu-operation.hex)
+
+(copy_files ../fixtures/icon-transform*.hex)

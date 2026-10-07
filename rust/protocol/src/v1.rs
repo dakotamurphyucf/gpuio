@@ -849,6 +849,7 @@ pub enum Op {
     SetPaletteOptions(NodeId, Option<crate::palette_options::Config>),
     SetPaletteLayout(NodeId, Option<crate::palette_layout::Config>),
     SetPaletteObserved(NodeId, bool),
+    SetIconTransform(NodeId, Option<crate::icon_transform::Transform>),
 }
 
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]

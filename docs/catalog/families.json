@@ -829,15 +829,17 @@
       "id": "assets",
       "owner": "OCH-11",
       "scope": "v1",
-      "audit_status": "Pinned Icon source reviewed in assets-clipboard-review.md. Explicit scoped SVG bytes, tint, sizes and decorative/control ownership map to public Asset/Icon/View APIs. Upstream path/name lookup is application composition. Arbitrary SVG transformation/rotation has no direct public Icon equivalent and remains explicit; geometry, native pixels and release acceptance are separate.",
+      "audit_status": "Pinned Icon source reviewed in assets-clipboard-review.md. Explicit scoped SVG bytes, tint, sizes and decorative/control ownership map to public Asset/Icon/View APIs. Bounded public SRT transforms now have paired codec, native admission, actual GPU/AppKit snapshot and root/fresh-installed gallery input/identity evidence, with full Dune and strict lint passing. Initial window-loss/desktop-obstruction failures and passing repeats remain in the evidence; no broader reliability acceptance is inferred. Upstream path/name lookup is application composition. Broader catalog and release acceptance remain open.",
       "public_interface": "lib/core/asset.mli",
       "example": "examples/images",
       "evidence": [
         "docs/evidence/assets-och11.md",
-        "docs/catalog/assets-clipboard-review.md"
+        "docs/catalog/assets-clipboard-review.md",
+        "docs/design/icon-transforms.md",
+        "docs/evidence/icon-transforms-och41.md"
       ],
       "gallery_page": "assets",
-      "contract": "Explicit scoped image/SVG assets and tintable icons. No mandatory upstream icon macro or implicit network acquisition.",
+      "contract": "Explicit scoped image/SVG assets and tintable icons, with validated visual scale/rotation/translation and replacement/reset. Layout/input/AX ownership stays fixed; native menus retain their bounded snapshot slot. No mandatory upstream icon macro or implicit network acquisition.",
       "upstream_modules": [
         "component/icon"
       ]

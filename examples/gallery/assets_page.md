@@ -21,6 +21,14 @@ useful for layout checks, not focused keyboard validation. The
 adds no native input, clipboard persistence, Linux GUI or VoiceOver acceptance.
 
 Read `Sources`, `Assets.create`, `fit_label`/`state_label`, then `component`.
+The aliases at the top distinguish responsibilities: `B` builds the Bonsai graph,
+`E` describes effects, `V` builds GPUIO views, `Registered` owns scoped native
+registrations and `Copy` builds clipboard controllers. `open Core` supplies the
+collection, result and error helpers. `ok = Or_error.ok_exn`, `style` and `px` unwrap
+validated fixture/configuration construction. These hard-coded demo values are
+expected to be valid; handle user-supplied bytes, descriptions or sizes through
+typed error results instead of adopting this exception shortcut indiscriminately.
+
 `Sources.landscape` is colored SVG and `Sources.check` is a small white check path.
 [Image_samples](image_samples.ml) supplies `gradient_pnm`, with its
 [interface](image_samples.mli) documenting the fixture. `Assets.create` registers
@@ -47,7 +55,17 @@ change them. `B.state_machine0` owns an approval count starting at zero; each un
 action increments it, saturating at `Int.max_value` rather than overflowing.
 `let%arr` combines current palette/resources/choices/count/copy controllers into a
 derived view. Effects execute on user events, independently of view construction.
-The deactivation hook resets the image observation to Loading, while the other
+For example, `let fit, set_fit = B.state Image.Fit.Contain graph` returns a reactive
+`fit` and a reactive setter function. Inside `let%arr`, both names become their
+current ordinary values: `set_fit candidate` constructs a `unit E.t` effect, which
+the button executes on activation. `and` bindings declare the inputs to this one
+derived computation; they are not a sequence of asynchronous operations.
+`B.state_machine0` needs no reactive input to reduce an action: its reducer receives
+the previous integer count and the unit action `()`. Both **Advance approval value**
+and **Approve sample** send that same action, so their two count readouts agree.
+`B.state Icon_transform_sample.Default graph` also owns the icon preset; its
+setter and current value enter the same `let%arr` computation. The deactivation
+hook resets the image observation to Loading, while the other
 choices, count and copied notice remain retained.
 
 The local `image` helper constructs `Image.Config` from a registered handle,
@@ -56,6 +74,14 @@ The local `image` helper constructs `Image.Config` from a registered handle,
 setter stores native Loading/Ready/Failed observations; `state_label` displays pixel
 dimensions and frame count only from Ready metadata. Contain/Cover/Fill/Scale_down/
 None are public fit policies, not new source uploads.
+Contain preserves aspect ratio while fitting the whole image, Cover preserves it
+while covering the box, and Fill stretches to the box. Scale_down avoids enlarging
+the image; None uses its intrinsic size. The caption names None **Intrinsic size**.
+The image metadata uses pixel dimensions; `Palette.size p 210.` determines the
+logical layout height, so these are separate quantities. The main image's key
+identifies the view slot across source and fit changes, rather than identifying
+which bytes it displays. Switching a fit changes the configuration without changing
+the registered asset handle.
 
 The thumbnail renders the raster with Cover. `V.icon` uses `Icon.Config` and an
 accessible “Check mark” label, tinting the icon through Foreground. A separate
@@ -64,6 +90,17 @@ button's accessible name instead of creating another named target. Colored SVG
 used as an image preserves its colors. Relevant contracts are
 [image.mli](../../lib/core/image.mli), [icon.mli](../../lib/core/icon.mli) and
 [asset.mli](../../lib/core/asset.mli).
+
+The **Small details, clear actions** card now includes discrete icon transform
+presets. [Icon_transform_sample](icon_transform_sample.md) supplies pure labels,
+validated transforms and selected buttons; the page owns the reactive selection.
+It computes one optional transform and forwards it with `?transform` to both
+`Icon.Config.create` and `Icon.Decoration.create`. **Rotate icon**, for example,
+sets the preset through its Bonsai setter, derives a clockwise 90° transform and
+updates both icon descriptions using the existing check SVG handle. **Default
+icon** supplies `None` and restores the default. The image fits, source handles,
+approval count and assigned icon/control bounds remain independent of this
+artwork transform. These controls add no timer or animation task.
 
 Click **Simulate decode failure**. Its toggle effect sets `broken=true`; `let%arr`
 selects `assets.invalid` ahead of the raster/landscape choice, retaining the image

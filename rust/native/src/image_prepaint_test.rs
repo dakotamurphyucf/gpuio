@@ -21,7 +21,7 @@ impl Render for Fixture {
             .child(vector(
                 &self.binding,
                 ImageFit::Cover,
-                false,
+                None,
                 Default::default(),
                 self.avatar.then(|| Arc::from("?")),
                 self.owner.clone(),

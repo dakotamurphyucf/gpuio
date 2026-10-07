@@ -4550,8 +4550,71 @@ def exercise_canvas(mac, images):
           'disabled commands, retained hide/show, reset and scoped cleanup', flush=True)
 
 
+def exercise_icon_transforms(mac, approvals, images=None):
+    """Artwork-only changes retain native control identity and activation."""
+    original = mac.wait_find(TITLE, 'Approve sample', 'AXButton')
+    image = mac.wait_find(TITLE, 'Check mark', 'AXImage')
+    equal = mac.cf.CFEqual
+    equal.restype, equal.argtypes = C.c_bool, [C.c_void_p, C.c_void_p]
+    original_size = element_rect(mac, original)[2:]
+    image_size = element_rect(mac, image)[2:]
+    try:
+        for preset in ['Rotate icon', 'Mirror icon', 'Stretch icon', 'Offset icon',
+                       'Combine transforms', 'Collapse icon', 'Default icon']:
+            mac.press(TITLE, preset)
+            mac.wait_text(TITLE, 'Icon transform: ' + preset)
+            current = mac.wait_find(TITLE, 'Approve sample', 'AXButton')
+            current_image = mac.wait_find(TITLE, 'Check mark', 'AXImage')
+            try:
+                assert equal(original, current), ('button identity changed', preset)
+                assert equal(image, current_image), ('icon identity changed', preset)
+                assert element_rect(mac, current)[2:] == original_size, preset
+                assert element_rect(mac, current_image)[2:] == image_size, preset
+            finally:
+                mac.release(current); mac.release(current_image)
+            focus_gallery_control(mac, 'Approve sample', 'AXButton')
+            mac.key(49)
+            approvals += 1
+            mac.wait_text(TITLE, f'Sample approvals: {approvals}')
+            expect_focus(mac, 'Approve sample')
+            if images and preset == 'Combine transforms':
+                screenshot(mac, images / 'gallery-icon-combined.png', title=TITLE)
+        # A collapsed icon still leaves the control's actual pointer target.
+        mac.press(TITLE, 'Collapse icon')
+        mac.wait_text(TITLE, 'Icon transform: Collapse icon')
+        focus_gallery_control(mac, 'Approve sample', 'AXButton')
+        x, y, w, h = element_rect(mac, original)
+        mouse, point = GalleryMouse(mac), (x + w / 2, y + h / 2)
+        mouse.check_owner(point)
+        mouse.send(5, point); mouse.send(1, point); mouse.send(2, point)
+        approvals += 1
+        mac.wait_text(TITLE, f'Sample approvals: {approvals}')
+        mac.press(TITLE, 'Default icon')
+        mac.wait_text(TITLE, 'Icon transform: Default icon')
+    finally:
+        mac.release(original); mac.release(image)
+    print('GALLERY_ICON_TRANSFORMS_OK: seven presets/reset, stable native identities and '
+          'sizes, actual keyboard and collapsed-artwork pointer activation', flush=True)
+    return approvals
+
+
 def exercise_assets(mac, images):
     mac.press(TITLE, 'Images & icons')
+    # Keep the physical click away from desktop overlays near the screen bottom.
+    # Move only our test window; the receiver check still rejects any occlusion.
+    window = mac.window(TITLE)
+    create = mac.ax.AXValueCreate
+    create.restype, create.argtypes = C.c_void_p, [C.c_int, C.c_void_p]
+    assert window, 'Gallery must exist before moving its window'
+    origin = (C.c_double * 2)(24., 40.)
+    value = create(1, C.byref(origin))  # kAXValueCGPointType.
+    try:
+        assert value, 'Cannot create test-window position'
+        mac.set(window, 'AXPosition', value)
+    finally:
+        if value:
+            mac.release(value)
+        mac.release(window)
     mac.wait_text(TITLE, 'Image ready:')
     for label in ['Gallery image', 'Gradient thumbnail', 'Check mark']:
         mac.release(mac.wait_find(TITLE, label, 'AXImage'))
@@ -4584,6 +4647,7 @@ def exercise_assets(mac, images):
     mac.wait_text(TITLE, 'Sample approvals: 1')
     mac.press(TITLE, 'Approve sample')
     mac.wait_text(TITLE, 'Sample approvals: 2')
+    approvals = exercise_icon_transforms(mac, 2, images)
     mac.press(TITLE, 'Show vector landscape')
     mac.wait_text(TITLE, 'Image ready: 480 × 240 pixels · 1 frame(s)')
     if images:
@@ -4594,7 +4658,8 @@ def exercise_assets(mac, images):
         absent(mac, 'Gallery image', 'AXImage')
         mac.press(TITLE, 'Images & icons')
         mac.wait_text(TITLE, 'Image ready:')
-        mac.wait_text(TITLE, 'Sample approvals: 2')
+        mac.wait_text(TITLE, f'Sample approvals: {approvals}')
+        mac.wait_text(TITLE, 'Icon transform: Default icon')
     mac.press(TITLE, 'Runtime & windows')
     mac.press(TITLE, 'Refresh resource counts')
     wait_for_resource_cleanup(mac)

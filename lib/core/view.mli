@@ -1685,6 +1685,7 @@ module Expert : sig
 
   type 'action image =
     { config : Image.Config.t
+    ; icon_transform : Icon.Transform.t option
     ; on_change : (Image.State.t -> 'action) option
     }
 

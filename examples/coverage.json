@@ -2813,6 +2813,17 @@
         "examples/window_lifecycle/main.md"
       ],
       "review": "reviewed"
+    },
+    {
+      "sources": [
+        "examples/gallery/icon_transform_sample.ml",
+        "examples/gallery/icon_transform_sample.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [
+        "examples/gallery/icon_transform_sample.md"
+      ],
+      "review": "reviewed"
     }
   ]
 }

@@ -278,6 +278,7 @@ pub(crate) fn run() {
     let (_reader, writer) = UnixStream::pair().unwrap();
     let transport = Arc::new(Transport::new(writer.as_raw_fd()).unwrap());
     gpui_platform::application().run(move |cx| {
+        popup::verify_icon_snapshots();
         cx.set_quit_mode(gpui::QuitMode::Explicit);
         gpui_base::init(cx);
         let session = Rc::new(RefCell::new(Session::default()));

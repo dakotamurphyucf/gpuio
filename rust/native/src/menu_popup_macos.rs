@@ -18,6 +18,12 @@ use std::{
     rc::{Rc, Weak},
 };
 
+#[cfg(feature = "native-tests")]
+#[path = "menu_popup_icon_native_test.rs"]
+mod icon_test;
+#[cfg(feature = "native-tests")]
+pub(super) use icon_test::verify as verify_icon_snapshots;
+
 pub(super) enum Item {
     Separator,
     Row {
@@ -25,13 +31,13 @@ pub(super) enum Item {
         enabled: bool,
         checked: bool,
         action: Option<usize>,
-        icon: Option<std::sync::Arc<gpui::RenderImage>>,
+        icon: Option<super::popup_icon::Icon>,
     },
     Submenu {
         label: String,
         enabled: bool,
         items: Vec<Item>,
-        icon: Option<std::sync::Arc<gpui::RenderImage>>,
+        icon: Option<super::popup_icon::Icon>,
     },
 }
 
@@ -202,7 +208,10 @@ fn build(
                 row.setTitle(&NSString::from_str(label));
                 row.setEnabled(*enabled && action.is_some());
                 row.setState(isize::from(*checked));
-                if let Some(image) = icon.as_ref().and_then(|image| icons.image(image)) {
+                if let Some(image) = icon
+                    .as_ref()
+                    .and_then(|icon| icons.image(&icon.pixels, icon.transform))
+                {
                     row.setImage(Some(&image));
                 }
                 if let Some(action) = action.filter(|_| *enabled) {
@@ -225,7 +234,10 @@ fn build(
                 let row = NSMenuItem::new(marker);
                 row.setTitle(&NSString::from_str(label));
                 row.setEnabled(*enabled);
-                if let Some(image) = icon.as_ref().and_then(|image| icons.image(image)) {
+                if let Some(image) = icon
+                    .as_ref()
+                    .and_then(|icon| icons.image(&icon.pixels, icon.transform))
+                {
                     row.setImage(Some(&image));
                 }
                 row.setSubmenu(Some(&build(items, target, marker, icons)));

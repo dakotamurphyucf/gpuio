@@ -63,7 +63,8 @@ async fn settled(cx: &mut gpui::AsyncApp, window: WindowHandle<View>) {
                     binding.pending.is_none()
                         && binding.resize_error.is_none()
                         && matches!(binding.rendered.size, asset_svg::Size::Exact(_))
-                        && binding.rendered.tint == Some(0x00cc44ff)
+                        && binding.mask
+                        && binding.rendered.tint.is_none()
                 })
             })
             .unwrap()

@@ -54,7 +54,12 @@ impl View {
                     .and_then(|indices| indices.get(index))
                     .and_then(|index| node?.children.get(1 + index))
                     .and_then(|slot| tree.get(*slot)?.children.first())
-                    .and_then(|icon| self.platform_menu_pixels(*icon, window, cx));
+                    .and_then(|icon| {
+                        Some(super::popup_icon::Icon {
+                            pixels: self.platform_menu_pixels(*icon, window, cx)?,
+                            transform: tree.get(*icon)?.icon_transform,
+                        })
+                    });
                 match item {
                     MenuItem::Separator => popup::Item::Separator,
                     MenuItem::Submenu(child) => popup::Item::Submenu {

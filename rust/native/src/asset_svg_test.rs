@@ -205,6 +205,7 @@ fn fit_respects_density_and_cover_allocates_only_the_viewport() {
                     density: Density::new(density).unwrap(),
                     fit,
                     tint: None,
+                    corners: Default::default(),
                 },
             )
             .unwrap();
@@ -227,4 +228,69 @@ fn fit_respects_density_and_cover_allocates_only_the_viewport() {
     for value in [0., -1., f32::NAN, f32::INFINITY, 17.] {
         assert!(Density::new(value).is_err());
     }
+}
+
+#[test]
+fn viewport_corner_masks_preserve_straight_color_and_source_alpha() {
+    let svg = source(r##"<rect width="4" height="4" fill="#804020" fill-opacity="0.5"/>"##);
+    let request = Request {
+        size: Size::Exact(RasterSize::new(16, 16).unwrap()),
+        fit: Fit::Fill,
+        corners: ClipRadii::new([8., 0., 0., 0.]).unwrap(),
+        ..Default::default()
+    };
+    let image = render(&svg, request).unwrap();
+    assert_eq!(image.pixel_bytes, 16 * 16 * 4);
+    assert_eq!(at(&image, 0, 0)[3], 0);
+    assert_eq!(at(&image, 15, 0), [32, 64, 128, 128]);
+    assert_eq!(at(&image, 0, 15), [32, 64, 128, 128]);
+    assert_eq!(at(&image, 8, 8), [32, 64, 128, 128]);
+    let edge = at(&image, 2, 2);
+    assert_eq!(&edge[..3], &[32, 64, 128]);
+    assert!(
+        edge[3] > 0 && edge[3] < 128,
+        "antialiased clipped edge: {edge:?}"
+    );
+    let tinted = render(
+        &svg,
+        Request {
+            tint: Some(0xabcdef80),
+            ..request
+        },
+    )
+    .unwrap();
+    assert_eq!(at(&tinted, 8, 8), [0xef, 0xcd, 0xab, 64]);
+    assert_eq!(&at(&tinted, 2, 2)[..3], &[0xef, 0xcd, 0xab]);
+    assert!(at(&tinted, 2, 2)[3] > 0 && at(&tinted, 2, 2)[3] < 64);
+    // Independent corner ordering and GPUI-compatible half-minimum clamping.
+    for (radii, clipped) in [
+        ([0., 100., 0., 0.], (15, 0)),
+        ([0., 0., 100., 0.], (15, 15)),
+        ([0., 0., 0., 100.], (0, 15)),
+    ] {
+        let image = render(
+            &svg,
+            Request {
+                corners: ClipRadii::new(radii).unwrap(),
+                ..request
+            },
+        )
+        .unwrap();
+        assert_eq!(at(&image, clipped.0, clipped.1)[3], 0);
+        assert_eq!(at(&image, 8, 8)[3], 128);
+        assert_eq!(at(&image, 0, 0)[3], 128);
+    }
+}
+
+#[test]
+fn corner_cache_keys_reject_invalid_numbers_and_canonicalize_zero() {
+    assert_eq!(ClipRadii::new([-0.; 4]).unwrap(), ClipRadii::default());
+    for invalid in [-1., f32::NAN, f32::INFINITY, 16385.] {
+        for corner in 0..4 {
+            let mut values = [0.; 4];
+            values[corner] = invalid;
+            assert_eq!(ClipRadii::new(values), Err(Error::InvalidData));
+        }
+    }
+    assert!(ClipRadii::new([16384.; 4]).is_ok());
 }

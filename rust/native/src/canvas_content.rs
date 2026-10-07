@@ -461,6 +461,7 @@ impl Content {
                             .map_err(|_| Error::RenderLimit)?,
                         fit: asset_svg::Fit::Fill,
                         tint: None,
+                        corners: Default::default(),
                     },
                     window,
                     cx,

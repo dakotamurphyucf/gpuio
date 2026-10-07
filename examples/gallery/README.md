@@ -58,6 +58,8 @@ Composition walkthroughs: [description lists](description_preview.md),
 [disclosures and retained drafts](disclosure_preview.md), [empty states](empty_preview.md),
 [forms](form_preview.md), [group boxes](group_preview.md) and [composed links](link_preview.md).
 
+Images & icons → **Small details, clear actions** demonstrates [icon transform presets](icon_transform_sample.md) alongside the [asset and clipboard walkthrough](assets_page.md). The page owns the Bonsai selection; the preset helper constructs immutable transforms and ordinary buttons.
+
 State and native rendering walkthroughs: [input formats](format_preview.md),
 [variable-size card lists](horizontal_list_preview.md), [pagination](pagination_preview.md),
 [progress](progress_preview.md), [custom spinners](spinner_preview.md) and

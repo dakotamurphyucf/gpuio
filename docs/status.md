@@ -5,6 +5,15 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **O
 Markdown walkthroughs for every example component; its documentation acceptance is complete. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
+[Icon transforms](evidence/icon-transforms-och41.md) now support bounded scale,
+clockwise rotation and translation in Config and decorative slots. Paired codecs,
+1,069 native unit tests, actual GPU/AppKit snapshot checks, strict lint, full Dune
+and root/fresh-installed gallery input/identity/cleanup walkthroughs pass locally.
+New beginner guides explain the pure preset helper and Bonsai state/effect flow;
+coverage is 429 sources / 266 reviewed groups. Initial window-loss and desktop
+obstruction failures are retained alongside passing traced repeats. Current-source
+hosted/Linux and broader catalog/release acceptance remain open.
+
 [Pointer focus reveal](evidence/pointer-focus-reveal-och17.md) now fixes ancestor
 scrolling moving a clicked table cell before release. The before/after native
 regression, explicit/non-pointer reveal controls, full physical Results workflow,

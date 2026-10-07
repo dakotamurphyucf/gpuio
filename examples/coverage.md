@@ -501,5 +501,10 @@ Generated from [coverage.json](coverage.json). Read the [review guide](coverage-
 | Source parts | Role | Walkthrough | Review |
 | --- | --- | --- | --- |
 | [main.ml](window_lifecycle/main.ml) | application-entry | [main.md](window_lifecycle/main.md) | reviewed |
+## gallery
 
-427 source files in 265 groups; 265 reviewed, 0 pending.
+| Source parts | Role | Walkthrough | Review |
+| --- | --- | --- | --- |
+| [icon_transform_sample.ml](gallery/icon_transform_sample.ml), [icon_transform_sample.mli](gallery/icon_transform_sample.mli) | component | [icon_transform_sample.md](gallery/icon_transform_sample.md) | reviewed |
+
+429 source files in 266 groups; 266 reviewed, 0 pending.

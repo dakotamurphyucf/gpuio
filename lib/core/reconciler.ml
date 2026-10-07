@@ -1986,6 +1986,20 @@ let rec mount builder ~depth previous view =
           emit
             builder
             (Set_image (id, Image.Expert.to_wire image.config ~owner:builder.asset_owner)));
+    let next_icon_transform =
+      Option.bind description.image ~f:(fun image -> image.icon_transform)
+    in
+    let previous_icon_transform =
+      Option.bind previous ~f:(fun mounted ->
+        Option.bind (View.Expert.describe mounted.view).image ~f:(fun image ->
+          image.icon_transform))
+    in
+    if not (Option.equal Icon.Transform.equal previous_icon_transform next_icon_transform)
+    then
+      emit
+        builder
+        (Set_icon_transform
+           (id, Option.map next_icon_transform ~f:Icon.Expert.transform_to_wire));
     Option.iter description.slider ~f:(fun slider ->
       let old =
         Option.bind previous ~f:(fun mounted ->

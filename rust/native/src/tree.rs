@@ -137,6 +137,7 @@ pub struct Node {
     pub loading: Option<Arc<gpuio_protocol::loading::Config>>,
     pub spinner: Option<Arc<gpuio_protocol::spinner::Config>>,
     pub image: Option<Arc<ImageConfig>>,
+    pub icon_transform: Option<gpuio_protocol::icon_transform::Transform>,
     pub avatar: Option<Arc<gpuio_protocol::avatar::Config>>,
     pub rating: Option<Arc<gpuio_protocol::rating::Config>>,
     pub tab_order: Option<gpuio_protocol::checkable::TabOrder>,
@@ -2588,6 +2589,7 @@ impl Plan<'_> {
             | Op::InvalidateListRows(id, ..)
             | Op::ScrollList(id, ..)
             | Op::SetImage(id, ..)
+            | Op::SetIconTransform(id, ..)
             | Op::SetCanvas(id, ..)
             | Op::SetChart(id, ..)
             | Op::SetDocument(id, ..)
@@ -2752,6 +2754,7 @@ impl Plan<'_> {
                             loading: None,
                             spinner: None,
                             image: None,
+                            icon_transform: None,
                             avatar: None,
                             rating: None,
                             rating_appearance: None,
@@ -3650,6 +3653,14 @@ impl Plan<'_> {
                     return Err(ErrorCode::InvalidTree);
                 }
                 self.node_mut(*id)?.image = Some(Arc::new(config.clone()));
+            }
+            Op::SetIconTransform(id, transform) => {
+                if self.node(*id)?.kind != Kind::Icon
+                    || transform.is_some_and(|value| !value.is_valid())
+                {
+                    return Err(ErrorCode::InvalidTree);
+                }
+                self.node_mut(*id)?.icon_transform = *transform;
             }
             Op::SetExtension(id, config) => {
                 let node = self.node(*id)?;

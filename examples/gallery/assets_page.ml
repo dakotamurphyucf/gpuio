@@ -79,6 +79,7 @@ let component app window palette graph =
   let broken, toggle_broken = B.toggle ~default_model:false graph in
   let fit, set_fit = B.state Image.Fit.Contain graph in
   let state, set_state = B.state Image.State.Loading graph in
+  let icon_preset, set_icon_preset = B.state Icon_transform_sample.Default graph in
   let approvals, approve =
     B.state_machine0
       ~default_model:0
@@ -122,6 +123,8 @@ let component app window palette graph =
   and set_fit = set_fit
   and state = state
   and set_state = set_state
+  and icon_preset = icon_preset
+  and set_icon_preset = set_icon_preset
   and approvals = approvals
   and approve = approve
   and literal = literal
@@ -138,7 +141,8 @@ let component app window palette graph =
         ~fit
         ()
     in
-    let decoration = Icon.Decoration.create ~asset:assets.check () |> ok in
+    let transform = Icon_transform_sample.transform icon_preset in
+    let decoration = Icon.Decoration.create ~asset:assets.check ?transform () |> ok in
     V.column
       ~style:(style [ Gap (px 20.) ])
       [ Palette.card
@@ -235,7 +239,12 @@ let component app window palette graph =
       ; Palette.card
           p
           ~title:"Small details, clear actions"
-          [ V.row
+          [ Icon_transform_sample.controls
+              p
+              ~selected:icon_preset
+              ~on_select:set_icon_preset
+          ; Palette.text p ("Icon transform: " ^ Icon_transform_sample.label icon_preset)
+          ; V.row
               ~style:(style [ Gap (px 20.); Align_items Center; Wrap Wrap ])
               [ V.image
                   ~style:(style [ Width (px 140.); Height (px 80.); Radius 10. ])
@@ -249,6 +258,7 @@ let component app window palette graph =
                        ])
                   (Icon.Config.create
                      ~asset:assets.check
+                     ?transform
                      ~description:(Image.Description.label "Check mark" |> ok)
                      ()
                    |> ok)
@@ -270,6 +280,11 @@ let component app window palette graph =
               ~muted:true
               "SVG keeps its colors as an image; an icon inherits its foreground. \
                Decorative button icons share the button's accessible name."
+          ; Palette.text
+              p
+              ~muted:true
+              "Transform the artwork while the button keeps its size, focus and action. \
+               Default restores the original icon; Collapse hides its pixels."
           ]
       ]
 ;;
