@@ -12,6 +12,9 @@ mod aggregate;
 mod commands;
 #[path = "chart_inspection_editor_test.rs"]
 mod editor;
+#[cfg(target_os = "macos")]
+#[path = "chart_inspection_isolation_test.rs"]
+mod isolation;
 use gpuio_protocol::chart_inspection_content::{Container, Entry, Target};
 // This standalone fixture allocates the next contiguous retained slots.
 fn wrapper() -> NodeId {
@@ -335,4 +338,21 @@ pub(super) async fn exercise(
     editor::exercise(cx, handle, source, session, transport).await;
     aggregate::exercise(cx, handle, source, session, transport).await;
     commands::exercise(cx, handle, source, session, transport).await;
+    #[cfg(target_os = "macos")]
+    {
+        let data = session
+            .borrow()
+            .chart(source)
+            .unwrap()
+            .snapshot()
+            .unwrap()
+            .data()
+            .clone();
+        let mut absent = data.clone();
+        let Contents::Pie(values) = &mut absent.contents else {
+            panic!("pie isolation source");
+        };
+        values.retain(|value| value.id != 7);
+        isolation::exercise(cx, handle, session, transport, &data, &absent).await;
+    }
 }

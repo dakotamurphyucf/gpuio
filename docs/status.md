@@ -5,11 +5,18 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **O
 Markdown walkthroughs for every example component; its documentation acceptance is complete. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
+[Inspection isolation](evidence/chart-inspection-isolation-och41.md) now passes
+two Card/Overlay charts in each of two native windows with identical local node
+IDs. Actual AX callbacks route to the exact window/control; per-chart hiding,
+shared-source updates, unmount and close preserve peers. Pointer/keyboard recovery
+and source-memory cleanup pass. Rich-row helpers and public-gallery work remain.
+
 [Inspection commands and native popups](evidence/chart-inspection-commands-och41.md)
 now pass native command-button routing and stale pointer/AX rejection in Card and
 Overlay. Actual AppKit popup tests reject queued tracking and cancel an open
 popup when its source target retires; original-data browsing cancels queued
-tracking too. Multi-window inspection isolation and public-gallery work remain.
+tracking too. Multi-window inspection isolation is qualified separately above;
+public-gallery work remains.
 
 [Inspection button actions and clipping](evidence/chart-inspection-actions-och41.md)
 now pass actual AppKit activation in Card/Overlay, queued/retired action rejection,

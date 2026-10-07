@@ -138,8 +138,10 @@ focus and old AX object without a tree update. This does not qualify VoiceOver,
 every widget or physical IME candidate panels. [Command and popup checks](../evidence/chart-inspection-commands-och41.md)
 now cover native command-button routes, their queued/retired AppKit actions, and
 actual PlatformContext popup leases canceled on source retirement or original-data
-browsing in both Card and Overlay. Multi-window inspection combinations and
-public-gallery integration still need qualification.
+browsing in both Card and Overlay. [Inspection isolation](../evidence/chart-inspection-isolation-och41.md)
+adds two charts per window across two windows with shared sources, exact callback
+routing, independent hide/unmount/close and peer gesture preservation. These are
+scoped ordinary-button cases; public-gallery integration remains required.
 Aggregate selection clears on publication: rebinding metadata alone does not
 create a new preview. A fresh native preview or commit makes matching new-publication
 content eligible.
