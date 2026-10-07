@@ -18,7 +18,8 @@ fn data(reverse: bool) -> data::Data {
         nodes.reverse();
     }
     data::Data {
-        version: 1,
+        version: 2,
+        bar_backgrounds: vec![],
         contents: data::Contents::Sankey(
             nodes,
             vec![
@@ -295,7 +296,8 @@ fn rich_middle_block_keeps_placement_and_clips_coherently_in_tiny_views() {
 #[test]
 fn single_column_prefers_first_column_and_rejects_invalid_metrics() {
     let data = data::Data {
-        version: 1,
+        version: 2,
+        bar_backgrounds: vec![],
         contents: data::Contents::Sankey(
             vec![data::Node {
                 id: 1,

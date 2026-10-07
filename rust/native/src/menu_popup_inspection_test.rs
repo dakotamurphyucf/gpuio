@@ -16,7 +16,8 @@ fn wrapper() -> NodeId {
 }
 fn data(present: bool) -> Data {
     Data {
-        version: 1,
+        version: 2,
+        bar_backgrounds: vec![],
         contents: Contents::Pie(
             (if present { vec![7, 9] } else { vec![9] })
                 .into_iter()

@@ -343,7 +343,8 @@ mod tests {
     #[test]
     fn radar_label_gap_reserves_gutters_only_for_visible_labels() {
         let data = Data {
-            version: 1,
+            version: 2,
+            bar_backgrounds: vec![],
             contents: Contents::Radar(vec![], vec![]),
         };
         let mut config = config();
@@ -365,7 +366,8 @@ mod tests {
     #[test]
     fn axes_follow_orientation_and_tiny_views_stay_bounded() {
         let data = Data {
-            version: 1,
+            version: 2,
+            bar_backgrounds: vec![],
             contents: Contents::Cartesian(vec![]),
         };
         let mut config = config();
@@ -432,7 +434,8 @@ mod tests {
     #[test]
     fn dense_legend_has_three_visible_rows_and_retains_all_names() {
         let data = Data {
-            version: 1,
+            version: 2,
+            bar_backgrounds: vec![],
             contents: Contents::Pie(
                 (1..=256)
                     .map(|id| gpuio_protocol::chart_data::Slice {

@@ -4,7 +4,8 @@ use gpuio_protocol::{chart_data::*, chart_options::*, chart_sampling::*, chart_s
 use std::sync::atomic::AtomicBool;
 fn source() -> Data {
     Data {
-        version: 1,
+        version: 2,
+        bar_backgrounds: vec![],
         contents: Contents::Categorical(
             [42, 7, 99]
                 .into_iter()
@@ -200,7 +201,8 @@ fn point_band_empty_singleton_and_explicit_padding_are_finite() {
 #[test]
 fn category_reduction_buckets_follow_padded_positions_and_keep_large_source_indices() {
     let data = Data {
-        version: 1,
+        version: 2,
+        bar_backgrounds: vec![],
         contents: Contents::Categorical(
             (1..=4)
                 .map(|id| Category {
@@ -248,7 +250,8 @@ fn category_reduction_buckets_follow_padded_positions_and_keep_large_source_indi
     assert_eq!((bars[1].source.start(), bars[1].source.end()), (1, 3));
     let count = 100_000;
     let data = Data {
-        version: 1,
+        version: 2,
+        bar_backgrounds: vec![],
         contents: Contents::Categorical(
             (0..count)
                 .map(|i| Category {
@@ -348,7 +351,8 @@ fn signed_categorical_mixed_curves_share_centers_and_keep_area_gaps() {
         .collect(),
     };
     let data = Data {
-        version: 1,
+        version: 2,
+        bar_backgrounds: vec![],
         contents: Contents::Categorical(
             categories,
             vec![

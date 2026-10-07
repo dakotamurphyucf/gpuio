@@ -166,7 +166,8 @@ pub(super) async fn exercise(
     transport: &Transport,
 ) {
     let data = Data {
-        version: 1,
+        version: 2,
+        bar_backgrounds: vec![],
         contents: Contents::Sankey(
             [(2, "middle"), (3, "last"), (1, "first")]
                 .into_iter()

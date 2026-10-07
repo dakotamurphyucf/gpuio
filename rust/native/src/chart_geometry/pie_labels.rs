@@ -93,7 +93,8 @@ mod tests {
     use std::sync::atomic::AtomicBool;
     fn source(ids: &[i64]) -> data::Data {
         data::Data {
-            version: 1,
+            version: 2,
+            bar_backgrounds: vec![],
             contents: data::Contents::Pie(
                 ids.iter()
                     .map(|&id| data::Slice {

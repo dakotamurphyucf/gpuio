@@ -3,7 +3,7 @@ use crate::{chart_appearance::*, chart_options::Curve};
 use std::io::Cursor;
 
 impl Decoder<'_> {
-    fn chart_brush(&mut self) -> Result<Brush, DecodeError> {
+    pub(super) fn chart_brush(&mut self) -> Result<Brush, DecodeError> {
         Ok(match self.tag()? {
             0 => Brush::Solid(self.int()?),
             1 => Brush::Linear {

@@ -15,7 +15,8 @@ fn points(values: &[Option<f64>]) -> Vec<Point> {
 }
 fn dataset(points: Vec<Point>) -> Data {
     Data {
-        version: 1,
+        version: 2,
+        bar_backgrounds: vec![],
         contents: data::Contents::Cartesian(vec![Layer::Line(data::Series {
             id: 1,
             name: "Signal".into(),
@@ -183,7 +184,8 @@ fn bins_use_numeric_shared_domain_not_each_series_array_index() {
         label: String::new(),
     }];
     let data = Data {
-        version: 1,
+        version: 2,
+        bar_backgrounds: vec![],
         contents: data::Contents::Cartesian(vec![
             Layer::Bar(data::Series {
                 id: 1,
@@ -268,7 +270,8 @@ fn bars_use_explicit_compensated_sum_or_mean_and_complete_provenance() {
 #[test]
 fn candles_aggregate_ohlc_and_never_inherit_line_reduction() {
     let data = Data {
-        version: 1,
+        version: 2,
+        bar_backgrounds: vec![],
         contents: data::Contents::Candlestick(vec![
             data::Candle {
                 id: 9,
@@ -339,7 +342,8 @@ fn mixed_layers_keep_family_policies_and_many_gaps_never_collapse() {
         points: points(&[Some(1.); 5]),
     };
     let data = Data {
-        version: 1,
+        version: 2,
+        bar_backgrounds: vec![],
         contents: data::Contents::Cartesian(vec![
             Layer::Line(line),
             Layer::Area(area),
@@ -395,7 +399,8 @@ fn empty_degenerate_extreme_and_subnormal_inputs_remain_defined() {
     ] {
         let result = reduce(
             &Data {
-                version: 1,
+                version: 2,
+                bar_backgrounds: vec![],
                 contents,
             },
             policy::Policy::default(),
@@ -415,7 +420,8 @@ fn empty_degenerate_extreme_and_subnormal_inputs_remain_defined() {
     };
     let result = reduce(
         &Data {
-            version: 1,
+            version: 2,
+            bar_backgrounds: vec![],
             contents: data::Contents::Candlestick(vec![candle]),
         },
         policy::Policy::default(),
@@ -510,7 +516,7 @@ fn invalid_inputs_and_cancellation_never_return_partial_results() {
         Err(Error::InvalidPolicy)
     );
     let mut bad = data;
-    bad.version = 2;
+    bad.version = 3;
     assert_eq!(
         prepare(
             &bad,

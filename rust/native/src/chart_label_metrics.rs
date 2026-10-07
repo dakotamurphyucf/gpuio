@@ -158,7 +158,8 @@ mod tests {
     #[test]
     fn metrics_follow_ids_hide_empty_overrides_and_stop_on_cancel_or_bad_native_width() {
         let data = Data {
-            version: 1,
+            version: 2,
+            bar_backgrounds: vec![],
             contents: Contents::Sankey(
                 [20, 10, 30]
                     .into_iter()

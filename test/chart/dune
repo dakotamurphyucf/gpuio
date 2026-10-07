@@ -4,7 +4,9 @@
  (inline_tests
   (deps
    (sandbox preserve_file_kind)
+   chart-v2-data.hex
    chart-v1-data.hex
+   chart-v2-backgrounds.hex
    chart-view-v2-labels.hex
    chart-view-v2-rich-labels.hex
    chart-view-v2-inspection.hex
@@ -12,7 +14,7 @@
  (preprocess
   (pps ppx_jane)))
 
-(copy_files ../fixtures/chart-v1-data.hex)
+(copy_files ../fixtures/chart-v2-data.hex)
 
 (copy_files ../fixtures/chart-view-v2-labels.hex)
 
@@ -21,3 +23,7 @@
 (copy_files ../fixtures/chart-v1-selection.hex)
 
 (copy_files ../fixtures/chart-view-v2-inspection.hex)
+
+(copy_files ../fixtures/chart-v1-data.hex)
+
+(copy_files ../fixtures/chart-v2-backgrounds.hex)

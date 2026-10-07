@@ -1,9 +1,11 @@
 # Dense bar backgrounds
 
-OCH-41 implementation design, 2026-10-06. **Not an available public API or
-completion evidence.** This records the next source-resource extension after
-[pattern brushes](../evidence/native-pattern-brushes-och41.md) and
-[area baselines](area-baselines.md). Current chart data remains schema 1.
+OCH-41, 2026-10-06. The typed source API, paired codecs and native rendering are
+implemented. Public gallery and installed-consumer qualification remain open;
+this does not establish catalog or release completion. Chart data now uses
+schema **2**, with matching OCaml/native packages required.
+[Local foundation evidence](../evidence/dense-background-foundation-och41.md)
+records codec, resource, native GPU and integration checks.
 
 ## Why this belongs to the source
 
@@ -24,10 +26,10 @@ line/area sources for a capability they do not use. An empty sidecar adds only
 dataset-level storage. Dense styling still consumes memory and transfer time;
 it is not free merely because it is separate from view metadata.
 
-## Proposed OCaml interface
+## OCaml interface
 
-Draft for `Chart_data`; names and representation are subject to implementation
-review. This is deliberately not yet exposed by the compiled `.mli`.
+The interface was drafted before implementation and is exposed by
+[Chart_data](../../lib/core/chart_data.mli).
 
 ```ocaml
 module Bar_background : sig
@@ -72,8 +74,7 @@ Applying an unrelated view theme does not secretly rewrite an immutable source.
 `Chart_appearance` already imports `Chart_data` identities, so `Chart_data` must
 not import that Core module. An internal `Chart_brush` resolver depends only on
 `Background`, `Theme` and the protocol brush representation. The current
-appearance implementation uses it; the source extension can reuse exactly that
-resolution without introducing a module cycle or a new public low-level API.
+appearance and source implementations share exactly that resolution without introducing a module cycle or a new public low-level API.
 
 ## Appearance and aggregation
 
@@ -103,26 +104,28 @@ Use the source span already carried by the prepared mark. Sum/Mean do not blend
 colors, arbitrarily choose the first brush, or rewrite source values. A stack's
 bar contribution follows the same source-participant rule for its own series.
 
-The current native `Index::bar` early return tests only whether the sparse datum
-map is empty. The extension must also check the dense sidecar; otherwise a
-dataset using only the new API would silently render the default fills.
+Native `Index::bar` only takes its inherited-style shortcut when both the sparse
+datum map and dense sidecar are empty. Sources using only the new API therefore
+receive their data-owned fills.
 
 ## Wire, worker and memory requirements
 
-Append a bounded list of `{ series; datum; brush }` to the owned data record and
-advance the chart **data** schema to 2. The view/style/options schemas need not
-change for this field. Keep historical schema-1 fixtures and add explicitly
-named current paired fixtures. Old data must fail clearly; do not decode a
-truncated old payload as an empty new sidecar. Update every producer, bounded
-decoder, validator and current consumer fixture together.
+The owned data record appends a bounded list of `{ series; datum; brush }`,
+advancing the chart **data** schema to 2. View/options/style remain -2/9/-9.
+Historical schema-1 fixtures are preserved; schema-2 data, categorical and
+background fixtures are checked independently from OCaml and Rust. Old payloads
+fail explicitly, rather than defaulting the absent sidecar to empty.
 
 The sidecar is a sorted vector on Rust's side. Binary search resolves a stable
 pair without a second persistent 100,000-entry tree. Validation must establish
 strict pair ordering, valid brushes and membership in bar layers. Avoid scanning
 an entire source separately for every sidecar entry: validation must remain
 bounded by one source traversal plus sorting/index lookup, not quadratic work.
-Check cancellation during any new long worker traversal. Malformed count fields
-must be rejected before allocating the advertised list.
+Native appearance preparation checks cancellation during source-span traversal.
+Source decoding retains the existing bounded-worker contract: cancellation is
+checked before and after decoding/validation, not between individual decoded
+records. A cancelled completion cannot publish; its memory remains charged until
+it finishes or drops. Malformed counts fail before allocating the advertised list.
 
 All limits apply together; a dataset with maximum labels and maximum-size
 brushes need not fit even if each separate count is legal. Compute encoded size
@@ -131,6 +134,14 @@ before creating the upload buffer. Charge the retained sidecar in OCaml's
 `chart_store` snapshot accounting and the conservative decode-workspace reservation. Verify temporary membership
 indexes and sorting storage against the existing 64 MiB decode workspace and
 256 MiB total source reservation. Do not increase either bound without evidence.
+
+Standalone validity does not reserve room for multiple retained revisions. In
+particular, a maximum-size dense source may fit initial registration while its
+replacement plus the retained old source exceeds the OCaml registry budget.
+`set` then returns `Resource_limit` locally and preserves the prior desired data.
+Applications must handle that result; they cannot assume every individually valid
+100,000-value dataset can coexist with another. The conservative registration
+charge includes 512 bytes per background, in addition to existing source charges.
 
 Worker paint uses brushes from the exact retained source publication. Prepared
 quads already retain their resolved fills; avoid cloning all sidecar data into
@@ -160,7 +171,7 @@ close. The new field must not create an uncharged parallel ownership path.
 
 ## Scope still separate
 
-The proposed sidecar supplies precomputed backgrounds, not arbitrary callbacks
+The sidecar supplies precomputed backgrounds, not arbitrary callbacks
 with access to current native pixel bounds. Existing declarative signed/domain/
 value gradients cover some geometry-aware cases; the remaining difference from
 the pinned fill closure must stay explicit in the catalog.

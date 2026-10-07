@@ -13,7 +13,8 @@ use std::{cell::RefCell, rc::Rc};
 fn exercise(context: Context, ui_thread: std::thread::ThreadId) {
     assert_ne!(std::thread::current().id(), ui_thread);
     let data = Data {
-        version: 1,
+        version: 2,
+        bar_backgrounds: vec![],
         contents: Contents::Sankey(
             ["WWWWWW", "iiiiii", "日本語 λ 👨‍👩‍👧‍👦"]
                 .into_iter()
@@ -122,7 +123,8 @@ fn exercise(context: Context, ui_thread: std::thread::ThreadId) {
 fn exercise_pie(mut context: Context) {
     context.style.padding = 0.;
     let data = Data {
-        version: 1,
+        version: 2,
+        bar_backgrounds: vec![],
         contents: Contents::Pie(
             ["WWWWWW", "iiiiii", "日本語 λ 👨‍👩‍👧‍👦"]
                 .into_iter()

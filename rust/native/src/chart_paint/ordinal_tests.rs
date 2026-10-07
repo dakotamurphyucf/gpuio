@@ -20,7 +20,8 @@ fn style(keys: Vec<Key>) -> Style {
 }
 fn data(contents: data::Contents) -> Data {
     Data {
-        version: 1,
+        version: 2,
+        bar_backgrounds: vec![],
         contents,
     }
 }

@@ -4,7 +4,8 @@ use chart_data::{Contents, Layer, Point, Series};
 
 fn bytes(count: usize) -> Vec<u8> {
     let data = Data {
-        version: 1,
+        version: 2,
+        bar_backgrounds: vec![],
         contents: Contents::Cartesian(vec![Layer::Line(Series {
             id: 1,
             name: "Rate".into(),
@@ -73,6 +74,67 @@ fn publication_is_atomic_and_readers_remain_charged_until_drop() {
     drop(second);
     assert_eq!(store.reserved_bytes(), first_charge);
     drop(first);
+    assert_eq!(store.reserved_bytes(), 0);
+}
+
+#[test]
+fn dense_backgrounds_publish_atomically_and_retired_snapshots_stay_charged() {
+    let count = chart_data::MAX_POINTS;
+    let mut data = Data {
+        version: 2,
+        contents: Contents::Cartesian(vec![Layer::Bar(Series {
+            id: 1,
+            name: "Dense".into(),
+            points: (0..count)
+                .map(|i| Point {
+                    id: (count - i) as i64,
+                    x: i as f64,
+                    y: Some(1.),
+                    label: String::new(),
+                })
+                .collect(),
+        })]),
+        bar_backgrounds: vec![],
+    };
+    let empty_charge = data_charge(&data);
+    data.bar_backgrounds = (1..=count)
+        .map(|id| chart_data::BarBackground {
+            series: 1,
+            datum: id as i64,
+            brush: gpuio_protocol::chart_appearance::Brush::Solid(id as i64),
+        })
+        .collect();
+    assert_eq!(
+        data_charge(&data) - empty_charge,
+        data.bar_backgrounds.capacity() * size_of::<chart_data::BarBackground>()
+    );
+    let mut bytes = vec![];
+    data.binprot_write(&mut bytes).unwrap();
+    assert!(bytes.len() < chart_data::MAX_BYTES);
+    let mut store = Store::default();
+    let id = store.create().unwrap();
+    publish(&mut store, id, 1, 1, &bytes);
+    let lease = store.acquire(id).unwrap();
+    let old = lease.snapshot().unwrap();
+    assert_eq!(old.data().bar_backgrounds.len(), count);
+    let old_charge = old._reservation.bytes;
+    data.bar_backgrounds.clear();
+    bytes.clear();
+    data.binprot_write(&mut bytes).unwrap();
+    stage(&mut store, id, 2, 1, &bytes);
+    let work = store.publish(id, 2).unwrap();
+    assert_eq!(
+        lease.snapshot().unwrap().data().bar_backgrounds.len(),
+        count
+    );
+    store
+        .complete(std::thread::spawn(move || work.run()).join().unwrap())
+        .unwrap();
+    assert!(lease.snapshot().unwrap().data().bar_backgrounds.is_empty());
+    store.release(id).unwrap();
+    drop(lease);
+    assert_eq!(store.reserved_bytes(), old_charge);
+    drop(old);
     assert_eq!(store.reserved_bytes(), 0);
 }
 

@@ -193,6 +193,23 @@ end
 
 type t [@@deriving equal, sexp_of]
 
+module Bar_background : sig
+  type t [@@deriving equal, sexp_of]
+
+  val create : series:Series_id.t -> datum:Datum_id.t -> Background.t -> t
+end
+
+(** Replace all data-owned bar backgrounds; [[]] removes them. At most 100,000
+    unique pairs, each referring to an existing numeric/categorical bar datum.
+    Missing categorical observations may have a background but do not paint.
+    Entries are canonicalized by identity; source order and values do not change.
+    Resolve colors against [theme] (default [Theme.default]) now, not at paint.
+    Unknown tokens, invalid references or a combined encoding over 16 MiB fail.
+    Theme changes require explicitly constructing and publishing a new value.
+    Sparse Chart_appearance datum fills override these fills; corners inherit
+    independently. Aggregate appearance follows Chart_appearance.Aggregates. *)
+val with_bar_backgrounds : t -> ?theme:Theme.t -> Bar_background.t list -> t Or_error.t
+
 (** Line/area accept missing values as gaps; bars require every y value. Numeric
     x coordinates determine positions; labels never act as identity or scale.
     Empty input is valid. These constructors perform no implicit aggregation. *)

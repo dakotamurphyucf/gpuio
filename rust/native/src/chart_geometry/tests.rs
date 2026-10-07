@@ -4,7 +4,8 @@ fn options() -> options::Options {
 }
 fn dataset(contents: data::Contents) -> data::Data {
     data::Data {
-        version: 1,
+        version: 2,
+        bar_backgrounds: vec![],
         contents,
     }
 }

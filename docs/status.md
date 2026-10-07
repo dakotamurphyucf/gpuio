@@ -11,6 +11,13 @@ pass; macOS foundation fails only the two Metal presentation probes. The repaire
 Signal Studio and chart checks pass. Both probes receive zero presentation times
 on Apple Paravirtual; physical presentation and release acceptance remain open.
 
+[Dense bar background foundations](evidence/dense-background-foundation-och41.md)
+now implement immutable source-owned fills, typed pair validation, theme resolution,
+bounded paired codecs and native appearance precedence. Local 100k-source,
+snapshot accounting, native unit/GPU, full Dune and strict lint checks pass.
+Chart data advances to schema 2; matching packages are required. Public gallery
+and fresh installed-consumer qualification remain open, as do per-bar baselines.
+
 [Area baselines](evidence/area-baselines-och41.md) now pass local codec, native
 unit/GPU, full Dune/lint and root/fresh-installed gallery checks. Per-series
 data-unit baselines affect domain/fill and shared stacked bounds while preserving
@@ -89,7 +96,7 @@ radar/content wrapper validation and retained-memory accounting. Paired expects,
 the existing hidden-window chart regression and full Dune checks pass locally.
 That checkpoint predates the experimental attachment/renderer above; broader
 interaction qualification remains open.
-Current view/options/style/data schemas are -2/9/-9/1; matching packages are required.
+Current view/options/style/data schemas are -2/9/-9/2; matching packages are required.
 
 [Rich inspection content foundations](evidence/chart-inspection-content-foundation-och41.md)
 add validated OCaml target/content values and paired standalone metadata codecs.

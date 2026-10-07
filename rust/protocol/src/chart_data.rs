@@ -112,9 +112,16 @@ pub enum Contents {
     Categorical(Vec<Category>, Vec<CategoricalLayer>),
 }
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]
+pub struct BarBackground {
+    pub series: i64,
+    pub datum: i64,
+    pub brush: crate::chart_appearance::Brush,
+}
+#[derive(Clone, Debug, PartialEq, BinProtWrite)]
 pub struct Data {
     pub version: i64,
     pub contents: Contents,
+    pub bar_backgrounds: Vec<BarBackground>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -172,7 +179,8 @@ impl Stats {
 }
 impl Data {
     pub fn validate(&self) -> Result<Stats, ValidationError> {
-        require(self.version == 1)?;
+        require(self.version == 2)?;
+        limit(self.bar_backgrounds.len() <= MAX_POINTS)?;
         let mut stats = Stats::default();
         match &self.contents {
             Contents::Cartesian(layers) => {
@@ -316,6 +324,37 @@ impl Data {
                 require(visited == nodes.len())?;
             }
         }
+        if !self.bar_backgrounds.is_empty() {
+            require(
+                self.bar_backgrounds
+                    .windows(2)
+                    .all(|pair| (pair[0].series, pair[0].datum) < (pair[1].series, pair[1].datum)),
+            )?;
+            let mut keys = BTreeSet::new();
+            match &self.contents {
+                Contents::Cartesian(layers) => {
+                    for layer in layers {
+                        if let Layer::Bar(series) = layer {
+                            keys.extend(series.points.iter().map(|p| (series.id, p.id)));
+                        }
+                    }
+                }
+                Contents::Categorical(_, layers) => {
+                    for layer in layers {
+                        if let CategoricalLayer::Bar(series) = layer {
+                            keys.extend(series.points.iter().map(|p| (series.id, p.id)));
+                        }
+                    }
+                }
+                _ => {}
+            }
+            require(
+                self.bar_backgrounds
+                    .iter()
+                    .all(|b| b.brush.is_valid() && keys.contains(&(b.series, b.datum))),
+            )?;
+        }
+        limit(binprot::BinProtSize::binprot_size(self) <= MAX_BYTES)?;
         Ok(stats)
     }
 }

@@ -40,7 +40,8 @@ pub(super) async fn exercise(
 ) {
     let snapshot = session.borrow().chart(source).unwrap().snapshot().unwrap();
     let data = Data {
-        version: 1,
+        version: 2,
+        bar_backgrounds: vec![],
         contents: Contents::Radar(
             [7, 9, 11]
                 .into_iter()

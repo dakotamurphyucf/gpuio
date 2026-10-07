@@ -53,7 +53,8 @@ fn series_style(id: i64) -> a::Series {
 #[test]
 fn marker_datum_radius_matches_exact_hit_bounds_and_hidden_markers_keep_selection() {
     let data = Data {
-        version: 1,
+        version: 2,
+        bar_backgrounds: vec![],
         contents: d::Contents::Cartesian(vec![d::Layer::Line(series(11, &[1., 2., 3.]))]),
     };
     let options = options();
@@ -118,7 +119,8 @@ fn marker_datum_radius_matches_exact_hit_bounds_and_hidden_markers_keep_selectio
 #[test]
 fn series_paths_have_independent_brushes_widths_curves_and_legend_colors() {
     let data = Data {
-        version: 1,
+        version: 2,
+        bar_backgrounds: vec![],
         contents: d::Contents::Cartesian(vec![d::Layer::Area(series(11, &[1., 3., 2.]))]),
     };
     let options = options();
@@ -162,7 +164,8 @@ fn series_paths_have_independent_brushes_widths_curves_and_legend_colors() {
 #[test]
 fn stack_curves_require_matching_effective_area_curves() {
     let data = Data {
-        version: 1,
+        version: 2,
+        bar_backgrounds: vec![],
         contents: d::Contents::Cartesian(vec![
             d::Layer::Area(series(11, &[1., 3., 2.])),
             d::Layer::Area(series(22, &[2., 1., 2.])),
@@ -198,7 +201,8 @@ fn stack_curves_require_matching_effective_area_curves() {
 #[test]
 fn bar_brushes_follow_signed_stack_bounds_and_physical_corners() {
     let data = Data {
-        version: 1,
+        version: 2,
+        bar_backgrounds: vec![],
         contents: d::Contents::Cartesian(vec![
             d::Layer::Bar(series(11, &[-2., 3.])),
             d::Layer::Bar(series(22, &[-4., 5.])),
@@ -258,7 +262,8 @@ fn bar_brushes_follow_signed_stack_bounds_and_physical_corners() {
 #[test]
 fn sampled_bar_uses_agreement_instead_of_first_source_color() {
     let data = Data {
-        version: 1,
+        version: 2,
+        bar_backgrounds: vec![],
         contents: d::Contents::Cartesian(vec![d::Layer::Bar(series(11, &[1., 2., 3., 4.]))]),
     };
     let options = options();
@@ -300,7 +305,8 @@ fn sampled_bar_uses_agreement_instead_of_first_source_color() {
 #[test]
 fn radar_appearance_uses_axis_identity_and_preserves_original_selection() {
     let data = Data {
-        version: 1,
+        version: 2,
+        bar_backgrounds: vec![],
         contents: d::Contents::Radar(
             [90, 7, 42]
                 .into_iter()
@@ -376,7 +382,8 @@ fn area_baseline_changes_domain_and_fill_without_rewriting_source() {
     for categorical in [false, true] {
         let source = series(11, &[10., 20., 15.]);
         let data = Data {
-            version: 1,
+            version: 2,
+            bar_backgrounds: vec![],
             contents: if categorical {
                 d::Contents::Categorical(
                     (0..3)
@@ -455,7 +462,8 @@ fn area_baseline_changes_domain_and_fill_without_rewriting_source() {
 #[test]
 fn stacked_area_baseline_offsets_bounds_and_requires_shared_effective_value() {
     let data = Data {
-        version: 1,
+        version: 2,
+        bar_backgrounds: vec![],
         contents: d::Contents::Cartesian(vec![
             d::Layer::Area(series(11, &[2., -3., 4.])),
             d::Layer::Area(series(22, &[5., -7., 6.])),
@@ -526,7 +534,8 @@ fn area_baseline_preserves_gaps_empty_domains_and_non_area_layers() {
     let mut source = series(11, &[1., 2., 3.]);
     source.points[1].y = None;
     let data = Data {
-        version: 1,
+        version: 2,
+        bar_backgrounds: vec![],
         contents: d::Contents::Cartesian(vec![d::Layer::Area(source.clone())]),
     };
     let p = plan(&data, &options, &style).unwrap();
@@ -544,7 +553,8 @@ fn area_baseline_preserves_gaps_empty_domains_and_non_area_layers() {
         point.y = None;
     }
     let empty = Data {
-        version: 1,
+        version: 2,
+        bar_backgrounds: vec![],
         contents: d::Contents::Cartesian(vec![d::Layer::Area(source)]),
     };
     let p = plan(&empty, &options, &style).unwrap();
@@ -559,7 +569,8 @@ fn area_baseline_preserves_gaps_empty_domains_and_non_area_layers() {
         d::Layer::Bar(series(11, &[10., 12.])),
     ] {
         let data = Data {
-            version: 1,
+            version: 2,
+            bar_backgrounds: vec![],
             contents: d::Contents::Cartesian(vec![layer]),
         };
         let default = plan(&data, &options, &Style::default()).unwrap();

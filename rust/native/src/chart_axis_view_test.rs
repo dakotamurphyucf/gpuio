@@ -12,7 +12,8 @@ pub(super) async fn exercise(
 ) {
     let snapshot = session.borrow().chart(source).unwrap().snapshot().unwrap();
     let data = Data {
-        version: 1,
+        version: 2,
+        bar_backgrounds: vec![],
         contents: Contents::Categorical(
             vec![
                 gpuio_protocol::chart_data::Category {

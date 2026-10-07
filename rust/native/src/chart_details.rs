@@ -274,7 +274,8 @@ mod tests {
     #[test]
     fn aggregate_tooltips_use_reduced_values_and_original_interval() {
         let data = Data {
-            version: 1,
+            version: 2,
+            bar_backgrounds: vec![],
             contents: Contents::Cartesian(vec![Layer::Bar(Series {
                 id: 9,
                 name: "Throughput".into(),
@@ -310,7 +311,8 @@ mod tests {
             );
         }
         let candles = Data {
-            version: 1,
+            version: 2,
+            bar_backgrounds: vec![],
             contents: Contents::Candlestick(vec![
                 Candle {
                     id: 42,
@@ -344,7 +346,8 @@ mod tests {
     #[test]
     fn custom_radar_content_omits_only_its_axis_title() {
         let data = Data {
-            version: 1,
+            version: 2,
+            bar_backgrounds: vec![],
             contents: Contents::Radar(
                 [7, 9, 11]
                     .into_iter()
@@ -384,7 +387,7 @@ mod tests {
 
     #[test]
     fn every_family_describes_actual_marks_and_rejects_unrelated_sources() {
-        for fixture in include_str!("../../../test/fixtures/chart-v1-data.hex").lines() {
+        for fixture in include_str!("../../../test/fixtures/chart-v2-data.hex").lines() {
             let (_, hex) = fixture.split_once(' ').unwrap();
             let bytes = (0..hex.len())
                 .step_by(2)
@@ -399,7 +402,8 @@ mod tests {
                 assert!(!details.text.is_empty());
                 assert!(details.anchor.x.is_finite() && details.anchor.y.is_finite());
                 let empty = Data {
-                    version: 1,
+                    version: 2,
+                    bar_backgrounds: vec![],
                     contents: Contents::Pie(vec![]),
                 };
                 assert!(describe(&empty, &policy, &Options::default(), &plan, index).is_none());

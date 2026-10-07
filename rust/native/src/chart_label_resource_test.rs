@@ -207,7 +207,8 @@ pub(super) async fn exercise(
             .collect();
         axes.rotate_right(index);
         let data = Data {
-            version: 1,
+            version: 2,
+            bar_backgrounds: vec![],
             contents: Contents::Radar(axes, vec![]),
         };
         let revision = publish_data(cx, source, session, &data);

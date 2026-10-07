@@ -73,7 +73,7 @@ let raw wire = Bin_prot.Utils.bin_dump W.bin_writer_t wire |> Bigstring.to_strin
 let%expect_test "independent all-family fixtures fix schema tags, field order and UTF-8" =
   Eio_main.run (fun env ->
     let lines =
-      Eio.Path.load Eio.Path.(Eio.Stdenv.cwd env / "chart-v1-data.hex")
+      Eio.Path.load Eio.Path.(Eio.Stdenv.cwd env / "chart-v2-data.hex")
       |> String.split_lines
     in
     List.iter2_exn (fixture ()) lines ~f:(fun (name, data) line ->
@@ -99,11 +99,21 @@ let%expect_test "independent all-family fixtures fix schema tags, field order an
 
 let%expect_test "decoded raw wire values must pass domain constructors" =
   let cases =
-    [ { W.version = 2L; contents = Pie [] }
-    ; { version = 1L; contents = Pie [ { id = 0L; label = "A"; value = 0. } ] }
-    ; { version = 1L; contents = Pie [ { id = 1L; label = "A"; value = -1. } ] }
-    ; { version = 1L; contents = Pie [ { id = 1L; label = "A"; value = Float.nan } ] }
-    ; { version = 1L
+    [ { W.version = 3L; bar_backgrounds = []; contents = Pie [] }
+    ; { version = 2L
+      ; bar_backgrounds = []
+      ; contents = Pie [ { id = 0L; label = "A"; value = 0. } ]
+      }
+    ; { version = 2L
+      ; bar_backgrounds = []
+      ; contents = Pie [ { id = 1L; label = "A"; value = -1. } ]
+      }
+    ; { version = 2L
+      ; bar_backgrounds = []
+      ; contents = Pie [ { id = 1L; label = "A"; value = Float.nan } ]
+      }
+    ; { version = 2L
+      ; bar_backgrounds = []
       ; contents =
           Cartesian
             [ Bar
@@ -113,7 +123,8 @@ let%expect_test "decoded raw wire values must pass domain constructors" =
                 }
             ]
       }
-    ; { version = 1L
+    ; { version = 2L
+      ; bar_backgrounds = []
       ; contents =
           Cartesian
             [ Line
@@ -126,19 +137,22 @@ let%expect_test "decoded raw wire values must pass domain constructors" =
                 }
             ]
       }
-    ; { version = 1L
+    ; { version = 2L
+      ; bar_backgrounds = []
       ; contents =
           Candlestick
             [ { id = 1L; x = 0.; label = ""; open_ = 1.; high = 0.; low = 0.; close = 0. }
             ]
       }
-    ; { version = 1L
+    ; { version = 2L
+      ; bar_backgrounds = []
       ; contents =
           Sankey
             ( [ { id = 1L; label = "N" } ]
             , [ { id = 1L; source = 1L; target = 2L; value = 1. } ] )
       }
-    ; { version = 1L
+    ; { version = 2L
+      ; bar_backgrounds = []
       ; contents =
           Radar
             ( [ { id = 1L; label = "A"; maximum = 1. }
@@ -162,11 +176,11 @@ let%expect_test "decoder rejects huge/truncated lengths, bad tags and aggregate 
     |> Bigstring.to_string
   in
   let malicious =
-    [ "\001\000\033"
-    ; "\001\000\001\000\001\001A" ^ list_count 100001
-    ; "\001\001" ^ list_count 257
-    ; "\001\255"
-    ; "\001\001\001\001\001\255" ^ String.make 8 '\000'
+    [ "\002\000\033"
+    ; "\002\000\001\000\001\001A" ^ list_count 100001
+    ; "\002\001" ^ list_count 257
+    ; "\002\255"
+    ; "\002\001\001\001\001\255" ^ String.make 8 '\000'
     ]
   in
   print_s
@@ -179,14 +193,16 @@ let%expect_test "decoder rejects huge/truncated lengths, bad tags and aggregate 
   in
   let series id points = { W.Series.id; name = "S"; points } in
   let oversized =
-    { W.version = 1L
+    { W.version = 2L
+    ; bar_backgrounds = []
     ; contents =
         Cartesian
           [ Line (series 1L (points 50_000 "")); Line (series 2L (points 50_001 "")) ]
     }
   in
   let text =
-    { W.version = 1L
+    { W.version = 2L
+    ; bar_backgrounds = []
     ; contents = Cartesian [ Line (series 1L (points 32_768 (String.make 256 'x'))) ]
     }
   in

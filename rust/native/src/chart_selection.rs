@@ -176,7 +176,7 @@ mod tests {
     }
     #[test]
     fn actual_geometry_for_every_family_resolves_to_stable_source_ids() {
-        for fixture in include_str!("../../../test/fixtures/chart-v1-data.hex").lines() {
+        for fixture in include_str!("../../../test/fixtures/chart-v2-data.hex").lines() {
             let (_, hex) = fixture.split_once(' ').unwrap();
             let bytes = (0..hex.len())
                 .step_by(2)
@@ -241,7 +241,8 @@ mod tests {
             })
             .collect::<Vec<_>>();
         let data = Data {
-            version: 1,
+            version: 2,
+            bar_backgrounds: vec![],
             contents: Contents::Cartesian(vec![Layer::Bar(Series {
                 id: 9,
                 name: "Sums".into(),
@@ -273,7 +274,8 @@ mod tests {
             );
         }
         let candles = Data {
-            version: 1,
+            version: 2,
+            bar_backgrounds: vec![],
             contents: Contents::Candlestick(
                 points
                     .iter()
@@ -345,7 +347,8 @@ mod tests {
             })
             .collect();
         let data = Data {
-            version: 1,
+            version: 2,
+            bar_backgrounds: vec![],
             contents: Contents::Cartesian(vec![Layer::Line(Series {
                 id: 8,
                 name: "Line".into(),
@@ -373,7 +376,8 @@ mod tests {
     #[test]
     fn stable_lookup_follows_identity_after_source_positions_change() {
         let original = Data {
-            version: 1,
+            version: 2,
+            bar_backgrounds: vec![],
             contents: Contents::Cartesian(vec![Layer::Line(Series {
                 id: 9,
                 name: "Series".into(),
@@ -417,7 +421,8 @@ mod tests {
     #[test]
     fn aggregated_membership_is_not_inferred_from_endpoint_identity() {
         let data = Data {
-            version: 1,
+            version: 2,
+            bar_backgrounds: vec![],
             contents: Contents::Cartesian(vec![Layer::Bar(Series {
                 id: 9,
                 name: "One sample still aggregated".into(),

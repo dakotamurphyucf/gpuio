@@ -185,7 +185,8 @@ mod tests {
     #[test]
     fn pages_reach_every_original_including_gaps_without_materializing_all_rows() {
         let data = Data {
-            version: 1,
+            version: 2,
+            bar_backgrounds: vec![],
             contents: Contents::Cartesian(vec![Layer::Line(Series {
                 id: 9,
                 name: "Originals".into(),
@@ -218,7 +219,7 @@ mod tests {
     }
     #[test]
     fn all_families_expose_original_values_and_flow_nodes_and_edges() {
-        for fixture in include_str!("../../../test/fixtures/chart-v1-data.hex").lines() {
+        for fixture in include_str!("../../../test/fixtures/chart-v2-data.hex").lines() {
             let (_, hex) = fixture.split_once(' ').unwrap();
             let bytes = (0..hex.len())
                 .step_by(2)
@@ -236,7 +237,8 @@ mod tests {
             }
         }
         let pie = Data {
-            version: 1,
+            version: 2,
+            bar_backgrounds: vec![],
             contents: Contents::Pie(vec![Slice {
                 id: 7,
                 label: "Zero".into(),
@@ -245,7 +247,8 @@ mod tests {
         };
         assert_eq!(row(&pie, 0).unwrap().value, "0");
         let radar = Data {
-            version: 1,
+            version: 2,
+            bar_backgrounds: vec![],
             contents: Contents::Radar(
                 vec![RadarAxis {
                     id: 42,
@@ -264,7 +267,8 @@ mod tests {
     #[test]
     fn isolated_nodes_have_zero_totals_and_do_not_disappear() {
         let data = Data {
-            version: 1,
+            version: 2,
+            bar_backgrounds: vec![],
             contents: Contents::Sankey(
                 vec![Node {
                     id: 7,

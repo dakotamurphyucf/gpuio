@@ -20,7 +20,8 @@ fn series(id: i64, values: &[Option<f64>]) -> data::Series {
 }
 fn numeric(layers: Vec<Layer>) -> Data {
     Data {
-        version: 1,
+        version: 2,
+        bar_backgrounds: vec![],
         contents: Contents::Cartesian(layers),
     }
 }
@@ -30,7 +31,8 @@ fn categorical(data: &Data) -> Data {
     };
     let count = layers[0].series().points.len();
     Data {
-        version: 1,
+        version: 2,
+        bar_backgrounds: vec![],
         contents: Contents::Categorical(
             (0..count)
                 .map(|i| Category {

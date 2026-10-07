@@ -110,7 +110,8 @@ fn bar_ramps_follow_value_direction_and_preserve_clipped_plateaus() {
 
 fn source() -> Data {
     Data {
-        version: 1,
+        version: 2,
+        bar_backgrounds: vec![],
         contents: Contents::Cartesian(vec![data::Layer::Bar(data::Series {
             id: 55,
             name: "Source".into(),
@@ -136,6 +137,88 @@ fn source() -> Data {
             ],
         })]),
     }
+}
+
+#[test]
+fn dense_fills_compose_with_sparse_corners_and_aggregate_provenance() {
+    let mut data = source();
+    let fill = Brush::Checkerboard(0xff00ffff, 8.);
+    data.bar_backgrounds = vec![
+        data::BarBackground {
+            series: 55,
+            datum: 3,
+            brush: Brush::Solid(3),
+        },
+        data::BarBackground {
+            series: 55,
+            datum: 7,
+            brush: fill,
+        },
+        data::BarBackground {
+            series: 55,
+            datum: 90,
+            brush: fill,
+        },
+    ];
+    let mut style = Style::default();
+    let options = Options::default();
+    let cancel = AtomicBool::new(false);
+    let resolved = |style: &Style, start, end| {
+        Index::new(&data, style, &options, &cancel)
+            .unwrap()
+            .bar(&mark(start, end), 1)
+            .unwrap()
+    };
+    assert_eq!(
+        resolved(&style, 0, 1).fill,
+        Some(BarFill::Background(fill)),
+        "no sparse map needed"
+    );
+    assert_eq!(
+        resolved(&style, 0, 2).fill,
+        Some(BarFill::Background(fill)),
+        "gap is not a participant"
+    );
+    assert_eq!(
+        resolved(&style, 0, 3).fill,
+        Some(BarFill::Background(Brush::Solid(1))),
+        "multi-value default inherits series"
+    );
+    style.appearance.aggregates = Aggregates::Uniform;
+    assert_eq!(resolved(&style, 0, 3).fill, Some(BarFill::Background(fill)));
+    let corners = Corners {
+        top_left: 4.,
+        top_right: 3.,
+        bottom_right: 2.,
+        bottom_left: 1.,
+    };
+    style.appearance.data.push(Datum {
+        series: 55,
+        datum: 90,
+        marker: None,
+        bar: Some(Bar {
+            fill: None,
+            corners: Some(corners),
+        }),
+    });
+    let single = resolved(&style, 0, 2);
+    assert_eq!(single.fill, Some(BarFill::Background(fill)));
+    assert_eq!(single.corners, Some(corners));
+    assert_eq!(
+        resolved(&style, 0, 3).fill,
+        Some(BarFill::Background(Brush::Solid(1))),
+        "corners also must agree"
+    );
+    style.appearance.data[0].bar.as_mut().unwrap().fill =
+        Some(BarFill::Background(Brush::Solid(9)));
+    assert_eq!(
+        resolved(&style, 0, 1).fill,
+        Some(BarFill::Background(Brush::Solid(9))),
+        "sparse fill wins"
+    );
+    let index = Index::new(&data, &style, &options, &cancel).unwrap();
+    cancel.store(true, Ordering::Relaxed);
+    assert_eq!(index.bar(&mark(0, 3), 1), Err(Error::Cancelled));
 }
 fn mark(start: usize, end: usize) -> geometry::Mark {
     geometry::Mark {

@@ -30,6 +30,7 @@ const _: () = assert!(
         + chart_data::MAX_TEXT_BYTES
         + chart_data::MAX_POINTS
             * (size_of::<chart_data::Candle>() + size_of::<chart_data::Category>() + 256)
+        + chart_data::MAX_POINTS * size_of::<chart_data::BarBackground>()
         + 2048 * 256
         < DECODE_WORKSPACE_BYTES
 );
@@ -243,7 +244,10 @@ fn data_charge(data: &Data) -> usize {
                 + edges.capacity() * size_of::<Edge>()
         }
     };
-    FIXED_CHARGE + size_of::<Data>() + dynamic
+    FIXED_CHARGE
+        + size_of::<Data>()
+        + dynamic
+        + data.bar_backgrounds.capacity() * size_of::<chart_data::BarBackground>()
 }
 impl Work {
     pub fn run(mut self) -> Completion {

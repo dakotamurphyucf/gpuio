@@ -193,7 +193,8 @@ mod tests {
             disabled: false,
         };
         let source = Data {
-            version: 1,
+            version: 2,
+            bar_backgrounds: vec![],
             contents: Contents::Cartesian(vec![]),
         };
         assert_eq!(gutters(&config, false), (76., 28., 44., 28.));
@@ -233,7 +234,8 @@ mod tests {
         config.style.y_axis.position = Some(0.5);
         config.style.y_axis.font_size = 24.;
         let source = Data {
-            version: 1,
+            version: 2,
+            bar_backgrounds: vec![],
             contents: Contents::Cartesian(vec![]),
         };
         let frame = Frame::new(600., 400., &source, &config);

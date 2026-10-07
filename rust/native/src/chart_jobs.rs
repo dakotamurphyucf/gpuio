@@ -376,7 +376,8 @@ mod tests {
     };
     fn request() -> Request {
         let data = Data {
-            version: 1,
+            version: 2,
+            bar_backgrounds: vec![],
             contents: Contents::Pie(vec![Slice {
                 id: 1,
                 label: "One".into(),

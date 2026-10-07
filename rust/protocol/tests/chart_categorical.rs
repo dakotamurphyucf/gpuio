@@ -1,7 +1,7 @@
 use binprot::BinProtWrite;
 use gpuio_protocol::{chart_data::*, decode_chart_data};
 fn fixture() -> Vec<u8> {
-    let text = include_str!("../../../test/fixtures/chart-v1-categorical.hex").trim();
+    let text = include_str!("../../../test/fixtures/chart-v2-categorical.hex").trim();
     (0..text.len())
         .step_by(2)
         .map(|i| u8::from_str_radix(&text[i..i + 2], 16).unwrap())
@@ -60,7 +60,8 @@ fn independent_categorical_fixture_and_bounded_decoding() {
         invalid(bad);
     }
     let excessive = Data {
-        version: 1,
+        version: 2,
+        bar_backgrounds: vec![],
         contents: Contents::Categorical(
             (0..=MAX_POINTS)
                 .map(|i| Category {

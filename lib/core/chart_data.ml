@@ -373,6 +373,7 @@ type t =
   { contents : contents
   ; value_count : int
   ; text_bytes : int
+  ; bar_backgrounds : Gpuio_protocol.Chart_data_wire.Bar_background.t list
   }
 [@@deriving equal, sexp_of]
 
@@ -384,7 +385,7 @@ let finish contents ~value_count ~text_bytes =
   let%map.Or_error () =
     require (text_bytes <= max_text_bytes) "chart text budget exceeded"
   in
-  { contents; value_count; text_bytes }
+  { contents; value_count; text_bytes; bar_backgrounds = [] }
 ;;
 
 let categorical ~categories layers =
@@ -584,6 +585,73 @@ let sankey ~nodes ~edges =
     ~text_bytes:(sum_bytes nodes ~text:Node.label)
 ;;
 
+module Bar_background = struct
+  type t =
+    { series : Series_id.t
+    ; datum : Datum_id.t
+    ; background : Background.t
+    }
+  [@@deriving equal, sexp_of]
+
+  let create ~series ~datum background = { series; datum; background }
+end
+
+module Background_key = struct
+  module T = struct
+    type t = int64 * int64 [@@deriving compare, sexp]
+  end
+
+  include T
+  include Comparator.Make (T)
+end
+
+let background_key (b : Gpuio_protocol.Chart_data_wire.Bar_background.t) =
+  b.series, b.datum
+;;
+
+let validate_backgrounds t backgrounds =
+  let module W = Gpuio_protocol.Chart_data_wire in
+  let%bind.Or_error () =
+    require (List.length backgrounds <= max_points) "chart background limit exceeded"
+  in
+  let%bind.Or_error () =
+    require
+      (let rec strictly_ordered = function
+         | [] | [ _ ] -> true
+         | first :: (second :: _ as rest) ->
+           Background_key.compare (background_key first) (background_key second) < 0
+           && strictly_ordered rest
+       in
+       strictly_ordered backgrounds)
+      "chart background pairs must be strictly ordered and unique"
+  in
+  if List.is_empty backgrounds
+  then Ok ()
+  else (
+    let keys =
+      match t.contents with
+      | Cartesian layers ->
+        List.concat_map layers ~f:(function
+          | Layer.Line _ | Area _ -> []
+          | Bar s ->
+            List.map s.points ~f:(fun p ->
+              Series_id.to_int64 s.id, Datum_id.to_int64 p.Point.id))
+      | Categorical (_, layers) ->
+        List.concat_map layers ~f:(function
+          | Categorical_layer.Line _ | Area _ -> []
+          | Bar s ->
+            List.map s.points ~f:(fun p ->
+              Series_id.to_int64 s.id, Datum_id.to_int64 p.Categorical_point.id))
+      | Pie _ | Radar _ | Candlestick _ | Sankey _ -> []
+    in
+    let keys = Set.of_list (module Background_key) keys in
+    require
+      (List.for_all backgrounds ~f:(fun b ->
+         Gpuio_protocol.Chart_appearance_wire.Brush.valid b.W.Bar_background.brush
+         && Set.mem keys (background_key b)))
+      "chart backgrounds must be valid brushes referring to existing bar observations")
+;;
+
 module Expert = struct
   type nonrec contents = contents =
     | Cartesian of Layer.t list
@@ -602,7 +670,11 @@ module Expert = struct
       | Categorical (categories, _) -> List.length categories
       | _ -> 0
     in
-    65_536 + (512 * t.value_count) + (128 * categories) + (4 * t.text_bytes)
+    65_536
+    + (512 * List.length t.bar_backgrounds)
+    + (512 * t.value_count)
+    + (128 * categories)
+    + (4 * t.text_bytes)
   ;;
 
   module Wire = Gpuio_protocol.Chart_data_wire
@@ -814,38 +886,42 @@ module Expert = struct
         Wire.Contents.Sankey
           (List.map nodes ~f:node_to_wire, List.map edges ~f:edge_to_wire)
     in
-    { Wire.version = 1L; contents }
+    { Wire.version = 2L; contents; bar_backgrounds = t.bar_backgrounds }
   ;;
 
   let of_wire (wire : Wire.t) =
     let%bind.Or_error () =
-      require (Int64.equal wire.version 1L) "unsupported chart data version"
+      require (Int64.equal wire.version 2L) "unsupported chart data version"
     in
     let%bind.Or_error () =
       require (Wire.within_bounds wire) "chart wire envelope exceeds its resource bounds"
     in
-    match wire.contents with
-    | Cartesian layers ->
-      let%bind.Or_error layers = convert layers ~f:layer_of_wire in
-      cartesian layers
-    | Categorical (categories, layers) ->
-      let%bind.Or_error categories = convert categories ~f:category_of_wire in
-      let%bind.Or_error layers = convert layers ~f:categorical_layer_of_wire in
-      categorical ~categories layers
-    | Pie slices ->
-      let%bind.Or_error slices = convert slices ~f:slice_of_wire in
-      pie slices
-    | Radar (axes, series) ->
-      let%bind.Or_error axes = convert axes ~f:radar_axis_of_wire in
-      let%bind.Or_error series = convert series ~f:radar_series_of_wire in
-      radar ~axes series
-    | Candlestick candles ->
-      let%bind.Or_error candles = convert candles ~f:candle_of_wire in
-      candlestick candles
-    | Sankey (nodes, edges) ->
-      let%bind.Or_error nodes = convert nodes ~f:node_of_wire in
-      let%bind.Or_error edges = convert edges ~f:edge_of_wire in
-      sankey ~nodes ~edges
+    let%bind.Or_error t =
+      match wire.contents with
+      | Cartesian layers ->
+        let%bind.Or_error layers = convert layers ~f:layer_of_wire in
+        cartesian layers
+      | Categorical (categories, layers) ->
+        let%bind.Or_error categories = convert categories ~f:category_of_wire in
+        let%bind.Or_error layers = convert layers ~f:categorical_layer_of_wire in
+        categorical ~categories layers
+      | Pie slices ->
+        let%bind.Or_error slices = convert slices ~f:slice_of_wire in
+        pie slices
+      | Radar (axes, series) ->
+        let%bind.Or_error axes = convert axes ~f:radar_axis_of_wire in
+        let%bind.Or_error series = convert series ~f:radar_series_of_wire in
+        radar ~axes series
+      | Candlestick candles ->
+        let%bind.Or_error candles = convert candles ~f:candle_of_wire in
+        candlestick candles
+      | Sankey (nodes, edges) ->
+        let%bind.Or_error nodes = convert nodes ~f:node_of_wire in
+        let%bind.Or_error edges = convert edges ~f:edge_of_wire in
+        sankey ~nodes ~edges
+    in
+    let%map.Or_error () = validate_backgrounds t wire.bar_backgrounds in
+    { t with bar_backgrounds = wire.bar_backgrounds }
   ;;
 
   let encode t =
@@ -861,3 +937,31 @@ module Expert = struct
     of_wire wire
   ;;
 end
+
+let with_bar_backgrounds t ?(theme = Theme.default) backgrounds =
+  let module W = Gpuio_protocol.Chart_data_wire in
+  let%bind.Or_error () =
+    require (List.length backgrounds <= max_points) "chart background limit exceeded"
+  in
+  let%bind.Or_error bar_backgrounds =
+    List.map backgrounds ~f:(fun (b : Bar_background.t) ->
+      let%map.Or_error brush = Chart_brush.resolve b.background ~theme in
+      { W.Bar_background.series = Series_id.to_int64 b.series
+      ; datum = Datum_id.to_int64 b.datum
+      ; brush
+      })
+    |> Or_error.all
+  in
+  let bar_backgrounds =
+    List.sort bar_backgrounds ~compare:(fun a b ->
+      Background_key.compare (background_key a) (background_key b))
+  in
+  let%bind.Or_error () = validate_backgrounds t bar_backgrounds in
+  let result = { t with bar_backgrounds } in
+  let%map.Or_error () =
+    require
+      (W.bin_size_t (Expert.to_wire result) <= W.max_bytes)
+      "chart data exceeds 16 MiB"
+  in
+  result
+;;

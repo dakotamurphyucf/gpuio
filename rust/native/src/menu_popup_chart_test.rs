@@ -19,7 +19,8 @@ pub(super) fn immediate(session: &host::SharedSession, request: Request) -> Resp
 }
 fn publish(session: &host::SharedSession, source: ResourceId, first_axis: i64, cx: &mut App) {
     let data = Data {
-        version: 1,
+        version: 2,
+        bar_backgrounds: vec![],
         contents: Contents::Radar(
             [first_axis, 9, 11]
                 .into_iter()

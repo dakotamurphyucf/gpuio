@@ -49,7 +49,8 @@ fn series() -> data::Series {
 }
 fn dataset(contents: data::Contents) -> Data {
     Data {
-        version: 1,
+        version: 2,
+        bar_backgrounds: vec![],
         contents,
     }
 }
@@ -336,6 +337,80 @@ fn cases() -> Vec<Case> {
     bars.points.truncate(2);
     bars.points[0].y = Some(1.);
     bars.points[1].y = Some(2.);
+    for orientation in [
+        Orientation::Vertical,
+        Orientation::Horizontal,
+        Orientation::VerticalReversed,
+        Orientation::HorizontalReversed,
+    ] {
+        for variant in 0..3 {
+            let mut dense_series = bars.clone();
+            dense_series.points[0].id = 90;
+            dense_series.points[1].id = 7;
+            dense_series.points[0].y = Some(2.);
+            let mut data = dataset(data::Contents::Cartesian(vec![data::Layer::Bar(
+                dense_series,
+            )]));
+            data.bar_backgrounds = vec![
+                data::BarBackground {
+                    series: 1,
+                    datum: 7,
+                    brush: if variant == 2 {
+                        a::Brush::Checkerboard(0x0000ffff, 8.)
+                    } else {
+                        a::Brush::Solid(0x0000ffff)
+                    },
+                },
+                data::BarBackground {
+                    series: 1,
+                    datum: 90,
+                    brush: a::Brush::Solid(0x00ff00ff),
+                },
+            ];
+            let mut options = options();
+            options.cartesian.orientation = orientation;
+            let mut style = style();
+            if variant == 1 {
+                style.appearance.data.push(a::Datum {
+                    series: 1,
+                    datum: 7,
+                    marker: None,
+                    bar: Some(a::Bar {
+                        fill: Some(a::BarFill::Background(a::Brush::Solid(0xffff00ff))),
+                        corners: None,
+                    }),
+                });
+            }
+            let (first, second, empty) = if orientation.is_horizontal() {
+                ((100., 40.), (100., 120.), (100., 2.))
+            } else {
+                ((50., 80.), (150., 80.), (2., 80.))
+            };
+            let mut samples = vec![
+                sample(first.0, first.1, 0, 255, 0),
+                sample(empty.0, empty.1, 0, 0, 0),
+            ];
+            if variant != 2 {
+                let (r, g, b) = if variant == 1 {
+                    (255, 255, 0)
+                } else {
+                    (0, 0, 255)
+                };
+                samples.push(sample(second.0, second.1, r, g, b));
+            }
+            add(
+                if variant == 2 {
+                    "dense-background-pattern"
+                } else {
+                    "dense-background-solid"
+                },
+                data,
+                options,
+                style,
+                samples,
+            );
+        }
+    }
     add(
         "bar",
         dataset(data::Contents::Cartesian(vec![data::Layer::Bar(
@@ -968,6 +1043,19 @@ async fn exercise(
                         assert!(base[0] > 247 && base[2] < 8 && tip[2] > 247 && tip[0] < 8,
                             "value endpoints remain plateaus: {base:?} {tip:?}");
                     }
+                }
+                if case.name == "dense-background-pattern" {
+                    let (left, top) = if case.options.cartesian.orientation.is_horizontal() { (80., 110.) } else { (140., 60.) };
+                    let mut blue = 0;
+                    let mut gap = 0;
+                    for y in 0..24 {
+                        for x in 0..24 {
+                            let p = pixel(&image, bounds, scale, left + x as f32, top + y as f32);
+                            blue += usize::from(p[2] > 180 && p[0] < 30 && p[1] < 30);
+                            gap += usize::from(p[0] < 30 && p[1] < 30 && p[2] < 30);
+                        }
+                    }
+                    assert!(blue > 32 && gap > 32, "dense checker must retain colored and transparent cells: blue={blue} gap={gap}");
                 }
                 if case.name == "appearance-path-gradient" {
                     let first = pixel(&image, bounds, scale, 20., 80.);

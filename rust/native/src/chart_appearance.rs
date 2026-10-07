@@ -259,7 +259,7 @@ impl<'a> Index<'a> {
             },
             self.series_at(mark.layer).and_then(|s| s.bar),
         );
-        if self.points.is_empty() {
+        if self.points.is_empty() && self.data.bar_backgrounds.is_empty() {
             return Ok(base);
         }
         let geometry::Source::Cartesian { series, start, end } = mark.source else {
@@ -280,8 +280,17 @@ impl<'a> Index<'a> {
             if point.y.is_none() {
                 continue;
             }
+            let background = self
+                .data
+                .bar_backgrounds
+                .binary_search_by_key(&(layer.id, point.id), |b| (b.series, b.datum))
+                .ok()
+                .map(|index| Bar {
+                    fill: Some(BarFill::Background(self.data.bar_backgrounds[index].brush)),
+                    corners: None,
+                });
             let current = apply_bar(
-                base,
+                apply_bar(base, background),
                 self.points.get(&(layer.id, point.id)).and_then(|d| d.bar),
             );
             if let Some(previous) = first {
