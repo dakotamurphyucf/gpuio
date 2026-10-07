@@ -1,0 +1,131 @@
+{
+  "archive": "dense-background-gallery-och41-logs.tar.gz",
+  "sha256": "e70ad9d375bcf2b1ec9174a8f0087132f4daee30d316962ba4ecf0b15169f75f",
+  "members": [
+    {
+      "path": "dense-gallery-charts-fourth.log",
+      "bytes": 69419,
+      "sha256": "282ebe289c174a19307457392d2b34f4178a8c5498265e6edb106a0a380cd48f"
+    },
+    {
+      "path": "dense-gallery-charts-third.log",
+      "bytes": 54944,
+      "sha256": "5eec97e557f0c0a7cd38eebc10dda33d5a0c9cd9cd8985027475cbc748f3b083"
+    },
+    {
+      "path": "dense-gallery-inspection.log",
+      "bytes": 3321,
+      "sha256": "eddf7681a50b4a2aaf07aa7251722e04ef9b513d07f6e5a699a776212f56dbfd"
+    },
+    {
+      "path": "dense-gallery-charts-second.log",
+      "bytes": 55111,
+      "sha256": "9b8bbf397637899337d7664656f3235fddb9ade35946de7b0acbcd4e555539fc"
+    },
+    {
+      "path": "dense-gallery-build.log",
+      "bytes": 71,
+      "sha256": "22123947a145f448a522ca123bf67954da146ea87a8612b67548a3c86b2b6866"
+    },
+    {
+      "path": "dense-gallery-native.log",
+      "bytes": 8450,
+      "sha256": "eac46d4ac0ad977ed68245b5fa06241f617664b2766c7d774ee856c697c466ac"
+    },
+    {
+      "path": "dense-gallery-native-second.log",
+      "bytes": 5350,
+      "sha256": "6b01c37e2cbd0cc45771a663ad15ee38c262bbc833ee0ff1000466ed9da6ecf8"
+    },
+    {
+      "path": "dense-gallery-dune.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "dense-gallery-consumer-build.log",
+      "bytes": 100836,
+      "sha256": "ed3945d25126862f6133275147f756807e6f59b6de1a35bbd8dc092d9587f170"
+    },
+    {
+      "path": "dense-gallery-charts.log",
+      "bytes": 55695,
+      "sha256": "49f0ce7dab79f4e4e76adda52ee0cc3f9d60db8901c91e0d31301854d39d87ba"
+    },
+    {
+      "path": "dense-gallery-consumer-native.log",
+      "bytes": 5417,
+      "sha256": "271ee1dd97a954f6c69a5a2e724cd47892a0a37d5f47b662c83e37a3a32069f8"
+    },
+    {
+      "path": "dense-gallery-metadata.json",
+      "bytes": 4985,
+      "sha256": "83546ce805b7f17f81bce30f33641d7c88eae1d8a3602a4b21335cd2854bab84"
+    },
+    {
+      "path": "dense-gallery-images/gallery-failure.png",
+      "bytes": 445770,
+      "sha256": "1ee3a3248a89bc4d566d1165e5a2ad7e993045db61c9ca5041066a63144da33a"
+    },
+    {
+      "path": "dense-gallery-charts-images/gallery-failure.png",
+      "bytes": 470823,
+      "sha256": "65569369387dacfd6bc065448b9c94f254986e3a18346080f8d0252e50040332"
+    },
+    {
+      "path": "dense-gallery-charts-images-second/gallery-failure.png",
+      "bytes": 409169,
+      "sha256": "f67633d29130535449ef76b84284eba8df61d5fa20f46458f768145db1ca7104"
+    },
+    {
+      "path": "dense-gallery-charts-images-third/gallery-failure.png",
+      "bytes": 436266,
+      "sha256": "63cde67477e2c6ec0949c916d81e9ebd008889333adb05b7ca7a564e48e35c52"
+    },
+    {
+      "path": "dense-gallery-doc-audit.log",
+      "bytes": 139,
+      "sha256": "613252b2b1e5fbc0302ecc84f7f62dd0ee3c8de88d4ba2245b03e1b2471f21e4"
+    },
+    {
+      "path": "dense-gallery-images-second/gallery-backgrounds-pattern-vertical.png",
+      "bytes": 399044,
+      "sha256": "04c72d05be73bc62dd99e6ec1b2d5054d97e5b17dacb245a318d642ace01abad"
+    },
+    {
+      "path": "dense-gallery-images-second/gallery-backgrounds-after-apply-light-0.png",
+      "bytes": 371787,
+      "sha256": "818cbd62bc424e7fb3dbdb52de3a5434e7fac7a0af63ce0bb50071d4d6c4cd69"
+    },
+    {
+      "path": "dense-gallery-images-second/gallery-backgrounds-after-apply-dark-0.png",
+      "bytes": 374331,
+      "sha256": "6325a3425ffa69ab97ca0a8ae0521ab1f65a3a0e08c974bf15f3c3458af336b7"
+    },
+    {
+      "path": "dense-gallery-images-second/gallery-backgrounds-sparse-after-reorder-0.png",
+      "bytes": 375582,
+      "sha256": "03046e134f51a893c724d389015e70669279a661e0f7fe6eb3a8b13ebf934b9f"
+    },
+    {
+      "path": "dense-gallery-consumer-images/gallery-backgrounds-pattern-vertical.png",
+      "bytes": 399044,
+      "sha256": "04c72d05be73bc62dd99e6ec1b2d5054d97e5b17dacb245a318d642ace01abad"
+    },
+    {
+      "path": "dense-gallery-consumer-images/gallery-backgrounds-after-apply-light-0.png",
+      "bytes": 371787,
+      "sha256": "818cbd62bc424e7fb3dbdb52de3a5434e7fac7a0af63ce0bb50071d4d6c4cd69"
+    },
+    {
+      "path": "dense-gallery-consumer-images/gallery-backgrounds-after-apply-dark-0.png",
+      "bytes": 374331,
+      "sha256": "6325a3425ffa69ab97ca0a8ae0521ab1f65a3a0e08c974bf15f3c3458af336b7"
+    },
+    {
+      "path": "dense-gallery-consumer-images/gallery-backgrounds-sparse-after-reorder-0.png",
+      "bytes": 375582,
+      "sha256": "03046e134f51a893c724d389015e70669279a661e0f7fe6eb3a8b13ebf934b9f"
+    }
+  ]
+}

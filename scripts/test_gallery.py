@@ -134,7 +134,8 @@ def exercise_shell(mac, images):
         expect_field(mac, TITLE, 'Document title', 'A place for good ideas')
 
 
-def reveal_gallery_control(mac, label, role, *, scroll_fraction=.78, scroll_in_left_gutter=False):
+def reveal_gallery_control(mac, label, role, *, scroll_fraction=.78, scroll_in_left_gutter=False,
+                           top_margin=170):
     # This helper sends desktop pointer events. Re-establish window ownership
     # for each action group; raising does not request focus on the target leaf.
     # The owner guard below still rejects occlusion before sending a click/wheel.
@@ -156,7 +157,7 @@ def reveal_gallery_control(mac, label, role, *, scroll_fraction=.78, scroll_in_l
             x, y, w, h = element_rect(mac, node)
         finally:
             mac.release(node)
-        if y >= wy + 170 and y + h <= wy + wh - 30:
+        if y >= wy + top_margin and y + h <= wy + wh - 30:
             return x, y, w, h
         if scroll_in_left_gutter:
             # A mode switch can still be settling layout. Derive the gutter
@@ -171,7 +172,7 @@ def reveal_gallery_control(mac, label, role, *, scroll_fraction=.78, scroll_in_l
         # cards. Scale toward the measured target, at most one viewport per
         # event, and re-read layout after every step.
         below = y + h - (wy + wh - 30)
-        distance = below if below > 0 else wy + 170 - y
+        distance = below if below > 0 else wy + top_margin - y
         amount = round(min(max(75, distance), max(75, wh - 200)))
         event = create(None, 0, 1, C.c_int(-amount if below > 0 else amount))
         assert event
@@ -4605,6 +4606,7 @@ def exercise_assets(mac, images):
 def exercise_chart_inspection(mac, images):
     reveal_gallery_control(mac, 'Line', 'AXButton')
     mac.press(TITLE, 'Line')
+    reveal_gallery_control(mac, 'Chart preview: Line', 'AXGroup')
     mac.wait_text(TITLE, 'Ready: Line · 48 source values')
     with tempfile.TemporaryDirectory(prefix='gpuio-chart-inspection-') as temporary:
         directory = images or Path(temporary)
@@ -4613,12 +4615,9 @@ def exercise_chart_inspection(mac, images):
                       'Anchored details', 'Cursor details', 'Marker only', 'Partial guides', 'Default inspection']:
             reveal_gallery_control(mac, label, 'AXButton')
             mac.press(TITLE, label)
+            reveal_gallery_control(mac, 'Chart preview: Line', 'AXGroup')
             mac.wait_text(TITLE, 'Ready: Line · 48 source values · Vertical · ' + label)
             focus_gallery_control(mac, 'Chart preview: Line', 'AXGroup')
-            mac.key(115)
-            mac.key(36)
-            mac.wait_text(TITLE, 'Selected: Atlas · x 0 · value 30')
-            reveal_gallery_control(mac, 'Chart preview: Line', 'AXGroup')
             chart = mac.wait_find(TITLE, 'Chart preview: Line', 'AXGroup')
             window = mac.window(TITLE)
             try:
@@ -4629,7 +4628,15 @@ def exercise_chart_inspection(mac, images):
                 mac.release(window)
             GalleryMouse(mac).send(5, (wx + ww - 25, wy + 110))
             time.sleep(.1)
-            card = mac.find(TITLE, 'Atlas:', 'AXGroup', contains=True)
+            # Reveal/focus and pointer parking can change the hovered mark.
+            # Establish keyboard inspection afterward, with no later pointer
+            # move competing with its uncommitted inspection target.
+            mac.key(115)
+            mac.key(36)
+            mac.wait_text(TITLE, 'Selected: Atlas · x 0 · value 30')
+            card = (mac.find(TITLE, 'Atlas:', 'AXGroup', contains=True)
+                    if label == 'Marker only' else
+                    mac.wait_find(TITLE, 'Atlas:', 'AXGroup', contains=True))
             if label == 'Marker only':
                 assert not card, 'Hidden inspection card remains accessible'
             else:
@@ -4998,6 +5005,8 @@ def exercise_charts(mac, images):
         mac.press(TITLE, 'Charts & data')
         mac.wait_text(TITLE, 'Ready: Mixed layers · 72 source values')
         mac.wait_text(TITLE, 'Select a chart value to inspect it.')
+    from gallery_backgrounds import exercise as exercise_backgrounds
+    exercise_backgrounds(mac, images)
     mac.press(TITLE, 'Runtime & windows')
     mac.press(TITLE, 'Refresh resource counts')
     wait_for_resource_cleanup(mac)
@@ -7151,7 +7160,7 @@ def main():
     parser.add_argument('--trace-canvas', action='store_true')
     parser.add_argument('--trace-motion', action='store_true')
     parser.add_argument('--trace-windows', action='store_true')
-    parser.add_argument('--section', choices=['all', 'core', 'shell', 'settings', 'settings-windows', 'settings-composition', 'settings-fields', 'forms', 'editor-groups', 'avatar-groups', 'sliders', 'numbers', 'otp', 'rating', 'spinners', 'progress', 'selection', 'buttons', 'button-appearance', 'menu-observation', 'menu-placement', 'split-buttons', 'split-paint', 'command-tooltip', 'checkable-navigation', 'control-appearance', 'status-regions', 'badges', 'labels', 'shimmer', 'markers', 'alerts', 'tags', 'keyboard-labels', 'binding-observations', 'descriptions', 'chat-composition', 'chat-list', 'attachments', 'attachment-paint', 'groups', 'links', 'empty', 'separators', 'styles', 'borders', 'aspect-ratio', 'pickers', 'color-preview', 'calendar-viewport', 'choice-pickers', 'overlays', 'navigation', 'feedback', 'native-popup', 'journeys', 'collections', 'selectable-lists', 'structural-tables', 'documents', 'document-links', 'document-images', 'highlighting', 'canvas', 'assets', 'clipboard', 'charts', 'chart-inspection', 'chart-content', 'chart-labels', 'chart-radar', 'chart-pie', 'chart-axes', 'chart-marks', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
+    parser.add_argument('--section', choices=['all', 'core', 'shell', 'settings', 'settings-windows', 'settings-composition', 'settings-fields', 'forms', 'editor-groups', 'avatar-groups', 'sliders', 'numbers', 'otp', 'rating', 'spinners', 'progress', 'selection', 'buttons', 'button-appearance', 'menu-observation', 'menu-placement', 'split-buttons', 'split-paint', 'command-tooltip', 'checkable-navigation', 'control-appearance', 'status-regions', 'badges', 'labels', 'shimmer', 'markers', 'alerts', 'tags', 'keyboard-labels', 'binding-observations', 'descriptions', 'chat-composition', 'chat-list', 'attachments', 'attachment-paint', 'groups', 'links', 'empty', 'separators', 'styles', 'borders', 'aspect-ratio', 'pickers', 'color-preview', 'calendar-viewport', 'choice-pickers', 'overlays', 'navigation', 'feedback', 'native-popup', 'journeys', 'collections', 'selectable-lists', 'structural-tables', 'documents', 'document-links', 'document-images', 'highlighting', 'canvas', 'assets', 'clipboard', 'charts', 'chart-inspection', 'chart-content', 'chart-labels', 'chart-radar', 'chart-pie', 'chart-axes', 'chart-marks', 'chart-backgrounds', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
     args = parser.parse_args()
     Mac.require_accessibility()
     if args.images:
@@ -7331,6 +7340,13 @@ def main():
             if args.section in ('all', 'clipboard'):
                 from gallery_clipboard import exercise as exercise_clipboard
                 exercise_clipboard(mac, args.images)
+            if args.section == 'chart-backgrounds':
+                from gallery_backgrounds import exercise as exercise_backgrounds
+                mac.press(TITLE, 'Charts & data')
+                exercise_backgrounds(mac, args.images)
+                mac.press(TITLE, 'Runtime & windows')
+                wait_for_resource_cleanup(mac)
+                mac.wait_text(TITLE, 'Registered source bytes: 0')
             if args.section == 'chart-marks':
                 from gallery_marks import exercise as exercise_marks
                 mac.press(TITLE, 'Charts & data')

@@ -184,7 +184,7 @@ module Source = struct
   ;;
 end
 
-let component app window palette graph =
+let families app window palette graph =
   (* These variables belong to one constructed page branch in one window.
      Retained choices survive departure; the scope reacquires native data. *)
   let mode = B.Expert.Var.create (Mode.Family Line) in
@@ -773,4 +773,31 @@ let component app window palette graph =
              "Use arrows to explore and Enter to select. View data opens the original \
               values, including any values omitted from the picture."
          ])
+;;
+
+let component app window palette graph =
+  let backgrounds, set_backgrounds = B.state false graph in
+  let open B.Let_syntax in
+  let content =
+    match%sub backgrounds with
+    | false -> families app window palette graph
+    | true -> Chart_backgrounds.component app window palette graph
+  in
+  let%arr p = palette
+  and backgrounds = backgrounds
+  and set_backgrounds = set_backgrounds
+  and content = content in
+  V.column
+    ~style:(style [ Gap (px 12.) ])
+    [ V.row
+        ~style:(style [ Gap (px 6.); Wrap Wrap ])
+        [ Palette.button
+            p
+            ~selected:(not backgrounds)
+            "Chart families"
+            (set_backgrounds false)
+        ; Palette.button p ~selected:backgrounds "Bar backgrounds" (set_backgrounds true)
+        ]
+    ; content
+    ]
 ;;

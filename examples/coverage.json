@@ -946,6 +946,28 @@
     },
     {
       "sources": [
+        "examples/gallery/chart_backgrounds.ml",
+        "examples/gallery/chart_backgrounds.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [
+        "examples/gallery/chart_backgrounds.md"
+      ],
+      "review": "reviewed"
+    },
+    {
+      "sources": [
+        "examples/gallery/chart_backgrounds_data.ml",
+        "examples/gallery/chart_backgrounds_data.mli"
+      ],
+      "role": "support",
+      "walkthroughs": [
+        "examples/gallery/chart_backgrounds_data.md"
+      ],
+      "review": "reviewed"
+    },
+    {
+      "sources": [
         "examples/gallery/chart_content.ml",
         "examples/gallery/chart_content.mli"
       ],

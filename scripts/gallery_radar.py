@@ -15,8 +15,10 @@ def exercise(mac, images):
         activate(mac, mac.wait_find(TITLE, label, 'AXCheckBox'))
 
     def ready(scale, radius, gap):
-        mac.wait_text(TITLE, f'Ready: Radar · 10 source values · {scale} · {radius} · gap {gap}')
+        # Native preparation needs visible layout. A preceding gallery section
+        # can leave this plot below the viewport after the family changes.
         reveal_gallery_control(mac, 'Chart preview: Radar', 'AXGroup')
+        mac.wait_text(TITLE, f'Ready: Radar · 10 source values · {scale} · {radius} · gap {gap}')
 
     def select():
         focus_gallery_control(mac, 'Chart preview: Radar', 'AXGroup')

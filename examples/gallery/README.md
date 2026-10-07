@@ -1118,6 +1118,18 @@ resets it. [Evidence](../../docs/evidence/document-profile-scroll-och41.md#publi
 The chart page also includes [typed categorical samples](../charts/samples/categorical.md)
 with native point/band layout, equal labels with distinct IDs and missing values.
 
+**Charts & data → Bar backgrounds** is a separate reactive branch beside
+**Chart families**. Its [component walkthrough](chart_backgrounds.md) explains
+scoped publication, retained controls, sparse highlighting and Mean/Uniform
+choices; its [pure data walkthrough](chart_backgrounds_data.md) explains stable
+batch IDs, reversal and brush construction. Source colors initially resolve
+against `Theme.default`; **Apply preview colors** explicitly republishes them
+from the current preview palette. View theme changes alone do not rewrite those
+brushes. Switching branches recreates native sources and clears selection while
+retaining their Bonsai control state. See the separate
+[local root/installed qualification](../../docs/evidence/dense-background-gallery-och41.md)
+for tested native behavior and its limits.
+
 The [stacked chart sample](../charts/samples/stacked.md) demonstrates aligned bars/areas, signed
 values, missing observations and a Grouped/Stacked presentation toggle.
 

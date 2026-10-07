@@ -2,7 +2,9 @@
 
 The Charts & data page demonstrates seven chart families, mixed area/bar/line
 layers, typed categorical data, source publication, selection, and a complete
-original-data table.
+original-data table. A separate **Bar backgrounds** branch demonstrates
+[source-owned batch brushes](chart_backgrounds.md), backed by a
+[pure typed fixture](chart_backgrounds_data.md).
 The Cartesian examples support vertical or horizontal categories and either
 direction for the numeric value axis. This page is ordinary OCaml application
 code; it does not require a Rust plotting callback.
@@ -12,7 +14,7 @@ GPUIO_JOBS=2 ./scripts/gpuio build examples/gallery/main.exe
 ./scripts/gpuio exec _build/default/examples/gallery/main.exe
 ```
 
-Choose **Charts & data**, then a family or **Mixed layers**. Try **Horizontal
+Choose **Charts & data → Chart families**, then a family or **Mixed layers**. Try **Horizontal
 axes**, **Reverse value axis**, and **Update chart samples**. Use arrows/Home/End
 to preview plotted values and Enter to select. **View data** opens the original
 values, including any omitted from the rendered picture by explicit sampling.
@@ -29,7 +31,7 @@ test scripts are separate from ordinary launch. See the
 
 1. [charts_page.mli](charts_page.mli) exposes the page's component boundary.
 2. [charts_page.ml](charts_page.ml) defines the model, source owner and reactive
-   view. Start with `Mode`, then `Source`, then `component`.
+   view. Start with `Mode`, then `Source`, then `families` and the final `component` wrapper.
 3. [gpuio_chart_samples.ml](../charts/samples/gpuio_chart_samples.ml) constructs
    validated example datasets and translates typed selections into descriptions.
    Its [interface](../charts/samples/gpuio_chart_samples.mli) lists the families
@@ -41,6 +43,15 @@ test scripts are separate from ordinary launch. See the
    and window, while [component.ml](component.ml) selects this page branch.
 
 ## Data and lifetime
+
+The final `component` owns a Boolean Bonsai state for the **Chart families** /
+**Bar backgrounds** buttons. `match%sub` activates either `families` or
+`Chart_backgrounds.component` as a reactive branch. Switching cancels the outgoing
+preview's resource scope and activates the other source owner; each branch keeps
+its own Bonsai controls. The details below describe `families`. Unlike its
+visit-scoped source phase, the bar-background fixture retains its phase/order and
+last applied source colors across reentry; its native source is recreated and
+selection cleared. See [that lifetime walkthrough](chart_backgrounds.md).
 
 `Mode.t` selects a named family, mixed layers, categorical data, stacked bars or
 areas, the ordinal-color example, or Flow styling. Its `data` function builds immutable
@@ -71,7 +82,7 @@ a handle does not keep a cancelled registration alive.
 
 The source aliases `B = Bonsai.Cont`, `E = Bonsai.Effect`,
 `V = Gpuio_bonsai.View` and `Registered = Gpuio_eio.Chart`.
-`component app window palette graph` builds one page graph in one window. A
+`families app window palette graph` builds the chart-family graph in one window. A
 reactive value is a current
 input to that graph: `let%arr` reads such inputs together and derives a new view
 when they change. It is not an event handler or a loop. `B.Expert.Var.value`
@@ -422,7 +433,7 @@ VoiceOver or 120 FPS acceptance.
 ## Pie radius controls
 
 Choose the Pie family to expose **Fixed pie radius 80** and **Per-slice pie radii**.
-In `component`, `fixed_pie` and `variable_pie` each come from
+In `families`, `fixed_pie` and `variable_pie` each come from
 `B.toggle ~default_model:false graph`. Here `B = Bonsai.Cont`: `graph` owns the
 reactive state cells, and each toggle supplies a current Boolean plus an effect
 that changes it. The outer `let%arr` reads both Booleans and their toggle effects,
@@ -563,7 +574,7 @@ the selected settings. Home/Enter still selects Atlas / Quality / 88 out of its
 source maximum 100; scaling does not rewrite its accessible original data.
 
 To adapt this example, change the explicit maximum in `Radar_scale.all` and its
-label together, or pass a different `Radius.Pixels` value in `component`. Keep
+label together, or pass a different `Radius.Pixels` value in `families`. Keep
 values inside the public option bounds; extreme data/scale combinations may
 report Render_limit instead of drawing a distorted clamped polygon. See the
 [radar contract](../../docs/design/radar-presentation.md). Default Per_axis/Fit/gap 0

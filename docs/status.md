@@ -15,8 +15,11 @@ on Apple Paravirtual; physical presentation and release acceptance remain open.
 now implement immutable source-owned fills, typed pair validation, theme resolution,
 bounded paired codecs and native appearance precedence. Local 100k-source,
 snapshot accounting, native unit/GPU, full Dune and strict lint checks pass.
-Chart data advances to schema 2; matching packages are required. Public gallery
-and fresh installed-consumer qualification remain open, as do per-bar baselines.
+Chart data advances to schema 2; matching packages are required. The
+[public gallery and fresh installed consumer](evidence/dense-background-gallery-och41.md)
+now pass local source identity, palette republishing, native selection and cleanup
+checks. Its adjacent beginner guides bring reviewed coverage to 427 sources /
+265 groups. Per-bar baselines and broader catalog/release gates remain open.
 
 [Area baselines](evidence/area-baselines-och41.md) now pass local codec, native
 unit/GPU, full Dune/lint and root/fresh-installed gallery checks. Per-series

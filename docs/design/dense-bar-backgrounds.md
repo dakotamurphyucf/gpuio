@@ -1,8 +1,9 @@
 # Dense bar backgrounds
 
 OCH-41, 2026-10-06. The typed source API, paired codecs and native rendering are
-implemented. Public gallery and installed-consumer qualification remain open;
-this does not establish catalog or release completion. Chart data now uses
+implemented. The [public gallery and installed consumer](../evidence/dense-background-gallery-och41.md)
+now pass local interaction and source-color checks; this does not establish catalog
+or release completion. Chart data now uses
 schema **2**, with matching OCaml/native packages required.
 [Local foundation evidence](../evidence/dense-background-foundation-och41.md)
 records codec, resource, native GPU and integration checks.
