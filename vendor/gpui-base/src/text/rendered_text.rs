@@ -370,6 +370,16 @@ impl RenderedText {
         position: &RenderedTextPosition,
     ) -> Option<RenderedTextPosition> {
         let byte = self.offset(position)?;
+        // An empty atomic object can share its byte offset with a structural
+        // separator. Its distinct object edges must retain their provenance;
+        // normalizing them to a preceding glyph would reveal the wrong block.
+        if self.parts.iter().any(|part| {
+            part.is_atomic()
+                && (position.order_key() == (part.bytes.start, part.start_slot)
+                    || position.order_key() == (part.bytes.end, part.end_slot))
+        }) {
+            return Some(position.clone());
+        }
         let index = self.parts.partition_point(|part| part.bytes.end < byte);
         let Some(part) = self.parts.get(index) else {
             return Some(position.clone());

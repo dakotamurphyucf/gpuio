@@ -5,6 +5,15 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **O
 Markdown walkthroughs for every example component; its documentation acceptance is complete. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
+[Atomic selection and later-input cancellation](evidence/rendered-selection-objects-och17.md)
+now preserve empty-object edge provenance and cancel pending reveal when the
+document receives newer wheel, pointer or key input. All 1,164 native tests
+(2 ignored), strict lint/formatting, workspace, actual desktop, gallery rebuild,
+exact Base reconstruction and real macOS range/Copy regression pass. Ordinary
+ScrollView selected-head reveal is a confirmed implementation gap to qualify;
+list-based reveal tests do not establish that behavior. Cached AX, VoiceOver and
+full release gates remain open.
+
 [Rendered-document selection dispatch](evidence/rendered-selection-dispatch-och17.md)
 now applies validated OS requests through the native window selection controller,
 with focus and endpoint reveal. The real macOS gallery passes AX-set heading,

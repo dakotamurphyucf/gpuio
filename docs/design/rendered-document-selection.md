@@ -779,6 +779,26 @@ platform-action tests cover shared-window Copy, rejection, directed and collapse
 selection, focus, queued clear events, offscreen paragraphs and tall code blocks.
 The [actual macOS range/Copy probe](../evidence/rendered-selection-dispatch-och17.md)
 qualifies heading, CJK, joined-emoji and code selections plus a stable caret.
-Broader atomic reveal, cancellation during competing user interaction, cached
-scenes and full accessibility acceptance remain open; native test-context
-results alone are not OS screen-reader evidence.
+Atomic-object regressions additionally cover nonempty and empty alternatives,
+forward/backward actual edge reveal, rejected interiors, preserved child controls
+and source-format Copy without changing endpoint identities. Empty object edges
+retain their `(byte, object slot)` identity before separator normalization; byte
+offset alone cannot distinguish an empty object from the preceding separator.
+Forward noncollapsed block selection uses upstream affinity at a shared block
+boundary; backward selection and carets use downstream affinity.
+
+Later wheel, pointer or keyboard input received by the document cancels pending
+selection reveal. The cancellation test includes a positive control: without
+intervening input, a flow document inside a GPUI List must reveal its offscreen
+head; with later input, the viewport must retain the input's actual offset and
+Copy must retain the selection. This is native event-dispatch evidence, not an
+OS screen-reader test or proof of every nested child's event propagation.
+
+Ordinary overflow containers need separate qualification. GPUI List consumes
+`Window.request_autoscroll`; plain Div and GPUIO's current scroll Frame do not.
+Consequently these tests do not establish precise selected-head reveal through
+an ordinary GPUIO ScrollView. That needs a host-level positive control and a
+solution which preserves matching paint, hitbox and accessibility geometry.
+Changing offsets after prepaint while retaining stale geometry is insufficient.
+Cached scenes, visual-line adjacency and full accessibility acceptance also
+remain open; native test-context results alone are not OS screen-reader evidence.

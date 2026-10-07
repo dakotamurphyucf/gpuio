@@ -361,6 +361,7 @@ impl TextViewState {
             return false;
         };
         let head = request.selection.head().clone();
+        let downstream = request.selection.is_backward() || request.selection.is_collapsed();
         if self.apply_rendered_selection(request, cx).is_err() {
             return false;
         }
@@ -379,7 +380,10 @@ impl TextViewState {
                 .find(|block| {
                     text.semantic_block(*block)
                         .and_then(|owner| text.semantic_selection(owner))
-                        .is_some_and(|range| range.anchor().order_key() <= head.order_key())
+                        .is_some_and(|range| {
+                            range.anchor().order_key() < head.order_key()
+                                || (downstream && range.anchor().order_key() == head.order_key())
+                        })
                 });
             if let Some(block) = block {
                 self.list_state.scroll_to_reveal_item(block);
@@ -895,6 +899,7 @@ impl TextViewState {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        self.selection_reveal = None;
         if event.keystroke.key != "tab" {
             self.control_navigation.cancel();
         }

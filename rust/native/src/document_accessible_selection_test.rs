@@ -1,4 +1,6 @@
-//! Same-frame publication is distinct from authorizing OS selection mutation.
+#[path = "document_selection_object_test.rs"]
+mod objects;
+
 use super::*;
 
 #[test]

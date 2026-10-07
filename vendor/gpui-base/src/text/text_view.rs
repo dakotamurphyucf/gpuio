@@ -677,6 +677,9 @@ impl Element for TextView {
                 )
             })
             .on_key_down(window.listener_for(&state, TextViewState::on_link_key))
+            .capture_any_mouse_down(window.listener_for(&state, |state, _, _, _| {
+                state.selection_reveal = None;
+            }))
             .on_mouse_down(
                 MouseButton::Left,
                 window.listener_for(&state, |state, _, _, cx| {
@@ -689,6 +692,7 @@ impl Element for TextView {
             )
             .on_scroll_wheel(window.listener_for(&state, |state, _, _, _| {
                 state.control_navigation.cancel();
+                state.selection_reveal = None;
             }))
             .when(self.scrollable, |this| this.size_full())
             .when_some(max_lines_cap, |this, cap| this.max_h(cap).overflow_hidden())

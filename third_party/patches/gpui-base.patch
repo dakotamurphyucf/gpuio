@@ -19823,3 +19823,72 @@
      }
  
      fn copy_items(&self, cx: &App) -> Vec<CopyItem> {
+--- a/src/text/rendered_text.rs
++++ b/src/text/rendered_text.rs
+@@ -370,6 +370,16 @@
+         position: &RenderedTextPosition,
+     ) -> Option<RenderedTextPosition> {
+         let byte = self.offset(position)?;
++        // An empty atomic object can share its byte offset with a structural
++        // separator. Its distinct object edges must retain their provenance;
++        // normalizing them to a preceding glyph would reveal the wrong block.
++        if self.parts.iter().any(|part| {
++            part.is_atomic()
++                && (position.order_key() == (part.bytes.start, part.start_slot)
++                    || position.order_key() == (part.bytes.end, part.end_slot))
++        }) {
++            return Some(position.clone());
++        }
+         let index = self.parts.partition_point(|part| part.bytes.end < byte);
+         let Some(part) = self.parts.get(index) else {
+             return Some(position.clone());
+--- a/src/text/state.rs
++++ b/src/text/state.rs
+@@ -361,6 +361,7 @@
+             return false;
+         };
+         let head = request.selection.head().clone();
++        let downstream = request.selection.is_backward() || request.selection.is_collapsed();
+         if self.apply_rendered_selection(request, cx).is_err() {
+             return false;
+         }
+@@ -379,7 +380,10 @@
+                 .find(|block| {
+                     text.semantic_block(*block)
+                         .and_then(|owner| text.semantic_selection(owner))
+-                        .is_some_and(|range| range.anchor().order_key() <= head.order_key())
++                        .is_some_and(|range| {
++                            range.anchor().order_key() < head.order_key()
++                                || (downstream && range.anchor().order_key() == head.order_key())
++                        })
+                 });
+             if let Some(block) = block {
+                 self.list_state.scroll_to_reveal_item(block);
+@@ -895,6 +899,7 @@
+         window: &mut Window,
+         cx: &mut Context<Self>,
+     ) {
++        self.selection_reveal = None;
+         if event.keystroke.key != "tab" {
+             self.control_navigation.cancel();
+         }
+--- a/src/text/text_view.rs
++++ b/src/text/text_view.rs
+@@ -677,6 +677,9 @@
+                 )
+             })
+             .on_key_down(window.listener_for(&state, TextViewState::on_link_key))
++            .capture_any_mouse_down(window.listener_for(&state, |state, _, _, _| {
++                state.selection_reveal = None;
++            }))
+             .on_mouse_down(
+                 MouseButton::Left,
+                 window.listener_for(&state, |state, _, _, cx| {
+@@ -689,6 +692,7 @@
+             )
+             .on_scroll_wheel(window.listener_for(&state, |state, _, _, _| {
+                 state.control_navigation.cancel();
++                state.selection_reveal = None;
+             }))
+             .when(self.scrollable, |this| this.size_full())
+             .when_some(max_lines_cap, |this, cap| this.max_h(cap).overflow_hidden())
