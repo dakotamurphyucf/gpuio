@@ -5,6 +5,13 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **O
 Markdown walkthroughs for every example component; its documentation acceptance is complete. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
+[Hosted run 37592517665](evidence/hosted-run-37592517665.md) is terminal at
+`249d65fe`. Both platforms fail the same document SDK generated-copy capacity
+test; later foundation/native GUI/consumer checks are skipped. Both macOS
+presentation probes still fail with zero timestamps; the extracted-app job
+passes its explicitly limited runtime checks. The capacity failure reproduces
+locally and requires preserving the SDK's existing admitted content.
+
 [Native pointer selection](evidence/rendered-pointer-selection-och17.md) now
 adopts mapped same-document drags into the range shared by native painting and
 exact plain Copy. Direction survives resize and compatible streaming. Local
