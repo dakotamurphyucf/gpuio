@@ -5,6 +5,13 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **O
 Markdown walkthroughs for every example component; its documentation acceptance is complete. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
+[Hosted run 37629820030](evidence/hosted-run-37629820030.md) is terminal at
+`e4630996`: Linux foundation and scoped extracted-app checks pass. The repaired
+streaming-document check passes; macOS foundation fails only the two Metal probes,
+which return zero timestamps on Apple Paravirtual. Both informational Linux GUI
+smokes fail. Packaging reports do not attest binary build revision; physical
+presentation, clean-machine acceptance and later local changes remain unqualified.
+
 [Prepared semantic ownership](evidence/rendered-semantic-structure-och17.md) now
 retains structural ancestry and exact link ranges independently of layout, with
 current reference resolution and bounded shared storage. All 1,132 native tests
