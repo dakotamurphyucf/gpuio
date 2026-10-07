@@ -139,7 +139,10 @@ fn worker_profiles_keep_complete_styles_duplicate_blocks_and_budget_until_drop()
     let handle = pool.request(request).unwrap();
     assert_eq!(counts.configurations.load(Ordering::SeqCst), 0);
     let work = pool.next_work().unwrap();
-    assert_eq!(pool.reserved_bytes(), expected);
+    assert_eq!(
+        pool.reserved_bytes(),
+        expected + gpui_base::text::RenderedText::max_preparation_units()
+    );
     assert_eq!(counts.configurations.load(Ordering::SeqCst), 0);
     // Real separate worker thread; native resources/callbacks are unavailable.
     pool.complete(std::thread::spawn(move || work.run()).join().unwrap());

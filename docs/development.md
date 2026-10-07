@@ -150,6 +150,13 @@ method and restores the original keyboard settings. See [IME evidence and
 recovery](evidence/macos-ime-och17.md) for prerequisites, scope and recovery after
 an uncatchable interruption. This test captures only its own candidate window.
 
+To check native rendered-document selection and shutdown, build the gallery and
+run `python3 scripts/test_macos_document_shutdown.py --log scratch/document-shutdown.log --report scratch/document-shutdown.json`.
+It selects and copies rendered Markdown, then closes the window with selection
+still active and Rust backtrace capture enabled in the owned child. It restores
+the captured clipboard and checks normal child exit. This regression does not
+qualify accessible text ranges, IME or VoiceOver behavior.
+
 The macOS GUI fixtures include 1360×820 window-resize cases. CI therefore checks
 for at least a 1440×1000-point desktop with 1400×900 usable points before building.
 `scripts/ci_macos_display.swift --apply` selects an available mode for the CI login

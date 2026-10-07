@@ -1,7 +1,8 @@
 # Rendered-document accessible selection
 
-Implementation plan for the remaining OCH-17/OCH-41 accessibility work. This is
-**not an implemented API or acceptance claim**. The [macOS baseline](../evidence/rendered-selection-baseline-och17.md)
+Implementation plan for the remaining OCH-17/OCH-41 accessibility work. The
+native text-projection foundation below is implemented; **AX selection publication
+and mutation are not implemented or accepted yet**. The [macOS baseline](../evidence/rendered-selection-baseline-och17.md)
 proves that native rendered-text copying works while document-level AX selection
 attributes are absent. The source-editor adapter is a separate implementation.
 
@@ -102,3 +103,39 @@ text; avoid one reshape or whole-document scan per requested character.
 Only completed stages receive implementation/acceptance claims. The baseline
 below demonstrates the missing behavior; it does not validate this design or
 close either milestone ticket.
+
+## Native projection foundation
+
+The Base adapter's `PreparedText::rendered_text()` now prepares an immutable
+`Arc<RenderedText>` with the bounded AST, before layout. `TextViewState::rendered_text()`
+returns that exact installed identity; ordinary unbounded parser updates clear it.
+It does not expose a new OCaml API or publish AX attributes by itself.
+
+- `text()` matches `PreparedText::plain_text()`, including the native copy
+  representation's structural separators. The window's current Copy adapter
+  separately trims outer plain-text separators. Markdown copy preferences do
+  not change the projection.
+- `parts()` gives contiguous byte intervals classified as native text owners,
+  atomic copy alternatives, or structural separators. Owner references are weak;
+  keeping the immutable projection cannot keep a native document alive.
+- `position(byte)` validates Unicode scalar boundaries, treating CRLF as one
+  break. `offset(position)` accepts only a token from that same preparation,
+  including when a different document has equal text. These are UTF-8 positions,
+  not UTF-16 indices or AccessKit node IDs. Atomic-object mutation policy belongs
+  to the next integration stage.
+- `selected_fragment_ranges()` reads only current matching local native owners.
+  It does **not** recover direction, virtual cross-view coverage, Select All,
+  preserved selection overrides or a document-level selection snapshot. The
+  complete selection controller must integrate those states explicitly.
+
+Preparation admits at most 128 KiB of logical copy text and 16,384 parts, allowing
+structural separators and object alternatives in addition to the existing 64 KiB
+source/decoration bounds. Oversized preparation uses the existing source fallback.
+Rich-document workers reserve the projection's bounded maximum before parsing,
+then retain only its text/capacity allowance with the prepared result. Source/code
+and diff workers do not reserve this unused rich-text allowance. These are
+admission units, not measured process RSS or performance acceptance.
+
+The remaining stages above must preserve this distinction: matching whole-copy
+text is not enough to infer a native directed selection or to construct a correct
+rich accessibility hierarchy.

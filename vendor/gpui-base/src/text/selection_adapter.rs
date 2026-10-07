@@ -88,8 +88,11 @@ impl TextViewSelectionAdapter {
             .subscribe(
                 move |event, cx| match event {
                     TextSelectionEvent::SelectionChanged(snapshot) => {
+                        let Some(view) = view_for_events.upgrade() else {
+                            return;
+                        };
                         let snapshot = *snapshot;
-                        let _ = view_for_events.update(cx, |state, cx| {
+                        view.update(cx, |state, cx| {
                             state.preserve_inline_selection = false;
                             blocks_for_events
                                 .borrow_mut()
@@ -100,8 +103,11 @@ impl TextViewSelectionAdapter {
                         });
                     }
                     TextSelectionEvent::AutoScroll(delta) => {
+                        let Some(view) = view_for_events.upgrade() else {
+                            return;
+                        };
                         let delta = *delta;
-                        let _ = view_for_events.update(cx, |state, cx| {
+                        view.update(cx, |state, cx| {
                             if state.scrollable {
                                 state.set_auto_scroll(delta, cx);
                             } else if delta.is_none() {
@@ -120,7 +126,13 @@ impl TextViewSelectionAdapter {
         selection.clear_with(
             move |cx| {
                 blocks_for_clear.replace(VirtualBlockSelection::default());
-                let _ = view_for_clear.update(cx, |state, cx| {
+                // Window teardown can deliver this after the document retires.
+                // That is an ordinary no-op, not an error requiring a backtrace
+                // through the mixed OCaml/Rust application stack.
+                let Some(view) = view_for_clear.upgrade() else {
+                    return;
+                };
+                view.update(cx, |state, cx| {
                     state.reset_selection();
                     cx.notify();
                 });

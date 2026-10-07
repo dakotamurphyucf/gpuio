@@ -175,6 +175,12 @@ impl TextViewState {
         self.parsed_content.displayed_text.clone()
     }
 
+    /// Installed bounded rendered-text projection. Unbounded parser updates do
+    /// not advertise this contract. Selection/AX publication is separate.
+    pub fn rendered_text(&self) -> Option<Arc<super::RenderedText>> {
+        self.parsed_content.rendered_text.clone()
+    }
+
     /// Install a single-use snapshot from an externally bounded worker. No
     /// parser work or source queue is started by this operation. The caller
     /// rejects stale document generations/revisions before calling it.
@@ -1077,6 +1083,7 @@ pub(crate) struct ParsedContent {
     pub(crate) document: ParsedDocument,
     pub(crate) node_cx: node::NodeContext,
     displayed_text: Option<Arc<super::DisplayedText>>,
+    rendered_text: Option<Arc<super::RenderedText>>,
     bounded: bool,
 }
 
@@ -1128,12 +1135,14 @@ impl PreparedText {
             &document,
             &node_cx.markdown_extensions,
         )?);
+        let rendered_text = Some(super::RenderedText::prepare(&document)?);
         Ok(Self {
             format,
             content: ParsedContent {
                 document,
                 node_cx,
                 displayed_text,
+                rendered_text,
                 bounded: true,
             },
         })
@@ -1143,6 +1152,16 @@ impl PreparedText {
     pub fn displayed_text(&self) -> Arc<super::DisplayedText> {
         self.content
             .displayed_text
+            .as_ref()
+            .expect("bounded preparation")
+            .clone()
+    }
+
+    /// Immutable rendered copy text and native-owner provenance, prepared with
+    /// the AST. This is not the search/decoration projection or an AX tree.
+    pub fn rendered_text(&self) -> Arc<super::RenderedText> {
+        self.content
+            .rendered_text
             .as_ref()
             .expect("bounded preparation")
             .clone()
@@ -1295,6 +1314,7 @@ fn parse_content(
     // A later ordinary parse cannot reuse identities from an installed bounded
     // snapshot. It has no admission contract for this extra representation.
     content.displayed_text = None;
+    content.rendered_text = None;
     content.bounded = false;
     let mut node_cx = NodeContext {
         markdown_extensions: options.markdown_extensions.clone(),

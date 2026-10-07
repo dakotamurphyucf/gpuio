@@ -129,6 +129,9 @@ fn copy_format(mode: Mode, text: &str) {
     markdown.update(cx, |m, cx| m.select_all(cx));
     let plain = markdown.read_with(cx, |m, _| m.selected_text());
     assert!(plain.contains("世界") && !plain.contains("**"), "{plain:?}");
+    let rendered = markdown.read_with(cx, |m, _| m.rendered_text().unwrap());
+    assert_eq!(rendered.text(), plain);
+
     for source_copy in [true, false, true] {
         apply(
             &view,
@@ -142,6 +145,15 @@ fn copy_format(mode: Mode, text: &str) {
             );
             assert_eq!(p.installed.as_ref().unwrap().revision, 1);
         });
+        assert!(Arc::ptr_eq(
+            &rendered,
+            &markdown.read_with(cx, |m, _| m.rendered_text().unwrap())
+        ));
+        assert_eq!(
+            rendered.text(),
+            plain,
+            "copy preference does not reinterpret positions"
+        );
         assert_eq!(
             markdown.read_with(cx, |m, _| m.selected_text()),
             if source_copy && !html { text } else { &plain }
@@ -162,5 +174,9 @@ fn copy_format(mode: Mode, text: &str) {
     drop(markdown);
     apply(&view, cx, vec![Op::SetRoot(None), Op::Remove(node)]);
     assert!(weak.upgrade().is_none());
+    assert!(
+        rendered.selected_fragment_ranges().is_empty(),
+        "retained immutable text must not retain native selection owners"
+    );
     assert!(view.read_with(cx, |v, _| v.documents.is_empty()));
 }

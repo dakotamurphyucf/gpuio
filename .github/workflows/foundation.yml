@@ -289,6 +289,10 @@ jobs:
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
         timeout-minutes: 3
         run: python3 scripts/test_gallery.py --section clipboard 2>&1 | tee .cache/ci/macos-clipboard.log
+      - name: macOS selected document shutdown with Rust backtraces
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 3
+        run: python3 scripts/test_macos_document_shutdown.py --log .cache/ci/document-shutdown-app.log --report .cache/ci/document-shutdown.json 2>&1 | tee .cache/ci/macos-document-shutdown.log
       - name: macOS native context popup interaction and lifecycle
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
         timeout-minutes: 5

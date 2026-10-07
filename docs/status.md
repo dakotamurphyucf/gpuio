@@ -9,8 +9,16 @@ current work from historical checkpoints; it does not certify release readiness.
 now reproduces missing `AXSelectedText` / `AXSelectedTextRange` on the actual macOS
 document. Native Select All/Copy and rich reading order work. The separate
 [implementation plan](design/rendered-document-selection.md) preserves semantic
-structure, native selection ownership and offscreen ranges; it is not implemented.
+structure, native selection ownership and offscreen ranges. Its
+[native projection foundation](evidence/rendered-text-projection-och17.md) now
+prepares bounded copy-text provenance with checked positions and weak native
+owners. Selection publication and mutation remain unimplemented.
 Source-editor selection/geometry coverage does not qualify this rendered path.
+The foundation passes 1,081 native tests, strict lint, full Dune and actual
+document/Copy checks locally. Validation also exposed a deferred selection
+callback constructing an error for a retired owner during shutdown; explicit
+weak-owner guards now pass real close/exit with Rust backtraces enabled. The
+initial crash, diagnostic control and passing regression are retained.
 
 [Root pointer reentrancy](evidence/root-view-reentrancy-och17.md) now removes an
 unnecessary root View borrow from focus observers. A before/after regression,

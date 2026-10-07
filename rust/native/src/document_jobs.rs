@@ -339,7 +339,9 @@ impl Work {
         // checked allowance for retained metadata, vector capacities and declared
         // opaque state; otherwise a handful of short messages exhaust the pool.
         let prepared = prepared.map(|prepared| {
-            if self.request.profile.is_none() {
+            if self.request.profile.is_none()
+                && !matches!(self.request.mode, Mode::Markdown | Mode::Html)
+            {
                 return prepared;
             }
             let base = 4096
@@ -366,17 +368,29 @@ impl Work {
                     }),
                 _ => 0,
             };
-            if self.charge.reduce_to(base.saturating_add(extra)).is_err() {
+            let rendered = match &prepared {
+                Prepared::Markdown { document, .. } => document.rendered_text().retained_units(),
+                _ => 0,
+            };
+            if self
+                .charge
+                .reduce_to(base.saturating_add(extra).saturating_add(rendered))
+                .is_err()
+            {
                 // Trusted hooks can return excessive backing capacity even when
                 // their logical output length is small. Reject the whole result.
                 drop(prepared);
                 self.charge
                     .reduce_to(base)
                     .expect("base was reserved before work");
-                Prepared::Source(Error::Profile(
-                    gpuio_protocol::document_profile::Stage::Parse,
-                    gpuio_document_sdk::Error::LimitExceeded,
-                ))
+                Prepared::Source(if self.request.profile.is_some() {
+                    Error::Profile(
+                        gpuio_protocol::document_profile::Stage::Parse,
+                        gpuio_document_sdk::Error::LimitExceeded,
+                    )
+                } else {
+                    Error::ResourceLimit
+                })
             } else {
                 prepared
             }
@@ -481,7 +495,15 @@ impl Pool {
             } else {
                 4096 + source_bytes.min(highlight::MAX_HIGHLIGHT_BYTES) * 32
             };
-            let bytes = bytes + entry.request.profile.as_ref().map_or(0, |p| p.work_units());
+            // Rich preparations add bounded selection metadata. Reserve its
+            // maximum during work, then retain only the measured allowance.
+            let rendered = if matches!(entry.request.mode, Mode::Markdown | Mode::Html) {
+                gpui_base::text::RenderedText::max_preparation_units()
+            } else {
+                0
+            };
+            let bytes =
+                bytes + rendered + entry.request.profile.as_ref().map_or(0, |p| p.work_units());
             let reserved = self.reserved.load(Ordering::Relaxed);
             if bytes > MAX_RESERVED_BYTES - reserved {
                 entry.completed = entry.serial;
@@ -624,6 +646,36 @@ mod tests {
             dark: true,
             search: String::new(),
         }
+    }
+
+    #[test]
+    fn rendered_text_work_reservation_shrinks_and_retires_with_prepared_result() {
+        let mut pool = Pool::default();
+        let handle = pool.request(request("# Hi\n\nWorld 世界")).unwrap();
+        let work = pool.next_work().unwrap();
+        let maximum = gpui_base::text::RenderedText::max_preparation_units();
+        let during = pool.reserved_bytes();
+        assert!(during >= maximum);
+        pool.complete(work.run());
+        let ready = handle.take_ready().unwrap().unwrap();
+        let Prepared::Markdown { document, .. } = &ready.prepared else {
+            panic!("rich text")
+        };
+        let projection = document.rendered_text();
+        assert!(projection.retained_units() < maximum);
+        assert_eq!(
+            during - pool.reserved_bytes(),
+            maximum - projection.retained_units()
+        );
+        drop(handle);
+        assert!(
+            pool.reserved_bytes() > 0,
+            "the published result still owns its charge"
+        );
+        drop(ready);
+        assert_eq!(pool.reserved_bytes(), 0);
+        assert_eq!(projection.text(), "Hi\nWorld 世界\n");
+        assert!(projection.selected_fragment_ranges().is_empty());
     }
 
     #[test]

@@ -550,7 +550,7 @@ pub(crate) struct InlineNode {
     pub(crate) text: SharedString,
     pub(crate) image: Option<ImageNode>,
     pub(crate) custom: Option<MarkdownNode>,
-    custom_selection: Arc<Mutex<bool>>,
+    pub(super) custom_selection: Arc<Mutex<bool>>,
     /// The text styles, each tuple contains the range of the text and the style.
     pub(crate) marks: Vec<(Range<usize>, TextMark)>,
 
