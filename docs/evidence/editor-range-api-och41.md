@@ -26,7 +26,9 @@ The public gallery's **Room to write → Inspect selection bounds** reads a fres
 snapshot, then queries that snapshot's selection. The button preserves focus.
 One request chain is active per preview; departing the page cancels its child
 scope and suppresses later query steps/status updates. There is no timer or
-continuous geometry subscription. No physical walkthrough is claimed yet.
+continuous geometry subscription. The later [macOS geometry checkpoint](editor-accessibility-geometry-och41.md)
+verifies the public inspector and repairs native AX range publication; it
+distinguishes AX actions from physical keyboard/IME/VoiceOver qualification.
 
 ## Validation record
 

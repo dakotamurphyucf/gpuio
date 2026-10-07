@@ -2269,6 +2269,23 @@ impl<M: InputModeKind> Element for TextElement<M> {
             }
         }
 
+        let state = self.state.read(cx);
+        if window.is_a11y_active() && !state.masked {
+            let scroll_x = match last_layout.text_align {
+                TextAlign::Right => (scroll_size.width - bounds.size.width).max(px(0.)),
+                TextAlign::Center => (scroll_size.width - bounds.size.width).half().max(px(0.)),
+                TextAlign::Left => px(0.),
+            };
+            state.bridge_text_layout.publish(
+                &text,
+                &last_layout,
+                bounds.origin + point(scroll_x, px(0.)),
+                window.scale_factor(),
+            );
+        } else {
+            state.bridge_text_layout.clear();
+        }
+
         PrepaintState {
             row_adornments: adornment_elements,
             range_backgrounds,

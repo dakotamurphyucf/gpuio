@@ -5,6 +5,15 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **O
 Markdown walkthroughs for every example component; its documentation acceptance is complete. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
+[Editor accessibility geometry](evidence/editor-accessibility-geometry-och41.md)
+now publishes same-prepaint shaped bounds instead of empty AX range rectangles.
+Root and independently installed macOS galleries pass eight range/caret cases,
+including wraps, CRLF, joined emoji and bidirectional line semantics. The native
+suite passes 1,072 tests; strict lint, full Dune, patch reconstruction and a
+selection/copy walkthrough pass locally. The initial missing-window failure and
+successful traced repeat are retained. Hosted/Linux, physical IME/VoiceOver and
+broader catalog/release qualification remain open.
+
 [Icon transforms](evidence/icon-transforms-och41.md) now support bounded scale,
 clockwise rotation and translation in Config and decorative slots. Paired codecs,
 1,069 native unit tests, actual GPU/AppKit snapshot checks, strict lint, full Dune

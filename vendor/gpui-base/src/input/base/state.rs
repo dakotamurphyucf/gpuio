@@ -396,6 +396,7 @@ pub struct InputBaseState<M: InputModeKind> {
     bridge_max_bytes: Option<usize>,
     bridge_decorator: Option<BridgeDecorator<M>>,
     bridge_input_format: Option<Rc<dyn BridgeInputFormat>>,
+    pub(super) bridge_text_layout: super::BridgeTextLayout,
     bridge_composition_before: Option<(Rope, CursorSelection)>,
     pub(super) row_adornments: Option<Rc<std::collections::BTreeMap<usize, RowAdornment>>>,
     pub(super) row_adornment_begin: Option<Rc<dyn Fn()>>,
@@ -772,6 +773,7 @@ impl<M: InputModeKind> InputBaseState<M> {
             bridge_max_bytes: None,
             bridge_decorator: None,
             bridge_input_format: None,
+            bridge_text_layout: Default::default(),
             bridge_composition_before: None,
             row_adornments: None,
             row_adornment_begin: None,
@@ -1287,6 +1289,11 @@ impl<M: InputModeKind> InputBaseState<M> {
     /// Advances on accepted edits, including edits restoring the previous text.
     pub fn bridge_revision(&self) -> i64 {
         self.bridge_revision
+    }
+
+    /// Same-prepaint geometry for the enclosing native accessibility adapter.
+    pub fn bridge_text_layout(&self) -> super::BridgeTextLayout {
+        self.bridge_text_layout.clone()
     }
 
     /// Marked composition range, in UTF-8 bytes.

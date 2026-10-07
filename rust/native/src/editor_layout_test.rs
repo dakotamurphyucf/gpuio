@@ -223,6 +223,161 @@ fn textarea_accessible_selection_preserves_unicode_direction_and_rejects_stale_r
         });
     });
 }
+
+#[test]
+fn textarea_accessibility_geometry_uses_current_prepaint_wrap_and_scroll() {
+    use gpui::accesskit::Role;
+    let text = "a\nMMMMMMMMMMMM\nz";
+    setup(text, |owner, cx| {
+        cx.simulate_a11y_active(true);
+        draw(cx);
+        let field = state(&owner, cx);
+        let check = |cx: &mut VisualTestContext, expected: &str| {
+            let tree = cx.a11y_tree().unwrap();
+            let runs = tree
+                .nodes
+                .iter()
+                .filter(|(_, node)| node.role() == Role::TextRun)
+                .map(|(_, node)| node)
+                .collect::<Vec<_>>();
+            assert_eq!(
+                runs.iter()
+                    .filter_map(|node| node.value())
+                    .collect::<String>(),
+                expected
+            );
+            for run in &runs {
+                let bounds = run.bounds().expect("same-prepaint bounds");
+                assert!(bounds.y1 > bounds.y0);
+                assert_eq!(
+                    run.character_positions().unwrap().len(),
+                    run.character_lengths().len()
+                );
+                assert_eq!(
+                    run.character_widths().unwrap().len(),
+                    run.character_lengths().len()
+                );
+                assert!(run.text_direction().is_some());
+            }
+            runs.into_iter()
+                .map(|run| run.bounds().unwrap())
+                .collect::<Vec<_>>()
+        };
+        let before = check(cx, text);
+        assert_eq!(before.len(), 3);
+        assert!(before[1].width() > before[0].width() * 5.);
+        assert!(before[2].y0 > before[1].y0 && before[1].y0 > before[0].y0);
+        for scale in [1., 1.5, 2.] {
+            cx.update(|window, cx| {
+                window.set_scale_factor(scale);
+                window.draw(cx).clear(cx);
+            });
+            let bounds = check(cx, text);
+            let snapshot = field.read_with(cx, |state, _| {
+                state.bridge_text_layout().snapshot().unwrap()
+            });
+            assert_eq!(snapshot.scale_factor, scale);
+            let first = &snapshot.cells[0].bounds;
+            assert!((bounds[0].x0 - f64::from(first.left()) * f64::from(scale)).abs() < 0.001);
+            assert!((bounds[0].y0 - f64::from(first.top()) * f64::from(scale)).abs() < 0.001);
+            assert!(
+                (bounds[0].height() - f64::from(first.size.height) * f64::from(scale)).abs()
+                    < 0.001
+            );
+        }
+        let replacement = "alpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu";
+        cx.update(|window, cx| {
+            field.update(cx, |state, cx| {
+                state.bridge_replace_all(replacement.into(), (0, 0), true, window, cx);
+            });
+            // Exactly one draw: reading the previous paint cannot satisfy this.
+            window.draw(cx).clear(cx);
+        });
+        let wrapped = check(cx, replacement);
+        assert!(wrapped.len() > 1);
+        assert!(wrapped[1].y0 > wrapped[0].y0);
+        set_layout(
+            &owner,
+            cx,
+            Some(Config {
+                soft_wrap: false,
+                ..Config::default()
+            }),
+        );
+        let unwrapped = check(cx, replacement);
+        assert_eq!(unwrapped.len(), 1);
+        cx.update(|_, cx| {
+            field.update(cx, |state, cx| {
+                state.set_scroll_offset(point(px(-70.), px(0.)), cx)
+            });
+        });
+        draw(cx);
+        let scrolled = check(cx, replacement);
+        assert!(scrolled[0].x0 < unwrapped[0].x0 - 50.);
+        cx.update(|window, cx| {
+            field.update(cx, |state, cx| {
+                state.bridge_replace_all("".into(), (0, 0), true, window, cx);
+            });
+            window.draw(cx).clear(cx);
+        });
+        let empty = check(cx, "");
+        assert_eq!(empty.len(), 1);
+        assert_eq!(empty[0].width(), 0.);
+
+        cx.update(|window, cx| {
+            field.update(cx, |state, cx| {
+                state.bridge_replace_all("ab אב cd".into(), (0, 0), true, window, cx);
+            });
+            window.draw(cx).clear(cx);
+        });
+        let tree = cx.a11y_tree().unwrap();
+        let runs = tree
+            .nodes
+            .iter()
+            .filter(|(_, node)| node.role() == Role::TextRun)
+            .collect::<Vec<_>>();
+        assert!(runs.len() >= 3, "directions require separate runs");
+        for pair in runs.windows(2) {
+            assert_eq!(pair[0].1.next_on_line(), Some(pair[1].0));
+            assert_eq!(pair[1].1.previous_on_line(), Some(pair[0].0));
+        }
+    });
+}
+
+#[test]
+fn textarea_accessibility_keeps_off_layout_text_without_fabricating_bounds() {
+    let text = (0..60)
+        .map(|line| format!("row {line:02}\n"))
+        .collect::<String>();
+    setup(&text, |owner, cx| {
+        cx.simulate_a11y_active(true);
+        draw(cx);
+        let tree = cx.a11y_tree().unwrap();
+        let runs = tree
+            .nodes
+            .iter()
+            .filter(|(_, node)| node.role() == gpui::accesskit::Role::TextRun)
+            .map(|(_, node)| node)
+            .collect::<Vec<_>>();
+        assert_eq!(
+            runs.iter()
+                .filter_map(|node| node.value())
+                .collect::<String>(),
+            text
+        );
+        let laid_out = runs.iter().filter(|run| run.bounds().is_some()).count();
+        assert!(laid_out > 0 && laid_out < runs.len());
+        for run in runs.iter().filter(|run| run.bounds().is_none()) {
+            assert!(run.character_positions().is_none());
+            assert!(run.character_widths().is_none());
+        }
+        cx.simulate_a11y_active(false);
+        draw(cx);
+        assert!(state(&owner, cx).read_with(cx, |state, _| {
+            state.bridge_text_layout().snapshot().is_none()
+        }));
+    });
+}
 fn points(
     state: &Entity<TextareaState>,
     cx: &mut VisualTestContext,

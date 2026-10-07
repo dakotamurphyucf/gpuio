@@ -149,13 +149,18 @@ def main():
               'dirty': bool(subprocess.check_output(['git', 'status', '--porcelain'], cwd=repo, text=True))}
     (args.output / 'executable.json').write_text(json.dumps(report, indent=2) + '\n')
     with preserved_clipboard() as board, (args.output / 'application.log').open('w') as log:
-        child = subprocess.Popen([str(executable)], cwd=repo, stdout=log, stderr=subprocess.STDOUT)
+        child = subprocess.Popen([str(executable), '--trace-windows'], cwd=repo, stdout=log, stderr=subprocess.STDOUT)
+        report['pid'] = child.pid
         mac = None
         try:
             mac = Mac(child.pid, child)
             report['observations'] = exercise(mac, board, source_only=args.source_only)
             mac.close(TITLE)
             assert child.wait(timeout=15) == 0
+            report['result'] = 'pass'
+        except BaseException as error:
+            report.update(result='fail', error=repr(error))
+            raise
         finally:
             if mac:
                 mac.release(mac.app)
@@ -166,6 +171,8 @@ def main():
                 except subprocess.TimeoutExpired:
                     child.kill()
                     child.wait()
+            report['child_exit'] = child.returncode
+            (args.output / 'report.json').write_text(json.dumps(report, indent=2, ensure_ascii=False) + '\n')
     report['clipboard_restored'] = True
     (args.output / 'report.json').write_text(json.dumps(report, indent=2, ensure_ascii=False) + '\n')
     scope = 'source' if args.source_only else 'source and editor'

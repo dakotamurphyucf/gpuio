@@ -1093,8 +1093,12 @@ layout, include endpoint carets, and are not clipped or a visibility receipt.
 A source edit between the two requests asks you to inspect again; an endpoint
 outside the retained layout yields an unavailable result. Try wrapping, scrolling,
 Unicode, and multiple gallery windows. Leaving the page suppresses a late reply.
-This walkthrough still needs physical macOS qualification; the build and automated
-checks are recorded in [the API evidence](../../docs/evidence/editor-range-api-och41.md).
+The [macOS range walkthrough](../../docs/evidence/editor-accessibility-geometry-och41.md)
+now verifies the public query against actual AX range/caret geometry in the root
+and independently installed gallery, including wraps, Unicode clusters and RTL.
+Those checks inject source/selection through AX; physical IME and VoiceOver remain
+separate. The [API evidence](../../docs/evidence/editor-range-api-och41.md) records
+the original codec/controller checks.
 
 
 ### Native window lifecycle

@@ -281,6 +281,10 @@ jobs:
         run: |
           python3 scripts/test_gallery.py --section forms --images .cache/ci/forms 2>&1 | tee .cache/ci/macos-forms.log
           python3 scripts/test_gallery.py --section editor-groups 2>&1 | tee .cache/ci/macos-editor-groups.log
+      - name: macOS public editor and accessibility range geometry
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 3
+        run: python3 scripts/test_gallery_editor_geometry.py --report .cache/ci/editor-range-geometry.json 2>&1 | tee .cache/ci/macos-editor-range-geometry.log
       - name: macOS public clipboard writes and feedback
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
         timeout-minutes: 3

@@ -1,0 +1,310 @@
+{
+  "date": "2026-10-07",
+  "platform": "macOS-14.5-arm64-arm-64bit-Mach-O",
+  "machine": "Apple M1 Max /32 GiB; 1728x1117 logical display, 2x backing",
+  "base_commit": "e57429479eb090c8026365a4669ce0c3d5d71894",
+  "qualification": "working tree represented by qualified.patch; intermediate runs identified separately",
+  "scope": "AX injection/actions and real CoreText layout; selection repeat adds physical keyboard/read-only copy; no IME/VoiceOver/Linux/clean-machine/signed-release claim",
+  "commands": [
+    {
+      "log": "editor-ax-build-001.log",
+      "command": "GPUIO_JOBS=2 ./scripts/gpuio exec cargo test -p gpuio-native --lib --features native-canvas-tests,native-image-tests --offline --locked -j2 editor_accessibility",
+      "exit": 0,
+      "result": "2 passed; intermediate"
+    },
+    {
+      "log": "editor-ax-test-002.log",
+      "command": "GPUIO_JOBS=2 ./scripts/gpuio exec cargo test -p gpuio-native --lib --features native-canvas-tests,native-image-tests --offline --locked -j2 accessibility",
+      "exit": 0,
+      "result": "19 passed; intermediate"
+    },
+    {
+      "log": "editor-ax-gallery-build-003.log",
+      "command": "GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 examples/gallery/main.exe",
+      "exit": 0,
+      "result": "initial repaired binary"
+    },
+    {
+      "log": "editor-ax-physical-004.log",
+      "command": "python3 scripts/test_gallery_editor_geometry.py --report scratch/agents/root-20261004-resumed/editor-ax-physical-004.json",
+      "exit": 1,
+      "result": "old binary before concurrent build finished: original empty AX bounds"
+    },
+    {
+      "log": "editor-ax-physical-005.log",
+      "command": "python3 scripts/test_gallery_editor_geometry.py --report scratch/agents/root-20261004-resumed/editor-ax-physical-005.json",
+      "exit": 1,
+      "result": "incorrect trailing-newline comparison; separate end-caret union required"
+    },
+    {
+      "log": "editor-ax-physical-006.log",
+      "command": "python3 scripts/test_gallery_editor_geometry.py --report scratch/agents/root-20261004-resumed/editor-ax-physical-006.json",
+      "exit": 0,
+      "result": "six intermediate cases"
+    },
+    {
+      "log": "editor-ax-native-full-007.log",
+      "command": "GPUIO_JOBS=2 ./scripts/gpuio exec cargo test -p gpuio-native --lib --features native-canvas-tests,native-image-tests --offline --locked -j2",
+      "exit": 0,
+      "result": "1071 passed /2 ignored; before extra off-layout test"
+    },
+    {
+      "log": "editor-ax-layout-008.log",
+      "command": "GPUIO_JOBS=2 ./scripts/gpuio exec cargo test -p gpuio-native --lib --features native-canvas-tests,native-image-tests --offline --locked -j2 textarea_accessibility",
+      "exit": 0,
+      "result": "2 passed including additional off-layout regression"
+    },
+    {
+      "log": "editor-ax-clippy-009.log",
+      "command": "GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy -p gpuio-native -p gpuio-protocol --all-targets --features native-canvas-tests,native-image-tests,presentation-diagnostics --offline --locked -j2 -- -D warnings",
+      "exit": 0,
+      "result": "strict lint"
+    },
+    {
+      "log": "editor-ax-dune-full-010.log",
+      "command": "GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 @all @runtest @fmt",
+      "exit": 0,
+      "result": "complete local OCaml build/tests/format"
+    },
+    {
+      "log": "editor-ax-physical-final-011.log",
+      "command": "python3 scripts/test_gallery_editor_geometry.py --report scratch/agents/root-20261004-resumed/editor-ax-physical-final-011.json",
+      "exit": 0,
+      "result": "eight cases, final source"
+    },
+    {
+      "log": "editor-ax-consumer-build-012.log",
+      "command": "GPUIO_JOBS=2 python3 scripts/test_extension_consumer.py --example gallery --workspace scratch/agents/root-20261004-resumed/editor-ax-consumer",
+      "exit": 0,
+      "result": "fresh staged installed independent composed backend/catalog checks"
+    },
+    {
+      "log": "editor-ax-selection-013.log",
+      "command": "python3 scripts/test_macos_text_selection.py --output scratch/agents/root-20261004-resumed/editor-ax-selection-013",
+      "exit": 1,
+      "result": "window unavailable at startup; no input assertion reached; untraced cause unknown"
+    },
+    {
+      "log": "editor-ax-rustfmt-014.log",
+      "command": "GPUIO_JOBS=2 ./scripts/gpuio exec cargo fmt --all --check",
+      "exit": 0,
+      "result": "Rust formatting"
+    },
+    {
+      "log": "editor-ax-selection-015.log",
+      "command": "python3 scripts/test_macos_text_selection.py --output scratch/agents/root-20261004-resumed/editor-ax-selection-015",
+      "exit": 0,
+      "result": "same binary traced repeat: actual keyboard/source copy/editor AX selection, clipboard restoration, normal close"
+    },
+    {
+      "log": "editor-ax-installed-016.log",
+      "command": "python3 scripts/test_gallery_editor_geometry.py --executable scratch/agents/root-20261004-resumed/editor-ax-consumer/consumer/_build/default/main.exe --report scratch/agents/root-20261004-resumed/editor-ax-installed-016.json",
+      "exit": 0,
+      "result": "eight installed cases; normal close"
+    },
+    {
+      "log": "editor-ax-native-final-017.log",
+      "command": "GPUIO_JOBS=2 ./scripts/gpuio exec cargo test -p gpuio-native --lib --features native-canvas-tests,native-image-tests --offline --locked -j2",
+      "exit": 0,
+      "result": "1072 passed /2 existing ignored; final"
+    },
+    {
+      "log": "editor-ax-reconstruction-009.log",
+      "command": "python3 scripts/vendor_gpui_base.py --archive scratch/agents/root-20260912-milestones/gpui-kit-84f57fd.tar.gz --output scratch/agents/root-20261004-resumed/editor-ax-reconstruction-009 && diff -qr --exclude Cargo.lock vendor/gpui-base scratch/agents/root-20261004-resumed/editor-ax-reconstruction-009",
+      "exit": 0,
+      "result": "hash-verified reconstruction; only ignored local Cargo.lock excluded"
+    },
+    {
+      "log": "editor-ax-doc-audit-014.log",
+      "command": "python3 scripts/audit_example_docs.py",
+      "exit": 0,
+      "result": "429 sources /266 reviewed groups /0 pending"
+    },
+    {
+      "log": "editor-ax-catalog-audit-014.log",
+      "command": "python3 scripts/audit_component_catalog.py",
+      "exit": 0,
+      "result": "structural source coverage; not broad acceptance"
+    }
+  ],
+  "files": {
+    "editor-ax-build-001.log": {
+      "sha256": "2d633426249660dc838d53985d3ebc7d320c8379ca3c2e1ac0d09da361d2337a",
+      "bytes": 589253
+    },
+    "editor-ax-catalog-audit-010.log": {
+      "sha256": "ec7f045757abb1d7e2907d8e645fbd6c7fa3e9b0e1e808e2fdc2dd20215b9a75",
+      "bytes": 640
+    },
+    "editor-ax-catalog-audit-014.log": {
+      "sha256": "ec7f045757abb1d7e2907d8e645fbd6c7fa3e9b0e1e808e2fdc2dd20215b9a75",
+      "bytes": 640
+    },
+    "editor-ax-clippy-009.log": {
+      "sha256": "8fd96834033670ee2bb3dfee5dbc14384c0511010bb3d4cd6fa5f8585e33c89e",
+      "bytes": 589098
+    },
+    "editor-ax-consumer-build-012.log": {
+      "sha256": "16175dda705f73c83a92a55dcb06a489f357d752dec57d104222baffc3e97a1d",
+      "bytes": 100838
+    },
+    "editor-ax-doc-audit-010.log": {
+      "sha256": "6a6c48d5844d1ffdb3732cf30e5bb603cac1b615504a84bb2ee3b168cab6ce0b",
+      "bytes": 139
+    },
+    "editor-ax-doc-audit-014.log": {
+      "sha256": "6a6c48d5844d1ffdb3732cf30e5bb603cac1b615504a84bb2ee3b168cab6ce0b",
+      "bytes": 139
+    },
+    "editor-ax-dune-full-010.log": {
+      "sha256": "67cbeba11ff0dcc789587ccf097e9c818f5b35e4d5fca04608165b8f1d8b49cc",
+      "bytes": 705936
+    },
+    "editor-ax-gallery-build-003.log": {
+      "sha256": "189400fdd7e26cff182b6ac99fd31c25b27300fdb917d78e1452df3f4a0ace06",
+      "bytes": 100198
+    },
+    "editor-ax-installed-016.app.log": {
+      "sha256": "4b7efb90808b044cf2b79f21733d78f17068047c9d17d9fc04715ac7773bad46",
+      "bytes": 52
+    },
+    "editor-ax-installed-016.json": {
+      "sha256": "79022a842404137c0e6419ff815f7610fd79326b6fc461bf8446cc3640a97165",
+      "bytes": 6212
+    },
+    "editor-ax-installed-016.log": {
+      "sha256": "6aa647767c262268008e2e83cf8aa9fbe95a515ac61dfc70afe22923f2bfbf90",
+      "bytes": 1673
+    },
+    "editor-ax-layout-008.log": {
+      "sha256": "baa96c8383c5b8b33f6fae714028817d63676b9b5fc18411405f46692ff213a5",
+      "bytes": 588698
+    },
+    "editor-ax-native-final-017.log": {
+      "sha256": "ffa33097fe95edd5309d9aa62630b65863422282fdbf81fdcc645cc7f6039f6b",
+      "bytes": 702469
+    },
+    "editor-ax-native-full-007.log": {
+      "sha256": "e35f960daad01150ef8f5bb8e66cb7e64f8d9162ac6f3e66eeef9c742f09f269",
+      "bytes": 702670
+    },
+    "editor-ax-physical-004.app.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "editor-ax-physical-004.json": {
+      "sha256": "b24a464fa91d5ffc380a82d0651f0b42ea998647340f0eed2ade4602dc4e434c",
+      "bytes": 872
+    },
+    "editor-ax-physical-004.log": {
+      "sha256": "540e906fc96bd4da02c97b04c38aab79f01879c99ef4cb4a69c242987e5bc546",
+      "bytes": 895
+    },
+    "editor-ax-physical-005.app.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "editor-ax-physical-005.json": {
+      "sha256": "b6095ed3b1065bccea4eaef8fb6c2bfb06bdf4b0d0fa0ea751c68c412e57599e",
+      "bytes": 2020
+    },
+    "editor-ax-physical-005.log": {
+      "sha256": "830bfe23dabae2c061c7368b3efa929dbc6f23f59e0cb768c687a28ee8d7c33f",
+      "bytes": 1511
+    },
+    "editor-ax-physical-006.app.log": {
+      "sha256": "4b7efb90808b044cf2b79f21733d78f17068047c9d17d9fc04715ac7773bad46",
+      "bytes": 52
+    },
+    "editor-ax-physical-006.json": {
+      "sha256": "75869094108d6de9ef33bc50449e47fce5f5ef5da0f4590544872e1a26219486",
+      "bytes": 3916
+    },
+    "editor-ax-physical-006.log": {
+      "sha256": "9215fddb40dbceedd55ca43c425284d02faf8b5abca25cf9ad919d51338582a9",
+      "bytes": 1279
+    },
+    "editor-ax-physical-final-011.app.log": {
+      "sha256": "4b7efb90808b044cf2b79f21733d78f17068047c9d17d9fc04715ac7773bad46",
+      "bytes": 52
+    },
+    "editor-ax-physical-final-011.json": {
+      "sha256": "934f8ae1dfc5f03b9a06a8025226dcf974814a670bfd2fcd5ac60f27674913d8",
+      "bytes": 6164
+    },
+    "editor-ax-physical-final-011.log": {
+      "sha256": "6aa647767c262268008e2e83cf8aa9fbe95a515ac61dfc70afe22923f2bfbf90",
+      "bytes": 1673
+    },
+    "editor-ax-reconstruction-006.log": {
+      "sha256": "74953b2008ed98cb46ae3960ebf5e1e774e559d29de6bc86e852df7d1e817ebf",
+      "bytes": 3548
+    },
+    "editor-ax-reconstruction-009.log": {
+      "sha256": "74953b2008ed98cb46ae3960ebf5e1e774e559d29de6bc86e852df7d1e817ebf",
+      "bytes": 3548
+    },
+    "editor-ax-rustfmt-014.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "editor-ax-selection-013.log": {
+      "sha256": "a2b82d08ac7762d17a1950c4efaf69ff5abbcb094a785169b6a9341b7ca06fab",
+      "bytes": 1032
+    },
+    "editor-ax-selection-013/application.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "editor-ax-selection-013/executable.json": {
+      "sha256": "adbc8fb49935096c3af192aa1ad8a49be39b08aaebafe4fa6958a47b9f0edac9",
+      "bytes": 319
+    },
+    "editor-ax-selection-015.log": {
+      "sha256": "a37cf11d0c81bfa0468766670e0b186c0e5a9a4f165a753938589844aef55ef7",
+      "bytes": 292
+    },
+    "editor-ax-selection-015/application.log": {
+      "sha256": "4b7efb90808b044cf2b79f21733d78f17068047c9d17d9fc04715ac7773bad46",
+      "bytes": 52
+    },
+    "editor-ax-selection-015/executable.json": {
+      "sha256": "adbc8fb49935096c3af192aa1ad8a49be39b08aaebafe4fa6958a47b9f0edac9",
+      "bytes": 319
+    },
+    "editor-ax-selection-015/report.json": {
+      "sha256": "c4ef580b072156f8caf5eb8e12bbd44784949b95a2a54a9623ea419bfffbd7f2",
+      "bytes": 2118
+    },
+    "editor-ax-test-002.log": {
+      "sha256": "3769fdfd93e118c7e0c120cf387cb66a911b11a9c72bc4fbb73cfc9741822e9f",
+      "bytes": 590900
+    },
+    "editor-geometry-probe-second.log": {
+      "sha256": "7adc909f24947cbb4341e635fe24a41d54c7999166bfc73961a0c527b6091355",
+      "bytes": 934
+    },
+    "editor-geometry-probe.log": {
+      "sha256": "12c048b20007affdde5b38155618f9d3465aca27faa2c5b14ae70bb95f9a463f",
+      "bytes": 559
+    },
+    "qualified.patch": {
+      "sha256": "259023618ba5e0e4a5362ba9c4b3b1495f3c3347991cfaf563a5c6b091dc7584",
+      "bytes": 77443
+    },
+    "test_gallery_editor_geometry.py": {
+      "sha256": "fae78817b3a5546924e5eab701446db87887db15fba55edada53c28b423f8ae2",
+      "bytes": 9747
+    },
+    "test_macos_text_selection.py": {
+      "sha256": "11783cb223357775efea6985d1a30965a78bb47f60033cc9ba89883968f7a20c",
+      "bytes": 7985
+    }
+  },
+  "archive": {
+    "path": "editor-accessibility-geometry-och41-logs.tar.gz",
+    "sha256": "cd78a7e2269032769e364564b72993de94db718bacb2610d296975dee479adc1",
+    "bytes": 341715,
+    "members": 44
+  }
+}
