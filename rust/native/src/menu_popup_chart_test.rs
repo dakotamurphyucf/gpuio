@@ -200,7 +200,17 @@ pub(super) async fn exercise(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>
     cx.update(|cx| {
         handle
             .update(cx, |view, window, cx| {
-                assert!(view.charts[&id(2)].borrow().chart_focused(window));
+                assert!(
+                    view.charts[&id(2)].borrow().chart_focused(window),
+                    "radar pointer focus: target={center:?}, viewport={:?}, active={}, hovered={}, mouse={:?}, focused={:?}, chart={:?}, menu={:?}",
+                    window.viewport_size(),
+                    window.is_window_active(),
+                    window.is_window_hovered(),
+                    window.mouse_position(),
+                    window.focused(cx),
+                    view.probes.borrow().get(&id(2)).map(|p| p.bounds),
+                    view.probes.borrow().get(&owner).map(|p| p.bounds),
+                );
                 show(view, window, cx, owner, 2);
             })
             .unwrap();

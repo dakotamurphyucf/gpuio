@@ -420,7 +420,12 @@ async fn workload(
             .update(cx, |v, w, _| {
                 assert_eq!(
                     v.probes.borrow()[&node(button(127))].bounds.size.width,
-                    px(width)
+                    px(width),
+                    "navigation resize: target={expected:?}, viewport={:?}, active={}, incoming={:?}, outgoing={:?}",
+                    w.viewport_size(),
+                    w.is_window_active(),
+                    v.probes.borrow().get(&node(page(0))).map(|p| p.bounds),
+                    v.probes.borrow().get(&node(page(127))).map(|p| p.bounds),
                 );
                 let incoming = v.probes.borrow()[&node(page(0))].bounds;
                 let outgoing = v.probes.borrow()[&node(page(127))].bounds;

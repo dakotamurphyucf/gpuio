@@ -1,0 +1,65 @@
+{
+  "archive_sha256": "8db7a24ac42356cccc3a12fe4bc150a61d7ddbab282537b7cee13221fb5e1afb",
+  "files": [
+    {
+      "path": "ci-37579057201-popup-failure.log",
+      "bytes": 3242,
+      "sha256": "a639697896a1f8986681dd6e6c9adcb1f0e497d18dbe038dd974daf750c5ccea"
+    },
+    {
+      "path": "ci-37579057201-navigation-failure.log",
+      "bytes": 3656,
+      "sha256": "f18c3b6203c76834e685ce224c10908946baa9fae18dd031b10c867fdc19e0d9"
+    },
+    {
+      "path": "hosted-focus-popup-001.log",
+      "bytes": 589402,
+      "sha256": "19ba6638a58a8cd64a8f538df4d0a90a3ea4ef896b1dd6d3322dc5c9ee938bfd"
+    },
+    {
+      "path": "hosted-focus-navigation-002.log",
+      "bytes": 589706,
+      "sha256": "2ff8a0ce15b8701cce37e4d0c84d3012351997422e77989306e4bd5392a82e7e"
+    },
+    {
+      "path": "hosted-focus-navigation-image-003.log",
+      "bytes": 589706,
+      "sha256": "d159a728d7b904573085ef8f8e15f4deb7cb4b1fa44bab2d65e0a9a3469a1929"
+    },
+    {
+      "path": "hosted-focus-diagnostics-clippy-004.log",
+      "bytes": 588275,
+      "sha256": "353b74d5709232f49861ec3c981520af7fcc4d4d9486e9928a2eb4c202f3d37b"
+    },
+    {
+      "path": "hosted-focus-native-checks.json",
+      "bytes": 860,
+      "sha256": "e9d71b016e43172cbd81652f927db87634fa57ae4faef2052b833e39a6a4ff9c"
+    },
+    {
+      "path": "hosted-focus-image-check.json",
+      "bytes": 452,
+      "sha256": "f493c2f50f1dcdb41f4d923f86fbc1d4a151259fc14ca42671c13d729a941029"
+    },
+    {
+      "path": "hosted-focus-native-checks.py",
+      "bytes": 1293,
+      "sha256": "6401a62f6551fb192beb531c79efad99ebd6b8282db0b6be2eb294a523c8e68d"
+    },
+    {
+      "path": "hosted-focus-image-check.py",
+      "bytes": 1131,
+      "sha256": "ee5757af27475a2e41b3a9b10c140a05d940b785e5c7aac553d83510c82de160"
+    },
+    {
+      "path": "hosted-focus-metadata.json",
+      "bytes": 2315,
+      "sha256": "364d75dbd051cca04bc2838e9007ac5e0cf879788246d6d633e7977f68da5104"
+    },
+    {
+      "path": "hosted-focus-diagnostics.patch",
+      "bytes": 2238,
+      "sha256": "c3708d43750645dbbec513da3c804b744dd4b1d603d145581e3060bded78c2b2"
+    }
+  ]
+}
