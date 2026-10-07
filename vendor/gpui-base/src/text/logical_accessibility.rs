@@ -21,6 +21,12 @@ pub(super) fn publish(
     builder: &mut A11ySubtreeBuilder,
 ) -> Vec<TextRun> {
     let original = builder.parent_node().children().to_vec();
+    // This callback is synchronous. Keep completed roots locally until the
+    // final merge, so grouping one fresh subtree never scans/copies all earlier
+    // siblings. The builder still owns every node in postorder throughout.
+    // Keep a typed empty vector: the pinned AccessKit push_child does not
+    // restore the vector property after clear_children marks it absent.
+    builder.parent_node().set_children(Vec::<NodeId>::new());
     let native: HashMap<_, _> = native
         .iter()
         .map(|item| (item.owner(), item.node()))
@@ -121,7 +127,6 @@ enum Task {
     Text(Range<usize>),
     Finish {
         owner: RenderedSemanticId,
-        start: usize,
         node: Node,
     },
 }
@@ -133,33 +138,43 @@ fn emit_owner(
     runs: &mut Vec<TextRun>,
 ) -> NodeId {
     let mut tasks = vec![Task::Owner(owner)];
+    // Each level collects only its direct members; the outer sentinel collects
+    // the single completed root. Every child edge is grouped exactly once.
+    let mut levels: Vec<Vec<NodeId>> = vec![Vec::new()];
     while let Some(task) = tasks.pop() {
         match task {
             Task::Text(span) => {
-                emit_text(projection, span, builder, runs);
+                levels
+                    .last_mut()
+                    .expect("active semantic owner")
+                    .extend(emit_text(projection, span, builder, runs));
             }
-            Task::Finish { owner, start, node } => {
-                let members = builder.parent_node().children()[start..].to_vec();
+            Task::Finish { owner, node } => {
+                let members = levels.pop().expect("active semantic owner");
                 let key = ("logical-document-owner", owner);
-                if members.is_empty() {
+                let id = if members.is_empty() {
                     let id = builder.synthetic_node_id(key);
                     assert!(
                         builder.push_child(id, node),
                         "unique prepared semantic owner"
                     );
+                    id
                 } else {
+                    builder.parent_node().set_children(members.clone());
                     builder
                         .group_children(key, node, &members)
-                        .expect("new contiguous semantic children");
-                }
+                        .expect("new contiguous semantic children")
+                };
+                builder.parent_node().set_children(Vec::<NodeId>::new());
+                levels
+                    .last_mut()
+                    .expect("enclosing semantic owner")
+                    .push(id);
             }
             Task::Owner(owner) => {
                 let node = semantic_node(projection, owner);
-                tasks.push(Task::Finish {
-                    owner,
-                    start: builder.parent_node().children().len(),
-                    node,
-                });
+                levels.push(Vec::new());
+                tasks.push(Task::Finish { owner, node });
                 let Some(span) = semantic_span(projection, owner) else {
                     continue;
                 };
@@ -179,11 +194,9 @@ fn emit_owner(
             }
         }
     }
-    *builder
-        .parent_node()
-        .children()
-        .last()
-        .expect("logical owner published")
+    let roots = levels.pop().expect("root collector");
+    debug_assert!(levels.is_empty() && roots.len() == 1);
+    roots[0]
 }
 
 fn emit_text(
@@ -251,13 +264,15 @@ fn emit_part(
     }
     let mut label = Node::new(Role::Label);
     label.set_value(text.to_owned());
-    builder
+    let id = builder
         .group_children(
             ("logical-document-label", part, chars.start, chars.end),
             label,
             &members,
         )
-        .expect("new contiguous text runs")
+        .expect("new contiguous text runs");
+    builder.parent_node().set_children(Vec::<NodeId>::new());
+    id
 }
 
 fn semantic_node(projection: &RenderedText, owner: RenderedSemanticId) -> Node {

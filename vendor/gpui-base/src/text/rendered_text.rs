@@ -536,11 +536,17 @@ impl RenderedText {
         let head_byte = self
             .offset(head)
             .ok_or(RenderedSelectionError::ForeignPosition)?;
-        if self.parts.iter().any(|part| {
-            part.is_atomic()
-                && [anchor_byte, head_byte]
-                    .into_iter()
-                    .any(|byte| part.bytes.start < byte && byte < part.bytes.end)
+        // Parts are ordered and nonoverlapping. Only the part immediately
+        // preceding an endpoint can contain that endpoint strictly inside an
+        // atomic alternative. Shared boundaries and zero-byte object edges
+        // remain legal; checked positions already validate their slots.
+        if [anchor_byte, head_byte].into_iter().any(|byte| {
+            let end = self.parts.partition_point(|part| part.bytes.start <= byte);
+            end.checked_sub(1)
+                .and_then(|index| self.parts.get(index))
+                .is_some_and(|part| {
+                    part.is_atomic() && part.bytes.start < byte && byte < part.bytes.end
+                })
         }) {
             return Err(RenderedSelectionError::AtomicBoundary);
         }

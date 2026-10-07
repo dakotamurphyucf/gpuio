@@ -801,6 +801,29 @@ fn logical_atomic_alternatives_are_readable_without_interior_selection_positions
     draw(cx);
     let text = view.read_with(cx, |view, _| view.text.clone());
     assert_complete_text(&text, cx);
+    text.read_with(cx, |state, _| {
+        let projection = state.rendered_text().unwrap();
+        let first = projection.position(0).unwrap();
+        // Reference the full set of intervals rather than the production index.
+        // Check both directions, all legal scalar/CRLF positions, and every
+        // atomic interior; object-edge slot tests follow below.
+        for byte in 0..=projection.text().len() {
+            if let Some(position) = projection.position(byte) {
+                let inside_atomic = projection.parts().iter().any(|part| {
+                    let range = part.bytes();
+                    part.is_atomic() && range.start < byte && byte < range.end
+                });
+                assert_eq!(
+                    projection.selection(&first, &position).is_err(),
+                    inside_atomic
+                );
+                assert_eq!(
+                    projection.selection(&position, &first).is_err(),
+                    inside_atomic
+                );
+            }
+        }
+    });
     let tree = cx.a11y_tree().unwrap();
     for (value, start_valid, end_valid) in [
         ("atomic λ\r\n", true, false),
@@ -846,5 +869,61 @@ fn logical_atomic_alternatives_are_readable_without_interior_selection_positions
                 }
             }
         });
+    }
+}
+
+#[test]
+fn large_logical_document_keeps_complete_text_and_stable_redraw_ids() {
+    for count in [250, 1000] {
+        let mut app = TestAppContext::single();
+        app.update(gpui_base::init);
+        let prefix = (0..60)
+            .map(|i| format!("Paragraph {i}\n\n"))
+            .collect::<String>();
+        let items = (0..count)
+            .map(|i| format!("- Entry {i} λ🙂\n"))
+            .collect::<String>();
+        let source = format!("{prefix}{items}");
+        let (view, cx) = app.add_window_view(|_, cx| Documents {
+            text: cx.new(|cx| {
+                let mut state = TextViewState::externally_prepared(cx);
+                state.set_prepared(
+                    PreparedText::parse(&source, Default::default()).unwrap(),
+                    None,
+                    cx,
+                );
+                state
+            }),
+            scrollable: true,
+            max_lines: None,
+            clicks: Arc::default(),
+            extensions: Default::default(),
+        });
+        let text = view.read_with(cx, |view, _| view.text.clone());
+        cx.simulate_a11y_active(true);
+        let mut timings = Vec::new();
+        let mut previous_ids = None;
+        for _ in 0..3 {
+            view.update(cx, |_, cx| cx.notify());
+            let start = std::time::Instant::now();
+            draw(cx);
+            timings.push(start.elapsed().as_secs_f64() * 1000.);
+            assert_complete_text(&text, cx);
+            let tree = cx.a11y_tree().unwrap();
+            let ids: std::collections::BTreeSet<_> = tree.nodes.iter().map(|(id, _)| *id).collect();
+            assert_eq!(ids.len(), tree.nodes.len(), "unique tree identities");
+            if let Some(previous) = previous_ids {
+                assert_eq!(ids, previous);
+            }
+            previous_ids = Some(ids);
+            assert!(
+                attachments(&text, cx).len() < 20,
+                "only visible native blocks realized"
+            );
+        }
+        eprintln!(
+            "AX_LOGICAL_PUBLICATION_DIAGNOSTIC list_items={count} nodes={} draw_ms={timings:?}",
+            previous_ids.unwrap().len()
+        );
     }
 }

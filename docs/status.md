@@ -5,6 +5,14 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **O
 Markdown walkthroughs for every example component; its documentation acceptance is complete. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
+[Accessibility publication cost](evidence/rendered-publication-cost-och17.md)
+now avoids repeated full-part selection scans and accumulated sibling scans.
+The same 6,308-node debug fixture improves from roughly 24–25 ms to 5 ms on warm
+draws; this is not physical FPS qualification. All 1,141 native tests (2 ignored),
+strict lint, full Rust workspace/Dune checks, actual macOS editor/document tests,
+rebuilt-gallery Copy/close and exact Base reconstruction pass. Visible nested
+text gaps, final-paint selection/actions and release gates remain open.
+
 [Unrealized document accessibility](evidence/rendered-logical-document-och17.md)
 now exposes offscreen structured text, block separators and atomic alternatives
 without fabricated bounds, preserving actual native control identities/actions.

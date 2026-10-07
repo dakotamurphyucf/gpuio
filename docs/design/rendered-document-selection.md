@@ -627,7 +627,15 @@ This supersedes the earlier absence of offscreen runs. It does not complete the
 Document contract: separators and atomic alternatives inside **realized nested**
 structures still need integration, as do visual-line adjacency, final-paint
 selection, guarded reveal/activation and OS selection actions. Offscreen link
-roles and URLs do not imply an implemented activation handler. Publication cost
-for large accessibility trees also needs qualification; current grouping uses the
-existing subtree builder. Actual macOS accessibility and VoiceOver acceptance
-remain separate from TestPlatform coverage.
+roles and URLs do not imply an implemented activation handler. Actual macOS
+accessibility and VoiceOver acceptance remain separate from TestPlatform coverage.
+
+Publication collects each synthetic owner's direct children separately before
+using the existing subtree builder. Completed roots are merged with native roots
+once, avoiding repeated scans of earlier siblings. Selection endpoint validation
+uses binary searches over ordered, nonoverlapping parts to reject atomic interiors;
+this also avoids a full part scan for every semantic range. Native IDs, actions,
+empty-object boundaries and foreign-position checks retain their contracts.
+The [publication diagnostic](../evidence/rendered-publication-cost-och17.md)
+records the measured debug improvement and its limits. Optimized workload and
+physical presentation qualification remain separate requirements.
