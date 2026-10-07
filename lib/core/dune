@@ -1,7 +1,7 @@
 (library
  (name gpuio)
  (public_name gpuio)
- (private_modules list_identity)
+ (private_modules list_identity chart_brush)
  (libraries core gpuio.protocol uucp uunf)
  (preprocess
   (pps ppx_jane)))

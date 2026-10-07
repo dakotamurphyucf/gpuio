@@ -95,7 +95,10 @@ passes with original selection/data and zero-resource cleanup.
 [Shared native pattern brushes](../evidence/native-pattern-brushes-och41.md) now
 add slash/checker fills to ordinary Views and chart paths/bars, with local GPU,
 root/installed gallery, theme/direction and cleanup checks. Dense arbitrary
-per-datum backgrounds and bar baselines remain explicit work.
+per-datum backgrounds and bar baselines remain explicit work. The
+[dense-background implementation design](../design/dense-bar-backgrounds.md)
+specifies a proposed immutable source sidecar, appearance precedence, aggregate
+semantics and memory/codec qualification; it is not yet a public capability.
 [Scalar area baselines](../evidence/area-baselines-och41.md) now pass local
 qualification, including shared stacked offsets and retained source semantics.
 

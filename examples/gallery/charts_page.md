@@ -61,7 +61,9 @@ rejection rather than treating local success as publication acknowledgement.
 
 `Preview_scope.acquire` creates the source for the mounted page and cancels its
 scope when the page is left. Returning reacquires native data and clears the
-selected target. Retained mode and control choices are separate from the lifetime
+selected target. `Source.create` also starts the phase at zero again, even when
+the retained mode is unchanged: Update progress belongs to one page visit.
+Retained mode and control choices are separate from the lifetime
 of the native source. The `Chart.handle` passed to the view is borrowed: keeping
 a handle does not keep a cancelled registration alive.
 
@@ -106,7 +108,9 @@ setter effects so native buttons/switches can receive them. The lifecycle hook
 resets the notice when the branch deactivates; `Preview_scope` handles the actual
 resource cancellation. The outer match on `resources` displays preparation text
 for `Preview_scope.Loading`, an error for `Failed`, and the chart only for
-`Ready source`. This Ready means acquisition succeeded; it is distinct from
+`Ready source`. `Registered.create` completes after the first native publication,
+so this Ready means acquisition and that initial publication succeeded; registering
+data does not itself mount a chart widget. It is distinct from
 `Chart.Event.Ready metrics`, which acknowledges native chart preparation.
 The scope suppresses acquisition results arriving after cancellation, so a late
 completion cannot revive a page that has been left.
@@ -216,11 +220,21 @@ returns an error notice effect. `Selection_changed target` returns a separate
 thunk that sets the selected Var, causing the guarded description view to derive
 again. None of these event handlers must synchronously wait for native painting.
 
+`Registered.data` returns the latest **desired** snapshot, which can still be
+awaiting native acceptance. It does not by itself return the last accepted
+snapshot. The `Registered.is_published` guard makes it safe for this readout to
+resolve source positions against `Registered.data`: it requires that desired
+snapshot to match the accepted publication and that no upload remain in flight.
+After a native rejection the prior published chart can remain visible while
+this guard stays false; the page withholds its description rather than resolving
+an old target against new desired values. A local `Ok ()` from `set` is not that
+guard and does not establish native acceptance.
+
 Native pointer/keyboard previews use the displayed geometry. Committing a
 selection delivers a typed event with publication identity. `on_event` stores
 its target in the selected variable; `Samples.describe_selection` resolves it
-against the accepted dataset. The page withholds a description while a new source
-publication is pending. Selecting a mark does not copy the whole dataset back
+against the desired dataset once it is published. The page withholds a description
+while a new source publication is pending. Selecting a mark does not copy the whole dataset back
 through the bridge. Opening View data is a separate native browsing operation;
 it exposes original values and does not implicitly change the selected mark.
 

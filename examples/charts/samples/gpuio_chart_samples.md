@@ -69,6 +69,16 @@ targets look up their typed IDs. Candlestick descriptions check the first candle
 an aggregate reports session count rather than pretending it is one source candle.
 These checks do not independently prove publication identity.
 
+A span indexes the original list over the half-open interval
+`[start_index, start_index + length)`. Its endpoint IDs identify those positions;
+they are not a numeric ID range. This matters for the descending IDs in
+`edge_data Line`. Line/area envelope sampling still selects an exact original
+representative; bar Sum/Mean identifies the contributing source span. Even a
+one-point Sum/Mean remains an aggregate, so this helper describes its sample
+count rather than treating it as Exact. It does not compute the aggregate value
+or mutate the originals; native preparation and the original-data browser have
+separate responsibilities. See [chart_selection.mli](../../../lib/core/chart_selection.mli).
+
 The syntax here is **Option syntax**, not Bonsai syntax:
 
 ```ocaml
@@ -98,6 +108,10 @@ observation updates the notice. Now click an Atlas point: native code sends a ty
 `Selection_changed` event, the page's effect stores the target in `selected`, and
 `let%arr` derives the description. The page calls this helper only when
 `Registered.is_published` holds, using `Registered.data` for that registration.
+`Registered.data` is the desired snapshot, including during a pending update;
+the guard is what establishes that it has also been accepted natively. Stable
+endpoint IDs alone cannot establish that its values belong to the publication
+that produced a selection.
 The native chart owns hover and preview state; only committed selection is stored
 in the OCaml page. Ready reports preparation, not physical display presentation.
 

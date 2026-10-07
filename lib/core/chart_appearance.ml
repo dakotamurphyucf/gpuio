@@ -10,25 +10,6 @@ let resolve_optional value ~f =
     Or_error.map (f value) ~f:Option.some)
 ;;
 
-let resolve_brush brush theme =
-  let open Or_error.Let_syntax in
-  match Background.Expert.describe brush with
-  | Solid color ->
-    let%map color = Theme.resolve theme color in
-    Wire.Brush.Solid color
-  | Pattern_slash (color, width, interval) ->
-    let%map color = Theme.resolve theme color in
-    Wire.Brush.Pattern_slash (color, width, interval)
-  | Checkerboard (color, size) ->
-    let%map color = Theme.resolve theme color in
-    Wire.Brush.Checkerboard (color, size)
-  | Linear_gradient (space, angle, (from, start), (to_, stop)) ->
-    let%bind from = Theme.resolve theme from in
-    let%map to_ = Theme.resolve theme to_ in
-    Wire.Brush.Linear
-      { oklab = Background.Color_space.equal space Oklab; angle; from; start; to_; stop }
-;;
-
 module Corners = struct
   type t = Wire.Corners.t [@@deriving equal, sexp_of]
 
@@ -70,7 +51,7 @@ module Bar_fill = struct
     let open Or_error.Let_syntax in
     match t with
     | Background b ->
-      let%map b = resolve_brush b theme in
+      let%map b = Chart_brush.resolve b ~theme in
       Wire.Bar_fill.Background b
     | Base_to_tip (a, b) ->
       let%bind a = Theme.resolve theme a in
@@ -102,7 +83,7 @@ module Stroke = struct
   ;;
 
   let resolve t theme =
-    let%map.Or_error brush = resolve_brush t.brush theme in
+    let%map.Or_error brush = Chart_brush.resolve t.brush ~theme in
     { Wire.Stroke.visible = t.visible; width = t.width; brush }
   ;;
 end
@@ -120,7 +101,7 @@ module Path = struct
   let resolve t theme =
     let open Or_error.Let_syntax in
     let%bind stroke = resolve_optional t.stroke ~f:(fun s -> Stroke.resolve s theme) in
-    let%map fill = resolve_optional t.fill ~f:(fun b -> resolve_brush b theme) in
+    let%map fill = resolve_optional t.fill ~f:(Chart_brush.resolve ~theme) in
     let curve =
       Option.map t.curve ~f:(function
         | Chart_options.Curve.Linear -> Gpuio_protocol.Chart_options_wire.Curve.Linear
