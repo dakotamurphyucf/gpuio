@@ -534,17 +534,24 @@ async fn directional_checks(
     source: ResourceId,
     p: &Entity<Presentation>,
 ) {
-    for (index, mode) in [Mode::Code("txt".into()), Mode::Markdown]
-        .into_iter()
-        .enumerate()
+    for (index, (mode, source_text, selected, start)) in [
+        (Mode::Code("txt".into()), "אבג\n", "ב", 2),
+        (Mode::Markdown, "אבג\n", "ב", 2),
+        (Mode::Markdown, "A אבג Z\n", "A א", 0),
+        (Mode::Markdown, "مرحبا\n", "ح", 4),
+        (Mode::Markdown, "A e\u{301} Z\n", "e\u{301}", 2),
+        (Mode::Markdown, "A 👨‍👩‍👧‍👦 Z\n", "👨‍👩‍👧‍👦", 2),
+    ]
+    .into_iter()
+    .enumerate()
     {
         let base = p.read_with(cx, |p, _| p.installed.as_ref().unwrap().revision);
-        publish(&mut session.borrow_mut(), source, base, "אבג\n");
+        publish(&mut session.borrow_mut(), source, base, source_text);
         handle
             .update(cx, |view, _, cx| view.document_changed(source, cx))
             .unwrap();
         let mut search = config(0.);
-        search.0[0].query.as_mut().unwrap().text = "ב".into();
+        search.0[0].query.as_mut().unwrap().text = selected.into();
         apply(
             cx,
             handle,
@@ -566,6 +573,9 @@ async fn directional_checks(
             red_pixels(cx, handle) > 20,
             "RTL middle glyph receives a wash in adapter {index}"
         );
+        if index != 0 {
+            selection_style::directional(cx, handle, p, selected, start);
+        }
     }
 }
 

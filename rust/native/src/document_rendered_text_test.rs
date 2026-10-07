@@ -155,7 +155,8 @@ fn rendered_projection_keeps_all_virtual_blocks_and_empty_document_endpoint() {
 fn rendered_alternatives_are_bounded_even_when_they_are_not_searchable_glyphs() {
     let prepared =
         PreparedText::parse_html("<img src='test'/>", MarkdownExtensions::default(), |_| {
-            MarkdownNode::new("fixture", ()).text("x".repeat(128 * 1024 + 1))
+            MarkdownNode::new("fixture", ())
+                .text("x".repeat(gpui_base::text::RenderedText::max_text_bytes() + 1))
         });
     assert!(
         prepared.is_err(),

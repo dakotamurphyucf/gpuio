@@ -130,9 +130,13 @@ It does not expose a new OCaml API or publish AX attributes by itself.
   preserved selection overrides or a document-level selection snapshot. The
   complete selection controller must integrate those states explicitly.
 
-Preparation admits at most 128 KiB of logical copy text and 16,384 parts, allowing
-structural separators and object alternatives in addition to the existing 64 KiB
-source/decoration bounds. Oversized preparation uses the existing source fallback.
+Preparation admits at most 1 MiB + 128 KiB of logical copy text and 16,384 parts.
+The generated portion accommodates the extension SDK's existing 1 MiB aggregate
+string budget; ordinary source text and structural separators have a further
+128 KiB allowance. The previous 128 KiB combined limit incorrectly rejected
+already-admitted plugin alternatives. Source/decoration limits remain 64 KiB,
+and the SDK independently retains its per-string and aggregate generation limits.
+Oversized preparation uses the existing source fallback.
 Rich-document workers reserve the projection's bounded maximum before parsing,
 then retain only its text/capacity allowance with the prepared result. Source/code
 and diff workers do not reserve this unused rich-text allowance. These are
@@ -195,7 +199,11 @@ one. Captured endpoints retain neither old document text nor a native layout.
 Preparation assigns ordinary inline owners their logical spans. Rich-flow
 fragments use their existing canonical owner/local range to resolve those spans
 in constant time. A view retains one frame of already-shaped `TextLayout` handles
-for hit testing, then clears the map on its next paint. It does not reshape text
+through `TextSelectionRun` for hit testing, then clears the endpoint map on its
+next paint. Immutable directional/grapheme geometry is cached in the corresponding
+GPUI element state while text and shaped-line identities remain unchanged;
+bounds and alignment update with the frame. Worker-owned parsed nodes retain no
+thread-bound layout state. This does not reshape text
 or allocate an unbounded endpoint registry on pointer motion. Preparation and
 retained admission units include the added owner provenance.
 
@@ -226,9 +234,15 @@ native Markdown reconstruction.
 
 This is partial native integration, not a complete accessibility snapshot. Raw
 endpoint capture can still succeed when an unmapped owner prevents adoption.
+Selection painting now uses the existing shaped glyph-cell background painter;
+pointer caret capture and text hit regions use the same directional/grapheme
+geometry as ordinary selectable runs. Actual single-row native checks cover
+Hebrew, mixed-direction spans, Arabic, combining marks and joined emoji. Wrapped
+and aligned rich-selection qualification still needs completion.
+
 Multi-click, cross-participant and preserved Select All overrides need explicit
-integration; bidi painting and custom glyph/copy-alternative mapping also remain
-required. An absent common range must not be interpreted as no native selection.
+integration; custom glyph/copy-alternative mapping also remains required.
+An absent common range must not be interpreted as no native selection.
 The staged native-owner update currently scans the bounded projection; pointer
 hot-path cost and possible coalescing/delta updates need measured qualification.
 Rich TextRun publication and guarded OS actions follow that work.

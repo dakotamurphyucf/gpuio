@@ -4,7 +4,7 @@ use crate::{
     TextSelectionContentKey, TextSelectionCoverage, TextSelectionEndpoint, TextSelectionEvent,
     TextSelectionHandle, TextSelectionRegistration, TextSelectionSnapshot,
 };
-use gpui::{App, Bounds, EntityId, Hitbox, Pixels, Point, TextLayout, WeakEntity, Window};
+use gpui::{App, Bounds, EntityId, Hitbox, Pixels, Point, WeakEntity, Window};
 
 use super::TextViewState;
 use super::rendered_text::RenderedFragment;
@@ -15,8 +15,7 @@ const NO_BLOCK: u64 = u64::MAX;
 
 #[derive(Clone)]
 struct TextEndpointRun {
-    layout: TextLayout,
-    bounds: Bounds<Pixels>,
+    run: crate::TextSelectionRun,
     fragment: Option<RenderedFragment>,
 }
 
@@ -254,15 +253,10 @@ impl TextViewSelectionAdapter {
 
     pub(super) fn register_text_endpoint(
         &mut self,
-        layout: TextLayout,
-        bounds: Bounds<Pixels>,
+        run: crate::TextSelectionRun,
         fragment: Option<RenderedFragment>,
     ) {
-        self.endpoint_runs.push(TextEndpointRun {
-            layout,
-            bounds,
-            fragment,
-        });
+        self.endpoint_runs.push(TextEndpointRun { run, fragment });
     }
 
     fn endpoint_at(&self, point: Point<Pixels>) -> Option<crate::TextSelectionContentPosition> {
@@ -271,12 +265,9 @@ impl TextViewSelectionAdapter {
         let run = self
             .endpoint_runs
             .iter()
-            .find(|run| run.bounds.contains(&point))?;
+            .find(|run| run.run.bounds().contains(&point))?;
         let fragment = run.fragment.as_ref()?;
-        let byte = run
-            .layout
-            .index_for_position(point)
-            .unwrap_or_else(|byte| byte);
+        let byte = run.run.caret_for_position(point)?;
         fragment.position(byte)
     }
 

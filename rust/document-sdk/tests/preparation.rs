@@ -314,7 +314,15 @@ fn generated_copy_and_accessibility_strings_are_bounded_even_without_glyphs() {
     let profile = Profile::new()
         .with_plugin(tag(true, Behavior::LargeNonText))
         .unwrap();
-    assert!(prepare(profile.clone(), &source.repeat(8)).is_ok());
+    assert!(
+        gpui_base::text::RenderedText::max_text_bytes() >= MAX_GENERATED_BYTES + 2 * MAX_CODE_BYTES,
+        "native copy projection must accommodate admitted generated text plus source/separators"
+    );
+    let prepared = prepare(profile.clone(), &source.repeat(8)).unwrap();
+    let copy = prepared.document.rendered_text();
+    assert_eq!(copy.text(), format!("{}\n", "x".repeat(60_000)).repeat(8));
+    assert_eq!(copy.text(), prepared.document.plain_text());
+    assert!(copy.retained_units() <= gpui_base::text::RenderedText::max_preparation_units());
     assert_eq!(
         prepare(profile, &source.repeat(9)).err(),
         Some(Error::LimitExceeded)

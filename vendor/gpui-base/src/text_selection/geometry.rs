@@ -19,6 +19,24 @@ pub(super) struct Geometry {
     rows: Vec<Row>,
 }
 impl Geometry {
+    pub(super) fn text_bounds(&self, run: &TextSelectionRun) -> Vec<gpui::Bounds<Pixels>> {
+        self.rows
+            .iter()
+            .enumerate()
+            .filter_map(|(index, row)| {
+                (row.width > px(0.)).then(|| {
+                    gpui::Bounds::new(
+                        point(
+                            run.bounds.left() + row.inset(run),
+                            run.bounds.top() + run.layout.line_height() * index,
+                        ),
+                        gpui::size(row.width, run.layout.line_height()),
+                    )
+                })
+            })
+            .collect()
+    }
+
     pub(super) fn matches(&self, layout: &TextLayout) -> bool {
         let lines = layout.line_layouts();
         self.layouts.len() == lines.len()

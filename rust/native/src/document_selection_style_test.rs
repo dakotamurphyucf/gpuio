@@ -41,6 +41,151 @@ fn pixels(cx: &mut AsyncApp, handle: WindowHandle<View>, color: [u8; 4]) -> usiz
         })
         .unwrap()
 }
+
+pub(super) fn directional(
+    cx: &mut AsyncApp,
+    handle: WindowHandle<View>,
+    presentation: &Entity<Presentation>,
+    selected: &str,
+    start: usize,
+) {
+    let text = presentation.read_with(cx, |p, _| p.markdown.clone().unwrap());
+    apply(
+        cx,
+        handle,
+        vec![Op::SetStyle(
+            node(1),
+            vec![Style::Fields(vec![Field::SelectionColor(Color::Rgba(
+                0x00ffffff,
+            ))])],
+        )],
+    );
+    draw(cx, handle);
+    let baseline = handle
+        .update(cx, |_, window, _| window.render_to_image().unwrap())
+        .unwrap();
+    assert!(
+        baseline
+            .pixels()
+            .filter(|pixel| pixel.0 == [255, 0, 0, 255])
+            .count()
+            > 20,
+        "reference search wash must be present"
+    );
+    text.update(cx, |state, cx| {
+        let projection = state.rendered_text().unwrap();
+        assert_eq!(&projection.text()[start..start + selected.len()], selected);
+        let request = state
+            .prepare_rendered_selection(
+                &projection.position(start + selected.len()).unwrap(),
+                &projection.position(start).unwrap(),
+            )
+            .unwrap();
+        state.apply_rendered_selection(request, cx).unwrap();
+    });
+    draw(cx, handle);
+    let painted = handle
+        .update(cx, |_, window, _| window.render_to_image().unwrap())
+        .unwrap();
+    assert_eq!(baseline.dimensions(), painted.dimensions());
+    // These fixtures each occupy one visual row. Fill foreground glyph holes
+    // in the reference wash per column: a color emoji can itself contain pure
+    // white pixels, so "white before" does not mean "outside the selection".
+    let mut columns = vec![None::<(u32, u32)>; baseline.width() as usize];
+    for (x, y, pixel) in baseline.enumerate_pixels() {
+        if pixel.0 == [255, 0, 0, 255] {
+            let span = columns[x as usize].get_or_insert((y, y));
+            span.0 = span.0.min(y);
+            span.1 = span.1.max(y);
+        }
+    }
+    for (x, y, pixel) in painted.enumerate_pixels() {
+        if pixel.0 == [0, 255, 255, 255] {
+            assert!(
+                columns[x as usize].is_some_and(|(top, bottom)| (top..=bottom).contains(&y)),
+                "selection must not bridge unselected visual cells: {selected:?} at ({x}, {y})"
+            );
+        }
+    }
+    for (before, after) in baseline.pixels().zip(painted.pixels()) {
+        if before.0 == [255, 0, 0, 255] {
+            assert_eq!(
+                after.0,
+                [0, 255, 255, 255],
+                "selection must cover every search-wash cell: {selected:?}"
+            );
+        }
+    }
+    assert!(
+        pixels(cx, handle, [0, 255, 255, 255]) > 20,
+        "RTL middle glyph receives native selection paint"
+    );
+    assert_eq!(
+        handle
+            .update(cx, |_, window, cx| gpui_base::TextSelection::selected_text(
+                window, cx
+            ))
+            .unwrap(),
+        selected
+    );
+    assert!(text.read_with(cx, |state, _| {
+        state.rendered_selection().unwrap().is_backward()
+    }));
+    text.update(cx, |state, cx| state.clear_selection(cx));
+    draw(cx, handle);
+    assert_eq!(pixels(cx, handle, [0, 255, 255, 255]), 0);
+    assert!(
+        red_pixels(cx, handle) > 20,
+        "clearing selection keeps the search wash"
+    );
+    // A one-cluster reference supplies actual glyph-cell edges for pointer
+    // validation, independently of the production caret mapping. The mixed
+    // prefix case above has disjoint cells and is covered by exact range paint.
+    if selected != "A א" {
+        let (scale, _) = handle
+            .update(cx, |_, window, _| {
+                window.activate_window();
+                (window.scale_factor(), ())
+            })
+            .unwrap();
+        let first = columns.iter().position(Option::is_some).unwrap();
+        let last = columns.iter().rposition(Option::is_some).unwrap();
+        let (top, bottom) = columns[first].unwrap();
+        let y = px((top + bottom + 1) as f32 / (2. * scale));
+        let left = gpui::point(px((first as f32 + 0.5) / scale), y);
+        let right = gpui::point(px((last as f32 + 0.5) / scale), y);
+        let rtl = selected == "ב" || selected == "ح";
+        for (anchor, head, backward) in [(left, right, rtl), (right, left, !rtl)] {
+            move_mouse(cx, handle, anchor, false);
+            mouse(cx, handle, anchor, true);
+            move_mouse(cx, handle, head, true);
+            mouse(cx, handle, head, false);
+            draw(cx, handle);
+            assert_eq!(
+                handle
+                    .update(cx, |_, window, cx| gpui_base::TextSelection::selected_text(
+                        window, cx
+                    ))
+                    .unwrap(),
+                selected,
+                "glyph-cell pointer Copy: {selected:?}"
+            );
+            text.read_with(cx, |state, _| {
+                let range = state.rendered_selection().expect("mapped pointer range");
+                assert_eq!(range.bytes(), start..start + selected.len());
+                assert_eq!(range.is_backward(), backward);
+                assert!(state.requested_rendered_selection().is_none());
+            });
+            assert!(pixels(cx, handle, [0, 255, 255, 255]) > 20);
+        }
+        text.update(cx, |state, cx| state.clear_selection(cx));
+        draw(cx, handle);
+    }
+    apply(cx, handle, vec![Op::SetStyle(node(1), vec![])]);
+    eprintln!(
+        "GPUIO_RENDERED_SELECTION_RTL_GPU_OK: selected={selected:?}, directed range, glyph-cell pixels, native pointer/Copy and clear"
+    );
+}
 pub(super) fn publish_streaming(
     session: &mut Session,
     source: ResourceId,

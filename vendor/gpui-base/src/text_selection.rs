@@ -434,6 +434,14 @@ impl TextSelectionRun {
         self.geometry()?.position(self, index)
     }
 
+    /// Painted visual rows for native selection hit regions. These follow
+    /// shaped widths/alignment, including RTL runs, rather than subtracting
+    /// adjacent logical caret positions (which can have negative advances).
+    pub(crate) fn text_bounds(&self) -> Vec<Bounds<Pixels>> {
+        self.geometry()
+            .map_or_else(Vec::new, |geometry| geometry.text_bounds(self))
+    }
+
     /// Sets the run's logical order within the participant.
     pub const fn with_document_order(mut self, document_order: u64) -> Self {
         self.document_order = document_order;

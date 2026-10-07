@@ -13,9 +13,11 @@ use std::{
     sync::{Arc, Mutex, Weak},
 };
 
-// Source and decoration text each have a 64 KiB preparation limit. Allow a
-// second 64 KiB for structural separators and explicit object alternatives.
-const MAX_BYTES: usize = 128 * 1024;
+// Source/decoration admission does not bound custom copy alternatives. GPUIO's
+// extension SDK permits 1 MiB of aggregate generated strings; leave another
+// 128 KiB for ordinary source text and structural separators. The scheduler
+// reserves this maximum before preparation and shrinks it after installation.
+const MAX_BYTES: usize = 1024 * 1024 + 128 * 1024;
 const MAX_PARTS: usize = 16_384;
 
 /// Owner provenance copied into frame-local rich-flow fragments. No parent,
@@ -163,6 +165,11 @@ impl RenderedText {
     }
     pub fn parts(&self) -> &[RenderedTextPart] {
         &self.parts
+    }
+    /// Aggregate logical copy-text bound, including generated alternatives.
+    /// Hosts must separately enforce their source and plugin-generation limits.
+    pub const fn max_text_bytes() -> usize {
+        MAX_BYTES
     }
     /// Conservative allocation admission units, not process RSS. Weak owner
     /// references retain no AST or native view. Includes vector capacity.

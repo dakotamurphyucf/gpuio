@@ -625,129 +625,26 @@ impl Inline {
         (true, true, selection)
     }
 
-    fn text_line_bounds(
-        &self,
-        text_layout: &TextLayout,
-        line_height: Pixels,
-        mask_bounds: Bounds<Pixels>,
-    ) -> Vec<Bounds<Pixels>> {
-        let mut line_bounds = Vec::new();
-        let mut current_line_y = None;
-        let mut current_bounds: Option<Bounds<Pixels>> = None;
-        let mut offset = 0;
-
-        for c in self.text.chars() {
-            let next_offset = offset + c.len_utf8();
-            let Some(pos) = text_layout.position_for_index(offset) else {
-                offset = next_offset;
-                continue;
-            };
-
-            let mut char_width = line_height.half();
-            if let Some(next_pos) = text_layout.position_for_index(next_offset) {
-                if next_pos.y == pos.y {
-                    char_width = next_pos.x - pos.x;
-                }
-            }
-
-            let bounds = Bounds::from_corners(pos, point(pos.x + char_width, pos.y + line_height))
-                .intersect(&mask_bounds);
-            if bounds.size.width > px(0.) && bounds.size.height > px(0.) {
-                if current_line_y == Some(pos.y) {
-                    if let Some(current) = current_bounds.as_mut() {
-                        *current = current.union(&bounds);
-                    }
-                } else {
-                    if let Some(current) = current_bounds.take() {
-                        line_bounds.push(current);
-                    }
-                    current_line_y = Some(pos.y);
-                    current_bounds = Some(bounds);
-                }
-            }
-
-            offset = next_offset;
-        }
-
-        if let Some(current) = current_bounds {
-            line_bounds.push(current);
-        }
-
-        line_bounds
-    }
-
-    /// Paint the selection background.
+    /// Reuse the shaped glyph-cell painter: logical endpoints are not a
+    /// rectangular visual interval when a line contains bidirectional text.
     fn paint_selection(
         selection: &Selection,
         text_layout: &TextLayout,
-        bounds: &Bounds<Pixels>,
+        align: gpui::TextAlign,
         window: &mut Window,
         color: gpui::Hsla,
     ) {
-        let mut start = selection.start;
-        let mut end = selection.end;
-        if end < start {
-            std::mem::swap(&mut start, &mut end);
-        }
-        let Some(start_position) = text_layout.position_for_index(start) else {
-            return;
-        };
-        let Some(end_position) = text_layout.position_for_index(end) else {
-            return;
-        };
-
-        let line_height = text_layout.line_height();
-        if start_position.y == end_position.y {
-            window.paint_quad(quad(
-                Bounds::from_corners(
-                    start_position,
-                    point(end_position.x, end_position.y + line_height),
-                ),
-                px(0.),
+        super::backgrounds::paint(
+            &[crate::input::RangeBackground {
+                bytes: selection.start.min(selection.end)..selection.start.max(selection.end),
                 color,
-                Edges::default(),
-                gpui::transparent_black(),
-                BorderStyle::default(),
-            ));
-        } else {
-            window.paint_quad(quad(
-                Bounds::from_corners(
-                    start_position,
-                    point(bounds.right(), start_position.y + line_height),
-                ),
-                px(0.),
-                color,
-                Edges::default(),
-                gpui::transparent_black(),
-                BorderStyle::default(),
-            ));
-
-            if end_position.y > start_position.y + line_height {
-                window.paint_quad(quad(
-                    Bounds::from_corners(
-                        point(bounds.left(), start_position.y + line_height),
-                        point(bounds.right(), end_position.y),
-                    ),
-                    px(0.),
-                    color,
-                    Edges::default(),
-                    gpui::transparent_black(),
-                    BorderStyle::default(),
-                ));
-            }
-
-            window.paint_quad(quad(
-                Bounds::from_corners(
-                    point(bounds.left(), end_position.y),
-                    point(end_position.x, end_position.y + line_height),
-                ),
-                px(0.),
-                color,
-                Edges::default(),
-                gpui::transparent_black(),
-                BorderStyle::default(),
-            ));
-        }
+                radius: px(0.),
+            }],
+            0..text_layout.len(),
+            text_layout,
+            align,
+            window,
+        );
     }
 }
 
@@ -924,11 +821,11 @@ impl Element for Inline {
         }
         let hitbox = &prepaint.hitbox;
         let text_layout = self.styled_text.layout().clone();
+        let align = self
+            .text_style
+            .as_ref()
+            .map_or_else(|| window.text_style().text_align, |style| style.text_align);
         if let Some((layers, source)) = &self.range_backgrounds {
-            let align = self
-                .text_style
-                .as_ref()
-                .map_or_else(|| window.text_style().text_align, |style| style.text_align);
             super::backgrounds::paint(
                 &self.style_backgrounds,
                 0..self.text.len(),
@@ -973,8 +870,12 @@ impl Element for Inline {
                 view.update(cx, |state, _| {
                     if state.is_selectable() && state.rendered_text().is_some() {
                         state.selection_adapter.register_text_endpoint(
-                            text_layout.clone(),
-                            bounds,
+                            crate::TextSelectionRun::new(
+                                self.text.clone(),
+                                text_layout.clone(),
+                                bounds,
+                            )
+                            .with_text_align(align),
                             None,
                         );
                     }
@@ -1063,16 +964,36 @@ impl Element for Inline {
                 .text_view_state()
                 .map(|state| state.read(cx).text_view_style.selection())
                 .unwrap_or_else(|| crate::Theme::global(cx).tokens.colors.selection);
-            Self::paint_selection(selection, &text_layout, &bounds, window, color);
+            Self::paint_selection(selection, &text_layout, align, window, color);
         }
 
         if is_selectable {
             if let Some(text_view_state) = GlobalState::global(cx).text_view_state().cloned() {
-                let text_bounds = self.text_line_bounds(
-                    &text_layout,
-                    text_layout.line_height(),
-                    window.content_mask().bounds,
+                // Keep shaped selection geometry in frame-owned element state,
+                // never in the worker-owned parsed InlineState. Bounds/alignment
+                // change without rebuilding immutable glyph cells.
+                let run = window.with_element_state(
+                    global_id.expect("Inline has a stable element ID"),
+                    |retained: Option<crate::TextSelectionRun>, _| {
+                        let mut run = retained.unwrap_or_else(|| {
+                            crate::TextSelectionRun::new(
+                                self.text.clone(),
+                                text_layout.clone(),
+                                bounds,
+                            )
+                        });
+                        run.update(self.text.clone(), text_layout.clone(), bounds);
+                        let run = run.with_text_align(align);
+                        (run.clone(), run)
+                    },
                 );
+                let mask = window.content_mask().bounds;
+                let text_bounds = run
+                    .text_bounds()
+                    .into_iter()
+                    .map(|bounds| bounds.intersect(&mask))
+                    .filter(|bounds| bounds.size.width > px(0.) && bounds.size.height > px(0.))
+                    .collect();
                 let ordinary_fragment = state.rendered_fragment.clone();
                 text_view_state.update(cx, |state, _| {
                     state.selection_adapter.register_inline(text_bounds);
@@ -1099,11 +1020,9 @@ impl Element for Inline {
                     let fragment = fragment
                         .and_then(|fragment| fragment.slice(range))
                         .filter(|fragment| fragment.matches(&projection, &self.text));
-                    state.selection_adapter.register_text_endpoint(
-                        text_layout.clone(),
-                        bounds,
-                        fragment,
-                    );
+                    state
+                        .selection_adapter
+                        .register_text_endpoint(run, fragment);
                 });
             }
 

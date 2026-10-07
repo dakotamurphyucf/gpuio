@@ -5,6 +5,13 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **O
 Markdown walkthroughs for every example component; its documentation acceptance is complete. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
+[Rendered glyph selection and copy capacity](evidence/rendered-glyph-selection-och17.md)
+repairs missing RTL highlights, uses cached grapheme/directional pointer geometry,
+and preserves the SDK's previously admitted generated-copy capacity. Full Rust
+workspace tests, 1,092 native tests, strict workspace lint, full Dune, exact
+reconstruction, actual single-row Unicode GPU/pointer checks and fresh-gallery
+shutdown pass locally. Full logical selection, AX and release qualification remain open.
+
 [Hosted run 37592517665](evidence/hosted-run-37592517665.md) is terminal at
 `249d65fe`. Both platforms fail the same document SDK generated-copy capacity
 test; later foundation/native GUI/consumer checks are skipped. Both macOS
