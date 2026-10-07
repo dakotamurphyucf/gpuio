@@ -1,9 +1,16 @@
 # Implementation status
 
-Current handoff: 2026-10-06. Milestone **07 — Expanded v1 macOS validation and
+Current handoff: 2026-10-07. Milestone **07 — Expanded v1 macOS validation and
 release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **OCH-48** adds adjacent
 Markdown walkthroughs for every example component; its documentation acceptance is complete. This page separates
 current work from historical checkpoints; it does not certify release readiness.
+
+[Hosted run 37558498842](evidence/hosted-presentation-calibration-och17.md#hosted-run-37558498842)
+is terminal at earlier `8a98315`: Linux foundation and fresh-runner macOS apps
+pass. macOS foundation fails Results header geometry after page return and both
+Metal probes, which again receive zero presentation timestamps on Apple
+Paravirtual. Results repair and native requalification remain in progress;
+physical presentation and wider release acceptance remain open.
 
 [Current chart-gallery integration](evidence/chart-catalog-current-och41.md) now
 passes the complete local chart sequence at `46b291d`, including the baseline

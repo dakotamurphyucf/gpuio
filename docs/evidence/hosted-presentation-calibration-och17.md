@@ -1,5 +1,32 @@
 # Hosted Metal calibration failure — OCH-17
 
+## Hosted run 37558498842
+
+[Run 37558498842](https://github.com/dakotamurphyucf/gpuio/actions/runs/37558498842)
+is terminal with failure at branch `8a98315`, tested merge `19d2ed9` with the
+same source tree. Linux foundation and the independent fresh-runner macOS
+extracted-app job pass. macOS foundation fails three checks: Agent Workspace
+Results, the GPUI Metal presentation hook and standalone Metal calibration.
+Later local chart and icon work is outside this run's coverage.
+
+Results successfully resizes/reorders columns, then fails reading `RESULT`
+header geometry after Diagram → Back (`Missing geometry: RESULT`). The driver
+waits for a header object but reads its geometry only once. A local repair and
+native requalification are in progress; this record does not mark it fixed.
+
+Both GPUI sessions admit 90 frames and receive all 180 callbacks with zero
+presentation time, no missing/duplicate/saturated/truncated records, zero pending
+submissions and both windows closed. Standalone Metal on Apple Paravirtual /
+macOS 15.7.9 records 120 active, visible, GPU-completed frames, all with zero
+presentation timestamps. Neither probe passes. These observations do not qualify
+physical presentation or waive any release gate.
+
+[Archived reports, Results failure and package receiver evidence](hosted-presentation-calibration-och17/run-37558498842/reports.tar.gz)
+have a [verified 32-member manifest](hosted-presentation-calibration-och17/run-37558498842/manifest.json).
+The three extracted applications pass their scoped receiver checks; this is not
+signed release/distribution approval. The transfer manifest records the producer
+checkout and matching executable/archive hashes.
+
 [Run 37321333808](https://github.com/dakotamurphyucf/gpuio/actions/runs/37321333808)
 completed with failure on 2026-10-05. Run head is `af96ab9`; this is a historical
 checkpoint and does not cover later local changes. The macOS job passes its other
