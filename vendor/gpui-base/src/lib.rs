@@ -168,7 +168,8 @@ pub use text::{
     TextViewState, TextViewStyle, html, markdown, markdown_ast,
 };
 pub use text_selection::{
-    TextSelection, TextSelectionContentKey, TextSelectionCopyLimitExceeded, TextSelectionCoverage,
+    TextSelection, TextSelectionContentKey, TextSelectionContentPosition,
+    TextSelectionContentRevision, TextSelectionCopyLimitExceeded, TextSelectionCoverage,
     TextSelectionEndpoint, TextSelectionEvent, TextSelectionHandle, TextSelectionLayer,
     TextSelectionProjection, TextSelectionRegistration, TextSelectionRun, TextSelectionScopeId,
     TextSelectionSnapshot, TextSelectionWindowPoints, text_selection_scope,

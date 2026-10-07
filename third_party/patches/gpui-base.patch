@@ -11357,3 +11357,517 @@
          Ok(Self {
              format,
              content: ParsedContent {
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -168,7 +168,8 @@
+     TextViewState, TextViewStyle, html, markdown, markdown_ast,
+ };
+ pub use text_selection::{
+-    TextSelection, TextSelectionContentKey, TextSelectionCopyLimitExceeded, TextSelectionCoverage,
++    TextSelection, TextSelectionContentKey, TextSelectionContentPosition,
++    TextSelectionContentRevision, TextSelectionCopyLimitExceeded, TextSelectionCoverage,
+     TextSelectionEndpoint, TextSelectionEvent, TextSelectionHandle, TextSelectionLayer,
+     TextSelectionProjection, TextSelectionRegistration, TextSelectionRun, TextSelectionScopeId,
+     TextSelectionSnapshot, TextSelectionWindowPoints, text_selection_scope,
+--- a/src/text/inline.rs
++++ b/src/text/inline.rs
+@@ -237,6 +237,7 @@
+     pub(super) text: SharedString,
+     pub(super) selection: Option<Selection>,
+     pub(super) displayed_fragment: Option<super::DisplayedFragment>,
++    pub(super) rendered_fragment: Option<super::rendered_text::RenderedFragment>,
+ }
+ 
+ impl InlineState {
+@@ -968,6 +969,17 @@
+         }
+ 
+         if self.interaction != InlineInteraction::Text {
++            if let Some(view) = GlobalState::global(cx).text_view_state().cloned() {
++                view.update(cx, |state, _| {
++                    if state.is_selectable() && state.rendered_text().is_some() {
++                        state.selection_adapter.register_text_endpoint(
++                            text_layout.clone(),
++                            bounds,
++                            None,
++                        );
++                    }
++                });
++            }
+             return;
+         }
+ 
+@@ -1061,8 +1073,37 @@
+                     text_layout.line_height(),
+                     window.content_mask().bounds,
+                 );
++                let ordinary_fragment = state.rendered_fragment.clone();
+                 text_view_state.update(cx, |state, _| {
+                     state.selection_adapter.register_inline(text_bounds);
++                    let Some(projection) = state.rendered_text() else {
++                        // Unbounded legacy TextViews have no endpoint contract;
++                        // do not retain an unused shaped-layout map for them.
++                        return;
++                    };
++                    let (owner, range) = self
++                        .selection_source
++                        .as_ref()
++                        .map(|(owner, range)| (owner, range.clone()))
++                        .unwrap_or((&self.state, 0..self.text.len()));
++                    // `self.state` is already locked above. Rich-flow fragments
++                    // have a separate canonical owner; ordinary runs reuse it.
++                    let fragment = if Arc::ptr_eq(owner, &self.state) {
++                        ordinary_fragment
++                    } else {
++                        owner
++                            .lock()
++                            .ok()
++                            .and_then(|owner| owner.rendered_fragment.clone())
++                    };
++                    let fragment = fragment
++                        .and_then(|fragment| fragment.slice(range))
++                        .filter(|fragment| fragment.matches(&projection, &self.text));
++                    state.selection_adapter.register_text_endpoint(
++                        text_layout.clone(),
++                        bounds,
++                        fragment,
++                    );
+                 });
+             }
+ 
+--- a/src/text/rendered_text.rs
++++ b/src/text/rendered_text.rs
+@@ -6,6 +6,7 @@
+     inline::InlineState,
+     node::{BlockNode, Paragraph},
+ };
++use crate::{TextSelectionContentPosition, TextSelectionContentRevision};
+ use gpui::SharedString;
+ use std::{
+     ops::Range,
+@@ -16,6 +17,32 @@
+ // second 64 KiB for structural separators and explicit object alternatives.
+ const MAX_BYTES: usize = 128 * 1024;
+ const MAX_PARTS: usize = 16_384;
++
++/// Owner provenance copied into frame-local rich-flow fragments. No parent,
++/// layout or AST reference is retained by an endpoint.
++#[derive(Clone, Debug, PartialEq, Eq)]
++pub(super) struct RenderedFragment {
++    identity: TextSelectionContentRevision,
++    bytes: Range<usize>,
++}
++
++impl RenderedFragment {
++    pub(super) fn slice(&self, range: Range<usize>) -> Option<Self> {
++        (range.start <= range.end && range.end <= self.bytes.len()).then(|| Self {
++            identity: self.identity,
++            bytes: self.bytes.start + range.start..self.bytes.start + range.end,
++        })
++    }
++
++    pub(super) fn position(&self, byte: usize) -> Option<TextSelectionContentPosition> {
++        (byte <= self.bytes.len()).then(|| self.identity.position(self.bytes.start + byte))
++    }
++
++    pub(super) fn matches(&self, projection: &RenderedText, text: &str) -> bool {
++        self.identity == projection.identity
++            && projection.text.get(self.bytes.clone()) == Some(text)
++    }
++}
+ 
+ #[derive(Clone, Debug)]
+ enum Owner {
+@@ -49,8 +76,16 @@
+ /// OS index or an AccessKit node ID.
+ #[derive(Clone, Debug)]
+ pub struct RenderedTextPosition {
+-    identity: Arc<()>,
++    identity: TextSelectionContentRevision,
+     byte: usize,
++}
++
++impl RenderedTextPosition {
++    /// Compact native endpoint; revalidate it with `captured_position` before
++    /// addressing an installed document. Retains no old text or native owner.
++    pub fn content_position(&self) -> TextSelectionContentPosition {
++        self.identity.position(self.byte)
++    }
+ }
+ 
+ /// Directed logical range in one prepared document. Native scalar positions
+@@ -91,13 +126,13 @@
+ /// not itself publish accessibility nodes or authorize a selection mutation.
+ #[derive(Debug)]
+ pub struct RenderedText {
+-    identity: Arc<()>,
++    identity: TextSelectionContentRevision,
+     text: SharedString,
+     parts: Vec<RenderedTextPart>,
+ }
+ impl PartialEq for RenderedText {
+     fn eq(&self, other: &Self) -> bool {
+-        Arc::ptr_eq(&self.identity, &other.identity)
++        self.identity == other.identity
+     }
+ }
+ impl RenderedText {
+@@ -105,7 +140,9 @@
+         document: &ParsedDocument,
+         displayed: &DisplayedText,
+     ) -> Result<Arc<Self>, SharedString> {
++        let identity = TextSelectionContentRevision::new();
+         let mut builder = Builder {
++            identity,
+             text: String::new(),
+             parts: Vec::new(),
+             displayed,
+@@ -114,7 +151,7 @@
+             builder.block(block)?;
+         }
+         Ok(Arc::new(Self {
+-            identity: Arc::new(()),
++            identity,
+             text: builder.text.into(),
+             parts: builder.parts,
+         }))
+@@ -130,23 +167,37 @@
+     /// Conservative allocation admission units, not process RSS. Weak owner
+     /// references retain no AST or native view. Includes vector capacity.
+     pub fn retained_units(&self) -> usize {
+-        256 + self.text.len() * 2 + self.parts.capacity() * std::mem::size_of::<RenderedTextPart>()
++        256 + self.text.len() * 2
++            + self.parts.capacity() * std::mem::size_of::<RenderedTextPart>()
++            + self.parts.len() * std::mem::size_of::<Option<RenderedFragment>>()
+     }
+     /// Reserve before a bounded background preparation, then reduce to the
+     /// retained units after installation. At most two GPUIO workers run at once.
+     pub fn max_preparation_units() -> usize {
+-        256 + MAX_BYTES * 2 + MAX_PARTS * std::mem::size_of::<RenderedTextPart>()
++        256 + MAX_BYTES * 2
++            + MAX_PARTS
++                * (std::mem::size_of::<RenderedTextPart>()
++                    + std::mem::size_of::<Option<RenderedFragment>>())
+     }
+     pub fn position(&self, byte: usize) -> Option<RenderedTextPosition> {
+         (self.text.is_char_boundary(byte)
+             && !(byte > 0 && self.text.as_bytes().get(byte - 1..=byte) == Some(b"\r\n")))
+         .then(|| RenderedTextPosition {
+-            identity: self.identity.clone(),
++            identity: self.identity,
+             byte,
+         })
+     }
+     pub fn offset(&self, position: &RenderedTextPosition) -> Option<usize> {
+-        Arc::ptr_eq(&self.identity, &position.identity).then_some(position.byte)
++        (self.identity == position.identity).then_some(position.byte)
++    }
++    /// Revalidate a captured native endpoint against this exact preparation.
++    pub fn captured_position(
++        &self,
++        position: TextSelectionContentPosition,
++    ) -> Option<RenderedTextPosition> {
++        (self.identity == position.revision())
++            .then(|| self.position(position.byte_offset()))
++            .flatten()
+     }
+     pub fn selection(
+         &self,
+@@ -291,6 +342,7 @@
+ }
+ 
+ struct Builder<'a> {
++    identity: TextSelectionContentRevision,
+     text: String,
+     parts: Vec<RenderedTextPart>,
+     displayed: &'a DisplayedText,
+@@ -317,7 +369,16 @@
+         self.push(text, Owner::Separator)
+     }
+     fn text(&mut self, text: &str, state: &Arc<Mutex<InlineState>>) -> Result<(), SharedString> {
+-        self.push(text, Owner::Text(Arc::downgrade(state)))
++        let start = self.text.len();
++        self.push(text, Owner::Text(Arc::downgrade(state)))?;
++        state
++            .lock()
++            .map_err(|_| SharedString::from("invalid prepared inline state"))?
++            .rendered_fragment = Some(RenderedFragment {
++            identity: self.identity,
++            bytes: start..self.text.len(),
++        });
++        Ok(())
+     }
+     fn paragraph(&mut self, paragraph: &Paragraph) -> Result<(), SharedString> {
+         let mut pending = String::new();
+@@ -393,7 +454,15 @@
+                 } else {
+                     Owner::BlockObject(Arc::downgrade(&node.block_text))
+                 };
+-                self.push(node.as_text(), owner)?;
++                if matches!(owner, Owner::Text(_)) {
++                    self.text(node.as_text(), &node.block_text)?;
++                } else {
++                    node.block_text
++                        .lock()
++                        .map_err(|_| SharedString::from("invalid prepared inline state"))?
++                        .rendered_fragment = None;
++                    self.push(node.as_text(), owner)?;
++                }
+                 if self.text.len() > start {
+                     self.separator("\n")?;
+                 }
+--- a/src/text/selection_adapter.rs
++++ b/src/text/selection_adapter.rs
+@@ -4,9 +4,21 @@
+     TextSelectionContentKey, TextSelectionCoverage, TextSelectionEndpoint, TextSelectionEvent,
+     TextSelectionHandle, TextSelectionRegistration, TextSelectionSnapshot,
+ };
+-use gpui::{App, Bounds, EntityId, Hitbox, Pixels, Point, WeakEntity, Window};
++use gpui::{App, Bounds, EntityId, Hitbox, Pixels, Point, TextLayout, WeakEntity, Window};
+ 
+ use super::TextViewState;
++use super::rendered_text::RenderedFragment;
++
++// Nonvirtual participants have no block restriction, even if they have a
++// logical text endpoint. In particular this must not mean "only block zero".
++const NO_BLOCK: u64 = u64::MAX;
++
++#[derive(Clone)]
++struct TextEndpointRun {
++    layout: TextLayout,
++    bounds: Bounds<Pixels>,
++    fragment: Option<RenderedFragment>,
++}
+ 
+ #[derive(Clone, Copy, Debug, PartialEq)]
+ struct CachedBlockEndpoint {
+@@ -43,7 +55,12 @@
+             return;
+         }
+         let block_ix = (endpoint.entity_id() == Some(entity_id))
+-            .then(|| endpoint.content_key().map(|key| key.value() as usize))
++            .then(|| {
++                endpoint
++                    .content_key()
++                    .filter(|key| key.value() != NO_BLOCK)
++                    .map(|key| key.value() as usize)
++            })
+             .flatten();
+         *cached = Some(CachedBlockEndpoint { endpoint, block_ix });
+     }
+@@ -73,6 +90,7 @@
+ pub(super) struct TextViewSelectionAdapter {
+     selection: TextSelectionHandle,
+     text_bounds: Vec<Bounds<Pixels>>,
++    endpoint_runs: Vec<TextEndpointRun>,
+     layout_revision: Option<usize>,
+ }
+ 
+@@ -174,9 +192,22 @@
+         selection.resolve_content_key_with(
+             move |point, cx| {
+                 let view = view_for_content_key.upgrade()?;
+-                view.read(cx)
+-                    .block_ix_at(point.y)
+-                    .map(|block| TextSelectionContentKey::new(block as u64))
++                let view = view.read(cx);
++                let block = view.block_ix_at(point.y);
++                let window_point = point + view.bounds().origin + view.scroll_offset();
++                let position =
++                    view.selection_adapter
++                        .endpoint_at(window_point)
++                        .filter(|position| {
++                            view.rendered_text()
++                                .is_some_and(|text| text.captured_position(*position).is_some())
++                        });
++                if block.is_none() && position.is_none() {
++                    return None;
++                }
++                let key =
++                    TextSelectionContentKey::new(block.map_or(NO_BLOCK, |block| block as u64));
++                Some(position.map_or(key, |position| key.with_position(position)))
+             },
+             cx,
+         );
+@@ -196,6 +227,7 @@
+         Self {
+             selection,
+             text_bounds: Vec::new(),
++            endpoint_runs: Vec::new(),
+             layout_revision: None,
+         }
+     }
+@@ -212,10 +244,58 @@
+ 
+     pub(super) fn begin_frame(&mut self) {
+         self.text_bounds.clear();
++        self.endpoint_runs.clear();
+     }
+ 
+     pub(super) fn register_inline(&mut self, bounds: Vec<Bounds<Pixels>>) {
+         self.text_bounds.extend(bounds);
++    }
++
++    pub(super) fn register_text_endpoint(
++        &mut self,
++        layout: TextLayout,
++        bounds: Bounds<Pixels>,
++        fragment: Option<RenderedFragment>,
++    ) {
++        self.endpoint_runs.push(TextEndpointRun {
++            layout,
++            bounds,
++            fragment,
++        });
++    }
++
++    fn endpoint_at(&self, point: Point<Pixels>) -> Option<crate::TextSelectionContentPosition> {
++        // No extrapolation across a custom object or paragraph gap. Unmapped
++        // painted runs are barriers, not permission to borrow adjacent text.
++        let run = self
++            .endpoint_runs
++            .iter()
++            .find(|run| run.bounds.contains(&point))?;
++        let fragment = run.fragment.as_ref()?;
++        let byte = run
++            .layout
++            .index_for_position(point)
++            .unwrap_or_else(|byte| byte);
++        fragment.position(byte)
++    }
++
++    /// Only actual captured endpoints, never inferred from selected strings or
++    /// the minimum/maximum currently painted fragment ranges.
++    pub(super) fn captured_rendered_selection(
++        &self,
++        text: &super::RenderedText,
++        cx: &App,
++    ) -> Option<super::RenderedSelection> {
++        let snapshot = self.selection.snapshot(cx)?;
++        if snapshot.coverage() != TextSelectionCoverage::Bounded
++            || snapshot.anchor().entity_id() != Some(self.selection.entity_id())
++            || snapshot.cursor().entity_id() != Some(self.selection.entity_id())
++        {
++            return None;
++        }
++        let anchor = text.captured_position(snapshot.anchor().content_key()?.position()?)?;
++        let head = text.captured_position(snapshot.cursor().content_key()?.position()?)?;
++        text.selection(&anchor, &head).ok()
+     }
+ 
+     #[allow(clippy::too_many_arguments)]
+--- a/src/text/state.rs
++++ b/src/text/state.rs
+@@ -246,6 +246,26 @@
+     /// local fragment bounds cannot recover their direction.
+     pub fn requested_rendered_selection(&self) -> Option<&super::RenderedSelection> {
+         self.requested_rendered_selection.as_ref()
++    }
++
++    /// Captured same-document pointer endpoints in the installed preparation.
++    /// This does not yet replace the native geometric paint/Copy selection,
++    /// cover multi-click/cross-participant selection, or publish AX attributes.
++    pub fn captured_rendered_pointer_selection(
++        &self,
++        cx: &App,
++    ) -> Option<super::RenderedSelection> {
++        if !self.selectable
++            || self.select_all
++            || self.multi_click_selection.is_some()
++            || self.requested_rendered_selection.is_some()
++            || self.preserve_inline_selection
++        {
++            return None;
++        }
++        let text = self.rendered_text()?;
++        self.selection_adapter
++            .captured_rendered_selection(&text, cx)
+     }
+ 
+     pub(super) fn retire_rendered_selection(&mut self) {
+--- a/src/text_selection.rs
++++ b/src/text_selection.rs
+@@ -44,19 +44,80 @@
+     }
+ }
+ 
++/// Process-unique identity of immutable participant text. Retain it across
++/// reflow; allocate a new one when the addressed text/owner mapping changes.
++#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
++pub struct TextSelectionContentRevision(u64);
++
++impl TextSelectionContentRevision {
++    pub fn new() -> Self {
++        static NEXT: AtomicU64 = AtomicU64::new(1);
++        Self(
++            NEXT.try_update(Ordering::Relaxed, Ordering::Relaxed, |n| n.checked_add(1))
++                .expect("text selection content revisions exhausted"),
++        )
++    }
++
++    /// The participant validates that this is a scalar boundary in its text.
++    pub const fn position(self, byte_offset: usize) -> TextSelectionContentPosition {
++        TextSelectionContentPosition {
++            revision: self,
++            byte_offset,
++        }
++    }
++}
++
++impl Default for TextSelectionContentRevision {
++    fn default() -> Self {
++        Self::new()
++    }
++}
++
++/// Captured logical endpoint. Neither a screen coordinate nor an OS UTF-16 index.
++#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
++pub struct TextSelectionContentPosition {
++    revision: TextSelectionContentRevision,
++    byte_offset: usize,
++}
++
++impl TextSelectionContentPosition {
++    pub const fn revision(self) -> TextSelectionContentRevision {
++        self.revision
++    }
++    pub const fn byte_offset(self) -> usize {
++        self.byte_offset
++    }
++}
++
+ /// Stable participant-defined identity for virtualized participant content.
+ #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+-pub struct TextSelectionContentKey(u64);
++pub struct TextSelectionContentKey {
++    value: u64,
++    position: Option<TextSelectionContentPosition>,
++}
+ 
+ impl TextSelectionContentKey {
+     /// Creates a key from a participant-defined stable content identity.
+     pub const fn new(value: u64) -> Self {
+-        Self(value)
++        Self {
++            value,
++            position: None,
++        }
+     }
+ 
+     /// Returns the participant-defined value.
+     pub const fn value(self) -> u64 {
+-        self.0
++        self.value
++    }
++
++    /// Adds a captured text endpoint without changing the virtual block key.
++    pub const fn with_position(mut self, position: TextSelectionContentPosition) -> Self {
++        self.position = Some(position);
++        self
++    }
++
++    pub const fn position(self) -> Option<TextSelectionContentPosition> {
++        self.position
+     }
+ }
+ 

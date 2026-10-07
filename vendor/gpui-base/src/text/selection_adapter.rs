@@ -4,9 +4,21 @@ use crate::{
     TextSelectionContentKey, TextSelectionCoverage, TextSelectionEndpoint, TextSelectionEvent,
     TextSelectionHandle, TextSelectionRegistration, TextSelectionSnapshot,
 };
-use gpui::{App, Bounds, EntityId, Hitbox, Pixels, Point, WeakEntity, Window};
+use gpui::{App, Bounds, EntityId, Hitbox, Pixels, Point, TextLayout, WeakEntity, Window};
 
 use super::TextViewState;
+use super::rendered_text::RenderedFragment;
+
+// Nonvirtual participants have no block restriction, even if they have a
+// logical text endpoint. In particular this must not mean "only block zero".
+const NO_BLOCK: u64 = u64::MAX;
+
+#[derive(Clone)]
+struct TextEndpointRun {
+    layout: TextLayout,
+    bounds: Bounds<Pixels>,
+    fragment: Option<RenderedFragment>,
+}
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 struct CachedBlockEndpoint {
@@ -43,7 +55,12 @@ impl VirtualBlockSelection {
             return;
         }
         let block_ix = (endpoint.entity_id() == Some(entity_id))
-            .then(|| endpoint.content_key().map(|key| key.value() as usize))
+            .then(|| {
+                endpoint
+                    .content_key()
+                    .filter(|key| key.value() != NO_BLOCK)
+                    .map(|key| key.value() as usize)
+            })
             .flatten();
         *cached = Some(CachedBlockEndpoint { endpoint, block_ix });
     }
@@ -73,6 +90,7 @@ impl VirtualBlockSelection {
 pub(super) struct TextViewSelectionAdapter {
     selection: TextSelectionHandle,
     text_bounds: Vec<Bounds<Pixels>>,
+    endpoint_runs: Vec<TextEndpointRun>,
     layout_revision: Option<usize>,
 }
 
@@ -174,9 +192,22 @@ impl TextViewSelectionAdapter {
         selection.resolve_content_key_with(
             move |point, cx| {
                 let view = view_for_content_key.upgrade()?;
-                view.read(cx)
-                    .block_ix_at(point.y)
-                    .map(|block| TextSelectionContentKey::new(block as u64))
+                let view = view.read(cx);
+                let block = view.block_ix_at(point.y);
+                let window_point = point + view.bounds().origin + view.scroll_offset();
+                let position =
+                    view.selection_adapter
+                        .endpoint_at(window_point)
+                        .filter(|position| {
+                            view.rendered_text()
+                                .is_some_and(|text| text.captured_position(*position).is_some())
+                        });
+                if block.is_none() && position.is_none() {
+                    return None;
+                }
+                let key =
+                    TextSelectionContentKey::new(block.map_or(NO_BLOCK, |block| block as u64));
+                Some(position.map_or(key, |position| key.with_position(position)))
             },
             cx,
         );
@@ -196,6 +227,7 @@ impl TextViewSelectionAdapter {
         Self {
             selection,
             text_bounds: Vec::new(),
+            endpoint_runs: Vec::new(),
             layout_revision: None,
         }
     }
@@ -212,10 +244,58 @@ impl TextViewSelectionAdapter {
 
     pub(super) fn begin_frame(&mut self) {
         self.text_bounds.clear();
+        self.endpoint_runs.clear();
     }
 
     pub(super) fn register_inline(&mut self, bounds: Vec<Bounds<Pixels>>) {
         self.text_bounds.extend(bounds);
+    }
+
+    pub(super) fn register_text_endpoint(
+        &mut self,
+        layout: TextLayout,
+        bounds: Bounds<Pixels>,
+        fragment: Option<RenderedFragment>,
+    ) {
+        self.endpoint_runs.push(TextEndpointRun {
+            layout,
+            bounds,
+            fragment,
+        });
+    }
+
+    fn endpoint_at(&self, point: Point<Pixels>) -> Option<crate::TextSelectionContentPosition> {
+        // No extrapolation across a custom object or paragraph gap. Unmapped
+        // painted runs are barriers, not permission to borrow adjacent text.
+        let run = self
+            .endpoint_runs
+            .iter()
+            .find(|run| run.bounds.contains(&point))?;
+        let fragment = run.fragment.as_ref()?;
+        let byte = run
+            .layout
+            .index_for_position(point)
+            .unwrap_or_else(|byte| byte);
+        fragment.position(byte)
+    }
+
+    /// Only actual captured endpoints, never inferred from selected strings or
+    /// the minimum/maximum currently painted fragment ranges.
+    pub(super) fn captured_rendered_selection(
+        &self,
+        text: &super::RenderedText,
+        cx: &App,
+    ) -> Option<super::RenderedSelection> {
+        let snapshot = self.selection.snapshot(cx)?;
+        if snapshot.coverage() != TextSelectionCoverage::Bounded
+            || snapshot.anchor().entity_id() != Some(self.selection.entity_id())
+            || snapshot.cursor().entity_id() != Some(self.selection.entity_id())
+        {
+            return None;
+        }
+        let anchor = text.captured_position(snapshot.anchor().content_key()?.position()?)?;
+        let head = text.captured_position(snapshot.cursor().content_key()?.position()?)?;
+        text.selection(&anchor, &head).ok()
     }
 
     #[allow(clippy::too_many_arguments)]

@@ -372,10 +372,17 @@ impl Work {
                 Prepared::Markdown { document, .. } => document.rendered_text().retained_units(),
                 _ => 0,
             };
-            if self
-                .charge
-                .reduce_to(base.saturating_add(extra).saturating_add(rendered))
-                .is_err()
+            // Spare projection capacity is not an extension's budget. Check
+            // each owner before shrinking the shared worker reservation; an
+            // oversized plugin vector must not fit merely because the prepared
+            // document uses less than the projection's worst-case allowance.
+            let profile_budget = self.request.profile.as_ref().map_or(0, |p| p.work_units());
+            if extra > profile_budget
+                || rendered > gpui_base::text::RenderedText::max_preparation_units()
+                || self
+                    .charge
+                    .reduce_to(base.saturating_add(extra).saturating_add(rendered))
+                    .is_err()
             {
                 // Trusted hooks can return excessive backing capacity even when
                 // their logical output length is small. Reject the whole result.

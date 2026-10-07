@@ -5,6 +5,13 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **O
 Markdown walkthroughs for every example component; its documentation acceptance is complete. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
+[Rendered pointer endpoints](evidence/rendered-pointer-endpoints-och17.md) now
+retain direction and preparation identity after virtualization. Local 1,092
+native tests, strict lint, full Dune, reconstruction, actual document/Copy and
+shutdown checks pass. Validation also repaired projection reserve incorrectly
+admitting oversized plugin capacity. Unifying native selection/Copy, custom
+mapping and rich accessibility publication/actions remains open.
+
 [Hosted run 37579057201](evidence/hosted-run-37579057201.md) is terminal at
 `73b4e713`: Linux foundation and the fresh-runner macOS apps job pass. macOS
 foundation fails popup focus, navigation resize, an icon-transform snapshot

@@ -44,19 +44,80 @@ impl TextSelectionScopeId {
     }
 }
 
+/// Process-unique identity of immutable participant text. Retain it across
+/// reflow; allocate a new one when the addressed text/owner mapping changes.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct TextSelectionContentRevision(u64);
+
+impl TextSelectionContentRevision {
+    pub fn new() -> Self {
+        static NEXT: AtomicU64 = AtomicU64::new(1);
+        Self(
+            NEXT.try_update(Ordering::Relaxed, Ordering::Relaxed, |n| n.checked_add(1))
+                .expect("text selection content revisions exhausted"),
+        )
+    }
+
+    /// The participant validates that this is a scalar boundary in its text.
+    pub const fn position(self, byte_offset: usize) -> TextSelectionContentPosition {
+        TextSelectionContentPosition {
+            revision: self,
+            byte_offset,
+        }
+    }
+}
+
+impl Default for TextSelectionContentRevision {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Captured logical endpoint. Neither a screen coordinate nor an OS UTF-16 index.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct TextSelectionContentPosition {
+    revision: TextSelectionContentRevision,
+    byte_offset: usize,
+}
+
+impl TextSelectionContentPosition {
+    pub const fn revision(self) -> TextSelectionContentRevision {
+        self.revision
+    }
+    pub const fn byte_offset(self) -> usize {
+        self.byte_offset
+    }
+}
+
 /// Stable participant-defined identity for virtualized participant content.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct TextSelectionContentKey(u64);
+pub struct TextSelectionContentKey {
+    value: u64,
+    position: Option<TextSelectionContentPosition>,
+}
 
 impl TextSelectionContentKey {
     /// Creates a key from a participant-defined stable content identity.
     pub const fn new(value: u64) -> Self {
-        Self(value)
+        Self {
+            value,
+            position: None,
+        }
     }
 
     /// Returns the participant-defined value.
     pub const fn value(self) -> u64 {
-        self.0
+        self.value
+    }
+
+    /// Adds a captured text endpoint without changing the virtual block key.
+    pub const fn with_position(mut self, position: TextSelectionContentPosition) -> Self {
+        self.position = Some(position);
+        self
+    }
+
+    pub const fn position(self) -> Option<TextSelectionContentPosition> {
+        self.position
     }
 }
 

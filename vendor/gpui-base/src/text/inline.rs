@@ -237,6 +237,7 @@ pub(crate) struct InlineState {
     pub(super) text: SharedString,
     pub(super) selection: Option<Selection>,
     pub(super) displayed_fragment: Option<super::DisplayedFragment>,
+    pub(super) rendered_fragment: Option<super::rendered_text::RenderedFragment>,
 }
 
 impl InlineState {
@@ -968,6 +969,17 @@ impl Element for Inline {
         }
 
         if self.interaction != InlineInteraction::Text {
+            if let Some(view) = GlobalState::global(cx).text_view_state().cloned() {
+                view.update(cx, |state, _| {
+                    if state.is_selectable() && state.rendered_text().is_some() {
+                        state.selection_adapter.register_text_endpoint(
+                            text_layout.clone(),
+                            bounds,
+                            None,
+                        );
+                    }
+                });
+            }
             return;
         }
 
@@ -1061,8 +1073,37 @@ impl Element for Inline {
                     text_layout.line_height(),
                     window.content_mask().bounds,
                 );
+                let ordinary_fragment = state.rendered_fragment.clone();
                 text_view_state.update(cx, |state, _| {
                     state.selection_adapter.register_inline(text_bounds);
+                    let Some(projection) = state.rendered_text() else {
+                        // Unbounded legacy TextViews have no endpoint contract;
+                        // do not retain an unused shaped-layout map for them.
+                        return;
+                    };
+                    let (owner, range) = self
+                        .selection_source
+                        .as_ref()
+                        .map(|(owner, range)| (owner, range.clone()))
+                        .unwrap_or((&self.state, 0..self.text.len()));
+                    // `self.state` is already locked above. Rich-flow fragments
+                    // have a separate canonical owner; ordinary runs reuse it.
+                    let fragment = if Arc::ptr_eq(owner, &self.state) {
+                        ordinary_fragment
+                    } else {
+                        owner
+                            .lock()
+                            .ok()
+                            .and_then(|owner| owner.rendered_fragment.clone())
+                    };
+                    let fragment = fragment
+                        .and_then(|fragment| fragment.slice(range))
+                        .filter(|fragment| fragment.matches(&projection, &self.text));
+                    state.selection_adapter.register_text_endpoint(
+                        text_layout.clone(),
+                        bounds,
+                        fragment,
+                    );
                 });
             }
 

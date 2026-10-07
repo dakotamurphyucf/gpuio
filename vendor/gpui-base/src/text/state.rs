@@ -248,6 +248,26 @@ impl TextViewState {
         self.requested_rendered_selection.as_ref()
     }
 
+    /// Captured same-document pointer endpoints in the installed preparation.
+    /// This does not yet replace the native geometric paint/Copy selection,
+    /// cover multi-click/cross-participant selection, or publish AX attributes.
+    pub fn captured_rendered_pointer_selection(
+        &self,
+        cx: &App,
+    ) -> Option<super::RenderedSelection> {
+        if !self.selectable
+            || self.select_all
+            || self.multi_click_selection.is_some()
+            || self.requested_rendered_selection.is_some()
+            || self.preserve_inline_selection
+        {
+            return None;
+        }
+        let text = self.rendered_text()?;
+        self.selection_adapter
+            .captured_rendered_selection(&text, cx)
+    }
+
     pub(super) fn retire_rendered_selection(&mut self) {
         // Ordinary pointer motion has no queued adapter request. Avoid an
         // allocation there while still invalidating every outstanding stamp.

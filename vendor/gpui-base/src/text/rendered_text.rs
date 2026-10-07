@@ -6,6 +6,7 @@ use super::{
     inline::InlineState,
     node::{BlockNode, Paragraph},
 };
+use crate::{TextSelectionContentPosition, TextSelectionContentRevision};
 use gpui::SharedString;
 use std::{
     ops::Range,
@@ -16,6 +17,32 @@ use std::{
 // second 64 KiB for structural separators and explicit object alternatives.
 const MAX_BYTES: usize = 128 * 1024;
 const MAX_PARTS: usize = 16_384;
+
+/// Owner provenance copied into frame-local rich-flow fragments. No parent,
+/// layout or AST reference is retained by an endpoint.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct RenderedFragment {
+    identity: TextSelectionContentRevision,
+    bytes: Range<usize>,
+}
+
+impl RenderedFragment {
+    pub(super) fn slice(&self, range: Range<usize>) -> Option<Self> {
+        (range.start <= range.end && range.end <= self.bytes.len()).then(|| Self {
+            identity: self.identity,
+            bytes: self.bytes.start + range.start..self.bytes.start + range.end,
+        })
+    }
+
+    pub(super) fn position(&self, byte: usize) -> Option<TextSelectionContentPosition> {
+        (byte <= self.bytes.len()).then(|| self.identity.position(self.bytes.start + byte))
+    }
+
+    pub(super) fn matches(&self, projection: &RenderedText, text: &str) -> bool {
+        self.identity == projection.identity
+            && projection.text.get(self.bytes.clone()) == Some(text)
+    }
+}
 
 #[derive(Clone, Debug)]
 enum Owner {
@@ -49,8 +76,16 @@ impl RenderedTextPart {
 /// OS index or an AccessKit node ID.
 #[derive(Clone, Debug)]
 pub struct RenderedTextPosition {
-    identity: Arc<()>,
+    identity: TextSelectionContentRevision,
     byte: usize,
+}
+
+impl RenderedTextPosition {
+    /// Compact native endpoint; revalidate it with `captured_position` before
+    /// addressing an installed document. Retains no old text or native owner.
+    pub fn content_position(&self) -> TextSelectionContentPosition {
+        self.identity.position(self.byte)
+    }
 }
 
 /// Directed logical range in one prepared document. Native scalar positions
@@ -91,13 +126,13 @@ pub enum RenderedSelectionError {
 /// not itself publish accessibility nodes or authorize a selection mutation.
 #[derive(Debug)]
 pub struct RenderedText {
-    identity: Arc<()>,
+    identity: TextSelectionContentRevision,
     text: SharedString,
     parts: Vec<RenderedTextPart>,
 }
 impl PartialEq for RenderedText {
     fn eq(&self, other: &Self) -> bool {
-        Arc::ptr_eq(&self.identity, &other.identity)
+        self.identity == other.identity
     }
 }
 impl RenderedText {
@@ -105,7 +140,9 @@ impl RenderedText {
         document: &ParsedDocument,
         displayed: &DisplayedText,
     ) -> Result<Arc<Self>, SharedString> {
+        let identity = TextSelectionContentRevision::new();
         let mut builder = Builder {
+            identity,
             text: String::new(),
             parts: Vec::new(),
             displayed,
@@ -114,7 +151,7 @@ impl RenderedText {
             builder.block(block)?;
         }
         Ok(Arc::new(Self {
-            identity: Arc::new(()),
+            identity,
             text: builder.text.into(),
             parts: builder.parts,
         }))
@@ -130,23 +167,37 @@ impl RenderedText {
     /// Conservative allocation admission units, not process RSS. Weak owner
     /// references retain no AST or native view. Includes vector capacity.
     pub fn retained_units(&self) -> usize {
-        256 + self.text.len() * 2 + self.parts.capacity() * std::mem::size_of::<RenderedTextPart>()
+        256 + self.text.len() * 2
+            + self.parts.capacity() * std::mem::size_of::<RenderedTextPart>()
+            + self.parts.len() * std::mem::size_of::<Option<RenderedFragment>>()
     }
     /// Reserve before a bounded background preparation, then reduce to the
     /// retained units after installation. At most two GPUIO workers run at once.
     pub fn max_preparation_units() -> usize {
-        256 + MAX_BYTES * 2 + MAX_PARTS * std::mem::size_of::<RenderedTextPart>()
+        256 + MAX_BYTES * 2
+            + MAX_PARTS
+                * (std::mem::size_of::<RenderedTextPart>()
+                    + std::mem::size_of::<Option<RenderedFragment>>())
     }
     pub fn position(&self, byte: usize) -> Option<RenderedTextPosition> {
         (self.text.is_char_boundary(byte)
             && !(byte > 0 && self.text.as_bytes().get(byte - 1..=byte) == Some(b"\r\n")))
         .then(|| RenderedTextPosition {
-            identity: self.identity.clone(),
+            identity: self.identity,
             byte,
         })
     }
     pub fn offset(&self, position: &RenderedTextPosition) -> Option<usize> {
-        Arc::ptr_eq(&self.identity, &position.identity).then_some(position.byte)
+        (self.identity == position.identity).then_some(position.byte)
+    }
+    /// Revalidate a captured native endpoint against this exact preparation.
+    pub fn captured_position(
+        &self,
+        position: TextSelectionContentPosition,
+    ) -> Option<RenderedTextPosition> {
+        (self.identity == position.revision())
+            .then(|| self.position(position.byte_offset()))
+            .flatten()
     }
     pub fn selection(
         &self,
@@ -291,6 +342,7 @@ impl RenderedText {
 }
 
 struct Builder<'a> {
+    identity: TextSelectionContentRevision,
     text: String,
     parts: Vec<RenderedTextPart>,
     displayed: &'a DisplayedText,
@@ -317,7 +369,16 @@ impl Builder<'_> {
         self.push(text, Owner::Separator)
     }
     fn text(&mut self, text: &str, state: &Arc<Mutex<InlineState>>) -> Result<(), SharedString> {
-        self.push(text, Owner::Text(Arc::downgrade(state)))
+        let start = self.text.len();
+        self.push(text, Owner::Text(Arc::downgrade(state)))?;
+        state
+            .lock()
+            .map_err(|_| SharedString::from("invalid prepared inline state"))?
+            .rendered_fragment = Some(RenderedFragment {
+            identity: self.identity,
+            bytes: start..self.text.len(),
+        });
+        Ok(())
     }
     fn paragraph(&mut self, paragraph: &Paragraph) -> Result<(), SharedString> {
         let mut pending = String::new();
@@ -393,7 +454,15 @@ impl Builder<'_> {
                 } else {
                     Owner::BlockObject(Arc::downgrade(&node.block_text))
                 };
-                self.push(node.as_text(), owner)?;
+                if matches!(owner, Owner::Text(_)) {
+                    self.text(node.as_text(), &node.block_text)?;
+                } else {
+                    node.block_text
+                        .lock()
+                        .map_err(|_| SharedString::from("invalid prepared inline state"))?
+                        .rendered_fragment = None;
+                    self.push(node.as_text(), owner)?;
+                }
                 if self.text.len() > start {
                     self.separator("\n")?;
                 }

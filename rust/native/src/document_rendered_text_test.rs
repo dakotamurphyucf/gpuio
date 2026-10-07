@@ -35,6 +35,12 @@ fn rendered_positions_are_scalar_checked_and_bound_to_exact_preparation() {
         assert_eq!(position.is_some(), rendered.text().is_char_boundary(byte));
         if let Some(position) = position {
             assert_eq!(rendered.offset(&position), Some(byte));
+            let captured = position.content_position();
+            assert_eq!(
+                rendered.offset(&rendered.captured_position(captured).unwrap()),
+                Some(byte)
+            );
+            assert!(second.captured_position(captured).is_none());
             assert_eq!(
                 second.offset(&position),
                 None,
@@ -88,6 +94,23 @@ fn rendered_projection_preserves_atomic_alternatives_and_crlf_boundaries() {
     );
     assert!(rendered.position(newline - 1).is_some());
     assert!(rendered.position(newline + 1).is_some());
+    let revision = rendered.position(0).unwrap().content_position().revision();
+    assert!(
+        rendered
+            .captured_position(revision.position(newline))
+            .is_none()
+    );
+    let unicode = rendered.text().find('世').unwrap();
+    assert!(
+        rendered
+            .captured_position(revision.position(unicode + 1))
+            .is_none()
+    );
+    assert!(
+        rendered
+            .captured_position(revision.position(usize::MAX))
+            .is_none()
+    );
 }
 
 #[test]

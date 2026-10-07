@@ -182,3 +182,32 @@ text block whose glyphs differ from its copy alternative currently returns
 `UnmappedOwner` when selected by this primitive, including empty declared glyphs.
 That mapping remains required work before general rendered-document AX acceptance;
 it is not an intentional v1 exclusion.
+
+## Native pointer endpoint capture
+
+The window selection content key now optionally carries a process-unique text
+revision and UTF-8 byte offset alongside its existing virtual block key. The
+checked revision allocator never reuses an identity; equal-text replacement and
+renderer-resource refresh therefore cannot turn an old endpoint into a current
+one. Captured endpoints retain neither old document text nor a native layout.
+
+Preparation assigns ordinary inline owners their logical spans. Rich-flow
+fragments use their existing canonical owner/local range to resolve those spans
+in constant time. A view retains one frame of already-shaped `TextLayout` handles
+for hit testing, then clears the map on its next paint. It does not reshape text
+or allocate an unbounded endpoint registry on pointer motion. Preparation and
+retained admission units include the added owner provenance.
+
+The adapter converts participant content coordinates using the current content
+bounds and scroll offset, captures a position only inside a mapped painted run,
+and retains it in the window snapshot after that run leaves the viewport. It
+does not extrapolate across unknown custom objects or paragraph gaps. A separate
+nonvirtual sentinel preserves unrestricted Copy traversal instead of accidentally
+restricting such a document to block zero.
+
+`captured_rendered_pointer_selection` currently exposes only same-document
+bounded pointer endpoints from the installed preparation. It declines local
+request, Select All, preserved, multi-click, cross-participant and unmapped cases.
+This capture does not yet replace native geometric selection/Copy or establish a
+complete accessibility selection snapshot. Those paths still need unification
+and qualification, followed by rich TextRun publication and guarded OS actions.
