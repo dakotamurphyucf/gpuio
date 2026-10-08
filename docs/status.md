@@ -30,6 +30,11 @@ Older records of a VoiceOver hold no longer apply. Access was restored after the
 
 ## Latest delivered behavior and validation
 
+The [ARM Metal pacing follow-up](evidence/hosted-metal-diagnostic-och17.md#arm-sequential-and-startup-delay-follow-up--2026-10-08)
+retains two failed probes: sequential submission, with and without a fixed startup
+delay, stalls waiting for presentation callbacks. GPU completion is not presentation
+acceptance. Main probe behavior and release gates remain unchanged.
+
 The [scrollbar oracle repair](evidence/scrollbar-preference-och41.md#hosted-oracle-initialization-repair--2026-10-08)
 fixes a CI helper reading AppKit before automatic device policy initialized.
 Hosted phase probes reproduce the transition and validate the corrected helper;

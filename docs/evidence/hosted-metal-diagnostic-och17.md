@@ -181,3 +181,42 @@ The [five-file archive](hosted-metal-diagnostic-och17/foundation-37744396036.tar
 retains terminal job/step status and raw hook, calibration and display reports.
 Every member was verified against its
 [manifest](hosted-metal-diagnostic-och17/foundation-37744396036-manifest.json).
+
+## ARM sequential and startup-delay follow-up — 2026-10-08
+
+[Run 37775001974](https://github.com/dakotamurphyucf/gpuio/actions/runs/37775001974),
+commit `44ee032f2acc5bc62546a6b59e98f0c9cc2e5de7`, tests two predeclared variants
+on macos-15 arm64, macOS 15.7.9 (24G830), Apple Paravirtual device. This isolated
+`diagnostic/metal-arm-pacing-20261008` branch replaces Foundation with a bounded
+Swift-only diagnostic workflow; that workflow must not be merged into the release
+branch. The main Foundation run remains independent.
+
+The first variant uses the exact archived sequential Swift source that passed on
+Intel. The second adds a fixed five-second delay after the first active/visible
+observation. Both still request 120 frames, keep the original twelve-second total
+deadline, and retain every submitted record. The delay consumes part of that
+original deadline. The complete validation/teardown function is byte-identical to
+the maintained probe; neither variant discards zero timestamps or replaces them
+with completion times.
+
+| Variant | Submitted / requested | GPU completed | Presentation callbacks received | Positive timestamps | Result |
+| --- | ---: | ---: | ---: | ---: | --- |
+| Sequential | 3 / 120 | 3 | 2 | 0 | Deadline failure |
+| Sequential, five-second startup delay | 2 / 120 | 2 | 1 | 0 | Deadline failure |
+
+Every submitted record observes an active, visible window. Received presentation
+callbacks report zero; the final submitted frame in each variant has no
+presentation callback before the deadline, despite completed GPU work. Sequential
+admission therefore stops before all 120 frames can be submitted. These outcomes
+reject these two changes as sufficient remedies on this runner. They do not prove
+that ARM presentation callbacks are universally unsupported, explain the missing
+callbacks, or qualify GPUI workload performance. The earlier Intel success does
+not transfer to this ARM environment.
+
+The job succeeds only at collecting both outcomes; both strict probes exit 1.
+The [raw archive](hosted-metal-diagnostic-och17/arm-pacing-reports.tar.gz)
+contains nineteen files: both exact Swift variants, full reports/build logs,
+helper/workflow sources, run identity, and display/power/OS metadata. Every member
+was read back and checked against its [manifest](hosted-metal-diagnostic-och17/arm-pacing-manifest.json).
+Python syntax, Ruff and actionlint pass for the diagnostic helper/workflow.
+No production renderer, main probe, deadline or release requirement changes.

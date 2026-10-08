@@ -1,0 +1,84 @@
+{
+  "revision": "44ee032f2acc5bc62546a6b59e98f0c9cc2e5de7",
+  "run": "https://github.com/dakotamurphyucf/gpuio/actions/runs/37775001974",
+  "accepted_predicate_unchanged": true,
+  "archive_sha256": "b265dcf35f12d92240d3b73cd799469382d3838b4678696272d51744da2197aa",
+  "files": {
+    "architecture.txt": {
+      "bytes": 6,
+      "sha256": "c1669e1d8edca98769c37d494b76442a1d6e5ffffd7b4da1fb63aef8ebaf6f01"
+    },
+    "display-check.log": {
+      "bytes": 426,
+      "sha256": "8469deaab301335897fee8d0ccdd652d7086d93b585949969fb60805d8789150"
+    },
+    "display-setup.log": {
+      "bytes": 483,
+      "sha256": "f2df9aedb315c1d8dc5c1e28d44e18c820351779ed06fb897f713125d2eab54b"
+    },
+    "displays.json": {
+      "bytes": 35,
+      "sha256": "0e2a2e10de1b28c2c98b9bf2faadb16610de1aad4b8308e92b54c13e74402c3c"
+    },
+    "os.txt": {
+      "bytes": 66,
+      "sha256": "31fd674ddb951680692d7b68cafdeab5baa6b3e82aae843269dad73b53f25fc5"
+    },
+    "power.txt": {
+      "bytes": 203,
+      "sha256": "7f084b237939bdff8346389cc4aa2bcb483431ab1d5c251ded3bae7fd065dab4"
+    },
+    "run.json": {
+      "bytes": 1674,
+      "sha256": "f74005917887cd52f457c697d1f39a35de69b00ee9297bcecfc2609b7c56ef7d"
+    },
+    "serial-delayed/build.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "serial-delayed/probe.swift": {
+      "bytes": 9728,
+      "sha256": "1f5fdd4bdd0cc85708c34744951524eaf6e986a57afeda26e39467d449728306"
+    },
+    "serial-delayed/report.json": {
+      "bytes": 1429,
+      "sha256": "7d237b932ec821e332a02c1804e9256bc402066e3034d1d784e65e47254afe92"
+    },
+    "serial-delayed/stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "serial/build.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "serial/probe.swift": {
+      "bytes": 9414,
+      "sha256": "5d3be7de6e1b8828f4caca8571d49b3fd344ef2bca54c7c690dadfa53228db78"
+    },
+    "serial/report.json": {
+      "bytes": 2027,
+      "sha256": "c2b26954cb5e58386d709e5adf9b68ecca7fd7907f90b014e2c63d13b02401ea"
+    },
+    "serial/stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "source/.github/workflows/foundation.yml": {
+      "bytes": 1286,
+      "sha256": "aef959acf167ed7ee320401d736314e3943deb88b2b4c82a8647e2c73e0285cd"
+    },
+    "source/scripts/diagnose_metal_arm_pacing.py": {
+      "bytes": 3231,
+      "sha256": "7bad2c10aa0acab5163794595fc61a842c5a6495a789ec972a5d0589e7425e73"
+    },
+    "source/scripts/diagnose_metal_arm_serial.swift": {
+      "bytes": 9414,
+      "sha256": "5d3be7de6e1b8828f4caca8571d49b3fd344ef2bca54c7c690dadfa53228db78"
+    },
+    "summary.json": {
+      "bytes": 1454,
+      "sha256": "c25a3ae54780fa0c5c10e7d3c41c84ee19b4d969718fe8fef677acb99a667129"
+    }
+  }
+}
