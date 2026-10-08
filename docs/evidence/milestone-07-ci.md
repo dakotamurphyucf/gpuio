@@ -1,5 +1,46 @@
 # Milestone 07 hosted validation follow-up
 
+## Terminal run — 37825342234: one dates/colors failure
+
+[Foundation 37825342234](https://github.com/dakotamurphyucf/gpuio/actions/runs/37825342234)
+at `1f360479c4f2aacc744c908b27202de52012796a` has a terminal **successful Linux
+foundation job** (`113476639497`). The retained
+[job-step snapshot](milestone-07-ci/run-37825342234-linux.json) records every
+step's actual conclusion. Build, OCaml/Rust tests, lint, private-bus instance and
+notification checks, native entity sensitivity, portable timing classification,
+and all four independent consumers (starter, extension, gallery, Signal Studio)
+pass. The X11 and Wayland smoke steps also pass, but remain informational; these
+smokes do not close OCH-47 or certify full Linux desktop behavior.
+
+macOS Foundation is terminal with exactly one failed step: Agent Workspace
+dates/colors, at its final exact composer-draft assertion. All other required
+steps pass. The [draft-observation follow-up](chat-draft-observation-och17.md)
+records a passing local reproduction attempt, asynchronous AX observation and a
+candidate harness synchronization change; the hosted failure's cause remains
+unconfirmed. Final current-candidate integration and publication remain open.
+
+A later snapshot confirms the new **managed collection scrollbar** interaction
+step also passes on macOS, together with the independent gallery consumer build.
+See the [scoped repair follow-up](managed-scrollbar-routing-och41.md#hosted-repair-validation--37825342234).
+This is a repository-gallery interaction pass, not a new hosted installed-GUI or
+whole-job pass.
+
+Both raw hosted Metal reports classify as unavailable, and the independent
+agreement check passes. Revalidating the downloaded raw reports locally produces
+the same result. This is unavailable timing, not physical presentation acceptance.
+
+The fresh macOS extracted-app receiver passes all three applications. Its reports
+have `complete: true` and confirm clipboard restoration. Packaging revision
+`0ba76e70` describes the packaging checkout, not an attestation of the binary
+build revision; exact archive and executable hashes remain in each report.
+These checks do not establish signed/notarized distribution acceptance.
+
+The [17-file archive](foundation-37825342234-och17/reports.tar.gz) and
+[manifest](foundation-37825342234-och17/manifest.json) preserve terminal metadata,
+the failed log, raw timing/availability reports, receiver evidence and the local
+draft-observation follow-up. The next batch combines pending source-preview docs
+with that harness change. Its required checks must pass before publication.
+
 ## Terminal run — 37789987337 (2026-10-08)
 
 [Run37789987337](https://github.com/dakotamurphyucf/gpuio/actions/runs/37789987337)

@@ -15,6 +15,19 @@ from test_tree_outline import Point
 
 
 class DatesColors(Settings):
+    def expect_draft(self, expected):
+        # AX mutations and Bonsai view changes are asynchronous. Observe the
+        # exact value before moving on; never rewrite a mismatching draft.
+        deadline = time.monotonic() + 8
+        actual = None
+        while time.monotonic() < deadline:
+            actual = self.draft(TITLE, CONVERSATION)
+            if actual == expected:
+                print('AX_DRAFT_CONFIRMED', repr(actual), flush=True)
+                return
+            time.sleep(.03)
+        raise RuntimeError(f'Composer draft: expected {expected!r}, got {actual!r}')
+
     def scroll_settings(self, pixels):
         window = self.window(TITLE)
         try:
@@ -131,7 +144,9 @@ class DatesColors(Settings):
         raise RuntimeError(f'{cancel} remains accessible after closing')
 
     def exercise(self):
-        self.draft(TITLE, CONVERSATION, 'Civil dates and colors preserve my draft λ')
+        expected_draft = 'Civil dates and colors preserve my draft λ'
+        self.draft(TITLE, CONVERSATION, expected_draft)
+        self.expect_draft(expected_draft)
         self.set(self.app, 'AXFrontmost', self.true)
         self.press(TITLE, 'Settings')
         self.press(TITLE, 'Dates & reviews')
@@ -244,7 +259,7 @@ class DatesColors(Settings):
         self.press(TITLE, 'Close settings')
         self.wait_text(TITLE, 'Diagram annotation: Theme accent')
         self.press(TITLE, 'Close workspace inspector')
-        assert self.draft(TITLE, CONVERSATION) == 'Civil dates and colors preserve my draft λ'
+        self.expect_draft(expected_draft)
         self.press(TITLE, 'Settings')
         self.press(TITLE, 'Annotation color')
         self.open_picker('Choose annotation color', 'Cancel annotation')

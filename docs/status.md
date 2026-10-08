@@ -37,8 +37,9 @@ per-ticket recovery notes under ignored `scratch/agents/<session>/`.
 Local foreground GUI/focus/IME testing is authorized; prefer background windows
 when appropriate. VoiceOver testing, configuration and automation are authorized
 again by the owner's 2026-10-05 revision; restore temporary settings afterward.
-Older records of a VoiceOver hold no longer apply. Access was restored after the
-2026-10-07 session restart; filesystem, Linear and GitHub access are working.
+Older records of a VoiceOver hold no longer apply. Filesystem/network access was
+restored on 2026-10-08; GitHub reads and Linear updates have been verified again.
+The preview remains unpublished pending final candidate checks and delivery.
 
 <a id="current-implementation-and-evidence"></a>
 
@@ -61,7 +62,13 @@ receiver pass; the macOS foundation's only failed steps are its two Metal timing
 probes. The [new classifier](evidence/hosted-metal-preview-och17.md) distinguishes
 complete all-zero clocks from failures and cross-checks the independent probes.
 Portable tests and Swift compilation pass; local mixed/invalid-clock cases are
-correctly rejected and retained. Hosted validation of that workflow change remains.
+correctly rejected and retained. Run `37825342234` is terminal: Linux and fresh
+macOS extracted apps pass; macOS Foundation fails only the dates/colors final
+composer-draft assertion. Both hosted timing probes agree on unavailable timing;
+their gate passes without claiming presentation qualification. The
+[draft-observation follow-up](evidence/chat-draft-observation-och17.md) adds exact
+asynchronous-value checks and passes locally; hosted validation remains pending.
+See the [CI record](evidence/milestone-07-ci.md). Final integration remains open.
 
 The [preview adoption guide](developer-preview.md) and GitHub feedback templates
 are ready. A fresh independent starter consumer build passes at `87b43c73`;

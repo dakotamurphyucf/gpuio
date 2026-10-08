@@ -1,0 +1,27 @@
+{
+  "run_id": 37825342234,
+  "source_revision": "1f360479c4f2aacc744c908b27202de52012796a",
+  "job_id": 113476639961,
+  "job_status_at_snapshot": "in_progress",
+  "scope": "Completed managed-scrollbar interaction step uses the repository gallery; independent consumer step is build-only. Whole macOS job remains in progress.",
+  "steps": [
+    {
+      "name": "OCaml and Rust tests",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 17
+    },
+    {
+      "name": "Independent public gallery consumer",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 60
+    },
+    {
+      "name": "macOS managed collection scrollbar input and retained offsets",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 74
+    }
+  ]
+}

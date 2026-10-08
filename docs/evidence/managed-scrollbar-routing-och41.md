@@ -87,5 +87,25 @@ scrollbar gesture matrices remain separate. This is not pointer-drag, hardware
 trackpad, VoiceOver speech, per-frame timing, resource or Linux desktop acceptance.
 It does not establish the cause or resolution of the separately reported list
 jitter. The owner confirmed that changing windows may have interrupted an earlier
-benchmark; that attempt is inconclusive. Hosted validation of this repair remains
-pending.
+benchmark; that attempt is inconclusive. The hosted follow-up below now validates the repository interaction step;
+whole-candidate integration remains pending.
+
+## Hosted repair validation — 37825342234
+
+At `1f360479`, the macOS job's **managed collection scrollbar input and retained
+offsets** step passes, as do the OCaml/Rust suite and independent public gallery
+consumer build. The [focused step snapshot](milestone-07-ci/run-37825342234-managed-scrollbars.json)
+records their actual conclusions from
+[the workflow](https://github.com/dakotamurphyucf/gpuio/actions/runs/37825342234).
+The interaction command is:
+
+```sh
+python3 scripts/test_gallery.py --section managed-scrollbars \
+  --images .cache/ci/managed-scrollbars
+```
+
+This invocation exercises the repository gallery. The hosted independent consumer
+step is build-only; the installed interaction matrix remains the separately
+recorded local result above. The macOS job later finished with a separate
+dates/colors failure; this closes the repair's hosted follow-up without claiming complete candidate CI,
+full gallery acceptance, VoiceOver or physical frame-timing qualification.

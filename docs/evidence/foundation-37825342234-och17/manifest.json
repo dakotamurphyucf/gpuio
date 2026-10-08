@@ -1,0 +1,92 @@
+{
+  "run": 37825342234,
+  "head": "1f360479c4f2aacc744c908b27202de52012796a",
+  "archive_sha256": "ad9bc25143804935f26ea3d8e59efa42d7bc5ced909a1b676e880302ef1fce8f",
+  "files": [
+    {
+      "path": "hosted/failed.log",
+      "size": 9838,
+      "sha256": "50d4cdcaf8fc70fe337fb156247182f8ce237eae4af86116689de5ad24a498f9"
+    },
+    {
+      "path": "hosted/jobs.json",
+      "size": 79733,
+      "sha256": "64775ae5de91101cdeafd61ec5b9a9549eee501c2d3fa6f8522366a5450ba8a4"
+    },
+    {
+      "path": "hosted/metal-api-availability/availability.json",
+      "size": 132,
+      "sha256": "dc0f0496287b8fdebc90393f45a15e1160b67bcdd3ce86a172cbc480f99e52c2"
+    },
+    {
+      "path": "hosted/metal-api-availability/report.json",
+      "size": 63788,
+      "sha256": "3652349225e7197bcae1ae7ad430c358cbfcd64a1ad6c8b27d892240c935aa7e"
+    },
+    {
+      "path": "hosted/metal-presentation-hook/availability.json",
+      "size": 132,
+      "sha256": "e75e3cb441923fde9e5ca2392dfe67aea14725557d00b7a39d63ce325d16ec34"
+    },
+    {
+      "path": "hosted/metal-presentation-hook/report.json",
+      "size": 76206,
+      "sha256": "d2780be1ea94fc489f7eacaaff48178f627db4f85e3b58ae156c4a0737f58d49"
+    },
+    {
+      "path": "hosted/metal-preview-summary/availability.json",
+      "size": 162,
+      "sha256": "6aa12ac6895ce7777fa2efe18a3e6a3b502f32241373a00593f9e4b3f48178a0"
+    },
+    {
+      "path": "hosted/receiver-transfer.log",
+      "size": 1099,
+      "sha256": "7651e7f131a3f66dd35b0d0dfb88aa99ff81bd1d484f2690548a12c57380647e"
+    },
+    {
+      "path": "hosted/receiver/agent-chat.json",
+      "size": 1534,
+      "sha256": "7a8ac763d0ab016867130b3bf0178bec8622f43e63143d63d66e346bd6c217f2"
+    },
+    {
+      "path": "hosted/receiver/gallery.json",
+      "size": 6457,
+      "sha256": "43e74b46bc91698bcb62a1287ea87c07d0e3b6d4df39663c3ae837ad1d227d46"
+    },
+    {
+      "path": "hosted/receiver/signal-studio.json",
+      "size": 1592,
+      "sha256": "baa344d381606713c7e00e51c784e148578791a95d46f6dae856fb3b148fb346"
+    },
+    {
+      "path": "local/check_draft_wait.py",
+      "size": 1153,
+      "sha256": "eab94ce139faf9f5ffb9675423f34f0b97a9398936b9a44a5014650c94904d1b"
+    },
+    {
+      "path": "local/dates-after.log",
+      "size": 2344,
+      "sha256": "19825b1545cf2f2e1226414e6257f29e17979948d7e2e73f0b5b610152aec39f"
+    },
+    {
+      "path": "local/dates-before.log",
+      "size": 2297,
+      "sha256": "bcc6ee3cc0f78ba204b46c149bc6d49e7cf45b6cdd4d10089c75f045718f7958"
+    },
+    {
+      "path": "local/diagnose_dates.py",
+      "size": 360,
+      "sha256": "bbbc35b6ecb69ae6b581b9221c48b2a7990a77abaefc5e726b375743afd7a386"
+    },
+    {
+      "path": "local/draft-wait-check.log",
+      "size": 148,
+      "sha256": "7a654a4c55142f998d927fbba916695e339507f287bf861cc48da3455ac80664"
+    },
+    {
+      "path": "local/metadata.json",
+      "size": 402,
+      "sha256": "6974c86385aa4c109369bed4b207eb33fc366af8e9e05ee49900c84678548b21"
+    }
+  ]
+}
