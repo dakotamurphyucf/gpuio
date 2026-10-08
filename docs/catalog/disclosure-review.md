@@ -23,5 +23,9 @@ label bounds, ownership, measured reveal and explicit layout limits. The gallery
 shows richer titles, optional/required/multiple expansion, disabled group/item
 an Animate toggle and a real native draft with explicit retention policy. The
 [evidence](../evidence/disclosure-presentation-och41.md) records actual coverage.
-Physical macOS visuals/input/IME/VoiceOver, resources and final release checks
-remain open; local TestPlatform checks do not establish release acceptance.
+The [macOS disclosure walkthrough](../evidence/disclosure-macos-och41.md) now
+passes six theme/application-size combinations in the repository and freshly
+installed galleries: native editing/history retention, hidden AX retirement,
+expansion policies, heading keys, disabled skipping/group state and fresh buffers
+after Unmount. Broader visuals/IME/VoiceOver, motion/resources and final release
+checks remain open; these scoped results do not establish release acceptance.

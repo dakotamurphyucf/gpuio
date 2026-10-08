@@ -445,13 +445,14 @@
       "id": "disclosure",
       "owner": "OCH-37",
       "scope": "v1",
-      "audit_status": "Pinned base/styled accordion and collapsible reviewed. Core/Bonsai rich labels, heading semantics, per-item styles and gallery retention/mode/disabled controls implemented locally. Core and exact-public-transaction TestPlatform tests cover keyboard, expanded AX, collapse focus and retained native editing. Opt-in measured reveal is implemented with native reversal, immediate settled layout, weak scheduling and explicit Retain/Unmount behavior. TestPlatform verifies focus/draft retention, hidden AX ancestry, blocked outgoing input and lifecycle retirement. Physical macOS/resource/release acceptance remains open.",
+      "audit_status": "Pinned base/styled accordion and collapsible reviewed. Core/Bonsai rich labels, heading semantics, per-item styles and gallery retention/mode/disabled controls implemented locally. Core and exact-public-transaction TestPlatform tests cover keyboard, expanded AX, collapse focus and retained native editing. Opt-in measured reveal is implemented with native reversal, immediate settled layout, weak scheduling and explicit Retain/Unmount behavior. TestPlatform verifies focus/draft retention, hidden AX ancestry, blocked outgoing input and lifecycle retirement. Actual macOS repository and fresh installed-consumer walkthroughs now pass six theme/application-size combinations: native Unicode draft undo/redo retention, hidden AX retirement, optional/required/multiple expansion, heading Home/End/Down and disabled skipping, whole-group disabled state and fresh buffers after Unmount. Motion timing, full geometry/IME/VoiceOver, resources and consolidated release acceptance remain open; see disclosure-macos-och41.md.",
       "public_interface": "lib/core/disclosure.mli",
       "example": "examples/navigation",
       "evidence": [
         "docs/evidence/navigation-components-och37.md",
         "docs/catalog/disclosure-review.md",
-        "docs/evidence/disclosure-presentation-och41.md"
+        "docs/evidence/disclosure-presentation-och41.md",
+        "docs/evidence/disclosure-macos-och41.md"
       ],
       "gallery_page": "navigation",
       "contract": "Latest-state expansion reducer, grouped keyboard headers, explicit hidden-content lifetime. Additive accordion_with_labels uses bounded passive titles and validated heading levels. Disclosure.Motion supplies immediate/standard/custom-spring reveal, with conservative layout fallbacks documented in disclosure-presentation.",

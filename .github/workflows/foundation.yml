@@ -320,6 +320,10 @@ jobs:
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
         timeout-minutes: 3
         run: python3 scripts/test_gallery.py --section split-group --images .cache/ci/split-group 2>&1 | tee .cache/ci/macos-split-group-gallery.log
+      - name: macOS disclosure themes and draft lifetimes
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 3
+        run: python3 scripts/test_gallery.py --section disclosure --images .cache/ci/disclosure 2>&1 | tee .cache/ci/macos-disclosure-gallery.log
       - name: macOS measured carousel automatic pause and resume
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
         timeout-minutes: 3

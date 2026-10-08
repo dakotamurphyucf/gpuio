@@ -23,4 +23,21 @@ From the repository root:
 ./_build/default/examples/gallery/main.exe
 ```
 
-The wrapper uses the repository toolchain. These commands are instructions, not checks executed for this documentation change. This component has no standalone executable or self-test. Native interaction requires the running gallery; compilation does not establish focus, keyboard, accessibility or platform acceptance. See [gallery instructions](README.md) and the [development environment](../../docs/development.md).
+The wrapper uses the repository toolchain. This component has no standalone executable or self-test. Native interaction requires the running gallery; compilation does not establish focus, keyboard, accessibility or platform acceptance. See [gallery instructions](README.md) and the [development environment](../../docs/development.md).
+
+The focused macOS driver is `python3 scripts/test_gallery.py --section disclosure`.
+It repeats the editing/policy interaction through Light and Dark appearances and
+Comfortable, Large and Compact application sizes. Each case leaves and remounts
+Navigation to reset its Bonsai model. It writes a Unicode draft, replaces it with
+a keyboard edit, closes/reopens the retained native buffer and checks undo/redo.
+It then changes single/multiple/nonempty modes, disables Behavior and turns off
+Keep drafts while Identity is closed to check a new native buffer on reopening.
+Hidden accessibility-node removal is checked separately from native buffer
+retention; an AX object need not survive a hide/show cycle. The driver requires
+macOS Accessibility access and a US/ABC input source and does not change the
+input source. It does not establish VoiceOver speech or animation frame timing.
+Home/End/Down move native heading focus without changing application expansion;
+Down skips a disabled Behavior heading. The driver also checks whole-group
+disabled state and the still-expanded Identity panel's content after recovery.
+The [desktop evidence](../../docs/evidence/disclosure-macos-och41.md) records
+the tested repository and installed-consumer binaries and remaining limits.

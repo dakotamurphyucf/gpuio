@@ -30,6 +30,12 @@ Older records of a VoiceOver hold no longer apply. Access was restored after the
 
 ## Latest delivered behavior and validation
 
+The [disclosure desktop walkthrough](evidence/disclosure-macos-och41.md) passes
+six theme/size combinations in the repository and freshly installed galleries.
+It covers native draft/undo retention, hidden accessibility nodes, expansion
+policies, heading keys, disabled skipping/group state and fresh buffers after
+Unmount. Motion timing, VoiceOver and resource/release acceptance remain separate.
+
 The [inherited list-metrics repair](evidence/list-inherited-metrics-och17.md)
 fixes a reproduced 44-pixel movement from a 24-pixel wheel event after an
 ancestor line-height change. The production host now invalidates cached

@@ -1,0 +1,164 @@
+{
+  "base_revision": "c1d2a4770bab92302aa2c04898e84e1f345df5e1",
+  "platform": {
+    "system": "Darwin",
+    "release": "14.5",
+    "machine": "arm64"
+  },
+  "scope": "six OS keyboard/AX disclosure lifetime/policy cases per binary; not VoiceOver or motion timing",
+  "binary_sha256": {
+    "disclosure-native-003.log": "b28d231a55d6447ad98356f9717df030a70aecf888772f01726e42bc9dd5dc2f",
+    "disclosure-installed-001.log": "786c06499662a21cff071360adacbccb0bd19ff67eb701b83629bb9de641c3de"
+  },
+  "results": {
+    "disclosure-native-003": {
+      "complete": true,
+      "cases": [
+        {
+          "theme": "Light",
+          "scale": "Comfortable",
+          "complete": true
+        },
+        {
+          "theme": "Light",
+          "scale": "Large",
+          "complete": true
+        },
+        {
+          "theme": "Light",
+          "scale": "Compact",
+          "complete": true
+        },
+        {
+          "theme": "Dark",
+          "scale": "Comfortable",
+          "complete": true
+        },
+        {
+          "theme": "Dark",
+          "scale": "Large",
+          "complete": true
+        },
+        {
+          "theme": "Dark",
+          "scale": "Compact",
+          "complete": true
+        }
+      ],
+      "scope": "OS keyboard/AX draft lifetimes and policies; not VoiceOver or animation timing",
+      "input_source": "com.apple.keylayout.US"
+    },
+    "disclosure-installed-001": {
+      "complete": true,
+      "cases": [
+        {
+          "theme": "Light",
+          "scale": "Comfortable",
+          "complete": true
+        },
+        {
+          "theme": "Light",
+          "scale": "Large",
+          "complete": true
+        },
+        {
+          "theme": "Light",
+          "scale": "Compact",
+          "complete": true
+        },
+        {
+          "theme": "Dark",
+          "scale": "Comfortable",
+          "complete": true
+        },
+        {
+          "theme": "Dark",
+          "scale": "Large",
+          "complete": true
+        },
+        {
+          "theme": "Dark",
+          "scale": "Compact",
+          "complete": true
+        }
+      ],
+      "scope": "OS keyboard/AX draft lifetimes and policies; not VoiceOver or animation timing",
+      "input_source": "com.apple.keylayout.US"
+    }
+  },
+  "files": {
+    "disclosure-build.log": {
+      "sha256": "3533f11199eaaad72b404fd683583126264f3028b0c938a47a003dd22aedf164",
+      "bytes": 100138
+    },
+    "disclosure-consumer-build.log": {
+      "sha256": "c3632a87548db2adfad51c364cb83e157a4c09048204f8e45d3b5b0c4ddadf8e",
+      "bytes": 200797
+    },
+    "disclosure-native-001.log": {
+      "sha256": "494817eb40551762064d2baf654a88fe4ad9b45d989d0b072a5151ff337e455e",
+      "bytes": 20197
+    },
+    "disclosure-native-002.log": {
+      "sha256": "62df27b04492aef55b5d66f21a04ee4683ce080f355cfa5f92dd6e5897318884",
+      "bytes": 6529
+    },
+    "disclosure-native-003.log": {
+      "sha256": "bde6c7560af83cba2997d45c6c789d2ff0c0e77405e8674991ce1a961943d7f7",
+      "bytes": 7903
+    },
+    "disclosure-installed-001.log": {
+      "sha256": "c10f1b87982a6615901e08c1370fd1a7c6cbf95f96b2e5ceab00e65eebb3edca",
+      "bytes": 7957
+    },
+    "disclosure-native-001/gallery-failure.png": {
+      "sha256": "69f37299ef11882ac8f5d467ea898d95de664a330bd23e8593a8834c217106b9",
+      "bytes": 396816
+    },
+    "disclosure-native-001/disclosure-report.json": {
+      "sha256": "c7cc2a5dfe617bae4afa7a8e9ba9fc43947114db30d21f6128defb07a7c91284",
+      "bytes": 281
+    },
+    "disclosure-native-002/disclosure-dark.png": {
+      "sha256": "2dd63229f2f91234237a67a2e91cd712a2502c7724b6caddc8544fd25330b533",
+      "bytes": 383786
+    },
+    "disclosure-native-002/disclosure-light.png": {
+      "sha256": "ac24411a02d50bbae20ec980f27c130e087ac484a546f6ba08382fa5e7097f76",
+      "bytes": 382915
+    },
+    "disclosure-native-002/disclosure-report.json": {
+      "sha256": "555d67c892786e6240d9b03527bc3473673ddeafa27958475c1ee159ae42dc2d",
+      "bytes": 694
+    },
+    "disclosure-native-003/disclosure-dark.png": {
+      "sha256": "b1e35538e166b65f0130339aa52bd6d480c369df1797d8c893eaaa466e89cc2a",
+      "bytes": 357874
+    },
+    "disclosure-native-003/disclosure-light.png": {
+      "sha256": "19d1bbed1d7c18a880df20bcbddb093eb61d198accab177ba855fad1aa524c94",
+      "bytes": 356472
+    },
+    "disclosure-native-003/disclosure-report.json": {
+      "sha256": "555d67c892786e6240d9b03527bc3473673ddeafa27958475c1ee159ae42dc2d",
+      "bytes": 694
+    },
+    "disclosure-installed-001/disclosure-dark.png": {
+      "sha256": "b1e35538e166b65f0130339aa52bd6d480c369df1797d8c893eaaa466e89cc2a",
+      "bytes": 357874
+    },
+    "disclosure-installed-001/disclosure-light.png": {
+      "sha256": "19d1bbed1d7c18a880df20bcbddb093eb61d198accab177ba855fad1aa524c94",
+      "bytes": 356472
+    },
+    "disclosure-installed-001/disclosure-report.json": {
+      "sha256": "555d67c892786e6240d9b03527bc3473673ddeafa27958475c1ee159ae42dc2d",
+      "bytes": 694
+    }
+  },
+  "source_sha256": {
+    "scripts/gallery_disclosure.py": "168eaec0b1877ca5cd00b139532c0d0d4975d78c73067e4a148702d8fa8912fc",
+    "scripts/test_gallery.py": "b7bf22970c1f8637dd2d557c9eb3ebab87deeee334276fda0fb1bd93439460a8",
+    "examples/gallery/disclosure_preview.ml": "c005b3a35881c08e4ec47bf0faea04f304dd635012f3b9fe7f728512ef44428e"
+  }
+}

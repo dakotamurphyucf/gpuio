@@ -1,9 +1,60 @@
 """Physical accordion state, native draft ownership and keyboard checks."""
+import json
+
+
+def exercise_matrix(mac, images=None):
+    from mac_input_source import Sources, foreground_keys
+    from test_canvas import screenshot
+    from test_gallery import (
+        TITLE, activate, reveal_gallery_control, select_gallery_appearance, wait_absent,
+    )
+
+    report = {'complete': False, 'cases': [],
+              'scope': 'OS keyboard/AX draft lifetimes and policies; not VoiceOver or animation timing'}
+    sources = Sources(mac)
+    original_post = mac.post_key
+    try:
+        report['input_source'] = sources.selected()
+    finally:
+        sources.close()
+    assert report['input_source'] in ('com.apple.keylayout.US', 'com.apple.keylayout.ABC')
+    try:
+        foreground_keys(mac)
+        for current, following in (('Large', 'Compact'), ('Compact', 'Comfortable')):
+            control = mac.find(TITLE, current, 'AXButton')
+            if control:
+                activate(mac, control)
+                mac.release(mac.wait_find(TITLE, following, 'AXButton'))
+        for theme in ('Light', 'Dark'):
+            select_gallery_appearance(mac, theme)
+            for scale, following in (('Comfortable', 'Large'), ('Large', 'Compact'), ('Compact', 'Comfortable')):
+                mac.release(mac.wait_find(TITLE, scale, 'AXButton'))
+                mac.press(TITLE, 'Presentation')
+                wait_absent(mac, 'Disclosure notes', 'AXTextArea')
+                mac.press(TITLE, 'Navigation & layout')
+                exercise(mac)
+                if images and scale == 'Comfortable':
+                    reveal_gallery_control(mac, 'Disclosure notes', 'AXTextArea',
+                                           scroll_in_left_gutter=True)
+                    screenshot(mac, images / f'disclosure-{theme.lower()}.png', title=TITLE)
+                report['cases'].append({'theme': theme, 'scale': scale, 'complete': True})
+                print('GALLERY_DISCLOSURE_CASE', theme, scale, 'PASS', flush=True)
+                mac.press(TITLE, scale)
+                mac.release(mac.wait_find(TITLE, following, 'AXButton'))
+        report['complete'] = True
+        print('GALLERY_DISCLOSURE_MATRIX_OK', len(report['cases']), 'cases', flush=True)
+    except BaseException as error:
+        report['error'] = f'{type(error).__name__}: {error}'
+        raise
+    finally:
+        mac.post_key = original_post
+        if images:
+            (images / 'disclosure-report.json').write_text(json.dumps(report, indent=2) + '\n')
 
 
 def exercise(mac):
     from test_gallery import (
-        TITLE, expect_enabled, expect_field, expect_popup_expanded,
+        TITLE, expect_enabled, expect_field, expect_focus, expect_popup_expanded,
         focus_gallery_control, reveal_gallery_control, wait_absent,
     )
 
@@ -61,6 +112,30 @@ def exercise(mac):
     expect_popup_expanded(mac, 'Identity', True)
     expect_field(mac, TITLE, field, initial, role='AXTextArea')
     mac.press(TITLE, 'Keep drafts')
+    focus_gallery_control(mac, 'Identity', 'AXButton')
+    mac.key(119)  # End navigates headings without changing expansion.
+    expect_focus(mac, 'Lifetime')
+    mac.key(115)  # Home.
+    expect_focus(mac, 'Identity')
+    mac.key(125)  # Down.
+    expect_focus(mac, 'Behavior')
+    expect_popup_expanded(mac, 'Identity', True)
+    expect_popup_expanded(mac, 'Behavior', False)
+    mac.press(TITLE, 'Toggle Behavior availability')
+    expect_enabled(mac, 'Behavior', False)
+    focus_gallery_control(mac, 'Identity', 'AXButton')
+    mac.key(125)
+    expect_focus(mac, 'Lifetime')
+    mac.press(TITLE, 'Toggle Behavior availability')
+    expect_enabled(mac, 'Behavior', True)
+    mac.press(TITLE, 'Disabled')
+    for label in ('Identity', 'Behavior', 'Lifetime'):
+        expect_enabled(mac, label, False)
+    expect_popup_expanded(mac, 'Identity', True)
+    mac.press(TITLE, 'Disabled')
+    for label in ('Identity', 'Behavior', 'Lifetime'):
+        expect_enabled(mac, label, True)
+    expect_field(mac, TITLE, field, initial, role='AXTextArea')
     print('GALLERY_DISCLOSURE_OK: retained native draft and Unicode undo/redo, OS Space, '
-          'single/multiple/nonempty modes, disabled item policy, hidden AX retirement '
+          'single/multiple/nonempty modes, heading Home/End/arrows, disabled skipping/group policy, hidden AX retirement '
           'and fresh buffer after unmount', flush=True)
