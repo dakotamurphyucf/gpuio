@@ -1,0 +1,44 @@
+{
+  "base_revision": "cdd25879b0b510908a89c70f6c0b56a753d3bf8a",
+  "platform": {
+    "system": "Darwin",
+    "release": "14.5",
+    "machine": "arm64"
+  },
+  "scope": "production host under TestPlatform; no OS window or physical presentation acceptance",
+  "results": {
+    "before": "24px wheel produced44px after inherited20->40 lineheight change",
+    "after": "same original assertion passes",
+    "expanded_suite": "1186 passed;2 existing ignored;0 failed",
+    "clippy": "pass, native-image-tests all-targets -D warnings",
+    "fmt": "pass cargo fmt --all -- --check"
+  },
+  "files": {
+    "list-metrics-before.log": {
+      "sha256": "4e731f2a18f3b120cd2ceb8651f0b29a89d91d917616c209241510b60f340b84",
+      "bytes": 592818
+    },
+    "list-metrics-before-002.log": {
+      "sha256": "380631e7e062f6fcd92f20a43751d43c531dce94405cf2f75ed7dcb10bb70f7e",
+      "bytes": 592883
+    },
+    "list-metrics-after.log": {
+      "sha256": "f3aaabb1882062058cc02eee12f3a434e830db4cd148c8705f2747f5f2858efa",
+      "bytes": 592184
+    },
+    "list-metrics-suite.log": {
+      "sha256": "600117d6160fc2431288bcc490a2d91f97beb1dddaaa275a321a3c54cecc1c62",
+      "bytes": 720762
+    },
+    "list-metrics-clippy.log": {
+      "sha256": "24f5b92aa5c1271bcb3d8fc6a32618e21fcffcbe26f94192bcdbc611479a6042",
+      "bytes": 591866
+    }
+  },
+  "source_sha256": {
+    "rust/native/src/list_view.rs": "0cb0fa1ba2567f3c9d408565620b57138dd1af9a2af3bb7ed8b26abf41cf4c71",
+    "rust/native/src/list_metrics_host_test.rs": "55c06f5f0c4b87aa672fc9b25d2d05c6a1fc585014dc002053180053c374ddd8",
+    "rust/native/src/scrollbar_host_test.rs": "69cd0509d7446299913019544d21691748ff6c4600bf6e2dbec03a51193d84e3",
+    "rust/native/src/measured_list_layout.rs": "698497eda17ebe6912933fb9afe1c5541fe5ddbe79aa56f04d5909b8e5782faf"
+  }
+}

@@ -428,3 +428,6 @@ fn managed_collection(tree: bool, axis: Axis) {
 
 #[path = "horizontal_list_host_test.rs"]
 mod horizontal_lists;
+
+#[path = "list_metrics_host_test.rs"]
+mod list_metrics;

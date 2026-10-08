@@ -30,6 +30,12 @@ Older records of a VoiceOver hold no longer apply. Access was restored after the
 
 ## Latest delivered behavior and validation
 
+The [inherited list-metrics repair](evidence/list-inherited-metrics-och17.md)
+fixes a reproduced 44-pixel movement from a 24-pixel wheel event after an
+ancestor line-height change. The production host now invalidates cached
+offscreen measurements when inherited metrics change. The deterministic native
+suite passes; this does not identify the cause of the separate benchmark overlap.
+
 The [notarization tooling follow-up](evidence/developer-id-tooling-och17.md#notarization-finalization-tooling--2026-10-08)
 adds a submission/recovery guide and a finalizer that binds acceptance to the
 original archive, staples a copy and verifies the final ZIP after extraction.

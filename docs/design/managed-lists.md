@@ -78,6 +78,14 @@ the pinned GPUI `ListState` for variable-height measurement and scrolling. Its
 synchronous render closure consumes available Rust descriptions or a positive
 estimated-height placeholder; it never calls OCaml.
 
+Inherited text metrics, rem size and display scale invalidate native row
+measurements before layout while preserving the logical row and pixel offset.
+This includes cached offscreen measurements: otherwise the next wheel event can
+cross an old row height and jump when that row is measured again. Paint-only
+text color/background/decoration changes retain those measurements. The
+invalidation uses the existing native list state; it does not reconstruct OCaml
+rows or add a frame callback across the bridge.
+
 An asynchronous native observation must be generated from actual layout, not
 only wheel events: resize, data changes and programmatic scrolling all change
 the requested range. Focus, composition and selection pin resources independently

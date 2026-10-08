@@ -64,6 +64,7 @@ pub(super) struct State {
     width: Option<Pixels>,
     height: Option<Pixels>,
     layout_bounds: Option<Bounds<Pixels>>,
+    layout_cache: super::measured_list_layout::Cache,
     pub(super) observed: Option<Viewport>,
     observed_revision: Option<i64>,
 }
@@ -97,6 +98,7 @@ impl State {
             width: None,
             height: None,
             layout_bounds: None,
+            layout_cache: Default::default(),
             observed: None,
             observed_revision: None,
         }
@@ -756,6 +758,7 @@ impl View {
             .unwrap_or_else(|_| placeholder())
         })
         .size_full();
+        let layout_cache = state.borrow().layout_cache.clone();
         let frame = Frame {
             element: list,
             state,
@@ -800,7 +803,13 @@ impl View {
         if let Some(route) = list_route {
             root = self.list_root_input(root, route, cx);
         }
-        root = root.child(frame);
+        // Inherited metrics can change without a row transaction. Invalidate
+        // warm offscreen measurements before GPUI computes the next wheel anchor.
+        root = root.child(super::measured_list_layout::observe(
+            frame,
+            handle.clone(),
+            layout_cache,
+        ));
         if config.scrollbar {
             root = if let Some(scrollbar) = self.scrollbar_owner(
                 tree,
