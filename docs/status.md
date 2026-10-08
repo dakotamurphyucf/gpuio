@@ -30,6 +30,12 @@ Older records of a VoiceOver hold no longer apply. Access was restored after the
 
 ## Latest delivered behavior and validation
 
+The [resource API review](evidence/api-boundaries-och17.md#resource-publication-and-recovery-review--2026-10-08)
+clarifies desired state versus native publication, resource limits and recovery
+after document/chart/canvas upload failures. Deterministic runtime tests cover
+fatal retirement and rejected retries; production behavior is unchanged. This
+is scoped contract evidence, not full API or release acceptance.
+
 The [split-group desktop walkthrough](evidence/split-group-macos-och41.md) passes
 pointer cancellation, keyboard/AX resizing, delivery into Bonsai, constrained
 serialled requests and retained editing through structural changes, locally and

@@ -92,6 +92,64 @@ implemented APIs, with their exact evidence and gaps in the catalog. Application
 authors can compose or extend them without assuming deferred subsystems ship as
 ready-made components.
 
+## Resource publication and recovery
+
+`Gpuio_eio.Document`, `Chart` and `Canvas` manage scoped native registrations.
+Their `create` effects complete after the initial snapshot is accepted natively;
+scope cancellation suppresses late delivery and retires the registration. A
+borrowed handle does not extend that lifetime or work in another application.
+Creating a resource does not mount a reader, chart or canvas widget.
+
+For subsequent changes, `Ok ()` means local admission of desired state. It does
+not promise eventual publication after cancellation or failure. Updates that have
+not started uploading can coalesce; the runtime finishes an in-flight publication
+before publishing the latest desired snapshot. `source`, `data` and `scene` return
+the desired content, which may differ from the content currently rendered.
+`is_published` reports acceptance of the latest desired content, not completed
+parsing, layout or physical presentation. Inspect `error` as well.
+
+| Resource | Native update failure | Recovery |
+| -- | -- | -- |
+| Document | Any upload failure retires the registration and clears its retained source. The error remains available. | Preserve content in application state and call `create` again. `reset` cannot revive the old registration. |
+| Chart or canvas | A recoverable rejection preserves the prior accepted snapshot and the registration. The rejected desired value remains observable. | Inspect `error`, then explicitly call `set` or `reset` to retry; successful publication clears the error. |
+| Chart or canvas | `Closed`, `Stale_handle`, `Native_failure`, or failure to abort a rejected upload retires the registration. | Check `is_released` and create a new registration from application-owned content. |
+
+Local validation/admission errors do not themselves retire a live registration.
+For documents, coalescing preserves a terminal snapshot's exact content while the
+registration remains live and uploads succeed. It cannot guarantee delivery
+through failure or cancellation. For charts and canvases, a successful `reset`
+starts a new native resource generation while retaining the registration handle;
+chart reset also fences the old selection epoch immediately, before publication.
+
+Current OCaml-side admission limits are:
+
+| Resource | Per-application registry limits | Per-value limits |
+| -- | -- | -- |
+| Encoded assets | 1,024 registrations; eight pending uploads; 64 MiB pending encoded source bytes | 16 MiB encoded source; decoding and GPU admission have separate limits |
+| Documents | 1,024 registrations; 64 MiB charged desired/accepted/upload snapshots | 8 MiB canonical UTF-8 source; `push_bytes` accepts chunks of at most 256 KiB and buffers at most three incomplete scalar bytes |
+| Charts | 256 registrations; four staged uploads; 128 MiB charged snapshots and encoded buffers | 16 MiB encoded dataset; additional chart-family limits apply |
+| Canvases | 256 registrations; four staged uploads; 64 MiB charged snapshots and encoded buffers | 20,000 items; 4,096 resources; 65,536 path commands; 1 MiB text; 2,048 interactive items; 4 MiB encoded scene |
+
+Document, chart and canvas registries each send one correlated request at a time.
+Registry charges are conservative admission accounting, not process RSS or GPU
+memory guarantees. Application-held values, decoded native data and rendered
+caches have separate lifetimes and costs. Release resources through their scopes;
+do not assume an offscreen widget releases application state.
+
+`Text_source` appends share prior chunks and copy at most a 16 KiB tail. Edits and
+explicit flattening are O(total bytes); holding old immutable snapshots retains
+their shared content. Avoid flattening the entire document for every streamed
+chunk. Rejected byte chunks preserve the previous decoder and accept no partial
+prefix. An asset's encoded publication likewise does not establish successful
+image decoding; observe the consuming view's result.
+
+The authoritative contracts are in [Document](../lib/eio/document.mli),
+[Chart](../lib/eio/chart.mli), [Canvas](../lib/eio/canvas.mli),
+[Asset](../lib/eio/asset.mli), [Text_source](../lib/core/text_source.mli),
+[Chart_data](../lib/core/chart_data.mli) and
+[Canvas_scene](../lib/core/canvas_scene.mli). See the scoped
+[API review evidence](evidence/api-boundaries-och17.md) for validation and limits.
+
 ## Release qualification
 
 A successful source/consumer build proves compilation and linking in that tested

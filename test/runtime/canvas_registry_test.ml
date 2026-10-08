@@ -528,3 +528,45 @@ let%expect_test "reverting to the accepted snapshot waits for an older in-flight
     print_s [%sexp (List.rev !revisions : int64 list)]);
   [%expect {| (3) |}]
 ;;
+
+let%expect_test "fatal update errors and failed aborts require a new registration" =
+  let retired registry registration =
+    assert (Registration.is_released registration);
+    assert (not (Registration.is_published registration));
+    assert (Option.is_some (Registration.error registration));
+    assert (
+      [%equal: (unit, Registry.Error.t) Result.t]
+        (Registration.reset registration (empty "retry"))
+        (Error (Native Closed)));
+    drain registry ~f:(function
+      | Release _ -> ()
+      | _ -> failwith "retired resource attempted publication");
+    assert ([%equal: int * int] (Registry.Expert.counts registry) (0, 0))
+  in
+  List.iter [ Wire.Error.Closed; Stale_handle; Native_failure ] ~f:(fun error ->
+    with_registry (fun scope registry _ ->
+      let registration = registered registry scope (empty "published") in
+      change (Registration.set registration (empty "next"));
+      (match next registry with
+       | Begin _ -> ()
+       | _ -> assert false);
+      Registry.complete registry (Failed error);
+      retired registry registration));
+  with_registry (fun scope registry _ ->
+    let registration = registered registry scope (empty "published") in
+    change (Registration.set registration (empty "next"));
+    let begin_ = next registry in
+    Registry.complete registry (response begin_);
+    (match next registry with
+     | Chunk _ -> ()
+     | _ -> assert false);
+    Registry.complete registry (Failed Resource_limit);
+    assert (not (Registration.is_released registration));
+    (match next registry with
+     | Abort _ -> ()
+     | _ -> assert false);
+    Registry.complete registry (Failed Resource_limit);
+    retired registry registration);
+  print_endline "fatal responses and failed abort retire the registration";
+  [%expect {| fatal responses and failed abort retire the registration |}]
+;;

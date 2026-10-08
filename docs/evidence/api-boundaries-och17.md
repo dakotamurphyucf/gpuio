@@ -49,3 +49,42 @@ clipboard, accessibility or Linux qualification is supplied by this review.
 Source signatures and runtime behavior are unchanged; there is no new wire epoch
 or compatibility promise. The remaining whole-surface API review and release
 gates stay open in [status](../status.md).
+
+## Resource publication and recovery review — 2026-10-08
+
+Reviewed the public Eio document/chart/canvas interfaces against their registries,
+the pure source/dataset/scene contracts, and the asset registry's admission rules.
+The [compatibility guide](../api-compatibility.md#resource-publication-and-recovery)
+now distinguishes local admission, native publication and physical presentation,
+documents resource budgets, and explains recovery without implying a process
+memory bound. The desired-value getters are explicitly not accepted-state queries.
+
+The old document interface promised that the latest terminal state was always
+delivered. Native failure or scope cancellation can retire it first. Any document
+upload failure clears its retained content and requires a new registration; an
+application needing recovery must preserve its own content. The old chart/canvas
+wording also omitted fatal failure cases: only recoverable update rejections
+preserve the prior accepted snapshot for explicit retry. Closed/stale/native
+failure responses and failed aborts retire those registrations.
+
+Added deterministic expect tests in `test/runtime/document_registry_test.ml`,
+`chart_registry_test.ml` and `canvas_registry_test.ml`. They exercise a failed
+document upload with a queued terminal snapshot, each fatal chart/canvas response,
+and a recoverable chunk rejection followed by a failed abort. They verify retired
+state, rejected reset, cleanup-only requests and empty registry accounting.
+The document case also checks retained error, cleared source and no second create
+callback. Existing tests cover recoverable rejection and successful explicit retry.
+
+Validation on macOS arm64, isolated repository toolchain:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 @test/runtime/runtest @fmt
+git diff --check
+```
+
+The runtime expect suite and formatting passed without promoting expectations.
+These are simulated native responses in the OCaml registry tests, not OS/GPU
+failure injection or physical-window validation. Production implementations and
+source signatures are unchanged; this review corrects documentation and adds
+coverage of existing behavior. Whole-surface API and release qualification remain
+open.

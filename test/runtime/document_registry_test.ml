@@ -218,3 +218,43 @@ let%expect_test "diff events fence unpublished revisions and reset generations" 
   [%expect
     {| accepted old picture, exact pending Publish, reset lower bound, release and resource generation |}]
 ;;
+
+let%expect_test "native upload failure retires even a queued terminal snapshot" =
+  with_registry (fun scope registry ->
+    let initial = Source.empty_stream () in
+    let registration = ref None in
+    let callbacks = ref 0 in
+    Registry.register registry ~scope initial ~on_result:(function
+      | Ok value ->
+        Int.incr callbacks;
+        registration := Some value
+      | Error error -> raise_s [%sexp (error : Wire.Error.t)]);
+    drain registry ~f:(fun _ -> ());
+    let registration = Option.value_exn !registration in
+    let next = Source.append initial "retained by the application" |> Or_error.ok_exn in
+    set registration next;
+    (match Registry.next_request registry with
+     | Some (Begin _) -> ()
+     | _ -> assert false);
+    set registration (Source.finish next |> Or_error.ok_exn);
+    Registry.complete registry (Failed Resource_limit);
+    assert (Registry.Registration.is_released registration);
+    assert (not (Registry.Registration.is_published registration));
+    assert (Option.is_none (Registry.Registration.source registration));
+    print_s [%sexp (Registry.Registration.error registration : Wire.Error.t option)];
+    let reset = Source.reset next "new generation" |> Or_error.ok_exn in
+    print_s
+      [%sexp
+        (Registry.Registration.set registration reset : (unit, Wire.Error.t) Result.t)];
+    drain registry ~f:(function
+      | Release released -> assert (Id.equal released id)
+      | _ -> failwith "retired document attempted publication");
+    assert (!callbacks = 1);
+    print_s [%sexp (Registry.Expert.counts registry : int * int)]);
+  [%expect
+    {|
+    (Resource_limit)
+    (Error Closed)
+    (0 0)
+    |}]
+;;
