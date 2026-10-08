@@ -93,6 +93,8 @@ def trace_record(record, sequence):
 
 
 def interval(data, cpu, *, background, idle):
+    require(data.get('diagnostic_foreground_inputs') is None,
+            'Foreground input diagnostic runs cannot qualify release measurements')
     require(data['schema'] == 1 and type(data['schema']) is int
             and data['kind'] == 'gpui_presentation_interval', 'Unknown presentation schema')
     require(natural(data['cpu_elapsed_ns']) == cpu['elapsed_ns'], 'CPU interval identity mismatch')

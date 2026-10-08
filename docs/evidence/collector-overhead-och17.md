@@ -61,3 +61,7 @@ log and report. All members were read back and hash-verified against the
 [manifest](collector-overhead-och17/attempts-manifest.json).
 The [summary](collector-overhead-och17/summary.json) records exact results,
 binary/report hashes and partial interval counts without claiming acceptance.
+
+The [opt-in foreground input follow-up](foreground-input-diagnostic-och17.md)
+adds event-kind and lost-entry counts for diagnosis. Its quiet and injected-input
+smokes validate instrumentation only; they do not complete this comparison.

@@ -1,0 +1,67 @@
+{
+  "base_revision": "9dbbcc2b143c299f0bb620a87d3fa3e40b5dd67f",
+  "scope": "diagnostic instrumentation only; not performance acceptance",
+  "quiet": {
+    "mode": "quiet",
+    "executable_sha256": "92fe5c3cd058d2ee70e2f93b6508210a68f46d7500fc753d8b11f03115414ada",
+    "scope": "diagnostic smoke only; not release acceptance",
+    "summaries": [
+      {
+        "scope": "foreground thread; not window-specific",
+        "lost_entries": 0,
+        "input_events": 0,
+        "invalidating_inputs": 0,
+        "other_kind_events": 0,
+        "kinds": [],
+        "qualification": "diagnostic only; excluded from release acceptance"
+      },
+      {
+        "scope": "foreground thread; not window-specific",
+        "lost_entries": 0,
+        "input_events": 0,
+        "invalidating_inputs": 0,
+        "other_kind_events": 0,
+        "kinds": [],
+        "qualification": "diagnostic only; excluded from release acceptance"
+      }
+    ],
+    "exit": 0,
+    "diagnostic_verified": true
+  },
+  "injected": {
+    "mode": "input",
+    "executable_sha256": "92fe5c3cd058d2ee70e2f93b6508210a68f46d7500fc753d8b11f03115414ada",
+    "scope": "diagnostic smoke only; not release acceptance",
+    "summaries": [
+      {
+        "scope": "foreground thread; not window-specific",
+        "lost_entries": 0,
+        "input_events": 0,
+        "invalidating_inputs": 0,
+        "other_kind_events": 0,
+        "kinds": [],
+        "qualification": "diagnostic only; excluded from release acceptance"
+      },
+      {
+        "scope": "foreground thread; not window-specific",
+        "lost_entries": 0,
+        "input_events": 4,
+        "invalidating_inputs": 0,
+        "other_kind_events": 0,
+        "kinds": [
+          {
+            "kind": "mouse_move",
+            "events": 4,
+            "invalidating": 0
+          }
+        ],
+        "qualification": "diagnostic only; excluded from release acceptance"
+      }
+    ],
+    "injected_mouse_moves": 4,
+    "exit": 2,
+    "diagnostic_verified": true
+  },
+  "initial_harness_failure": "quiet-001 failed before measurement while discovering window; child reaped; subsequent helper waits up to 5s for readiness",
+  "archive_files": 17
+}

@@ -54,6 +54,11 @@ two seconds. After checking the event route, it prints the
 Remaining pending callbacks are reported; settlement timeout never fabricates
 success. The collector decides whether the report passes.
 
+The optional presentation implementation also supports an opt-in foreground input
+journal summary for diagnosis. It creates an independent cursor at Begin and
+drains once at Finish, without additional polling. The input summary makes the
+run ineligible for release qualification; see [the diagnostic contract](presentation.md#opt-in-foreground-input-diagnosis).
+
 ## Page snapshots and dispose safely
 
 `Buckets` works only in `Finished`. `buckets` emits at most 128 ordered histogram

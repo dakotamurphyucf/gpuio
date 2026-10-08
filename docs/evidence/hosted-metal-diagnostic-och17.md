@@ -162,3 +162,22 @@ zeros remain failures of presentation timing in that phase, not reclassified
 successes. This supports the continuous-transition hypothesis for steady-state
 collector qualification. The diagnostic branch remains separate; the original
 Foundation probes and their failures have not been removed or waived.
+
+## Foundation revalidation at 497236b7 — 2026-10-08
+
+[Run 37744396036](https://github.com/dakotamurphyucf/gpuio/actions/runs/37744396036)
+is complete. Linux Foundation and the separate fresh macOS extracted-app receiver
+pass. macOS Foundation fails only the GPUI Metal hook and standalone API
+calibration. The repaired native-controls fixture and full table-history traversal
+pass. These results apply to `497236b7`, not subsequent local changes.
+
+The hosted ARM GPUI probe finishes both 90-frame windows with zero positive
+presentations and 90 zero outcomes each. Both sessions stop, close and settle
+without other loss. Standalone calibration has zero timestamps in all 120
+submitted frames on the Apple Paravirtual device. These remain failed gates;
+the isolated Intel warm-up evidence above does not override them.
+
+The [five-file archive](hosted-metal-diagnostic-och17/foundation-37744396036.tar.gz)
+retains terminal job/step status and raw hook, calibration and display reports.
+Every member was verified against its
+[manifest](hosted-metal-diagnostic-och17/foundation-37744396036-manifest.json).

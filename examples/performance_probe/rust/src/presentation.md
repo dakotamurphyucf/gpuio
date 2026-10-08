@@ -94,3 +94,42 @@ and pure tests establish no Linux desktop presentation acceptance. Read the
 [declared contract](../../../../docs/design/metal-presentation-qualification.md)
 before full qualification. For adaptation, preserve explicit unsupported outcomes,
 clock uncertainty and all accounting; declare new limits/budgets before measuring.
+
+## Opt-in foreground input diagnosis
+
+Setting `GPUIO_DIAGNOSE_FOREGROUND_INPUT` (to any value) enables a separate cursor
+on GPUI's existing bounded foreground journal at each native Begin. Both generic
+Begin and BeginIdle are supported: the list workload uses generic Begin for both
+history and idle. `Active.stop` stops presentation admission and drains the journal
+once before callback settlement. No extra sampling timer or per-frame callback is
+installed. Unmount drops the cursor with the active presentation session.
+
+`diagnostic_foreground_inputs` is null by default. When enabled, the JSON report
+contains total input dispatches, those marked as invalidating, counts for at most
+32 event-kind names, an overflow-kind count and the journal's lost-entry count.
+Non-input records are discarded after draining. The summary includes no key
+values, text or pointer coordinates. This journal covers the foreground thread,
+including other windows on that thread; it does not identify a human or other
+producer, and synthetic input can share the same event kind as OS input. Lost
+entries prevent concluding that no unobserved input occurred.
+
+This is diagnostic instrumentation, not release qualification. The collector
+rejects every non-null diagnostic summary, even one reporting zero inputs/losses.
+Remove the environment variable for accepted measurements. Draining/aggregation
+has a cost and is included in diagnostic stop-capture timing; do not combine this
+run with the ordinary collector-overhead comparison.
+
+For a bounded diagnostic smoke:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build --profile release examples/performance_presented/list/main.exe -j2
+GPUIO_DIAGNOSE_FOREGROUND_INPUT=1 ./_build/default/examples/performance_presented/list/main.exe --smoke > scratch/input-diagnostic.log 2>&1
+```
+
+Retain the raw log, but parse the `GPUIO_PRESENTATION` JSON lines and inspect just
+`diagnostic_foreground_inputs`; a single complete presentation trace can be several
+megabytes. A diagnostic-enabled run must never be relabeled a performance pass.
+The pure summary tests cover kind grouping, invalidation counts, lost entries and
+bounded distinct names. Python collector tests check rejection and preserve
+ordinary absent/null-field compatibility. Native evidence must be recorded
+separately from those unit tests.

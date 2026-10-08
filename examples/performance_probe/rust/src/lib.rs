@@ -162,14 +162,15 @@ impl sdk::Component for Probe {
                         .timer(std::time::Duration::from_secs(2))
                         .await;
                     let epoch = Instant::now();
-                    let result = window.update(cx, |_, window, _| {
+                    let result = window.update(cx, |_, window, _app| {
                         if let Err(error) = events.check() {
                             eprintln!("PERFORMANCE_PROBE_BEGIN_FAILED {error:?}");
                             return;
                         }
                         #[cfg(feature = "presentation-diagnostics")]
                         {
-                            *presentation.borrow_mut() = Some(presentation::Active::start(window));
+                            *presentation.borrow_mut() =
+                                Some(presentation::Active::start(window, _app));
                         }
                         let started = Instant::now();
                         let snapshot = Snapshot::capture(window);
@@ -219,7 +220,7 @@ impl sdk::Component for Probe {
                 self.pending.take();
                 #[cfg(feature = "presentation-diagnostics")]
                 let (presentation, stop_capture_ns, end_observation) = {
-                    let active = self
+                    let mut active = self
                         .presentation
                         .borrow_mut()
                         .take()

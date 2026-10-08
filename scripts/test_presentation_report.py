@@ -36,6 +36,15 @@ def run(report, cpu, phase='history'):
 
 
 class Reports(unittest.TestCase):
+    def test_opt_in_foreground_diagnostics_cannot_be_release_evidence(self):
+        report, cpu = fixture()
+        report['diagnostic_foreground_inputs'] = None
+        run(report, cpu)
+        for diagnostic in ({}, {'input_events': 0, 'lost_entries': 0}, False):
+            report['diagnostic_foreground_inputs'] = diagnostic
+            with self.assertRaisesRegex(ValueError, 'diagnostic runs cannot qualify'):
+                run(report, cpu)
+
     def test_large_trace_can_arrive_across_reads_without_unbounding_other_records(self):
         check_partial_line(PREFIX.encode() + b'x' * (2 * 1024 * 1024))
         for fragment in (b'GPUIO_STREAM ' + b'x' * 65536,

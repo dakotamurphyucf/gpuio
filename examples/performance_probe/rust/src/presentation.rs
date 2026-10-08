@@ -6,24 +6,48 @@ use gpuio_native::performance::{
     presentation::{Limits, Session, Snapshot, StartError},
 };
 use serde_json::{Value, json};
-use std::time::Instant;
+use std::{collections::BTreeMap, time::Instant};
+
+use gpui::profiler::journal::{
+    ForegroundEvent, ForegroundJournalCollector, ForegroundJournalEntry,
+};
 
 pub struct Active {
     session: Result<Session, StartError>,
     pub start_capture_ns: u128,
+    input_journal: Option<ForegroundJournalCollector>,
+    input_summary: Option<Value>,
 }
 impl Active {
-    pub fn start(window: &gpui::Window) -> Self {
+    pub fn start(window: &gpui::Window, app: &gpui::App) -> Self {
         let started = Instant::now();
         let session = Session::start(window, Limits::default());
         Self {
             session,
             start_capture_ns: started.elapsed().as_nanos(),
+            input_journal: std::env::var_os("GPUIO_DIAGNOSE_FOREGROUND_INPUT")
+                .is_some()
+                .then(|| app.foreground_journal().collector()),
+            input_summary: None,
         }
     }
-    pub fn stop(&self) {
+    pub fn stop(&mut self) {
         if let Ok(session) = &self.session {
             session.stop();
+        }
+        // No extra sampling task: drain only at cutoff, before callback settling.
+        // The journal is foreground-thread-wide, not specific to this window.
+        if let Some(mut collector) = self.input_journal.take() {
+            let drained = collector.collect_unseen();
+            self.input_summary = Some(input_summary(
+                drained.lost,
+                drained.entries.iter().filter_map(|entry| match entry {
+                    ForegroundJournalEntry::Event(ForegroundEvent::Input(input)) => {
+                        Some((input.kind, input.caused_invalidation))
+                    }
+                    _ => None,
+                }),
+            ));
         }
     }
     pub fn pending(&self) -> usize {
@@ -47,11 +71,34 @@ impl Active {
             "cpu_input_samples": cpu.input_to_frame.count(), "cpu_draw_samples": cpu.draw.count(),
             "start_capture_ns": self.start_capture_ns, "stop_capture_ns": stop_capture_ns,
             "settlement_ns": settlement_ns, "snapshot_encode_ns": started.elapsed().as_nanos(),
-            "idle_observation_mode": idle, "observations_truncated": observations.len() >= if idle {128} else {2048},
+            "idle_observation_mode": idle, "diagnostic_foreground_inputs": self.input_summary,
+            "observations_truncated": observations.len() >= if idle {128} else {2048},
             "observations": observations.iter().map(|(elapsed, value)| json!({"elapsed_ns": elapsed,
                 "active": value.active, "visible": value.visible})).collect::<Vec<_>>(),
             "end_observation": {"active": end.active, "visible": end.visible}, "native": native})
     }
+}
+
+fn input_summary<'a>(lost: u64, inputs: impl Iterator<Item = (&'a str, bool)>) -> Value {
+    let mut kinds = BTreeMap::<&str, (u64, u64)>::new();
+    let (mut total, mut invalidating, mut other) = (0_u64, 0_u64, 0_u64);
+    for (kind, invalidates) in inputs {
+        total += 1;
+        invalidating += u64::from(invalidates);
+        if !kinds.contains_key(kind) && kinds.len() >= 32 {
+            other += 1;
+            continue;
+        }
+        let counts = kinds.entry(kind).or_default();
+        counts.0 += 1;
+        counts.1 += u64::from(invalidates);
+    }
+    json!({"scope": "foreground thread; not window-specific", "lost_entries": lost,
+        "input_events": total, "invalidating_inputs": invalidating,
+        "other_kind_events": other,
+        "kinds": kinds.into_iter().map(|(kind, (events, invalidating))|
+            json!({"kind": kind, "events": events, "invalidating": invalidating})).collect::<Vec<_>>(),
+        "qualification": "diagnostic only; excluded from release acceptance"})
 }
 
 fn snapshot(s: &Snapshot) -> Value {
@@ -90,6 +137,42 @@ fn record(r: &gpuio_native::performance::presentation::Record) -> Value {
 mod tests {
     use super::*;
     use gpuio_native::performance::presentation::{LatencyBounds, Outcome, Record};
+    #[test]
+    fn input_summary_preserves_loss_and_counts_without_input_payloads() {
+        let value = input_summary(
+            7,
+            [("MouseMove", true), ("MouseMove", false), ("KeyDown", true)].into_iter(),
+        );
+        assert_eq!(value["lost_entries"], 7);
+        assert_eq!(value["input_events"], 3);
+        assert_eq!(value["invalidating_inputs"], 2);
+        assert_eq!(
+            value["kinds"],
+            json!([
+                {"kind": "KeyDown", "events": 1, "invalidating": 1},
+                {"kind": "MouseMove", "events": 2, "invalidating": 1}
+            ])
+        );
+        let empty = input_summary(9, std::iter::empty());
+        assert_eq!(empty["lost_entries"], 9);
+        assert_eq!(empty["input_events"], 0);
+    }
+    #[test]
+    fn input_kind_summary_bounds_distinct_names_without_losing_totals() {
+        let names: Vec<_> = (0..33).map(|n| n.to_string()).collect();
+        let value = input_summary(
+            0,
+            names
+                .iter()
+                .map(|name| (name.as_str(), true))
+                .chain(std::iter::once(("0", true))),
+        );
+        assert_eq!(value["kinds"].as_array().unwrap().len(), 32);
+        assert_eq!(value["other_kind_events"], 1);
+        assert_eq!(value["input_events"], 34);
+        assert_eq!(value["invalidating_inputs"], 34);
+        assert_eq!(value["kinds"][0]["events"], 2);
+    }
     #[test]
     fn records_preserve_absence_zero_and_clock_bounds() {
         let mut r = Record {
