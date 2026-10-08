@@ -33,7 +33,7 @@ jobs:
     # The macOS required suite includes a measured ~18-minute full-history test
     # after dependency/consumer builds. Run 36791905054 was cancelled near the
     # 90-minute ceiling during the final workload; per-test watchdogs remain.
-    timeout-minutes: ${{ matrix.os == 'macos-15' && 120 || 90 }}
+    timeout-minutes: ${{ matrix.os == 'macos-15' && 180 || 90 }}
     env:
       GPUIO_JOBS: 3
       CARGO_TERM_COLOR: never

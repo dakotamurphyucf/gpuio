@@ -632,3 +632,30 @@ Both informational Linux graphical smokes failed: X11 reaches
 that platform; Wayland reaches `native_controls` then receives an empty clipboard
 instead of `De`. These do not invalidate required build/unit/private-bus/consumer
 checks, which pass. They are not Linux desktop acceptance; retain them in OCH-47.
+
+## Expanded-suite job limit and remaining failures — 2026-10-08
+
+[Run 37758529147](https://github.com/dakotamurphyucf/gpuio/actions/runs/37758529147)
+at branch revision `61944bfc` is terminal cancelled. Linux Foundation passes.
+The macOS job runs from 09:42:47Z to 11:43:19Z and its authoritative check
+annotation reports that it exceeded the **two-hour maximum execution time**.
+Cancellation interrupts the qualification-input artifact upload after about
+100 MiB. The separate fresh macOS receiver then fails to download
+`macos-runtime-qualification-inputs`; this is not an extracted-app runtime failure.
+See the saved [job states](foundation-37758529147/jobs.json) and
+[check annotations](foundation-37758529147/annotations.json).
+
+Before cancellation, the macOS scrollbar-preference walkthrough fails waiting
+for `System preference applied: hide when idle.` Both the GPUI Metal hook and
+standalone presentation API calibration also fail. These remain real open
+validation failures. The initial Homebrew `gpatch` diagnostic did not prevent the
+setup step from completing; it is not the terminal job cause. Local full logs are
+retained in the per-ticket research workspace and remain available through the
+linked GitHub job while its logs are retained.
+
+The expanded macOS job allowance is increased from 120 to 180 minutes so the full
+suite and artifact handoff have time to finish. Linux remains at 90 minutes.
+Individual test timeouts, benchmark thresholds, required checks and failure
+conditions are unchanged. This changes the total CI execution allowance, not any
+performance acceptance budget, and does not turn the cancelled run into a pass.
+A new run must qualify the accumulated changes and all remaining failures.
