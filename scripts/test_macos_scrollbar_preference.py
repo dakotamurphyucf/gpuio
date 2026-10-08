@@ -116,11 +116,14 @@ def main():
             directory = output / name
             directory.mkdir()
             flags = ['-AppleShowScrollBars', override] if override else []
-            expected = subprocess.check_output([str(oracle), *flags], text=True, timeout=10).strip()
+            oracle_result = json.loads(subprocess.check_output(
+                [str(oracle), *flags], text=True, timeout=10))
+            expected = oracle_result['settled']
             assert expected in ('Auto_hide', 'Always_visible'), expected
             if override:
                 assert expected == ('Always_visible' if override == 'Always' else 'Auto_hide')
-            case = {'case': name, 'argument_default': override, 'appkit': expected}
+            case = {'case': name, 'argument_default': override, 'appkit': expected,
+                    'oracle': oracle_result}
             report['cases'].append(case)
             with (directory / 'application.log').open('w') as log:
                 child = subprocess.Popen([str(executable), '--trace-windows', *flags], cwd=root,

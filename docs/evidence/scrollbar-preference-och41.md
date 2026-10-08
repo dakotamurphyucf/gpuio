@@ -118,3 +118,65 @@ python3 -m py_compile scripts/test_macos_scrollbar_preference.py
 The corrected run and syntax checks pass, as do workflow actionlint, catalog and
 example documentation audits, and diff checks. Foundation now includes this
 bounded native scenario; hosted acceptance of the new revision remains pending.
+
+## Hosted oracle initialization repair — 2026-10-08
+
+Foundation [37758529147](https://github.com/dakotamurphyucf/gpuio/actions/runs/37758529147)
+fails the first/current preference case: the helper expects `Auto_hide`, but the
+public gallery completes its query and displays `Always_visible`. This is an
+actual disagreement, not a pending query or a caption that merely needs more time.
+The production getter directly invokes AppKit's `NSScroller.preferredScrollerStyle`.
+
+A standalone Swift diagnostic isolates AppKit initialization, without compiling
+GPUIO or writing OS settings. On the local macOS 14.5 arm64 machine, current and
+Automatic remain overlay throughout initialization. On hosted macOS 15 arm64,
+[run 37773298062](https://github.com/dakotamurphyucf/gpuio/actions/runs/37773298062)
+records current/Automatic as overlay before and immediately after `finishLaunching`,
+then legacy after a 250 ms event-loop interval. Always and WhenScrolling remain
+legacy and overlay respectively. The cold helper exits before this automatic
+policy resolution; the later gallery snapshot agrees with initialized AppKit.
+
+Apple documents that the resolved style depends on the user setting and connected
+pointing devices and can change over time. This evidence establishes the startup
+transition on this runner, not a universal 250 ms initialization guarantee or the
+identity of a particular device. [AppKit reference](https://developer.apple.com/documentation/appkit/nsscroller/preferredscrollerstyle).
+
+The helper now calls `finishLaunching`, runs the event loop for a fixed 0.5 seconds,
+and returns JSON containing startup and initialized styles, the effective defaults
+value and the interval. The Python driver compares the gallery against the
+initialized result and preserves both values in its report. Explicit legacy and
+overlay expectations remain strict. This is a fixed initialization interval,
+not a retry until the expected answer; the production snapshot API is unchanged.
+Live preference/device changes during a run can still invalidate an independently
+sampled expectation and should not be treated as successful qualification.
+
+[Hosted follow-up 37773657349](https://github.com/dakotamurphyucf/gpuio/actions/runs/37773657349)
+passes the corrected oracle against the independent phase probe in all four cases.
+The local full gallery walkthrough passes all three current/legacy/overlay cases,
+including exact expected status, native Down/End/Home, retained scroll position
+and a fresh read after page reactivation. All three applications exit zero.
+No System Settings, clipboard or input-source state changes. The hosted follow-up
+runs only AppKit probes; the full corrected gallery step still needs its new
+Foundation run. The live Foundation at `6be17496` predates this helper correction.
+
+Commands:
+
+```sh
+python3 scripts/test_macos_scrollbar_preference.py --output <fresh-directory>
+python3 -m py_compile scripts/test_macos_scrollbar_preference.py
+ruff check scripts/test_macos_scrollbar_preference.py
+```
+
+These checks, example/catalog audits, actionlint, local documentation links and
+whitespace checks pass. No new OCaml/Rust build or unit suite is needed for this
+Swift/Python fixture correction. Local gallery executable remains the
+[focus-forwarding checkpoint](window-focus-forwarding-och17.md). The remote probe
+uses an isolated diagnostic branch and workflow; that replacement workflow must
+not be merged into the release branch.
+
+The [diagnostic archive](scrollbar-preference-och41/initialization-reports.tar.gz),
+[verified manifest](scrollbar-preference-och41/initialization-manifest.json) and
+[summary](scrollbar-preference-och41/initialization-summary.json) preserve both
+hosted probe outputs, the local gallery result, exact helper/driver/diagnostic
+sources and workflow. Full accessibility, live preference notifications, physical
+fade behavior and all remaining release gates remain separate.

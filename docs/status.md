@@ -30,6 +30,12 @@ Older records of a VoiceOver hold no longer apply. Access was restored after the
 
 ## Latest delivered behavior and validation
 
+The [scrollbar oracle repair](evidence/scrollbar-preference-och41.md#hosted-oracle-initialization-repair--2026-10-08)
+fixes a CI helper reading AppKit before automatic device policy initialized.
+Hosted phase probes reproduce the transition and validate the corrected helper;
+all three local gallery cases pass. Production snapshot behavior is unchanged,
+and the full corrected hosted gallery check remains pending.
+
 The [macOS focus-forwarding repair](evidence/window-focus-forwarding-och17.md)
 fixes application accessibility queries returning the window instead of its focused
 control. Twelve native carousel axis/theme/scale cases pass locally and in a fresh

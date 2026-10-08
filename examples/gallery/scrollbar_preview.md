@@ -62,3 +62,10 @@ checks AppKit's current/legacy/overlay results, applying while scrolled, native
 range keys and page reactivation. Process-local test defaults do not modify the
 user's System Settings; live global preference changes and animation timing are
 separate checks.
+
+The AppKit comparison helper finishes application launch and processes its event
+loop for a fixed half-second before taking the expected snapshot. On hosted macOS,
+a cold query can return overlay before AppKit resolves the automatic device policy
+to legacy. Reports retain both startup and initialized values; the public gallery
+result must still match the initialized value exactly. This helper initialization
+is test setup, not polling or a delay added to `Desktop.scrollbar_preference`.

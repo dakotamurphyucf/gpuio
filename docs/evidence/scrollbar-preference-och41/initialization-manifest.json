@@ -1,0 +1,118 @@
+{
+  "scratch/agents/root-20261007-access-check/scrollbar-settled-native-001/report.json": {
+    "sha256": "2a5df8e50e1ec811dda1bdf89553ef622984b73c443fcc927537ebbb5b8d1fba",
+    "bytes": 1774
+  },
+  "scratch/agents/root-20261007-access-check/scrollbar-settled-native-001/oracle-build.log": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  "scratch/agents/root-20261007-access-check/scrollbar-settled-native-001/legacy/applied.png": {
+    "sha256": "b02cbd6d1a71ee3dd8653a27604049377a870c77b7e13f15673258c3ae71d812",
+    "bytes": 444128
+  },
+  "scratch/agents/root-20261007-access-check/scrollbar-settled-native-001/legacy/application.log": {
+    "sha256": "4b7efb90808b044cf2b79f21733d78f17068047c9d17d9fc04715ac7773bad46",
+    "bytes": 52
+  },
+  "scratch/agents/root-20261007-access-check/scrollbar-settled-native-001/current/applied.png": {
+    "sha256": "da5e3df382ee5fd31891dbf07b5ad5c8792e0b8318e66a34683878839c8ef4ef",
+    "bytes": 442991
+  },
+  "scratch/agents/root-20261007-access-check/scrollbar-settled-native-001/current/application.log": {
+    "sha256": "4b7efb90808b044cf2b79f21733d78f17068047c9d17d9fc04715ac7773bad46",
+    "bytes": 52
+  },
+  "scratch/agents/root-20261007-access-check/scrollbar-settled-native-001/overlay/applied.png": {
+    "sha256": "da5e3df382ee5fd31891dbf07b5ad5c8792e0b8318e66a34683878839c8ef4ef",
+    "bytes": 442991
+  },
+  "scratch/agents/root-20261007-access-check/scrollbar-settled-native-001/overlay/application.log": {
+    "sha256": "4b7efb90808b044cf2b79f21733d78f17068047c9d17d9fc04715ac7773bad46",
+    "bytes": 52
+  },
+  "scratch/agents/root-20261007-access-check/scrollbar-ci-37773298062/overlay.jsonl": {
+    "sha256": "b7d5aebbf1e8c524836fabc1aa4699c90a54a04f24e92af98e792bb73da48d1f",
+    "bytes": 312
+  },
+  "scratch/agents/root-20261007-access-check/scrollbar-ci-37773298062/automatic.jsonl": {
+    "sha256": "b3ec628a1b3b0a293cc8a31b8bc1009f0820376d75d097b654df37dda83918ab",
+    "bytes": 306
+  },
+  "scratch/agents/root-20261007-access-check/scrollbar-ci-37773298062/current.jsonl": {
+    "sha256": "e4a00f51a1d1f4e3f947bf1df182b607bdbac9b9cd0b8b4c17c7f8b92f3a9e1e",
+    "bytes": 290
+  },
+  "scratch/agents/root-20261007-access-check/scrollbar-ci-37773298062/always.jsonl": {
+    "sha256": "f30cbf49a249a9aa04f6e1579cd4d90820bff4237e57551127b434552adb08dd",
+    "bytes": 304
+  },
+  "scratch/agents/root-20261007-access-check/scrollbar-ci-37773657349/automatic-settled.json": {
+    "sha256": "8d4358623e6b73006e240bfbf70e046760c017d8dcb6e003a057034ee6d3db94",
+    "bytes": 111
+  },
+  "scratch/agents/root-20261007-access-check/scrollbar-ci-37773657349/platform.txt": {
+    "sha256": "31fd674ddb951680692d7b68cafdeab5baa6b3e82aae843269dad73b53f25fc5",
+    "bytes": 66
+  },
+  "scratch/agents/root-20261007-access-check/scrollbar-ci-37773657349/overlay-settled.json": {
+    "sha256": "cfbe7cc7cd5a8c1763a71fce1f8b550522cc334d221d68e52d5ef6d3556284dc",
+    "bytes": 110
+  },
+  "scratch/agents/root-20261007-access-check/scrollbar-ci-37773657349/current-settled.json": {
+    "sha256": "0a64823c0b098b8c9bf9258ec00c072129f54e806b3d95fc83b167be039a30c2",
+    "bytes": 107
+  },
+  "scratch/agents/root-20261007-access-check/scrollbar-ci-37773657349/always-settled.json": {
+    "sha256": "601de322704e45f42ad5bce0e856a3b05e765cc929d166ae91f1f34f881788e2",
+    "bytes": 113
+  },
+  "scratch/agents/root-20261007-access-check/scrollbar-ci-37773657349/overlay.jsonl": {
+    "sha256": "b7d5aebbf1e8c524836fabc1aa4699c90a54a04f24e92af98e792bb73da48d1f",
+    "bytes": 312
+  },
+  "scratch/agents/root-20261007-access-check/scrollbar-ci-37773657349/automatic.jsonl": {
+    "sha256": "b3ec628a1b3b0a293cc8a31b8bc1009f0820376d75d097b654df37dda83918ab",
+    "bytes": 306
+  },
+  "scratch/agents/root-20261007-access-check/scrollbar-ci-37773657349/current.jsonl": {
+    "sha256": "e4a00f51a1d1f4e3f947bf1df182b607bdbac9b9cd0b8b4c17c7f8b92f3a9e1e",
+    "bytes": 290
+  },
+  "scratch/agents/root-20261007-access-check/scrollbar-ci-37773657349/always.jsonl": {
+    "sha256": "f30cbf49a249a9aa04f6e1579cd4d90820bff4237e57551127b434552adb08dd",
+    "bytes": 304
+  },
+  "scratch/agents/root-20261007-access-check/scrollbar-settled-native-001.log": {
+    "sha256": "15054853b601b88013b5729a2350cc302a808fd97d0b729202a271982cd41901",
+    "bytes": 2033
+  },
+  "scratch/agents/root-20261007-access-check/scrollbar-ci-37773657349.log": {
+    "sha256": "3a60a81ae2d6d4e4a6ff651ad930524bb133ea3d7e8deaf1dfc42c5d654fbd71",
+    "bytes": 50225
+  },
+  "scratch/agents/root-20261007-access-check/scrollbar-ci-original-failure.log": {
+    "sha256": "e52a5c847aa0c13adb02ee18df5ed7f4872efd169f12765c485b284d9211cf32",
+    "bytes": 13931
+  },
+  "scratch/agents/root-20261007-access-check/scrollbar-lifecycle-oracle.swift": {
+    "sha256": "059fb34b0dfc8b83623f9daa45ed83a4c65b024236c59fc4eeb5cab69dd7ff59",
+    "bytes": 800
+  },
+  "scratch/agents/root-20261007-access-check/scrollbar-lifecycle-oracle-local.json": {
+    "sha256": "752a9b19e33adea897cd540b193cb7de10826f064a87303d79f33acf77c192d3",
+    "bytes": 2146
+  },
+  "scratch/agents/root-20261007-access-check/scrollbar-ci-diagnostic/.github/workflows/foundation.yml": {
+    "sha256": "8cc6a9e9dd4556b90b1b83e3a2ef21100f179710f8b90fa28c54fa7b8f9ba3f6",
+    "bytes": 2733
+  },
+  "scripts/macos_scrollbar_preference.swift": {
+    "sha256": "b825b5c601a0ee9b5a37b0805086e69c7b7e0f7ce051122692df0a2d6b89c5c3",
+    "bytes": 945
+  },
+  "scripts/test_macos_scrollbar_preference.py": {
+    "sha256": "af373929eba8917b7854760e127e54d078afdba1a695e30b02c3d2d849762629",
+    "bytes": 7210
+  }
+}
