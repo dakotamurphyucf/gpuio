@@ -53,7 +53,8 @@ From the repository root:
 ```
 
 These repository-wrapper commands are instructions, not validation performed for this
-documentation change. There is no standalone executable or self-test for this component.
+documentation change. The focused macOS entry point is
+`python3 scripts/test_gallery.py --section scrollbars`; it uses the gallery executable.
 Compilation does not establish native focus, keyboard, animation or platform acceptance. See
 [gallery instructions](README.md) and [development](../../docs/development.md).
 
@@ -69,3 +70,12 @@ a cold query can return overlay before AppKit resolves the automatic device poli
 to legacy. Reports retain both startup and initialized values; the public gallery
 result must still match the initialized value exactly. This helper initialization
 is test setup, not polling or a delay added to `Desktop.scrollbar_preference`.
+
+
+The [scrollbar input follow-up](../../docs/evidence/scrollbar-input-macos-och41.md)
+records an ordinary-viewport matrix for both themes and three sizes: native keys,
+AX range actions, track click/drag, Escape capture cancellation and retained offsets
+across description changes. Removing custom bars removes their ranges but does not
+reset the underlying viewport. The driver reveals the outer page before querying
+clipped bars; those page offsets are separate from the inner viewport offsets.
+This is not qualification of every managed owner, VoiceOver or animation timing.

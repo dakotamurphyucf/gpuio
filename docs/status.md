@@ -43,6 +43,12 @@ at attachment selection. [CI evidence](evidence/milestone-07-ci.md) records this
 new failure and the added fatal-stack/native-crash diagnostics. Updated-source
 hosted acceptance remains required.
 
+The [scrollbar animated-width repair](evidence/scrollbar-input-macos-och41.md)
+keeps native ranges/focus alive when appearance changes narrow an animated track.
+The failing regression now passes alongside the full native suite. The ordinary
+viewport walkthrough checks pointer/key input and retained offsets separately
+from frame timing, VoiceOver and managed-owner release acceptance.
+
 The [carousel remount test repair](evidence/carousel-remount-harness-och41.md)
 reproduces two hosted page-return failures and adds the missing outer-page reveal
 before focus/editor queries. Both local and installed lifecycle/automatic checks

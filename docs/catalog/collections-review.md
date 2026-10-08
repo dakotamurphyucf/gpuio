@@ -82,6 +82,14 @@ AppKit results. [Adapter provenance](../../rust/table/UPSTREAM.md) records the
 selected extraction; the whole styled crate is not a dependency or a claimed
 compatible library.
 
+## Ordinary scrollbar input follow-up
+
+The [physical walkthrough](../evidence/scrollbar-input-macos-och41.md) records
+ordinary-viewport keys, AX actions, pointer track/drag/cancel and offset retention
+through metadata/content changes. It also repairs animated narrowing that could
+reject the current track geometry and suspend the ranges. Managed owners,
+VoiceOver and frame/resource acceptance remain separately scoped.
+
 ## Remaining acceptance
 
 Keep these three family rows open. Shared scroll presentation and horizontal

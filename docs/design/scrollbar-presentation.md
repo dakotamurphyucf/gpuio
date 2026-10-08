@@ -112,7 +112,12 @@ resting/8px hovered-or-pressed thumb, 4px inset, zero radius, 48px minimum lengt
 and foreground with 35%/55% alpha (rounded to packed RGBA). Track hover alone
 does not expand the thumb. Explicit gradients, transparent overrides and radii
 are honored independently of unrelated global-theme radius settings. The fixed
-interaction envelope is the maximum resolved track width across states.
+interaction envelope is the maximum resolved track width across states. When a
+configuration update narrows that maximum during width animation, the current
+frame's envelope also includes the sampled painted track width. It contracts to
+the new maximum as the animation settles. Otherwise a valid transition from a
+wider accepted paint would fail geometry validation and spuriously retire focus.
+Normal hover changes within an unchanged configuration retain the stable maximum.
 
 ## Lifecycle and bridge
 

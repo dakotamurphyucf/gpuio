@@ -1249,3 +1249,8 @@ reading anchors during prepend/append/stream updates. The example uses a 44-pixe
 follow action inside its clipped 48-pixel slot. See the
 [physical evidence](../../docs/evidence/message-follow-macos-och41.md); this is
 separate from frame timing, hardware trackpad and VoiceOver qualification.
+
+Use `--section scrollbars` for the ordinary-viewport scrollbar input matrix:
+keys/range actions, pointer drag/cancel and retained offsets through appearance,
+axis and content changes. See the [code walkthrough](scrollbar_preview.md) and
+[scoped physical evidence](../../docs/evidence/scrollbar-input-macos-och41.md).

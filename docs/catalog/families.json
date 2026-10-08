@@ -878,7 +878,8 @@
         "docs/catalog/style-theme-review.md",
         "docs/evidence/default-fonts-och41.md",
         "docs/evidence/gallery-theme-files-och41.md",
-        "docs/evidence/scrollbar-preference-och41.md"
+        "docs/evidence/scrollbar-preference-och41.md",
+        "docs/evidence/scrollbar-input-macos-och41.md"
       ],
       "gallery_page": "presentation",
       "contract": "Typed styles/tokens/native states. Compare values and scope restrictions using gpuix-styles.json, not only field names. Native aspect ratio now has paired transport, validation and retained GPU geometry/state/unset evidence; public gallery and a fresh installed consumer pass proportional geometry, explicit-height reset, keyboard focus/state/identity retention and page remount. Specialized-widget and release acceptance remain separate.",

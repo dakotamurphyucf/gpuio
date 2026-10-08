@@ -463,6 +463,11 @@ fn build_element(shared: &Shared, foreground: Option<u32>, opacity: f32) -> AnyE
                 {
                     styles[i].track_width = frame.visual().track_width;
                     styles[i].thumb_width = frame.visual().thumb_width;
+                    // A narrower config can still be animating from a wider
+                    // accepted paint. Keep that track inside this frame's
+                    // envelope; rejecting its geometry would suspend the range,
+                    // blur focus and discard the frame that advances the motion.
+                    styles[i].envelope_width = styles[i].envelope_width.max(styles[i].track_width);
                     frames[i] = Some((driver, frame));
                 }
             }

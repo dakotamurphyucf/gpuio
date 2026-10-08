@@ -698,3 +698,67 @@ fn captured_drag_remeasures_native_resize_and_preserves_the_other_axis() {
         window.remove_window();
     });
 }
+
+#[::core::prelude::v1::test]
+fn narrowing_animated_appearance_keeps_ranges_and_the_scroll_owner() {
+    let mut app = TestAppContext::single();
+    let (view, cx) = setup(&mut app);
+    cx.update(|window, cx| {
+        let state = view.read(cx).state.clone();
+        let mut config = (*state.borrow().config).clone();
+        config.appearance.track.width = Some(18.);
+        state
+            .borrow_mut()
+            .reconcile(Arc::new(config), Policy::default(), window, cx)
+            .unwrap();
+        view.read(cx).handle.set_offset(point(px(-70.), px(-90.)));
+    });
+    draw(&view, cx);
+    focus_axis(&view, cx, Axis::Horizontal);
+    let before = offset(&view, cx);
+    cx.update(|window, cx| {
+        let state = view.read(cx).state.clone();
+        let mut config = (*state.borrow().config).clone();
+        config.appearance = Appearance::default(); // 16px target, from painted 18px.
+        config.motion.expand_ms = 120;
+        state
+            .borrow_mut()
+            .reconcile(Arc::new(config), Policy::default(), window, cx)
+            .unwrap();
+    });
+    for elapsed_ms in [0, 30, 30, 60, 30] {
+        cx.executor()
+            .advance_clock(std::time::Duration::from_millis(elapsed_ms));
+        draw(&view, cx);
+        view.read_with(cx, |v, _| {
+            let state = v.state.borrow();
+            assert!(state.measured.is_some(), "animated track lost its geometry");
+            assert!(state.painted_bars.iter().all(Option::is_some));
+        });
+        assert_eq!(offset(&view, cx), before);
+        assert_eq!(
+            cx.a11y_tree()
+                .unwrap()
+                .nodes
+                .iter()
+                .filter(|(_, node)| node.role() == accesskit::Role::ScrollBar)
+                .count(),
+            2
+        );
+        cx.update(|window, cx| {
+            assert!(view.read(cx).state.borrow().focus[0].is_focused(window));
+        });
+    }
+    view.read_with(cx, |v, _| {
+        let state = v.state.borrow();
+        for axis in axes() {
+            let bar = get_bar(state.measured.unwrap(), axis).unwrap();
+            assert_eq!(bar.envelope.size[1 - ix(axis)], 16.);
+        }
+    });
+    cx.update(|window, cx| {
+        let state = view.read(cx).state.clone();
+        state.borrow_mut().close(window, cx);
+        window.remove_window();
+    });
+}
