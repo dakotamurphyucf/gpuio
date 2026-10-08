@@ -56,10 +56,34 @@ all reported failures and positive/zero/completion counts. The
 including every retained screenshot and probe report. Every member was read back
 and verified against the [manifest](hosted-metal-diagnostic-och17/manifest.json).
 
-The next discriminator is the unchanged two-window GPUI integration probe on
-Intel, [run 37733380351](https://github.com/dakotamurphyucf/gpuio/actions/runs/37733380351),
-commit `938eb3b00cc5c1e05415120c5b05ef25cd8a5e20`. At this checkpoint its pinned
-bootstrap completed and the build/probe step is still running; no integration
-pass is claimed. Existing required main-branch ARM presentation failures remain
-failures until an evidence-backed qualification configuration is implemented and
-validated. Local physical-Mac workload passes are separate evidence.
+## Actual Intel GPUI integration outcome
+
+The unchanged two-window GPUI integration probe on Intel,
+[run 37733380351](https://github.com/dakotamurphyucf/gpuio/actions/runs/37733380351),
+commit `938eb3b00cc5c1e05415120c5b05ef25cd8a5e20`, built successfully but failed
+its strict validation. Both windows were observed visible at the start and end,
+completed all 90 requested frames, had distinct identities, stopped admission,
+closed and settled to zero pending callbacks. Neither had loss or invalid clocks.
+
+Window 1 has 34 initial zero-time outcomes followed by 56 positive presentations;
+window 2 has 51 initial zeros followed by 39 positive presentations. There are
+no zeros after the first positive in either trace. First positive presentation
+occurs 1,986.067 and 1,997.201 ms after first submission. The active second window
+has 38 animation samples, below the existing 45-sample minimum. The original
+all-presented and animation gates therefore fail; none is relaxed here.
+
+The [native archive](hosted-metal-diagnostic-och17/native-hook-reports.tar.gz)
+preserves eleven files: exact workflow/test sources, build logs, raw native report
+and environment metadata. Its [manifest](hosted-metal-diagnostic-och17/native-hook-manifest.json)
+was verified against every archive member. The unrelated successful bootstrap's
+long log is available in the hosted artifact rather than copied into this bundle.
+
+The observed initial two-second interval motivates one new diagnostic: use the
+already-existing `--idle-before-frames-ms 2500` option before starting collection,
+keeping all frame, animation, clock, completion and teardown checks unchanged.
+[Run 37736998639](https://github.com/dakotamurphyucf/gpuio/actions/runs/37736998639),
+commit `93006c09f5fa82635a0c54c9bdecf499d4be511f`, is running at this checkpoint.
+Only its isolated workflow invocation changes; no renderer or test code changes.
+This tests startup conditioning, not a production startup fix, and the original
+failed trace remains failed. Existing required main-branch presentation failures
+remain unresolved. Local physical-Mac workload passes are separate evidence.

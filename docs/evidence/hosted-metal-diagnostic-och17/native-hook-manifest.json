@@ -1,0 +1,46 @@
+{
+  "display-setup.log": {
+    "bytes": 228,
+    "sha256": "bb3757a2a3981f4a7eb048a8403f51dc4a1d259aa325df16794ccdcf98c5aa6a"
+  },
+  "displays.json": {
+    "bytes": 2424,
+    "sha256": "61a74776f01620968d1786453ec3c68e0a0ab40f2c23a2af2821f4c4a4061585"
+  },
+  "display-check.log": {
+    "bytes": 228,
+    "sha256": "bb3757a2a3981f4a7eb048a8403f51dc4a1d259aa325df16794ccdcf98c5aa6a"
+  },
+  "toolchain.log": {
+    "bytes": 92,
+    "sha256": "0a1551c79aa14473f0bf2dde82f74052eee994b6fe01ca17794f51fc7bc3f14f"
+  },
+  "native-hook/report.json": {
+    "bytes": 77968,
+    "sha256": "d070d6e51e504475be8fcdc01e8ba6527a4dfa95f4a5907d7dbc076deff6f923"
+  },
+  "native-hook/native.log": {
+    "bytes": 124,
+    "sha256": "0b80d9f07325aa514fa755f1d1e1f16c801742d5f6080582d0009f57940ad0c2"
+  },
+  "native-hook/build.jsonl": {
+    "bytes": 3425937,
+    "sha256": "f52ba96ead7212ff82dacaa9611f20afa9e04b887819d8e7f868f17fba01d266"
+  },
+  "native-hook/build.log": {
+    "bytes": 33288,
+    "sha256": "bc1bedece8c5fbe7c16598c1df27e8901cc7723b4b791108df62d82b2400e909"
+  },
+  "exact-source/.github/workflows/metal-presentation-diagnostic.yml": {
+    "bytes": 2632,
+    "sha256": "02e45a0dcb802d31e98ba3799e090820de4a8d5585984dd70416a11f683187e5"
+  },
+  "exact-source/scripts/test_metal_presentation.py": {
+    "bytes": 3669,
+    "sha256": "7833c61327bd26313d31619d9842a855fa7ca500473fba40b9233c4ad7eaca11"
+  },
+  "exact-source/rust/native/tests/native_metal_presentation.rs": {
+    "bytes": 10504,
+    "sha256": "7913e7b25579c9c6e1a38f294cfef9cce98665e0839af53dde3c233453e73209"
+  }
+}
