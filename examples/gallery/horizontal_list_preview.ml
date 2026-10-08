@@ -10,7 +10,7 @@ let px = Length.px_exn
 let full = Length.percent_exn 100.
 let style = Style.create_exn
 let initial_count = 10_000
-let extent id = 180. +. (Float.of_int (Int.abs id % 4) *. 24.)
+let extent id = 260. +. (Float.of_int (Int.abs id % 4) *. 24.)
 
 module Action = struct
   type t =
@@ -60,11 +60,12 @@ let component palette scrollbar graph =
   let horizontal, set_horizontal = B.state true graph in
   let open B.Let_syntax in
   let config =
-    let%arr horizontal = horizontal in
+    let%arr horizontal = horizontal
+    and p = palette in
     let make =
       if horizontal
-      then Virtual_list.Config.horizontal ~width:(Estimated 220.)
-      else Virtual_list.Config.create ~height:(Estimated 220.)
+      then Virtual_list.Config.horizontal ~width:(Estimated (Palette.size p 300.))
+      else Virtual_list.Config.create ~height:(Estimated (Palette.size p 300.))
     in
     make ~overscan:220. ~max_active:16 ~scroll:Follow_tail_when_at_end () |> ok
   in
@@ -74,7 +75,9 @@ let component palette scrollbar graph =
       source
       ~row_key:Key.of_int
       ~config
-      ~style:(B.return (style [ Width full; Height (px 260.); Shrink 0. ]))
+      ~style:
+        (B.map palette ~f:(fun p ->
+           style [ Width full; Height (px (Palette.size p 360.)); Shrink 0. ]))
       ~accessibility:(B.return (Accessibility.create ~label:"Research cards" () |> ok))
       ~render_row:(fun ~key:id ~data:extent ~lifetime:_ graph ->
         let clicks, set_clicks = B.state 0 graph in
@@ -86,8 +89,8 @@ let component palette scrollbar graph =
         and set_clicks = set_clicks in
         let dimensions =
           if horizontal
-          then [ Style.Property.Width (px extent); Height full ]
-          else [ Style.Property.Height (px extent); Width full ]
+          then [ Style.Property.Width (px (Palette.size p extent)); Height full ]
+          else [ Style.Property.Height (px (Palette.size p extent)); Width full ]
         in
         V.column
           ~style:(style (dimensions @ [ Shrink 0.; Padding (px 8.) ]))

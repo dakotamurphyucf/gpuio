@@ -43,6 +43,13 @@ at attachment selection. [CI evidence](evidence/milestone-07-ci.md) records this
 new failure and the added fatal-stack/native-crash diagnostics. Updated-source
 hosted acceptance remains required.
 
+The [horizontal-card desktop follow-up](evidence/horizontal-list-macos-och41.md)
+fixes a clipped reaction button in the OCaml example through palette-scaled card
+and viewport sizing. Repository and installed tests pass both axes, themes and
+three application sizes, including pointer/Space, wheel geometry, surviving row
+state, edit anchors and follow-tail. This is separate from the reported benchmark
+jitter and does not qualify physical frame timing or VoiceOver.
+
 The [application teardown repair](evidence/application-teardown-och17.md) ensures
 pending desktop/notification/resource requests finish with Closed even if another
 completion raises. Deterministic regressions cover all six request families,

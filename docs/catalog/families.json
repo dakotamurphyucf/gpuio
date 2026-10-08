@@ -580,7 +580,7 @@
       "id": "managed-list",
       "owner": "OCH-13",
       "scope": "v1",
-      "audit_status": "Pinned list/delegate/cache/message/scroll sources reviewed in collections-review.md. Both-axis virtualization and configurable scrollbars have local integration evidence. Selectable_list now provides source-scoped selection/controllers, native keyboard/pointer/AX input and themed bounded rows; List_search adds scoped debounced Eio search, remote upserts, hidden selection, cancellation and retry. Collections includes the persistent Searchable list public example. Local native, Bonsai/Eio and consumer build evidence is recorded separately from unexecuted physical walkthroughs. Animated follow presentation now has a public-API gallery composition and native layout, input, idle, reduced-motion and teardown evidence. Physical/GPU/resource/release qualification remains open.",
+      "audit_status": "Pinned list/delegate/cache/message/scroll sources reviewed in collections-review.md. Both-axis virtualization and configurable scrollbars have local integration evidence. Selectable_list now provides source-scoped selection/controllers, native keyboard/pointer/AX input and themed bounded rows; List_search adds scoped debounced Eio search, remote upserts, hidden selection, cancellation and retry. Collections includes the persistent Searchable list public example. Local native, Bonsai/Eio and consumer build evidence is recorded separately from unexecuted physical walkthroughs. Animated follow presentation now has a public-API gallery composition and native layout, input, idle, reduced-motion and teardown evidence. Physical/GPU/resource/release qualification remains open. The horizontal-card macOS follow-up fixes a clipped reaction control in the OCaml example; repository and installed checks pass both axes/themes/three sizes, pointer/Space, wheel geometry, local state, data-edit anchors and follow-tail. Sampled adjacency is not a per-frame rendering or hardware-trackpad guarantee; full VoiceOver/resource/release qualification remains open.",
       "public_interface": "lib/bonsai/virtual_list.mli",
       "example": "examples/virtual_list",
       "evidence": [
@@ -591,7 +591,8 @@
         "docs/evidence/scrollbar-table-och41.md",
         "docs/evidence/selectable-list-managed-och41.md",
         "docs/evidence/selectable-list-search-och41.md",
-        "docs/evidence/message-follow-presentation-och41.md"
+        "docs/evidence/message-follow-presentation-och41.md",
+        "docs/evidence/horizontal-list-macos-och41.md"
       ],
       "gallery_page": "collections",
       "contract": "Both-axis virtual rows/paging/anchors/tail following; source-scoped selectable lists with independent cursor/selection/context/confirmation; section-aware option semantics, query ownership and bounded Eio search/upsert results. Hidden loaded membership survives filtering. Helper masks/scroll presentation use retained native viewport ownership.",

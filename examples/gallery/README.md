@@ -1010,8 +1010,11 @@ identity. The preview waits for a fresh geometry observation before presenting a
 current viewport. The scrollbar axis selector controls presentation, so choosing
 only the perpendicular bar can hide the active-axis bar without disabling scroll.
 The main-axis wheel gesture is used directly; vertical gestures are not remapped
-to horizontal scrolling. Physical macOS pointer/keyboard/VoiceOver qualification
-for this preview remains unrun; compilation/TestPlatform are recorded separately.
+to horizontal scrolling. The [physical macOS walkthrough](../../docs/evidence/horizontal-list-macos-och41.md)
+now checks pointer/Space actions, both axes/themes/three text sizes, sampled row
+geometry and retained edit anchors in repository and installed examples.
+VoiceOver, hardware trackpads and frame timing remain separate. See the adjacent
+[code walkthrough](horizontal_list_preview.md) for reactive state and measurements.
 
 Collections → **Result table** → **Rich table headers** mounts ordinary Views in
 native leaf/group header cells. **Inspect** is a header button that changes the
