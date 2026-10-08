@@ -30,6 +30,11 @@ Older records of a VoiceOver hold no longer apply. Access was restored after the
 
 ## Latest delivered behavior and validation
 
+The [rich-header sizing follow-up](evidence/table-header-fit-och41.md) fixes the
+public gallery's clipped Inspect label using ordinary OCaml button styles.
+Six theme/scale combinations pass actual glyph/rectangle fit, pointer/Space
+activation, fixed table geometry and page remount checks.
+
 The [hover-layout repair](evidence/hover-layout-och41.md) fixes stale hover paint
 when initial paint or a layout change puts a widget under a stationary pointer.
 Two original native cases fail. Five focused regressions and the full

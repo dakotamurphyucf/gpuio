@@ -67,6 +67,15 @@ native table elements. It does not replace the data collection or sort the rows.
 The separate **Inspect** header button injects `Header_action`; the notice confirms
 that its activation is independent of the column's sort action.
 
+The button is an ordinary `V.button` with an explicit 28-pixel height, 2-pixel
+vertical padding, 8-pixel horizontal padding and an 18-pixel line height. Its font
+uses `Palette.size p 12.` so Compact/Comfortable/Large still affect the label;
+palette surface/foreground colors preserve contrast. Rich content lives inside
+the native table's bounded header slot: the default button's 44-pixel height did
+not fit this example. Sizing the child through public `Style` properties keeps
+the table geometry fixed and the complete label visible. No Rust extension or
+new widget API is needed for this customization.
+
 GPUIO owns measurement, native focus/scroll and bounded owners; Bonsai owns source/configuration
 and retained options. Page destruction retires adapters/row computations; native hiding is not
 application task cancellation. Adapt with stable domain IDs, explicit remote sorting/loading

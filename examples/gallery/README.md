@@ -1215,7 +1215,8 @@ python3 scripts/test_gallery.py --section table-presentation --images scratch/ta
 ```
 
 It checks actual window pixels, fixed cell geometry, rich-header accessibility
-identity during style updates, native pointer/keyboard selection and page
+identity during style updates, the header button and label fitting inside the
+header, pointer/Space activation, native pointer/keyboard selection and page
 retirement/remount. Theme/scale controls belong to the gallery; the walkthrough
 explains their use in [the Collections implementation](collections_page.md).
 A script's presence does not establish a passing platform result.

@@ -51,6 +51,22 @@ def exercise(mac, images):
         finally:
             mac.release(window)
         pixels = read_png(mac, path)
+        bx, by, bw, bh = rect('Inspect', 'AXButton')
+        row_top = rect('0000')[1]
+        assert by+bh <= row_top+.5, ('Header button escapes into body',tag,(bx,by,bw,bh),row_top)
+        sx, sy = pixels.width/ww, pixels.height/wh
+        foreground = (234,240,247) if tag.startswith('Dark-') else (27,41,57)
+        ink = []
+        for iy in range(2, round(bh*sy)-2):
+            for ix in range(2, round(bw*sx)-2):
+                color = pixels.rgb((bx-wx)*sx+ix, (by-wy)*sy+iy)
+                if max(abs(a-b) for a,b in zip(color,foreground)) <= 30:
+                    ink.append(iy/sy)
+        assert ink, ('Header label did not paint',tag,(bx,by,bw,bh))
+        print('TABLE_HEADER_LABEL',tag,'bounds',(bx,by,bw,bh),
+              'ink_y',(min(ink),max(ink)),flush=True)
+        assert min(ink) >= 2 and max(ink) <= bh-3, (
+            'Header label reaches its clipped edge',tag,bh,min(ink),max(ink))
         bounds = [rect(f'{i:04d}') for i in range(4)]
         # Far right of the first column, away from text and selection borders.
         print('TABLE_CAPTURE_GEOMETRY',tag,'window',(wx,wy,ww,wh),'pixels',(pixels.width,pixels.height),'cells',bounds,flush=True)
@@ -150,10 +166,49 @@ def exercise(mac, images):
         finally:
             mac.post_key = original_post
         mac.wait_text(TITLE,'Table selection: Cell 2 / entry')
-        mac.perform(retained[0], 'AXPress')
+        bx, by, bw, bh = rect('Inspect', 'AXButton')
+        point = (bx+bw/2, by+bh/2)
+        mouse.check_owner(point)
+        mouse.send(5, point)
+        try:
+            mouse.send(1, point)
+        finally:
+            mouse.send(2, point)
+        mac.wait_text(TITLE,'Header action handled independently of table sorting')
+        # Change the notice through a distinct row before verifying keyboard action.
+        x,y,w,h = rect('0003')
+        point = (x+w/2,y+h/2)
+        mouse.check_owner(point)
+        mouse.send(5,point)
+        try:
+            mouse.send(1,point)
+        finally:
+            mouse.send(2,point)
+        mac.wait_text(TITLE,'Table selection: Cell 3 / entry')
+        mac.wait_text(TITLE,'Cell 3 / entry selected')
+        mac.set(retained[0], 'AXFocused', mac.true)
+        boolean = mac.cf.CFBooleanGetValue
+        boolean.restype, boolean.argtypes = C.c_bool, [C.c_void_p]
+        deadline = time.monotonic()+5
+        while True:
+            focused = mac.attr(retained[0], 'AXFocused')
+            try:
+                if focused and boolean(focused):
+                    break
+            finally:
+                if focused:
+                    mac.release(focused)
+            assert time.monotonic() < deadline, 'Header action did not take native focus'
+            time.sleep(.025)
+        original_post = mac.post_key
+        try:
+            foreground_keys(mac)
+            mac.key(49)  # Space activates the focused native button.
+        finally:
+            mac.post_key = original_post
         mac.wait_text(TITLE,'Header action handled independently of table sorting')
         mac.press(TITLE,'Header and row styling')
-        mac.wait_text(TITLE,'Table selection: Cell 2 / entry')
+        mac.wait_text(TITLE,'Table selection: Cell 3 / entry')
         mac.press(TITLE,'Presentation')
         mac.wait_text(TITLE,'A little context goes a long way')
         absent(mac,'Preview results','AXTable')
@@ -166,7 +221,7 @@ def exercise(mac, images):
         absent(mac,'Preview results','AXTable')
         print('GALLERY_TABLE_PRESENTATION_OK: two themes by three scales, scoped row tint/hover/reset pixels, '
               'stable geometry and rich-header identity, real pointer/Down selection, independent '
-              'header action, selection retention and page remount',flush=True)
+              'header pointer/Space action and unclipped label, selection retention and page remount',flush=True)
     finally:
         for node in retained:
             mac.release(node)

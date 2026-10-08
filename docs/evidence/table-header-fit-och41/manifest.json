@@ -1,0 +1,16 @@
+{
+  "checks/table-header-fit-after-002.log": "6679096e3783663d7673641847ebeebc5e08f4f6677d1e979ad05bd8a49b96d2",
+  "checks/table-header-fit-after-002/table-presentation-Dark-Compact-plain.png": "fe8cca1df1d0ebddba7e32b75cc5b233076f5af099fc831d24129fee288424b1",
+  "checks/table-header-fit-after-002/table-presentation-Light-Large-styled.png": "3584dafbf2582ee006bc3807e47be434b76889dcf4bf9bc0fc5b5a1c2da39316",
+  "checks/table-header-fit-after.log": "4889a05f72f4d93c29f48bcba5bdd61a7c4a7c0f4a9075cc2512f55e578e7c7b",
+  "checks/table-header-fit-before.log": "2c8391226438555d813fed64dcc812c5c037d3ae9efeb26f16766c77ef27b9cf",
+  "checks/table-header-fit-before/table-presentation-Dark-Compact-plain.png": "cc53df4e3d1b5586d27641f1cd0a4f2b039ad56777b80d9b3b858b1829b80d2f",
+  "checks/table-header-fit-build-002.log": "22123947a145f448a522ca123bf67954da146ea87a8612b67548a3c86b2b6866",
+  "checks/table-header-fit-build.log": "df4593b5336e561cffcee45d07c030062bf24a9604ce63ebec7737f6afc41206",
+  "checks/table-header-fit-catalog-audit.log": "ec7f045757abb1d7e2907d8e645fbd6c7fa3e9b0e1e808e2fdc2dd20215b9a75",
+  "checks/table-header-fit-doc-audit.log": "6a6c48d5844d1ffdb3732cf30e5bb603cac1b615504a84bb2ee3b168cab6ce0b",
+  "checks/table-header-fit-format.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "source/examples/gallery/collections_page.md": "b9ce410f6c6d06b91de423b7bc1b659b58d27ccd6a00b4ba01e67a8968e68ddf",
+  "source/examples/gallery/collections_page.ml": "c22b93f61b3c8b5096240b6b6938f79c9459929676d712c8104061e17e1c33e8",
+  "source/scripts/gallery_table_presentation.py": "0a5f355f3f3398be3681694d988b80be2aa45577cba05623b587f076f3e67540"
+}

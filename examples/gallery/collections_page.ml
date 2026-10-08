@@ -359,7 +359,22 @@ let component app searchable window palette graph =
       [ Table_header.create
           ~key:(Key.of_string_exn "entry-header-action")
           ~target:(Table_header.Target.column (column_id "entry"))
-          (V.button ~on_click:(inject Grid.Header_action) "Inspect")
+          (V.button
+             ~style:
+               (style
+                  [ Height (px 28.)
+                  ; Padding (px 2.)
+                  ; Padding_left (px 8.)
+                  ; Padding_right (px 8.)
+                  ; Font_size (Palette.size p 12.)
+                  ; Line_height (px 18.)
+                  ; Background (Background.solid (Palette.surface p))
+                  ; Foreground (Palette.foreground p)
+                  ; Radius 4.
+                  ; Shrink 0.
+                  ])
+             ~on_click:(inject Grid.Header_action)
+             "Inspect")
       ; Table_header.create
           ~key:(Key.of_string_exn "details-group")
           ~target:
