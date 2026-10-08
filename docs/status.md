@@ -30,6 +30,12 @@ Older records of a VoiceOver hold no longer apply. Access was restored after the
 
 ## Latest delivered behavior and validation
 
+The [list-paging ownership repair](evidence/api-boundaries-och17.md#paging-ownership-repair--2026-10-08)
+keeps cancellation cleanup inside the two-producer bound and publishes final
+reactive state on closure. Deterministic before/after regressions and the native
+managed-conversation self-test pass. This does not resolve the separate visual
+scrolling report or qualify full-list performance.
+
 The [ARM Metal pacing follow-up](evidence/hosted-metal-diagnostic-och17.md#arm-sequential-and-startup-delay-follow-up--2026-10-08)
 retains two failed probes: sequential submission, with and without a fixed startup
 delay, stalls waiting for presentation callbacks. GPU completion is not presentation

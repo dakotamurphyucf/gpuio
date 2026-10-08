@@ -60,6 +60,11 @@ sets the older boundary to `End`. There is no newer saved page. The
 [List_paging interface](../../../lib/eio/list_paging.mli) explains scoped loading,
 reactive snapshots and preservation of pending older-page requests when appending.
 If pager construction fails, `create` cancels the newly made conversation scope.
+History requests use up to two reusable pager workers, lazily started and charged
+to the conversation's shared task quota until it closes. In this demo only the
+older boundary loads. A reset cancels old production but waits for its cleanup
+before reusing that worker; intermediate queued resets do not become a backlog
+of history fetches. The separate response-stream task remains independent.
 
 Initial phase is `Idle`, no active/last response exists, `next_row` is 201,
 response/attachment counts are zero and seeded document initialization has not

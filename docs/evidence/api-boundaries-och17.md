@@ -88,3 +88,71 @@ failure injection or physical-window validation. Production implementations and
 source signatures are unchanged; this review corrects documentation and adds
 coverage of existing behavior. Whole-surface API and release qualification remain
 open.
+
+## Paging ownership repair — 2026-10-08
+
+Review of `List_paging`, `Table_paging`, `Tree_loading` and `List_search` against
+their public interfaces found two concrete list-pager defects at `14775883`:
+
+- Cancellation cleared the pending task immediately. While its protected cleanup
+  was still running, new requests could start. A deterministic test holds both
+  original cleanups, performs 100 resets with both boundaries requested, and
+  observes **202 producers started, peak concurrency 3**. The interface promises
+  at most two; only two original producers should start until cleanup releases.
+- `close` cancelled requests in the pure controller but did not publish its final
+  snapshot to the Bonsai variable. Direct queries reported Ready/Ready while the
+  reactive value still reported Loading/Loading.
+
+The list adapter now uses the existing table adapter's bounded-worker approach:
+two lazy workers, one latest queued request per boundary, and reuse only after
+producer cleanup returns through the UI inbox. The pure controller's existing
+owner/generation/request predicate is exposed under `Expert` for the adapter;
+applications do not need it. No polling or native bridge changes are introduced.
+Closing cancels owned workers, publishes the final reactive snapshot, suppresses
+callbacks and leaves unrelated tasks alone.
+
+The repaired 100-reset test starts only generations 0 and 100 in each direction,
+keeps peak concurrency at two, and publishes only the latest rows. Other regression
+checks cover agreement of direct/reactive closure snapshots, no closure callback,
+idempotent close, quota rejection, explicit retry, idle worker task accounting and
+release to zero tasks. Existing queued-result, error, generation, scoped shutdown,
+managed-list layout-demand and append-during-history tests remain unchanged.
+
+Idle workers retain up to two Scope task slots until closure; this cost is now
+explicit in the public contract and example walkthroughs. Protected cleanup must
+eventually finish before its slot can be reused. The comparison with table/tree
+workers and search cancellation in the [compatibility guide](../api-compatibility.md#loading-and-cancellation-bounds)
+does not imply a universal payload-memory bound.
+
+Local validation uses macOS 14.5 (23F79), arm64, and the isolated repository
+OCaml 5.3/Bonsai v0.17 environment:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 @test/runtime/runtest @fmt examples/virtual_list/main.exe examples/agent_chat/main.exe
+_build/default/examples/virtual_list/main.exe --self-test
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 @runtest @fmt
+python3 scripts/audit_example_docs.py
+python3 scripts/audit_component_catalog.py
+git diff --check
+```
+
+The runtime suite, both example builds and the native managed-conversation
+self-test pass. The native test reports paging, offscreen streaming, retained
+key/pixel anchor, follow-tail, bounded active rows and normal shutdown. It is a
+small integration fixture, not the 10,000-row performance qualification or proof
+that the separately reported visual overlap is fixed. During development, an
+unchanged existing test caught spurious callbacks from obsolete worker returns;
+the implementation was corrected rather than promoting its changed expectation.
+A new quota test also needed sequential bindings to avoid inspecting state before
+the request due to OCaml tuple evaluation order.
+
+The full incremental Dune test and formatting aliases pass, including pure
+collection and managed-list/tree/table suites. Example/catalog structural audits
+and whitespace checks also pass. No expectation was promoted. The
+[fourteen-file archive](list-paging-ownership-och17/reports.tar.gz) retains the
+before implementation, exact repaired sources, all behavior-test attempt logs and
+native output; every member was verified against the
+[manifest](list-paging-ownership-och17/manifest.json). Its
+[summary](list-paging-ownership-och17/summary.json) records the native executable
+hash and actual environment. Hosted/Linux validation of this repair is pending;
+whole-surface API and release acceptance remain open.

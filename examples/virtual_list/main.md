@@ -17,6 +17,15 @@ owns history loading in that scope, with older boundary `More (Some "101")` and
 newer boundary `End`. The ordinary loader sleeps 0.4 seconds and returns IDs
 1–100; the test holds it on a promise. Producer work belongs to the conversation,
 so scrolling a row away does not cancel a history request or simulated reply.
+The pager allocates a worker when older history is first requested and keeps it
+waiting between loads. Across both boundaries it allows at most two producers,
+including cancellation cleanup. Resetting a conversation replaces queued demand,
+but cannot start a replacement in an occupied worker until cleanup returns.
+These workers count against the conversation's shared task quota until closure;
+closing the pager leaves its final data readable and updates `Pager.value` so it
+no longer reports cancelled requests as Loading. Closure does not invoke the
+optional `on_change` callback.
+
 See [pager](../../lib/eio/list_paging.mli) and [scope](../../lib/eio/scope.mli).
 
 `Virtual_list.Config.create` validates estimated 110-pixel height, 200-pixel

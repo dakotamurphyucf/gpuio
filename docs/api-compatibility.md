@@ -150,6 +150,42 @@ The authoritative contracts are in [Document](../lib/eio/document.mli),
 [Canvas_scene](../lib/core/canvas_scene.mli). See the scoped
 [API review evidence](evidence/api-boundaries-och17.md) for validation and limits.
 
+## Loading and cancellation bounds
+
+Paged collections and search belong to an application/window/conversation scope,
+not transient row computations. Their `value` snapshots are read in Bonsai graphs;
+create and mutate the controllers from initialization/effects on the UI domain.
+Load/search closures receive explicit Eio capabilities and must not block that
+domain with synchronous work.
+
+| Controller | Concurrency and cancellation |
+| -- | -- |
+| `List_paging` | Two lazy reusable workers, including cancellation cleanup; at most the latest request per boundary waits. Idle workers keep their Scope task slots until closure. |
+| `Table_paging` | Two lazy reusable workers with the same cleanup bound; requests capture immutable query settings. |
+| `Tree_loading` | Up to four lazy reusable workers; obsolete node/generation results cannot attach children to a replacement node. |
+| `List_search` | One current producer; cancelled fibers may still unwind concurrently and remain charged to the shared Scope task quota. This is not the pager worker-pool bound. |
+
+Logical cancellation immediately fences obsolete results. Physical cancellation
+is cooperative: protected cleanup can delay reuse, and these APIs do not forcibly
+terminate a blocking foreign call. List/table workers wait without polling. These
+limits do not bound user payload bytes or automatically evict loaded history.
+
+Ordinary paging requests do not retry Failed boundaries; use explicit retry.
+Immediate list worker-admission failure returns an error and publishes Failed.
+A previously admitted load can fail later, so applications must also observe
+snapshots. Closing a list/table pager retains readable data and publishes
+cancelled boundaries to its reactive value without invoking `on_change`. A Ready
+boundary in that final snapshot is not permission to request from a closed pager.
+Search instead publishes its explicit Closed status. Search retains prior results
+while work is pending or failed, marked stale; disable interaction with stale
+results unless the application intentionally allows it.
+
+See [list paging](../lib/eio/list_paging.mli),
+[table paging](../lib/eio/table_paging.mli),
+[tree loading](../lib/eio/tree_loading.mli),
+[search](../lib/eio/list_search.mli), and the
+[review evidence](evidence/api-boundaries-och17.md#paging-ownership-repair--2026-10-08).
+
 ## Release qualification
 
 A successful source/consumer build proves compilation and linking in that tested

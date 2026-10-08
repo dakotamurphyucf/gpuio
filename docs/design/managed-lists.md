@@ -46,6 +46,18 @@ constructed by applications. Cursors are opaque application strings.
 
 `Gpuio_eio.List_paging` adds scoped Eio producers and UI-loop notifications. It
 cancels producer fibers on reset/cancel/close and suppresses queued completions.
+Two lazy workers bound active production including cancellation cleanup. Reset
+replaces queued demand with at most the latest request for each boundary; a worker
+cannot start that replacement until its prior producer has unwound and returned
+through the UI inbox. Idle workers wait without polling and consume at most two
+Scope task slots until the pager closes. This is a concurrency bound, not a bound
+on the bytes a loader retains. A loader's cancellation cleanup must eventually
+finish; protected cleanup deliberately holds its slot.
+
+Closing publishes the final cancelled-boundary snapshot to the reactive value,
+retains loaded data and suppresses application `on_change` callbacks. The boundary
+status may be Ready after cancellation, but a closed controller rejects requests;
+Ready is not a test of controller liveness.
 Its parent scope should be the conversation or application if loading must
 survive virtual-row deactivation. No viewport operation implicitly cancels
 conversation work. Applications pass I/O capabilities to the loader closure and

@@ -223,3 +223,7 @@ let append t rows =
     in
     t.items <- items
 ;;
+
+module Expert = struct
+  let is_current = is_current
+end
