@@ -109,3 +109,5 @@ acceptance, rather than treating a screenshot as proof of a whole component fami
 
 Read [API compatibility and limits](api-compatibility.md) before persisting data
 or combining packages, and [distribution](distribution.md) before shipping an app.
+The [developer preview guide](developer-preview.md) explains the adoption scope
+and how to report bugs, missing capabilities or confusing APIs with a small example.

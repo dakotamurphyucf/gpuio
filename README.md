@@ -22,6 +22,7 @@ in milestone 07b. See the [platform policy](docs/platform-release-policy.md).
 
 ## Start here
 
+- [Developer preview: adoption, limits and feedback](docs/developer-preview.md)
 - [Build your first application](docs/getting-started.md)
 - [API compatibility and limits](docs/api-compatibility.md)
 - [Component Studio gallery](examples/gallery/README.md)
