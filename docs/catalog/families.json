@@ -41,13 +41,14 @@
       "id": "forms",
       "owner": "OCH-33",
       "scope": "v1",
-      "audit_status": "pinned source reviewed; rich collection/slots/placement/footer implemented with passing Core checks. Real macOS gallery forms and editor-group runs pass: 52 geometry cases, OS keyboard actions, retained undo/redo through hide/show and fresh state after page retirement. Consolidated installed-consumer/hosted release acceptance remains open; the earlier Accessibility preflight restriction is resolved.",
+      "audit_status": "pinned source reviewed; rich collection/slots/placement/footer implemented with passing Core checks. Real macOS gallery forms and editor-group runs pass: 52 geometry cases, OS keyboard actions, retained undo/redo through hide/show and fresh state after page retirement. Consolidated installed-consumer/hosted release acceptance remains open; the earlier Accessibility preflight restriction is resolved. The 2026-10-08 follow-up repairs zero-width rich labels and extends the real 52-case regression to catch single-character wrapping; see form-label-point-routing-och17.md.",
       "public_interface": "lib/core/form.mli",
       "example": "examples/presentation",
       "evidence": [
         "docs/evidence/presentation-components-och33.md",
         "docs/design/form-composition.md",
-        "docs/evidence/gallery-editor-admission-och41.md"
+        "docs/evidence/gallery-editor-admission-och41.md",
+        "docs/evidence/form-label-point-routing-och17.md"
       ],
       "gallery_page": "text-inputs",
       "contract": "Rich Form collections, independent grid/label orientation, field placement, rich slots and full-width footer are implemented in the public API. Local macOS gallery behavior passes; consolidated installed-consumer/release acceptance remains pending. Validation and persistence are application-owned.",
@@ -169,7 +170,7 @@
       "id": "select",
       "owner": "OCH-11",
       "scope": "v1",
-      "audit_status": "Eleven pinned root/shared-list sources reviewed. Additive Choice_picker provides public Core/Bonsai/Eio APIs with grouped virtual rows and ordered query/selection/open events. The Pickers gallery now includes grouped multiple selection, controlled single selection, a 4096-item searchable catalog and an empty/create/reset example. Local Core/Bonsai/native TestPlatform checks cover current-model/generation fences, controller sequencing, clear keyboard traversal, clipping, actual AX group/query-focus structure and inherited text-cache invalidation. The actual macOS picker walkthrough now passes grouped/controlled selection, clearing, disabled policy, native Escape, 4096-option search retention and empty/create/reset behavior after an accessible-empty-slot repair. Search uses AXValue, not physical typing or IME. Wider geometry, VoiceOver and consolidated installed-consumer/release acceptance remain open; see choice-review.md.",
+      "audit_status": "Eleven pinned root/shared-list sources reviewed. Additive Choice_picker provides public Core/Bonsai/Eio APIs with grouped virtual rows and ordered query/selection/open events. The Pickers gallery now includes grouped multiple selection, controlled single selection, a 4096-item searchable catalog and an empty/create/reset example. Local Core/Bonsai/native TestPlatform checks cover current-model/generation fences, controller sequencing, clear keyboard traversal, clipping, actual AX group/query-focus structure and inherited text-cache invalidation. The actual macOS picker walkthrough now passes grouped/controlled selection, clearing, disabled policy, native Escape, 4096-option search retention and empty/create/reset behavior after an accessible-empty-slot repair. Search now also passes real foreground OS typing, Backspace, Down/Return commit and retained-query reopening on macOS with verified US layout; no input-source or clipboard changes. IME remains separate. Wider geometry, VoiceOver and consolidated installed-consumer/release acceptance remain open; see choice-review.md.",
       "public_interface": "lib/core/choice.mli",
       "example": "examples/controls",
       "evidence": [
@@ -177,7 +178,8 @@
         "docs/catalog/choice-review.md",
         "docs/design/choice-picker.md",
         "docs/evidence/gallery-och41.md",
-        "docs/evidence/choice-picker-macos-och41.md"
+        "docs/evidence/choice-picker-macos-och41.md",
+        "docs/evidence/choice-keyboard-och41.md"
       ],
       "gallery_page": "controls",
       "contract": "Retained native popup/highlight; queued selected ID; validated options/appearance. Additive View.choice_picker (lib/core/choice_picker.mli) and Gpuio_eio.Choice_picker (lib/eio/choice_picker.mli) provide grouped single/multiple selection, native popup search, rich slots and explicit ordered requests/observations; native acceptance is incomplete.",
@@ -190,7 +192,7 @@
       "id": "combobox",
       "owner": "OCH-11",
       "scope": "v1",
-      "audit_status": "Eleven pinned root/shared-list sources reviewed. Additive Choice_picker provides public Core/Bonsai/Eio APIs with grouped virtual rows and ordered query/selection/open events. The Pickers gallery now includes grouped multiple selection, controlled single selection, a 4096-item searchable catalog and an empty/create/reset example. Local Core/Bonsai/native TestPlatform checks cover current-model/generation fences, controller sequencing, clear keyboard traversal, clipping, actual AX group/query-focus structure and inherited text-cache invalidation. The actual macOS picker walkthrough now passes grouped/controlled selection, clearing, disabled policy, native Escape, 4096-option search retention and empty/create/reset behavior after an accessible-empty-slot repair. Search uses AXValue, not physical typing or IME. Wider geometry, VoiceOver and consolidated installed-consumer/release acceptance remain open; see choice-review.md.",
+      "audit_status": "Eleven pinned root/shared-list sources reviewed. Additive Choice_picker provides public Core/Bonsai/Eio APIs with grouped virtual rows and ordered query/selection/open events. The Pickers gallery now includes grouped multiple selection, controlled single selection, a 4096-item searchable catalog and an empty/create/reset example. Local Core/Bonsai/native TestPlatform checks cover current-model/generation fences, controller sequencing, clear keyboard traversal, clipping, actual AX group/query-focus structure and inherited text-cache invalidation. The actual macOS picker walkthrough now passes grouped/controlled selection, clearing, disabled policy, native Escape, 4096-option search retention and empty/create/reset behavior after an accessible-empty-slot repair. Search now also passes real foreground OS typing, Backspace, Down/Return commit and retained-query reopening on macOS with verified US layout; no input-source or clipboard changes. IME remains separate. Wider geometry, VoiceOver and consolidated installed-consumer/release acceptance remain open; see choice-review.md.",
       "public_interface": "lib/eio/combobox.mli",
       "example": "examples/combobox",
       "evidence": [
@@ -198,7 +200,8 @@
         "docs/catalog/choice-review.md",
         "docs/design/choice-picker.md",
         "docs/evidence/gallery-och41.md",
-        "docs/evidence/choice-picker-macos-och41.md"
+        "docs/evidence/choice-picker-macos-och41.md",
+        "docs/evidence/choice-keyboard-och41.md"
       ],
       "gallery_page": "controls",
       "contract": "Native query editing, queued semantic selection and explicit controller commands. Additive View.choice_picker (lib/core/choice_picker.mli) and Gpuio_eio.Choice_picker (lib/eio/choice_picker.mli) provide grouped single/multiple selection, native popup search, rich slots and explicit ordered requests/observations; native acceptance is incomplete.",
@@ -967,12 +970,13 @@
       "id": "diagnostics",
       "owner": "OCH-17",
       "scope": "v1",
-      "audit_status": "Four pinned measurement/test-observation/accessibility sources reviewed in diagnostics-review.md. Public counters and test infrastructure have explicit units and limits. The host now installs the pinned NSWindow AX hit-test forwarder; the real two-window regression obtains exact editor identity at visible screen points. Other controls/overlays and VoiceOver still require qualification. Performance/resource/startup/distribution gates remain open.",
+      "audit_status": "Four pinned measurement/test-observation/accessibility sources reviewed in diagnostics-review.md. Public counters and test infrastructure have explicit units and limits. The host now installs the pinned NSWindow AX hit-test forwarder; the real two-window regression obtains exact editor identity at visible screen points. A further 21 exact system-wide AX hits now pass across controls, overlays and restored triggers. VoiceOver remains separate. Performance/resource/startup/distribution gates remain open.",
       "public_interface": "lib/eio/app.mli",
       "example": "examples/runtime",
       "evidence": [
         "docs/evidence/runtime-och9.md",
-        "docs/catalog/diagnostics-review.md"
+        "docs/catalog/diagnostics-review.md",
+        "docs/evidence/form-label-point-routing-och17.md"
       ],
       "gallery_page": "runtime",
       "contract": "Internal measurement/observation/accessibility integration maps to diagnostics/native automation. Audit general public geometry/automation surface for release.",

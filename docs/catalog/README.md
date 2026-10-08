@@ -263,7 +263,8 @@ compiled dependencies. Actual native dependency provenance stays in
   distinct from captured gestures and committed text.
 - [Diagnostics helpers](diagnostics-review.md): counters and native observation
   are mapped with their evidence limits. Window-level macOS AX hit-test forwarding
-  needs separate physical qualification; focused-node checks do not prove it.
+  now has exact two-window editor and [21 control/overlay point](../evidence/form-label-point-routing-och17.md)
+  results. VoiceOver remains separate from these native point queries.
 
 - [Motion source review](motion-review.md): eight exact snapshots map transitions,
   springs, timing/easing, keyframes, presence, reveal and stagger. Existing numeric

@@ -1,0 +1,29 @@
+{
+  "archive_sha256": "949dc722db3e8bc11ce15d943a3a1e81172051693673ccefb94358db600c3bf2",
+  "files": {
+    "choice-keyboard-001.log": {
+      "bytes": 11131,
+      "sha256": "9814f970d8a2f59ff87df95cc8582788baf896418adf87e69e568b8ba46b2a9f"
+    },
+    "choice-keyboard-001/gallery-failure.png": {
+      "bytes": 345495,
+      "sha256": "f83832e35740ec6c73c2c57c31dbb47c4194a1c68af5c1e2e4128366b5334c02"
+    },
+    "choice-keyboard-002.log": {
+      "bytes": 1697,
+      "sha256": "03ccff8a2cf86b940079d26ac1acf52d57b3ff14c773d14f87de1a53afa3e5b8"
+    },
+    "choice-keyboard-002/gallery-choice-picker-empty.png": {
+      "bytes": 351206,
+      "sha256": "0c88c71fdd313193288871818c4fa1244ea24c3ff38afe7991130ab24cd15cab"
+    },
+    "gallery_choice_picker.py": {
+      "bytes": 5728,
+      "sha256": "6e3cc1aa0ce254897f5cb4d8e795728756b6d8378aaa4741f8a39d6a0b07d892"
+    },
+    "summary.json": {
+      "bytes": 444,
+      "sha256": "2e6fcab4398b56475c6957adeef96ff6af7894f423aa0ca19a3d6c7df95d12bb"
+    }
+  }
+}

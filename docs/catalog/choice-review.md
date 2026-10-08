@@ -1,5 +1,11 @@
 # Select and Combobox: pinned behavior review
 
+Current follow-up, 2026-10-08: the [foreground keyboard walkthrough](../evidence/choice-keyboard-och41.md)
+passes the complete public picker scenario, including actual query typing,
+Backspace, Down/Return selection and retained-query reopening. Earlier checkpoints
+below describe their dated scope; the once-unrun driver now has physical macOS
+evidence. IME, VoiceOver and consolidated release qualification remain separate.
+
 OCH-41, 2026-10-01. This review uses the exact GPUI Kit revision
 `84f57fdfcb4910623fb0bb7f795b077e249f9271`. Eleven unmodified source snapshots
 cover the two base roots, two styled components and seven shared searchable-list
