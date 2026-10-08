@@ -152,6 +152,15 @@ def exercise_automatic(mac, images=None):
         time.sleep(5.2)
         mac.press(TITLE, 'Carousels & journeys')
         mac.wait_text(TITLE, 'Selected card: Explore')
+        # A remounted page has its own scroll position. Reveal the track before
+        # asking focus to enter it; offscreen content is correctly ineligible.
+        track = mac.wait_find(TITLE, label, 'AXGroup')
+        try:
+            report['remount_before_reveal'] = element_rect(mac, track)
+        finally:
+            mac.release(track)
+        report['remount_after_reveal'] = reveal_gallery_control(
+            mac, label, 'AXGroup', scroll_in_left_gutter=True)
         focus_gallery_control(mac, label, 'AXGroup')
         toggle('Auto-advance cards')
         mac.press(TITLE, 'Motion & rhythm')

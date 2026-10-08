@@ -271,3 +271,12 @@ installed consumer. The linked evidence retains the failing-before runs and exac
 validation scope. It qualifies ordinary keyboard traversal and AX query identity;
 VoiceOver, hardware trackpads, continuous looping and resource/presentation
 acceptance remain separate.
+
+
+## Hosted page-remount follow-up — 2026-10-08
+
+The [driver repair](carousel-remount-harness-och41.md) records later hosted
+failures after page return and a local reproduction. Earlier desktop passes
+remain evidence at their stated revisions. Both automatic and interrupted-drag
+drivers now reveal the remounted outer-page track before focusing or querying
+its clipped editor; input, selection, timer and draft assertions are preserved.

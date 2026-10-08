@@ -1,0 +1,88 @@
+{
+  "base_revision": "1d14da3c3ec5edb3271af7ebaf4fb0d575fcbf8c",
+  "platform": {
+    "system": "Darwin",
+    "version": "14.5",
+    "machine": "arm64"
+  },
+  "hosted_run": 37789987337,
+  "hosted_job": 113354515266,
+  "hosted_revision": "2d429f2a",
+  "binary_sha256": {
+    "repository": "7eb809164689cd6dba3df8e6aaf56f8b423c84193b2a2b916c1d998dec0994bb",
+    "installed": "ceb5f0233e7a01ac52e4b84de58fc9a5ed8d84a3a5fe60e4cda544ce3723878a"
+  },
+  "files": [
+    {
+      "path": "carousel-remount-before.log",
+      "sha256": "911db233a089145e49ea5db97213eb86521db6e1e741a26159574572b97e9bfd",
+      "bytes": 13231
+    },
+    {
+      "path": "carousel-remount-before/carousel-lifecycle-report.json",
+      "sha256": "c0ad6e4947d84bfc7770489f9fca9504e3314558560e77ac50a6b49d42017c29",
+      "bytes": 1374
+    },
+    {
+      "path": "carousel-remount-after.log",
+      "sha256": "4023ec90112c64dc9fbceef80c21c123456cf889480ef225dc1baa5564844d4d",
+      "bytes": 9940
+    },
+    {
+      "path": "carousel-remount-after/carousel-lifecycle-report.json",
+      "sha256": "57c0258fb8b0a25fe92c50d99df92b2cbc55d475443516c938cf0a637a033920",
+      "bytes": 5581
+    },
+    {
+      "path": "carousel-remount-auto.log",
+      "sha256": "27569c8d6c3487bd5f8423686614a1f612a98cb913be11d16735151ffe4ff829",
+      "bytes": 2931
+    },
+    {
+      "path": "carousel-remount-auto/carousel-automatic-report.json",
+      "sha256": "187837c0e70ad7c62625eb94c8f109cb26d5d9efd1fc9805db3e1c1308187d0e",
+      "bytes": 44368
+    },
+    {
+      "path": "carousel-remount-installed-lifecycle.log",
+      "sha256": "4bbff83dc65269f1628e6e002d6343218f9e51d7530ce12dd478209edeb4ed87",
+      "bytes": 9994
+    },
+    {
+      "path": "carousel-remount-installed-lifecycle/carousel-lifecycle-report.json",
+      "sha256": "57c0258fb8b0a25fe92c50d99df92b2cbc55d475443516c938cf0a637a033920",
+      "bytes": 5581
+    },
+    {
+      "path": "carousel-remount-installed-auto.log",
+      "sha256": "6c40dd863fac26bd9526706157db832aefc7ab28b47a796ff56961dc862cfa49",
+      "bytes": 2983
+    },
+    {
+      "path": "carousel-remount-installed-auto/carousel-automatic-report.json",
+      "sha256": "a8a220c520d0d7cb409001eb0cbf8d874b7dcd7bfb6aa3b13a4c464d60dbedb1",
+      "bytes": 44271
+    },
+    {
+      "path": "hosted-carousel-automatic-37789987337.log",
+      "sha256": "8af785920bafc2566894ee8893573321e3d1eee1d0ad7386f4d7e0b780f5ac7f",
+      "bytes": 14369
+    },
+    {
+      "path": "hosted-carousel-lifecycle-37789987337.log",
+      "sha256": "385c9f718842d5a256b6cd1ad8310a11317e79dbade866087e7babd9b978828d",
+      "bytes": 22034
+    },
+    {
+      "path": "scripts/gallery_carousel_track.py",
+      "sha256": "bf7c31f4c8baf0a7e8156ee20bc84be663efe7787805c4a7681b40187416cd4f",
+      "bytes": 14892
+    },
+    {
+      "path": "scripts/gallery_carousel_lifecycle.py",
+      "sha256": "2ae641de27ec82f3a16f25650a06c00336a7546ee14404a64a38479470c4ef57",
+      "bytes": 7327
+    }
+  ],
+  "archive_sha256": "3f28c227b89e043c814171a155bbd09ca3ba221b776c713694674ccfab8fe50f"
+}

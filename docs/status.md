@@ -43,6 +43,11 @@ at attachment selection. [CI evidence](evidence/milestone-07-ci.md) records this
 new failure and the added fatal-stack/native-crash diagnostics. Updated-source
 hosted acceptance remains required.
 
+The [carousel remount test repair](evidence/carousel-remount-harness-och41.md)
+reproduces two hosted page-return failures and adds the missing outer-page reveal
+before focus/editor queries. Both local and installed lifecycle/automatic checks
+pass without application changes or relaxed assertions; hosted revalidation remains.
+
 The [message-follow desktop walkthrough](evidence/message-follow-macos-och41.md)
 repairs a clipped Large-size follow button in the OCaml gallery. Repository and
 installed tests pass both themes/three sizes, native Space/pointer/wheel routing

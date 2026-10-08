@@ -132,6 +132,11 @@ def exercise(mac, images=None):
                 mac.close(second)
         if action == 'page-unmount':
             mac.press(TITLE, 'Carousels & journeys')
+            # Returning recreates the page scroller. Clipped track cards are
+            # intentionally absent from AX until the outer page reveals them.
+            case['remount_before_reveal'] = rect()
+            case['remount_after_reveal'] = reveal_gallery_control(
+                mac, label, 'AXGroup', scroll_in_left_gutter=True)
             expect_field(mac, TITLE, 'Card draft', 'Make something worth sharing.')
             case['draft'] = 'fresh page-scoped editor'
         else:

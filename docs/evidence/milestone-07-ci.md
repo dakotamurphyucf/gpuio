@@ -1,5 +1,13 @@
 # Milestone 07 hosted validation follow-up
 
+## In-progress follow-up — 37789987337 (2026-10-08)
+
+Linux Foundation has completed successfully. macOS is still running at this
+checkpoint; its automatic-carousel and interrupted-drag steps fail at page
+return. The [local reproduction and test-driver repair](carousel-remount-harness-och41.md)
+identify a missing visibility precondition. This run predates that repair;
+no final whole-run or updated-source acceptance is claimed.
+
 ## Terminal run — 37772649589 (2026-10-08)
 
 [Run37772649589](https://github.com/dakotamurphyucf/gpuio/actions/runs/37772649589)
