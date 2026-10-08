@@ -314,6 +314,10 @@ jobs:
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
         timeout-minutes: 3
         run: python3 scripts/test_gallery.py --section tabs --images .cache/ci/tabs 2>&1 | tee .cache/ci/macos-tabs-gallery.log
+      - name: macOS flat split-group input and retention
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 3
+        run: python3 scripts/test_gallery.py --section split-group --images .cache/ci/split-group 2>&1 | tee .cache/ci/macos-split-group-gallery.log
       - name: macOS measured carousel automatic pause and resume
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
         timeout-minutes: 3

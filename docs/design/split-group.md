@@ -1,8 +1,10 @@
 # Flat resizable panel groups — OCH-41
 
 Status: Core/Bonsai view, native bridge and gallery implemented; local integration
-checks pass ([evidence](../evidence/split-group-bridge-och41.md)). Physical and release
-qualification remains open. The existing two-pane `Split_pane` remains supported. Neither
+checks pass ([evidence](../evidence/split-group-bridge-och41.md)). Scoped
+[physical macOS and installed-consumer checks](../evidence/split-group-macos-och41.md)
+now pass input, callback delivery and retained children. Full physical/resource
+and release qualification remains open. The existing two-pane `Split_pane` remains supported. Neither
 TestPlatform results nor this contract establish physical desktop release acceptance.
 
 The pinned base resizable group exposes horizontal/vertical arbitrary panels,

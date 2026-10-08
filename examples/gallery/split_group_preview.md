@@ -50,3 +50,25 @@ These repository-wrapper commands are instructions, not validation performed for
 documentation change. There is no standalone executable or self-test for this component.
 Compilation does not establish native focus, keyboard, animation or platform acceptance. See
 [gallery instructions](README.md) and [development](../../docs/development.md).
+
+Run `python3 scripts/test_gallery.py --section split-group --images scratch/split-group`
+for a native walkthrough. The driver reveals the group before looking for its
+children: offscreen native layout does not publish the child editor and dividers.
+It types into the draft, then uses pointer drags, Escape, axis-appropriate arrows,
+Home/End and macOS accessibility increment/decrement. The default keyboard step
+is 16 logical pixels; it is independent of the example's three-pixel painted line
+and sixteen-pixel pointer target.
+
+For a concrete request sequence, resizing Draft to 320 applies a new serial once.
+Moving its preceding divider by 16 then makes Draft 304. The completed snapshot
+updates `observation`, causing a new `let%arr` evaluation; it must not replay the
+old 320 request. Toggling decorative grips also preserves that size. Enabling
+the 200-pixel maximum clamps the layout, and a fresh 320 request remains subject
+to that maximum. The status text is checked against actual divider values, so
+native movement alone does not stand in for delivery to the Bonsai callback.
+
+Reorder, hide/show, insertion/removal and reset preserve the draft while the page
+is mounted. Leaving the page retires the native editor; returning recreates its
+initial text. The walkthrough checks this separately from ordinary panel
+retention. It does not operate VoiceOver or establish frame timing, idle CPU or
+resource budgets.

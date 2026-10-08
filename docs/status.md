@@ -30,6 +30,12 @@ Older records of a VoiceOver hold no longer apply. Access was restored after the
 
 ## Latest delivered behavior and validation
 
+The [split-group desktop walkthrough](evidence/split-group-macos-och41.md) passes
+pointer cancellation, keyboard/AX resizing, delivery into Bonsai, constrained
+serialled requests and retained editing through structural changes, locally and
+in the installed consumer. Full accessibility, paint/resource and release
+acceptance remain separate.
+
 The [native tabs walkthrough](evidence/tabs-macos-och41.md) passes retained panels,
 independent close/menu controls, explicit reveal and thirty geometry/keyboard
 cases across five variants, both themes and three scales, locally and in the

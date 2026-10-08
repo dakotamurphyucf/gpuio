@@ -146,3 +146,13 @@ installed consumer. Thirty geometry/Right-Left cases span five variants, both
 themes and all three scales; page remount creates a fresh editor. This supersedes
 earlier physical-gap wording for that scope. Pixel/motion, full focus/VoiceOver,
 split-group desktop coverage and measured resource/release acceptance remain.
+
+## Flat split-group desktop follow-up — 2026-10-08
+
+The [physical split-group walkthrough](../evidence/split-group-macos-och41.md)
+passes both axes/themes with native drag/Escape, keyboard limits and accessibility
+increments, plus Bonsai resize delivery, serialled request handling, range
+clamping, custom grip hit extent, structural draft retention and page remount.
+Both repository and installed galleries pass. This supersedes the earlier
+physical-gap wording for that scope; other geometry, paint/full accessibility,
+resource and release acceptance remain separate.
