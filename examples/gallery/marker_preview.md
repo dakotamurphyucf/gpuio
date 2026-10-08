@@ -41,7 +41,9 @@ state; it starts no job and supplies no work cancellation/persistence.
 
 From the repository root:
 
-```sh./scripts/gpuio build examples/gallery/main.exe./_build/default/examples/gallery/main.exe
+```sh
+./scripts/gpuio build examples/gallery/main.exe
+./_build/default/examples/gallery/main.exe
 ```
 
 These repository-wrapper commands are instructions, not checks run for this documentation

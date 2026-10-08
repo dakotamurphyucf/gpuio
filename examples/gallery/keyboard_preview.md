@@ -38,7 +38,9 @@ verification. Do not claim Linux execution acceptance from Linux labels.
 
 From the repository root:
 
-```sh./scripts/gpuio build examples/gallery/main.exe./_build/default/examples/gallery/main.exe
+```sh
+./scripts/gpuio build examples/gallery/main.exe
+./_build/default/examples/gallery/main.exe
 ```
 
 These repository-wrapper commands are instructions, not checks run for this documentation

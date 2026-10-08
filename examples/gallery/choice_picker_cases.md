@@ -46,7 +46,9 @@ errors instead of relying on trusted-constant ok_exn; mock creation is not persi
 
 From the repository root:
 
-```sh./scripts/gpuio build examples/gallery/main.exe./_build/default/examples/gallery/main.exe
+```sh
+./scripts/gpuio build examples/gallery/main.exe
+./_build/default/examples/gallery/main.exe
 ```
 
 These repository-wrapper commands are instructions, not checks run for this documentation

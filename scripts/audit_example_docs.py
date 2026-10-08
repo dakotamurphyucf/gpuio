@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check example source ownership and render its documentation review checklist.
+"""Check example ownership, links/fences and render its review checklist.
 
 Existence/link checks do not establish that prose explains a component correctly.
 Set review=reviewed only after the OCH-48 content review in coverage-guide.md.
@@ -33,6 +33,26 @@ def link(name):
     return f'[{path.name}]({path.relative_to("examples").as_posix()})'
 
 
+def check_fences(path):
+    """Catch broken runnable blocks, without pretending to validate their code."""
+    opening = None
+    for number, line in enumerate(path.read_text().splitlines(), 1):
+        match = re.match(r'^ {0,3}(`{3,}|~{3,})(.*)$', line)
+        if not match:
+            continue
+        fence, info = match.groups()
+        if opening:
+            marker, length, _ = opening
+            if fence[0] == marker and len(fence) >= length and not info.strip():
+                opening = None
+        else:
+            if re.match(r'(sh|bash|shell)[./\\]', info.strip()):
+                raise ValueError(f'{path}:{number}: shell command joined to fence label')
+            opening = fence[0], len(fence), number
+    if opening:
+        raise ValueError(f'{path}:{opening[2]}: unclosed Markdown fence')
+
+
 @lru_cache(maxsize=None)
 def reachable_guides(directory):
     """Follow example prose links; the generated coverage table is not onboarding."""
@@ -45,6 +65,7 @@ def reachable_guides(directory):
                 or path.suffix != '.md' or not path.is_file()):
             continue
         seen.add(path)
+        check_fences(path)
         # Repository guides use inline Markdown links. Ignore example code blocks.
         prose = re.sub(r'^```.*?^```[^\n]*$', '', path.read_text(),
                        flags=re.MULTILINE | re.DOTALL)
