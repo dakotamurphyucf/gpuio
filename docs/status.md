@@ -30,6 +30,12 @@ Older records of a VoiceOver hold no longer apply. Access was restored after the
 
 ## Latest delivered behavior and validation
 
+The [macOS scroll phase repair](evidence/macos-scroll-phases-och41.md) preserves
+AppKit cancelled-scroll events instead of treating them as continued movement.
+An actual AppKit factory/converter regression fails before the fix and passes
+afterward. This does not establish hardware gesture delivery or resolve the
+separately reported loaded-list overlap.
+
 The [measured carousel desktop follow-up](evidence/carousel-track-macos-och41.md)
 passes native keys/editing, both axes/themes, clipped-neighbor pointer selection,
 reorder/resize retention and remount locally and in the installed gallery.

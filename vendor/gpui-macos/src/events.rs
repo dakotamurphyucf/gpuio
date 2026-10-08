@@ -26,6 +26,61 @@ pub(crate) const ESCAPE_KEY: u16 = 0x1b;
 const TAB_KEY: u16 = 0x09;
 const SHIFT_TAB_KEY: u16 = 0x19;
 
+#[cfg(test)]
+mod scroll_phase_tests {
+    use super::*;
+    use core_graphics::event::CGEvent;
+    use foreign_types::ForeignType;
+
+    unsafe extern "C" {
+        fn CGEventCreateScrollWheelEvent2(
+            source: *const c_void,
+            units: u32,
+            wheel_count: u32,
+            wheel1: i32,
+            wheel2: i32,
+            wheel3: i32,
+        ) -> *mut core_graphics::sys::CGEvent;
+    }
+
+    #[test]
+    fn appkit_scroll_phases_preserve_cancellation_and_zero_terminal_deltas() {
+        objc::rc::autoreleasepool(|| {
+            for (cg_phase, expected) in [
+                (1, TouchPhase::Started),
+                (2, TouchPhase::Moved),
+                (4, TouchPhase::Ended),
+                (8, TouchPhase::Cancelled),
+            ] {
+                for (dx, dy) in [(-200, 0), (0, -200), (0, 0)] {
+                    // CoreGraphics phase flags differ numerically from AppKit's.
+                    // Exercise the real NSEvent conversion, then our production
+                    // adapter; no WindowServer injection or OS focus is needed.
+                    let raw = unsafe {
+                        CGEventCreateScrollWheelEvent2(std::ptr::null(), 0, 2, dy, dx, 0)
+                    };
+                    assert!(!raw.is_null());
+                    let event = unsafe { CGEvent::from_ptr(raw) };
+                    event.set_integer_value_field(99, cg_phase);
+                    let native =
+                        unsafe { NSEvent::eventWithCGEvent_(cocoa::base::nil, raw.cast()) };
+                    assert!(!native.is_null());
+                    let Some(PlatformInput::ScrollWheel(converted)) =
+                        (unsafe { platform_input_from_native(native, Some(px(400.))) })
+                    else {
+                        panic!("AppKit scroll was not converted to a scroll input");
+                    };
+                    assert_eq!(converted.touch_phase, expected, "CG phase {cg_phase}");
+                    let ScrollDelta::Pixels(delta) = converted.delta else {
+                        panic!("Precise AppKit scroll lost its pixel units");
+                    };
+                    assert_eq!(delta, point(px(dx as f32), px(dy as f32)));
+                }
+            }
+        });
+    }
+}
+
 pub fn key_to_native(key: &str) -> Cow<'_, str> {
     use cocoa::appkit::*;
     let code = match key {
@@ -261,6 +316,7 @@ pub(crate) unsafe fn platform_input_from_native(
                         TouchPhase::Started
                     }
                     NSEventPhase::NSEventPhaseEnded => TouchPhase::Ended,
+                    NSEventPhase::NSEventPhaseCancelled => TouchPhase::Cancelled,
                     _ => TouchPhase::Moved,
                 };
 

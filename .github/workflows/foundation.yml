@@ -119,6 +119,9 @@ jobs:
       - name: OCaml and Rust tests
         id: unit_tests
         run: ./scripts/gpuio test 2>&1 | tee .cache/ci/tests.log
+      - name: macOS AppKit scroll phase conversion (no window)
+        if: runner.os == 'macOS'
+        run: python3 scripts/test_macos_scroll_phases.py --output .cache/ci/scroll-phases
       - name: Diagnose Linux native test stack failure
         if: runner.os == 'Linux' && failure() && steps.unit_tests.outcome == 'failure'
         timeout-minutes: 5

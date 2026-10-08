@@ -123,3 +123,9 @@ Its [automatic-policy follow-up](../evidence/carousel-track-macos-och41.md#autom
 now passes five actual pause conditions, fresh native intervals and page-retired
 timers in both binaries. Gesture capture and the remaining physical/release scope
 stay open.
+
+The [AppKit scroll adapter regression](../evidence/macos-scroll-phases-och41.md)
+now preserves cancelled scroll phases at the macOS input boundary. Real AppKit
+factory conversion and GPUIO routing/state tests cover their separate layers;
+synthetic desktop cancellation delivery remains unqualified. This does not close
+the physical gesture/edge-handoff or smooth-presentation requirements.

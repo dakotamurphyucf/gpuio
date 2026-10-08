@@ -1,7 +1,7 @@
-# GPUI macOS resource retirement
+# GPUI macOS adaptations
 
 GPUIO vendors `gpui_macos` at the same Zed revision as GPUI core:
-`a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b`. These are ownership adaptations,
+`a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b`. These are ownership and input adaptations,
 not a platform upgrade. Root and generated static backends patch the same crate;
 Dune tracks its source tree so native archives cannot silently stay stale.
 
@@ -86,6 +86,35 @@ their existing selector and dispatch behavior. This also avoids retaining a
 boxed action for a disabled native row; re-enabling replaces the snapshot with
 a fresh, non-reused tag. The native regression calls `NSMenu.update()` before
 checking disabled state, rather than checking construction alone.
+
+## Cancelled scroll events
+
+AppKit's `NSEventPhaseCancelled` now maps to GPUI `TouchPhase::Cancelled` for
+scroll-wheel events. Previously it fell through to `Moved`, so a native widget
+could not distinguish cancellation from continuing movement. GPUIO's measured
+carousel already discards a cancelled gesture without committing its candidate
+selection. This adapter change supplies the phase that contract requires; it
+does not change the gesture thresholds, quiet fallback or the pinch converter.
+
+The vendor regression constructs actual CoreGraphics events, converts them with
+AppKit's `eventWithCGEvent:`, and calls the production GPUI converter. It checks
+start, move, end and cancel with horizontal, vertical and zero pixel deltas.
+It needs no visible window, focus or input injection. The original converter
+fails the cancellation assertion; the repaired converter passes. Run:
+
+```sh
+GPUIO_JOBS=2 python3 scripts/test_macos_scroll_phases.py --output scratch/scroll-phases
+```
+
+Use a fresh output directory. The excluded vendor crate needs a separate test
+workspace for its dev-dependencies. The helper copies its source, adds the root
+dependency patches and runtime shader feature, and removes the isolated root's
+unused benchmark feature. It verifies source bytes and rejects registry/git
+dependencies absent from the application's lockfile. Neither the original
+manifest nor the repository lockfile is modified. Cargo logs and provenance are
+written to the output directory. This is an AppKit conversion regression, not
+proof of physical trackpad delivery or smooth presentation. See
+[scoped evidence](../evidence/macos-scroll-phases-och41.md).
 
 ## Reproduction and maintenance
 

@@ -99,7 +99,7 @@
     "commit": "a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b",
     "version": "0.1.0",
     "archive_sha256": "10c9f20251c4ed9427db19456c6f8987ffd00bf7ef82df11edc6c75b13ff9fa2",
-    "patch_sha256": "d86565e16ab8ae3d49877f53c621e263df32eead70c7a67cd9090a94472d92eb"
+    "patch_sha256": "c8e10e499389d818d2c3e8bd93e1db2e8857039e04c77e677bc8e43d78c4362f"
   },
   "gpui_apple": {
     "url": "https://github.com/zed-industries/zed.git",
