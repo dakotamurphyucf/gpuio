@@ -29,7 +29,9 @@ jobs:
           test ! -e .opam-root
           test ! -e _build
           test ! -e target
-          python3 scripts/ci_macos_package_transfer.py verify \
+          # Diagnostic replay explicitly checks the producing run's identity.
+          # Normal Foundation verifies its own run/attempt and is unchanged.
+          GITHUB_RUN_ID=37772649589 GITHUB_RUN_ATTEMPT=1 python3 scripts/ci_macos_package_transfer.py verify \
             --directory .cache/macos-runtime-inputs --revision b13984c1960b3be8c1dde7241c12ac60b0555250 \
             2>&1 | tee .cache/ci/transfer-verification.log
       - name: Prepare the hosted desktop
