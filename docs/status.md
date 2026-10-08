@@ -30,6 +30,14 @@ Older records of a VoiceOver hold no longer apply. Access was restored after the
 
 ## Latest delivered behavior and validation
 
+The [loaded-list scroll investigation](evidence/list-scroll-diagnostics-och17.md)
+distinguishes automated row jumps from ordinary wheel input. Eighty wheel steps
+showed no sampled row overlap; 524 retained-row comparisons matched their pixel
+deltas. This does not rule out a brief paint glitch. Full runs still failed, and
+controlled minimization reproduced a frame wait timeout. Failure-only diagnostics
+now retain window/viewport/runtime state; no list performance acceptance or
+rendering fix is claimed.
+
 The [rendered visual-line repair](evidence/rendered-visual-lines-och17.md) connects
 styled and Unicode fragments on the same painted line without joining paragraphs
 or table cells. Native reflow/scope tests and actual macOS paragraph line/range and

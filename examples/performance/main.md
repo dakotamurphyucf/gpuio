@@ -71,3 +71,17 @@ Commands were reviewed, not executed for this guide.
 To adapt it, change fixtures, row counts and collector expectations together.
 Preserve stable keys, bounded active rows and explicit readiness checks; define
 new measured boundaries before running rather than silently including setup.
+
+The traversal uses immediate `Controller.scroll_to` commands, including whole-row
+jumps on every backward step. It does not simulate smooth wheel or trackpad
+scrolling; large, rapid visual jumps are expected in this workload. Check ordinary
+scroll interactions separately before diagnosing a visual glitch from its motion.
+
+A timed-out readiness or rendered-frame wait writes `GPUIO_LIST_WAIT_FAILED`
+with the wait label, window snapshot, list viewport, active/materialized row counts
+and runtime diagnostics before failing. Viewport waits retain their 15-second
+limit; rendered-frame waits retain 10 seconds and name the target row (or growth
+phase). These failure-only observations help distinguish state convergence from
+missing frame acknowledgements. A window snapshot is not proof of visibility at
+every earlier frame, and the diagnostic does not turn an incomplete run into a
+passing measurement.

@@ -131,14 +131,32 @@ let run ~smoke ~background ~wall_clock =
           ("GPUIO_PERF " ^ name ^ " " ^ Sexp.to_string sexp ^ "\n")
           (Eio.Stdenv.stdout env)
       in
+      let with_timeout ~seconds ~label f =
+        try Eio.Time.with_timeout_exn clock seconds f with
+        | Eio.Time.Timeout ->
+          Eio.Flow.copy_string
+            ("GPUIO_LIST_WAIT_FAILED "
+             ^ Sexp.to_string
+                 [%sexp
+                   { label : string
+                   ; window = (App.Window.snapshot window : Window.Snapshot.t option)
+                   ; viewport =
+                       (Option.bind !observed ~f:L.Output.viewport
+                        : Virtual_list.Viewport.t option)
+                   ; active_rows =
+                       (Option.map !observed ~f:L.Output.active_rows : int option)
+                   ; materialized = (Set.length !materialized : int)
+                   ; runtime = (App.diagnostics app : App.Diagnostics.t)
+                   }]
+             ^ "\n")
+            (Eio.Stdenv.stdout env);
+          failwith ("Timed out: " ^ label)
+      in
       let wait ?(label = "condition") f =
-        try
-          Eio.Time.with_timeout_exn clock 15. (fun () ->
-            while not (f ()) do
-              Eio.Time.sleep clock 0.005
-            done)
-        with
-        | Eio.Time.Timeout -> failwith ("Timed out: " ^ label)
+        with_timeout ~seconds:15. ~label (fun () ->
+          while not (f ()) do
+            Eio.Time.sleep clock 0.005
+          done)
       in
       let next_event () =
         wait ~label:"native measurement event" (fun () -> not (Queue.is_empty events));
@@ -224,12 +242,12 @@ let run ~smoke ~background ~wall_clock =
       let output () = Option.value_exn !observed in
       let current_viewport () = L.Output.viewport (output ()) in
       let viewport () = Option.value_exn (current_viewport ()) in
-      let frame () =
+      let frame ~label () =
         let promise, resolver = Eio.Promise.create () in
         App.Window.request_frame window ~on_rendered:(fun ~revision:_ ->
           E.of_thunk (fun () -> Eio.Promise.resolve resolver ()))
         |> ok;
-        Eio.Time.with_timeout_exn clock 10. (fun () -> Eio.Promise.await promise)
+        with_timeout ~seconds:10. ~label (fun () -> Eio.Promise.await promise)
       in
       let peak_active = ref 0 in
       let move target =
@@ -241,7 +259,7 @@ let run ~smoke ~background ~wall_clock =
             (Option.exists v.anchor ~f:(fun (anchor, _) -> Key.equal anchor (key target))
              || (v.at_end && v.visible_first <= target && v.visible_last > target))
             && Set.mem !materialized target));
-        frame ();
+        frame ~label:(sprintf "row %d rendered frame" target) ();
         wait ~label:"painted viewport" (fun () -> Option.is_some (current_viewport ()));
         let v = viewport () in
         assert ((not v.budget_exhausted) && not (L.Output.budget_exhausted (output ())));
@@ -303,7 +321,7 @@ let run ~smoke ~background ~wall_clock =
            "growth-failed"
            [%sexp (current_viewport () : Virtual_list.Viewport.t option)];
          raise exn);
-      frame ();
+      frame ~label:"grown row rendered frame" ();
       assert ((viewport ()).visible_first = 0);
       assert ((viewport ()).visible_last = 1);
       emit "growth-complete" (Virtual_list.Viewport.sexp_of_t (viewport ()));
