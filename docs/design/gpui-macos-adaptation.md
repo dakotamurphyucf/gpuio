@@ -1,7 +1,7 @@
-# GPUI macOS window retirement
+# GPUI macOS resource retirement
 
 GPUIO vendors `gpui_macos` at the same Zed revision as GPUI core:
-`a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b`. This is a teardown adaptation,
+`a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b`. These are ownership adaptations,
 not a platform upgrade. Root and generated static backends patch the same crate;
 Dune tracks its source tree so native archives cannot silently stay stale.
 
@@ -40,6 +40,34 @@ budget to reinterpret the failing measurements. Preserve all category values,
 RSS, physical-footprint growth and raw tool output independently. The unmodified
 run must remain available as before-fix evidence.
 
+## Native menu action ownership
+
+The upstream platform appended every menu-bar and Dock action to one
+process-lifetime vector. Replacing a menu released its native items but retained
+the boxed Rust commands. GPUIO's menu snapshots avoid replacements on unrelated
+renders, but actual command, scope or active-window changes still replace menus.
+
+The platform now owns separate action maps for the installed bar and Dock menu.
+Replacing either owner clears only its own map. Every command receives a
+monotonically increasing signed 64-bit tag, matching `NSInteger` on the supported
+macOS architectures. Tags are never reused, including across bar/Dock owners;
+exhaustion disables new items instead of wrapping. The maps retain only current
+actions, independent of the number of previous replacements. A callback already
+in flight retains its own action clone until it returns.
+
+AppKit clients can retain old `NSMenuItem` objects. Their old tags resolve to no
+action after replacement, so they cannot invoke a new command accidentally.
+Both validation and action delegates release the platform mutex before invoking
+or restoring callbacks, including when the tag is missing. This avoids a stale
+item query reacquiring the same mutex and hanging the UI. Native menu construction
+and registry replacement remain serialized by the existing platform lock.
+
+The portable registry regressions compile the actual vendor module on both host
+platforms; the macOS `native_menus` fixture separately holds real native items
+across 128 replacements and invokes their delegates. See
+[menu retirement evidence](../evidence/native-menu-retirement-och41.md).
+This patch does not add native menu-bar icons or qualify their rendering.
+
 ## Reproduction and maintenance
 
 ```sh
@@ -49,8 +77,15 @@ python3 scripts/vendor_gpui.py --crate gpui_macos --output scratch/gpui-macos-re
 The script verifies the upstream archive and `third_party/patches/gpui-macos.patch`
 hashes in `third_party/sources.json`, materializes workspace dependencies without
 changing their pins/features, preserves `Cargo.toml.upstream`, and copies the
-upstream Apache license. All 17 reconstructed files match the vendored tree.
+upstream Apache license. The menu registry adds one file; all 18 reconstructed
+files match the vendored tree at the menu-retirement checkpoint.
 No Cargo cache files are edited. When refreshing upstream, inspect the ownership
 chain and adapter destructor again, then rerun native accessibility/window-close
 behavior and the physical audit. Do not remove the patch merely because registry
 or RSS tests pass.
+
+Also rerun `cargo test -p gpuio-native --test menu_action_registry` and the actual
+macOS `native_menus` fixture when updating native menu construction or delegates.
+Preserve the clipboard around that fixture: its existing context-menu checks
+exercise Copy. Menu payload retirement is a distinct gate from window/Metal
+retirement and does not replace the physical-memory audit.

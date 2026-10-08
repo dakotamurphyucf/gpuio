@@ -1,7 +1,11 @@
 use crate::{
     BoolExt, MacActivity, MacDispatcher, MacDisplay, MacKeyboardLayout, MacKeyboardMapper,
-    MacWindow, events::key_to_native, ns_string, pasteboard::Pasteboard, renderer,
-    set_active_window_cursor_style,
+    MacWindow,
+    events::key_to_native,
+    menu_actions::{MenuActionBuilder, MenuActions},
+    ns_string,
+    pasteboard::Pasteboard,
+    renderer, set_active_window_cursor_style,
 };
 use anyhow::{Context as _, anyhow};
 use block2::RcBlock;
@@ -185,7 +189,7 @@ pub(crate) struct MacPlatformState {
     menu_command: Option<Box<dyn FnMut(&dyn Action)>>,
     validate_menu_command: Option<Box<dyn FnMut(&dyn Action) -> bool>>,
     will_open_menu: Option<Box<dyn FnMut()>>,
-    menu_actions: Vec<Box<dyn Action>>,
+    menu_actions: MenuActions<Box<dyn Action>>,
     open_urls: Option<Box<dyn FnMut(Vec<String>)>>,
     finish_launching: Option<Box<dyn FnOnce()>>,
     dock_menu: Option<id>,
@@ -250,7 +254,7 @@ impl MacPlatform {
         &self,
         menus: &Vec<Menu>,
         delegate: id,
-        actions: &mut Vec<Box<dyn Action>>,
+        actions: &mut MenuActionBuilder<'_, Box<dyn Action>>,
         keymap: &Keymap,
     ) -> id {
         unsafe {
@@ -291,7 +295,7 @@ impl MacPlatform {
         &self,
         menu_items: Vec<MenuItem>,
         delegate: id,
-        actions: &mut Vec<Box<dyn Action>>,
+        actions: &mut MenuActionBuilder<'_, Box<dyn Action>>,
         keymap: &Keymap,
     ) -> id {
         unsafe {
@@ -313,7 +317,7 @@ impl MacPlatform {
     unsafe fn create_menu_item(
         item: &MenuItem,
         delegate: id,
-        actions: &mut Vec<Box<dyn Action>>,
+        actions: &mut MenuActionBuilder<'_, Box<dyn Action>>,
         keymap: &Keymap,
     ) -> id {
         static DEFAULT_CONTEXT: OnceLock<Vec<KeyContext>> = OnceLock::new();
@@ -426,9 +430,11 @@ impl MacPlatform {
                     }
                     item.setEnabled_(if *disabled { NO } else { YES });
 
-                    let tag = actions.len() as NSInteger;
-                    let _: () = msg_send![item, setTag: tag];
-                    actions.push(action.boxed_clone());
+                    let tag = actions.insert(action.boxed_clone());
+                    if tag.is_none() {
+                        item.setEnabled_(NO);
+                    }
+                    let _: () = msg_send![item, setTag: tag.unwrap_or(-1)];
                     item
                 }
                 MenuItem::Submenu(Menu {
@@ -1055,8 +1061,8 @@ impl Platform for MacPlatform {
         unsafe {
             let app: id = msg_send![APP_CLASS, sharedApplication];
             let mut state = self.0.lock();
-            let actions = &mut state.menu_actions;
-            let menu = self.create_menu_bar(&menus, NSWindow::delegate(app), actions, keymap);
+            let mut actions = state.menu_actions.replace_bar();
+            let menu = self.create_menu_bar(&menus, NSWindow::delegate(app), &mut actions, keymap);
             drop(state);
             app.setMainMenu_(menu);
         }
@@ -1071,8 +1077,8 @@ impl Platform for MacPlatform {
         unsafe {
             let app: id = msg_send![APP_CLASS, sharedApplication];
             let mut state = self.0.lock();
-            let actions = &mut state.menu_actions;
-            let new = self.create_dock_menu(menu, NSWindow::delegate(app), actions, keymap);
+            let mut actions = state.menu_actions.replace_dock();
+            let new = self.create_dock_menu(menu, NSWindow::delegate(app), &mut actions, keymap);
             if let Some(old) = state.dock_menu.replace(new) {
                 CFRelease(old as _)
             }
@@ -1457,10 +1463,14 @@ extern "C" fn handle_menu_item(this: &mut Object, _: Sel, item: id) {
         let mut lock = platform.0.lock();
         if let Some(mut callback) = lock.menu_command.take() {
             let tag: NSInteger = msg_send![item, tag];
-            let index = tag as usize;
-            if let Some(action) = lock.menu_actions.get(index) {
-                let action = action.boxed_clone();
-                drop(lock);
+            let action = lock
+                .menu_actions
+                .get(tag)
+                .map(|action| action.boxed_clone());
+            // Missing/stale tags must release the lock too, before restoring the
+            // callback below. Otherwise a late AppKit query deadlocks the UI.
+            drop(lock);
+            if let Some(action) = action {
                 callback(&*action);
             }
             platform.0.lock().menu_command.get_or_insert(callback);
@@ -1475,10 +1485,14 @@ extern "C" fn validate_menu_item(this: &mut Object, _: Sel, item: id) -> bool {
         let mut lock = platform.0.lock();
         if let Some(mut callback) = lock.validate_menu_command.take() {
             let tag: NSInteger = msg_send![item, tag];
-            let index = tag as usize;
-            if let Some(action) = lock.menu_actions.get(index) {
-                let action = action.boxed_clone();
-                drop(lock);
+            let action = lock
+                .menu_actions
+                .get(tag)
+                .map(|action| action.boxed_clone());
+            // Missing/stale tags must release the lock too, before restoring the
+            // callback below. Otherwise a late AppKit query deadlocks the UI.
+            drop(lock);
+            if let Some(action) = action {
                 result = callback(action.as_ref());
             }
             platform

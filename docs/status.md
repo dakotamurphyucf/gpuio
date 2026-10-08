@@ -30,6 +30,13 @@ Older records of a VoiceOver hold no longer apply. Access was restored after the
 
 ## Latest delivered behavior and validation
 
+The [native-menu retirement repair](evidence/native-menu-retirement-och41.md)
+fixes retained Rust commands after actual menu-bar/Dock replacement. Real AppKit
+checks pass 128 replacements, stale native-item rejection, current dispatch and
+independent Dock teardown. Three portable ownership regressions and the
+1,184-test native suite pass (two existing skips). Native bar artwork remains
+open; this ownership prerequisite does not qualify its rendering.
+
 The [rich-header sizing follow-up](evidence/table-header-fit-och41.md) fixes the
 public gallery's clipped Inspect label using ordinary OCaml button styles.
 Six theme/scale combinations pass actual glyph/rectangle fit, pointer/Space

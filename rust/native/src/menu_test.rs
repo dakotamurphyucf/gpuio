@@ -1,5 +1,8 @@
 //! Real menu key/pointer/accessibility and native macOS menu-bar routing.
 use super::*;
+#[cfg(target_os = "macos")]
+#[path = "menu_retention_test.rs"]
+mod retention_test;
 fn handler(slot: i64) -> gpuio_protocol::HandlerId {
     gpuio_protocol::HandlerId::from_parts(slot, 1).unwrap()
 }
@@ -746,6 +749,8 @@ pub(super) async fn exercise(
     handle: WindowHandle<View>,
     transport: &Transport,
 ) {
+    #[cfg(target_os = "macos")]
+    retention_test::exercise(cx);
     let mut operations = vec![
         Op::Create(node(38), Kind::CommandScope, "".into(), Some(handler(38))),
         Op::SetCommands(node(38), commands()),
