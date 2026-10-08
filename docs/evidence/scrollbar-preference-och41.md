@@ -1,5 +1,9 @@
 # Scrollbar preference snapshot — OCH-41
 
+The [2026-10-08 native follow-up](#actual-appkit-and-gallery-follow-up--2026-10-08)
+below adds both actual AppKit style results and public gallery application.
+The original checkpoint retains its narrower evidence and dated open items.
+
 Checkpoint 2026-10-04, macOS arm64. Working tree based on
 `83eb87e865c86717a8bc51b9db6fe1f379d909a9`; substantial uncommitted changes mean
 that HEAD alone does not identify these sources. OCH-41/OCH-17 remain open.
@@ -70,3 +74,47 @@ keyboard/AX presentation, page departure and multi-window walkthrough remain
 unverified. Local source guards are not physical lifecycle evidence.
 Linux nongraphical checks still need execution on Linux; Linux desktop
 qualification remains OCH-47. The full gallery and release gates remain open.
+
+## Actual AppKit and gallery follow-up — 2026-10-08
+
+`scripts/test_macos_scrollbar_preference.py` now runs three separate gallery
+processes on macOS 14.5 arm64: the current setting and process-local argument
+defaults `-AppleShowScrollBars Always` / `WhenScrolling`. An independently
+compiled AppKit helper reads `NSScroller.preferredScrollerStyle` with the same
+arguments and verifies legacy/overlay respectively. No global/defaults database,
+input source, clipboard or other OS setting is written. These are actual AppKit
+queries and native windows, not TestPlatform substitutions.
+
+All three cases pass. Current and WhenScrolling resolve to `Auto_hide`, mapped
+to While scrolling; Always resolves to `Always_visible`, mapped to Always visible.
+The driver starts with the opposite manual choice before applying the native
+snapshot. Captures show the expected selected mode and status. A real native Down
+key moves the vertical range from 0 to 26 logical pixels; applying the snapshot
+keeps 26. End reaches 677 and Home restores zero after the mode update. Leaving
+and returning to the page permits a new manual choice and fresh native read.
+All three owned applications close normally and exit zero.
+
+The first attempt failed on a fixture assumption after the snapshot/keys passed:
+it expected page reactivation to clear the already published status. Bonsai
+retains that model while `Preview_scope` cancels/recreates the request scope.
+The corrected fixture preserves this distinction and tests a fresh successful
+query after an explicit choice. No production change was required. This is not
+evidence for deliberately delayed in-flight response cancellation, multi-window
+isolation, live System Settings notifications, pointer dragging, fade timing,
+VoiceOver or full scrollbar/table acceptance.
+
+The [native reports archive](scrollbar-preference-och41/native-reports.tar.gz)
+and [manifest](scrollbar-preference-och41/native-manifest.json) preserve both
+attempts, exact fixture/oracle sources, reports, build logs and window captures;
+every file was verified by reading the archive back. Source base is
+`3b929690936d61b59027882bc02894c326644195`, gallery SHA-256
+`2694c047b64f750f17758ca521c3b5c7bb4fa70f13f9135f3a334adecdd382ee`.
+
+```sh
+python3 scripts/test_macos_scrollbar_preference.py --output <fresh-directory>
+python3 -m py_compile scripts/test_macos_scrollbar_preference.py
+```
+
+The corrected run and syntax checks pass, as do workflow actionlint, catalog and
+example documentation audits, and diff checks. Foundation now includes this
+bounded native scenario; hosted acceptance of the new revision remains pending.

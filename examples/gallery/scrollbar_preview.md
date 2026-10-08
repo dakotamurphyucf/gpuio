@@ -24,6 +24,11 @@ Scrolling, Always_visible to Always; unsupported/error preserves the chosen mode
 disable while busy so another explicit mode cannot race this query. This is a snapshot, not a
 subscription; departure prevents late publication.
 
+Cancelling the visit scope does not reset the already published mode or status.
+The Bonsai branch retains those values when you leave Collections and return;
+`Preview_scope` supplies a fresh request scope on reactivation. A pending reply
+from the old scope cannot overwrite that state, while a new explicit read can.
+
 `appearance` builds an Oklab accent→muted gradient thumb, 18-pixel track, base/hover/pressed
 geometry and colors. `motion` supplies 0.8s idle hold and 160/240/120ms enter/exit/expand
 timings. Turning animated off selects Motion.default (immediate movement, default idle policy),
@@ -42,10 +47,18 @@ registration or OCaml animation loop is created.
 
 From the repository root:
 
-```sh./scripts/gpuio build examples/gallery/main.exe./_build/default/examples/gallery/main.exe
+```sh
+./scripts/gpuio build examples/gallery/main.exe
+./_build/default/examples/gallery/main.exe
 ```
 
 These repository-wrapper commands are instructions, not validation performed for this
 documentation change. There is no standalone executable or self-test for this component.
 Compilation does not establish native focus, keyboard, animation or platform acceptance. See
 [gallery instructions](README.md) and [development](../../docs/development.md).
+
+The [native preference follow-up](../../docs/evidence/scrollbar-preference-och41.md#actual-appkit-and-gallery-follow-up--2026-10-08)
+checks AppKit's current/legacy/overlay results, applying while scrolled, native
+range keys and page reactivation. Process-local test defaults do not modify the
+user's System Settings; live global preference changes and animation timing are
+separate checks.

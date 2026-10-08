@@ -299,6 +299,10 @@ jobs:
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
         timeout-minutes: 3
         run: python3 scripts/test_gallery.py --section choice-pickers --images .cache/ci/choice-pickers 2>&1 | tee .cache/ci/macos-choice-pickers.log
+      - name: macOS native scrollbar preference application
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 5
+        run: python3 scripts/test_macos_scrollbar_preference.py --output .cache/ci/scrollbar-preference 2>&1 | tee .cache/ci/macos-scrollbar-preference.log
       - name: macOS public clipboard writes and feedback
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
         timeout-minutes: 3

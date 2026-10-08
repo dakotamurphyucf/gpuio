@@ -962,7 +962,10 @@ This action does not change OS settings, subscribe to changes or install a timer
 Leaving the page invalidates an outstanding reply; each window owns its choice.
 See [the snapshot contract](../../docs/design/scrollbar-preference.md).
 
-Manual scrollbar walkthrough (physical macOS qualification still pending):
+The [native preference walkthrough](../../docs/evidence/scrollbar-preference-och41.md#actual-appkit-and-gallery-follow-up--2026-10-08)
+passes current/legacy/overlay AppKit snapshots, applying while scrolled, native
+range keys and page reactivation. The remaining broader manual scrollbar checks
+are:
 
 1. Open Collections → Scrollbars. Drag each thumb; verify the two tracks leave a
    shared corner and reach both ends. Tab to a range and use arrows, Page Up/Down,

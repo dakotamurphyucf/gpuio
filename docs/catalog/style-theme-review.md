@@ -126,3 +126,11 @@ retention, native selection/undo, scale/window isolation and scoped delayed-read
 cancellation. The app's Follow system choice wins over pending file work; actual
 OS appearance switching now has its [own passing physical check](../evidence/window-appearance-och41.md#physical-macos-appearance--2026-10-05), including restoration of the original OS preferences. No watcher or upstream
 JSON theme importer is implied.
+
+## Native scrollbar follow-up — 2026-10-08
+
+The [real AppKit/gallery fixture](../evidence/scrollbar-preference-och41.md#actual-appkit-and-gallery-follow-up--2026-10-08)
+now passes current, legacy and overlay snapshots, application while scrolled,
+native range keys and page reactivation. Both forced styles use process-local
+argument defaults; no persistent system setting changes. Live global changes,
+fade timing, pointer drag and full release qualification remain separate.
