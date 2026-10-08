@@ -1,0 +1,236 @@
+{
+  "complete": true,
+  "platform": "macOS-14.5-arm64-arm-64bit-Mach-O",
+  "executable_sha256": "e86e29605b7c64f37887ab116439c7001f9d14594b90ce7949b1ac345513a7fc",
+  "large_density": true,
+  "checks": [
+    {
+      "case": "keyboard-action",
+      "label": "Inspect highlighted code"
+    },
+    {
+      "case": "keyboard-action",
+      "label": "Summarize native table"
+    },
+    {
+      "case": "inline-to-block-tab-and-keyboard"
+    },
+    {
+      "case": "changed-properties-native-pointer"
+    },
+    {
+      "case": "profile-remove-and-remount"
+    },
+    {
+      "case": "plugin-keyboard-scroll-reveal-and-activation"
+    },
+    {
+      "case": "plugin-clipped-control-does-not-trap-tab",
+      "exited_to": "Inherit"
+    },
+    {
+      "case": "plugin-native-wheel-and-retained-scroll"
+    },
+    {
+      "case": "plugin-property-update-retains-offset-and-current-event"
+    },
+    {
+      "case": "plugin-unmount-releases-scroll-state"
+    },
+    {
+      "case": "page-departure-source-release",
+      "events": [
+        [
+          "1",
+          "Inspect_code"
+        ],
+        [
+          "1",
+          "Summarize_table"
+        ],
+        [
+          "1",
+          "Open_badge"
+        ],
+        [
+          "1",
+          "Open_card"
+        ],
+        [
+          "1",
+          "Open_card"
+        ],
+        [
+          "1",
+          "Open_badge"
+        ],
+        [
+          "1",
+          "Open_card"
+        ],
+        [
+          "1",
+          "Open_card"
+        ],
+        [
+          "1",
+          "Open_card"
+        ]
+      ]
+    }
+  ],
+  "review_geometry": [
+    {
+      "time": 7748593.359519375,
+      "viewport": [
+        610.5,
+        805.0,
+        735.0,
+        150.0
+      ],
+      "button": [
+        610.5,
+        929.0,
+        735.0,
+        26.0
+      ]
+    },
+    {
+      "time": 7748593.94024,
+      "viewport": [
+        610.5,
+        805.0,
+        735.0,
+        150.0
+      ],
+      "button": [
+        610.5,
+        1089.0,
+        735.0,
+        26.0
+      ]
+    },
+    {
+      "time": 7748593.957323791,
+      "viewport": [
+        610.5,
+        805.0,
+        735.0,
+        150.0
+      ],
+      "button": [
+        610.5,
+        1089.0,
+        735.0,
+        26.0
+      ]
+    },
+    {
+      "time": 7748594.201821291,
+      "viewport": [
+        610.5,
+        805.0,
+        735.0,
+        150.0
+      ],
+      "button": [
+        610.5,
+        1089.0,
+        735.0,
+        26.0
+      ]
+    },
+    {
+      "time": 7748594.379596166,
+      "viewport": [
+        610.5,
+        582.5,
+        735.0,
+        150.0
+      ],
+      "button": [
+        610.5,
+        866.5,
+        735.0,
+        26.0
+      ]
+    },
+    {
+      "time": 7748594.544215666,
+      "viewport": [
+        610.5,
+        582.5,
+        735.0,
+        150.0
+      ],
+      "button": [
+        610.5,
+        866.5,
+        735.0,
+        26.0
+      ]
+    },
+    {
+      "time": 7748594.574594208,
+      "viewport": [
+        610.5,
+        232.5,
+        735.0,
+        150.0
+      ],
+      "button": [
+        610.5,
+        356.5,
+        735.0,
+        26.0
+      ]
+    },
+    {
+      "time": 7748595.125314,
+      "viewport": [
+        610.5,
+        504.0,
+        735.0,
+        150.0
+      ],
+      "button": [
+        610.5,
+        628.0,
+        735.0,
+        26.0
+      ]
+    },
+    {
+      "time": 7748595.673819916,
+      "viewport": [
+        610.5,
+        504.0,
+        735.0,
+        150.0
+      ],
+      "button": [
+        610.5,
+        788.0,
+        735.0,
+        26.0
+      ]
+    }
+  ],
+  "before_focus_end_visible": false,
+  "after_focus_end_visible": false,
+  "tab_exit_observations": [
+    {
+      "elapsed_ms": 0.21670758724212646,
+      "role": "AXButton",
+      "title": "Show review end",
+      "focused": true
+    },
+    {
+      "elapsed_ms": 31.319666653871536,
+      "role": "AXButton",
+      "title": "Inherit",
+      "focused": true
+    }
+  ],
+  "child_reaped": true
+}

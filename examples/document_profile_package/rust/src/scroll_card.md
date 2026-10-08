@@ -34,7 +34,13 @@ uses the factory's button helper to emit byte 4, decoded by the OCaml package as
 Open_card. Thus the user can reveal clipped inner content through keyboard
 alternatives without adding an OCaml per-scroll event loop. Outer document reveal
 still owns only its own viewport; it cannot promise revealing arbitrary inner
-plugin controls. NonText content is not ordinary selectable reader text.
+plugin controls. After “Show review start”, Tab from “Show review end” skips
+“Open scroll review” because the latter lies outside the inner viewport. This
+also applies when the enclosing document uses `Layout.Flow`: the reader scopes
+child painting with `with_clipped_input`, and native Divs omit fully clipped
+controls from the eligible tab order. After a reveal paints the button, Tab can
+reach it again. The plugin owns the offset; this focus filter does not scroll it.
+NonText content is not ordinary selectable reader text.
 
 From the repository root using [development setup](../../../../docs/development.md):
 

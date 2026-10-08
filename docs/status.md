@@ -7,6 +7,12 @@ This page records current work; it does not certify release readiness.
 
 <a id="scope-and-platform-policy"></a>
 
+Latest local repair: flow-layout document plugins now exclude controls clipped
+by their own scroll viewports from keyboard traversal. A failing regression and
+Comfortable/Large native walkthroughs verify the fix; see
+[focus-clipping evidence](evidence/document-profile-flow-focus-och17.md).
+Hosted validation of this batch remains pending.
+
 ## Scope and working rules
 
 [Platform policy](platform-release-policy.md): macOS behavior, accessibility,

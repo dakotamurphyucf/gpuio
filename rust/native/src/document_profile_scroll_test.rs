@@ -11,13 +11,22 @@ fn step(cx: &mut VisualTestContext, key: &str, expected: &str) {
 
 #[test]
 fn nested_scroll_clipping_does_not_trap_reader_focus_or_activate_controls() {
+    check_nested_scroll_clipping(Layout::Viewport(180.));
+}
+
+#[test]
+fn flow_document_respects_plugin_owned_scroll_clipping() {
+    check_nested_scroll_clipping(Layout::Flow);
+}
+
+fn check_nested_scroll_clipping(layout: Layout) {
     let mut app = TestAppContext::single();
     let (f, cx) = mount(&mut app, Mode::Markdown);
     install(&f, cx, 1, 9);
     publish(&f, cx, 2, 2, "```card\nNested controls\n```\n");
     ready(&f.presentation, cx);
     let mut config = f.presentation.read_with(cx, |p, _| (*p.config).clone());
-    config.layout = Layout::Viewport(180.);
+    config.layout = layout;
     apply(&f.view, cx, vec![Op::SetDocument(f.node, config)]);
     cx.update(|w, _| w.activate_window());
     ax(cx, "Document content", gpui::accesskit::Action::Focus);

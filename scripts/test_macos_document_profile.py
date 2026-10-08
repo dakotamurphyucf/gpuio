@@ -19,6 +19,34 @@ from test_gallery import (TITLE, GalleryMouse, activate, element_rect, expect_fo
                           reveal_gallery_control, wait_absent, wait_for_resource_cleanup)
 
 
+def wait_for_tab_exit(mac, observations, *, timeout=10):
+    """Await one posted Tab; never resend it or accept a clipped target/window."""
+    boolean = mac.cf.CFBooleanGetValue
+    boolean.restype, boolean.argtypes = C.c_bool, [C.c_void_p]
+    start = time.monotonic()
+    deadline = start + timeout
+    while True:
+        node = mac.attr(mac.app, 'AXFocusedUIElement')
+        value = None
+        try:
+            role = mac.text(node, 'AXRole') if node else None
+            title = mac.text(node, 'AXTitle') if node else None
+            value = mac.attr(node, 'AXFocused') if node else None
+            focused = bool(value and boolean(value))
+            observations.append({'elapsed_ms': (time.monotonic() - start) * 1000,
+                                 'role': role, 'title': title, 'focused': focused})
+            assert title != 'Open scroll review', 'Tab entered the clipped profile control'
+            if node and role != 'AXWindow' and focused and title != 'Show review end':
+                return title
+        finally:
+            if value:
+                mac.release(value)
+            if node:
+                mac.release(node)
+        assert time.monotonic() < deadline, ('Tab did not leave its starting control', observations)
+        time.sleep(.03)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--executable', type=Path,
@@ -152,6 +180,7 @@ def main():
             mac.key(36)
             # Obtain the clipped native bounds separately from focus. A clipped
             # control must become painted before it is eligible for traversal.
+            report['review_geometry'] = []
             def review_visible():
                 viewport = mac.wait_find(TITLE, 'Review checklist viewport', 'AXGroup')
                 button = mac.find(TITLE, 'Open scroll review', 'AXButton')
@@ -160,6 +189,8 @@ def main():
                     if not button:
                         return False, (vx, vy, vw, vh)
                     bx, by, bw, bh = element_rect(mac, button)
+                    report['review_geometry'].append({'time': time.monotonic(),
+                        'viewport': [vx, vy, vw, vh], 'button': [bx, by, bw, bh]})
                     return (bh > 0 and by >= vy and by+bh <= vy+vh, (vx, vy, vw, vh))
                 finally:
                     mac.release(viewport)
@@ -185,18 +216,21 @@ def main():
             while review_visible()[0]:
                 assert time.monotonic() < deadline, 'Keyboard did not return inner review to start'
                 time.sleep(.05)
+            report['before_focus_end_visible'] = review_visible()[0]
             # Starting at the end-button, Tab must escape rather than focus the
             # now-clipped target. The next ordinary Tab can enter later content.
             focus_gallery_control(mac, 'Show review end', 'AXButton')
             time.sleep(.15)
+            report['after_focus_end_visible'] = review_visible()[0]
+            assert not report['after_focus_end_visible'], 'Tab-exit target must start clipped'
+            screenshot(mac, output / 'profile-before-tab-exit.png', title=TITLE)
             mac.key(48)
-            node = mac.attr(mac.app, 'AXFocusedUIElement')
+            report['tab_exit_observations'] = []
             try:
-                exited_to = mac.text(node, 'AXTitle') if node else None
-                assert node and exited_to not in ('Open scroll review', 'Show review end'), exited_to
+                exited_to = wait_for_tab_exit(mac, report['tab_exit_observations'])
             finally:
-                if node:
-                    mac.release(node)
+                review_visible()
+                screenshot(mac, output / 'profile-tab-exit.png', title=TITLE)
             assert [entry[1] for entry in events()] == expected
             report['checks'].append({'case': 'plugin-clipped-control-does-not-trap-tab',
                                      'exited_to': exited_to})

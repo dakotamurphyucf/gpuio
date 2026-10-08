@@ -20556,3 +20556,37 @@
  pub use macos_accessibility::install_window_hit_test_forwarder;
  #[doc(hidden)]
  pub use measure::measurement_enabled;
+--- a/src/text/text_view.rs
++++ b/src/text/text_view.rs
+@@ -903,8 +903,7 @@
+         GlobalState::global_mut(cx)
+             .text_view_state_stack
+             .push(state.clone());
+-        let clipped_input = state.read(cx).max_lines.is_some() || self.scrollable;
+-        let mut paint = |window: &mut Window| {
++        let paint = |window: &mut Window| {
+             if let Some(clip_bottom) = prepaint.clip_bottom {
+                 // Snap the `max_lines` clip to the last whole line that fits, so a
+                 // line of glyphs is never cut in half.
+@@ -918,14 +917,13 @@
+                 request_layout.element.paint(window, cx);
+             }
+         };
+-        if clipped_input {
+-            let (_, clipped_focus) = window.with_clipped_input(paint);
+-            if clipped_focus {
+-                let focus = state.read(cx).focus_handle.clone();
+-                focus.focus(window, cx);
+-            }
+-        } else {
+-            paint(window);
++        // Flow documents can contain plugin-owned scroll viewports too. Their
++        // clipped controls are not eligible keyboard targets, even though the
++        // document itself neither scrolls nor has a preview line limit.
++        let (_, clipped_focus) = window.with_clipped_input(paint);
++        if clipped_focus {
++            let focus = state.read(cx).focus_handle.clone();
++            focus.focus(window, cx);
+         }
+         GlobalState::global_mut(cx).text_view_state_stack.pop();
+         state.update(cx, |state, cx| state.schedule_control_focus(window, cx));

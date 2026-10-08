@@ -96,7 +96,11 @@ independent scroll area owns that area's offset and keyboard reveal policy.
 Measured descendant bounds do not authorize the reader to change an arbitrary
 inner scroll container. Only descendants eligible in a painted frame can receive
 focus; a clipped candidate gets a bounded outer reveal attempt before traversal
-continues. Leaving the reader follows the host's composite order. Reverse entry
+continues. This input clipping also applies to `Layout.Flow` documents:
+plugin-owned viewports must exclude hidden controls even when the enclosing
+reader has neither its own scrollbar nor a preview line limit. See the
+[flow-layout regression and macOS checks](../evidence/document-profile-flow-focus-och17.md).
+Leaving the reader follows the host's composite order. Reverse entry
 from the toolbar returns to the reader anchor, rather than implicitly selecting
 the last plugin control.
 

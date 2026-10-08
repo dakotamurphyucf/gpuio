@@ -1,5 +1,12 @@
 # Plugin-owned document scrolling — OCH-41
 
+**2026-10-08 correction:** the original immediate Tab-exit check could accept an
+AX window or inspect stale focus. Its result does not establish clipped-control
+exclusion for flow documents. The [reproduced defect, repair and stronger native
+checks](document-profile-flow-focus-och17.md) supersede that assertion. Other
+historical checks retain their stated scope. The owner's VoiceOver hold mentioned
+below was subsequently lifted; actual VoiceOver qualification remains separate.
+
 Local macOS arm64 checkpoint, 2026-10-04, on the dirty worktree based on
 `83eb87e865c86717a8bc51b9db6fe1f379d909a9`. Production host, parser/profile worker,
 reader and native elements run on GPUI TestPlatform. No OS windows were opened.
