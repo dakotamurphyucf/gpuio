@@ -37,7 +37,7 @@ private-D-Bus skips**; five transport tests and strict lint pass. See the
 [visibility evidence](carousel-track-visibility-och41.md) for exact native coverage.
 No physical app was launched in this checkpoint.
 
-## Physical walkthrough — not yet executed
+## Physical walkthrough — partial desktop evidence now available
 
 Open **Carousels & journeys → Ideas in motion**. Review both Light and Dark
 appearance, all preview scales, a narrow window and a second gallery window.
@@ -64,7 +64,10 @@ appearance, all preview scales, a narrow window and a second gallery window.
 7. Leave the page and close the second window during movement. Verify editor,
    timers and native owners retire, and an idle surviving window stays quiet.
 
-This walkthrough defines pending checks, not physical acceptance evidence.
+The [2026-10-08 desktop follow-up](carousel-track-macos-och41.md) completes a
+scoped subset: both-axis/theme native keys, edited draft retention, partial-neighbor
+pointer selection, reorder/resize, immediate looping, disabled controls and remount.
+The remaining steps above are still pending; that follow-up is not full acceptance.
 VoiceOver, real IME/keyboard, hardware paint/performance and broader release
 qualification remain open. Linux desktop qualification stays deferred under the
 platform release policy; required Linux automation remains separate.

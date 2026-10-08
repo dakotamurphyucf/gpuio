@@ -27,6 +27,22 @@ windows/unavailable geometry settle. Toggle Auto supplies a four-second interval
 proposed natively and pauses during interaction, not an OCaml timer. Short tracks can use
 immediate loop-boundary jumps rather than seamless wrapping.
 
+For example, type into Capture, focus **Measured idea cards**, then press End.
+Rust translates the viewport key into `Request.Last`; `on_request` constructs the
+Bonsai dispatch effect and the reducer chooses the last measured stop. The next
+view update moves the retained cards natively. Capture's fully clipped editor is
+removed from the exposed accessibility tree but its draft remains owned by the
+mounted editor controller. Home selects the first stop and exposes that same
+draft again. Keys sent to the editor itself retain their editing meaning.
+
+`Reverse` calls `with_items` with reversed stable IDs, preserving the selected
+card and invalidating obsolete geometry. It does not allocate a new model with
+`create`. The Compact viewport toggle changes styles and triggers fresh native
+measurement without replacing the editor. Leaving the entire gallery page ends
+that controller's lifetime: returning starts a new editor with `initial_text`.
+This is distinct from retaining a card while the track remains mounted; persist
+drafts in an application model if they must survive page destruction.
+
 Type Capture’s draft, reverse cards/change axis, select neighbors and enable automatic movement.
 Selection readout is controlled model state; the draft is independent. GPUIO owns
 measurement/input/motion, Bonsai owns the evolving model/options and the adapter owns editor
@@ -48,3 +64,11 @@ These repository-wrapper commands are instructions, not validation performed for
 documentation change. There is no standalone executable or self-test for this component.
 Compilation does not establish native focus, keyboard, animation or platform acceptance. See
 [gallery instructions](README.md) and [development](../../docs/development.md).
+
+Run the scoped native walkthrough with
+`python3 scripts/test_gallery.py --section carousel-track --images scratch/carousel-track`.
+It checks actual keyboard editing/navigation, both axes/themes, partial-neighbor
+pointer input, reorder/resize retention, looping, disabled controls and remount.
+The [recorded desktop evidence](../../docs/evidence/carousel-track-macos-och41.md)
+keeps automatic advancement, drag/wheel cancellation, VoiceOver and frame timing
+separate from this subset of the full qualification plan.

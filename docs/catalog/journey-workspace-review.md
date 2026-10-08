@@ -109,3 +109,12 @@ page remount. It distinguishes exposed AX identity from platform objects retired
 while hidden. The earlier sidebar physical-gap wording above is superseded for
 this recorded scope; VoiceOver, motion timing, measured resources, other nested
 options and consolidated release acceptance remain separate.
+
+## Measured carousel physical follow-up — 2026-10-08
+
+The [desktop navigation evidence](../evidence/carousel-track-macos-och41.md)
+qualifies a subset of the existing physical plan locally and in the installed
+consumer: native keys/editor retention, both axes/themes, clipped-neighbor pointer
+input, reorder/resize, immediate looping, disabled controls and page remount.
+Gesture ownership/cancellation, automatic timing, full focus/VoiceOver, additional
+scales/windows and measured resources remain open.

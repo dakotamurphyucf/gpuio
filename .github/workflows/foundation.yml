@@ -303,6 +303,10 @@ jobs:
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
         timeout-minutes: 5
         run: python3 scripts/test_macos_scrollbar_preference.py --output .cache/ci/scrollbar-preference 2>&1 | tee .cache/ci/macos-scrollbar-preference.log
+      - name: macOS measured carousel keyboard and retained cards
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 3
+        run: python3 scripts/test_gallery.py --section carousel-track --images .cache/ci/carousel-track 2>&1 | tee .cache/ci/macos-carousel-track.log
       - name: macOS sidebar policies and retained appearance
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
         timeout-minutes: 3
