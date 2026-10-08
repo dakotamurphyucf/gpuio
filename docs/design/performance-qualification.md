@@ -192,3 +192,8 @@ rendering and the separate workload timing gates are unchanged. See the
 all three full 33-cycle trials pass on the recorded physical Mac, retaining every
 callback outcome and physical-memory checkpoint. This does not qualify collector
 overhead or relax the separate timing requirements.
+
+The [paired overhead attempts](../evidence/collector-overhead-och17.md) retain an
+inactive-window smoke timeout and a later full instrumented idle failure with
+recorded input. A startup foreground preflight is documented, but the planned
+three paired repetitions remain incomplete; no overhead estimate is accepted.

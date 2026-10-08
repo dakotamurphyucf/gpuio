@@ -97,7 +97,22 @@ at `7f648d9ad19c551b566a1f4fcdbdf0ea660df444`, records a separate active
 90-frame warmup before replacing the measurement sessions and running the original
 strict 90-frame phase. Its warmup reports are retained separately; the measured
 phase's acceptance predicate is unchanged, including rejection of any skipped
-frame and the animation minimum. It is running at this checkpoint. This tests
-steady-state callback behavior, not a production startup fix or cold-start pass.
-Original failures remain failed. Required main-branch presentation failures remain
-unresolved; local physical-Mac workload passes are separate evidence.
+frame and the animation minimum. This experiment also **fails**: the measured
+first window presents all 90 frames, but the second has one initial zero followed
+by 89 presentations. Its 88 animation samples satisfy the minimum. Both finish,
+remain visible at the endpoint observations, close and settle with zero pending
+callbacks and no other lost or invalid outcomes.
+
+The separately retained warmup contains 84 presented/six zero outcomes in window
+1 and 80 presented/ten zero outcomes in window 2; the latter includes a zero after
+its first positive. No warmup record is silently discarded or counted as measured
+success. The [warmup archive](hosted-metal-diagnostic-och17/warmup-reports.tar.gz)
+retains thirteen files, including exact diagnostic source/workflow, reports and
+build logs, verified against its
+[manifest](hosted-metal-diagnostic-och17/warmup-reports-manifest.json).
+
+Active warmup therefore does not establish strict steady-state acceptance under
+this probe sequence. No corresponding main-branch change is adopted. This was not
+a production startup repair or cold-start pass. Original failures remain failed;
+required presentation checks remain unresolved. Local physical-Mac workload passes
+are separate evidence.
