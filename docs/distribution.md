@@ -9,6 +9,12 @@ Component Studio and Signal Studio. These are inputs to release testing. Assembl
 and an ad-hoc signature do not establish clean-machine execution, Gatekeeper
 acceptance, notarization, license completeness or a published framework release.
 
+The first delivery is now a source-library developer preview; see the
+[preview closeout](milestone-07-closeout.md). Actual signed/notarized reference-app
+qualification is tracked separately in [OCH-164](https://linear.app/ochat/issue/OCH-164).
+Do not represent locally assembled or ad-hoc bundles as accepted signed releases.
+The requirements below still apply when delivering those application artifacts.
+
 ## Build and assemble
 
 Use the isolated repository toolchain, with the intended build profile recorded.

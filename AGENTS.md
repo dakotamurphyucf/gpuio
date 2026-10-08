@@ -5,7 +5,16 @@ Read `docs/status.md`, `CONTRIBUTING.md` and
 Follow the accepted stock OCaml 5.3/Bonsai v0.17/Core/Eio design. Use the repository
 toolchain and isolated environment; never mutate unrelated switches or defaults.
 
-Platform priority (owner, 2026-09-28): milestone 07 is a macOS-first v1 release.
+Release priority (owner, 2026-10-08): milestone 07 now targets a usable developer
+preview for real-user feedback. Follow `docs/milestone-07-closeout.md`: one bounded
+catalog evidence reconciliation, concrete normal-use blockers, long-list and
+rapid-update/typing performance, bounded resources, reproducible builds and clear
+docs/limits. Reuse valid evidence, batch CI and avoid exhaustive per-component
+reviews. Broader qualification and signed reference-app distribution are OCH-164;
+do not silently claim them complete. Historical failures stay recorded. See the
+current platform policy for the preview versus later qualification boundary.
+
+Earlier platform split (owner, 2026-09-28): macOS remains the first platform.
 Linux builds/unit/private-bus/consumer checks stay required; graphical smoke is
 informational. Full Linux desktop qualification is OCH-47 in deferred milestone
 07b and does not block milestone 07, milestone 08 or feature development. Do not

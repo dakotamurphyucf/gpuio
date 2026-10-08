@@ -5,6 +5,33 @@ acceptance runs. No workload is certified by this plan. Historical development
 build timings remain diagnostics. Changes to targets require an explicit dated
 rationale and a new run; do not retroactively turn a failing result into a pass.
 
+## Focused v1 scope — owner direction, 2026-10-08
+
+The owner requested concentrating performance qualification on the important
+paths where scale or frequent updates make performance a user-facing risk.
+This dated scope revision supersedes the earlier requirement to qualify the full
+four-workload timing matrix for every candidate. It does not change production
+limits, relabel historical failures as passes, or lower the retained core budgets.
+
+| Release requirement | Focused acceptance |
+| --- | --- |
+| Long variable-height lists | Keep the 10,000-record full traversal/growth/anchor workload, its existing draw/presentation and memory budgets, and three independent valid optimized trials. Resolve observable jitter and unexplained idle redraws on this path. |
+| Rapid updates while typing | Keep four streams at 20 updates/s for 120 seconds with native typing at 10 keys/s, existing content/input/queue/draw/presentation and memory budgets, and three independent valid optimized trials. |
+| Idle and bounded resources | Keep settled focused/unfocused idle and representative repeated-window cleanup/retirement checks. Reuse valid existing full lifecycle evidence after an explicit change-impact review; rerun affected paths when necessary. No separate exhaustive performance matrix per component. |
+| Large tables and Markdown/code documents | Preserve existing three-trial timing results, exact revisions and known limits. Keep content, virtualization/admission, bounded-memory and cleanup correctness coverage. Additional full timing batches are diagnostic unless a reproducible regression implicates these paths or a relevant change invalidates their coverage. |
+| Startup/chart historical outliers | Retain the failures and investigated visibility behavior. Unproven original causes remain documented. They are follow-up diagnostics rather than separate root-cause completion gates; a reproducible current user-facing stall, blank window or critical-workload regression still requires a fix. |
+| Measurement overhead | Validate collector correctness/retirement and compare ordinary versus instrumented behavior for the two core workloads. Reuse a representative comparison when it exercises the same collector configuration; add measurements only for a demonstrated validity gap. Do not expand this into a second exhaustive matrix. Quantify uncertainty rather than assume zero overhead. |
+
+There are two mandatory timing workloads, with shared idle/resource checks.
+Prior passing table/document results are retained, not repeated merely to satisfy
+an obsolete blanket matrix requirement. Required correctness CI remains intact.
+The subsequent developer-preview decision separates hosted timing availability
+from physical core-workload performance: stable-release hosted qualification
+moves to OCH-164. The current CI workflow still needs a reviewed change that
+preserves correctness/cleanup checks and reports specifically unavailable timing
+honestly; it must not suppress crashes, malformed reports or ownership failures.
+[The closeout checklist](../milestone-07-closeout.md) tracks the remaining work.
+
 ## Reference environment
 
 The available reference is MacBookPro18,2, Apple M1 Max, 32 GiB unified memory,
@@ -23,9 +50,14 @@ not a promise of 120 Hz animation or measured physical presentation.
 
 ## Workloads and targets
 
+The focused scope above determines which rows are mandatory timing gates.
+The table retains the original workload definitions and budgets for interpreting
+existing reports and running targeted diagnostics.
+
 Each workload must verify content, event ordering and cleanup as well as timing.
 Use deterministic text/data generation and publish exact sizes/seeds with its
-runner. Warm up explicitly, then record three independent measured runs. Report
+runner. For mandatory timing workloads, warm up explicitly, then record three
+independent measured runs. Report
 all runs and outliers. Aggregate CPU, native submission and physical observations
 must remain separate.
 
@@ -104,7 +136,7 @@ and TestPlatform tests on macOS/Linux. These do not establish physical latency.
 
 Complete reproducible workload drivers and report export, validate collectors
 against deterministic/synthetic traces, measure instrumentation overhead, then
-run the matrix and investigate failures. Retain platform/hardware/build metadata,
+run the focused scope above and investigate relevant failures. Retain platform/hardware/build metadata,
 raw samples, phase markers, resource counters and cleanup status in each report.
 Current chart staged diagnostics help locate delays but do not satisfy this
 matrix or its predeclared targets. Linux desktop performance stays in OCH-47.

@@ -7,6 +7,18 @@ Status: bounded core collector and native Metal hook qualification, 2026-10-05.
 The existing [CPU/submission qualification](performance-qualification.md) remains
 valid within its stated scope; it is not evidence of physical frame presentation.
 
+## Focused workload scope — 2026-10-08
+
+The owner's [focused performance direction](performance-qualification.md#focused-v1-scope--owner-direction-2026-10-08)
+limits mandatory repeated presentation timing to the loaded-list and
+streaming/typing workloads. Keep their predeclared budgets, valid sample counts,
+three trials, collector correctness and idle/resource checks. Table/document
+presentation results remain scoped evidence and targeted diagnostics. This does
+not turn unavailable timestamps into passing measurements. Under the subsequent
+developer-preview decision, broader hosted timing availability moves to OCH-164;
+required physical core timing remains. Implement/review the preview CI distinction
+before treating current hosted failures as nonblocking.
+
 ## Observation source
 
 Use `MTLDrawable.addPresentedHandler` and the callback drawable's `presentedTime`.
@@ -101,7 +113,8 @@ replacement session or retain native window resources.
    collector; controlled tests cover ordering, missing/zero/saturated outcomes,
    clock bounds, multi-window identity and close/stop behavior. The native
    two-window probe qualifies the Metal hookup and retirement; it has no input
-   workload and establishes no performance budget. Hosted checks remain required.
+   workload and establishes no performance budget. Hosted correctness/ownership
+   checks remain required; preview timing availability follows the scope above.
 3. Open: integrate the actual GPUI workload drivers. Preserve the accepted sizes,
    content checks and existing CPU/resource budgets. Declare any new presentation
    thresholds before runs; do not choose thresholds from these calibration data.
@@ -137,7 +150,7 @@ Beginning, end and one-second observations qualify sampled visibility/activation
 not continuous OS visibility. `idle_observation_mode` identifies Begin_idle's
 smaller observation buffer; the CPU phase name defines whether a workload is idle.
 
-For each of three full optimized non-idle runs, require at least 1,000 presented
+For each of three full optimized non-idle runs of the two mandatory workloads, require at least 1,000 presented
 frames, submission-to-presentation p95 ≤33.4 ms and p99 ≤50 ms (two/three nominal
 60 Hz periods). The full streaming/typing run also requires at least 1,000 paired
 input frames, native input-to-presentation p95 ≤75 ms and p99 ≤125 ms (the existing

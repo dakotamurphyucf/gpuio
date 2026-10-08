@@ -12,7 +12,8 @@ and the Signal Studio graphics workbench. Its [delivery handoff](docs/milestone-
 links contracts and validation; [PR #14](https://github.com/dakotamurphyucf/gpuio/pull/14)
 records required hosted results, the checked revision and merge status. See
 [current status](docs/status.md) for platform limits. This is an experimental
-framework with no stable API release yet.
+framework with no stable API release yet. The next delivery is a macOS-first
+developer preview for real-user feedback; see the [closeout plan](docs/milestone-07-closeout.md).
 
 The baseline is stock OCaml 5.3.0, Bonsai/Jane Street v0.17, Core, Eio 1.3,
 Dune 3.24.2 and Rust 1.97.1. The initial v1 release targets macOS first. Linux

@@ -3,11 +3,19 @@
 Current handoff: 2026-10-08. Milestone
 **07 — Expanded v1 macOS validation and release** is active. **OCH-41 and OCH-17
 remain In Progress.** OCH-48 example walkthrough acceptance is complete.
+The owner’s 2026-10-08 direction makes the next delivery a **developer preview**
+for real-user feedback. Broader qualification and signed-app distribution move
+to [OCH-164](https://linear.app/ochat/issue/OCH-164); see the closeout checklist.
 This page records current work; it does not certify release readiness.
+
+Start with the [milestone 07 closeout checklist](milestone-07-closeout.md) for
+the remaining work, dependencies, execution order and rules for reusing evidence.
+The detailed entries below are historical and scoped evidence, not a queue of
+new tasks to repeat.
 
 <a id="scope-and-platform-policy"></a>
 
-Latest local repair: flow-layout document plugins now exclude controls clipped
+Earlier local repair: flow-layout document plugins now exclude controls clipped
 by their own scroll viewports from keyboard traversal. A failing regression and
 Comfortable/Large native walkthroughs verify the fix; see
 [focus-clipping evidence](evidence/document-profile-flow-focus-och17.md).
@@ -15,8 +23,8 @@ Hosted validation of this batch remains pending.
 
 ## Scope and working rules
 
-[Platform policy](platform-release-policy.md): macOS behavior, accessibility,
-performance/resources and distribution are release gates. Linux build, unit,
+[Platform policy](platform-release-policy.md): the current preview checklist
+supersedes the earlier stable-release gate assignments. Linux build, unit,
 private-D-Bus and independent-consumer checks remain required. X11/Wayland GUI
 smoke is informational; full desktop qualification is OCH-47 in deferred **07b**
 and does not block milestone 07, milestone 08 or feature work. No VM is required.
@@ -361,7 +369,9 @@ hosted/Linux results still need acceptance; canceled runs are not passes.
 
 ## Remaining milestone acceptance
 
-The live Linear tickets and linked contracts define completion. Historical local
+The [preview checklist](milestone-07-closeout.md) and amended live tickets define
+current completion. The table below retains the broader qualification inventory;
+OCH-164 owns the explicitly deferred portions. Historical local
 passes apply to their recorded sources and coverage, not automatically to the
 current release candidate.
 
@@ -370,8 +380,8 @@ current release candidate.
 | OCH-41: complete component mapping | The [catalog](catalog/README.md) and [family ledger](catalog/families.json) map 41 v1 families, post-v1 docking and excluded development tooling. Finish nested-functionality review and consolidated meaningful behavior evidence for every required row; root-module presence alone is insufficient. Helpers belong to their owning APIs. Keep post-v1 grid editing/docking/editor/LSP boundaries explicit. |
 | OCH-41: public gallery and document/input contracts | Public OCaml examples and scoped installed-consumer/physical results exist. Complete the expanded gallery walkthrough, visual review, themes/scales, keyboard/accessibility and teardown acceptance. Preserve completed [form/editor admission](evidence/gallery-editor-admission-och41.md), [theme-file loading/cancellation](evidence/gallery-theme-files-och41.md), [two-window appearance](evidence/window-appearance-och41.md), [window lifecycle](evidence/window-lifecycle-och41.md), [input queries](evidence/window-input-query-och41.md), [window selection](evidence/window-selection-och41.md), [document profiles](evidence/document-profile-macos-och41.md) and [plugin scrolling](evidence/document-profile-scroll-och41.md). Do not redo these solely because an old checkpoint calls them untested. |
 | OCH-17: actual macOS native/accessibility acceptance | [Multiline and single-line Japanese IME](evidence/multiline-ime-cancellation-och17.md), source-editor selection/geometry and rendered-document selection have scoped evidence. Complete consolidated focus/clipboard/file-drop/OS accessibility coverage, real VoiceOver reading/tracking/navigation, rendered visual-line/character-geometry qualification. Representative point-based routing now passes for the two-window editors and [21 control/overlay points](evidence/form-label-point-routing-och17.md). Use [document accessibility](design/document-accessibility.md), [editor geometry](design/editor-accessibility-geometry.md), [window accessibility](evidence/window-accessibility-och17.md) and [gallery evidence](evidence/gallery-och41.md). Tree presence or TestPlatform success is not screen-reader acceptance. |
-| OCH-17: performance and resources | Rebuild and qualify corrected optimized sources under the fixed [performance plan](design/performance-qualification.md); reports from the withdrawn allocation optimization do not establish acceptance after [lifetime repairs](evidence/gallery-lifetime-repairs-och41.md). Required workloads include 10k loaded variable-height rows, 100k paged rows, growing documents, concurrent streaming/typing, repeated windows/history traversal, focused/unfocused idle, native-entity/physical/Metal resource retirement and collector overhead. Separate CPU work, queueing, input-to-paint and actual presentation. Historical [list](evidence/presentation-list-full-och17.md), [table](evidence/paged-table-performance-och17.md), [document](evidence/growing-document-och17.md), [streaming/typing](evidence/presentation-typing-full-och17.md), [idle](evidence/idle-performance-och17.md), [physical memory](evidence/physical-memory-och17.md), [native entities](evidence/native-entity-retention-och17.md) and [Metal](evidence/metal-resource-och17.md) reports retain their exact scope. The current-source [list repeat batch](evidence/presentation-list-full-och17.md#current-source-repeat-batch--2026-10-07) has two full passes and one failed zero-redraw idle check (14 draws); investigate its trigger before repeated-run acceptance. The historical startup failure against the unchanged 100ms bound remains retained; do not rerun until lucky or raise limits. The current-source [table presentation batch](evidence/presentation-table-current-och17.md) passes all three full 100k-row/64-column trials, including zero-redraw idle and cleanup. The current-source [document presentation batch](evidence/presentation-document-current-och17.md) also passes all three full 20 MiB aggregate trials with native interaction and clipboard restoration. The current-source [streaming/typing batch](evidence/presentation-streaming-current-och17.md) passes all three full 120-second runs with 1,200 paired foreground input frames each. The [active collector retirement audit](evidence/presentation-retirement-och17.md) passes guard tests, corrected macOS smoke and three full 33-cycle resource trials on the physical Mac. The [collector-overhead attempts](evidence/collector-overhead-och17.md) remain incomplete: the first batch encountered an inactive-window timeout, and a foreground-preflight batch stopped when its full instrumented idle phase recorded input and draws. All attempts are retained; no overhead conclusion is claimed. |
-| OCH-17: chart/startup findings | Investigate/qualify the historical 63,050.99ms chart publication delay. Later staged runs and a controlled minimize demonstrate visibility-sensitive readiness but do not establish the original cause; [chart evidence](evidence/chart-streaming-och40.md). Twelve nonblack startup samples do not rule out earlier blank frames; no production startup fix is claimed by [that evidence](evidence/window-startup-och17.md). |
+| OCH-17: performance and resources | Owner direction on 2026-10-08 narrows mandatory timing to **10k variable-height lists** and **rapid streaming while typing**, with existing budgets/three valid trials and shared idle/resource/measurement-validity checks. See the [focused plan](design/performance-qualification.md#focused-v1-scope--owner-direction-2026-10-08) and P1/P2 in [closeout](milestone-07-closeout.md). Preserve the recorded three-trial table/document/typing and lifecycle evidence; review change impact rather than rerun all matrices. The loaded-list batch has two full passes and an unresolved 14-draw idle failure; interrupted later diagnostics and collector comparisons do not establish acceptance. No resource or current user-facing failure is waived. |
+| OCH-17: chart/startup findings | The historical 63,050.99ms chart publication delay, startup-bound failure and nonblack startup samples remain documented in [chart](evidence/chart-streaming-och40.md) and [startup evidence](evidence/window-startup-och17.md). Under the owner’s focused performance scope, unresolved original causes are follow-up diagnostics rather than independent release gates. Reproducible current user-facing stalls/blank windows remain defects to fix; old failures are not relabeled as passes. |
 | OCH-17: notices and reproducible distribution | [Bonsai reconstruction](evidence/bonsai-reconstruction-och17.md) covers all eight vendored roots. Finish [OCaml](evidence/ocaml-notices-och17.md)/[Rust](evidence/dependency-notices-och17.md) notice, asset and system review, current release-artifact qualification, platform minimums and the chosen signing/distribution workflow. Earlier internal ad-hoc archives pass on a separate hosted macOS receiver and locally with development paths denied; [package evidence](evidence/package-runtime-och17.md). That is not signed-release acceptance. Follow [distribution](distribution.md) and [fork maintenance](component-adapters.md). |
 | OCH-17: API, examples and release | The [application guide](getting-started.md), [compatibility/limits](api-compatibility.md), [installed starter](evidence/public-api-starter-och17.md) and [API boundary review](evidence/api-boundaries-och17.md) exist. Finish whole-surface API/limitations review, versioning, reviewed changes, required final checks and release publication. Maintain adjacent implementation walkthroughs and [the example inventory](../examples/coverage-guide.md); scratch is not a release dependency. |
 | Required Linux/hosted checks | [Run 37286788836](https://github.com/dakotamurphyucf/gpuio/actions/runs/37286788836) passed both foundation jobs and the separate macOS extracted-app receiver at the recorded older tree. The newer [run 37744396036](https://github.com/dakotamurphyucf/gpuio/actions/runs/37744396036) at `497236b7` passes Linux and the separate macOS receiver. macOS Foundation passes the repaired control fixture and full table-history traversal; only both Metal probes fail, with zero presentation timestamps in all 90 frames per GPUI window and all 120 calibration frames. The subsequent [run 37758529147](https://github.com/dakotamurphyucf/gpuio/actions/runs/37758529147) at `61944bfc` passes Linux but exceeds the macOS two-hour job limit during artifact upload. Scrollbar-preference and both Metal checks also fail; the receiver cannot obtain the incomplete upload. The macOS job allowance is now three hours, with individual test limits and acceptance thresholds unchanged. Current changes require their own accepted run. The [hosted Metal investigation](evidence/hosted-metal-diagnostic-och17.md) distinguishes ARM zero timestamps from a passing sequential Intel standalone API probe; the unchanged Intel GPUI probe fails on an initial two-second zero-timestamp interval. An idle-delay experiment still fails with one initial zero per window; a separately recorded active-warmup experiment also fails with one initial zero in its active window. A subsequent isolated Intel continuous-warm-up batch passes all three predeclared trials (90 positive presentations per window, zero measured losses/zeros); it retains warm-up zeros and does not qualify cold startup or replace the original Foundation gates. No gate is waived. Linux build/unit/private-bus/consumer remain mandatory; graphical failures stay informational in OCH-47. See [CI evidence](evidence/milestone-07-ci.md). |
@@ -381,11 +391,11 @@ current release candidate.
 
 ## Next action and history
 
-Proceed with macOS accessibility qualification, then the remaining consolidated
-catalog/performance/distribution gates above. Fix reproduced defects and retain
-failed evidence; do not keep expanding speculative engine tests instead of the
-release requirements. Batch coherent changes and validate locally before waiting
-on CI; required merge gates remain in force.
+Follow the [closeout checklist](milestone-07-closeout.md): first reconcile existing
+catalog evidence into a concrete gap list, then prioritize the two core performance
+workloads and executable accessibility work. Continue notices/API review while
+waiting for CI or external setup. Fix named required defects; reuse valid evidence
+and retain failed trials. Batch coherent changes; required merge gates remain.
 
 The complete pre-consolidation status snapshot and older checkpoints are preserved
 in [status history](status-history.md). Use that history and individual evidence
