@@ -27,6 +27,23 @@ def utf16(text):
     return len(text.encode('utf-16-le')) // 2
 
 
+def expect_settable(mac, node, attributes):
+    """Ask the OS what a client such as VoiceOver may change on this node."""
+    check = mac.ax.AXUIElementIsAttributeSettable
+    check.restype, check.argtypes = C.c_int, [C.c_void_p, C.c_void_p, C.POINTER(C.c_bool)]
+    observed = {}
+    for name, expected in attributes.items():
+        attribute, value = mac.string(name), C.c_bool()
+        try:
+            error = check(node, attribute, C.byref(value))
+            assert error == 0, (name, error)
+            assert value.value == expected, (name, value.value, expected)
+            observed[name] = value.value
+        finally:
+            mac.release(attribute)
+    return observed
+
+
 class Selection:
     def __init__(self, mac):
         self.mac = mac
@@ -84,6 +101,10 @@ def exercise_rendered(mac, board):
         return board.text()
 
     try:
+        observations.append({'case': 'rendered-attribute-mutability', 'attributes':
+                             expect_settable(mac, node, {'AXFocused': True,
+                                 'AXSelectedTextRange': True, 'AXValue': False,
+                                 'AXRole': False, 'AXElementBusy': False})})
         mac.set(node, 'AXFocused', mac.true)
         foreground_keys(mac)
         expect_focus(mac, 'Document content', 'AXGroup')
@@ -128,6 +149,10 @@ def exercise(mac, board, *, source_only):
     foreground_keys(mac)
     node = mac.wait_find(TITLE, 'Code preview', 'AXTextArea')
     try:
+        observations.append({'case': 'source-attribute-mutability', 'attributes':
+                             expect_settable(mac, node, {'AXFocused': True,
+                                 'AXSelectedTextRange': True, 'AXValue': False,
+                                 'AXRole': False})})
         text = mac.text(node, 'AXValue')
         assert '世界' in text and 'let greeting' in text
         mac.key(0, flags=1 << 20)
@@ -164,6 +189,10 @@ def exercise(mac, board, *, source_only):
     expect_field(mac, TITLE, label, text, 'AXTextArea')
     node = mac.wait_find(TITLE, label, 'AXTextArea')
     try:
+        observations.append({'case': 'editor-attribute-mutability', 'attributes':
+                             expect_settable(mac, node, {'AXFocused': True,
+                                 'AXSelectedTextRange': True, 'AXValue': True,
+                                 'AXRole': False})})
         for selected in ['🙂', '👨‍👩‍👧‍👦', 'e\u0301', '日本語', 'λ🙂\nFamily']:
             start, length = utf16(text[:text.index(selected)]), utf16(selected)
             selection.set(node, start, length)

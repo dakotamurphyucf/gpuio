@@ -44,6 +44,17 @@ pub(super) async fn exercise(
     cx: &mut gpui::AsyncApp,
     handle: WindowHandle<View>,
 ) -> Vec<std::sync::Weak<str>> {
+    // This phase measures retention with no user interaction. The preceding
+    // tree suites qualify foreground input; leave that mode before traversing
+    // history, otherwise a real focus request can legitimately pin a row and
+    // violate this fixture's no-focus premise. Explicit draws below still run
+    // the production layout/paint path while the application is hidden.
+    handle
+        .update(cx, |_, window, cx| {
+            window.blur(cx);
+            cx.hide();
+        })
+        .unwrap();
     let transport = handle
         .update(cx, |view, _, _| view.transport.clone())
         .unwrap();
@@ -200,7 +211,7 @@ pub(super) async fn exercise(
                 "evicted selection retained at row {first}"
             );
             let (payloads, current_selections): (Vec<_>, Vec<_>) = handle
-                .update(cx, |view, _, _| {
+                .update(cx, |view, window, cx| {
                     let state = view.lists[&root].borrow();
                     assert_eq!(state.native.index().len(), COUNT as usize);
                     assert_eq!(state.resource_counts(), (current.len(), current.len()));
@@ -208,7 +219,9 @@ pub(super) async fn exercise(
                     assert_eq!(state.pending_focus_row(), None);
                     assert!(
                         state.observed.as_ref().unwrap().pinned.is_empty(),
-                        "selected rows must not create focus pins"
+                        "selected rows must not create focus pins: pass={pass} first={first} observed={:?} focused={:?}",
+                        state.observed.as_ref().unwrap().pinned,
+                        state.focused(window, cx)
                     );
                     assert_eq!(
                         view.selections.len(),

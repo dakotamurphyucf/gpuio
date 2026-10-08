@@ -1,0 +1,44 @@
+diff --git a/src/node.rs b/src/node.rs
+index 4063b00c..b5a54f3a 100644
+--- a/src/node.rs
++++ b/src/node.rs
+@@ -1375,17 +1375,29 @@ declare_class!(
+         // even when isAccessibilitySelectorAllowed rejects that selector.
+         #[method(accessibilityIsAttributeSettable:)]
+         fn is_attribute_settable(&self, attribute: &NSString) -> bool {
+-            if attribute == ns_string!("AXElementBusy") {
+-                // The application owns loading; accessibility observes it.
+-                false
+-            } else if unsafe { attribute.isEqualToString(ns_string!("AXValue")) } {
+-                self.resolve(|node| {
+-                    (node.supports_text_ranges() && !node.is_read_only())
+-                        || node.supports_action(Action::SetValue, &filter)
+-                }).unwrap_or(false)
++            // NSAccessibilityElement does not implement this legacy selector.
++            // Forwarding an unhandled query to super aborts when VoiceOver asks
++            // whether a read-only attribute can be changed. Keep discovery in
++            // agreement with the modern setters and their live-node policy.
++            let selector = if attribute == ns_string!("AXValue") {
++                Some(sel!(setAccessibilityValue:))
++            } else if attribute == ns_string!("AXFocused") {
++                Some(sel!(setAccessibilityFocused:))
++            } else if attribute == ns_string!("AXSelectedTextRange") {
++                Some(sel!(setAccessibilitySelectedTextRange:))
++            } else if attribute == ns_string!("AXSelected") {
++                Some(sel!(setAccessibilitySelected:))
++            } else if attribute == ns_string!("AXExpanded") {
++                Some(sel!(setAccessibilityExpanded:))
++            } else if attribute == ns_string!("AXDisclosed") {
++                Some(sel!(setAccessibilityDisclosed:))
+             } else {
+-                unsafe { msg_send![super(self), accessibilityIsAttributeSettable: attribute] }
+-            }
++                // Includes application-owned AXElementBusy and unknown names.
++                None
++            };
++            selector.is_some_and(|selector| unsafe {
++                msg_send![self, isAccessibilitySelectorAllowed: selector]
++            })
+         }
+ 
+         #[method(isAccessibilitySelectorAllowed:)]

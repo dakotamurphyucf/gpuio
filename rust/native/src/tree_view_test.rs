@@ -46,7 +46,7 @@ fn rows(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>) -> Vec<AxRow> {
         runtime::{AnyObject, Bool},
         sel,
     };
-    use objc2_foundation::NSString;
+    use objc2_foundation::{NSString, ns_string};
     unsafe fn visit(object: *mut AnyObject, found: &mut Vec<AxRow>, depth: usize) {
         if object.is_null() || depth > 32 {
             return;
@@ -69,9 +69,17 @@ fn rows(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>) -> Vec<AxRow> {
                 };
                 let selected: Bool = msg_send![object, isAccessibilitySelected];
                 let enabled: Bool = msg_send![object, isAccessibilityEnabled];
-                let selection_settable: Bool = msg_send![object, isAccessibilitySelectorAllowed:sel!(setAccessibilitySelected:)];
-                let expansion_settable: Bool = msg_send![object, isAccessibilitySelectorAllowed:sel!(setAccessibilityExpanded:)];
-                let disclosure_settable: Bool = msg_send![object, isAccessibilitySelectorAllowed:sel!(setAccessibilityDisclosed:)];
+                // Exercise the legacy discovery route used by screen readers.
+                // The expected rows below cover enabled and disabled actions.
+                let selection_settable: Bool =
+                    msg_send![object, accessibilityIsAttributeSettable:ns_string!("AXSelected")];
+                let expansion_settable: Bool =
+                    msg_send![object, accessibilityIsAttributeSettable:ns_string!("AXExpanded")];
+                let disclosure_settable: Bool =
+                    msg_send![object, accessibilityIsAttributeSettable:ns_string!("AXDisclosed")];
+                let role_settable: Bool =
+                    msg_send![object, accessibilityIsAttributeSettable:ns_string!("AXRole")];
+                assert!(!role_settable.as_bool());
                 assert_eq!(expansion_settable.as_bool(), disclosure_settable.as_bool());
                 found.push(AxRow {
                     label: if label.is_null() {

@@ -1,6 +1,6 @@
 # Implementation status
 
-Current handoff: 2026-10-07, implementation checkpoint **2845f1c9**. Milestone
+Current handoff: 2026-10-07. Milestone
 **07 — Expanded v1 macOS validation and release** is active. **OCH-41 and OCH-17
 remain In Progress.** OCH-48 example walkthrough acceptance is complete.
 This page records current work; it does not certify release readiness.
@@ -29,6 +29,15 @@ Older records of a VoiceOver hold no longer apply. Access was restored after the
 <a id="current-implementation-and-evidence"></a>
 
 ## Latest delivered behavior and validation
+
+The [VoiceOver attribute-query repair](evidence/voiceover-attribute-query-och17.md)
+fixes a reproduced process crash in GPUIO's AccessKit compatibility patch. A
+read-only attribute query called a nonexistent superclass method. Actual OS
+mutability/selection/Copy checks now pass for rendered documents, code and editable
+text. VoiceOver speech capture remains unqualified. Native tree discovery/action
+checks and 200,000 history visits passed after isolating the no-input retention
+phase from foreground focus; the evidence records earlier failures and one
+required reactivation during the foreground focus phase.
 
 The [cached prepaint retry repair](evidence/cached-prepaint-retry-och17.md) fixes a
 reproduced panic after an aborted prepaint overwrote saved frame indices. Candidate

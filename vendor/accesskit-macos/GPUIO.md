@@ -54,7 +54,7 @@ extract `Cargo.toml`, `Cargo.toml.orig`, README/CHANGELOG and `src/`, then apply
 `patch -p1 < expanded-state.patch` and then `patch -p1 < tree-state.patch` inside
 that directory, followed by `patch -p1 < tree-actions.patch`, `patch -p1 < table-state.patch`
 and `patch -p1 < document-semantics.patch`, then `patch -p1 < table-headers.patch`
-and `patch -p1 < initial-window-focus.patch`, then `patch -p1 < busy-state.patch` and `patch -p1 < list-selection.patch`, followed by `patch -p1 < table-row-header-ranges.patch`.
+and `patch -p1 < initial-window-focus.patch`, then `patch -p1 < busy-state.patch` and `patch -p1 < list-selection.patch`, followed by `patch -p1 < table-row-header-ranges.patch` and `patch -p1 < attribute-settable.patch`.
 Fetch LICENSE-APACHE and
 LICENSE-MIT from the pinned upstream Git revision and verify their recorded hashes.
 `UPSTREAM.json`, this note and the patches are GPUIO provenance additions. The
@@ -101,7 +101,16 @@ AppKit AXValue-settable query using the adapter's existing SetValue capability
 predicate. On macOS 14.5, external AX queries reported a read-only code document
 as settable even while `isAccessibilitySelectorAllowed:` returned false with
 read_only=true, text_ranges=false and no SetValue action. The narrow override
-fixes that mismatch and delegates other attribute queries to AppKit.
+fixes that mismatch. The later `attribute-settable.patch` replaces its invalid
+superclass fallback: NSAccessibilityElement does not implement the legacy
+`accessibilityIsAttributeSettable:` method. VoiceOver and an external AXRole
+mutability query reproduced a process-aborting message send on macOS 14.5.
+The override now maps AXValue, AXFocused, AXSelectedTextRange, AXSelected,
+AXExpanded and AXDisclosed to their existing modern setter capability checks.
+Other attributes, including application-owned AXElementBusy, are read-only.
+The actual OS regression in `scripts/test_macos_text_selection.py` checks
+mutability alongside selection and Copy for rendered documents, read-only code
+and editable text. This regression is not full VoiceOver reading acceptance.
 
 The gallery's real macOS regression checks Markdown heading/list roles and
 Unicode body text, code/diff values, AXValue not settable, native focus, rejection
