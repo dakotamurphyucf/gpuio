@@ -53,7 +53,8 @@ The [list comparison](evidence/preview-list-comparison-och17.md),
 close P1/P2 for the focused preview: three full current list trials, measured
 instrumentation cost, and targeted checks supporting reuse of earlier full
 streaming/resource evidence. The original transient visual report remains a
-follow-up without an original-cause/fix claim. Final source notices/artifact review and candidate integration remain open.
+follow-up without an original-cause/fix claim. The source notice/artifact and installation handoffs are now complete for the
+preview; final candidate integration/publication remain open.
 
 Foundation `37805065605` is terminal: Linux and the fresh macOS extracted-app
 receiver pass; the macOS foundation's only failed steps are its two Metal timing
@@ -66,7 +67,8 @@ The [preview adoption guide](developer-preview.md) and GitHub feedback templates
 are ready. A fresh independent starter consumer build passes at `87b43c73`;
 the [installation/API handoff](evidence/preview-installation-och17.md) now closes R1.
 The [source payload review](evidence/preview-source-inputs-och17.md) repairs a
-retained example-font notice; final assembled-source review remains D1.
+retained example-font notice and verifies the assembled source archive, closing
+D1 for the source preview. Binary-distribution notice completion remains OCH-164.
 
 The [managed-scrollbar routing repair](evidence/managed-scrollbar-routing-och41.md)
 adds a reactive component argument that reaches native viewports inside Bonsai

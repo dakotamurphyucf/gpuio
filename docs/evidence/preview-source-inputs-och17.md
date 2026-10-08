@@ -2,7 +2,7 @@
 
 2026-10-08, base `1f360479` with documentation/notice edits in progress. D1 is
 being reviewed against the actual **source-library preview**, not the internally
-built reference-app bundles. Final assembled source-archive review remains open.
+built reference-app bundles. The assembled source-archive review below closes D1 for this source preview.
 
 ## Payload inspection
 
@@ -62,3 +62,46 @@ candidate revision. Carry the binary/system/SDK/embedded dependency review into
 the separately delivered application artifacts in OCH-164. Do not repeat the
 completed dependency-source archaeology unless the chosen artifact adds those
 implementations or a new source discrepancy appears.
+
+## Assembled source review — b90fb769
+
+Created `gpuio-b90fb769.tar.gz` with:
+
+```sh
+git archive --format=tar.gz --prefix=gpuio-preview/ \
+  -o scratch/agents/root-20261007-access-check/preview-source/gpuio-b90fb769.tar.gz \
+  b90fb769
+```
+
+The artifact is 427,400,224 bytes, SHA-256
+`c64ebbfd5681d77b75d0bd1d645bbf02566a3895ec2a6ed17020d63bdbee844f`.
+A streaming verifier independently matched **all 8,168 regular files** to their
+Git blob identities and executable modes at
+`b90fb769926a8467b8d673dbc1aa56417c343b7b`; no unexpected, duplicate or missing
+paths, links or special entries were accepted. Local build outputs, scratch,
+Git metadata and opam/Cargo caches are absent. Required project/vendor/asset
+notice indexes, the new full font notice, source pins and preview guides are
+present. The artifact is retained locally and has **not been published**.
+
+A second payload scan includes the installation/source-review additions: 258
+tracked archives plus 11 nested archives, 19,659 file/container/member
+observations, and no native binary signature findings. The
+[five-file assembled-review archive](preview-source-inputs-och17/assembled-review.tar.gz)
+and [manifest](preview-source-inputs-och17/assembled-manifest.json) preserve the
+verifier, exact result, scan and member inventory; all archived entries were read
+back and checksum-verified. The 427 MB source artifact itself is not recursively
+committed into the repository.
+
+D1 is closed for the **source-library preview**: its shipped vendor sources and
+assets retain their upstream notices, the concrete font omission is repaired,
+and dependencies obtained by the user's compiler are distinguished from shipped
+implementations. The unresolved Rust binary-notice classifications, compiler/
+system/SDK and embedded runtime-asset completion remain required when preparing
+OCH-164 application binaries. This is not approval of those internal app bundles.
+
+R2 must bind the published tag and source payload to its final revision. The only
+subsequent additions here are this review record and its text/JSON/script evidence;
+any later change to shipped code, assets, dependencies or distribution format
+requires a corresponding input/notice impact review. The source preview provides
+a Git clone/tag workflow; it does not require redistributing locally compiled
+native archives or downloaded build caches.
