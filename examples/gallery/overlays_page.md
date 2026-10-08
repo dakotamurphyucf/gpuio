@@ -51,3 +51,26 @@ The wrapper uses the repository toolchain. These commands are instructions, not 
 this documentation change. The page has no standalone executable or self-test. Compilation does
 not establish native keyboard, focus, IME or platform acceptance. See
 [gallery instructions](README.md) and [development](../../docs/development.md).
+
+
+## Native interaction check
+
+`python3 scripts/test_gallery.py --section overlay-matrix --images scratch/overlays`
+runs the gallery's existing confirmation/help checks, then dialog focus, all four
+drawer edges and live insets, hover-card actions and point placement in both themes
+and all three application sizes. It uses real foreground Tab/Shift-Tab/Return/Escape
+and AX actions for controls. Full motion is selected at Comfortable/Large and Reduced
+at Compact; this is not a timing measurement or every motion/size combination.
+
+For example, activating “Reserve space for app chrome” executes the setter for
+`reserve_chrome`. The next `let%arr` result passes `Sheet.Insets` through the same
+sheet descriptor. Rust lays out the retained native panel with the new insets;
+Bonsai does not calculate its measured rectangle. The check observes changed
+bounds and unchanged native identity, then turns the option off and verifies the
+original bounds. Escape requests dismissal, `close` removes content, and native
+focus returns to Open drawer. This distinguishes a configuration update from
+closing and recreating the panel.
+
+[Physical macOS evidence](../../docs/evidence/overlay-macos-och41.md) records the
+repository and installed-consumer results. These checks do not qualify VoiceOver,
+IME, animation frame times or full overlay resource/release behavior.

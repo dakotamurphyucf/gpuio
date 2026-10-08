@@ -11,7 +11,7 @@ After [setup](../../docs/development.md), from the root:
 ```sh
 GPUIO_JOBS=2 ./scripts/gpuio exec dune build examples/gallery/main.exe -j 2
 ./scripts/gpuio exec dune exec examples/gallery/main.exe
-python3 scripts/test_gallery.py --section overlays
+python3 scripts/test_gallery.py --section overlay-matrix
 ```
 
 Choose Overlays and Open placement preview. Adjust corner/margin/fixed mode while
@@ -46,3 +46,12 @@ removes optional native content; preferences in the Bonsai branch remain indepen
 For another anchor, retain a direct accessible button and valid placement bounds;
 for actual screen-relative positioning, do not reinterpret these logical content
 coordinates. Source inspection/compilation alone does not prove pixel/focus behavior.
+
+
+The focused `overlay-matrix` check observes all four fixed-point corners while
+the same panel remains open, across both themes and three application sizes.
+The expected right-corner origin subtracts the measured panel width from the
+reference point; bottom corners similarly subtract its height. The tested point
+fits the viewport in these cases, so this checks corner interpretation and
+retention, not arbitrary clamping or resize behavior. See the
+[physical results and limits](../../docs/evidence/overlay-macos-och41.md).

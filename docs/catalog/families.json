@@ -353,7 +353,7 @@
       "id": "dialogs",
       "owner": "OCH-37",
       "scope": "v1",
-      "audit_status": "Pinned base/styled dialog, sheet, popover, positioner, focus-trap and help-surface sources reviewed. Existing ownership/dismissal/focus/placement and styled-content equivalents are mapped. Modal backdrop color and exported modal semantics are implemented with local codec/admission/theme-reconciliation/native paint/focus checks. Full OCaml, native library, protocol and strict lint checks pass. Opt-in dialog/sheet entry motion now has native paint/hit/AX/focus/lifecycle regression evidence, including deferred autofocus for offscreen entering controls. Opt-in tooltip entry/same-row switching now has native paint/input/retention/timing/controlled-state/cleanup evidence and paired Op92 fixtures. Point/corner and bounded viewport margins now have paired Op93 fixtures and native paint/hit/AX/resize/focus/submenu regressions; ordinary absolute dialog insets are also verified. Explicit Sheet.Insets now provides app-chrome reservation with all-edge containment, small-window decoration compression and native lifecycle/input evidence. The styled toolkit custom-window offsets are mapped explicitly, not inferred as OS safe areas; physical and installed-consumer qualification remains separate. Do not infer working sheet resizing or Popover animation from unused fields/private helpers. Physical macOS/resources/consumer acceptance remains open; see overlay-review.md.",
+      "audit_status": "Pinned base/styled dialog, sheet, popover, positioner, focus-trap and help-surface sources reviewed. Existing ownership/dismissal/focus/placement and styled-content equivalents are mapped. Modal backdrop color and exported modal semantics are implemented with local codec/admission/theme-reconciliation/native paint/focus checks. Full OCaml, native library, protocol and strict lint checks pass. Opt-in dialog/sheet entry motion now has native paint/hit/AX/focus/lifecycle regression evidence, including deferred autofocus for offscreen entering controls. Opt-in tooltip entry/same-row switching now has native paint/input/retention/timing/controlled-state/cleanup evidence and paired Op92 fixtures. Point/corner and bounded viewport margins now have paired Op93 fixtures and native paint/hit/AX/resize/focus/submenu regressions; ordinary absolute dialog insets are also verified. Explicit Sheet.Insets now provides app-chrome reservation with all-edge containment, small-window decoration compression and native lifecycle/input evidence. The styled toolkit custom-window offsets are mapped explicitly, not inferred as OS safe areas; the focused physical macOS gallery and installed-consumer matrix now passes six theme/size combinations for modal focus, all-edge inset geometry, interactive help and fixed-point corners. Do not infer working sheet resizing or Popover animation from unused fields/private helpers. Confirmation and tooltip replacement pass once per binary. Full motion at Comfortable/Large and Reduced at Compact exercise settling, not frame timing. VoiceOver, full nested/IME, resources and consolidated release acceptance remain open; see overlay-review.md.",
       "public_interface": "lib/core/overlay.mli",
       "example": "examples/overlays",
       "evidence": [
@@ -368,7 +368,8 @@
         "docs/design/placement-geometry.md",
         "docs/evidence/placement-geometry-och41.md",
         "docs/design/sheet-insets.md",
-        "docs/evidence/sheet-insets-och41.md"
+        "docs/evidence/sheet-insets-och41.md",
+        "docs/evidence/overlay-macos-och41.md"
       ],
       "gallery_page": "overlays",
       "contract": "Dialog/sheet/alert-dialog focus and dismissal policy; safe confirmation action first.",
@@ -385,7 +386,7 @@
       "id": "popovers",
       "owner": "OCH-11",
       "scope": "v1",
-      "audit_status": "Pinned base/styled dialog, sheet, popover, positioner, focus-trap and help-surface sources reviewed. Existing ownership/dismissal/focus/placement and styled-content equivalents are mapped. Modal backdrop color and exported modal semantics are implemented with local codec/admission/theme-reconciliation/native paint/focus checks. Full OCaml, native library, protocol and strict lint checks pass. Opt-in dialog/sheet entry motion now has native paint/hit/AX/focus/lifecycle regression evidence, including deferred autofocus for offscreen entering controls. Opt-in tooltip entry/same-row switching now has native paint/input/retention/timing/controlled-state/cleanup evidence and paired Op92 fixtures. Point/corner and bounded viewport margins now have paired Op93 fixtures and native paint/hit/AX/resize/focus/submenu regressions; ordinary absolute dialog insets are also verified. Explicit Sheet.Insets now provides app-chrome reservation with all-edge containment, small-window decoration compression and native lifecycle/input evidence. The styled toolkit custom-window offsets are mapped explicitly, not inferred as OS safe areas; physical and installed-consumer qualification remains separate. Do not infer working sheet resizing or Popover animation from unused fields/private helpers. Physical macOS/resources/consumer acceptance remains open; see overlay-review.md.",
+      "audit_status": "Pinned base/styled dialog, sheet, popover, positioner, focus-trap and help-surface sources reviewed. Existing ownership/dismissal/focus/placement and styled-content equivalents are mapped. Modal backdrop color and exported modal semantics are implemented with local codec/admission/theme-reconciliation/native paint/focus checks. Full OCaml, native library, protocol and strict lint checks pass. Opt-in dialog/sheet entry motion now has native paint/hit/AX/focus/lifecycle regression evidence, including deferred autofocus for offscreen entering controls. Opt-in tooltip entry/same-row switching now has native paint/input/retention/timing/controlled-state/cleanup evidence and paired Op92 fixtures. Point/corner and bounded viewport margins now have paired Op93 fixtures and native paint/hit/AX/resize/focus/submenu regressions; ordinary absolute dialog insets are also verified. Explicit Sheet.Insets now provides app-chrome reservation with all-edge containment, small-window decoration compression and native lifecycle/input evidence. The styled toolkit custom-window offsets are mapped explicitly, not inferred as OS safe areas; the focused physical macOS gallery and installed-consumer matrix now passes six theme/size combinations for modal focus, all-edge inset geometry, interactive help and fixed-point corners. Do not infer working sheet resizing or Popover animation from unused fields/private helpers. Confirmation and tooltip replacement pass once per binary. Full motion at Comfortable/Large and Reduced at Compact exercise settling, not frame timing. VoiceOver, full nested/IME, resources and consolidated release acceptance remain open; see overlay-review.md.",
       "public_interface": "lib/core/overlay.mli",
       "example": "examples/overlays",
       "evidence": [
@@ -400,7 +401,8 @@
         "docs/design/placement-geometry.md",
         "docs/evidence/placement-geometry-och41.md",
         "docs/design/sheet-insets.md",
-        "docs/evidence/sheet-insets-och41.md"
+        "docs/evidence/sheet-insets-och41.md",
+        "docs/evidence/overlay-macos-och41.md"
       ],
       "gallery_page": "overlays",
       "contract": "Anchored native placement, dismissal and focus restoration; helpers belong to overlay ownership.",
@@ -415,7 +417,7 @@
       "id": "tooltips",
       "owner": "OCH-37",
       "scope": "v1",
-      "audit_status": "Pinned base/styled dialog, sheet, popover, positioner, focus-trap and help-surface sources reviewed. Existing ownership/dismissal/focus/placement and styled-content equivalents are mapped. Modal backdrop color and exported modal semantics are implemented with local codec/admission/theme-reconciliation/native paint/focus checks. Full OCaml, native library, protocol and strict lint checks pass. Opt-in dialog/sheet entry motion now has native paint/hit/AX/focus/lifecycle regression evidence, including deferred autofocus for offscreen entering controls. Opt-in tooltip entry/same-row switching now has native paint/input/retention/timing/controlled-state/cleanup evidence and paired Op92 fixtures. Point/corner and bounded viewport margins now have paired Op93 fixtures and native paint/hit/AX/resize/focus/submenu regressions; ordinary absolute dialog insets are also verified. Explicit Sheet.Insets now provides app-chrome reservation with all-edge containment, small-window decoration compression and native lifecycle/input evidence. The styled toolkit custom-window offsets are mapped explicitly, not inferred as OS safe areas; physical and installed-consumer qualification remains separate. Do not infer working sheet resizing or Popover animation from unused fields/private helpers. Physical macOS/resources/consumer acceptance remains open; see overlay-review.md.",
+      "audit_status": "Pinned base/styled dialog, sheet, popover, positioner, focus-trap and help-surface sources reviewed. Existing ownership/dismissal/focus/placement and styled-content equivalents are mapped. Modal backdrop color and exported modal semantics are implemented with local codec/admission/theme-reconciliation/native paint/focus checks. Full OCaml, native library, protocol and strict lint checks pass. Opt-in dialog/sheet entry motion now has native paint/hit/AX/focus/lifecycle regression evidence, including deferred autofocus for offscreen entering controls. Opt-in tooltip entry/same-row switching now has native paint/input/retention/timing/controlled-state/cleanup evidence and paired Op92 fixtures. Point/corner and bounded viewport margins now have paired Op93 fixtures and native paint/hit/AX/resize/focus/submenu regressions; ordinary absolute dialog insets are also verified. Explicit Sheet.Insets now provides app-chrome reservation with all-edge containment, small-window decoration compression and native lifecycle/input evidence. The styled toolkit custom-window offsets are mapped explicitly, not inferred as OS safe areas; the focused physical macOS gallery and installed-consumer matrix now passes six theme/size combinations for modal focus, all-edge inset geometry, interactive help and fixed-point corners. Do not infer working sheet resizing or Popover animation from unused fields/private helpers. Confirmation and tooltip replacement pass once per binary. Full motion at Comfortable/Large and Reduced at Compact exercise settling, not frame timing. VoiceOver, full nested/IME, resources and consolidated release acceptance remain open; see overlay-review.md.",
       "public_interface": "lib/core/hover_card.mli",
       "example": "examples/tooltips",
       "evidence": [
@@ -430,7 +432,8 @@
         "docs/design/placement-geometry.md",
         "docs/evidence/placement-geometry-och41.md",
         "docs/design/sheet-insets.md",
-        "docs/evidence/sheet-insets-och41.md"
+        "docs/evidence/sheet-insets-och41.md",
+        "docs/evidence/overlay-macos-och41.md"
       ],
       "gallery_page": "overlays",
       "contract": "Native managed/controlled visibility, deadlines and retained hidden content; helper role versus interactive-card role.",

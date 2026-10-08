@@ -43,6 +43,12 @@ at attachment selection. [CI evidence](evidence/milestone-07-ci.md) records this
 new failure and the added fatal-stack/native-crash diagnostics. Updated-source
 hosted acceptance remains required.
 
+The [overlay desktop matrix](evidence/overlay-macos-och41.md) passes both themes
+and three application sizes locally and in the installed consumer. It verifies
+modal focus, live all-edge drawer insets, hover-card actions, fixed-point popup
+corners and page retirement. VoiceOver, motion timing and full resource/release
+acceptance remain separate.
+
 The pagination gallery follow-up exercises both themes and three application
 sizes, including billion-page chooser bounds, native input and model-change
 cancellation. It also repairs chooser buttons that used pale text on a pale

@@ -1,0 +1,1389 @@
+{
+  "base_revision": "61b5f3101ef9d0e7ecc589387e19b7d8384bfc69",
+  "platform": {
+    "system": "Darwin",
+    "release": "14.5",
+    "machine": "arm64"
+  },
+  "scope": "Six theme/size OS keyboard/AX overlay geometry/focus cases per binary; baseline confirmation/help once each; not VoiceOver or frame timing",
+  "binary_sha256": {
+    "overlay-native-001": "536c59ff4feef369ec722dca8b8e24d14a9a6a2fd83fdb3e056c5a6286e034ad",
+    "overlay-installed-001": "4082c88141ab319bbd6dee136a9233983fcea7046d3c0c35114dbc0433bc5487"
+  },
+  "results": {
+    "overlay-native-001": {
+      "complete": true,
+      "cases": [
+        {
+          "theme": "Light",
+          "scale": "Comfortable",
+          "motion": "Full",
+          "sheets": [
+            {
+              "edge": "Right",
+              "base": [
+                1044.0,
+                177.0,
+                380.0,
+                821.0
+              ],
+              "inset": [
+                1028.0,
+                233.0,
+                380.0,
+                749.0
+              ]
+            },
+            {
+              "edge": "Bottom",
+              "base": [
+                304.0,
+                618.0,
+                1120.0,
+                380.0
+              ],
+              "inset": [
+                320.0,
+                602.0,
+                1088.0,
+                380.0
+              ]
+            },
+            {
+              "edge": "Left",
+              "base": [
+                304.0,
+                177.0,
+                380.0,
+                821.0
+              ],
+              "inset": [
+                320.0,
+                233.0,
+                380.0,
+                749.0
+              ]
+            },
+            {
+              "edge": "Top",
+              "base": [
+                304.0,
+                177.0,
+                1120.0,
+                380.0
+              ],
+              "inset": [
+                320.0,
+                233.0,
+                1088.0,
+                380.0
+              ]
+            }
+          ],
+          "placements": [
+            {
+              "corner": "Top left",
+              "bounds": [
+                864.0,
+                577.0,
+                340.0,
+                355.5
+              ]
+            },
+            {
+              "corner": "Top right",
+              "bounds": [
+                524.0,
+                577.0,
+                340.0,
+                355.5
+              ]
+            },
+            {
+              "corner": "Bottom left",
+              "bounds": [
+                864.0,
+                221.5,
+                340.0,
+                355.5
+              ]
+            },
+            {
+              "corner": "Bottom right",
+              "bounds": [
+                524.0,
+                221.5,
+                340.0,
+                355.5
+              ]
+            }
+          ],
+          "complete": true
+        },
+        {
+          "theme": "Light",
+          "scale": "Large",
+          "motion": "Full",
+          "sheets": [
+            {
+              "edge": "Right",
+              "base": [
+                1044.0,
+                177.0,
+                380.0,
+                821.0
+              ],
+              "inset": [
+                1028.0,
+                233.0,
+                380.0,
+                749.0
+              ]
+            },
+            {
+              "edge": "Bottom",
+              "base": [
+                304.0,
+                618.0,
+                1120.0,
+                380.0
+              ],
+              "inset": [
+                320.0,
+                602.0,
+                1088.0,
+                380.0
+              ]
+            },
+            {
+              "edge": "Left",
+              "base": [
+                304.0,
+                177.0,
+                380.0,
+                821.0
+              ],
+              "inset": [
+                320.0,
+                233.0,
+                380.0,
+                749.0
+              ]
+            },
+            {
+              "edge": "Top",
+              "base": [
+                304.0,
+                177.0,
+                1120.0,
+                380.0
+              ],
+              "inset": [
+                320.0,
+                233.0,
+                1088.0,
+                380.0
+              ]
+            }
+          ],
+          "placements": [
+            {
+              "corner": "Top left",
+              "bounds": [
+                864.0,
+                577.0,
+                340.0,
+                386.0
+              ]
+            },
+            {
+              "corner": "Top right",
+              "bounds": [
+                524.0,
+                577.0,
+                340.0,
+                386.0
+              ]
+            },
+            {
+              "corner": "Bottom left",
+              "bounds": [
+                864.0,
+                191.0,
+                340.0,
+                386.0
+              ]
+            },
+            {
+              "corner": "Bottom right",
+              "bounds": [
+                524.0,
+                191.0,
+                340.0,
+                386.0
+              ]
+            }
+          ],
+          "complete": true
+        },
+        {
+          "theme": "Light",
+          "scale": "Compact",
+          "motion": "Reduced",
+          "sheets": [
+            {
+              "edge": "Right",
+              "base": [
+                1044.0,
+                177.0,
+                380.0,
+                821.0
+              ],
+              "inset": [
+                1028.0,
+                233.0,
+                380.0,
+                749.0
+              ]
+            },
+            {
+              "edge": "Bottom",
+              "base": [
+                304.0,
+                618.0,
+                1120.0,
+                380.0
+              ],
+              "inset": [
+                320.0,
+                602.0,
+                1088.0,
+                380.0
+              ]
+            },
+            {
+              "edge": "Left",
+              "base": [
+                304.0,
+                177.0,
+                380.0,
+                821.0
+              ],
+              "inset": [
+                320.0,
+                233.0,
+                380.0,
+                749.0
+              ]
+            },
+            {
+              "edge": "Top",
+              "base": [
+                304.0,
+                177.0,
+                1120.0,
+                380.0
+              ],
+              "inset": [
+                320.0,
+                233.0,
+                1088.0,
+                380.0
+              ]
+            }
+          ],
+          "placements": [
+            {
+              "corner": "Top left",
+              "bounds": [
+                864.0,
+                577.0,
+                340.0,
+                332.5
+              ]
+            },
+            {
+              "corner": "Top right",
+              "bounds": [
+                524.0,
+                577.0,
+                340.0,
+                332.5
+              ]
+            },
+            {
+              "corner": "Bottom left",
+              "bounds": [
+                864.0,
+                244.5,
+                340.0,
+                332.5
+              ]
+            },
+            {
+              "corner": "Bottom right",
+              "bounds": [
+                524.0,
+                244.5,
+                340.0,
+                332.5
+              ]
+            }
+          ],
+          "complete": true
+        },
+        {
+          "theme": "Dark",
+          "scale": "Comfortable",
+          "motion": "Full",
+          "sheets": [
+            {
+              "edge": "Right",
+              "base": [
+                1044.0,
+                177.0,
+                380.0,
+                821.0
+              ],
+              "inset": [
+                1028.0,
+                233.0,
+                380.0,
+                749.0
+              ]
+            },
+            {
+              "edge": "Bottom",
+              "base": [
+                304.0,
+                618.0,
+                1120.0,
+                380.0
+              ],
+              "inset": [
+                320.0,
+                602.0,
+                1088.0,
+                380.0
+              ]
+            },
+            {
+              "edge": "Left",
+              "base": [
+                304.0,
+                177.0,
+                380.0,
+                821.0
+              ],
+              "inset": [
+                320.0,
+                233.0,
+                380.0,
+                749.0
+              ]
+            },
+            {
+              "edge": "Top",
+              "base": [
+                304.0,
+                177.0,
+                1120.0,
+                380.0
+              ],
+              "inset": [
+                320.0,
+                233.0,
+                1088.0,
+                380.0
+              ]
+            }
+          ],
+          "placements": [
+            {
+              "corner": "Top left",
+              "bounds": [
+                864.0,
+                577.0,
+                340.0,
+                355.5
+              ]
+            },
+            {
+              "corner": "Top right",
+              "bounds": [
+                524.0,
+                577.0,
+                340.0,
+                355.5
+              ]
+            },
+            {
+              "corner": "Bottom left",
+              "bounds": [
+                864.0,
+                221.5,
+                340.0,
+                355.5
+              ]
+            },
+            {
+              "corner": "Bottom right",
+              "bounds": [
+                524.0,
+                221.5,
+                340.0,
+                355.5
+              ]
+            }
+          ],
+          "complete": true
+        },
+        {
+          "theme": "Dark",
+          "scale": "Large",
+          "motion": "Full",
+          "sheets": [
+            {
+              "edge": "Right",
+              "base": [
+                1044.0,
+                177.0,
+                380.0,
+                821.0
+              ],
+              "inset": [
+                1028.0,
+                233.0,
+                380.0,
+                749.0
+              ]
+            },
+            {
+              "edge": "Bottom",
+              "base": [
+                304.0,
+                618.0,
+                1120.0,
+                380.0
+              ],
+              "inset": [
+                320.0,
+                602.0,
+                1088.0,
+                380.0
+              ]
+            },
+            {
+              "edge": "Left",
+              "base": [
+                304.0,
+                177.0,
+                380.0,
+                821.0
+              ],
+              "inset": [
+                320.0,
+                233.0,
+                380.0,
+                749.0
+              ]
+            },
+            {
+              "edge": "Top",
+              "base": [
+                304.0,
+                177.0,
+                1120.0,
+                380.0
+              ],
+              "inset": [
+                320.0,
+                233.0,
+                1088.0,
+                380.0
+              ]
+            }
+          ],
+          "placements": [
+            {
+              "corner": "Top left",
+              "bounds": [
+                864.0,
+                577.0,
+                340.0,
+                386.0
+              ]
+            },
+            {
+              "corner": "Top right",
+              "bounds": [
+                524.0,
+                577.0,
+                340.0,
+                386.0
+              ]
+            },
+            {
+              "corner": "Bottom left",
+              "bounds": [
+                864.0,
+                191.0,
+                340.0,
+                386.0
+              ]
+            },
+            {
+              "corner": "Bottom right",
+              "bounds": [
+                524.0,
+                191.0,
+                340.0,
+                386.0
+              ]
+            }
+          ],
+          "complete": true
+        },
+        {
+          "theme": "Dark",
+          "scale": "Compact",
+          "motion": "Reduced",
+          "sheets": [
+            {
+              "edge": "Right",
+              "base": [
+                1044.0,
+                177.0,
+                380.0,
+                821.0
+              ],
+              "inset": [
+                1028.0,
+                233.0,
+                380.0,
+                749.0
+              ]
+            },
+            {
+              "edge": "Bottom",
+              "base": [
+                304.0,
+                618.0,
+                1120.0,
+                380.0
+              ],
+              "inset": [
+                320.0,
+                602.0,
+                1088.0,
+                380.0
+              ]
+            },
+            {
+              "edge": "Left",
+              "base": [
+                304.0,
+                177.0,
+                380.0,
+                821.0
+              ],
+              "inset": [
+                320.0,
+                233.0,
+                380.0,
+                749.0
+              ]
+            },
+            {
+              "edge": "Top",
+              "base": [
+                304.0,
+                177.0,
+                1120.0,
+                380.0
+              ],
+              "inset": [
+                320.0,
+                233.0,
+                1088.0,
+                380.0
+              ]
+            }
+          ],
+          "placements": [
+            {
+              "corner": "Top left",
+              "bounds": [
+                864.0,
+                577.0,
+                340.0,
+                332.5
+              ]
+            },
+            {
+              "corner": "Top right",
+              "bounds": [
+                524.0,
+                577.0,
+                340.0,
+                332.5
+              ]
+            },
+            {
+              "corner": "Bottom left",
+              "bounds": [
+                864.0,
+                244.5,
+                340.0,
+                332.5
+              ]
+            },
+            {
+              "corner": "Bottom right",
+              "bounds": [
+                524.0,
+                244.5,
+                340.0,
+                332.5
+              ]
+            }
+          ],
+          "complete": true
+        }
+      ]
+    },
+    "overlay-installed-001": {
+      "complete": true,
+      "cases": [
+        {
+          "theme": "Light",
+          "scale": "Comfortable",
+          "motion": "Full",
+          "sheets": [
+            {
+              "edge": "Right",
+              "base": [
+                1044.0,
+                177.0,
+                380.0,
+                821.0
+              ],
+              "inset": [
+                1028.0,
+                233.0,
+                380.0,
+                749.0
+              ]
+            },
+            {
+              "edge": "Bottom",
+              "base": [
+                304.0,
+                618.0,
+                1120.0,
+                380.0
+              ],
+              "inset": [
+                320.0,
+                602.0,
+                1088.0,
+                380.0
+              ]
+            },
+            {
+              "edge": "Left",
+              "base": [
+                304.0,
+                177.0,
+                380.0,
+                821.0
+              ],
+              "inset": [
+                320.0,
+                233.0,
+                380.0,
+                749.0
+              ]
+            },
+            {
+              "edge": "Top",
+              "base": [
+                304.0,
+                177.0,
+                1120.0,
+                380.0
+              ],
+              "inset": [
+                320.0,
+                233.0,
+                1088.0,
+                380.0
+              ]
+            }
+          ],
+          "placements": [
+            {
+              "corner": "Top left",
+              "bounds": [
+                864.0,
+                577.0,
+                340.0,
+                355.5
+              ]
+            },
+            {
+              "corner": "Top right",
+              "bounds": [
+                524.0,
+                577.0,
+                340.0,
+                355.5
+              ]
+            },
+            {
+              "corner": "Bottom left",
+              "bounds": [
+                864.0,
+                221.5,
+                340.0,
+                355.5
+              ]
+            },
+            {
+              "corner": "Bottom right",
+              "bounds": [
+                524.0,
+                221.5,
+                340.0,
+                355.5
+              ]
+            }
+          ],
+          "complete": true
+        },
+        {
+          "theme": "Light",
+          "scale": "Large",
+          "motion": "Full",
+          "sheets": [
+            {
+              "edge": "Right",
+              "base": [
+                1044.0,
+                177.0,
+                380.0,
+                821.0
+              ],
+              "inset": [
+                1028.0,
+                233.0,
+                380.0,
+                749.0
+              ]
+            },
+            {
+              "edge": "Bottom",
+              "base": [
+                304.0,
+                618.0,
+                1120.0,
+                380.0
+              ],
+              "inset": [
+                320.0,
+                602.0,
+                1088.0,
+                380.0
+              ]
+            },
+            {
+              "edge": "Left",
+              "base": [
+                304.0,
+                177.0,
+                380.0,
+                821.0
+              ],
+              "inset": [
+                320.0,
+                233.0,
+                380.0,
+                749.0
+              ]
+            },
+            {
+              "edge": "Top",
+              "base": [
+                304.0,
+                177.0,
+                1120.0,
+                380.0
+              ],
+              "inset": [
+                320.0,
+                233.0,
+                1088.0,
+                380.0
+              ]
+            }
+          ],
+          "placements": [
+            {
+              "corner": "Top left",
+              "bounds": [
+                864.0,
+                577.0,
+                340.0,
+                386.0
+              ]
+            },
+            {
+              "corner": "Top right",
+              "bounds": [
+                524.0,
+                577.0,
+                340.0,
+                386.0
+              ]
+            },
+            {
+              "corner": "Bottom left",
+              "bounds": [
+                864.0,
+                191.0,
+                340.0,
+                386.0
+              ]
+            },
+            {
+              "corner": "Bottom right",
+              "bounds": [
+                524.0,
+                191.0,
+                340.0,
+                386.0
+              ]
+            }
+          ],
+          "complete": true
+        },
+        {
+          "theme": "Light",
+          "scale": "Compact",
+          "motion": "Reduced",
+          "sheets": [
+            {
+              "edge": "Right",
+              "base": [
+                1044.0,
+                177.0,
+                380.0,
+                821.0
+              ],
+              "inset": [
+                1028.0,
+                233.0,
+                380.0,
+                749.0
+              ]
+            },
+            {
+              "edge": "Bottom",
+              "base": [
+                304.0,
+                618.0,
+                1120.0,
+                380.0
+              ],
+              "inset": [
+                320.0,
+                602.0,
+                1088.0,
+                380.0
+              ]
+            },
+            {
+              "edge": "Left",
+              "base": [
+                304.0,
+                177.0,
+                380.0,
+                821.0
+              ],
+              "inset": [
+                320.0,
+                233.0,
+                380.0,
+                749.0
+              ]
+            },
+            {
+              "edge": "Top",
+              "base": [
+                304.0,
+                177.0,
+                1120.0,
+                380.0
+              ],
+              "inset": [
+                320.0,
+                233.0,
+                1088.0,
+                380.0
+              ]
+            }
+          ],
+          "placements": [
+            {
+              "corner": "Top left",
+              "bounds": [
+                864.0,
+                577.0,
+                340.0,
+                332.5
+              ]
+            },
+            {
+              "corner": "Top right",
+              "bounds": [
+                524.0,
+                577.0,
+                340.0,
+                332.5
+              ]
+            },
+            {
+              "corner": "Bottom left",
+              "bounds": [
+                864.0,
+                244.5,
+                340.0,
+                332.5
+              ]
+            },
+            {
+              "corner": "Bottom right",
+              "bounds": [
+                524.0,
+                244.5,
+                340.0,
+                332.5
+              ]
+            }
+          ],
+          "complete": true
+        },
+        {
+          "theme": "Dark",
+          "scale": "Comfortable",
+          "motion": "Full",
+          "sheets": [
+            {
+              "edge": "Right",
+              "base": [
+                1044.0,
+                177.0,
+                380.0,
+                821.0
+              ],
+              "inset": [
+                1028.0,
+                233.0,
+                380.0,
+                749.0
+              ]
+            },
+            {
+              "edge": "Bottom",
+              "base": [
+                304.0,
+                618.0,
+                1120.0,
+                380.0
+              ],
+              "inset": [
+                320.0,
+                602.0,
+                1088.0,
+                380.0
+              ]
+            },
+            {
+              "edge": "Left",
+              "base": [
+                304.0,
+                177.0,
+                380.0,
+                821.0
+              ],
+              "inset": [
+                320.0,
+                233.0,
+                380.0,
+                749.0
+              ]
+            },
+            {
+              "edge": "Top",
+              "base": [
+                304.0,
+                177.0,
+                1120.0,
+                380.0
+              ],
+              "inset": [
+                320.0,
+                233.0,
+                1088.0,
+                380.0
+              ]
+            }
+          ],
+          "placements": [
+            {
+              "corner": "Top left",
+              "bounds": [
+                864.0,
+                577.0,
+                340.0,
+                355.5
+              ]
+            },
+            {
+              "corner": "Top right",
+              "bounds": [
+                524.0,
+                577.0,
+                340.0,
+                355.5
+              ]
+            },
+            {
+              "corner": "Bottom left",
+              "bounds": [
+                864.0,
+                221.5,
+                340.0,
+                355.5
+              ]
+            },
+            {
+              "corner": "Bottom right",
+              "bounds": [
+                524.0,
+                221.5,
+                340.0,
+                355.5
+              ]
+            }
+          ],
+          "complete": true
+        },
+        {
+          "theme": "Dark",
+          "scale": "Large",
+          "motion": "Full",
+          "sheets": [
+            {
+              "edge": "Right",
+              "base": [
+                1044.0,
+                177.0,
+                380.0,
+                821.0
+              ],
+              "inset": [
+                1028.0,
+                233.0,
+                380.0,
+                749.0
+              ]
+            },
+            {
+              "edge": "Bottom",
+              "base": [
+                304.0,
+                618.0,
+                1120.0,
+                380.0
+              ],
+              "inset": [
+                320.0,
+                602.0,
+                1088.0,
+                380.0
+              ]
+            },
+            {
+              "edge": "Left",
+              "base": [
+                304.0,
+                177.0,
+                380.0,
+                821.0
+              ],
+              "inset": [
+                320.0,
+                233.0,
+                380.0,
+                749.0
+              ]
+            },
+            {
+              "edge": "Top",
+              "base": [
+                304.0,
+                177.0,
+                1120.0,
+                380.0
+              ],
+              "inset": [
+                320.0,
+                233.0,
+                1088.0,
+                380.0
+              ]
+            }
+          ],
+          "placements": [
+            {
+              "corner": "Top left",
+              "bounds": [
+                864.0,
+                577.0,
+                340.0,
+                386.0
+              ]
+            },
+            {
+              "corner": "Top right",
+              "bounds": [
+                524.0,
+                577.0,
+                340.0,
+                386.0
+              ]
+            },
+            {
+              "corner": "Bottom left",
+              "bounds": [
+                864.0,
+                191.0,
+                340.0,
+                386.0
+              ]
+            },
+            {
+              "corner": "Bottom right",
+              "bounds": [
+                524.0,
+                191.0,
+                340.0,
+                386.0
+              ]
+            }
+          ],
+          "complete": true
+        },
+        {
+          "theme": "Dark",
+          "scale": "Compact",
+          "motion": "Reduced",
+          "sheets": [
+            {
+              "edge": "Right",
+              "base": [
+                1044.0,
+                177.0,
+                380.0,
+                821.0
+              ],
+              "inset": [
+                1028.0,
+                233.0,
+                380.0,
+                749.0
+              ]
+            },
+            {
+              "edge": "Bottom",
+              "base": [
+                304.0,
+                618.0,
+                1120.0,
+                380.0
+              ],
+              "inset": [
+                320.0,
+                602.0,
+                1088.0,
+                380.0
+              ]
+            },
+            {
+              "edge": "Left",
+              "base": [
+                304.0,
+                177.0,
+                380.0,
+                821.0
+              ],
+              "inset": [
+                320.0,
+                233.0,
+                380.0,
+                749.0
+              ]
+            },
+            {
+              "edge": "Top",
+              "base": [
+                304.0,
+                177.0,
+                1120.0,
+                380.0
+              ],
+              "inset": [
+                320.0,
+                233.0,
+                1088.0,
+                380.0
+              ]
+            }
+          ],
+          "placements": [
+            {
+              "corner": "Top left",
+              "bounds": [
+                864.0,
+                577.0,
+                340.0,
+                332.5
+              ]
+            },
+            {
+              "corner": "Top right",
+              "bounds": [
+                524.0,
+                577.0,
+                340.0,
+                332.5
+              ]
+            },
+            {
+              "corner": "Bottom left",
+              "bounds": [
+                864.0,
+                244.5,
+                340.0,
+                332.5
+              ]
+            },
+            {
+              "corner": "Bottom right",
+              "bounds": [
+                524.0,
+                244.5,
+                340.0,
+                332.5
+              ]
+            }
+          ],
+          "complete": true
+        }
+      ]
+    }
+  },
+  "files": [
+    {
+      "path": "overlay-native-001.log",
+      "bytes": 6364,
+      "sha256": "e8a48a521bd0efd2c4bc10f1f6b099afe5ea2cf873706e7e05de24e339eee9fa"
+    },
+    {
+      "path": "overlay-native-001/drawer-Dark-Comfortable.png",
+      "bytes": 418392,
+      "sha256": "690e4ee57af1792027867ece1a61da81168bef944c5207f20b5f4df8dbe159d0"
+    },
+    {
+      "path": "overlay-native-001/drawer-Dark-Compact.png",
+      "bytes": 380898,
+      "sha256": "d7a6e4439def15dd2d743301e47d156b30d3767fcc01678284675dc9ffef6e31"
+    },
+    {
+      "path": "overlay-native-001/drawer-Dark-Large.png",
+      "bytes": 401890,
+      "sha256": "756847cc3597c1db5276704c765a8b84fc7e667962db1fc0c8203d0d092debc0"
+    },
+    {
+      "path": "overlay-native-001/drawer-Light-Comfortable.png",
+      "bytes": 420641,
+      "sha256": "357559865321fc410d94871e4976dfde2e4648ffe551724139f682c23ab1b649"
+    },
+    {
+      "path": "overlay-native-001/drawer-Light-Compact.png",
+      "bytes": 381410,
+      "sha256": "3f5ca53dcf03f6d17b4d7106c3c4b5ee836e35a616652d468292a50cedd6ece0"
+    },
+    {
+      "path": "overlay-native-001/drawer-Light-Large.png",
+      "bytes": 407556,
+      "sha256": "e7d8f733b9d3014517c21785d799d3330c86a3e3bba899a3c75c4a5c340dec41"
+    },
+    {
+      "path": "overlay-native-001/gallery-overlays.png",
+      "bytes": 390891,
+      "sha256": "0d0cbae94acd755393cd34dc4241a523c34b39c3e7fd050c94530f845a84cde4"
+    },
+    {
+      "path": "overlay-native-001/overlay-report.json",
+      "bytes": 11339,
+      "sha256": "f4cab6a3b5513d9db82c8c8390c91795096e77d868cf3236969070da85b5e509"
+    },
+    {
+      "path": "overlay-installed-001.log",
+      "bytes": 6425,
+      "sha256": "7708225deb136c1e444cf6cc4f3b6db346fb4190778bb60ec86ac488364134a1"
+    },
+    {
+      "path": "overlay-installed-001/drawer-Dark-Comfortable.png",
+      "bytes": 418392,
+      "sha256": "690e4ee57af1792027867ece1a61da81168bef944c5207f20b5f4df8dbe159d0"
+    },
+    {
+      "path": "overlay-installed-001/drawer-Dark-Compact.png",
+      "bytes": 380898,
+      "sha256": "d7a6e4439def15dd2d743301e47d156b30d3767fcc01678284675dc9ffef6e31"
+    },
+    {
+      "path": "overlay-installed-001/drawer-Dark-Large.png",
+      "bytes": 401890,
+      "sha256": "756847cc3597c1db5276704c765a8b84fc7e667962db1fc0c8203d0d092debc0"
+    },
+    {
+      "path": "overlay-installed-001/drawer-Light-Comfortable.png",
+      "bytes": 420641,
+      "sha256": "357559865321fc410d94871e4976dfde2e4648ffe551724139f682c23ab1b649"
+    },
+    {
+      "path": "overlay-installed-001/drawer-Light-Compact.png",
+      "bytes": 381410,
+      "sha256": "3f5ca53dcf03f6d17b4d7106c3c4b5ee836e35a616652d468292a50cedd6ece0"
+    },
+    {
+      "path": "overlay-installed-001/drawer-Light-Large.png",
+      "bytes": 407556,
+      "sha256": "e7d8f733b9d3014517c21785d799d3330c86a3e3bba899a3c75c4a5c340dec41"
+    },
+    {
+      "path": "overlay-installed-001/gallery-overlays.png",
+      "bytes": 390891,
+      "sha256": "0d0cbae94acd755393cd34dc4241a523c34b39c3e7fd050c94530f845a84cde4"
+    },
+    {
+      "path": "overlay-installed-001/overlay-report.json",
+      "bytes": 11339,
+      "sha256": "f4cab6a3b5513d9db82c8c8390c91795096e77d868cf3236969070da85b5e509"
+    }
+  ]
+}

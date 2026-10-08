@@ -326,6 +326,10 @@ jobs:
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
         timeout-minutes: 4
         run: python3 scripts/test_gallery.py --section pagination --images .cache/ci/pagination 2>&1 | tee .cache/ci/macos-pagination-gallery.log
+      - name: macOS overlay focus and live geometry
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 4
+        run: python3 scripts/test_gallery.py --section overlay-matrix --images .cache/ci/overlay-matrix 2>&1 | tee .cache/ci/macos-overlay-matrix.log
       - name: macOS disclosure themes and draft lifetimes
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
         timeout-minutes: 3
