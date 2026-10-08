@@ -1,6 +1,36 @@
 # Milestone 07 hosted validation follow-up
 
-## Latest terminal run — 37731811839
+## Terminal run — 37772649589 (2026-10-08)
+
+[Run37772649589](https://github.com/dakotamurphyucf/gpuio/actions/runs/37772649589)
+at `6be17496` finishes with Linux Foundation passing. macOS Foundation completes
+within its updated job allowance; four steps fail: scrollbar preference, public
+document profile, GPUI Metal presentation and standalone Metal API calibration.
+The [scrollbar oracle](scrollbar-preference-och41.md) and
+[flow-document clipping repair](document-profile-flow-focus-och17.md) are now
+locally validated; this run predates them. Both Metal failures remain unresolved.
+Table full-history and the subsequent agent-workspace checks complete.
+
+The fresh-runner job receives the archives successfully. Extracted gallery and
+Signal Studio reports have `complete: true`. The Agent Workspace Python test
+process terminates with Trace/BPT trap (exit133) after “Attach text…”, before its
+finally block can write a report. No Python/native stack was retained. This is
+not passing receiver acceptance and does not by itself identify a packaged-app
+crash or a particular AX call as the cause.
+
+The next batch enables fatal Python stack capture including SIGTRAP, chaining
+to the original fatal behavior, and collects up to ten recent hosted `.ips`
+reports (5MB maximum each). A child-process self-test confirms SIGTRAP still
+terminates with signal5 while printing its Python location. No acceptance check
+is weakened and no speculative native repair is claimed.
+
+[Six-artifact manifest](foundation-37772649589-och17/manifest.json) retains the
+terminal job/step metadata, failed-step logs, complete receiver reports and
+stack-capture self-test. The pagination follow-up and other local commits also
+require a new hosted run. OCH-17/OCH-41 remain open; no merge or release acceptance.
+
+
+## Earlier terminal run — 37731811839
 
 [Run 37731811839](https://github.com/dakotamurphyucf/gpuio/actions/runs/37731811839)
 at `de452dea` passes Linux Foundation and the separate fresh macOS extracted-app

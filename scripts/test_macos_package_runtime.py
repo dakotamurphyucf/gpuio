@@ -6,6 +6,7 @@ minimal environment. This is runtime isolation on an existing Mac, not a clean
 machine, Gatekeeper, notarization or license-completeness assertion.
 """
 import argparse
+import faulthandler
 import json
 import os
 from pathlib import Path, PurePosixPath
@@ -116,6 +117,11 @@ def check_denial(prefix, environment, directory, paths):
 
 
 def exercise(app, child, output, workspace, board):
+    # CoreFoundation can terminate an invalid native call with SIGTRAP. The
+    # default faulthandler set omits that signal, so preserve its Python stack
+    # before chaining to the original fatal behavior (never turn it into a pass).
+    faulthandler.enable()
+    faulthandler.register(signal.SIGTRAP, all_threads=True, chain=True)
     from test_agent_chat import Mac
     mac = None
     try:

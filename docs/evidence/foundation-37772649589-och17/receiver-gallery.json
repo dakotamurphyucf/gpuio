@@ -1,0 +1,265 @@
+{
+  "complete": true,
+  "platform": "macOS-15.7.9-arm64-arm-64bit-Mach-O",
+  "qualification": "existing Mac with denied development directories; not clean-machine or release approval",
+  "app": "gallery",
+  "archive_sha256": "b2d1f85fb91b9ca5ec81f043c9eacd317d54782b5def74cda49e8f69af3d290b",
+  "executable_sha256": "788c17d8e2ec66107f2b7db45040324087488a097ad98c8e5b08f234a31b9755",
+  "packaging_revision": "b13984c1960b3be8c1dde7241c12ac60b0555250",
+  "packaging_revision_scope": "packaging checkout; binary build revision is not attested",
+  "denied_paths": [
+    {
+      "path": "/Users/runner/work/gpuio/gpuio",
+      "exists": true,
+      "denied": true
+    },
+    {
+      "path": "/opt/homebrew",
+      "exists": true,
+      "denied": true
+    },
+    {
+      "path": "/usr/local",
+      "exists": true,
+      "denied": true
+    },
+    {
+      "path": "/Users/runner/.cargo",
+      "exists": true,
+      "denied": true
+    },
+    {
+      "path": "/Users/runner/.rustup",
+      "exists": true,
+      "denied": true
+    },
+    {
+      "path": "/Users/runner/.opam",
+      "exists": false
+    }
+  ],
+  "environment_keys": [
+    "HOME",
+    "LANG",
+    "LC_CTYPE",
+    "LOGNAME",
+    "PATH",
+    "TMPDIR",
+    "USER"
+  ],
+  "cwd": "/private/var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/gpuio-extracted-ss08t2tq",
+  "checks": [
+    "embedded-images",
+    "native-actions",
+    "source-editor-selections"
+  ],
+  "selections": [
+    {
+      "case": "rendered-attribute-mutability",
+      "attributes": {
+        "AXFocused": true,
+        "AXSelectedTextRange": true,
+        "AXValue": false,
+        "AXRole": false,
+        "AXElementBusy": false
+      }
+    },
+    {
+      "case": "rendered-visual-line-and-point",
+      "observations": [
+        {
+          "term": "世界",
+          "line": 2,
+          "line_range": {
+            "location": 51,
+            "length": 58
+          },
+          "bounds": {
+            "x": 624.84375,
+            "y": 615.0,
+            "width": 31.7509765625,
+            "height": 26.0
+          }
+        },
+        {
+          "term": "👨‍👩‍👧‍👦",
+          "line": 2,
+          "line_range": {
+            "location": 51,
+            "length": 58
+          },
+          "bounds": {
+            "x": 669.4072265625,
+            "y": 615.0,
+            "width": 23.0,
+            "height": 26.0
+          }
+        }
+      ],
+      "character_hit": {
+        "location": 91,
+        "length": 1
+      }
+    },
+    {
+      "case": "rendered-native-select-all",
+      "text": "name: Design notes status: Draft\nA place for ideas\nA native Markdown preview with Unicode: 世界 · 👨‍👩‍👧‍👦.\nExplore a direction\nKeep the useful details\nShare what you learn\n<Note>MDX keeps useful child content; expressions stay text: {1 + 2}.</Note>\nBefore Read the design notes and 世界 guide after.\nIdea Next step\nNative text Keep 世界 readable\nSmall details Review together\n\nlet next_step = \"Explore\"\n",
+      "range_utf16": [
+        0,
+        401
+      ],
+      "copied": "name: Design notes status: Draft\nA place for ideas\nA native Markdown preview with Unicode: 世界 · 👨‍👩‍👧‍👦.\nExplore a direction\nKeep the useful details\nShare what you learn\n<Note>MDX keeps useful child content; expressions stay text: {1 + 2}.</Note>\nBefore Read the design notes and 世界 guide after.\nIdea Next step\nNative text Keep 世界 readable\nSmall details Review together\n\nlet next_step = \"Explore\""
+    },
+    {
+      "case": "rendered-ax-selection-copy",
+      "text": "A place for ideas",
+      "range_utf16": [
+        33,
+        17
+      ],
+      "copied": "A place for ideas"
+    },
+    {
+      "case": "rendered-ax-selection-copy",
+      "text": "世界",
+      "range_utf16": [
+        91,
+        2
+      ],
+      "copied": "世界"
+    },
+    {
+      "case": "rendered-ax-selection-copy",
+      "text": "👨‍👩‍👧‍👦",
+      "range_utf16": [
+        96,
+        11
+      ],
+      "copied": "👨‍👩‍👧‍👦"
+    },
+    {
+      "case": "rendered-ax-selection-copy",
+      "text": "Explore",
+      "range_utf16": [
+        392,
+        7
+      ],
+      "copied": "Explore"
+    },
+    {
+      "case": "rendered-caret",
+      "text": "",
+      "range_utf16": [
+        392,
+        0
+      ]
+    },
+    {
+      "case": "source-attribute-mutability",
+      "attributes": {
+        "AXFocused": true,
+        "AXSelectedTextRange": true,
+        "AXValue": false,
+        "AXRole": false
+      }
+    },
+    {
+      "case": "source-native-select-all",
+      "text": "open Core\n\nlet greeting name =\n  String.concat [ \"Hello, \"; name; \"!\" ]\n\nlet () = greeting \"世界\" |> print_endline\n",
+      "range_utf16": [
+        0,
+        113
+      ]
+    },
+    {
+      "case": "source-ax-unicode-selection",
+      "text": "世界",
+      "range_utf16": [
+        92,
+        2
+      ]
+    },
+    {
+      "case": "source-trailing-empty-line-caret",
+      "text": "",
+      "range_utf16": [
+        113,
+        0
+      ]
+    },
+    {
+      "case": "editor-attribute-mutability",
+      "attributes": {
+        "AXFocused": true,
+        "AXSelectedTextRange": true,
+        "AXValue": true,
+        "AXRole": false
+      }
+    },
+    {
+      "case": "textarea-ax-unicode-selection",
+      "text": "🙂",
+      "range_utf16": [
+        8,
+        2
+      ]
+    },
+    {
+      "case": "textarea-ax-unicode-selection",
+      "text": "👨‍👩‍👧‍👦",
+      "range_utf16": [
+        18,
+        11
+      ]
+    },
+    {
+      "case": "textarea-ax-unicode-selection",
+      "text": "é",
+      "range_utf16": [
+        34,
+        2
+      ]
+    },
+    {
+      "case": "textarea-ax-unicode-selection",
+      "text": "日本語",
+      "range_utf16": [
+        37,
+        3
+      ]
+    },
+    {
+      "case": "textarea-ax-unicode-selection",
+      "text": "λ🙂\nFamily",
+      "range_utf16": [
+        7,
+        10
+      ]
+    },
+    {
+      "case": "textarea-native-select-all",
+      "text": "Prefix λ🙂\nFamily 👨‍👩‍👧‍👦 and é\n日本語\n",
+      "range_utf16": [
+        0,
+        41
+      ]
+    },
+    {
+      "case": "textarea-native-backward-selection",
+      "text": "\n",
+      "range_utf16": [
+        40,
+        1
+      ]
+    },
+    {
+      "case": "textarea-end-caret",
+      "text": "",
+      "range_utf16": [
+        41,
+        0
+      ]
+    }
+  ],
+  "clipboard_restored": true
+}

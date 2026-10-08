@@ -1,0 +1,32 @@
+[
+  {
+    "path": "status.json",
+    "bytes": 74693,
+    "sha256": "1305e4421fc3cb2fb76ab5913327cfa79ca5fda19e7267309e7d0ba4dc6de7f5"
+  },
+  {
+    "path": "failures.log.gz",
+    "bytes": 4428,
+    "sha256": "c2b925595f5ca3caf579733634f29044e2011aa5e9fb720543a14eddd0fab687"
+  },
+  {
+    "path": "receiver-gallery.json",
+    "bytes": 6457,
+    "sha256": "7920b4f7d1d9503fc1fa1ea27864ff633c6c8cfd879befcd9426c86fa84765dd"
+  },
+  {
+    "path": "receiver-signal.json",
+    "bytes": 1592,
+    "sha256": "a5eb2bad309f46b5f82cc99f1e63b9657884950da85d69258efdb8ba40547980"
+  },
+  {
+    "path": "receiver-chat.log",
+    "bytes": 353,
+    "sha256": "79b84cf3029a9c7d983f47bbcd040e4404c2296ccd3d9d13a33c7e440da4a14e"
+  },
+  {
+    "path": "trap-diagnostics-test.log",
+    "bytes": 135,
+    "sha256": "26a39026803a305ebaf4947647b75fb3b197a2b4f0ffbf89f1826445e6ec2599"
+  }
+]

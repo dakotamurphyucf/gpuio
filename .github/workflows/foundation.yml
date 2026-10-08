@@ -979,6 +979,26 @@ jobs:
         if: ${{ !cancelled() && steps.transfer.outcome == 'success' && steps.desktop.outcome == 'success' }}
         timeout-minutes: 5
         run: python3 scripts/test_macos_package_runtime.py --package .cache/macos-runtime-inputs/signal_studio --output .cache/ci/signal-studio 2>&1 | tee .cache/ci/signal-studio.log
+      - name: Preserve fresh-runner native crash reports
+        if: always()
+        run: |
+          python3 - <<'PYCRASH'
+          from pathlib import Path
+          import shutil
+          import time
+          output = Path('.cache/ci/crashes')
+          output.mkdir(parents=True, exist_ok=True)
+          reports = Path.home() / 'Library/Logs/DiagnosticReports'
+          cutoff = time.time() - 3600
+          # This isolated hosted job is at most 20 minutes. Keep recent native
+          # diagnostics alongside Python faulthandler output, bounded in size.
+          candidates = [p for p in reports.glob('*.ips')
+                        if p.is_file() and not p.is_symlink()
+                        and p.stat().st_mtime >= cutoff and p.stat().st_size <= 5_000_000]
+          for source in sorted(candidates, key=lambda p: p.stat().st_mtime, reverse=True)[:10]:
+              shutil.copy2(source, output / source.name)
+          print('CRASH_REPORTS_COLLECTED', len(list(output.iterdir())))
+          PYCRASH
       - name: Preserve fresh-runner evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

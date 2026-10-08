@@ -36,6 +36,13 @@ Older records of a VoiceOver hold no longer apply. Access was restored after the
 
 ## Latest delivered behavior and validation
 
+Hosted run37772649589 is terminal: Linux passes; macOS fails the old scrollbar/
+document-profile checks and both unresolved Metal probes. The fresh receiver
+passes gallery and Signal Studio, but its Agent Workspace Python harness traps
+at attachment selection. [CI evidence](evidence/milestone-07-ci.md) records this
+new failure and the added fatal-stack/native-crash diagnostics. Updated-source
+hosted acceptance remains required.
+
 The pagination gallery follow-up exercises both themes and three application
 sizes, including billion-page chooser bounds, native input and model-change
 cancellation. It also repairs chooser buttons that used pale text on a pale

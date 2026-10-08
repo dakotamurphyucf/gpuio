@@ -1,0 +1,4 @@
+SIGTRAP_STACK_PASS fatal_status= -5
+Current thread 0x00000001f35c8c00 (most recent call first):
+  File "<string>", line 1 in <module>
+
