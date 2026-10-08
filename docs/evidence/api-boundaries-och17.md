@@ -213,3 +213,13 @@ callback raised, plus silent disposal of pending effects on worker cleanup. The
 existing attempt-all window cleanup policy to application requests. Native OS
 service behavior and VoiceOver are separate checks; this is not whole-surface
 API/release acceptance.
+
+
+## Scope cleanup follow-up — 2026-10-08
+
+The [cancellation repair](scope-cancellation-och17.md) extends the runtime review
+with callback-failure and reentrancy regressions. A raising cleanup previously
+stranded sibling scopes/producers and their accounting. Cancellation now attempts
+remaining independent work before re-raising the first failure, while preserving
+child-to-parent unregister ordering and queued-result suppression. This is an
+implementation repair with deterministic evidence, not whole-release acceptance.

@@ -19,7 +19,12 @@ end
     share one application tree. A closed parent or exhausted quota returns Error. *)
 val child : t -> name:string -> t Or_error.t
 
+(** Idempotently retires the scope, cancels every descendant and producer, then
+    runs its registered cleanups. If cancellation/cleanup raises, the remaining
+    independent work is still attempted and the first exception is re-raised
+    with its backtrace. Task counts remain until producer fibers unwind. *)
 val cancel : t -> unit
+
 val is_active : t -> bool
 
 module Stats : sig
@@ -38,7 +43,9 @@ val stats : t -> Stats.t
 
 (** Register window/application resource cleanup on the owning UI domain.
     It runs once, synchronously after the scope becomes inactive and its children
-    are cancelled. The callback must not raise, block or perform I/O. Returns an
+    are cancelled. The callback must not raise, block or perform I/O. A violating callback does
+    not skip other cleanups: [cancel] finishes them before propagating its failure.
+    Returns an
     idempotent unregister function; a closed scope or exhausted shared cleanup
     limit (4096 registrations) returns Error without registering the callback. *)
 val on_cancel : t -> (unit -> unit) -> (unit -> unit) Or_error.t

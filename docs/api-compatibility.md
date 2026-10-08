@@ -192,6 +192,22 @@ See [list paging](../lib/eio/list_paging.mli),
 [search](../lib/eio/list_search.mli), and the
 [review evidence](evidence/api-boundaries-och17.md#paging-ownership-repair--2026-10-08).
 
+## Scope cleanup failures
+
+`Scope.cancel` is idempotent and remains synchronous on the owning UI domain.
+It retires scope membership/accounting before callbacks can reenter cancellation,
+attempts every descendant and producer cancellation, then runs the remaining
+registered cleanup callbacks. A child can still unregister a pending ancestor
+cleanup before that ancestor claims its callback batch. Queued task/stream
+results from cancelled scopes remain suppressed; unrelated scopes remain usable.
+
+Cleanup callbacks must not raise, block or perform I/O. If a callback violates
+the non-raising contract, cancellation still attempts independent remaining work
+and re-raises the first exception with its original backtrace. This does not make
+a blocked callback safe or force a producer's protected cleanup to finish. Task
+counts stay charged until producer fibers unwind. See the
+[regression evidence](evidence/scope-cancellation-och17.md).
+
 ## Desktop service lifetimes
 
 Desktop services run through the application UI domain. Constructing a returned

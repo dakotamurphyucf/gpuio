@@ -43,6 +43,11 @@ at attachment selection. [CI evidence](evidence/milestone-07-ci.md) records this
 new failure and the added fatal-stack/native-crash diagnostics. Updated-source
 hosted acceptance remains required.
 
+The [scope cancellation repair](evidence/scope-cancellation-och17.md) prevents a
+raising cleanup from stranding sibling scopes, producers or resource accounting.
+Deterministic regressions cover first-failure propagation, reentrancy, queued
+stream suppression and ancestor unregister ordering; full OCaml tests pass.
+
 The [scrollbar animated-width repair](evidence/scrollbar-input-macos-och41.md)
 keeps native ranges/focus alive when appearance changes narrow an animated track.
 The failing regression now passes alongside the full native suite. The ordinary
