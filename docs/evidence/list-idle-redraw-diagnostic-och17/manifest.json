@@ -1,0 +1,70 @@
+{
+  "idle-diagnostic.patch": {
+    "bytes": 3031,
+    "sha256": "41ce00223cac5b19c572542323d9dd5b55363f4827c4ab5cc6a8dd5a6b601926"
+  },
+  "idle-bounds-diagnostic.patch": {
+    "bytes": 3924,
+    "sha256": "bfab74bae70c23502a67f17960df325e44e623f526db7e44c22667cdc616f293"
+  },
+  "install-idle-diagnostic.py": {
+    "bytes": 2063,
+    "sha256": "3e96beff24f9699bc39ba368891e38c821be3192498c91d7d2cf4bad6424e113"
+  },
+  "run-idle-diagnostic.py": {
+    "bytes": 3348,
+    "sha256": "a2d21bc33ea79090b0245830c00c7b4f9806d8b378e9e50085a5cee32107054f"
+  },
+  "run-idle-bounds-diagnostic.py": {
+    "bytes": 3345,
+    "sha256": "95c9380396999ac22b165aa973c3da2f0a91831b5b34570d4dd3241ca3d6c838"
+  },
+  "idle-diagnostic-build.log": {
+    "bytes": 100194,
+    "sha256": "673aeed71291b82a121fb963727a0a4a4ad34a2c6265a41f0021a9cb763907db"
+  },
+  "idle-bounds-diagnostic-build.log": {
+    "bytes": 100279,
+    "sha256": "f6bff78afb15b2e292bd6568fec85f5a20db03537351110f21070060abb3a288"
+  },
+  "idle-restored-release-build.log": {
+    "bytes": 100279,
+    "sha256": "207d7129aa803e465f0efefef1871674ed60bb308b0702020ab8204741b62810"
+  },
+  "idle-restored-release-binaries.json": {
+    "bytes": 581,
+    "sha256": "1f80729728b5e40e4ba524da25a9f4202a52ba41cd110c0a6c081098c192bb8b"
+  },
+  "idle-diagnostic-runs.log": {
+    "bytes": 282,
+    "sha256": "4bd3406cb7f8495c476d33862daa6a941b660eb0c5e6b39c3e309a7a7dd64c1c"
+  },
+  "idle-bounds-diagnostic-runs.log": {
+    "bytes": 104,
+    "sha256": "93324f84f983b1755981f013ec3b13eb5b98bf5215df330cb863ab48c3f97425"
+  },
+  "idle-diagnostic-untouched-001/report.json": {
+    "bytes": 15499,
+    "sha256": "5339e8d0d31c23aa4e35386ad0c93da4b7b5468f52a5acfbc0a1559471f796ee"
+  },
+  "idle-diagnostic-untouched-001/application.log": {
+    "bytes": 125685,
+    "sha256": "b0d40c62f2d533056a817971eb73f4c0214902c70c872255559f6631a7ff6291"
+  },
+  "idle-diagnostic-pointer-001/report.json": {
+    "bytes": 10881,
+    "sha256": "92d96b1dabbb2e3872e23d3a7e66c72789135d54e1ebdcfec483435263da6d70"
+  },
+  "idle-diagnostic-pointer-001/application.log": {
+    "bytes": 151516,
+    "sha256": "1004a86fa458d23fb891bc6a6e9e6d26353d63d9bca0f382e9c2b858ef94b514"
+  },
+  "idle-bounds-diagnostic-untouched-001/report.json": {
+    "bytes": 8514,
+    "sha256": "a16f11fcc74fbd7898da2e18da4773aa17b9e387a2d917db4ec38536cace934a"
+  },
+  "idle-bounds-diagnostic-untouched-001/application.log": {
+    "bytes": 139556,
+    "sha256": "17b0b819274d03b838bfe221ed8ca450c3cdc0ec0b87caf7ee4496fb8a605f7a"
+  }
+}

@@ -114,3 +114,9 @@ It does not prove the cause of the historical 102.723 ms startup failure or
 resolve the owner's visual-jitter report. Investigate the new idle failure before
 claiming repeated list qualification. Other workloads, collector overhead,
 resource validation and broader release requirements remain open.
+
+The subsequent [bounded idle diagnostic](list-idle-redraw-diagnostic-och17.md)
+reproduces redraws through `Window::bounds_changed`. Controlled pointer movement
+does not reproduce that pattern; a refined control stays quiet and cannot identify
+the originating native notification. Temporary instrumentation was restored, and
+no replacement full-run acceptance is claimed.
