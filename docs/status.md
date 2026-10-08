@@ -30,6 +30,12 @@ Older records of a VoiceOver hold no longer apply. Access was restored after the
 
 ## Latest delivered behavior and validation
 
+The [notarization tooling follow-up](evidence/developer-id-tooling-och17.md#notarization-finalization-tooling--2026-10-08)
+adds a submission/recovery guide and a finalizer that binds acceptance to the
+original archive, staples a copy and verifies the final ZIP after extraction.
+Portable tests pass with simulated Apple tools. Actual service, signing and
+quarantined receiver acceptance remain pending; no artifact was submitted.
+
 The [navigation-history gallery follow-up](evidence/navigation-history-macos-och41.md)
 adds a modular public example for new visits, replacement, root/reset and explicit
 motion/retention policies. Six theme/motion combinations pass native keyboard/AX

@@ -88,6 +88,12 @@ No JIT or library-validation exceptions are added. This mode currently has porta
 admission/failure tests; actual certificate signing, hardened-runtime application
 behavior, notarization, stapling and quarantined receiver acceptance remain unqualified.
 
+The [notarization handoff](notarization.md) describes explicit submission, recovery
+using the saved submission ID and finalization into a separate stapled archive.
+The finalizer verifies that Apple's accepted log names the submitted ZIP hash,
+then verifies the final archive after extraction. Its portable tests simulate
+Apple tools; actual service and quarantined receiver acceptance remain pending.
+
 For distribution, the final artifact still needs the project's chosen release
 identity/version, reviewed licensing, appropriate signing/notarization workflow
 and supported clean-machine acceptance. Those gates remain open; no developer

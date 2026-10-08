@@ -220,6 +220,8 @@ jobs:
         run: python3 scripts/test_package_runtime_inputs.py 2>&1 | tee .cache/ci/package-runtime-inputs.log
       - name: Package transfer provenance validation (no display)
         run: python3 scripts/test_package_transfer.py 2>&1 | tee .cache/ci/package-transfer-inputs.log
+      - name: Notarization final-artifact validation (simulated Apple tools, no upload)
+        run: python3 scripts/test_finalize_macos_notarization.py 2>&1 | tee .cache/ci/notarization-finalization.log
       - name: Static backend composition tests (no display)
         run: python3 scripts/test_compose_backend.py 2>&1 | tee .cache/ci/backend-composition.log
       - name: Dependency notice collection tests (no display)
