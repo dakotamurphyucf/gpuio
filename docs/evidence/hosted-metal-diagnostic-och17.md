@@ -116,3 +116,49 @@ this probe sequence. No corresponding main-branch change is adopted. This was no
 a production startup repair or cold-start pass. Original failures remain failed;
 required presentation checks remain unresolved. Local physical-Mac workload passes
 are separate evidence.
+
+## Continuous warm-up — three Intel trials pass, 2026-10-08
+
+[Run 37745626692](https://github.com/dakotamurphyucf/gpuio/actions/runs/37745626692)
+completed successfully at diagnostic revision
+`ad7587d2acf684b070c3241f1d25c87e83f23f5b` on `macos-15-intel`.
+The [22-file archive](hosted-metal-diagnostic-och17/continuous-reports.tar.gz)
+and [manifest](hosted-metal-diagnostic-och17/continuous-manifest.json) preserve
+all three trials, build/native logs, display/toolchain data, run metadata and
+exact committed probe/driver/workflow sources. Archived bytes were read back and
+verified. The sources match the independently retained experiment files, and the
+measured-session `accepted` predicate matches the main probe byte-for-byte.
+
+The previous warm-up stopped animation before starting new measurement sessions.
+This variant keeps requesting animation frames while warm-up callback admission
+stops and callbacks settle within the original two-second bound. It records any
+render calls during that transition as **unmeasured**, drops the warm-up session,
+and starts a fresh measured session without a new `cx.notify`. Each measurement
+retains the original 90-frame target, 12-second phase deadline and strict
+zero/loss/clock/retirement checks. All warm-up records remain visible. No renderer,
+collector, clock or production behavior is changed.
+
+The predeclared batch runs exactly three trials and stops on the first failure;
+it did not retry a failed trial:
+
+| Trial | Measured presentations, window 1 / 2 | Measured zeros | Warm-up presented/zero, window 1 / 2 | Unmeasured transition renders |
+| --- | --- | --- | --- | --- |
+| 001 | 90 / 90 | 0 / 0 | 80/11 / 122/19 | 1 / 2 |
+| 002 | 90 / 90 | 0 / 0 | 90/0 / 138/0 | 0 / 1 |
+| 003 | 90 / 90 | 0 / 0 | 90/0 / 145/0 | 0 / 0 |
+
+Every measured session is closed, stopped and pending-zero, with 90 admitted
+records and submission samples. No saturation, missing/not-submitted record,
+invalid clock, duplicate, truncation or histogram overflow occurs. The active
+window has 89 animation intervals in every trial; both windows are visible at
+start and end. The configured hosted display is 1920×1080 at scale 1.
+
+The physical Mac's preceding local variant also passed both measured 90-frame
+windows; its warm-up and transition are separately retained in the local research
+workspace. Hosted results above establish repeatability on this tested Intel
+runner. They do not prove ARM timestamp support, cold-start acceptance, idle-to-
+active transitions or end-to-end application performance. Trial 001's warm-up
+zeros remain failures of presentation timing in that phase, not reclassified
+successes. This supports the continuous-transition hypothesis for steady-state
+collector qualification. The diagnostic branch remains separate; the original
+Foundation probes and their failures have not been removed or waived.
