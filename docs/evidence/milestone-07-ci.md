@@ -1,5 +1,28 @@
 # Milestone 07 hosted validation follow-up
 
+## Terminal run — 37848090787: three native test failures
+
+[Foundation 37848090787](https://github.com/dakotamurphyucf/gpuio/actions/runs/37848090787)
+at `0c8f94d2c3b3f22d4f487202eace60156d3bd528` has successful Linux Foundation and
+fresh macOS extracted-app jobs. Required Linux build/unit/private-bus and all four
+consumer checks pass; the passing X11/Wayland smokes remain informational.
+All three receiver reports are complete and restore the clipboard; packaging
+revision is explicitly distinct from binary provenance, whose hashes are retained.
+
+macOS Foundation fails only screen-point accessibility routing, native popup
+queued-start cancellation and native disclosure/navigation. The
+[focused synchronization follow-up](preview-native-test-readiness-och17.md)
+records the exact assertions, local diagnostic reproduction and candidate repairs.
+The preceding dates/colors draft check now passes, as do all other required
+steps. Both raw Metal reports again agree on unavailable timing; local
+revalidation confirms the classification, without a positive presentation claim.
+
+The [32-file archive](foundation-37848090787-och17/reports.tar.gz) and
+[manifest](foundation-37848090787-och17/manifest.json) retain original failures,
+terminal metadata, raw timing and receiver evidence, plus scoped local follow-up.
+The locally passing repairs await one batched CI submission. C2/R2 remain open;
+this is neither a green integration run nor a published preview.
+
 ## Terminal run — 37825342234: one dates/colors failure
 
 [Foundation 37825342234](https://github.com/dakotamurphyucf/gpuio/actions/runs/37825342234)

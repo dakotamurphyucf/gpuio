@@ -34,7 +34,8 @@ nested-picker window cleanup. The focused fake-clock check accepts a delayed
 exact value and rejects persistent wrong text; it has no write operation.
 The example inventory remains 432 sources / 268 reviewed groups. This does not
 establish the hosted failure's root cause or qualify performance. The changed
-harness still requires hosted validation before C2/R2 close.
+harness passes hosted validation in run `37848090787`; C2/R2 remain open for the
+three separate failures recorded in the [CI follow-up](milestone-07-ci.md).
 
 The [retained archive](foundation-37825342234-och17/reports.tar.gz) and
 [manifest](foundation-37825342234-och17/manifest.json) contain the original failed

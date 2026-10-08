@@ -92,12 +92,15 @@ async fn ready(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, owner: NodeI
     loop {
         host::editor_test::frame(cx, handle).await;
         if handle
-            .update(cx, |view, _, _| view.focus.borrow().allows(owner))
+            .update(cx, |view, window, _| {
+                view.focus.borrow().allows(owner)
+                    && view.charts[&id(2)].borrow().pointer_ready(window)
+            })
             .unwrap()
         {
             return;
         }
-        assert!(Instant::now() < deadline, "radar label not eligible");
+        assert!(Instant::now() < deadline, "radar label/input not ready");
     }
 }
 pub(super) fn assert_retired(handle: WindowHandle<View>, owner: NodeId, cx: &mut App) {
@@ -178,11 +181,15 @@ pub(super) async fn exercise(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>
         assert_retired(handle, owner, cx);
         publish(&session, source, 7, cx);
         handle
-            .update(cx, |view, _, _| {
+            .update(cx, |view, window, _| {
                 assert!(
                     view.focus.borrow().allows(owner),
                     "same axis must already be eligible again"
                 );
+                // Retained labels become eligible synchronously; pointer input
+                // waits for the worker's geometry for the new publication. This
+                // proves label eligibility alone is not a readiness barrier.
+                assert!(!view.charts[&id(2)].borrow().pointer_ready(window));
                 assert!(!view.menus[&owner].borrow().tracking());
             })
             .unwrap();

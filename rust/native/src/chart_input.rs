@@ -54,6 +54,10 @@ impl Input {
     }
 }
 impl State {
+    #[cfg(feature = "native-tests")]
+    pub(in crate::host) fn pointer_ready(&self, window: &Window) -> bool {
+        self.input_allowed(window, true)
+    }
     pub(in crate::host) fn chart_focused(&self, window: &Window) -> bool {
         self.input.focus.is_focused(window)
     }

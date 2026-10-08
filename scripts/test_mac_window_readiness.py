@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 """Portable pointer readiness regressions; actual OS evidence is separate."""
 import unittest
+import contextlib
+import io
 from types import SimpleNamespace
 from unittest.mock import patch
 
 import test_macos_window_lifecycle as lifecycle
 from test_gallery import GalleryMouse
+from test_macos_hit_testing import PointRouting
 
 
 class Clock:
@@ -32,6 +35,54 @@ class Pointer(GalleryMouse):
         if self.lose_on_check:
             self.owner = lambda: (99, None)
         super().check_owner(point)
+
+
+class IdentityTests(unittest.TestCase):
+    """A ready process is insufficient: semantic identity must still be exact."""
+
+    def measure(self, hit, *, pid=42):
+        routing = PointRouting.__new__(PointRouting)
+        released, queries = [], []
+        routing.mac = SimpleNamespace(
+            pid=42, wait_find=lambda *args: 2,
+            text=lambda *args: 'test node', release=released.append,
+            attr=lambda node, attr: {3: 2, 4: 1}.get(node.value))
+        routing.root, routing.observations = 100, []
+        routing.equal = lambda node, target: node.value == target
+
+        def query(root, x, y, result):
+            queries.append((x, y))
+            result._obj.value = hit
+            return 0
+
+        def owner(node, result):
+            result._obj.value = pid
+            return 0
+
+        routing.hit, routing.pid = query, owner
+        with patch('test_macos_hit_testing.ready_pointer'), \
+                patch('test_macos_hit_testing.GalleryMouse'), \
+                patch('test_macos_hit_testing.element_rect', return_value=(0, 0, 20, 20)), \
+                contextlib.redirect_stdout(io.StringIO()):
+            try:
+                routing.check('Target')
+            finally:
+                self.assertEqual(queries, [(10, 10)], 'Never retry semantic identity')
+                self.assertIn(2, released, 'Release the requested target even on failure')
+        return routing.observations[0]['match']
+
+    def test_exact_control_and_real_descendant_pass(self):
+        self.assertEqual(self.measure(2), 'exact')
+        self.assertEqual(self.measure(3), 'descendant')
+
+    def test_window_ancestor_and_unrelated_control_fail_without_retry(self):
+        for hit in (1, 4):
+            with self.subTest(hit=hit), self.assertRaisesRegex(AssertionError, 'Point did not resolve'):
+                self.measure(hit)
+
+    def test_foreign_process_after_readiness_still_fails(self):
+        with self.assertRaises(AssertionError):
+            self.measure(2, pid=99)
 
 
 class ReadinessTests(unittest.TestCase):

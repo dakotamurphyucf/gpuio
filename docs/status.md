@@ -67,7 +67,11 @@ macOS extracted apps pass; macOS Foundation fails only the dates/colors final
 composer-draft assertion. Both hosted timing probes agree on unavailable timing;
 their gate passes without claiming presentation qualification. The
 [draft-observation follow-up](evidence/chat-draft-observation-och17.md) adds exact
-asynchronous-value checks and passes locally; hosted validation remains pending.
+asynchronous-value checks and passes locally and in terminal run `37848090787`.
+That run passes Linux and fresh macOS consumers; macOS Foundation fails only
+point routing, popup radar focus and navigation resize. The
+[focused test synchronization changes](evidence/preview-native-test-readiness-och17.md)
+pass locally and await batched hosted validation.
 See the [CI record](evidence/milestone-07-ci.md). Final integration remains open.
 
 The [preview adoption guide](developer-preview.md) and GitHub feedback templates

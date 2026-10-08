@@ -11,12 +11,12 @@ import json
 from pathlib import Path
 import platform
 import subprocess
-import time
 
 from test_agent_chat import Mac
 from test_canvas import screenshot
-from test_gallery import (TITLE, element_rect, open_picker, raise_gallery,
+from test_gallery import (TITLE, GalleryMouse, element_rect, open_picker, raise_gallery,
                           reveal_gallery_control)
+from test_macos_window_lifecycle import prepare_window, ready_pointer
 
 
 class PointRouting:
@@ -42,13 +42,14 @@ class PointRouting:
             # Wheel in the card gutter so nested editors do not consume the
             # scroll intended to reveal a later control on the outer page.
             reveal_gallery_control(mac, label, role, scroll_in_left_gutter=True)
-        # Allow the page/overlay's first layout to settle before taking a single
-        # measurement. Do not retry failed identity assertions until they pass.
-        time.sleep(.15)
-        target = mac.wait_find(TITLE, label, role)
-        node = C.c_void_p()
         observation = {'label': label, 'role': role, 'ancestry': []}
         self.observations.append(observation)
+        # Establish foreground, stable geometry and absence of another process
+        # over the point. This never compares semantic identity. The one-shot
+        # identity measurement below must still reject a window/ancestor hit.
+        ready_pointer(mac, GalleryMouse(mac), label, role, observation)
+        target = mac.wait_find(TITLE, label, role)
+        node = C.c_void_p()
         try:
             x, y, width, height = element_rect(mac, target)
             assert width > 0 and height > 0, (label, width, height)
@@ -85,10 +86,11 @@ class PointRouting:
             mac.release(target)
 
 
-def exercise(mac, observations):
+def exercise(mac, report):
     mac.wait_text(TITLE, 'A little context goes a long way')
     raise_gallery(mac)
-    routing = PointRouting(mac, observations)
+    prepare_window(mac, report)
+    routing = PointRouting(mac, report['observations'])
     try:
         routing.check('New window')
         routing.check('Selection & actions')
@@ -142,7 +144,7 @@ def main():
         mac = None
         try:
             mac = Mac(child.pid, child)
-            exercise(mac, report['observations'])
+            exercise(mac, report)
             mac.close(TITLE)
             assert child.wait(timeout=15) == 0
             report['result'] = 'pass'
