@@ -467,7 +467,7 @@
       "id": "breadcrumb-pagination",
       "owner": "OCH-37",
       "scope": "v1",
-      "audit_status": "Pinned breadcrumb/base-pagination/styled-pagination sources reviewed. Core now supports compact paging, interactive bounded gaps, passive intermediate breadcrumbs and per-member styles. Gpuio_eio.Pagination provides a bounded native page-entry popover with guarded asynchronous confirmation. Each gap retains its own Navigation.Gap_popup anchor with independent expanded state, button-relative placement and eligible-trigger focus return. Core/Bonsai driver tests and an exact public transaction sequence rendered on TestPlatform cover identity, stale replies, keyboard/focus and AX behavior. Physical macOS/visual/VoiceOver, resources and release acceptance remain open; see navigation-review.md and pagination-chooser evidence. Workflow Stepper remains covered separately.",
+      "audit_status": "Pinned breadcrumb/base-pagination/styled-pagination sources reviewed. Core now supports compact paging, interactive bounded gaps, passive intermediate breadcrumbs and per-member styles. Gpuio_eio.Pagination provides a bounded native page-entry popover with guarded asynchronous confirmation. Each gap retains its own Navigation.Gap_popup anchor with independent expanded state, button-relative placement and eligible-trigger focus return. Core/Bonsai driver tests and an exact public transaction sequence rendered on TestPlatform cover identity, stale replies, keyboard/focus and AX behavior. The original checkpoint did not qualify physical macOS; see navigation-review.md and pagination-chooser evidence. Workflow Stepper remains covered separately. Physical macOS root and fresh installed galleries now pass six theme/size combinations, including native entry, Escape ownership, model changes, bounded billion-page controls and teardown; chooser contrast repaired and actual button colors verified. VoiceOver, measured resources and final hosted/release acceptance remain open; see pagination-macos-och41.md.",
       "public_interface": "lib/core/navigation.mli",
       "example": "examples/gallery/navigation_page.ml",
       "evidence": [
@@ -475,7 +475,8 @@
         "docs/catalog/numeric-review.md",
         "docs/evidence/workflow-stepper-och41.md",
         "docs/catalog/navigation-review.md",
-        "docs/evidence/pagination-chooser-och41.md"
+        "docs/evidence/pagination-chooser-och41.md",
+        "docs/evidence/pagination-macos-och41.md"
       ],
       "gallery_page": "navigation",
       "contract": "Navigation offers stable-ID breadcrumbs and bounded Full/Compact pagination. Gpuio_eio.Pagination adds seven shortcut buttons plus a numeric gap chooser, fresh opening identity and latest-model asynchronous confirmation. Gpuio.Stepper supplies application-owned workflow stages; application page/validation lifetimes remain explicit.",

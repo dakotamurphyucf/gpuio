@@ -22,8 +22,14 @@ This supplements OCH-37's accepted baseline; physical release acceptance is open
 editor, asynchronous completion and lifecycle semantics. The
 [evidence](../evidence/pagination-chooser-och41.md) distinguishes automated tests
 from physical desktop validation. Styled interactive equivalence is implemented
-locally; localization of chooser text, macOS physical input/VoiceOver/visual,
-resource validation and the release gates remain open.
+locally. The [macOS walkthrough](../evidence/pagination-macos-och41.md) now covers
+six theme/application-size combinations in root and fresh installed galleries:
+breadcrumb keyboard routing, native entry/normalization, Cancel/Escape focus,
+model-change dismissal, compact/empty/disabled states, bounded billion-page
+shortcuts and retained application model versus retired native chooser. Screenshot
+review found and repaired poor dark-theme button contrast; actual button pixel
+checks now accompany input checks. Localization, VoiceOver, measured resources,
+final-source hosted checks and broader release gates remain open.
 
 Workflow `component/stepper` is covered separately by
 [its contract](../design/workflow-stepper.md) and

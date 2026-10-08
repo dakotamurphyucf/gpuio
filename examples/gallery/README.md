@@ -396,7 +396,7 @@ its child, including on failure:
 python3 scripts/test_gallery.py --images scratch/gallery-images
 ```
 
-Use `--section core`, `status-regions`, `badges`, `styles`, `pickers`, `overlays`, `navigation`, `feedback`, `journeys`,
+Use `--section core`, `status-regions`, `badges`, `styles`, `pickers`, `overlays`, `navigation`, `pagination`, `feedback`, `journeys`,
 `collections`, `documents`, `document-links`, `document-images`, `highlighting`, `canvas`, `assets`, `charts`, `motion`, `responsive`, `extensions`, `input`, `observations`, `desktop` or `runtime` for focused iteration;
 the default `all` exercises all currently integrated acceptance stages in one
 application lifetime. Pickers verify draft cancel/apply and focus restoration;

@@ -230,6 +230,14 @@ let shortcuts o =
 ;;
 
 let view ?style:custom ?panel_style ?appearance ?labels ~overlay t =
+  (* Use the theme's paired surface/text colors, as the navigation row does.
+     An accent is not necessarily a surface suitable for ordinary foreground. *)
+  let button_style =
+    style
+      [ Background (Gpuio.Background.solid (Gpuio.Color.token_exn "background"))
+      ; Foreground (Gpuio.Color.token_exn "foreground")
+      ]
+  in
   let content =
     Option.map t.opening ~f:(fun o ->
       let config =
@@ -264,6 +272,7 @@ let view ?style:custom ?panel_style ?appearance ?labels ~overlay t =
             ~style:(style [ Gap (px 6.); Wrap Wrap ])
             (List.map (shortcuts o) ~f:(fun page ->
                V.button
+                 ~style:button_style
                  ~key:(key (Int.to_string page))
                  ~on_click:(t.inject (Choose (o.id, page)))
                  (Int.to_string page)))
@@ -275,8 +284,9 @@ let view ?style:custom ?panel_style ?appearance ?labels ~overlay t =
             ()
         ; V.row
             ~style:(style [ Gap (px 8.) ])
-            [ V.button ~on_click:(cancel t) "Cancel"
+            [ V.button ~style:button_style ~on_click:(cancel t) "Cancel"
             ; V.button
+                ~style:button_style
                 ~disabled:(o.pending || Option.is_none o.snapshot)
                 ~on_click:(confirm t)
                 "Go to page"

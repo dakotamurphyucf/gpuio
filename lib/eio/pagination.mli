@@ -39,7 +39,9 @@ val confirm : t -> unit Bonsai.Effect.t
     state identifies only the open gap and closing restores that button's focus.
     Closed gap anchors remain mounted. Ordinary native dismissal rules apply.
     [labels] localizes pagination; chooser labels and range text are English.
-    Style overrides affect the navigation and panel respectively. *)
+    Style overrides affect the navigation and panel respectively. Chooser
+    buttons use the theme's [background]/[foreground] pair with accent borders,
+    so a light accent does not become a surface beneath light text. *)
 val view
   :  ?style:Gpuio.Style.t
   -> ?panel_style:Gpuio.Style.t

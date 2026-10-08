@@ -1,0 +1,151 @@
+{
+  "base_commit": "09a2cc7c",
+  "platform": "macOS-14.5-arm64-arm-64bit-Mach-O",
+  "cpu": "Apple M1 Max",
+  "root_report": "pagination-native-006/pagination-report.json",
+  "installed_report": "pagination-installed-002/pagination-report.json",
+  "artifacts": [
+    {
+      "path": "pagination-native-001.log",
+      "bytes": 1112,
+      "sha256": "a4904777256c98d79a0992724cbb03e01b7222601aa8ad76c78c06d7a228b653"
+    },
+    {
+      "path": "pagination-native-002.log",
+      "bytes": 9481,
+      "sha256": "2a3931ca6104df76a1ae374923383423dbc7b41e334d8ccb1f8cc1fe4623e5fb"
+    },
+    {
+      "path": "pagination-native-002/pagination-report.json",
+      "bytes": 422,
+      "sha256": "bb32211e79f8d3f7c97ea7fc091379a6b8642018bf3fed5a3a221d20d989aff6"
+    },
+    {
+      "path": "pagination-native-003.log",
+      "bytes": 9699,
+      "sha256": "4e346455959857b1358296ccfa500aed9713c9f514dfc09830f918a822278326"
+    },
+    {
+      "path": "pagination-native-003/pagination-report.json",
+      "bytes": 497,
+      "sha256": "7784798870cc3972e324f572f952c4354967a75ca11df8c28a6005220d062793"
+    },
+    {
+      "path": "pagination-native-004.log",
+      "bytes": 17030,
+      "sha256": "a6c55598d55868c5e5dd0ae2684c37e479d9b0acd52848e1d56f82c0df06a64f"
+    },
+    {
+      "path": "pagination-native-004/pagination-report.json",
+      "bytes": 674,
+      "sha256": "e63ed1d6b4587c9db7819102c27e6c796ea93c20f79a7144d81bc49c5d0d1de2"
+    },
+    {
+      "path": "pagination-native-005.log",
+      "bytes": 14266,
+      "sha256": "9a3b496c2e62acbfbd37c7470d29468360136070059633a88ab1fa68a910f3fd"
+    },
+    {
+      "path": "pagination-native-005/pagination-report.json",
+      "bytes": 3355,
+      "sha256": "bc4da8e30d53c9ccad8914ccd4a7b96848f66543f672fdb8faf8b2d30de9cd90"
+    },
+    {
+      "path": "pagination-native-006.log",
+      "bytes": 14266,
+      "sha256": "6f5a78d1f4ef0cdda68c2e75b8a35560b28551edc7ccfb257178edad19edb2a1"
+    },
+    {
+      "path": "pagination-native-006/pagination-report.json",
+      "bytes": 7315,
+      "sha256": "03da43042ba4cc0dc1a1abb0941f02f4fc75be339726f1e88cb9048b2302368a"
+    },
+    {
+      "path": "pagination-installed-001.log",
+      "bytes": 14320,
+      "sha256": "025f4c9862b648256eb9e52e6b035464538d9e15773e0c4086447a6c004cf1bd"
+    },
+    {
+      "path": "pagination-installed-001/pagination-report.json",
+      "bytes": 4627,
+      "sha256": "79c9f0a7da40692b74179d4739c9862834cb238486b2e368e0d816a27f31a2a0"
+    },
+    {
+      "path": "pagination-installed-002.log",
+      "bytes": 14327,
+      "sha256": "73c908f157cf9acc5b207b19945b9ae7ce568816198c774ea6be62f1912441bf"
+    },
+    {
+      "path": "pagination-installed-002/pagination-report.json",
+      "bytes": 7315,
+      "sha256": "03da43042ba4cc0dc1a1abb0941f02f4fc75be339726f1e88cb9048b2302368a"
+    },
+    {
+      "path": "pagination-native-006/pagination-Light-Comfortable.png",
+      "bytes": 391646,
+      "sha256": "eebf0e44554aab442201c72f9d587d1ca65c321e1ebd129ad9f3e6960da13a05"
+    },
+    {
+      "path": "pagination-native-006/pagination-Dark-Large.png",
+      "bytes": 369562,
+      "sha256": "1674ec9a809f37ad66577e11e4cadc349b0526391a116543e3a021e6d7b47fdd"
+    },
+    {
+      "path": "pagination-installed-002/pagination-Light-Comfortable.png",
+      "bytes": 391646,
+      "sha256": "eebf0e44554aab442201c72f9d587d1ca65c321e1ebd129ad9f3e6960da13a05"
+    },
+    {
+      "path": "pagination-installed-002/pagination-Dark-Large.png",
+      "bytes": 369562,
+      "sha256": "1674ec9a809f37ad66577e11e4cadc349b0526391a116543e3a021e6d7b47fdd"
+    },
+    {
+      "path": "pagination-installed-001/pagination-Dark-Large.png",
+      "bytes": 366966,
+      "sha256": "604f64e297f75ca9c91ba649fd184d36872355c058495636a56baae0d3172b60"
+    },
+    {
+      "path": "pagination-consumer-build.log",
+      "bytes": 200908,
+      "sha256": "0a00fb7235a5deb39e7f4f6e2f81e9bacb4336664fbc8fca1adc502dd35c0c25"
+    },
+    {
+      "path": "pagination-colors-consumer-build.log",
+      "bytes": 100831,
+      "sha256": "601fa7b2e032f81d5b5972cb20e575136df9b2b781cda174e9f3543c656b9596"
+    },
+    {
+      "path": "pagination-colors-build.log",
+      "bytes": 101892,
+      "sha256": "c2be73da1ba71b10b4aab9f1ebe15dc0700f83960447b988de23ef2d7d88b2eb"
+    },
+    {
+      "path": "pagination-colors-build-final.log",
+      "bytes": 142,
+      "sha256": "d46b66f5cb1f0daa19168355573ffcad7af8165270fd30af4357c0224ba3f956"
+    },
+    {
+      "path": "pagination-native-fixtures.log",
+      "bytes": 592178,
+      "sha256": "eb523e2967a7f7dc5e5ecb388cc155b80e42dcf3f00fd3660cfbad4f7a6c7e1c"
+    },
+    {
+      "path": "pagination-final-fmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "pagination-fixture-review.json",
+      "bytes": 2733,
+      "sha256": "b5f6ff408eceabe70358b2295e8802f3baa3a46ef2e48877c5184ebbe865ea23"
+    },
+    {
+      "path": "pagination-lint-comparison.json",
+      "bytes": 66,
+      "sha256": "f4f2a47317f1001d9cd649ee9f0c3f96ff014f7acc2f42b451766a9140201af5"
+    }
+  ],
+  "root_sha256": "536c59ff4feef369ec722dca8b8e24d14a9a6a2fd83fdb3e056c5a6286e034ad",
+  "installed_sha256": "4082c88141ab319bbd6dee136a9233983fcea7046d3c0c35114dbc0433bc5487"
+}

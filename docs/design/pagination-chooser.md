@@ -76,7 +76,9 @@ new chooser does not bypass the App's shared bounded command admission.
 ## Presentation and limits
 
 Navigation style, item/current/gap `Appearance`, localized pagination labels and
-popup panel style remain application-controlled. The chooser's range text,
+popup panel style remain application-controlled. Chooser buttons use the theme's
+paired background/foreground colors with accent borders, rather than assuming
+that the accent is a suitable background for ordinary text. The chooser's range text,
 field label and Cancel/Go/error text are currently English; this is a documented
 localization limitation. The caller supplies localized overlay metadata.
 
@@ -101,5 +103,7 @@ button when closing with focus still inside; this also covers semantic activatio
 and replacement while another chooser's editor is focused. If the trigger is no
 longer eligible, ordinary previous-focus fallback applies. Closing never steals
 focus after the user has moved outside. Custom anchors retain previous-focus
-behavior without guessing a descendant trigger. Physical accessibility acceptance
-remains open.
+behavior without guessing a descendant trigger. The [macOS walkthrough](../evidence/pagination-macos-och41.md) now records six
+root and installed theme/size combinations for focus, keyboard input, model
+changes, bounded billion-page navigation and retirement. VoiceOver and broader
+release accessibility acceptance remain open.

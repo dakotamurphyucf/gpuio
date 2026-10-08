@@ -36,6 +36,13 @@ Older records of a VoiceOver hold no longer apply. Access was restored after the
 
 ## Latest delivered behavior and validation
 
+The pagination gallery follow-up exercises both themes and three application
+sizes, including billion-page chooser bounds, native input and model-change
+cancellation. It also repairs chooser buttons that used pale text on a pale
+accent in the dark theme. [Evidence](evidence/pagination-macos-och41.md) records
+repository/installed behavior, pixel checks and the distinct model/native lifetimes.
+
+
 The [disclosure desktop walkthrough](evidence/disclosure-macos-och41.md) passes
 six theme/size combinations in the repository and freshly installed galleries.
 It covers native draft/undo retention, hidden accessibility nodes, expansion
