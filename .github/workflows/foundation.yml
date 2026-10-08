@@ -19,8 +19,30 @@ jobs:
           .cache/scrollbar-diagnostic/oracle -AppleShowScrollBars WhenScrolling > .cache/scrollbar-diagnostic/overlay.jsonl
           .cache/scrollbar-diagnostic/oracle -AppleShowScrollBars Automatic > .cache/scrollbar-diagnostic/automatic.jsonl
           cat .cache/scrollbar-diagnostic/*.jsonl
+      - name: Validate corrected initialized oracle
+        run: |
+          xcrun swiftc scripts/macos_scrollbar_preference.swift -o .cache/scrollbar-diagnostic/settled-oracle
+          .cache/scrollbar-diagnostic/settled-oracle > .cache/scrollbar-diagnostic/current-settled.json
+          .cache/scrollbar-diagnostic/settled-oracle -AppleShowScrollBars Always > .cache/scrollbar-diagnostic/always-settled.json
+          .cache/scrollbar-diagnostic/settled-oracle -AppleShowScrollBars WhenScrolling > .cache/scrollbar-diagnostic/overlay-settled.json
+          .cache/scrollbar-diagnostic/settled-oracle -AppleShowScrollBars Automatic > .cache/scrollbar-diagnostic/automatic-settled.json
+          python3 - <<'PYTEST'
+          import json
+          from pathlib import Path
+          root = Path('.cache/scrollbar-diagnostic')
+          for case in ['current', 'always', 'overlay', 'automatic']:
+              sampled = [json.loads(line) for line in (root / (case + '.jsonl')).read_text().splitlines()]
+              result = json.loads((root / (case + '-settled.json')).read_text())
+              assert result['settled'] == sampled[-1]['style'], (case, sampled, result)
+              if case in ['always', 'overlay']:
+                  assert result['settled'] == ('Always_visible' if case == 'always' else 'Auto_hide')
+              print(case, result)
+          PYTEST
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
           name: scrollbar-initialization-diagnostic
-          path: .cache/scrollbar-diagnostic/*.jsonl
+          path: |
+            .cache/scrollbar-diagnostic/*.jsonl
+            .cache/scrollbar-diagnostic/*.json
+            .cache/scrollbar-diagnostic/platform.txt
