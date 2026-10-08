@@ -204,3 +204,58 @@ covered by native deterministic tests, not this desktop fixture. Precise hardwar
 trackpad routing/cancellation, full focus/VoiceOver, additional geometry,
 movement-time retirement, continuous-loop presentation and measured resources
 remain separate. It does not resolve the loaded-list overlap report.
+
+## Interrupted drag lifecycle — 2026-10-08
+
+At base `e3d8356c`, the repository and reused scroll-phase installed consumer pass
+`--section carousel-lifecycle` on their first attempts, twelve cases each. No
+production implementation or build changes are involved. The fixture uses real
+foreground pointer and keyboard input; its programmatic interruptions use native
+AX actions on the public gallery controls.
+
+For each horizontal/vertical × Dark/Light combination, a 200-pixel background drag
+reveals Explore while Capture remains selected. The fixture checks that the
+candidate button's center is actually inside the viewport before interrupting:
+
+- Opening a second gallery window makes that new window the application's
+  `AXFocusedWindow`. Releasing the pointer, closing the second window and returning
+  to the original preserves Capture and the edited draft.
+- Expanding the compact viewport changes its measured dimensions while the pointer
+  is held. Releasing and returning to compact preserves Capture and the draft.
+- Switching to Presentation removes the track and editor from accessibility before
+  pointer release. Returning preserves Capture but creates a fresh page-scoped
+  editor with its original text, rather than retaining the retired native draft.
+
+After interruption, the fixture deliberately avoids a Home/reset command that
+could conceal an erroneous commit. It samples unchanged Capture for another
+0.4 seconds after revealing/refocusing the original viewport. No every-frame,
+GPU allocation, precise timing or idle CPU conclusion follows from these samples.
+All second windows and both application processes close normally.
+
+```sh
+python3 scripts/test_gallery.py --section carousel-lifecycle --images scratch/carousel-lifecycle
+python3 scripts/test_gallery.py --section carousel-lifecycle --executable /path/to/installed/main.exe --images scratch/carousel-lifecycle-installed
+python3 -m py_compile scripts/gallery_carousel_lifecycle.py scripts/test_gallery.py
+ruff check scripts/gallery_carousel_lifecycle.py
+python3 scripts/audit_example_docs.py
+python3 scripts/audit_component_catalog.py
+git diff --check
+```
+
+Local runs use the existing 180-second exception/cleanup wrapper. Foundation adds
+a separate three-minute step. Syntax, targeted lint, example/catalog audits,
+actionlint and whitespace checks pass. The adjacent walkthrough explains why
+native drag previews, accepted Bonsai selection and page-scoped editors have
+different lifetimes.
+
+The [six-file archive](carousel-track-macos-och41/lifecycle-reports.tar.gz),
+[verified manifest](carousel-track-macos-och41/lifecycle-manifest.json) and
+[binary summary](carousel-track-macos-och41/lifecycle-summary.json) retain both
+reports/logs and exact fixture/application source. Executables match the scroll
+adapter checkpoint; the installed consumer was reused, not rebuilt.
+
+This adds actual window-deactivation, geometry-change and page-unmount cancellation
+evidence. Closing a window while a gesture is held, arbitrary capture theft,
+precise hardware trackpads, full Tab/VoiceOver, seamless looping, and measured
+resource/presentation acceptance remain outside this fixture. It does not resolve
+the separately reported loaded-list overlap.

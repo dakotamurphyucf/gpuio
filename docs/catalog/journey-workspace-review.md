@@ -166,3 +166,14 @@ endpoint handoff and vertical input passing through a horizontal track. It uses
 immediate movement and separates individual events beyond the quiet deadline.
 Precise hardware trackpads, burst timing, full accessibility and presentation/
 resource acceptance are not supplied by this check.
+
+## Measured carousel interrupted lifecycle — 2026-10-08
+
+The [interrupted drag walkthrough](../evidence/carousel-track-macos-och41.md#interrupted-drag-lifecycle--2026-10-08)
+passes twelve local and twelve installed-consumer cases: deactivation by a second
+owned key window, measured viewport resize and page departure during an observed
+drag preview, on both axes/themes. Release preserves accepted selection; draft
+text survives activation/resize but a remounted page gets a fresh editor.
+This adds scoped cancellation/lifetime evidence, without claiming arbitrary capture
+loss, active-window destruction, full focus/VoiceOver or resource/performance
+acceptance.

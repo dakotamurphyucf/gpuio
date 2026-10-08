@@ -148,3 +148,28 @@ for actual macOS line-wheel delivery through AppKit in both themes and axes. The
 fixture uses immediate movement, checks selection and outer-page geometry, and
 separates individual wheel events beyond the burst deadline. It does not measure
 motion smoothness, test multi-event burst timing, or qualify hardware trackpads.
+
+### Interrupting a preview and retiring the page
+
+A drag preview belongs to the mounted native track. Losing window activation,
+changing viewport geometry or removing the track cancels that preview; a later
+mouse-up must not submit its proposed card. For example, begin dragging Capture
+toward Explore and open another window before releasing. The original window
+keeps Capture selected when it returns. The accepted `C.t` model changes only when
+its reducer receives a valid current request, so the native preview is not itself
+application selection state.
+
+`Editor.create window ... graph` gives the draft a different lifetime from the
+native drag. Window deactivation and viewport resizing preserve the mounted page's
+editor, so typed content remains. Switching to Presentation removes this page's
+native editor. Returning constructs an editor with `initial_text`; it does not
+recover the previous native text automatically. Applications that need that text
+to survive page retirement must keep it in application state or retain the editor
+in a longer-lived scope, as described by the editor ownership contract.
+
+`python3 scripts/test_gallery.py --section carousel-lifecycle --images scratch/carousel-lifecycle`
+checks these three interruptions on both axes and themes. It observes a revealed
+neighbor before interrupting, then checks that release cannot change Capture.
+For window deactivation it verifies that the second owned window becomes focused.
+It also distinguishes retained text from a fresh page editor. This is lifecycle
+behavior validation; it does not count GPU allocations or establish idle CPU use.
