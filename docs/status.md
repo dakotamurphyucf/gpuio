@@ -43,6 +43,12 @@ at attachment selection. [CI evidence](evidence/milestone-07-ci.md) records this
 new failure and the added fatal-stack/native-crash diagnostics. Updated-source
 hosted acceptance remains required.
 
+The [message-follow desktop walkthrough](evidence/message-follow-macos-och41.md)
+repairs a clipped Large-size follow button in the OCaml gallery. Repository and
+installed tests pass both themes/three sizes, native Space/pointer/wheel routing
+and settled reading anchors during message updates. Per-frame scrolling and
+VoiceOver qualification remain separate.
+
 The [searchable-list desktop matrix](evidence/selectable-list-macos-och41.md)
 passes both themes and three application sizes locally and in the installed
 consumer: native query typing, confirmation/context/cancel intents, hidden

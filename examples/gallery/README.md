@@ -1242,3 +1242,10 @@ header, pointer/Space activation, native pointer/keyboard selection and page
 retirement/remount. Theme/scale controls belong to the gallery; the walkthrough
 explains their use in [the Collections implementation](collections_page.md).
 A script's presence does not establish a passing platform result.
+
+The focused `--section message-follow` macOS walkthrough checks both themes and
+three sizes, native Space/pointer activation, hidden-overlay wheel routing and
+reading anchors during prepend/append/stream updates. The example uses a 44-pixel
+follow action inside its clipped 48-pixel slot. See the
+[physical evidence](../../docs/evidence/message-follow-macos-och41.md); this is
+separate from frame timing, hardware trackpad and VoiceOver qualification.

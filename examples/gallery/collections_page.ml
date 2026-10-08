@@ -263,6 +263,30 @@ module Mode = struct
   let all = [ Messages; Selectable; Cards; Outline; Results; Structural; Scrollbars ]
 end
 
+(* The follow recipe clips its supplied action to a 48px slot. Keep this
+   overlay action within that slot even when preview typography grows. *)
+let follow_button p on_click =
+  V.button
+    "Follow latest"
+    ~on_click
+    ~style:
+      (style
+         [ Height (px 44.)
+         ; Padding_left (px 12.)
+         ; Padding_right (px 12.)
+         ; Font_size (Palette.size p 13.)
+         ; Line_height (px 20.)
+         ; Background (Background.solid (Palette.surface p))
+         ; Foreground (Palette.foreground p)
+         ; Border_color (Palette.border p)
+         ; Border_width 1.
+         ; Radius 8.
+         ]
+       |> fun s ->
+       Style.with_state_exn s Hovered [ Background (Background.solid (Palette.border p)) ]
+      )
+;;
+
 let component app searchable window palette graph =
   let structural = Structural_table_preview.component palette graph in
   let scrollbars = Scrollbar_preview.component app window palette graph in
@@ -525,10 +549,7 @@ let component app searchable window palette graph =
               ~motion:follow_motion
               ~fade:(Option.some_if fade_enabled (Palette.background p))
               ~jump:
-                (Palette.button
-                   p
-                   "Follow latest"
-                   (L.Controller.jump_to_latest (L.Output.controller list)))
+                (follow_button p (L.Controller.jump_to_latest (L.Output.controller list)))
               (decorate (L.Output.view list))
           ; Palette.text
               p

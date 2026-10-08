@@ -29,6 +29,13 @@ viewport follows the tail; [Follow.view](model/message_follow.md) derives fade/j
 from observations without owning scroll position. Row renderers start no tasks and allocate no
 durable message model.
 
+`follow_button` styles this particular overlay action to a fixed 44-pixel height
+and 20-pixel line height, with 12-pixel horizontal padding. Its font still follows
+the preview palette. The enclosing recipe has a clipped 48-pixel slot; scaling
+the ordinary toolbar button padding would exceed that slot at Large size. The
+button takes the current controller effect and keeps the normal hover colors;
+it owns neither a timer nor separate scroll state.
+
 `outline` is a fully loaded Research/Archive hierarchy wrapped in a `Tree_loading` snapshot.
 `Forest.component` owns interactive expansion/selection preferences, seeded Research expanded,
 with fixed height 36 and budget 16. Reveal observatory captures a target, opens loaded ancestors

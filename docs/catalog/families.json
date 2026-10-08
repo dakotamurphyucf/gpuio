@@ -593,7 +593,8 @@
         "docs/evidence/selectable-list-search-och41.md",
         "docs/evidence/message-follow-presentation-och41.md",
         "docs/evidence/horizontal-list-macos-och41.md",
-        "docs/evidence/selectable-list-macos-och41.md"
+        "docs/evidence/selectable-list-macos-och41.md",
+        "docs/evidence/message-follow-macos-och41.md"
       ],
       "gallery_page": "collections",
       "contract": "Both-axis virtual rows/paging/anchors/tail following; source-scoped selectable lists with independent cursor/selection/context/confirmation; section-aware option semantics, query ownership and bounded Eio search/upsert results. Hidden loaded membership survives filtering. Helper masks/scroll presentation use retained native viewport ownership.",

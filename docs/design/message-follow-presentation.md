@@ -20,7 +20,8 @@ its caller-supplied native action, label and appearance.
 
 Two retained animation wrappers tween opacity for 200 ms; the button slides into a 48-pixel-high overlay slot, from below the clipped
 viewport to a 16-pixel bottom inset. The caller supplies content that fits that
-slot. A settled hidden slot is entirely outside the clip, so its inert hitbox
+slot. The gallery supplies a 44-pixel action with a 20-pixel line height, so
+Large typography does not clip the ordinary scaled toolbar padding. A settled hidden slot is entirely outside the clip, so its inert hitbox
 cannot block messages underneath. This is a presentation difference from the
 pinned widget's eight-pixel slide. Updates retarget from native painted values. No
 initial animation runs on mount. Reduced motion follows the existing application

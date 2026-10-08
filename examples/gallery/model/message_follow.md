@@ -14,10 +14,11 @@ GPUIO_JOBS=2 ./scripts/gpuio build examples/gallery/main.exe
 ```
 
 Choose **Lists, trees & tables → Message list**. Scroll away from the tail, toggle
-follow/fade/motion controls and click Follow latest. There is no helper-specific
-entry point, diagnostic flag or external asset. [Development](../../../docs/development.md)
+follow/fade/motion controls and click Follow latest. The focused macOS interaction entry point is
+`python3 scripts/test_gallery.py --section message-follow`. No external asset is required. [Development](../../../docs/development.md)
 explains toolchain setup; the [gallery README](../README.md) records platform limits.
-This review adds no scrolling, animation, physical input or VoiceOver acceptance.
+The [physical follow-up](../../../docs/evidence/message-follow-macos-och41.md)
+records scoped scrolling/input/anchor checks; VoiceOver and frame timing remain separate.
 
 Read `is_away`, the local animation/gradient helpers in `view`, then the wrapper's
 three children. `is_away` returns false before a viewport observation exists.
@@ -30,7 +31,8 @@ not infer this policy from an arbitrary scroll offset.
 `view ~viewport ~jump_enabled ~motion ~fade ~jump list` takes ordinary values.
 Its type is polymorphic in the view action, so the recipe can carry a Bonsai effect
 button without itself knowing Bonsai. The caller supplies `jump`, already bound to
-the current managed-list controller and styled to fit a 48-pixel slot. `jump_visible`
+the current managed-list controller and styled to fit a 48-pixel slot. The gallery
+uses `follow_button` with height 44 and line height 20, including at Large size. `jump_visible`
 is jump_enabled && away; the fade can appear while away independently of that button.
 Omit fade to disable the gradient.
 
@@ -78,7 +80,9 @@ The [existing expect tests](../../../test/gallery/message_follow_test.ml) enumer
 unknown/following/end combinations and inspect inert/animation targets. They also
 reconcile presentation changes and assert no list create/remove/order/rows/config/
 scroll operations are emitted. These are existing pure/protocol test cases, not new
-GUI or frame evidence. No tests were executed for this guide.
+GUI or frame evidence. The separate physical driver exercises six theme/size
+cases, keyboard/pointer activation, real wheel input through the hidden slot,
+and stable reading anchors during prepend/append/stream updates.
 
 To make the button rise 24 pixels, change its visible Bottom target while retaining
 the hidden -48 target, 48-pixel clipping slot and immediate inert gate. To style the

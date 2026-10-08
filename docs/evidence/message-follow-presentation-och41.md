@@ -18,6 +18,12 @@ the exit can finish. Its clipped 48px slot settles below the viewport; an invisi
 inert hitbox cannot shield underlying messages. This intentionally uses a larger
 slide than the pinned styled widget's eight-pixel offset.
 
+## Physical follow-up — 2026-10-08
+
+The [macOS walkthrough](message-follow-macos-och41.md) adds repository/installed
+input and anchor evidence, plus an example-only sizing repair. It does not
+retroactively turn the original TestPlatform evidence into physical qualification.
+
 ## Validation
 
 - Core composition tests exercise unknown/following/at-end combinations and
