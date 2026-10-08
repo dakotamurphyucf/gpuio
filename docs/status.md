@@ -30,6 +30,12 @@ Older records of a VoiceOver hold no longer apply. Access was restored after the
 
 ## Latest delivered behavior and validation
 
+The [native tabs walkthrough](evidence/tabs-macos-och41.md) passes retained panels,
+independent close/menu controls, explicit reveal and thirty geometry/keyboard
+cases across five variants, both themes and three scales, locally and in the
+installed consumer. Page remount also passes; motion/VoiceOver/resource and full
+workspace acceptance remain separate.
+
 The [macOS scroll phase repair](evidence/macos-scroll-phases-och41.md) preserves
 AppKit cancelled-scroll events instead of treating them as continued movement.
 An actual AppKit factory/converter regression fails before the fix and passes

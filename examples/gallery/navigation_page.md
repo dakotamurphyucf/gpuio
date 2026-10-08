@@ -55,3 +55,19 @@ The wrapper uses the repository toolchain. These commands are instructions, not 
 this documentation change. The page has no standalone executable or self-test. Compilation does
 not establish native keyboard, focus, IME or platform acceptance. See
 [gallery instructions](README.md) and [development](../../docs/development.md).
+
+For a focused tab walkthrough, run
+`python3 scripts/test_gallery.py --section tabs --images scratch/gallery-tabs`.
+The driver types into Notes, changes label presentation and variants, and checks
+that the retained editor keeps its draft. It then exercises overflow and the
+independent close/menu controls described in [tab content](tab_content_preview.md).
+Thirty cases combine five variants with both themes and three preview scales:
+the configured 160/140-pixel target widths and 40-pixel height remain explicit,
+while Right/Left selects Draft/Notes through the native tab group and Bonsai state.
+
+These are two different lifetimes: `V.tab_panel ~active:false` preserves the editor
+while switching tabs, but leaving the Navigation page retires its native editors.
+Returning recreates Notes from its initial text. Applications that want drafts
+to survive page retirement must keep that data in a longer-lived model. This
+walkthrough checks the example's actual lifetime; it is not persistence logic.
+It does not operate VoiceOver or measure the indicator's presentation timing.

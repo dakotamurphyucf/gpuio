@@ -3040,94 +3040,8 @@ def exercise_overlays(mac, images):
 
 
 def exercise_navigation(mac, images):
-    mac.press(TITLE, 'Navigation & layout')
-    mac.wait_text(TITLE, 'A workspace that keeps your place')
-    window = mac.window(TITLE)
-    try:
-        mac.set(mac.app, 'AXFrontmost', mac.true)
-        mac.perform(window, 'AXRaise')
-    finally:
-        mac.release(window)
-    field = mac.wait_find(TITLE, 'Retained notes', 'AXTextArea')
-    try:
-        mac.set(mac.app, 'AXFrontmost', mac.true)
-        mac.set(field, 'AXFocused', mac.true)
-        expect_focus(mac, 'Retained notes', role='AXTextArea')
-        mac.key(0, flags=1 << 20)
-        mac.key(0)
-    finally:
-        mac.release(field)
-    expect_field(mac, TITLE, 'Retained notes', 'a', role='AXTextArea')
-    # Both presentations keep the configured tab names and editor owners.
-    # This exercises the public constructor's rich/plain transition, not merely
-    # whether the badge text appears in accessibility (it is decorative).
-    for _ in range(2):
-        activate(mac, mac.wait_find(TITLE, 'Decorated workspace tabs', 'AXCheckBox'))
-        expect_field(mac, TITLE, 'Retained notes', 'a', role='AXTextArea')
-        tab = mac.wait_find(TITLE, 'Draft')
-        mac.release(tab)
-    for name in ('Underline', 'Tab', 'Outline', 'Pill', 'Segmented'):
-        mac.press(TITLE, f'Tab style: {name}')
-        expect_field(mac, TITLE, 'Retained notes', 'a', role='AXTextArea')
-    for _ in range(2):
-        activate(mac, mac.wait_find(TITLE, 'Customize tab targets', 'AXCheckBox'))
-        expect_field(mac, TITLE, 'Retained notes', 'a', role='AXTextArea')
-    activate(mac, mac.wait_find(TITLE, 'Draft'))
-    expect_field(mac, TITLE, 'Retained draft', 'A separate draft with its own native editing history.', role='AXTextArea')
-    hidden = mac.find(TITLE, 'Retained notes', 'AXTextArea')
-    if hidden:
-        mac.release(hidden)
-        raise RuntimeError('Inactive retained tab editor remains accessible')
-    activate(mac, mac.wait_find(TITLE, 'Notes'))
-    expect_field(mac, TITLE, 'Retained notes', 'a', role='AXTextArea')
-    reveal_gallery_control(mac, 'Close draft', 'AXButton')
-    mac.press(TITLE, 'Close draft')
-    mac.wait_text(TITLE, 'Closed draft')
-    closed = mac.find(TITLE, 'Close draft', 'AXButton')
-    if closed:
-        mac.release(closed)
-        raise RuntimeError('Closed structured tab retained its Close button')
-    mac.press(TITLE, 'Reverse tabs')
-    mac.press(TITLE, 'Restore tabs')
-    close = mac.wait_find(TITLE, 'Close draft', 'AXButton')
-    mac.release(close)
-    for _ in range(2):
-        activate(mac, mac.wait_find(TITLE, 'Truncate long tab names', 'AXCheckBox'))
-    def tab_rect(label):
-        node = mac.wait_find(TITLE, label)
-        try:
-            return element_rect(mac, node)
-        finally:
-            mac.release(node)
-    first_x = tab_rect('A thoughtful plan for a new workspace')[0]
-    fixed_restore = tab_rect('Restore workspace tabs')
-    mac.press(TITLE, 'Select last tab')
-    mac.wait_text(TITLE, 'Selected archive')
-    assert abs(tab_rect('A thoughtful plan for a new workspace')[0] - first_x) < 1, \
-        'Controlled tab selection must not implicitly scroll'
-    mac.press(TITLE, 'Reveal last tab')
-    mac.wait_text(TITLE, 'Reveal requested for archive')
-    for _ in range(40):
-        vx, _, vw, _ = tab_rect('Closable workspace tabs')
-        tx, _, tw, _ = tab_rect('Archived conversations')
-        if vx - 1 <= tx and tx + tw <= vx + vw + 1:
-            break
-        time.sleep(.05)
-    else:
-        raise RuntimeError('Explicit tab reveal did not bring the last target into view')
-    restore_after_scroll = tab_rect('Restore workspace tabs')
-    assert abs(restore_after_scroll[0] - fixed_restore[0]) < 1, \
-        'Tab-frame suffix moved with the scrolling tabs'
-    archive_before_menu = tab_rect('Archived conversations')
-    mac.press(TITLE, 'All tabs')
-    activate(mac, mac.wait_find(TITLE, 'A thoughtful plan for a new workspace', 'AXMenuItem'))
-    mac.wait_text(TITLE, 'Selected plan')
-    assert abs(tab_rect('Archived conversations')[0] - archive_before_menu[0]) < 1, \
-        'All-tabs menu selection must not implicitly reveal a tab'
-    mac.press(TITLE, 'Close archive')
-    mac.wait_text(TITLE, 'Closed archive')
-    mac.press(TITLE, 'Restore tabs')
-    expect_field(mac, TITLE, 'Retained notes', 'a', role='AXTextArea')
+    from gallery_tabs import exercise_basic
+    exercise_basic(mac, images)
     from gallery_disclosure import exercise as exercise_disclosure
     exercise_disclosure(mac)
     exercise_pagination(mac)
@@ -7225,7 +7139,7 @@ def main():
     parser.add_argument('--trace-canvas', action='store_true')
     parser.add_argument('--trace-motion', action='store_true')
     parser.add_argument('--trace-windows', action='store_true')
-    parser.add_argument('--section', choices=['all', 'core', 'shell', 'header-layout', 'settings', 'settings-windows', 'settings-composition', 'settings-fields', 'forms', 'editor-groups', 'avatar-groups', 'sliders', 'numbers', 'otp', 'rating', 'spinners', 'progress', 'selection', 'buttons', 'button-appearance', 'menu-observation', 'menu-placement', 'split-buttons', 'split-paint', 'command-tooltip', 'checkable-navigation', 'control-appearance', 'status-regions', 'badges', 'labels', 'shimmer', 'markers', 'alerts', 'tags', 'keyboard-labels', 'binding-observations', 'descriptions', 'chat-composition', 'chat-list', 'attachments', 'attachment-paint', 'groups', 'links', 'empty', 'separators', 'styles', 'borders', 'aspect-ratio', 'pickers', 'color-preview', 'calendar-viewport', 'choice-pickers', 'overlays', 'navigation', 'feedback', 'notifications', 'notification-policy', 'notification-motion', 'native-popup', 'native-bar', 'journeys', 'sidebar', 'carousel-track', 'carousel-automatic', 'carousel-drag', 'collections', 'selectable-lists', 'structural-tables', 'table-presentation', 'documents', 'document-links', 'document-images', 'highlighting', 'canvas', 'assets', 'clipboard', 'charts', 'chart-inspection', 'chart-content', 'chart-labels', 'chart-radar', 'chart-pie', 'chart-axes', 'chart-marks', 'chart-backgrounds', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
+    parser.add_argument('--section', choices=['all', 'core', 'shell', 'header-layout', 'settings', 'settings-windows', 'settings-composition', 'settings-fields', 'forms', 'editor-groups', 'avatar-groups', 'sliders', 'numbers', 'otp', 'rating', 'spinners', 'progress', 'selection', 'buttons', 'button-appearance', 'menu-observation', 'menu-placement', 'split-buttons', 'split-paint', 'command-tooltip', 'checkable-navigation', 'control-appearance', 'status-regions', 'badges', 'labels', 'shimmer', 'markers', 'alerts', 'tags', 'keyboard-labels', 'binding-observations', 'descriptions', 'chat-composition', 'chat-list', 'attachments', 'attachment-paint', 'groups', 'links', 'empty', 'separators', 'styles', 'borders', 'aspect-ratio', 'pickers', 'color-preview', 'calendar-viewport', 'choice-pickers', 'overlays', 'navigation', 'tabs', 'feedback', 'notifications', 'notification-policy', 'notification-motion', 'native-popup', 'native-bar', 'journeys', 'sidebar', 'carousel-track', 'carousel-automatic', 'carousel-drag', 'collections', 'selectable-lists', 'structural-tables', 'table-presentation', 'documents', 'document-links', 'document-images', 'highlighting', 'canvas', 'assets', 'clipboard', 'charts', 'chart-inspection', 'chart-content', 'chart-labels', 'chart-radar', 'chart-pie', 'chart-axes', 'chart-marks', 'chart-backgrounds', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
     args = parser.parse_args()
     Mac.require_accessibility()
     if args.images:
@@ -7373,6 +7287,9 @@ def main():
                 exercise_choice_picker(mac, args.images)
             if args.section in ('all', 'overlays'):
                 exercise_overlays(mac, args.images)
+            if args.section == 'tabs':
+                from gallery_tabs import exercise as exercise_tabs
+                exercise_tabs(mac, args.images)
             if args.section in ('all', 'navigation'):
                 exercise_navigation(mac, args.images)
             if args.section in ('all', 'progress'):

@@ -54,3 +54,12 @@ These repository-wrapper commands are instructions, not validation performed for
 documentation change. There is no standalone executable or self-test for this component.
 Compilation does not establish native focus, keyboard, animation or platform acceptance. See
 [gallery instructions](README.md) and [development](../../docs/development.md).
+
+`python3 scripts/test_gallery.py --section tabs --images scratch/gallery-tabs`
+exercises these controls through the desktop gallery. It closes Draft, reverses
+and restores the collection, selects Archive without moving the viewport, then
+submits an explicit reveal. The fixed restore suffix stays in place while tabs
+scroll. Choosing Plan from the all-tabs menu updates the same `Select` reducer
+without implicitly revealing Plan. These checks illustrate why selection,
+scrolling and independent child actions have separate contracts; they do not
+measure animation frames or qualify screen-reader navigation.

@@ -489,7 +489,7 @@
       "id": "workspace",
       "owner": "OCH-15",
       "scope": "v1",
-      "audit_status": "Seventeen pinned journey/workspace snapshots reviewed. Native tab roles, application-owned workspace, retained panels and nested two-pane splits retain the original OCH-15 foundation. Five static tab variants, per-target styles, decorative/interactive tab content, width limits, native scrolling/reveal and fixed frame/trailing content now have public Core/Bonsai APIs, gallery examples and local TestPlatform evidence. The all-tabs menu now has full-name rows, decorative icons with retained native leases and native selection/keyboard semantics. Native indicator springs and Pill selected-foreground fading now have a typed optional Motion API, gallery toggle and local production-renderer tests, including interruption, scroll/reorder, reduced motion and teardown. Flat split groups now have Core/Bonsai APIs, full per-panel bounds, ID-retained geometry/children, shared/per-handle styling, passive grips, a public Navigation gallery and native admission/Host lifecycle evidence; comprehensive docking remains separately deferred. See journey-workspace-review.md; physical/resource/release acceptance remains open.",
+      "audit_status": "Seventeen pinned journey/workspace snapshots reviewed. Native tab roles, application-owned workspace, retained panels and nested two-pane splits retain the original OCH-15 foundation. Five static tab variants, per-target styles, decorative/interactive tab content, width limits, native scrolling/reveal and fixed frame/trailing content now have public Core/Bonsai APIs, gallery examples and local TestPlatform evidence. The all-tabs menu now has full-name rows, decorative icons with retained native leases and native selection/keyboard semantics. Native indicator springs and Pill selected-foreground fading now have a typed optional Motion API, gallery toggle and local production-renderer tests, including interruption, scroll/reorder, reduced motion and teardown. Flat split groups now have Core/Bonsai APIs, full per-panel bounds, ID-retained geometry/children, shared/per-handle styling, passive grips, a public Navigation gallery and native admission/Host lifecycle evidence; comprehensive docking remains separately deferred. See journey-workspace-review.md; physical/resource/release acceptance remains open. The 2026-10-08 physical tab follow-up passes root/installed retained panels, rich/plain labels, close/reverse/restore, explicit reveal/fixed suffix/all-tabs selection, thirty variant/theme/scale geometry and native keyboard cases, and page remount. See tabs-macos-och41.md; broader workspace, VoiceOver, motion/resource and release acceptance remain open.",
       "public_interface": "lib/core/split_pane.mli",
       "example": "examples/window_lifecycle",
       "evidence": [
@@ -502,7 +502,8 @@
         "docs/evidence/tab-menu-och41.md",
         "docs/evidence/tab-menu-icons-och41.md",
         "docs/evidence/tab-motion-och41.md",
-        "docs/evidence/split-group-bridge-och41.md"
+        "docs/evidence/split-group-bridge-och41.md",
+        "docs/evidence/tabs-macos-och41.md"
       ],
       "gallery_page": "navigation",
       "contract": "Application-owned tab choice; retained panels, native split geometry and explicit reset generations.",

@@ -136,3 +136,13 @@ selection, locally and in the installed consumer. Escape cancels an observed
 preview, while release commits selection; cross-axis, small and disabled gestures
 do not. Wheel handoff, full accessibility, other geometry and presentation/resource
 acceptance remain separate.
+
+## Tabs desktop follow-up — 2026-10-08
+
+The [native tab walkthrough](../evidence/tabs-macos-och41.md) now qualifies
+retained editor panels, rich/plain labels, independent close controls, explicit
+overflow reveal, fixed suffix geometry and all-tabs selection locally and in the
+installed consumer. Thirty geometry/Right-Left cases span five variants, both
+themes and all three scales; page remount creates a fresh editor. This supersedes
+earlier physical-gap wording for that scope. Pixel/motion, full focus/VoiceOver,
+split-group desktop coverage and measured resource/release acceptance remain.
