@@ -32,3 +32,32 @@ Provenance checked on 2026-10-08:
   `a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b`, recorded in
   [sources.json](sources.json). The upstream source and license comments remain
   inside the SVG as well.
+
+## Fira Code font in the retained Bonsai web example
+
+`vendor/bonsai/examples/font_hosting/font.ttf` is **Fira Code Regular 6.002**.
+Its metadata identifies Copyright 2014–2021 The Fira Code Project Authors and
+the SIL Open Font License 1.1. The complete upstream copyright/license text is
+retained unchanged in [fira-code.txt](licenses/fira-code.txt), fetched from the
+[6.2 release source](https://github.com/tonsky/FiraCode/blob/6.2/LICENSE).
+The font remains under that license; GPUIO's Apache-2.0 license does not replace it.
+
+The vendored bytes exactly match `ttf/FiraCode-Regular.ttf` in the official
+[6.2 release archive](https://github.com/tonsky/FiraCode/releases/tag/6.2).
+Verification on 2026-10-08:
+
+- Font SHA-256: `5992ab9640e2df491b2f609467b1de60e8bc39b2c28db184342a0592d98f6117`.
+- `Fira_Code_v6.2.zip` SHA-256: `0949915ba8eb24d89fd93d10a7ff623f42830d7c5ffc3ecbf960e4ecad3e3e79`.
+- Retained license SHA-256: `1d41e10031ab125302780a05ec4c91d218e47db0c7e37cf315cce5e608cdc25c`.
+
+This unmodified font is retained in the source snapshot's unbuilt browser example;
+it is not the application's system font or a newly added native dependency.
+
+## Existing browser binding notices
+
+The retained Bonsai browser bindings include Feather icons by Cole Bemis under
+MIT, with their original [notice](../vendor/bonsai/bindings/feather_icon/dist/LICENSE-feather).
+Dygraph and Lodash notices remain in
+[`bindings/dygraph/dist`](../vendor/bonsai/bindings/dygraph/dist). These source
+assets are included in the repository even though the native Dune subset does
+not compile the browser bindings. Keep their existing notices with the sources.

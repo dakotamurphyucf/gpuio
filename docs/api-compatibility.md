@@ -255,5 +255,9 @@ See [file dialogs](../lib/eio/file_dialog.mli),
 A successful source/consumer build proves compilation and linking in that tested
 environment. TestPlatform checks do not establish real IME, clipboard, VoiceOver,
 GPU timing or clean-machine distribution. Local ad-hoc application signatures are
-not Developer ID/notarization. These remain explicit milestone-07 gates in
-[status](status.md) and [distribution](distribution.md).
+not Developer ID/notarization. The source-library preview gates are recorded in the
+[closeout checklist](milestone-07-closeout.md). Broader accessibility and signed-app
+qualification follow in [OCH-164](https://linear.app/ochat/issue/OCH-164); full Linux
+desktop qualification follows in OCH-47. Those claims remain unqualified, even
+when the source preview is available. [Distribution](distribution.md) describes
+the separate requirements for shipping application binaries.

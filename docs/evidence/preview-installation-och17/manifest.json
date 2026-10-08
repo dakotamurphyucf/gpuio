@@ -1,0 +1,42 @@
+{
+  "build_observed_revision": "87b43c73",
+  "current_revision": "1f360479c4f2aacc744c908b27202de52012796a",
+  "command": "GPUIO_JOBS=2 python3 scripts/test_extension_consumer.py --example getting_started --workspace scratch/agents/root-20261007-access-check/preview-starter",
+  "result": "INDEPENDENT_EXTENSION_CONSUMER_PASS example=getting_started run=False",
+  "platform": "macOS 14.5 arm64",
+  "source_equal": true,
+  "executable_sha256": "ddc967d371619264cbf2917dd6c4abdb48613f8254f697ba9bd3fcfa26b61f5f",
+  "files": [
+    {
+      "path": "starter-consumer.log",
+      "sha256": "e66ea13d1e0164cde8ab79b2b3e937cadd1137c7de90e0a2fc2484fae29e5903",
+      "bytes": 100507
+    },
+    {
+      "path": "consumer/dune",
+      "sha256": "6fa5da46170a172d7264c5b5be3ddd8ed61b792a6abf95ef24b710b6f5cc6684",
+      "bytes": 129
+    },
+    {
+      "path": "consumer/dune-project",
+      "sha256": "6928ba1b555e898a6436e931f56b854665713002e375f041128c5a07481b4244",
+      "bytes": 55
+    },
+    {
+      "path": "consumer/main.ml",
+      "sha256": "dfe390a9d9608a375b8e2fc4040d4f34601b142f43c7937a111df031a418dd0e",
+      "bytes": 1335
+    },
+    {
+      "path": "consumer/rust-toolchain.toml",
+      "sha256": "1d6916a873b69e0640413e5a00f8f69211fcc68f417b21ac9b5c9fe43d384f5b",
+      "bytes": 115
+    },
+    {
+      "path": "consumer/.ocamlformat",
+      "sha256": "5bc29ad1b8e7fd0984c979455f93c838b35cf7a2abe73f5732a49615cc54d281",
+      "bytes": 34
+    }
+  ],
+  "archive_sha256": "2d332c3d14884ac55bbbe1ddc29b90242a1f0fd46864448768bab38b4c237cb1"
+}

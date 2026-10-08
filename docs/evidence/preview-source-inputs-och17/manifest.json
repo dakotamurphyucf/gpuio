@@ -1,0 +1,27 @@
+{
+  "source_base": "1f360479c4f2aacc744c908b27202de52012796a",
+  "scope": "Tracked working-tree files plus their nested evidence archives; documentation/notice edits in progress. New untracked installation evidence excluded. This is not the final release archive.",
+  "files": [
+    {
+      "path": "audit.py",
+      "bytes": 3112,
+      "sha256": "f0327cb5f3f135f2844ec721aee3092dfa82c1cf562aefe3e3aa40623fc9d2b5"
+    },
+    {
+      "path": "inventory.json",
+      "bytes": 2758988,
+      "sha256": "077577bac2efd92e8105cd89fa3ac71c80b0817df5399c788a8ca2f6a72534e8"
+    },
+    {
+      "path": "summary.json",
+      "bytes": 1747,
+      "sha256": "cd9dacf5819eb57d8f13ad66105f7d941cd6f1a66f835e0b7facd23b6b7c5220"
+    },
+    {
+      "path": "font-provenance.json",
+      "bytes": 658,
+      "sha256": "efe0cb0bc3718cbb5446a05a637ff430c79de13664a95a7e751ebd5d98d35868"
+    }
+  ],
+  "archive_sha256": "3befe17c57b04995886ae28be2662a7d52a97021f81a7162f1798f01e1563bff"
+}

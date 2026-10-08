@@ -32,7 +32,9 @@ Vendored example assets can have different terms from their surrounding code.
 The GPUI SVG example includes **Dragon clip art.svg** by **Ebaychatter0**, under
 CC BY-SA 3.0. The [asset notices](third_party/ASSET_NOTICES.md) retain its source,
 license link, attribution and byte-verified provenance. GPUIO has not changed the
-artwork or its existing upstream source/license comments.
+artwork or its existing upstream source/license comments. The retained Bonsai
+web example also contains an unmodified Fira Code font; the asset notices link
+its exact release identity and full SIL Open Font License text.
 
 `third_party/notice-sources.json` records exact supplemental notice attributions
 for pinned packages lacking separate package-local files. Zed Apache symlinks
