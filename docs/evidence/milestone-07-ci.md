@@ -30,6 +30,11 @@ stack-capture self-test. The pagination follow-up and other local commits also
 require a new hosted run. OCH-17/OCH-41 remain open; no merge or release acceptance.
 
 
+The [exact-artifact follow-up](receiver-replay-och17.md) passes locally and on a
+new macOS15.7.9 hosted receiver. It retains the earlier trap as unexplained;
+successful replays are scoped evidence, not a diagnosed repair or current-source
+release acceptance.
+
 ## Earlier terminal run — 37731811839
 
 [Run 37731811839](https://github.com/dakotamurphyucf/gpuio/actions/runs/37731811839)

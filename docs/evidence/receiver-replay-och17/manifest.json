@@ -1,0 +1,112 @@
+{
+  "diagnostic_commit": "00b702fefbb67e99dfa39e5359116a67b87d0030",
+  "run": 37790823149,
+  "source_artifact_run": 37772649589,
+  "artifacts": [
+    {
+      "path": "receiver-chat-local-001.log",
+      "bytes": 766,
+      "sha256": "db0aa0df629b988ffbdf6f08bd835f0cfbb5a0d84ab86b3e755e79d0c66fdd8f"
+    },
+    {
+      "path": "receiver-chat-local-001/report.json",
+      "bytes": 1566,
+      "sha256": "8fb6783ef679921f0bf08be6c31d5ed6b9cd7b755795e0424e68cc2f5897492f"
+    },
+    {
+      "path": "receiver-chat-local-001-supervisor.json",
+      "bytes": 54,
+      "sha256": "20405e2bf15e3dcd63931effc50a2436507c698c5d431d1d7821c543688a39c4"
+    },
+    {
+      "path": "receiver-replay-37790615165-failed.log",
+      "bytes": 3607,
+      "sha256": "096b6b73cd466c7fb3f141c17837a34aa8a44cde31b5188cb7531074a432895b"
+    },
+    {
+      "path": "receiver-replay-37790823149-status.json",
+      "bytes": 2566,
+      "sha256": "7edfed622914c7cc3bcbf4a42c4ab8c5eb3b4bf4b02a40e18ef82856896693a7"
+    },
+    {
+      "path": "receiver-replay-37790823149.log",
+      "bytes": 85658,
+      "sha256": "1e750ade1d0a22745d4ef40cc3f14ca7b606654b9cd0620c0afa480d22614d09"
+    },
+    {
+      "path": "receiver-replay-verified.json",
+      "bytes": 708,
+      "sha256": "9b8eb77f97d5a6b91a690f76a2c0d29c9ad6d6b48476fb1acabba614130ef10e"
+    },
+    {
+      "path": "runtime-inputs-37772649589/transfer.json",
+      "bytes": 1368,
+      "sha256": "4fe4669066ef0adddaeb7156b3e20bc67025fa7bac8ac7b0dedf85afd555258a"
+    },
+    {
+      "path": "receiver-ci-diagnostic/.github/workflows/foundation.yml",
+      "bytes": 4077,
+      "sha256": "4bce392c61ca58b7c8cd776a0c4eee8bf04959e2dc6ba744fcdff92abce1eded"
+    },
+    {
+      "path": "receiver-replay-37790823149/agent-chat.log",
+      "bytes": 766,
+      "sha256": "2c2d7cdec748f701070e680db14dee70c5577a0d2e76198bcdfed3c0c2643f2f"
+    },
+    {
+      "path": "receiver-replay-37790823149/agent-chat/report.json",
+      "bytes": 1534,
+      "sha256": "54e8c9007ba83c80426981f3b1aea8d8b5605213e23507b8f65fb49e958b1ab8"
+    },
+    {
+      "path": "receiver-replay-37790823149/agent-chat/application.log",
+      "bytes": 37,
+      "sha256": "975e582d0fc5be2a25302bb3b5f8ff7292d48cbce24ce14238db7da651453b25"
+    },
+    {
+      "path": "receiver-replay-37790823149/gallery.log",
+      "bytes": 3803,
+      "sha256": "2d57566bc31dcc1a9c038accda4272a2d0ee8ad8f61b545c6200f1f74bd2b6fe"
+    },
+    {
+      "path": "receiver-replay-37790823149/gallery/report.json",
+      "bytes": 6457,
+      "sha256": "513553cf211f817477ba2611362c6e5099cc87fcd1c9f16bf34aa0ff1ad7bab4"
+    },
+    {
+      "path": "receiver-replay-37790823149/gallery/application.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "receiver-replay-37790823149/signal-studio.log",
+      "bytes": 1173,
+      "sha256": "4659bdc68cb3e6f092c1df0bb6ccaede8df07c4dad7081e21242cd5c3da75b85"
+    },
+    {
+      "path": "receiver-replay-37790823149/signal-studio/report.json",
+      "bytes": 1592,
+      "sha256": "52662a48d33a366723b7c654057b8f5b065dd0bd6f1d482088b8a86c14ba6a63"
+    },
+    {
+      "path": "receiver-replay-37790823149/signal-studio/application.log",
+      "bytes": 1586,
+      "sha256": "36056f88cd6b96c0b1f652d04887412886c97b5deddf7422a092e2362b6988fa"
+    },
+    {
+      "path": "receiver-replay-37790823149/display.log",
+      "bytes": 909,
+      "sha256": "c31f2cb59335dc0cc17cd9452085b08e937c08f9d340741252cd9e0cd8a4e1eb"
+    },
+    {
+      "path": "receiver-replay-37790823149/notification-service.log",
+      "bytes": 73,
+      "sha256": "e2bf704a0dc713b0cbc4dc9b60497a2879f44e329adc5315b91ef189ccc6f8c6"
+    },
+    {
+      "path": "receiver-replay-37790823149/transfer-verification.log",
+      "bytes": 1099,
+      "sha256": "fa30433ba36b86024e90be6f03db260bdb5cb486031355a430c498fe55af6a33"
+    }
+  ]
+}
