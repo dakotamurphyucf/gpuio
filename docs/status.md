@@ -35,6 +35,9 @@ fixes a reproduced 44-pixel movement from a 24-pixel wheel event after an
 ancestor line-height change. The production host now invalidates cached
 offscreen measurements when inherited metrics change. The deterministic native
 suite passes; this does not identify the cause of the separate benchmark overlap.
+The linked real-window follow-up also passes all three line-height cases using
+fresh painted-row bounds; its direct GPUI input is separate from OS trackpad
+delivery and presentation timing.
 
 The [notarization tooling follow-up](evidence/developer-id-tooling-och17.md#notarization-finalization-tooling--2026-10-08)
 adds a submission/recovery guide and a finalizer that binds acceptance to the

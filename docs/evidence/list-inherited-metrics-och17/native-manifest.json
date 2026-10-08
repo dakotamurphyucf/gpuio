@@ -1,0 +1,37 @@
+{
+  "base_revision": "fd2a8112153a93325be3f4a2672a4ec9e025a201",
+  "platform": {
+    "system": "Darwin",
+    "release": "14.5",
+    "machine": "arm64"
+  },
+  "scope": "actual platform layout/paint; direct GPUI ScrollWheel input, not OS synthesis or physical presentation qualification",
+  "result": {
+    "binary": "/Users/dakotamurphy/gpuio/target/debug/deps/native_list-9a70830820ad6a82",
+    "sha256": "3a16037e7e4b8d0deb96d425bfdcdb5fbd0405816d929110f7a3b52687c54cb9",
+    "arguments": [
+      "--inherited-metrics"
+    ],
+    "timeout_seconds": 90,
+    "exit_code": 0
+  },
+  "files": {
+    "list-metrics-native-build.log": {
+      "sha256": "e07a90e42743b96f9f5a315da408ea57151cb44f231e6019ffff88dee23fc9a1",
+      "bytes": 592398
+    },
+    "list-metrics-native-001.log": {
+      "sha256": "b13c1d851092697a52f79a634bac47ebf418bfc52e28960214b2c22057b1430f",
+      "bytes": 327
+    },
+    "list-metrics-native-001.json": {
+      "sha256": "80b3a1d817abb6d8881432f6b094bd735875a1387f2515c19eef221581d501db",
+      "bytes": 262
+    }
+  },
+  "source_sha256": {
+    "rust/native/src/list_test.rs": "5ed2e0cd7a14a15e39480989dfaf363ed5f88d49549e50b1ed8b22762a13420f",
+    "rust/native/src/list_metrics_window_test.rs": "d192f2b251a830e9aade6918acadc78d81379bce417b906eaa7a10ef01c42d6b",
+    "rust/native/src/list_view.rs": "0cb0fa1ba2567f3c9d408565620b57138dd1af9a2af3bb7ed8b26abf41cf4c71"
+  }
+}

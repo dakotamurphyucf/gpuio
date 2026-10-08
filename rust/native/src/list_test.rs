@@ -1,5 +1,7 @@
 //! Real GPUI layout through the production host, including sparse placeholders.
 use super::*;
+#[path = "list_metrics_window_test.rs"]
+mod inherited_metrics;
 #[path = "list_selection_test.rs"]
 mod selection_lifecycle;
 use gpuio_protocol::list::{
@@ -1406,6 +1408,10 @@ pub(crate) fn run() {
         cx.activate(true);
         cx.spawn(async move |cx| {
             let result = super::native_test::protect(async {
+                if std::env::args().any(|argument| argument == "--inherited-metrics") {
+                    inherited_metrics::exercise(cx, window).await;
+                    return;
+                }
                 if std::env::args().any(|argument| argument == "--focused-overdraw") {
                     focused_overdraw(cx, window, 1).await;
                     return;

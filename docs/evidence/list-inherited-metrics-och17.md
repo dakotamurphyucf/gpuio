@@ -58,3 +58,35 @@ final-source hosted acceptance remain separate requirements. The earlier
 [loaded-list overlap investigation](list-scroll-diagnostics-och17.md) stays open;
 this repair must not be presented as confirmation that the reported transient
 has been fixed.
+
+## Real-window follow-up — 2026-10-08
+
+At `fd2a8112` plus the new `list_metrics_window_test.rs` fixture, the actual
+macOS 14.5 arm64 window also passes all three line-height cases (40, 12 and 28).
+Each change preserves logical row 50 and its five-pixel offset. After a 24-pixel
+wheel event, freshly painted row bounds move exactly 24 pixels and match the
+native list's reported rectangle. The fixture clears its paint probes before
+each event and waits for platform frames; it cannot pass using old probe values.
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j2 -p gpuio-native \
+  --features native-tests --test native_list --no-run
+target/debug/deps/native_list-9a70830820ad6a82 --inherited-metrics
+```
+
+The exact local executable SHA-256 is
+`3a16037e7e4b8d0deb96d425bfdcdb5fbd0405816d929110f7a3b52687c54cb9`.
+The build passes; the test exits zero and closes its owned window normally under
+a 90-second process-group timeout guard. Its portable invocation is
+`cargo test --locked -p gpuio-native --features native-tests --test native_list
+-- --inherited-metrics` through the isolated wrapper; Foundation now runs that
+focused check alongside the existing full native-list and public-paging tests.
+
+[Native build/run archive](list-inherited-metrics-och17/native-reports.tar.gz)
+and [manifest](list-inherited-metrics-och17/native-manifest.json) retain the
+commands, exact binary identity, source hashes and output marker.
+This exercises the real platform renderer. The fixture dispatches input directly
+at GPUI's `PlatformInput::ScrollWheel` boundary; it does **not** qualify OS event
+synthesis, physical trackpad momentum, presentation latency, VoiceOver or the
+original constant-metrics benchmark overlap report. No production code changed
+in this follow-up.
