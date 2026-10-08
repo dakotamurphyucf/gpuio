@@ -85,3 +85,62 @@ Local evidence there includes `syntect-theme-fetches-001.json`,
 `compare-002` isolates its fields. Scratch artifacts are not build dependencies.
 The full release's remaining package notices, OCaml/runtime/system/asset review,
 physical qualification, distribution and publication gates remain open.
+
+## Original-author notices
+
+2026-10-07 follow-up, macOS 14.5 arm64, based on `88d3c3d8`. The pinned
+Spacegray README links to Base16 and all four embedded Base16 source files name
+Chris Kempson. The pinned Solarized README credits Ethan Schoonover and links to
+his original palette repository. InspiredGitHub's source header credits Seth
+Lopez, whose notice was already retained. These are source credits, not authors
+inferred from Cargo metadata or similar theme names.
+
+Two additional original-author MIT notices are now collected unchanged alongside
+the three derivative-repository notices:
+
+| Attribution | Retained source | Git blob SHA-1 |
+| --- | --- | --- |
+| Chris Kempson, Base16 | [LICENSE.md at 39fb23df](https://github.com/chriskempson/base16/blob/39fb23df970d4d6190d000271dec260250986012/LICENSE.md) | `33d142060d987f1ead6a9ec4dd29bb3b0d6c1497` |
+| Ethan Schoonover, Solarized | [LICENSE at e40cd413](https://github.com/altercation/solarized/blob/e40cd4130e2a82f9b03ada1ca378b7701b1a9110/LICENSE) | `ee08d7e44f15108ef5359550399dad55955b56ca` |
+
+The Solarized snapshot predates the pinned derivative source. Base16's accessible
+default-branch history returned no pre-April-2017 snapshot; its notice is from an
+explicitly pinned 2022 snapshot and carries the original 2012 copyright. It is an
+additive upstream attribution, **not** evidence of the exact generator revision
+used by Spacegray. Neither notice replaces the derivative project's notice or
+changes the shipped theme data. SHA-256 and Git blob identities were checked
+against the fetched bytes and are retained in `third_party/notice-sources.json`.
+The theme README/source files also match their pinned Git tree blob identities.
+
+Fresh collection initially rejected stale first-party manifest pins for both
+independent backends. Comparison against `3b5649ab` proved the only delta was
+`630e8394` adding the maintained `accesskit_consumer` path patch. Package identities,
+Apache-2.0 declarations and attributed root-license bytes were unchanged. The two
+pins were updated after that review; failed collection logs remain in the bundle.
+
+All three offline locked inventories now succeed with the same supplemental
+manifest. Native/Signal/gallery contain **870/828/829** notice files; all **2,527**
+copied hashes were verified independently. Package counts remain 513/485/486 and
+each graph still has **26** packages without collected text. Adding theme notices
+does not close those unrelated gaps. The manifest retains 56 package entries and
+Syntect now has five explicitly attributed supplemental files.
+
+Validation:
+
+- `python3 scripts/test_collect_rust_notices.py`: all ten tests pass, including
+  unchanged text and Git blob identity checks.
+- The three commands in [distribution](../distribution.md), with the native,
+  Signal and gallery manifest/root selections, succeed with fresh outputs.
+- `GPUIO_JOBS=2 ./scripts/gpuio exec dune runtest -j2`: exit 0 on this source tree.
+  This is the normal incremental full test alias, not a clean rebuild or a new
+  foreground native/VoiceOver acceptance run. Existing vendor macro/future-Rust
+  and duplicate-link-library warnings remain in the log.
+- `python3 scripts/audit_example_docs.py`: 429 source files, 266 reviewed groups,
+  zero pending; structural documentation coverage only.
+
+The [follow-up reports](theme-author-notices-och17/reports.tar.gz) and
+[hash manifest](theme-author-notices-och17/manifest.json) retain original source
+responses, failed/passing collector logs, all three inventories/metadata/locks,
+pin review, verification summary and full Dune output. This advances theme
+attribution collection and current-source testing; overall dependency applicability,
+native/system inputs and release-distribution acceptance remain open.

@@ -238,7 +238,7 @@
         "version": "0.0.0",
         "source": null,
         "license_expression": "Apache-2.0",
-        "manifest_sha256": "b8742b120d4e5741d6d7e1a4bd78a5468a84a85e73b335cef6fbcded4170d3a7"
+        "manifest_sha256": "f17cee5ed1b5befaaa24946677d15cf3338137253a9eb55680d4de9038d6d2b2"
       },
       "files": [
         {
@@ -247,7 +247,7 @@
           "provenance": "GPUIO repository LICENSE; paired with this package manifest hash."
         }
       ],
-      "rationale": "First-party GPUIO crate under the repository Apache-2.0 license. Reviewed the current local manifest and workspace license inheritance; attribution is pinned to this manifest and the retained root license bytes. This is notice collection, not distribution approval. Revalidated 2026-10-05 after the maintained macOS/Apple path patches and optional presentation diagnostics: package identity/license declarations and root LICENSE bytes are unchanged; exact manifest delta is retained in the release evidence."
+      "rationale": "First-party GPUIO crate under the repository Apache-2.0 license. Reviewed the current local manifest and workspace license inheritance; attribution is pinned to this manifest and the retained root license bytes. This is notice collection, not distribution approval. Revalidated 2026-10-05 after the maintained macOS/Apple path patches and optional presentation diagnostics: package identity/license declarations and root LICENSE bytes are unchanged; exact manifest delta is retained in the release evidence. Revalidated 2026-10-07: the sole manifest delta since 3b5649ab is the maintained accesskit_consumer path patch added in 630e8394. Package identity, Apache-2.0 declaration and root license bytes are unchanged."
     },
     {
       "package": {
@@ -374,7 +374,7 @@
         "version": "0.0.0",
         "source": null,
         "license_expression": "Apache-2.0",
-        "manifest_sha256": "2540a5265bc2cbe8511697e9ca97fc764e5a81ccf991462cbe7423db28d68367"
+        "manifest_sha256": "2eada178e02c3d7400eac027a9af199449af3d1e7ce56308fa2284305fa79b02"
       },
       "files": [
         {
@@ -383,7 +383,7 @@
           "provenance": "GPUIO repository LICENSE; paired with this package manifest hash."
         }
       ],
-      "rationale": "First-party crate declares license.workspace=true or an explicit Apache-2.0 license in the GPUIO source tree. This supplies the project license; separately attributed adaptations retain their own notices. Revalidated 2026-10-05 after the maintained macOS/Apple path patches and optional presentation diagnostics: package identity/license declarations and root LICENSE bytes are unchanged; exact manifest delta is retained in the release evidence."
+      "rationale": "First-party crate declares license.workspace=true or an explicit Apache-2.0 license in the GPUIO source tree. This supplies the project license; separately attributed adaptations retain their own notices. Revalidated 2026-10-05 after the maintained macOS/Apple path patches and optional presentation diagnostics: package identity/license declarations and root LICENSE bytes are unchanged; exact manifest delta is retained in the release evidence. Revalidated 2026-10-07: the sole manifest delta since 3b5649ab is the maintained accesskit_consumer path patch added in 630e8394. Package identity, Apache-2.0 declaration and root license bytes are unchanged."
     },
     {
       "package": {
@@ -961,9 +961,21 @@
           "sha256": "f7f5760fa33782054db76bf6b3df7f6b8a08de5fe92dbb435d758ab637cc6e9f",
           "git_blob_sha1": "d9b0a4747e0c5b7a1f00251f693c721a7f522e11",
           "provenance": "https://github.com/SublimeText/Spacegray/blob/2703e93f559e212ef3895edd10d861a4383ce93d/LICENSE"
+        },
+        {
+          "path": "third_party/licenses/registry/chriskempson--base16/33d142060d98-LICENSE.md",
+          "sha256": "7f56fcf24df1178b329a99b5160f7fd23dcdd75b0b633e468db2917e6ff061ca",
+          "git_blob_sha1": "33d142060d987f1ead6a9ec4dd29bb3b0d6c1497",
+          "provenance": "https://github.com/chriskempson/base16/blob/39fb23df970d4d6190d000271dec260250986012/LICENSE.md"
+        },
+        {
+          "path": "third_party/licenses/registry/altercation--solarized/ee08d7e44f15-LICENSE",
+          "sha256": "494aefdabf86acce06bd63001ad8aedad4ee38da23509d3f917d95aa3368b9a6",
+          "git_blob_sha1": "ee08d7e44f15108ef5359550399dad55955b56ca",
+          "provenance": "https://github.com/altercation/solarized/blob/e40cd4130e2a82f9b03ada1ca378b7701b1a9110/LICENSE"
         }
       ],
-      "rationale": "Root theme-repository license texts fetched unchanged at the three submodule commits recorded by syntect e4670846ecf16d8832db6c43d531bec466214e27. Git blob identities verified. The published default.themedump matches the exact syntect repository blob and Cargo.lock-verified crate. InspiredGitHub and both Solarized themes match decoded dump values exactly; four Base16 themes match after accounting for the historical generator ignoring root gutterSettings, without changing the shipped dump. Theme author metadata and further derivative attribution remain part of final review; root license collection is not a completeness approval. See docs/evidence/syntect-themes-och17.md."
+      "rationale": "Root theme-repository license texts fetched unchanged at the three submodule commits recorded by syntect e4670846ecf16d8832db6c43d531bec466214e27. Git blob identities verified. The published default.themedump matches the exact syntect repository blob and Cargo.lock-verified crate. InspiredGitHub and both Solarized themes match decoded dump values exactly; four Base16 themes match after accounting for the historical generator ignoring root gutterSettings, without changing the shipped dump. Theme author metadata and further derivative attribution remain part of final review; root license collection is not a completeness approval. See docs/evidence/syntect-themes-och17.md. Additional unchanged original-author MIT notices are retained for Base16 (Chris Kempson) and Solarized (Ethan Schoonover), explicitly credited by those pinned theme sources. The Solarized notice comes from its last upstream snapshot before the braver submodule commit. The Base16 notice comes from a separately pinned 2022 snapshot, not a claimed 2017 generator/source revision; current upstream history does not provide a pre-2017 snapshot. These additive author notices do not replace the derivative repository licenses or establish exact generator provenance. See docs/evidence/syntect-themes-och17.md#original-author-notices."
     },
     {
       "package": {

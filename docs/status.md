@@ -72,9 +72,12 @@ At **2845f1c9**, local macOS arm64 validation passed:
   Base is unchanged from 968e423b, whose 243-file reconstruction passed.
 
 Exact commands, revisions, hashes, before/after failures and bundles are linked
-from the evidence above. A gallery rebuild is not a full Dune suite. The last
-recorded full Dune pass is **c00dc16b**; repeat required final checks on the release
-source. No direct upstream GPUI/Base unit-suite pass is claimed. Native fixtures
+from the evidence above. The full incremental `dune runtest -j2` alias now passes
+on **88d3c3d8** with notice-only working changes; the
+[theme notice follow-up](evidence/syntect-themes-och17.md#original-author-notices)
+retains its log. This does not claim a clean rebuild or foreground native testing.
+Repeat required final checks on the release source. No direct upstream GPUI/Base
+unit-suite pass is claimed. Native fixtures
 exercise their production code; OS tests are separately scoped. Current-source
 hosted/Linux results still need acceptance; canceled runs are not passes.
 

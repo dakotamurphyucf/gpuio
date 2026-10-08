@@ -196,7 +196,7 @@ notices. Existing internal bundles remain unqualified for distribution. No new
 GUI, clean-machine, Linux, signing or publication acceptance is claimed.
 
 
-## Source-equivalent Pathfinder notices — latest 2026-10-04 checkpoint
+## Source-equivalent Pathfinder notices — 2026-10-04 checkpoint
 
 The [remaining-gap review](rust-notice-gaps-och17.md) now identifies complete
 source-equivalent snapshots for `leak` and `leaky-cow`, and collects complete
@@ -212,3 +212,17 @@ without collected text** in each graph. Ten collector tests pass. Eighteen upstr
 policy-only packages and eight source trees without full notices remain for review,
 alongside overall distribution completeness and applicability. The earlier
 27/28/29-row tables above are historical checkpoints.
+
+## Original theme authors and current backend pins — 2026-10-07
+
+The [theme follow-up](syntect-themes-och17.md#original-author-notices) adds original
+Base16 and Solarized author notices while retaining the three derivative-project
+notices. Its source-revision limits are explicit. The collector caught two stale
+first-party backend manifest pins; these were refreshed only after confirming the
+sole change was the maintained AccessKit consumer path patch, with unchanged
+package/license declarations.
+
+Fresh native/Signal/gallery inventories contain **870/828/829** copied texts;
+all **2,527** hashes pass verification. Each still has **26** packages without
+collected text. Ten collector tests pass. No dependency, theme, compiler switch
+or application behavior changed, and no inventory is marked license-approved.
