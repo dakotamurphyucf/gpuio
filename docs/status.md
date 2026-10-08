@@ -47,7 +47,25 @@ Older records of a VoiceOver hold no longer apply. Access was restored after the
 The [preview coverage reconciliation](catalog/preview-coverage.md) closes C1:
 41 required families and five accepted additions have public example routes and
 scoped behavior evidence. No new missing-family implementation blocker was found.
-P1/P2, notices, release-facing docs and final candidate integration remain open.
+The [list comparison](evidence/preview-list-comparison-och17.md),
+[scroll assessment](evidence/preview-scroll-assessment-och17.md) and
+[streaming/resource impact review](evidence/preview-performance-impact-och17.md)
+close P1/P2 for the focused preview: three full current list trials, measured
+instrumentation cost, and targeted checks supporting reuse of earlier full
+streaming/resource evidence. The original transient visual report remains a
+follow-up without an original-cause/fix claim. Notices, installation/API closure
+and final candidate integration remain open.
+
+Foundation `37805065605` is terminal: Linux and the fresh macOS extracted-app
+receiver pass; the macOS foundation's only failed steps are its two Metal timing
+probes. The [new classifier](evidence/hosted-metal-preview-och17.md) distinguishes
+complete all-zero clocks from failures and cross-checks the independent probes.
+Portable tests and Swift compilation pass; local mixed/invalid-clock cases are
+correctly rejected and retained. Hosted validation of that workflow change remains.
+
+The [preview adoption guide](developer-preview.md) and GitHub feedback templates
+are ready. A fresh independent starter consumer build passes at `87b43c73`;
+its installation record still needs consolidation into R1's final evidence.
 
 The [managed-scrollbar routing repair](evidence/managed-scrollbar-routing-och41.md)
 adds a reactive component argument that reaches native viewports inside Bonsai
