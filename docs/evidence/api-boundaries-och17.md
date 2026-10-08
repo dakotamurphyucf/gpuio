@@ -196,3 +196,20 @@ and command/environment summary. Every member was checked against its
 now traces a slow query superseded by a new query through this boundary.
 Hosted/Linux checks for the repair remain pending. No native GUI run was needed
 to reproduce or verify this OCaml-only notification defect.
+
+
+## Desktop service and terminal-request review — 2026-10-08
+
+Reviewed application admission/completion paths against File_dialog, Desktop,
+Clipboard and Notification interfaces and their delivery adapters. The shared
+16-request desktop lane, separate notification lane with saturation-safe terminal
+close, exact-window picker ownership, receiver readiness/backpressure and OS
+acceptance boundaries are now summarized in the
+[compatibility guide](../api-compatibility.md#desktop-service-lifetimes).
+
+This review reproduced skipped application-request completions when an earlier
+callback raised, plus silent disposal of pending effects on worker cleanup. The
+[repair and deterministic evidence](application-teardown-och17.md) extend the
+existing attempt-all window cleanup policy to application requests. Native OS
+service behavior and VoiceOver are separate checks; this is not whole-surface
+API/release acceptance.

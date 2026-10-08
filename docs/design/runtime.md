@@ -187,3 +187,11 @@ so one failing callback cannot prevent another window's cleanup or inbox closure
 This does not relax the documented requirement that scope cleanup functions must
 not raise, block or perform I/O. See the [command lifecycle evidence](../evidence/command-lifecycle-och17.md)
 for tested boundaries and the remaining native-dispatch acceptance work.
+
+
+Application-scoped desktop, notification, asset, document, chart and canvas
+requests use the same attempt-all rule on native `Stopped` and worker disposal.
+Their request maps are detached together before invoking completions, so a
+reentrant teardown cannot replay callbacks. Disposal sets the application to
+stopping before invoking user effects; an attempted new request returns `Closed`.
+See the [application-request repair](../evidence/application-teardown-och17.md).

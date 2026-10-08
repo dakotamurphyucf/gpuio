@@ -1540,6 +1540,37 @@ let find_window t id =
 
 let native_error code = Error.create_s (Wire.Error_code.sexp_of_t code)
 
+(* Detach every application request before invoking user effects. A completion
+   may raise or re-enter teardown; neither may strand or replay another request.
+   Callers set [stopping] before entering this terminal path. *)
+let complete_application_requests t =
+  let desktop_requests = t.desktop_requests in
+  let notification_requests = t.notification_requests in
+  let assets = t.assets in
+  let documents = t.documents in
+  let charts = t.charts in
+  let canvases = t.canvases in
+  t.desktop_requests <- Int64.Map.empty;
+  t.notification_requests <- Int64.Map.empty;
+  t.assets <- Int64.Map.empty;
+  t.documents <- Int64.Map.empty;
+  t.charts <- Int64.Map.empty;
+  t.canvases <- Int64.Map.empty;
+  finish_cleanup (fun attempt ->
+    Map.iter desktop_requests ~f:(fun complete ->
+      attempt (fun () -> complete (Wire.Desktop.Response.Failed Closed)));
+    Map.iter notification_requests ~f:(fun complete ->
+      attempt (fun () -> complete (Wire.Notification.Response.Failed Closed)));
+    Map.iter assets ~f:(fun complete ->
+      attempt (fun () -> complete (Wire.Asset.Response.Failed Closed)));
+    Map.iter documents ~f:(fun complete ->
+      attempt (fun () -> complete (Wire.Document.Response.Failed Closed)));
+    Map.iter charts ~f:(fun complete ->
+      attempt (fun () -> complete (Wire.Chart.Response.Failed Closed)));
+    Map.iter canvases ~f:(fun complete ->
+      attempt (fun () -> complete (Wire.Canvas.Response.Failed Closed))))
+;;
+
 let process t = function
   | Wire.Event.Desktop_pending ->
     if not t.stopping
@@ -2176,31 +2207,12 @@ let process t = function
     t.notification_subscription <- None;
     t.notification_pending <- false;
     t.notification_closed <- true;
-    let desktop_requests = t.desktop_requests in
-    t.desktop_requests <- Int64.Map.empty;
-    Map.iter desktop_requests ~f:(fun complete ->
-      complete (Wire.Desktop.Response.Failed Closed));
-    let notification_requests = t.notification_requests in
-    t.notification_requests <- Int64.Map.empty;
-    Map.iter notification_requests ~f:(fun complete ->
-      complete (Wire.Notification.Response.Failed Closed));
-    Asset_registry.close t.asset_registry;
-    Document_registry.close t.document_registry;
-    Chart_registry.close t.chart_registry;
-    Canvas_registry.close t.canvas_registry;
-    let assets = t.assets in
-    t.assets <- Int64.Map.empty;
-    Map.iter assets ~f:(fun complete -> complete (Wire.Asset.Response.Failed Closed));
-    let documents = t.documents in
-    t.documents <- Int64.Map.empty;
-    Map.iter documents ~f:(fun complete ->
-      complete (Wire.Document.Response.Failed Closed));
-    let charts = t.charts in
-    t.charts <- Int64.Map.empty;
-    Map.iter charts ~f:(fun complete -> complete (Wire.Chart.Response.Failed Closed));
-    let canvases = t.canvases in
-    t.canvases <- Int64.Map.empty;
-    Map.iter canvases ~f:(fun complete -> complete (Wire.Canvas.Response.Failed Closed))
+    finish_cleanup (fun attempt ->
+      attempt (fun () -> Asset_registry.close t.asset_registry);
+      attempt (fun () -> Document_registry.close t.document_registry);
+      attempt (fun () -> Chart_registry.close t.chart_registry);
+      attempt (fun () -> Canvas_registry.close t.canvas_registry);
+      attempt (fun () -> complete_application_requests t))
 ;;
 
 (* Native closure can race the preceding event drain. The mailbox guarantees a
@@ -2388,6 +2400,7 @@ let create_runtime ~document_defaults ~native ~inbox ~scope ~now ~motion ~deskto
 ;;
 
 let dispose_runtime app =
+  app.stopping <- true;
   finish_cleanup (fun attempt ->
     attempt (fun () -> Asset_registry.close app.asset_registry);
     attempt (fun () -> Document_registry.close app.document_registry);
@@ -2395,15 +2408,10 @@ let dispose_runtime app =
     attempt (fun () -> Canvas_registry.close app.canvas_registry);
     attempt (fun () -> Scope.cancel app.scope);
     Map.iter app.windows ~f:(fun window -> attempt (fun () -> release_window window));
-    app.assets <- Int64.Map.empty;
-    app.documents <- Int64.Map.empty;
-    app.charts <- Int64.Map.empty;
-    app.canvases <- Int64.Map.empty;
-    app.desktop_requests <- Int64.Map.empty;
+    attempt (fun () -> complete_application_requests app);
     app.desktop_pending <- false;
     app.desktop_subscription <- None;
     app.on_desktop_pending <- (fun () -> Bonsai.Effect.Ignore);
-    app.notification_requests <- Int64.Map.empty;
     app.notification_pending <- false;
     app.notification_subscription <- None;
     app.on_notification_pending <- (fun () -> Bonsai.Effect.Ignore);
@@ -2726,6 +2734,141 @@ let%test_module "pending picker command lifecycle" =
         "queued, motion and frame races await Stopped; callbacks complete once";
       [%expect
         {| queued, motion and frame races await Stopped; callbacks complete once |}]
+    ;;
+
+    let%expect_test "application teardown completes every request after callbacks raise" =
+      List.iter [ `Stopped; `Dispose ] ~f:(fun path ->
+        with_runtime (fun _ app ->
+          process app (Welcome (Wire.version, Wire.capabilities));
+          let counts = Array.create ~len:6 0 in
+          let observe family index operation =
+            E.Expert.handle
+              (E.map operation ~f:(fun closed ->
+                 assert closed;
+                 counts.(family) <- counts.(family) + 1;
+                 if index = 0 && (family = 0 || family = 4)
+                 then
+                   failwith
+                     (if family = 0 then "first completion" else "later completion")))
+          in
+          for index = 0 to 1 do
+            observe
+              0
+              index
+              (E.map (Expert.desktop app Capabilities) ~f:(function
+                 | Wire.Desktop.Response.Failed Closed -> true
+                 | _ -> false));
+            observe
+              1
+              index
+              (E.map (Expert.notification app Capabilities) ~f:(function
+                 | Wire.Notification.Response.Failed Closed -> true
+                 | _ -> false));
+            observe
+              2
+              index
+              (E.map
+                 (Expert.asset app (Begin (Png, 1L)))
+                 ~f:(function
+                   | Wire.Asset.Response.Failed Closed -> true
+                   | _ -> false));
+            observe
+              3
+              index
+              (E.map (Expert.document app Create) ~f:(function
+                 | Wire.Document.Response.Failed Closed -> true
+                 | _ -> false));
+            observe
+              4
+              index
+              (E.map (Expert.chart app Create) ~f:(function
+                 | Wire.Chart.Response.Failed Closed -> true
+                 | _ -> false));
+            observe
+              5
+              index
+              (E.map (Expert.canvas app Create) ~f:(function
+                 | Wire.Canvas.Response.Failed Closed -> true
+                 | _ -> false))
+          done;
+          let retire () =
+            match path with
+            | `Stopped -> process app Stopped
+            | `Dispose -> dispose_runtime app
+          in
+          let first_failure =
+            try
+              retire ();
+              false
+            with
+            | Failure message -> String.equal message "first completion"
+          in
+          let pending =
+            Map.length app.desktop_requests
+            + Map.length app.notification_requests
+            + Map.length app.assets
+            + Map.length app.documents
+            + Map.length app.charts
+            + Map.length app.canvases
+          in
+          print_s
+            [%sexp
+              (path : [ `Stopped | `Dispose ])
+            , (first_failure : bool)
+            , (counts : int array)
+            , (pending : int)];
+          if Array.for_all counts ~f:(Int.equal 2)
+          then (
+            retire ();
+            assert (Array.for_all counts ~f:(Int.equal 2)))));
+      [%expect
+        {|
+        (Stopped true (2 2 2 2 2 2) 0)
+        (Dispose true (2 2 2 2 2 2) 0)
+      |}]
+    ;;
+
+    let%expect_test "terminal callbacks cannot reopen or replay application requests" =
+      List.iter [ `Stopped; `Dispose ] ~f:(fun path ->
+        with_runtime (fun _ app ->
+          let retire () =
+            match path with
+            | `Stopped -> process app Stopped
+            | `Dispose -> dispose_runtime app
+          in
+          let closed = ref 0 in
+          E.Expert.handle
+            (E.map (Expert.desktop app Capabilities) ~f:(fun response ->
+               assert (Wire.Desktop.Response.equal response (Failed Closed));
+               assert (Map.is_empty app.desktop_requests);
+               assert (Map.is_empty app.notification_requests);
+               incr closed;
+               retire ();
+               E.Expert.handle
+                 (E.map (Expert.desktop app Capabilities) ~f:(fun response ->
+                    assert (Wire.Desktop.Response.equal response (Failed Closed));
+                    incr closed))));
+          let desktop_request = app.correlation in
+          E.Expert.handle
+            (E.map (Expert.notification app Capabilities) ~f:(fun response ->
+               assert (Wire.Notification.Response.equal response (Failed Closed));
+               incr closed));
+          let notification_request = app.correlation in
+          retire ();
+          process app (Desktop_response (desktop_request, Requested));
+          process app (Notification_response (notification_request, Closed));
+          retire ();
+          print_s
+            [%sexp
+              (path : [ `Stopped | `Dispose ])
+            , (!closed : int)
+            , (Map.length app.desktop_requests : int)
+            , (Map.length app.notification_requests : int)]));
+      [%expect
+        {|
+        (Stopped 3 0 0)
+        (Dispose 3 0 0)
+      |}]
     ;;
 
     let%expect_test

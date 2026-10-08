@@ -192,6 +192,41 @@ See [list paging](../lib/eio/list_paging.mli),
 [search](../lib/eio/list_search.mli), and the
 [review evidence](evidence/api-boundaries-och17.md#paging-ownership-repair--2026-10-08).
 
+## Desktop service lifetimes
+
+Desktop services run through the application UI domain. Constructing a returned
+Bonsai effect does not submit its request; handling the effect does. Unmounting
+the component that requested OS work does not undo work already submitted.
+Use current application state or a generation token to suppress obsolete feedback.
+
+| Operation | Ownership and admission | Completion boundary |
+| -- | -- | -- |
+| File picker and file-dialog capability probe | Exact window generation; one pending request per window, shared between probes/open/save | User cancellation is `Ok None`; closing/shutdown is `Closed`. A save result chooses a path without creating or reserving a file. |
+| Desktop capabilities, link intake, activation, file opening/reveal, scheme registration, scrollbar preference and clipboard write | One shared application lane of 16 pending requests; no window is needed for these requests | Inspect the operation's typed result. Acceptance need not mean visible OS presentation, recipient consumption or clipboard persistence. |
+| Notification operations and event intake | Separate application lane of 16 pending requests; terminal service close bypasses saturation | A successful post means OS acceptance, not visible delivery. Closing the service disables it for that application lifetime. |
+
+Desktop link and notification receivers wait for `ready`, await each handler's
+effect, and yield between events. Long-running handlers backpressure their bounded
+native queues. `retry` requests intake explicitly after failure; no automatic
+polling is installed. Closing a receiver drops queued delivery but does not cancel
+an already-running application effect. Desktop receivers can be replaced after
+close; notification service closure is terminal. These are different contracts.
+
+Application teardown rejects new requests, detaches pending application request
+maps, and completes their callbacks with `Closed`. It attempts all independent
+completions even if one raises, then propagates the first cleanup failure with its
+backtrace. Duplicate/late native responses cannot complete detached requests
+again. This also applies to pending asset/document/chart/canvas transport requests;
+scope cancellation can still suppress higher-level resource creation deliveries.
+Cleanup does not convert an application exception into a successful operation or
+roll back an OS side effect.
+
+See [file dialogs](../lib/eio/file_dialog.mli),
+[desktop integration](../lib/eio/desktop.mli),
+[clipboard](../lib/eio/clipboard.mli),
+[notifications](../lib/eio/notification.mli) and the
+[teardown regression evidence](evidence/application-teardown-och17.md).
+
 ## Release qualification
 
 A successful source/consumer build proves compilation and linking in that tested

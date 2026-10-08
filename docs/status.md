@@ -43,6 +43,12 @@ at attachment selection. [CI evidence](evidence/milestone-07-ci.md) records this
 new failure and the added fatal-stack/native-crash diagnostics. Updated-source
 hosted acceptance remains required.
 
+The [application teardown repair](evidence/application-teardown-och17.md) ensures
+pending desktop/notification/resource requests finish with Closed even if another
+completion raises. Deterministic regressions cover all six request families,
+reentrant disposal, rejected new work and ignored late responses. This extends
+the existing window-cleanup policy; OS-service and release acceptance remain separate.
+
 The [overlay desktop matrix](evidence/overlay-macos-och41.md) passes both themes
 and three application sizes locally and in the installed consumer. It verifies
 modal focus, live all-edge drawer insets, hover-card actions, fixed-point popup
