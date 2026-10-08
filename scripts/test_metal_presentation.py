@@ -21,6 +21,7 @@ def main():
     parser.add_argument("--binary", type=Path, help="Use an already built probe")
     parser.add_argument("--idle-before-frames-ms", type=int, default=0,
                         help="Observe native idle-to-active behavior without the OCaml bridge (0..5000)")
+    parser.add_argument('--warmup', action='store_true', help='Record a separate active warmup before unchanged strict measured frames')
     args = parser.parse_args()
     if not 0 <= args.idle_before_frames_ms <= 5000:
         parser.error("Idle delay must be between 0 and 5000 ms")
@@ -47,16 +48,21 @@ def main():
             raise RuntimeError(f"Expected one current native probe artifact, got {candidates}")
         binary = Path(candidates[0])
     environment = {**os.environ, "GPUIO_PRESENTATION_REPORT": str(report),
-                   "GPUIO_PRESENTATION_IDLE_MS": str(args.idle_before_frames_ms)}
+                   "GPUIO_PRESENTATION_IDLE_MS": str(args.idle_before_frames_ms),
+                   "GPUIO_PRESENTATION_WARMUP": "1" if args.warmup else "0"}
     # subprocess.run kills and reaps the child on timeout; no detached process.
     with (output / "native.log").open("w") as log:
         result = subprocess.run([str(binary.resolve())], cwd=ROOT, env=environment,
-                                stdout=log, stderr=subprocess.STDOUT, timeout=25 + args.idle_before_frames_ms / 1000, check=True)
+                                stdout=log, stderr=subprocess.STDOUT, timeout=25 + args.idle_before_frames_ms / 1000 + (14 if args.warmup else 0), check=True)
     data = json.loads(report.read_text())
     if data.get("schema") != 1 or data.get("kind") != "gpui_metal_hook_qualification" or data.get("passed") is not True:
         raise RuntimeError(f"Native qualification did not pass; inspect {report}")
     if data.get("idle_before_frames_ms") != args.idle_before_frames_ms:
         raise RuntimeError("Native probe did not report the requested idle setup")
+    if data.get('warmup') != args.warmup or not data.get('warmup_finished'):
+        raise RuntimeError('Missing or mismatched warmup configuration/finish')
+    if len(data.get('warmup_sessions', [])) != (2 if args.warmup else 0):
+        raise RuntimeError('Missing separate warmup records')
     if len(data.get("sessions", [])) != 2:
         raise RuntimeError("Missing independent window results")
     print(json.dumps({"passed": True, "exit_code": result.returncode, "report": str(report),

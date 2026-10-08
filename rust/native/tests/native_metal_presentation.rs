@@ -99,7 +99,7 @@ mod macos {
                 .all(|r| r.outcome == Outcome::Presented && r.inputs == 0)
     }
 
-    pub fn run(path: PathBuf, idle_before_frames: Duration) {
+    pub fn run(path: PathBuf, idle_before_frames: Duration, warmup: bool) {
         gpui_platform::application().run(move |cx| {
             cx.set_quit_mode(gpui::QuitMode::Explicit);
             let bounds = Bounds::centered(None, size(px(760.), px(280.)), cx);
@@ -147,6 +147,46 @@ mod macos {
                 // OCaml/Eio bridge and does not alter renderer presentation policy.
                 if !idle_before_frames.is_zero() {
                     cx.background_executor().timer(idle_before_frames).await;
+                }
+                // Separate, fully retained active warmup. The measured phase
+                // below keeps its original 90-frame, zero-loss/zero-skip checks.
+                // This is steady-state hookup qualification, not cold startup.
+                let mut warmup_reports = Vec::new();
+                let mut warmup_finished = !warmup;
+                if warmup {
+                    let preflight = windows.iter().map(|w| {
+                        w.update(cx, |view, window, cx| {
+                            let session = Session::start(window, Limits::default()).unwrap();
+                            view.running = true;
+                            cx.notify();
+                            session
+                        }).unwrap()
+                    }).collect::<Vec<_>>();
+                    let start = Instant::now();
+                    while start.elapsed() < Duration::from_secs(12) {
+                        warmup_finished = windows.iter().all(|w| {
+                            w.update(cx, |view, _, _| view.frames == FRAMES).unwrap_or(false)
+                        });
+                        if warmup_finished { break; }
+                        cx.background_executor().timer(Duration::from_millis(20)).await;
+                    }
+                    for session in &preflight { session.stop(); }
+                    let settlement = Instant::now();
+                    while settlement.elapsed() < Duration::from_secs(2)
+                        && preflight.iter().any(|s| s.pending() != 0) {
+                        cx.background_executor().timer(Duration::from_millis(10)).await;
+                    }
+                    warmup_finished &= preflight.iter().all(|s| s.pending() == 0);
+                    warmup_reports = preflight.iter().map(report).collect();
+                    // Snapshots retain values only. Drop the old measurement
+                    // owners before starting distinct replacement sessions.
+                    drop(preflight);
+                    for window in &windows {
+                        window.update(cx, |view, _, _| {
+                            view.frames = 0;
+                            view.running = false;
+                        }).unwrap();
+                    }
                 }
                 let sessions = windows
                     .iter()
@@ -200,10 +240,10 @@ mod macos {
                 let distinct = sessions[0].snapshot().session != sessions[1].snapshot().session
                     && sessions[0].snapshot().window != sessions[1].snapshot().window;
                 let animation_samples = sessions.iter().any(|s| s.snapshot().animation_interval.len() >= (FRAMES / 2) as u64);
-                let valid = animation_samples &&
+                let valid = warmup_finished && animation_samples &&
                     visible && end_visible && finished && distinct && sessions.iter().all(accepted);
                 let output = json!({"schema": 1, "kind": "gpui_metal_hook_qualification",
-                    "passed": valid, "idle_before_frames_ms": idle_before_frames.as_millis(), "visible_at_start": visible, "visible_at_end": end_visible,
+                    "passed": valid, "warmup": warmup, "warmup_finished": warmup_finished, "warmup_sessions": warmup_reports, "idle_before_frames_ms": idle_before_frames.as_millis(), "visible_at_start": visible, "visible_at_end": end_visible,
                     "finished": finished, "frames_per_window": FRAMES, "distinct": distinct, "animation_samples": animation_samples,
                     "sessions": sessions.iter().map(report).collect::<Vec<_>>()});
                 std::fs::write(&path, serde_json::to_vec_pretty(&output).unwrap()).unwrap();
@@ -231,7 +271,11 @@ fn main() {
             })
             .unwrap_or(0);
         assert!(idle_ms <= 5000, "idle delay exceeds diagnostic limit");
-        macos::run(path.into(), std::time::Duration::from_millis(idle_ms));
+        macos::run(
+            path.into(),
+            std::time::Duration::from_millis(idle_ms),
+            std::env::var("GPUIO_PRESENTATION_WARMUP").is_ok_and(|v| v == "1"),
+        );
     }
     #[cfg(not(target_os = "macos"))]
     eprintln!("GPUIO_METAL_PRESENTATION_UNSUPPORTED: macOS Metal qualification only");
