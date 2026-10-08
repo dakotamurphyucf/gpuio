@@ -1,6 +1,28 @@
 # Milestone 07 hosted validation follow-up
 
-Current run [37241646017](https://github.com/dakotamurphyucf/gpuio/actions/runs/37241646017)
+## Latest terminal run — 37713213949
+
+[Run 37713213949](https://github.com/dakotamurphyucf/gpuio/actions/runs/37713213949)
+at `88d3c3d8` passes Linux Foundation and the separate fresh macOS extracted-app
+receiver. macOS Foundation fails three steps: the public native document profile,
+GPUI Metal presentation hook and independent Metal API calibration.
+
+The profile's AX dump contains a preparation `ResourceLimit` fallback after a
+property change. A deterministic two-profile regression reproduces premature
+failure under another worker's temporary reservation. The
+[local worker-pressure repair](document-worker-pressure-och17.md) now passes the
+native regression and both normal/Large real gallery walkthroughs. This has not
+yet passed hosted CI on the repaired source.
+
+Both hosted presentation probes report only zero presentation timestamps. The
+independent Metal probe reports 120 active/visible submissions with valid GPU
+completion, on an Apple Paravirtual device with an empty display inventory. This
+does not qualify presentation or establish a general VM limitation. Raw reports
+are retained with the linked evidence; both required checks remain failed.
+
+## Historical runs and repairs
+
+Historical run [37241646017](https://github.com/dakotamurphyucf/gpuio/actions/runs/37241646017)
 at `6d6d96f` is terminal. The entire Linux foundation job passes, including
 required OCaml/Rust tests, private-bus arbitration and independent consumers,
 with unchanged stack settings. This validates the renderer repair below and
@@ -52,7 +74,7 @@ optional observation wrapper changed the row type passed to `finish_row`. Linux
 reached the feature-enabled native library tests and aborted on a sidebar fixture
 stack overflow. Later gates remain unqualified.
 
-## Current follow-up
+## Historical follow-up
 
 The table now applies `.test_support()` after the delegate finishes its concrete
 `Stateful<Div>` row, before accessibility decoration. That preserves the delegate

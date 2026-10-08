@@ -8,6 +8,102 @@ use gpuio_protocol::{
 };
 use std::sync::atomic::AtomicUsize;
 const FINGERPRINT: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+
+#[test]
+fn concurrent_short_profiles_wait_for_temporary_worker_capacity() {
+    let counts = Arc::new(Counts::default());
+    let mut pool = Pool::default();
+    let mut request =
+        tests::request("Open `review` details.\n\n```review-card\nReview the next step\n```\n");
+    request.profile = Some(profile(&counts, 1, 0));
+    let first = pool.request(request.clone()).unwrap();
+    let second = pool.request(request).unwrap();
+    let work = pool.next_work().expect("first short profile fits");
+    eprintln!(
+        "profile working reservation={} cap={MAX_RESERVED_BYTES}",
+        pool.reserved_bytes()
+    );
+    let other = pool.next_work();
+    assert!(
+        second.take_ready().is_none(),
+        "temporary worker pressure must not publish a permanent failure"
+    );
+    pool.complete(work.run());
+    if let Some(other) = other {
+        pool.complete(other.run());
+    } else {
+        let other = pool
+            .next_work()
+            .expect("completion makes room for the pending profile");
+        pool.complete(other.run());
+    }
+    for handle in [&first, &second] {
+        let ready = handle.take_ready().unwrap().unwrap();
+        assert!(matches!(ready.prepared, Prepared::Markdown { .. }));
+    }
+    drop((first, second));
+    assert_eq!(pool.reserved_bytes(), 0);
+}
+
+#[test]
+fn waiting_profile_keeps_only_latest_properties_and_drop_cancels_admission() {
+    for drop_waiter in [false, true] {
+        let counts = Arc::new(Counts::default());
+        let mut pool = Pool::default();
+        let first = pool.request(request(&counts, 1, 0)).unwrap();
+        let waiting = pool.request(request(&counts, 1, 0)).unwrap();
+        let work = pool.next_work().unwrap();
+        assert!(pool.next_work().is_none());
+        assert!(waiting.is_pending());
+        waiting.update(request(&counts, 2, 1)).unwrap(); // Superseded panic mode must never run.
+        waiting.update(request(&counts, 3, 4)).unwrap();
+        let waiting = if drop_waiter {
+            drop(waiting);
+            None
+        } else {
+            Some(waiting)
+        };
+        pool.complete(work.run());
+        let first_ready = first.take_ready().unwrap().unwrap();
+        assert!(matches!(first_ready.prepared, Prepared::Markdown { .. }));
+        if let Some(waiting) = waiting {
+            let work = pool
+                .next_work()
+                .expect("latest pending revision fits after completion");
+            pool.complete(work.run());
+            let ready = waiting.take_ready().unwrap().unwrap();
+            let Prepared::Markdown { code, .. } = ready.prepared else {
+                panic!("latest profile prepared")
+            };
+            assert!(code.values().all(|runs| runs.is_empty()));
+            assert_eq!(counts.configurations.load(Ordering::SeqCst), 2);
+        } else {
+            assert!(pool.next_work().is_none());
+            assert_eq!(counts.configurations.load(Ordering::SeqCst), 1);
+        }
+        assert!(pool.peak_reserved_bytes <= MAX_RESERVED_BYTES);
+        drop((first, first_ready));
+        assert_eq!(pool.reserved_bytes(), 0);
+        assert_eq!(counts.alive.load(Ordering::SeqCst), 0);
+    }
+}
+
+#[test]
+fn retained_capacity_without_running_workers_still_reports_limit() {
+    let counts = Arc::new(Counts::default());
+    let mut pool = Pool::default();
+    let retained = pool.reserve(MAX_RESERVED_BYTES - 1).unwrap();
+    let handle = pool.request(request(&counts, 1, 0)).unwrap();
+    assert!(pool.next_work().is_none());
+    assert!(!handle.is_pending());
+    assert!(matches!(
+        handle.take_ready(),
+        Some(Err(Error::ResourceLimit))
+    ));
+    assert_eq!(counts.configurations.load(Ordering::SeqCst), 0);
+    drop((retained, handle));
+    assert_eq!(pool.reserved_bytes(), 0);
+}
 type Pause = (std::sync::mpsc::Sender<()>, std::sync::mpsc::Receiver<()>);
 #[derive(Default)]
 struct Counts {

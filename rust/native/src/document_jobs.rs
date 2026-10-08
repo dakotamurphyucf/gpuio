@@ -513,6 +513,14 @@ impl Pool {
                 bytes + rendered + entry.request.profile.as_ref().map_or(0, |p| p.work_units());
             let reserved = self.reserved.load(Ordering::Relaxed);
             if bytes > MAX_RESERVED_BYTES - reserved {
+                // An active worker reserves its worst-case output, then shrinks
+                // that charge on completion. Its completion pumps this queue
+                // again. Keep the latest request pending during that temporary
+                // pressure rather than permanently failing a small document.
+                // Continue scanning so another request that fits can still run.
+                if !self.running.is_empty() {
+                    continue;
+                }
                 entry.completed = entry.serial;
                 entry.ready = Some(Err(Error::ResourceLimit));
                 if let Some(window) = entry.request.observer {

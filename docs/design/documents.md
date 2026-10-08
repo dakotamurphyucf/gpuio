@@ -91,6 +91,17 @@ these units are not measured allocator RSS. Source snapshots have a separate
 results only install into the matching request serial. Native shutdown waits
 for the two worker fences. No idle document polling is installed.
 
+An active rich-document worker reserves its conservative worst-case output,
+which can exceed half the shared allowance even for a short source. If that
+temporary reservation prevents another request from fitting, the scheduler keeps
+the latest request pending and scans for other work that fits. Completion already
+wakes the service and retries admission after the first worker shrinks its
+charge; no timer or extra worker is introduced. Superseded waiting requests never
+run, and dropping a waiting view cancels its admission. If no worker remains and
+retained content still leaves insufficient capacity, the request reports the
+existing resource-limit fallback. The 64 MiB budget and per-source limits remain
+unchanged. See [worker-pressure evidence](../evidence/document-worker-pressure-och17.md).
+
 Rich Markdown is limited to64KiB, 4096 AST nodes, depth32, 256 top-level blocks
 and16KiB lines. Exceeding a parser/highlighter limit retains the full canonical
 source and shows an explicit source fallback. Source pages contain at most64KiB,

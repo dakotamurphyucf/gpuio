@@ -30,6 +30,15 @@ Older records of a VoiceOver hold no longer apply. Access was restored after the
 
 ## Latest delivered behavior and validation
 
+The [document worker-pressure repair](evidence/document-worker-pressure-och17.md)
+keeps short profile updates pending while an active worker holds temporary
+preparation capacity. The unchanged memory cap still rejects persistent
+exhaustion. The deterministic before-case fails; 22 job tests, 1,187 native tests
+(two existing skips) and both normal/Large actual profile walkthroughs pass.
+The prior-source hosted run passed Linux and the fresh macOS package receiver,
+but failed the document profile and both Metal presentation probes. Final-source
+hosted revalidation and presentation qualification remain open.
+
 The [native-menu retirement repair](evidence/native-menu-retirement-och41.md)
 fixes retained Rust commands after actual menu-bar/Dock replacement. Real AppKit
 checks pass 128 replacements, stale native-item rejection, current dispatch and

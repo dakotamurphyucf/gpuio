@@ -146,7 +146,11 @@ observations or incompatible ownership combinations. See [diff_state.ml](model/d
 instance belongs to the [document-profile package](../document_profile_package/README.md).
 Its callback receives revisioned typed signals and updates the notice. The optional
 `--trace-document-profile` prints those signals as `GALLERY_DOCUMENT_PROFILE`;
-it does not enable the profile by itself. A second Flow-layout profile preview
+it does not enable the profile by itself. Changing **Amber code highlights**
+updates the profile properties and prepares new native content. Multiple previews
+share a bounded worker pool: a preview waits if an active worker temporarily
+holds the available preparation allowance. Only its latest properties are queued;
+this does not add idle polling or increase the memory cap. A second Flow-layout profile preview
 contains review badge/card syntax and its own native controls. Pure OCaml readers
 need no Rust knowledge; implementing that extension package does.
 

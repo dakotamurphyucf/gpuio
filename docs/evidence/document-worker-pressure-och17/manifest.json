@@ -1,0 +1,184 @@
+{
+  "metadata": {
+    "base_revision": "ea6cfc6d4c4673bfae74a1b5607a44453c9d8ac2",
+    "ci_revision": "88d3c3d8",
+    "ci_run": 37713213949,
+    "gallery_sha256": "31b890f4af199a9082ab5d46108aa349fcdab3bbf62a53aaa2eacdb33b99acad",
+    "machine": "Darwin arm64",
+    "native_tests": 1187,
+    "existing_native_skips": 2,
+    "document_job_tests": 22,
+    "worker_reservation_bytes": 37234944,
+    "cap_bytes": 67108864,
+    "normal_and_large_gui_pass": true,
+    "clipboard_preserved_and_verified": true
+  },
+  "archive_sha256": "b8cf423ac2a21173eeea22a0c891e5b752d640477d61133b34a8c0863b95064f",
+  "files": [
+    {
+      "path": "document-capacity-before.log",
+      "bytes": 589133,
+      "sha256": "5e6deab72c8cf6c28f021ed880945bf42542463fa2d41cf995a973e1fa24bff6"
+    },
+    {
+      "path": "document-capacity-after.log",
+      "bytes": 591412,
+      "sha256": "ecf69c3e1edf763323b5b8fa3edc9d95c00326c073fda4cc4b2b222f44de657e"
+    },
+    {
+      "path": "document-capacity-gallery.log",
+      "bytes": 100250,
+      "sha256": "0dbdfca80d2e4006159c567318c6e96277eac9dd94b4d9bbe894a0d06871a521"
+    },
+    {
+      "path": "document-capacity-native.log",
+      "bytes": 717268,
+      "sha256": "d2108b064d1f6f4d744fe6d481e8c650fc8463ca6306f66d112f3d5f71818b9a"
+    },
+    {
+      "path": "document-capacity-clippy.log",
+      "bytes": 588440,
+      "sha256": "6b34494663ad23d8cb96297fb4696cf7f3722dd31e9631904f4a330be8d60ec4"
+    },
+    {
+      "path": "document-capacity-validation.json",
+      "bytes": 909,
+      "sha256": "9cb77303008c52d642802e7e11ec325aec64af779ffc28dedf368c7f5b0199cf"
+    },
+    {
+      "path": "document-capacity-gui-default.log",
+      "bytes": 1775,
+      "sha256": "1d1e264a6e59342e82ac18df1a10a5bc4919b1d8fd222b47b29539cda932a8ae"
+    },
+    {
+      "path": "document-capacity-gui-large.log",
+      "bytes": 1706,
+      "sha256": "73609e73c10f20ab10bf403f5d881f76b56776146964e0cb38b8b3cf35b6c121"
+    },
+    {
+      "path": "document-capacity-gui-results.json",
+      "bytes": 163,
+      "sha256": "23d8037a2df187cfc60cbdce6b7ef97993e4d8e6e89c48f513e485600a502769"
+    },
+    {
+      "path": "document-capacity-metadata.json",
+      "bytes": 465,
+      "sha256": "b9875421c821f5c58c76f5d6cae8e0d2e128befdd759447f034eb53263fb860c"
+    },
+    {
+      "path": "document-capacity-source.patch",
+      "bytes": 5524,
+      "sha256": "1ccc4382d07776da3acd346fca68a24649664ea488bf55c195b5975cc1a3d19d"
+    },
+    {
+      "path": "validate-document-capacity.py",
+      "bytes": 1207,
+      "sha256": "c9ac441bd9681af0ad4f81765336ff2afc9663827b628813f876c6d5f6658d87"
+    },
+    {
+      "path": "run-document-capacity-gui.py",
+      "bytes": 893,
+      "sha256": "9aec8043c4b06244eda00b0b94c692fde27d91ee1aabdfc5bce7ef6ac1e2500c"
+    },
+    {
+      "path": "ci-37713213949-failed.log",
+      "bytes": 30263,
+      "sha256": "ad3ed8fcc1569f085756ebfad92b3fe28e1095ec652256eb242976fc094933bb"
+    },
+    {
+      "path": "document-capacity-gui-default/first-action-focused.png",
+      "bytes": 423535,
+      "sha256": "71d5a1e72389c2a62fb425bb2b0d92bab909fd0e40717b816e345c6d7f7ee058"
+    },
+    {
+      "path": "document-capacity-gui-default/profile-inner-scroll-end.png",
+      "bytes": 396582,
+      "sha256": "94536c580997c220a967da468f087c141b50584eb9be7d211de8dbc5e1872b20"
+    },
+    {
+      "path": "document-capacity-gui-default/report.json",
+      "bytes": 1624,
+      "sha256": "4657c44d6c75605d3e7da65f126ad4b3664747f4ef0b4eb71fbc60375dccc082"
+    },
+    {
+      "path": "document-capacity-gui-default/native-controls.png",
+      "bytes": 414207,
+      "sha256": "38824e4f3facdea504960bd117810f1e07aee8f5ce51a9e396427f07a9660a62"
+    },
+    {
+      "path": "document-capacity-gui-default/application.log",
+      "bytes": 560,
+      "sha256": "a1ccf342c04bce864e0d29533cd708d100fb248db8f87dc74ab5dad21bffbacd"
+    },
+    {
+      "path": "document-capacity-gui-large/first-action-focused.png",
+      "bytes": 413391,
+      "sha256": "76a244ed54ded8e6b1a4defbbf996f737b7a45096bc0e1f1e10b7b7ebb4aaee1"
+    },
+    {
+      "path": "document-capacity-gui-large/profile-inner-scroll-end.png",
+      "bytes": 373333,
+      "sha256": "5a97e6edce28cafe626dcc022df22ba4b4d6cc6c35c33111dbd7363611f6d324"
+    },
+    {
+      "path": "document-capacity-gui-large/report.json",
+      "bytes": 1623,
+      "sha256": "a49372a8a18c5fa86c20998b9db5f4970668aab47c52e97b4e31dcd9dc6def68"
+    },
+    {
+      "path": "document-capacity-gui-large/native-controls.png",
+      "bytes": 390334,
+      "sha256": "4bbc18368c1e1a91f3c882fd07df4c3a6e68468170a61269dc69a52ed85b2889"
+    },
+    {
+      "path": "document-capacity-gui-large/application.log",
+      "bytes": 560,
+      "sha256": "a1ccf342c04bce864e0d29533cd708d100fb248db8f87dc74ab5dad21bffbacd"
+    },
+    {
+      "path": "ci-37713213949-macos/document-profile/report.json",
+      "bytes": 583,
+      "sha256": "47ff36ca19ffdba9b2460891b996e06a643eb4921a01a3717b1526e926f191bb"
+    },
+    {
+      "path": "ci-37713213949-macos/document-profile/application.log",
+      "bytes": 342,
+      "sha256": "4ef0d09234a552e33170060e8dfaf5f4cd4a54265a78d16c71d1d1402fe57f70"
+    },
+    {
+      "path": "ci-37713213949-macos/macos-document-profile.log",
+      "bytes": 9525,
+      "sha256": "7910c8c0147b422d88402df0bc551b7ed63baf5141c96eb783474bc5a96ecfde"
+    },
+    {
+      "path": "ci-37713213949-macos/metal-presentation-hook/report.json",
+      "bytes": 76213,
+      "sha256": "7883a919afbaf9546ca74811b4ea4cc5b5bc33e7c85d313142eab94c21272481"
+    },
+    {
+      "path": "ci-37713213949-macos/metal-presentation-hook/native.log",
+      "bytes": 122,
+      "sha256": "c0b114dcec83a6744a1b14cf21a9af8597b2a09a9227847e74604c511b9f94ac"
+    },
+    {
+      "path": "ci-37713213949-macos/metal-presentation-calibration.json",
+      "bytes": 63535,
+      "sha256": "824b12d852f664f90e4977107cc670df32fd62f45e39af393634d8c8abc2253c"
+    },
+    {
+      "path": "ci-37713213949-macos/metal-presentation-display.json",
+      "bytes": 35,
+      "sha256": "0e2a2e10de1b28c2c98b9bf2faadb16610de1aad4b8308e92b54c13e74402c3c"
+    },
+    {
+      "path": "source/rust/native/src/document_jobs.rs",
+      "bytes": 37761,
+      "sha256": "38185cbd1b7f2fcf2dce6664ceed619413dbf584ecd8eb8b347527d785bdabde"
+    },
+    {
+      "path": "source/rust/native/src/document_profile_jobs_test.rs",
+      "bytes": 18715,
+      "sha256": "ff02aa5ca4f3650fac3ddf24fac618b6c381375a01bd7e19154cd98ca495d904"
+    }
+  ]
+}
