@@ -5,14 +5,22 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **O
 Markdown walkthroughs for every example component; its documentation acceptance is complete. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
+[Cached native text selection](evidence/cached-text-selection-och17.md) now
+preserves real Base TextView selection during actual scene-cache reuse. Native
+paint lifecycle replay covers scoped/deferred text, cached selection layers,
+current Copy order and removal/remount cleanup. Raw prepaint registration remains
+compatible; cached explicit logical order has a dedicated method. All 1,173 native
+tests pass (2 ignored), along with strict lint/formatting, workspace, actual
+desktop, gallery rebuild, exact GPUI/Base reconstruction and real macOS range/Copy
+regression. Dedicated rollback/context/dirty-source qualification, VoiceOver and
+full catalog/performance/resource/distribution/platform gates remain open.
+
 [Cached accessibility callback ownership](evidence/cached-accessibility-owners-och17.md)
 now releases removed uncached controls in the same completed frame even when the
 window also contains cached content. The single-frame regression fails before the
-fix and passes afterward; all 1,170 native tests pass (2 ignored). A separate real
-cached Base TextView diagnostic **fails**: selection registration is swept during
-cache reuse, clearing selection and triggering extra redraws. Its source and
-failure are preserved for the next lifecycle fix; cached TextView acceptance
-remains open.
+fix and passes afterward; all 1,170 native tests passed (2 ignored) at that
+checkpoint. It also reproduced the real cached TextView failure addressed by the
+native selection-lifecycle follow-up above; the original failure remains archived.
 
 [Cached accessibility replay](evidence/cached-accessibility-replay-och17.md)
 now preserves native semantic nodes, actions and synthetic painted selection

@@ -956,12 +956,10 @@ impl Element for TextView {
                     state.scrollable,
                 )
             };
-            let document_order = GlobalState::global_mut(cx).next_selection_document_order();
             adapter.register(
                 prepaint.hitbox.clone(),
                 content_bounds,
                 scroll_offset,
-                document_order,
                 self_scroll,
                 window,
                 cx,

@@ -4480,3 +4480,110 @@
      /// Advance even while inactive, so old callbacks and node snapshots cannot
      /// accumulate or be mistaken for the immediately preceding frame.
      pub(crate) fn advance_cache(&mut self) {
+--- a/src/view.rs
++++ b/src/view.rs
+@@ -509,7 +509,7 @@
+                         element.paint(window, cx);
+                         window.refreshing = refreshing;
+                     } else {
+-                        window.reuse_paint(element_state.paint_range.clone());
++                        window.reuse_paint(element_state.paint_range.clone(), cx);
+                     }
+ 
+                     let paint_end = window.paint_index();
+--- a/src/window.rs
++++ b/src/window.rs
+@@ -975,12 +975,15 @@
+     paint_range: Range<PaintIndex>,
+ }
+ 
++type PaintLifecycle = Box<dyn FnMut(&mut Window, &mut App)>;
++
+ pub(crate) struct Frame {
+     pub(crate) focus: Option<FocusId>,
+     pub(crate) window_active: bool,
+     pub(crate) element_states: FxHashMap<(GlobalElementId, TypeId), ElementStateBox>,
+     accessed_element_states: Vec<(GlobalElementId, TypeId)>,
+     pub(crate) mouse_listeners: Vec<Option<AnyMouseListener>>,
++    paint_lifecycles: Vec<Option<PaintLifecycle>>,
+     pub(crate) dispatch_tree: DispatchTree,
+     pub(crate) scene: Scene,
+     pub(crate) hitboxes: Vec<Hitbox>,
+@@ -1012,6 +1015,7 @@
+ #[derive(Clone, Default)]
+ pub(crate) struct PaintIndex {
+     a11y_index: a11y::cache::PaintIndex,
++    paint_lifecycles_index: usize,
+     scene_index: usize,
+     mouse_listeners_index: usize,
+     input_handlers_index: usize,
+@@ -1029,6 +1033,7 @@
+             element_states: FxHashMap::default(),
+             accessed_element_states: Vec::new(),
+             mouse_listeners: Vec::new(),
++            paint_lifecycles: Vec::new(),
+             dispatch_tree,
+             scene: Scene::default(),
+             hitboxes: Vec::new(),
+@@ -1054,6 +1059,7 @@
+         self.element_states.clear();
+         self.accessed_element_states.clear();
+         self.mouse_listeners.clear();
++        self.paint_lifecycles.clear();
+         self.dispatch_tree.clear();
+         self.scene.clear();
+         self.input_handlers.clear();
+@@ -3764,7 +3770,7 @@
+                     })
+                 })
+             } else {
+-                self.reuse_paint(deferred_draw.paint_range.clone());
++                self.reuse_paint(deferred_draw.paint_range.clone(), cx);
+             }
+             let paint_end = self.paint_index();
+             deferred_draw.paint_range = paint_start..paint_end;
+@@ -3848,6 +3854,7 @@
+     pub(crate) fn paint_index(&self) -> PaintIndex {
+         PaintIndex {
+             a11y_index: self.a11y.paint_index(),
++            paint_lifecycles_index: self.next_frame.paint_lifecycles.len(),
+             scene_index: self.next_frame.scene.len(),
+             mouse_listeners_index: self.next_frame.mouse_listeners.len(),
+             input_handlers_index: self.next_frame.input_handlers.len(),
+@@ -3858,9 +3865,35 @@
+         }
+     }
+ 
+-    pub(crate) fn reuse_paint(&mut self, range: Range<PaintIndex>) {
++    /// Maintain native frame-local registrations during both fresh painting and
++    /// cached scene replay. Runs immediately and once on each subsequent reuse
++    /// of this paint range; the callback is retired when the range disappears.
++    ///
++    /// Call only from paint. The callback may update native lifecycle metadata,
++    /// but must not draw, register other paint callbacks/listeners, or depend on
++    /// transient element/view/style stacks. Capture stable geometry and owners;
++    /// use normal entity invalidation when that geometry or content changes.
++    pub fn register_paint_lifecycle(
++        &mut self,
++        mut callback: impl FnMut(&mut Window, &mut App) + 'static,
++        cx: &mut App,
++    ) {
++        self.invalidator.debug_assert_paint();
++        callback(self, cx);
++        self.next_frame
++            .paint_lifecycles
++            .push(Some(Box::new(callback)));
++    }
++
++    pub(crate) fn reuse_paint(&mut self, range: Range<PaintIndex>, cx: &mut App) {
+         self.a11y
+             .reuse_paint(range.start.a11y_index..range.end.a11y_index);
++        for index in range.start.paint_lifecycles_index..range.end.paint_lifecycles_index {
++            if let Some(mut callback) = self.rendered_frame.paint_lifecycles[index].take() {
++                callback(self, cx);
++                self.next_frame.paint_lifecycles.push(Some(callback));
++            }
++        }
+         self.next_frame.cursor_styles.extend(
+             self.rendered_frame.cursor_styles
+                 [range.start.cursor_styles_index..range.end.cursor_styles_index]

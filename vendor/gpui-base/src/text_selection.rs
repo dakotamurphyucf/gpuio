@@ -285,6 +285,7 @@ impl TextSelectionSnapshot {
 }
 
 /// Per-frame geometry reported by a [`TextSelectionHandle`] participant.
+#[derive(Clone)]
 pub struct TextSelectionRegistration {
     hitbox: Hitbox,
     bounds: Bounds<Pixels>,
@@ -1002,7 +1003,11 @@ impl TextSelectionHandle {
         valid
     }
 
-    /// Registers this participant and its geometry for the current frame.
+    /// Registers this participant's geometry immediately for the current frame.
+    /// This low-level operation can be used during prepaint. Its caller must
+    /// register again each frame, including any cached rendering path it owns.
+    /// For automatic paint-cache replay with explicit order, use
+    /// [`Self::register_in_logical_order`].
     pub fn register(
         &self,
         mut registration: TextSelectionRegistration,
@@ -1016,20 +1021,70 @@ impl TextSelectionHandle {
             return;
         };
         state.update(cx, |state, cx| {
-            state.register_participant(self.clone(), registration, cx)
+            state.register_shared_participant(self.clone(), Rc::new(registration), false, cx)
         });
+    }
+
+    /// Registers during paint, preserving the supplied logical document order
+    /// on subsequent cached scene reuse. Geometry and scope follow the same
+    /// lifecycle as [`Self::register_in_paint_order`].
+    pub fn register_in_logical_order(
+        &self,
+        registration: TextSelectionRegistration,
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        self.register_cached(registration, false, window, cx);
     }
 
     /// Register in the same frame-local paint order used by native TextViews.
     /// Call exactly once per painted participant after mounting TextSelectionLayer.
+    /// Cached replay recomputes order alongside freshly painted participants.
     pub fn register_in_paint_order(
         &self,
-        mut registration: TextSelectionRegistration,
+        registration: TextSelectionRegistration,
         window: &mut Window,
         cx: &mut App,
     ) {
-        registration.document_order = GlobalState::global_mut(cx).next_selection_document_order();
-        self.register(registration, window, cx);
+        self.register_cached(registration, true, window, cx);
+    }
+
+    fn register_cached(
+        &self,
+        registration: TextSelectionRegistration,
+        automatic_order: bool,
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        // Geometry is immutable across reuse; avoid copying glyph bounds on
+        // every cached frame. Only scope changes need a fresh registration.
+        let default_scope = registration.scope;
+        let mut registration = Rc::new(registration);
+        let participant = self.downgrade();
+        window.register_paint_lifecycle(
+            move |window, cx| {
+                let Some(participant) = participant.upgrade() else {
+                    return;
+                };
+                let Some(state) = WindowSelectionState::existing(window, cx) else {
+                    return;
+                };
+                let scope = current_text_selection_scope(window.window_handle().window_id(), cx)
+                    .unwrap_or(default_scope);
+                if scope != registration.scope {
+                    Rc::make_mut(&mut registration).scope = scope;
+                }
+                state.update(cx, |state, cx| {
+                    state.register_shared_participant(
+                        TextSelectionHandle(participant),
+                        registration.clone(),
+                        automatic_order,
+                        cx,
+                    )
+                });
+            },
+            cx,
+        );
     }
 
     /// Projects the current snapshot onto plain-text runs and caches their copy text.
@@ -1095,6 +1150,7 @@ impl TextSelectionHandle {
 struct ParticipantRegistration {
     participant: WeakEntity<SelectableTextState>,
     registration: Rc<TextSelectionRegistration>,
+    document_order: u64,
     generation: u64,
 }
 
@@ -1150,6 +1206,7 @@ struct WindowSelectionState {
     is_selecting: bool,
     did_hit_text: bool,
     frame_generation: u64,
+    next_document_order: u64,
     finish_frame_scheduled: bool,
     refresh_held_cursor: bool,
     mouse_down_prepared: bool,
@@ -1311,6 +1368,7 @@ impl WindowSelectionState {
         }
         self.publish_snapshots(cx);
         self.frame_generation = self.frame_generation.wrapping_add(1);
+        self.next_document_order = 0;
         handlers
     }
 
@@ -1323,12 +1381,29 @@ impl WindowSelectionState {
     }
 
     /// Registers this frame's geometry for a participant.
+    #[cfg(test)]
     pub fn register_participant(
         &mut self,
         selection: TextSelectionHandle,
         registration: TextSelectionRegistration,
         cx: &mut App,
     ) {
+        self.register_shared_participant(selection, Rc::new(registration), false, cx);
+    }
+
+    fn register_shared_participant(
+        &mut self,
+        selection: TextSelectionHandle,
+        registration: Rc<TextSelectionRegistration>,
+        automatic_order: bool,
+        cx: &mut App,
+    ) {
+        let document_order = if automatic_order {
+            self.next_document_order += 1;
+            self.next_document_order
+        } else {
+            registration.document_order
+        };
         self.prune_dead_participants();
         if self.is_selecting
             && registration.self_scroll
@@ -1348,7 +1423,8 @@ impl WindowSelectionState {
             selection.entity_id(),
             ParticipantRegistration {
                 participant: selection.downgrade(),
-                registration: Rc::new(registration),
+                registration,
+                document_order,
                 generation: self.frame_generation,
             },
         );
@@ -1428,9 +1504,7 @@ impl WindowSelectionState {
             .filter(|registration| registration.registration.scope == self.active_scope)
             .filter_map(|registration| {
                 let participant = registration.participant.upgrade()?;
-                participant
-                    .read(cx)
-                    .copy_item(registration.registration.document_order)
+                participant.read(cx).copy_item(registration.document_order)
             })
             .collect()
     }
@@ -1478,7 +1552,7 @@ impl WindowSelectionState {
                 text.clone()
             };
             items.push(CopyItem {
-                document_order: registration.registration.document_order,
+                document_order: registration.document_order,
                 callback,
                 fallback,
             });
@@ -1524,9 +1598,8 @@ impl WindowSelectionState {
                     Some(
                         self.participants
                             .get(&anchor)?
-                            .registration
                             .document_order
-                            .cmp(&self.participants.get(&cursor)?.registration.document_order),
+                            .cmp(&self.participants.get(&cursor)?.document_order),
                     )
                 });
             snapshot
@@ -1865,8 +1938,8 @@ impl WindowSelectionState {
         if anchor == cursor {
             return TextSelectionCoverage::Bounded;
         }
-        let anchor_order = self.participants[&anchor].registration.document_order;
-        let cursor_order = self.participants[&cursor].registration.document_order;
+        let anchor_order = self.participants[&anchor].document_order;
+        let cursor_order = self.participants[&cursor].document_order;
         if id != anchor && id != cursor {
             TextSelectionCoverage::Full
         } else if (id == anchor) == (anchor_order < cursor_order) {
@@ -1896,16 +1969,12 @@ impl WindowSelectionState {
             return false;
         };
         let start = anchor_registration
-            .registration
             .document_order
-            .min(cursor_registration.registration.document_order);
+            .min(cursor_registration.document_order);
         let end = anchor_registration
-            .registration
             .document_order
-            .max(cursor_registration.registration.document_order);
-        (start..=end).contains(&registration.registration.document_order)
-            || id == anchor
-            || id == cursor
+            .max(cursor_registration.document_order);
+        (start..=end).contains(&registration.document_order) || id == anchor || id == cursor
     }
 
     fn update_auto_scroll(
@@ -2254,7 +2323,12 @@ impl<E: Element> Element for TextSelectionScopeMarker<E> {
         cx: &mut App,
     ) {
         let window_id = window.window_handle().window_id();
-        with_text_selection_scope(window_id, self.scope, cx, |cx| {
+        let scope = self.scope;
+        window.register_paint_lifecycle(
+            move |_, cx| push_text_selection_scope(window_id, scope, cx),
+            cx,
+        );
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             self.element.paint(
                 id,
                 inspector_id,
@@ -2264,7 +2338,11 @@ impl<E: Element> Element for TextSelectionScopeMarker<E> {
                 window,
                 cx,
             );
-        });
+        }));
+        window.register_paint_lifecycle(move |_, cx| pop_text_selection_scope(window_id, cx), cx);
+        if let Err(payload) = result {
+            std::panic::resume_unwind(payload);
+        }
     }
 }
 
@@ -2310,13 +2388,6 @@ impl Element for TextSelectionLayer {
         window: &mut Window,
         cx: &mut App,
     ) -> Self::PrepaintState {
-        // Automatic participant order is paint order within this frame. Keep
-        // this lifecycle in base so base-only applications do not need a
-        // separate root component to reset it. Otherwise, registering the
-        // first of two selected TextViews temporarily reverses their order
-        // against the previous frame and alternates coverage forever.
-        GlobalState::init(cx);
-        GlobalState::global_mut(cx).begin_selection_frame();
         TextSelectionLayerPrepaintState(retain_text_selection_state(global_id, window, cx))
     }
 
@@ -2356,7 +2427,11 @@ fn retain_text_selection_state(
     state
 }
 
-fn paint_text_selection(state: &Entity<WindowSelectionState>, window: &mut Window, cx: &mut App) {
+fn schedule_selection_frame(
+    state: &Entity<WindowSelectionState>,
+    window: &mut Window,
+    cx: &mut App,
+) {
     if state.update(cx, |state, _| state.schedule_finish_frame()) {
         let state = state.downgrade();
         window.defer(cx, move |window, cx| {
@@ -2380,6 +2455,18 @@ fn paint_text_selection(state: &Entity<WindowSelectionState>, window: &mut Windo
             }
         });
     }
+}
+
+fn paint_text_selection(state: &Entity<WindowSelectionState>, window: &mut Window, cx: &mut App) {
+    let lifecycle = state.downgrade();
+    window.register_paint_lifecycle(
+        move |window, cx| {
+            if let Some(state) = lifecycle.upgrade() {
+                schedule_selection_frame(&state, window, cx);
+            }
+        },
+        cx,
+    );
 
     let mouse_down_state = state.downgrade();
     window.on_mouse_event(move |event: &MouseDownEvent, phase, window, cx| {

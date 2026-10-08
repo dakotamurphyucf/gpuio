@@ -26,6 +26,9 @@ The exact single-frame fixture failed before the fix and passed afterward.
 
 ## Separate confirmed TextView gap
 
+The later [native lifecycle fix](cached-text-selection-och17.md) addresses this
+gap. The following records the failure at this earlier checkpoint.
+
 A diagnostic using a real Base `TextView` inside a cached entity, with the native
 `TextSelectionLayer` outside it, selected `Cached 世界` successfully on a fresh
 paint. After a parent-only redraw, selection became empty and the child's render
@@ -39,7 +42,7 @@ replay this selection-controller lifecycle.
 
 The failing diagnostic source and full failure output are preserved in the
 bundle. It is a follow-up reproduction, not an ignored passing-suite test. The
-production selection fix is still pending. It must preserve current paint order,
+production selection fix was pending at this checkpoint. It must preserve current paint order,
 selection and Copy during actual reuse, handle a cached selection layer and mixed
 participants, and retire detached participants. Disabling caching, forcing every
 frame to rerender, or retaining absent participants indefinitely is not acceptance.

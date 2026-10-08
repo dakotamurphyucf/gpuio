@@ -509,7 +509,7 @@ fn paint_view(
                         element.paint(window, cx);
                         window.refreshing = refreshing;
                     } else {
-                        window.reuse_paint(element_state.paint_range.clone());
+                        window.reuse_paint(element_state.paint_range.clone(), cx);
                     }
 
                     let paint_end = window.paint_index();

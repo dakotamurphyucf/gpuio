@@ -862,7 +862,32 @@ The [cached accessibility evidence](../evidence/cached-accessibility-replay-och1
 separates actual cache reuse (unchanged render counters) from ordinary redraws.
 It covers semantic identity, synthetic painted selection claims, action ownership,
 hidden/disabled restoration, unmount, nested deferred content, focus, activation
-and dirty source changes. This is not end-to-end cached Base TextView selection
-qualification. The initial TextView fixture rerendered and cannot establish that
-contract. Dedicated rollback/context/mixed-owner lifetime cases and actual
-screen-reader acceptance remain open.
+and dirty source changes. A later [native text lifecycle regression](../evidence/cached-text-selection-och17.md)
+uses real Base TextViews and verifies selection during actual cache reuse.
+Dedicated rollback/context cases and actual screen-reader acceptance remain open.
+
+### Native selection lifecycle during cache reuse
+
+Scene replay must replay frame-local selection registrations too. Otherwise,
+TextSelectionLayer sweeps a cached participant as absent, clears selection and
+requests an unnecessary refresh. GPUI's native `register_paint_lifecycle` records
+a callback alongside the paint range, runs it during initial paint and moves/runs
+it in replay order on subsequent cached frames. Retired callbacks are dropped
+with the old frame. This mechanism never invokes OCaml or repeats element layout.
+It is for native lifecycle metadata; callbacks must not draw or register further
+paint callbacks/listeners, and cannot rely on GPUI's transient element/style/view
+stacks. Normal invalidation still governs content or geometry changes.
+
+Base registers weak participant handles with shared immutable geometry. It
+re-evaluates the effective selection scope on replay; scope markers replay their
+own balanced push/pop operations. Automatic document order belongs to the
+window's selection generation and is recomputed in current paint order, including
+fresh siblings and deferred content. `register_in_logical_order` retains an explicit logical order with the same
+paint-cache lifecycle. The low-level `register` operation keeps its immediate,
+caller-managed per-frame behavior (including prepaint callers); it does not
+silently become paint-only. Native extensions that need cache replay should use
+one of the paint registration methods.
+The selection layer replays finish-frame scheduling without duplicating input
+listeners, which GPUI already replays. The ordinary end-of-frame sweep still
+clears missing participants, including retained text that is removed and remounted.
+Geometry is shared during reuse; changing effective scope alone uses copy-on-write.

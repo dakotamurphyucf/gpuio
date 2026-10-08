@@ -1,0 +1,138 @@
+{
+  "base_revision": "d66f492b9b57007142e1aef1a6bdd4f72139ac48",
+  "files": {
+    "ax-cache-text-contexts-fixed.log": {
+      "bytes": 588743,
+      "sha256": "e9083fb0447b80de00358e39d1d32dd7f2844c0949d2ed343b229ae3f010ad13"
+    },
+    "ax-cache-text-contexts.log": {
+      "bytes": 590051,
+      "sha256": "dd11bdd2c6d5d3e98198e781bd79db2fe6e79de7fd4d6a8eaeb1db455b5588ae"
+    },
+    "ax-cache-text-final-base-reconstruction.log": {
+      "bytes": 8057,
+      "sha256": "94a154ebd29e752c22a88c7209385621329e8ab965b4264de5563d63d64f2196"
+    },
+    "ax-cache-text-final-clippy.log": {
+      "bytes": 588624,
+      "sha256": "017a077add69a325b6062d9fc29d4f99f24c02d504b6828eb321654e4e112111"
+    },
+    "ax-cache-text-final-desktop.log": {
+      "bytes": 590701,
+      "sha256": "8da9c06e4cd2440fe47712f042bd84b0d707fb88452b622dc615925e7fbf12bf"
+    },
+    "ax-cache-text-final-fmt.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "ax-cache-text-final-gallery.log": {
+      "bytes": 100198,
+      "sha256": "e1c7c8a6404cf41964e1cc007e6c6e7c5cb2725dfcc839c99cbf03de73305e4b"
+    },
+    "ax-cache-text-final-native-fixture-error.log": {
+      "bytes": 589544,
+      "sha256": "73db5bd8a8506c59285779346bdb2737a6593c469256d430059e620588dd269b"
+    },
+    "ax-cache-text-final-native.log": {
+      "bytes": 715661,
+      "sha256": "29b5f2f8791bdef4ff3e6fc89bb9c834c3c94757c1874d10e65dd950ff3f643d"
+    },
+    "ax-cache-text-final-os-rendered.log": {
+      "bytes": 188,
+      "sha256": "b32676248da86dfefa0aa402dde2860885f89b47da69a549b768f1ed4da91dfa"
+    },
+    "ax-cache-text-final-reconstruction-result.txt": {
+      "bytes": 115,
+      "sha256": "4ae56ed26d3af87df159c14cc31e7fc0ad4c1a506a9ebc0db70f879520a40f33"
+    },
+    "ax-cache-text-final-results.json": {
+      "bytes": 2305,
+      "sha256": "aca2d05c3db55e0766284dafe4b0928204504d3e15fafd86ddbf78ae81b952f3"
+    },
+    "ax-cache-text-final-vendor-fmt.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "ax-cache-text-final-workspace.log": {
+      "bytes": 783032,
+      "sha256": "ff5f2df941e2e3e6707f05ab061129f46e27f902a67bff60ad7d40229f1bea91"
+    },
+    "ax-cache-text-first.log": {
+      "bytes": 589361,
+      "sha256": "d6ab5a22955d6e83bb0ad9b4d57cd87a7c5acb8936836a54fb6c42a48d1d2b23"
+    },
+    "ax-cache-text-gpui-reconstruction.log": {
+      "bytes": 1163,
+      "sha256": "392970c18dea05eca459b478e059bfd66487ac1ed2a9c8fec980a390a3c46e97"
+    },
+    "environment.txt": {
+      "bytes": 139,
+      "sha256": "90e10ba90b042fc52f797bd6f55c04323af6955006d76b3e51e7b851cd6f9d4f"
+    },
+    "implementation.diff": {
+      "bytes": 39961,
+      "sha256": "aaa5adba32d78188f0403a969b7335594af52a65b548acda80c20b7050c61e20"
+    },
+    "os/application.log": {
+      "bytes": 52,
+      "sha256": "4b7efb90808b044cf2b79f21733d78f17068047c9d17d9fc04715ac7773bad46"
+    },
+    "os/executable.json": {
+      "bytes": 344,
+      "sha256": "c2088d655cd67280a51364ed91a3881e1c761b018e017a61a9ec0035d72fd67d"
+    },
+    "os/report.json": {
+      "bytes": 2308,
+      "sha256": "d26aee57e640171aae344a9482c31dfcfa5babeed7dbab3bfe0961715e829495"
+    },
+    "source/rust/native/src/document_cached_accessibility_test.rs": {
+      "bytes": 13019,
+      "sha256": "185389ade5b5b3fc748b157bd11c0e45903f01d44ef428e5b058b0cb48fa4220"
+    },
+    "source/rust/native/src/document_cached_registration_test.rs": {
+      "bytes": 3698,
+      "sha256": "367e684e761cd57549616682f3b64629347870e13e137f01843660ff337f782f"
+    },
+    "source/rust/native/src/document_cached_text_test.rs": {
+      "bytes": 8695,
+      "sha256": "51eb27b817145d5b6458ed290751dc55b341e9393b2ad3bc5a5de5ca8bbb0934"
+    },
+    "source/third_party/patches/gpui-base.patch": {
+      "bytes": 792270,
+      "sha256": "b4267c3ff9850155b54d5138984862284adf83d9be4d3389014634f1cbbba82d"
+    },
+    "source/third_party/patches/gpui.patch": {
+      "bytes": 182945,
+      "sha256": "71523f2cf1b776514d35fa84f7d6da6a5e98948cbc83ba50b59e66b340cd2b69"
+    },
+    "source/third_party/sources.json": {
+      "bytes": 4961,
+      "sha256": "008f5a1fe069e4e8567b158c804cc5a02f9052a74b1c5056f309fe4c98af86aa"
+    },
+    "source/vendor/gpui-base/src/global_state.rs": {
+      "bytes": 5727,
+      "sha256": "53367c47243b1058104c151f4efbbb45a0288c30a1bf915aaa59e188b19ae79f"
+    },
+    "source/vendor/gpui-base/src/text/selection_adapter.rs": {
+      "bytes": 19249,
+      "sha256": "d3664616c3b718dcc72ffec1996b25a75ad2082cc7bef57c4abc0a7f90087880"
+    },
+    "source/vendor/gpui-base/src/text/text_view.rs": {
+      "bytes": 120174,
+      "sha256": "dfde0ef3128f25b0d3e53daaf795074ea68b2bf03a69e8b795d31a4e165990b5"
+    },
+    "source/vendor/gpui-base/src/text_selection.rs": {
+      "bytes": 157942,
+      "sha256": "32d830b928b9740471aaff3953bd283d9398be74bbd47a21ecbf3c359ea6f407"
+    },
+    "source/vendor/gpui/src/view.rs": {
+      "bytes": 18771,
+      "sha256": "0be16e52562d0ee851d2359772d234d0cb294dcea66f6862ecaf611f760766ea"
+    },
+    "source/vendor/gpui/src/window.rs": {
+      "bytes": 347276,
+      "sha256": "aba1e5457e83d706b7d497c3e766a4082c77bace9f57cba5d121e2f9264700e7"
+    }
+  },
+  "archive_sha256": "43ea42bb39d76c8fc72ef1f55b42011aefe9d27b848c8e977c17564015d06f6f"
+}

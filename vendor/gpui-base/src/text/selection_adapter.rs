@@ -438,15 +438,13 @@ impl TextViewSelectionAdapter {
         hitbox: Hitbox,
         bounds: Bounds<Pixels>,
         scroll_offset: Point<Pixels>,
-        document_order: u64,
         self_scroll: bool,
         window: &mut Window,
         cx: &mut App,
     ) {
-        self.selection.register(
+        self.selection.register_in_paint_order(
             TextSelectionRegistration::new(hitbox, bounds)
                 .with_scroll_offset(scroll_offset)
-                .with_document_order(document_order)
                 .with_text_bounds(self.text_bounds.clone())
                 .with_self_scroll(self_scroll),
             window,
