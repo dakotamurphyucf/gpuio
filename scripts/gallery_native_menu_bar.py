@@ -63,9 +63,9 @@ def open_workspace(mac):
         mac.release(item)
 
 
-def capture(mac, menu, path):
+def capture(mac, menu, path, *, minimum_contrast=60):
     bounds = element_rect(mac, menu)
-    print('BAR_MENU_BOUNDS', bounds, flush=True)
+    print('NATIVE_MENU_BOUNDS', bounds, flush=True)
     rows = mac.children(menu)
     try:
         names = [mac.text(row, 'AXTitle') for row in rows]
@@ -95,12 +95,13 @@ def capture(mac, menu, path):
                 x, y = (ix+.5)/sx, (iy+.5)/sy
                 expected = min(distance(x,y,(17,11),(20,14)),
                                distance(x,y,(20,14),(27,7))) <= 1
-                actual = max(abs(a-b) for a,b in zip(pixels.rgb(ix,top*sy+iy),background)) > 60
+                actual = max(abs(a-b) for a,b in zip(pixels.rgb(ix,top*sy+iy),background)) > minimum_contrast
                 matched += actual == expected
                 total += 1
         scores.append(matched/total)
     return {'names': names, 'bounds': bounds, 'rows': rects,
-            'pixels': [pixels.width, pixels.height], 'checkmark_match': scores}
+            'pixels': [pixels.width, pixels.height], 'minimum_contrast': minimum_contrast,
+            'checkmark_match': scores}
 
 
 def exercise(mac, images):

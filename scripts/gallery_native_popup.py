@@ -3,7 +3,7 @@ import time
 from test_native_popup_macos import wait_popup, enabled
 
 
-def exercise(mac, _images):
+def exercise(mac, images):
     from test_gallery import TITLE, reveal_gallery_control, raise_gallery
     mac.press(TITLE, 'Commands & feedback')
     reveal_gallery_control(mac, 'Advance preview', 'AXButton')
@@ -14,6 +14,10 @@ def exercise(mac, _images):
         mac.set(button, 'AXFocused', mac.true)
     finally:
         mac.release(button)
+    time.sleep(.6)  # Let the small decorative SVG complete before tracking.
+    mac.key(109, 1 << 17)
+    from gallery_native_popup_icons import exercise as exercise_icons
+    exercise_icons(mac, images)
     mac.key(109, 1 << 17)
     menu = wait_popup(mac, title=TITLE)
     try:

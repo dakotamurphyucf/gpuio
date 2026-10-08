@@ -1,0 +1,132 @@
+{
+  "metadata": {
+    "base_revision": "bab59757d14f67d661623830092976df2929efd5",
+    "system": "ProductName:\t\tmacOS\nProductVersion:\t\t14.5\nBuildVersion:\t\t23F79\n",
+    "architecture": "arm64",
+    "repository_executable_sha256": "c8e329c955ad31de05a22b67756f0d4f4009bf1520394d4628bf2eafd15c1b80",
+    "installed_executable_sha256": "238c13fd2d87df2f29a34f276c29722dbbea59fb713c6ae6da8912e4bc261847",
+    "first_pixel_measurement_exit": 1,
+    "local_final_exit": 0,
+    "installed_final_exit": 0,
+    "consumer_prefix": "Reused the staged public libraries from gallery-header-layout-och41; rebuilt copied example source only.",
+    "scope": "Root/submenu/nested disabled popup artwork, native keyboard navigation and Save delivery. No Copy invocation, VoiceOver, Linux, performance or full catalog acceptance."
+  },
+  "archive_sha256": "07fa5c297fc929955062fe8827eb2867bbaf54d43d56602e212b215200fa1f5b",
+  "files": [
+    {
+      "path": "metadata.json",
+      "sha256": "882769b01da393d446c08a692314971044dd99d7e7cdba184407265b26094a29",
+      "bytes": 786
+    },
+    {
+      "path": "popup-nested-2.log",
+      "sha256": "4b7b702cf0a8b2ecbd255be9454635a88314fa77095b322016128909e60867ec",
+      "bytes": 620
+    },
+    {
+      "path": "popup-nested-build.log",
+      "sha256": "22123947a145f448a522ca123bf67954da146ea87a8612b67548a3c86b2b6866",
+      "bytes": 71
+    },
+    {
+      "path": "popup-nested-catalog-audit.log",
+      "sha256": "ec7f045757abb1d7e2907d8e645fbd6c7fa3e9b0e1e808e2fdc2dd20215b9a75",
+      "bytes": 640
+    },
+    {
+      "path": "popup-nested-consumer-build.log",
+      "sha256": "88aea385cfaf8feb8c9c448a4e62bc71e72668a1603949411c0924bca0961b34",
+      "bytes": 100377
+    },
+    {
+      "path": "popup-nested-doc-audit.log",
+      "sha256": "6a6c48d5844d1ffdb3732cf30e5bb603cac1b615504a84bb2ee3b168cab6ce0b",
+      "bytes": 139
+    },
+    {
+      "path": "popup-nested-final.log",
+      "sha256": "34551e063ec0c85a6076ebbc04f880f9fd1aca4cfd82cec01d02194d6790342b",
+      "bytes": 626
+    },
+    {
+      "path": "popup-nested-final/native-popup-icons-nested.png",
+      "sha256": "3790563ff21a1770330d35b637adca1ca2d2a870dcb7dcb08f3909034582a31b",
+      "bytes": 18042
+    },
+    {
+      "path": "popup-nested-final/native-popup-icons-report.json",
+      "sha256": "74fdbdc79a03c8a5a703b97f3f038405441a51357da27ca31f88d09ad997d44f",
+      "bytes": 1272
+    },
+    {
+      "path": "popup-nested-final/native-popup-icons-root.png",
+      "sha256": "7ffd9d47ebd7be8babeb5582961ea35774567a2675f0d5820ecb6f13629c9988",
+      "bytes": 26491
+    },
+    {
+      "path": "popup-nested-format.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "popup-nested-installed.log",
+      "sha256": "bb69ee6ee2cf7612a7a7556c70909425594bb69316c59ba334c6ace893ebe4e8",
+      "bytes": 680
+    },
+    {
+      "path": "popup-nested-installed/native-popup-icons-nested.png",
+      "sha256": "f28ca79f54377cc4b7bbcee0c75dc433ab0d111528919573e1b57862628769cd",
+      "bytes": 17931
+    },
+    {
+      "path": "popup-nested-installed/native-popup-icons-report.json",
+      "sha256": "74fdbdc79a03c8a5a703b97f3f038405441a51357da27ca31f88d09ad997d44f",
+      "bytes": 1272
+    },
+    {
+      "path": "popup-nested-installed/native-popup-icons-root.png",
+      "sha256": "e0bb142bac939fd44e061de284d128fcafe0ca3c600da0e7a9f3ff9af35cee88",
+      "bytes": 26419
+    },
+    {
+      "path": "popup-nested.log",
+      "sha256": "749d981cc8aa6120b6d163a3e9d81d2879744dbc068880dc9e46c77fd4461f2b",
+      "bytes": 6450
+    },
+    {
+      "path": "popup-nested/gallery-failure.png",
+      "sha256": "893bc1422d17ff9346cdd3fb3a83f9f8102dd7c0e45026fd27778f9b65d900e6",
+      "bytes": 381913
+    },
+    {
+      "path": "popup-nested/native-popup-icons-nested.png",
+      "sha256": "a2547f03379174bef10a3ce46963b6fe4b1de104742582a165d93261babd8e6e",
+      "bytes": 17999
+    },
+    {
+      "path": "popup-nested/native-popup-icons-root.png",
+      "sha256": "1f8360e3ba12ab74370c60a5b1900d7ff580228c5ffd17e794c5c66e89bb5dfd",
+      "bytes": 26615
+    },
+    {
+      "path": "source/examples/gallery/feedback_page.ml",
+      "sha256": "610931c80f831bc503c80ad581870c23df6fd1a2ecf7c28207d424738a6fe25c",
+      "bytes": 21123
+    },
+    {
+      "path": "source/scripts/gallery_native_menu_bar.py",
+      "sha256": "e9c649107559a44be8576fdb3f139f803085b1036f1733b42f8b7d71d3841405",
+      "bytes": 10779
+    },
+    {
+      "path": "source/scripts/gallery_native_popup.py",
+      "sha256": "4db4b4ad1cbd8a881ed8cdca532ea8d8fb3efca2e1ee9f364060ab507fef372c",
+      "bytes": 2093
+    },
+    {
+      "path": "source/scripts/gallery_native_popup_icons.py",
+      "sha256": "7738c48ce8dfdcdfacc6f70744530e00fa27e5085c5ad84c9efba0e102262a66",
+      "bytes": 3339
+    }
+  ]
+}

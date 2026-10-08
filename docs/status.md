@@ -30,6 +30,12 @@ Older records of a VoiceOver hold no longer apply. Access was restored after the
 
 ## Latest delivered behavior and validation
 
+The [nested native-popup follow-up](evidence/native-menu-icons-och41.md#nested-popup-artwork-follow-up--2026-10-07)
+qualifies root/submenu/nested disabled SVG artwork through the public Feedback
+example, both locally and in the staged-library consumer. Actual keyboard
+navigation, passive/disabled state and Save-to-Bonsai delivery pass. This adds
+scoped pixel evidence; full menu-family and release acceptance remain open.
+
 The [gallery header/consumer follow-up](evidence/gallery-header-layout-och41.md)
 fixes clipped header controls through ordinary OCaml wrapping styles. Both local
 and independently installed galleries pass 59 shell-layout cases and actual New

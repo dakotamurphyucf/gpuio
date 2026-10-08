@@ -22,7 +22,7 @@ ready alpha pixels, with no encoded-image parsing, synchronous OCaml callback or
 GPUI atlas reservation. Its template bitmap payload is bounded to 8 MiB across
 one active popup and 256 physical pixels per side. The snapshot remains stable
 during tracking. Decode/resource failures omit decoration while keeping commands
-usable. [Design and limits](../design/native-popup-menu.md#decorative-icon-contract-implementation-in-progress).
+usable. [Design and limits](../design/native-popup-menu.md#decorative-icon-contract).
 
 ## Automated and actual native results
 
@@ -87,3 +87,59 @@ plus text; new-source Linux build/unit/consumer qualification remains required,
 and actual Linux desktop qualification remains OCH-47. No VoiceOver, all-menu
 family parity, native bar icon, nested icon pixel, multi-window editor-retargeting,
 physical presentation-time or release signing acceptance is inferred here.
+
+## Nested popup artwork follow-up — 2026-10-07
+
+On macOS 14.5 (23F79), arm64, the public Feedback popup now decorates the nested
+Copy command as well as Advance and the Editing submenu row. Its positional
+path is `[0; 4; 1]`; the adjacent walkthrough explains how section labels affect
+indexing. This example addition changes no Rust implementation or public API.
+
+The expanded `--section native-popup` driver passes on the repository gallery
+and an independent consumer linked against the staged public libraries:
+
+- Root command and submenu artwork have the expected checkmark silhouette.
+- Native E/Right keyboard navigation opens Editing. Its passive section label
+  and unavailable Copy command are confirmed disabled through OS accessibility.
+- The nested Copy bitmap matches the expected silhouette; the label row has no
+  matching artwork. A captured nested menu was also visually reviewed.
+- Escape closes tracking; reopening and choosing Save via native typeahead/
+  Return still updates Bonsai and displays the expected toast. Windows and
+  processes close normally. Copy itself is not invoked; no clipboard or
+  VoiceOver settings are changed.
+
+The first image assertion used the enabled-item contrast threshold of 60 and
+failed on disabled AppKit ink, despite the screenshot showing the correct icon.
+The final disabled-row check classifies contrast above 20 while retaining the
+same silhouette-match threshold above 0.92. It separately checks that the label
+row is below 0.90 and that Copy is actually disabled. In the passing capture,
+the disabled checkmark scores 1.0 and the unadorned label approximately 0.74.
+This is a corrected pixel measurement, not a native rendering repair.
+
+The installed follow-up reuses the fresh staged prefix from the
+[header/consumer checkpoint](gallery-header-layout-och41.md#independently-installed-consumer):
+only the consumer's copied `feedback_page.ml` is refreshed, then its executable
+is rebuilt with that prefix in `OCAMLPATH`. The library source is unchanged.
+This is not another clean installation or a whole-gallery run.
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 examples/gallery/main.exe
+python3 scripts/test_gallery.py --section native-popup --images scratch/popup-icons
+python3 scripts/test_gallery.py --section native-popup \
+  --executable scratch/bar-header-consumer/consumer/_build/default/main.exe \
+  --images scratch/installed-popup-icons
+```
+
+Repository executable SHA-256:
+`c8e329c955ad31de05a22b67756f0d4f4009bf1520394d4628bf2eafd15c1b80`.
+Installed consumer executable SHA-256:
+`238c13fd2d87df2f29a34f276c29722dbbea59fb713c6ae6da8912e4bc261847`.
+Both final drivers exit zero. Dune builds, OCaml formatting, Python compilation
+and documentation/catalog audits pass. No new full native-suite result is
+claimed for this example/test-only change.
+
+[Follow-up reports](native-menu-icons-nested-och41/reports.tar.gz) and their
+[SHA-256 manifest](native-menu-icons-nested-och41/manifest.json) retain the initial
+measurement failure and final source/logs/captures. Native bar artwork has
+[separate evidence](native-menu-bar-icons-och41.md). Consolidated menu-family,
+VoiceOver, final-source hosted/Linux and release qualification remain open.

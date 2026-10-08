@@ -445,6 +445,7 @@ let component ~search_palette app window palette graph =
                    ~items:
                      [ Menu.Item_path.of_list [ 0; 1 ] |> ok, asset
                      ; Menu.Item_path.of_list [ 0; 4 ] |> ok, asset
+                     ; Menu.Item_path.of_list [ 0; 4; 1 ] |> ok, asset
                      ]
                  |> ok
                | _ -> view)

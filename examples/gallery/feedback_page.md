@@ -29,6 +29,13 @@ while platform context menus and the menu bar receive icons through their suppor
 registration; borrowed icons are not independent owners. Separate native editors hold the
 command draft and palette header note.
 
+The platform context popup uses the original `menu`, including section labels.
+Its icon paths are `[0; 1]` for Advance, `[0; 4]` for Editing and `[0; 4; 1]`
+for Copy inside Editing. Labels and separators count toward these positions;
+the nested Selection actions label is child zero. The Copy decoration is passive:
+Copy still uses native edit availability and is disabled without an eligible
+editing target. AppKit dims disabled artwork along with its text.
+
 `native_bar` builds separate application and Workspace menus. AppKit presents
 the first top-level menu under the application's name. Workspace's Preview actions
 submenu repeats Advance and Choose from the same command registry. `V.menu_bar
