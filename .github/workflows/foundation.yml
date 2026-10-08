@@ -303,6 +303,10 @@ jobs:
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
         timeout-minutes: 5
         run: python3 scripts/test_macos_scrollbar_preference.py --output .cache/ci/scrollbar-preference 2>&1 | tee .cache/ci/macos-scrollbar-preference.log
+      - name: macOS sidebar policies and retained appearance
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 3
+        run: python3 scripts/test_gallery.py --section sidebar --images .cache/ci/sidebar 2>&1 | tee .cache/ci/macos-sidebar.log
       - name: macOS notification placement and keyboard lifecycle
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
         timeout-minutes: 4

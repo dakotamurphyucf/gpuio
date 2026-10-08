@@ -99,3 +99,13 @@ and clipped-card focus/input now have adapter evidence. The public Journeys
 gallery and Bonsai driver are implemented and build from installed packages.
 Complete accessibility and physical gallery/resource qualification remain open;
 see the [gallery checkpoint](../evidence/carousel-track-gallery-och41.md).
+
+## Sidebar physical follow-up — 2026-10-08
+
+The [desktop walkthrough](../evidence/sidebar-macos-och41.md) now passes local
+and installed-consumer branch policies, actual Return/Space and pointer actions,
+twelve theme/scale/style geometry cases each, compact/offcanvas preferences and
+page remount. It distinguishes exposed AX identity from platform objects retired
+while hidden. The earlier sidebar physical-gap wording above is superseded for
+this recorded scope; VoiceOver, motion timing, measured resources, other nested
+options and consolidated release acceptance remain separate.

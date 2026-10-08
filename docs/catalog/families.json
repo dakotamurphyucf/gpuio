@@ -551,14 +551,15 @@
       "id": "sidebar",
       "owner": "OCH-37",
       "scope": "v1",
-      "audit_status": "Five exact sidebar sources reviewed. Grouped/nested destinations, icons/suffix/context menus, responsive slots, collapse modes and native width motion are mapped. Optional Item.Activation now supports Select_only/Expand/Toggle with latest-model eligibility, retained compact preferences and model-only policy updates; full Core tests/format/gallery build pass. Per-item and label-only styling now uses composed links with stable passive slots; Core and native TestPlatform checks cover focus, paint, disabled state and cleanup. Physical macOS/installed-consumer runtime/resource acceptance remains open; see journey-workspace-review.md.",
+      "audit_status": "Five exact sidebar sources reviewed. Grouped/nested destinations, icons/suffix/context menus, responsive slots, collapse modes and native width motion are mapped. Optional Item.Activation now supports Select_only/Expand/Toggle with latest-model eligibility, retained compact preferences and model-only policy updates; full Core tests/format/gallery build pass. Per-item and label-only styling now uses composed links with stable passive slots; Core and native TestPlatform checks cover focus, paint, disabled state and cleanup. Physical macOS and previously staged installed-consumer walkthroughs now pass branch policies, real Return/Space/pointer selection, twelve theme/scale/style cases each, compact/offcanvas state and page remount. Exposed AX identity is preserved; hidden platform objects may be recreated independently of widget retention. VoiceOver, motion timing, measured resources and consolidated release acceptance remain open; see journey-workspace-review.md.",
       "public_interface": "lib/core/sidebar.mli",
       "example": "examples/agent_chat",
       "evidence": [
         "docs/evidence/agent-chat-m5.md",
         "docs/catalog/journey-workspace-review.md",
         "docs/evidence/sidebar-activation-och41.md",
-        "docs/evidence/sidebar-styling-och41.md"
+        "docs/evidence/sidebar-styling-och41.md",
+        "docs/evidence/sidebar-macos-och41.md"
       ],
       "gallery_page": "journeys",
       "contract": "Grouped/nested destinations, independent expansion, collapse modes and current-route semantics.",

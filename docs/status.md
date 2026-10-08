@@ -30,6 +30,11 @@ Older records of a VoiceOver hold no longer apply. Access was restored after the
 
 ## Latest delivered behavior and validation
 
+The [sidebar desktop walkthrough](evidence/sidebar-macos-och41.md) passes
+branch policies, actual keyboard/pointer selection, twelve appearance cases,
+compact/offcanvas preferences and page remount in local and installed galleries.
+It adds scoped evidence without a production change; broader release gates remain.
+
 The [foreground input diagnostic](evidence/foreground-input-diagnostic-och17.md)
 now distinguishes quiet intervals from event-kind counts in opt-in runs. Quiet and
 four-mouse-movement checks validate collection; diagnostic runs cannot qualify

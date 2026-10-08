@@ -31,6 +31,22 @@ deliberately separate state owners in this source: selecting Archive does not na
 Chapter history. The “Destination” readout shows sidebar selection, while “Current journey”
 shows history. Branch activation wording describes sidebar behavior, not a route loader.
 
+For a concrete branch interaction, cycle **Branch selection: navigate** to **expand**:
+`Rail.apply Toggle_activation` replaces the immutable groups using the next
+`Sidebar.Item.Activation` policy. Selecting Projects then delivers `Request.Select`
+through `on_request` to the Bonsai reducer; `Sidebar.apply_request` updates selection
+and opens the branch. A second selection stays open. Under **toggle**, Return or
+Space on the link alternates expansion. The separate plus/minus button changes
+expansion without changing the selected destination. In compact mode the same
+request updates the stored expansion preference while children remain hidden.
+
+The styling switch changes a separate Bonsai Boolean. `decorate` derives item
+rounding and the Projects label's weight/color; it does not modify the model or
+the passive “02” suffix. Visible native links retain their identity through these
+style and palette updates. Retaining a widget while offcanvas does not promise
+the same macOS accessibility object: AccessKit can retire objects for hidden
+subtrees and recreate them when they become exposed again.
+
 `V.navigation_stack` displays retained pages with independent Imagine note editor. Inactive
 native children are inert to input/accessibility; retaining them preserves native buffers while
 the page remains mounted. Hiding does not cancel an application Eio task or persist data beyond
@@ -58,3 +74,10 @@ The wrapper uses the repository toolchain. These commands are instructions, not 
 this documentation change. The page has no standalone executable or self-test. Compilation does
 not establish native keyboard, focus, IME or platform acceptance. See
 [gallery instructions](README.md) and [development](../../docs/development.md).
+
+The bounded desktop walkthrough is
+`python3 scripts/test_gallery.py --section sidebar --images scratch/sidebar`.
+It checks branch policies, real Return/Space and pointer activation, two themes
+and three scales, styling/reset identity, collapse preferences and page remount.
+Its OS queries and screenshots do not establish VoiceOver or frame timing;
+recorded results are in the [sidebar evidence](../../docs/evidence/sidebar-macos-och41.md).
