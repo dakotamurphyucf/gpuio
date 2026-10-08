@@ -1,9 +1,10 @@
 # Paged-table qualification and admission repairs — OCH-17
 
-Status: workload implementation and scoped native regression evidence. Full
-100,000-row performance qualification, repeated runs and physical presentation
-remain open. The reference viewport and declared performance budgets were not
-reduced after the initial failures.
+Status: historical implementation and qualification record. The later
+[current-source presentation batch](presentation-table-current-och17.md) passes
+three full 100,000-row trials, including the declared presentation gates. The
+reference viewport and performance budgets were not reduced after the initial
+failures retained below.
 
 ## Workload
 
