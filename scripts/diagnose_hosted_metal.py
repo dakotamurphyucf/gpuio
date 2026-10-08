@@ -34,7 +34,10 @@ capture = source.replace(needle, needle + '''
             }
 ''')
 summary = []
-for mode, text in [('plain', source), ('capture', capture)]:
+serial_needle = '        if sent == 120 {'
+assert source.count(serial_needle) == 1
+serial = source.replace(serial_needle, '        // Diagnostic: one in-flight drawable, retaining every submitted frame.\n        // Wait for its presentation callback before admitting another submission.\n        if sent > 0 && records.snapshot().last?["presented_s"] == nil { return }\n' + serial_needle)
+for mode, text in [('serial', serial)]:
     directory = (args.output / mode).resolve()
     directory.mkdir(exist_ok=False)
     swift = directory / 'probe.swift'
