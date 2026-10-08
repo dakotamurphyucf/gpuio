@@ -124,3 +124,27 @@ for the desktop pointer walkthrough. It checks both axes/themes, release,
 Escape, axis locking, small movements, disabled navigation and native text
 selection. Wheel/trackpad delivery and presentation timing require separate
 checks; this walkthrough does not establish those properties.
+
+### Line-wheel navigation and outer-page scrolling
+
+The same `V.carousel_track` wrapper routes wheel input natively. On a horizontal
+track, horizontal line-wheel input proposes a previous/next card. Vertical input
+passes to the enclosing page. Horizontal endpoint input remains pinned to the
+track. On a vertical track, a wheel toward an available neighbor proposes that
+neighbor; a new outward wheel at the first or last card passes to the outer page.
+The wrapper tests availability using measured geometry and current selection,
+so application code does not need to calculate these boundaries.
+
+For example, scrolling down from Capture in vertical mode emits `Next`. The
+existing `Request` action applies it through `C.apply_request`; Bonsai updates the
+model, caption and view, while the page stays in place. At Publish, a new downward
+wheel has no next card, so the page scrolls instead. Each line-wheel burst proposes
+one step; Rust owns burst tracking and its quiet deadline, with no per-delta
+callback to OCaml. Precise trackpad gestures additionally preview pixel movement
+and have separate completion/cancellation behavior.
+
+Run `python3 scripts/test_gallery.py --section carousel-wheel --images scratch/carousel-wheel`
+for actual macOS line-wheel delivery through AppKit in both themes and axes. The
+fixture uses immediate movement, checks selection and outer-page geometry, and
+separates individual wheel events beyond the burst deadline. It does not measure
+motion smoothness, test multi-event burst timing, or qualify hardware trackpads.

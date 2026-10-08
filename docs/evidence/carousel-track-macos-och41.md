@@ -160,3 +160,47 @@ Hardware trackpad/line-wheel ownership and edges, capture loss, other sizes/scal
 full Tab/VoiceOver, movement-time retirement, seamless loop geometry and measured
 resource/presentation behavior remain separate. It does not close the loaded-list
 overlap report or establish performance from sampled AX positions.
+
+## Line-wheel routing and edge handoff — 2026-10-08
+
+At base `b700d964`, both the repository gallery and reused scroll-phase installed
+consumer pass `--section carousel-wheel` on their first attempts. No production
+change or new build is needed. The fixture posts actual discrete line-wheel
+CGEvents through AppKit, verifies their X/Y delta fields and non-precise flag,
+and checks desktop ownership at each target before posting.
+
+Four cases per binary cover horizontal/vertical and Dark/Light at Comfortable
+scale, compact viewport and immediate movement. Each case navigates Capture →
+Explore → Refine → Publish → Refine with the outer viewport rectangle unchanged.
+At Capture/Publish, outward horizontal input keeps selection and viewport position
+unchanged. Outward vertical input keeps selection but scrolls the enclosing page
+in the appropriate direction. Vertical input over a horizontal track also scrolls
+the page. Each vertical handoff measured 78 logical pixels of page displacement
+in these runs; this is observed geometry, not a promised wheel scaling factor.
+
+```sh
+python3 scripts/test_gallery.py --section carousel-wheel --images scratch/carousel-wheel
+python3 scripts/test_gallery.py --section carousel-wheel --executable /path/to/installed/main.exe --images scratch/carousel-wheel-installed
+python3 -m py_compile scripts/gallery_carousel_wheel.py scripts/test_gallery.py
+ruff check scripts/gallery_carousel_wheel.py
+python3 scripts/audit_example_docs.py
+python3 scripts/audit_component_catalog.py
+git diff --check
+```
+
+Both executables exit normally. Local runs use the existing 180-second
+exception/cleanup wrapper; Foundation adds a separate three-minute step.
+Syntax, targeted lint, documentation/catalog audits, actionlint and whitespace
+checks pass. The [six-file archive](carousel-track-macos-och41/wheel-reports.tar.gz)
+contains both logs/reports and exact fixture/application source. All members were
+verified against the [manifest](carousel-track-macos-och41/wheel-manifest.json).
+The [summary](carousel-track-macos-och41/wheel-summary.json) records executable
+hashes, which match the scroll adapter checkpoint; this reuses its independently
+installed consumer rather than claiming a new installation.
+
+This completes the discrete line-wheel desktop subset of the physical plan.
+Events are separated beyond the quiet deadline; multi-event burst timing remains
+covered by native deterministic tests, not this desktop fixture. Precise hardware
+trackpad routing/cancellation, full focus/VoiceOver, additional geometry,
+movement-time retirement, continuous-loop presentation and measured resources
+remain separate. It does not resolve the loaded-list overlap report.

@@ -156,3 +156,13 @@ clamping, custom grip hit extent, structural draft retention and page remount.
 Both repository and installed galleries pass. This supersedes the earlier
 physical-gap wording for that scope; other geometry, paint/full accessibility,
 resource and release acceptance remain separate.
+
+## Measured carousel line-wheel follow-up — 2026-10-08
+
+The [line-wheel walkthrough](../evidence/carousel-track-macos-och41.md#line-wheel-routing-and-edge-handoff--2026-10-08)
+passes actual macOS event routing in local and independently installed galleries:
+both axes/themes, previous/next selection, horizontal endpoint pinning, vertical
+endpoint handoff and vertical input passing through a horizontal track. It uses
+immediate movement and separates individual events beyond the quiet deadline.
+Precise hardware trackpads, burst timing, full accessibility and presentation/
+resource acceptance are not supplied by this check.

@@ -60,8 +60,9 @@ reorder/resize retention and remount locally and in the installed gallery.
 Its automatic-policy follow-up also passes five pause conditions, fresh resumes
 and page-retired timers. Twenty OS pointer cases and native child text selection
 now pass locally and in the installed consumer, including observed drag previews
-and Escape cancellation. Wheel handoff, full focus/accessibility and resources
-remain open.
+and Escape cancellation. Discrete line-wheel navigation and vertical endpoint
+handoff also pass in both axes/themes. Precise hardware trackpads, full
+focus/accessibility and resources remain open.
 
 The [sidebar desktop walkthrough](evidence/sidebar-macos-och41.md) passes
 branch policies, actual keyboard/pointer selection, twelve appearance cases,
