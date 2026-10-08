@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Assemble audited local macOS reference bundles, without launching or installing.
 
-Unsigned/ad-hoc artifacts are qualification inputs, not notarized releases.
+All signing modes produce qualification inputs, not notarized releases.
 Supplied notices are included and hashed; completeness needs a license review.
 """
 import argparse
@@ -15,6 +15,8 @@ import re
 import shutil
 import subprocess
 import tempfile
+
+import macos_signing
 
 ROOT = Path(__file__).resolve().parent.parent
 APPS = {
@@ -108,7 +110,8 @@ def copy_notices(source, destination):
     return manifest
 
 
-def package(app, binary, output, notices, sign):
+def package(app, binary, output, notices, sign, *, identity=None, team_id=None):
+    macos_signing.validate_options(sign, identity, team_id)
     if platform.system() != 'Darwin':
         raise ValueError('Native Mach-O inspection/signing requires macOS')
     binary = binary.resolve(strict=True)
@@ -124,10 +127,12 @@ def package(app, binary, output, notices, sign):
         snapshot = Path(temporary) / binary.name
         shutil.copyfile(binary, snapshot)
         snapshot.chmod(0o700)
-        return package_snapshot(app, snapshot, binary, output, notices, sign)
+        return package_snapshot(app, snapshot, binary, output, notices, sign,
+                                identity=identity, team_id=team_id)
 
 
-def package_snapshot(app, binary, source, output, notices, sign):
+def package_snapshot(app, binary, source, output, notices, sign, *, identity=None, team_id=None):
+    macos_signing.validate_options(sign, identity, team_id)
     metadata = check_metadata(plistlib.loads(run(str(binary), '--print-info-plist').encode()), app)
     audit = check_binary(run('/usr/bin/otool', '-L', str(binary)),
                          run('/usr/bin/otool', '-l', str(binary)),
@@ -161,6 +166,10 @@ def package_snapshot(app, binary, source, output, notices, sign):
             run('/usr/bin/codesign', '--force', '--sign', '-', '--timestamp=none',
                 '--identifier', metadata['CFBundleIdentifier'], str(bundle))
             run('/usr/bin/codesign', '--verify', '--strict', '--verbose=2', str(bundle))
+        elif sign == 'developer-id':
+            report.update(signing_identity=identity, signing_team=team_id)
+            report['signature'] = macos_signing.sign(
+                bundle, identity, team_id, metadata['CFBundleIdentifier'])
         report['packaged_executable_sha256'] = digest(installed)
         report['bundle'] = bundle.name
         archive = output / (APPS[app][0] + '.zip')
@@ -182,10 +191,13 @@ def main():
     parser.add_argument('--executable', type=Path, help='Built app, including an independent consumer')
     parser.add_argument('--output', required=True, type=Path, help='Fresh artifact directory')
     parser.add_argument('--notices', required=True, type=Path, help='Prepared license/notice directory; completeness requires review')
-    parser.add_argument('--sign', choices=('unsigned', 'ad-hoc'), default='unsigned')
+    parser.add_argument('--sign', choices=('unsigned', 'ad-hoc', 'developer-id'), default='unsigned')
+    parser.add_argument('--identity', help='Developer ID Application certificate SHA-1 fingerprint')
+    parser.add_argument('--team-id', help='Apple Developer team ID; required with developer-id')
     args = parser.parse_args()
     binary = args.executable or ROOT / '_build/default/examples' / args.app / 'main.exe'
-    report = package(args.app, binary, args.output, args.notices, args.sign)
+    report = package(args.app, binary, args.output, args.notices, args.sign,
+                     identity=args.identity, team_id=args.team_id)
     print(f'REFERENCE_PACKAGE_ASSEMBLED app={args.app} archive={args.output / report["archive"]}')
 
 

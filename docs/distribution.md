@@ -54,12 +54,39 @@ Output directories must be new; failures after assembly
 begins leave `complete=false` evidence rather than overwriting earlier artifacts.
 `complete=true` means assembly succeeded, never that release qualification passed.
 
-Signing modes are deliberately limited:
+Signing modes:
 
 - `unsigned` (default): this tool does not sign the bundle. The input Mach-O may
   already carry the linker’s ad-hoc signature.
 - `ad-hoc`: signs the assembled bundle locally and verifies its seal. This is not
   a Developer ID signature and does not submit anything to Apple.
+- `developer-id`: requires `--identity` with the exact 40-hex-digit certificate
+  SHA-1 fingerprint and `--team-id` with the ten-character Apple team ID. It signs
+  with hardened runtime and a secure timestamp, then verifies the Apple Developer
+  ID Application certificate chain, exact leaf certificate, team and app ID.
+  Every Mach-O slice must report hardened runtime and a timestamp. The extractor
+  repeats verification before allowing a runtime test. The report records signing
+  identity/team and per-architecture signature details; it still does not attest
+  notarization or release acceptance.
+
+For example, after configuring a Developer ID Application certificate in the
+signing Mac's keychain, pass its fingerprint and team explicitly:
+
+```sh
+python3 scripts/package_macos_reference.py --app gallery \
+  --notices scratch/reviewed-notices --output scratch/package-gallery-signed-001 \
+  --sign developer-id --identity "$GPUIO_SIGNING_IDENTITY" --team-id "$GPUIO_SIGNING_TEAM"
+```
+
+These two environment variables contain public certificate identifiers, not
+passwords or private keys. The tool neither imports credentials nor changes
+keychain settings. Secure timestamping needs Apple's timestamp service. See
+[Apple's notarization prerequisites](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution)
+and [certificate verification requirements](https://developer.apple.com/documentation/technotes/tn3127-inside-code-signing-requirements).
+The verification constraint does not override the signature's designated requirement.
+No JIT or library-validation exceptions are added. This mode currently has portable
+admission/failure tests; actual certificate signing, hardened-runtime application
+behavior, notarization, stapling and quarantined receiver acceptance remain unqualified.
 
 For distribution, the final artifact still needs the project's chosen release
 identity/version, reviewed licensing, appropriate signing/notarization workflow

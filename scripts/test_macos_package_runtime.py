@@ -17,6 +17,8 @@ import subprocess
 import tempfile
 import zipfile
 
+import macos_signing
+
 from package_macos_reference import APPS, ROOT, check_metadata, digest
 
 
@@ -34,8 +36,10 @@ def inspect_package(package):
     app = report['app']
     name, _, executable = APPS[app]
     if (report['complete'] is not True or report['bundle'] != name + '.app'
-            or report['archive'] != name + '.zip' or report['signing'] not in ('unsigned', 'ad-hoc')):
+            or report['archive'] != name + '.zip'):
         raise ValueError('Incomplete or unexpected reference package')
+    macos_signing.validate_options(report['signing'], report.get('signing_identity'),
+                                   report.get('signing_team'))
     check_metadata(report['metadata'], app)
     archive = package / report['archive']
     if archive.is_symlink() or digest(archive) != report['archive_sha256']:
@@ -81,6 +85,9 @@ def extract(package, destination):
     if report['signing'] == 'ad-hoc':
         subprocess.run(['/usr/bin/codesign', '--verify', '--strict', str(bundle)],
                        check=True, timeout=30)
+    elif report['signing'] == 'developer-id':
+        macos_signing.verify(bundle, report['signing_identity'], report['signing_team'],
+                             report['metadata']['CFBundleIdentifier'])
     return report, executable
 
 

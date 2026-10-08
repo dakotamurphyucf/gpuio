@@ -13,6 +13,21 @@ from test_macos_package_runtime import deny_profile, inspect_package, minimal_en
 
 
 class RuntimeInputs(unittest.TestCase):
+    def test_developer_id_archive_requires_explicit_certificate_and_team(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            report, archive = self.package(root)
+            report['signing'] = 'developer-id'
+            for identity, team in [(None, None), ('A1' * 20, None), ('-', 'AB12345678')]:
+                report.update(signing_identity=identity, signing_team=team)
+                (root / 'package.json').write_text(json.dumps(report))
+                with self.assertRaises(ValueError):
+                    inspect_package(root)
+            report.update(signing_identity='A1' * 20, signing_team='AB12345678')
+            (root / 'package.json').write_text(json.dumps(report))
+            # Admission is not signature verification; extract verifies the real bundle.
+            self.assertEqual(inspect_package(root), (report, archive))
+
     def package(self, root, extra=None):
         name = 'GPUIO Component Studio'
         archive = root / (name + '.zip')

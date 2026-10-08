@@ -30,6 +30,13 @@ Older records of a VoiceOver hold no longer apply. Access was restored after the
 
 ## Latest delivered behavior and validation
 
+The [Developer ID tooling checkpoint](evidence/developer-id-tooling-och17.md)
+adds explicit certificate/team selection, hardened-runtime signing and strict
+verification before archiving or runtime extraction. Local portable checks and
+native rejection of an ad-hoc fixture pass; real Developer ID signing,
+notarization and release acceptance remain unqualified. The full isolated local
+expect-test and formatting aliases pass at `e58cec44`.
+
 The [form label and screen-point follow-up](evidence/form-label-point-routing-och17.md)
 fixes rich labels collapsing to zero width. The real 52-case form walkthrough
 and 21 exact system-wide AX control/overlay hits pass locally, with API tests
