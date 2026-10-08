@@ -36,6 +36,11 @@ Older records of a VoiceOver hold no longer apply. Access was restored after the
 
 ## Latest delivered behavior and validation
 
+The [force-close cleanup repair](evidence/force-close-cleanup-och17.md) ensures
+raising cleanup cannot skip queued native close/shutdown work or leave the
+opening-window path unwoken. Regression tests cover first-failure propagation,
+reentrancy, delayed opening acknowledgments and cleanup; hosted validation remains.
+
 The [OCaml notice provenance audit](evidence/ocaml-notice-provenance-och17.md)
 verifies all 499 collected texts against original checksum-verified archives.
 The ten zero-text metadata classifications remain visible; embedded attribution

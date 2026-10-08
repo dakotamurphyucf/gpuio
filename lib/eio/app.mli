@@ -22,7 +22,11 @@ module Window : sig
   val scope : t -> Scope.t
 
   (** Force-close; bypasses the application close decision and cancels the
-      window scope. Use [request_close] for ordinary user commands. *)
+      window scope. Repeated/reentrant calls are idempotent. If cleanup raises,
+      remaining cleanup and queueing the native close request are attempted before
+      re-raising the first failure; an opening window waits for its opening
+      acknowledgement before submitting close. Native destruction is asynchronous.
+      Use [request_close] for ordinary user commands. *)
   val close : t -> unit
 
   (** Coalesced asynchronous decision. Force-close invalidates a delayed answer.
@@ -371,7 +375,10 @@ end
 
 val diagnostics : t -> Diagnostics.t
 
-(** Force application cleanup, bypassing decisions. *)
+(** Force application cleanup, bypassing decisions. Remaining cleanup and native
+    shutdown request queueing are still attempted if a cleanup raises, then the first
+    failure is re-raised. Repeated/reentrant calls are idempotent; returning does
+    not mean the native event loop has finished stopping. *)
 val shutdown : t -> unit
 
 (** Ask all live windows before destroying any of them. A denial keeps the

@@ -195,3 +195,10 @@ Their request maps are detached together before invoking completions, so a
 reentrant teardown cannot replay callbacks. Disposal sets the application to
 stopping before invoking user effects; an attempted new request returns `Closed`.
 See the [application-request repair](../evidence/application-teardown-och17.md).
+
+Force-close and explicit shutdown use that same attempt-all policy before native
+acknowledgments arrive: they finish independent cleanup and queue the close/stop
+request before propagating the first failure. Opening windows are woken and close
+through their eventual opening acknowledgment. Closing/stopping is set before
+callbacks, so repeated or reentrant calls do not enqueue duplicates. See the
+[force-close regression evidence](../evidence/force-close-cleanup-och17.md).

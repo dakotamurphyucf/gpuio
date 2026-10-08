@@ -662,12 +662,13 @@ let shutdown t =
     t.notification_subscription <- None;
     t.notification_pending <- false;
     t.notification_closed <- true;
-    Asset_registry.close t.asset_registry;
-    Document_registry.close t.document_registry;
-    Chart_registry.close t.chart_registry;
-    Canvas_registry.close t.canvas_registry;
-    Scope.cancel t.scope;
-    queue t Shutdown)
+    finish_cleanup (fun attempt ->
+      attempt (fun () -> Asset_registry.close t.asset_registry);
+      attempt (fun () -> Document_registry.close t.document_registry);
+      attempt (fun () -> Chart_registry.close t.chart_registry);
+      attempt (fun () -> Canvas_registry.close t.canvas_registry);
+      attempt (fun () -> Scope.cancel t.scope);
+      attempt (fun () -> queue t Shutdown)))
 ;;
 
 module Window = struct
@@ -699,16 +700,19 @@ module Window = struct
     | Closing_before_open | Closing | Closed -> ()
     | Opening ->
       t.phase <- Closing_before_open;
-      complete_close t Allow;
-      Scope.cancel t.scope;
-      Inbox.wake t.app.inbox
+      finish_cleanup (fun attempt ->
+        attempt (fun () -> complete_close t Allow);
+        attempt (fun () -> Scope.cancel t.scope);
+        attempt (fun () -> Inbox.wake t.app.inbox))
     | Open ->
       t.phase <- Closing;
-      complete_close t Allow;
-      Scope.cancel t.scope;
-      let request = correlation t.app in
-      t.app.closes <- Map.set t.app.closes ~key:request ~data:t.id;
-      queue t.app (Close (request, t.id))
+      finish_cleanup (fun attempt ->
+        attempt (fun () -> complete_close t Allow);
+        attempt (fun () -> Scope.cancel t.scope);
+        attempt (fun () ->
+          let request = correlation t.app in
+          t.app.closes <- Map.set t.app.closes ~key:request ~data:t.id;
+          queue t.app (Close (request, t.id))))
   ;;
 
   let request_close t =
@@ -3020,6 +3024,139 @@ let%test_module "pending picker command lifecycle" =
       with_runtime (fun _ app -> assert (not (inspect app (config ()))));
       print_endline "inherited, explicit, later-window and separate-application defaults";
       [%expect {| inherited, explicit, later-window and separate-application defaults |}]
+    ;;
+
+    let%expect_test "force-close still reaches native after a cleanup failure" =
+      List.iter
+        (List.cartesian_product [ false; true ] [ false; true ])
+        ~f:(fun (opened, fail_completion) ->
+          with_runtime (fun sw app ->
+            let window =
+              open_window
+                app
+                ~focus:false
+                ~title:"Force close cleanup"
+                ~width:400.
+                ~height:300.
+                (fun _ _ -> Bonsai.Cont.return (Gpuio.View.text "close"))
+              |> ok
+            in
+            let opening_request = app.correlation in
+            if opened then process app (Opened (opening_request, window.id));
+            let failure = Failure "first close failure" in
+            let cleanup_calls = ref 0 in
+            window.close_waiters
+            <- [ (Window_close, fun _ -> if fail_completion then raise failure) ];
+            ignore
+              (Scope.on_cancel window.scope (fun () ->
+                 incr cleanup_calls;
+                 Window.close window;
+                 if fail_completion then failwith "later scope cleanup" else raise failure)
+               |> ok
+               : unit -> unit);
+            ignore
+              (Scope.on_cancel window.scope (fun () -> incr cleanup_calls) |> ok
+               : unit -> unit);
+            assert (List.is_empty (Inbox.take_turn app.inbox));
+            let awakened = ref false in
+            Eio.Fiber.fork ~sw (fun () ->
+              Inbox.await app.inbox;
+              awakened := true);
+            Eio.Fiber.yield ();
+            assert (not !awakened);
+            let result = Result.try_with (fun () -> Window.close window) in
+            Eio.Fiber.yield ();
+            let first_failure =
+              match result with
+              | Error exn -> phys_equal exn failure
+              | Ok () -> false
+            in
+            print_s
+              [%sexp
+                (opened : bool)
+              , (fail_completion : bool)
+              , (first_failure : bool)
+              , (!awakened : bool)
+              , (!cleanup_calls : int)
+              , (Scope.is_active window.scope : bool)
+              , (Window.is_closed window : bool)
+              , (List.length window.close_waiters : int)
+              , (Map.length app.closes : int)];
+            Window.close window;
+            let opening_failed =
+              (not opened)
+              && Result.is_error
+                   (Result.try_with (fun () ->
+                      process app (Opened (opening_request, window.id))))
+            in
+            let requests =
+              Queue.count app.commands ~f:(function
+                | Close (_, id) -> Window_id.equal id window.id
+                | _ -> false)
+            in
+            print_s
+              [%sexp
+                (opening_failed : bool), (requests : int), (Map.length app.closes : int)];
+            let close_failed =
+              Result.is_error
+                (Result.try_with (fun () ->
+                   process app (Closed (app.correlation, window.id))))
+            in
+            print_s
+              [%sexp
+                (close_failed : bool)
+              , (Map.length app.windows : int)
+              , (Scope.stats app.scope : Scope.Stats.t)]));
+      [%expect
+        {|
+        (false false true true 2 false true 0 0)
+        (false 1 1)
+        (false 0 ((scopes 1) (tasks 0) (cleanups 0)))
+        (false true true true 2 false true 0 0)
+        (false 1 1)
+        (false 0 ((scopes 1) (tasks 0) (cleanups 0)))
+        (true false true true 2 false true 0 1)
+        (false 1 1)
+        (false 0 ((scopes 1) (tasks 0) (cleanups 0)))
+        (true true true true 2 false true 0 1)
+        (false 1 1)
+        (false 0 ((scopes 1) (tasks 0) (cleanups 0)))
+        |}]
+    ;;
+
+    let%expect_test "shutdown queues native stop even when scope cleanup raises" =
+      with_runtime (fun _sw app ->
+        let child = Scope.child app.scope ~name:"shutdown cleanup" |> ok in
+        let failure = Failure "shutdown cleanup" in
+        let callbacks = ref 0 in
+        ignore
+          (Scope.on_cancel child (fun () ->
+             incr callbacks;
+             shutdown app;
+             raise failure)
+           |> ok
+           : unit -> unit);
+        ignore (Scope.on_cancel app.scope (fun () -> incr callbacks) |> ok : unit -> unit);
+        let result = Result.try_with (fun () -> shutdown app) in
+        let first_failure =
+          match result with
+          | Error exn -> phys_equal exn failure
+          | Ok () -> false
+        in
+        shutdown app;
+        let requests =
+          Queue.count app.commands ~f:(function
+            | Shutdown -> true
+            | _ -> false)
+        in
+        print_s
+          [%sexp
+            (first_failure : bool)
+          , (app.stopping : bool)
+          , (!callbacks : int)
+          , (requests : int)
+          , (Scope.stats app.scope : Scope.Stats.t)]);
+      [%expect {| (true true 2 1 ((scopes 0) (tasks 0) (cleanups 0))) |}]
     ;;
 
     let open_picker app =

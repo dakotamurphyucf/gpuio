@@ -208,6 +208,13 @@ a blocked callback safe or force a producer's protected cleanup to finish. Task
 counts stay charged until producer fibers unwind. See the
 [regression evidence](evidence/scope-cancellation-och17.md).
 
+`App.Window.close` and `App.shutdown` also attempt the remaining cleanup and
+queue native close/shutdown work when cleanup raises, then propagate the first
+failure. Logical closing/stopping fences reentrant calls. An opening window queues
+its native close after the opening acknowledgment; returning from either API is
+not a synchronous OS-destruction barrier. See the
+[force-close regression evidence](evidence/force-close-cleanup-och17.md).
+
 ## Desktop service lifetimes
 
 Desktop services run through the application UI domain. Constructing a returned
