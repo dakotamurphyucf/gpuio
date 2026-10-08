@@ -2,7 +2,8 @@
 """Real macOS AX selection/range checks against the public gallery.
 
 Owns one GUI child, preserves the clipboard, and checks page text independently
-of the application's model. This does not qualify VoiceOver or range geometry.
+of the application's model. Includes rendered paragraph line/range/point checks;
+this does not qualify VoiceOver or geometry across the full component catalog.
 """
 import argparse
 import ctypes as C
@@ -21,6 +22,15 @@ from test_gallery import TITLE, expect_field, expect_focus, focus_gallery_contro
 
 class Range(C.Structure):
     _fields_ = [('location', C.c_long), ('length', C.c_long)]
+
+
+class Point(C.Structure):
+    _fields_ = [('x', C.c_double), ('y', C.c_double)]
+
+
+class Rect(C.Structure):
+    _fields_ = [('x', C.c_double), ('y', C.c_double),
+               ('width', C.c_double), ('height', C.c_double)]
 
 
 def utf16(text):
@@ -82,6 +92,77 @@ class Selection:
             time.sleep(.025)
 
 
+class Geometry:
+    def __init__(self, mac, node):
+        self.mac, self.node = mac, node
+        self.copy = mac.ax.AXUIElementCopyParameterizedAttributeValue
+        self.copy.restype, self.copy.argtypes = C.c_int, [
+            C.c_void_p, C.c_void_p, C.c_void_p, C.POINTER(C.c_void_p)]
+        self.create = mac.ax.AXValueCreate
+        self.create.restype, self.create.argtypes = C.c_void_p, [C.c_int, C.c_void_p]
+        self.get = mac.ax.AXValueGetValue
+        self.get.restype, self.get.argtypes = C.c_bool, [C.c_void_p, C.c_int, C.c_void_p]
+        self.number = mac.cf.CFNumberCreate
+        self.number.restype, self.number.argtypes = C.c_void_p, [C.c_void_p, C.c_int, C.c_void_p]
+        self.get_number = mac.cf.CFNumberGetValue
+        self.get_number.restype, self.get_number.argtypes = C.c_bool, [C.c_void_p, C.c_int, C.c_void_p]
+
+    def query(self, name, parameter, result, kind):
+        attribute, value = self.mac.string(name), C.c_void_p()
+        try:
+            error = self.copy(self.node, attribute, parameter, C.byref(value))
+            assert error == 0 and value.value, (name, error)
+            if kind is None:
+                assert self.get_number(value.value, 4, C.byref(result)), name
+                return result.value
+            assert self.get(value.value, kind, C.byref(result)), name
+            return {field: getattr(result, field) for field, _ in result._fields_}
+        finally:
+            if value.value:
+                self.mac.release(value.value)
+            self.mac.release(attribute)
+            self.mac.release(parameter)
+
+    def line(self, index):
+        return self.query('AXLineForIndex', self.number(None, 4, C.byref(C.c_longlong(index))),
+                          C.c_longlong(), None)
+
+    def line_range(self, line):
+        return self.query('AXRangeForLine', self.number(None, 4, C.byref(C.c_longlong(line))), Range(), 4)
+
+    def bounds(self, start, length):
+        return self.query('AXBoundsForRange', self.create(4, C.byref(Range(start, length))), Rect(), 3)
+
+    def at_point(self, x, y):
+        return self.query('AXRangeForPosition', self.create(1, C.byref(Point(x, y))), Range(), 4)
+
+
+def rendered_geometry(mac, node, text):
+    geometry = Geometry(mac, node)
+    encoded = text.encode('utf-16-le')
+    expected = 'A native Markdown preview with Unicode: 世界 · 👨‍👩‍👧‍👦.'
+    observations = []
+    for term in ['世界', '👨‍👩‍👧‍👦']:
+        start = utf16(text[:text.index(term)])
+        line = geometry.line(start)
+        line_range = geometry.line_range(line)
+        a, b = line_range['location'], line_range['location'] + line_range['length']
+        line_text = encoded[2*a:2*b].decode('utf-16-le').rstrip('\r\n')
+        assert line_text == expected, (term, line, line_range, line_text)
+        bounds = geometry.bounds(start, utf16(term))
+        assert bounds['width'] > 0 and bounds['height'] > 0, (term, bounds)
+        observations.append(dict(term=term, line=line, line_range=line_range, bounds=bounds))
+    assert observations[0]['line'] == observations[1]['line'], observations
+    assert abs(observations[0]['bounds']['y'] - observations[1]['bounds']['y']) < .01
+    start = utf16(text[:text.index('世')])
+    character = geometry.bounds(start, 1)
+    hit = geometry.at_point(character['x'] + character['width'] / 4,
+                            character['y'] + character['height'] / 2)
+    assert hit == {'location': start, 'length': 1}, (character, hit, start)
+    return {'case': 'rendered-visual-line-and-point', 'observations': observations,
+            'character_hit': hit}
+
+
 def exercise_rendered(mac, board):
     """Use the OS range setter, then read the same native selection through Copy."""
     selection = Selection(mac)
@@ -117,6 +198,7 @@ def exercise_rendered(mac, board):
             assert time.monotonic() < deadline, 'Missing rendered Select All'
             time.sleep(.025)
         whole = selection.expect(node, text, 0, utf16(text))
+        observations.append(rendered_geometry(mac, node, text))
         copied = copy()
         assert copied.endswith('let next_step = "Explore"')
         # Existing plain window Copy trims the one terminal logical separator.

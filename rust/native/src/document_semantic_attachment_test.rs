@@ -5,6 +5,8 @@ mod cached;
 mod inline;
 #[path = "document_accessible_selection_test.rs"]
 mod selection;
+#[path = "document_visual_lines_test.rs"]
+mod visual_lines;
 
 use super::markdown_options_test::draw;
 use super::*;

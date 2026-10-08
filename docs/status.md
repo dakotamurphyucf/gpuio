@@ -30,6 +30,13 @@ Older records of a VoiceOver hold no longer apply. Access was restored after the
 
 ## Latest delivered behavior and validation
 
+The [rendered visual-line repair](evidence/rendered-visual-lines-och17.md) connects
+styled and Unicode fragments on the same painted line without joining paragraphs
+or table cells. Native reflow/scope tests and actual macOS paragraph line/range and
+character-point queries pass; the native suite reports 1,179 passed, 2 ignored.
+Broader geometry and VoiceOver reading/navigation remain open. VoiceOver scripting
+setup is awaiting the owner's macOS authorization; other milestone work continues.
+
 The [VoiceOver attribute-query repair](evidence/voiceover-attribute-query-och17.md)
 fixes a reproduced process crash in GPUIO's AccessKit compatibility patch. A
 read-only attribute query called a nonexistent superclass method. Actual OS

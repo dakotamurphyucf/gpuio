@@ -85,14 +85,14 @@
     "version": "0.6.1",
     "gpui_commit": "a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b",
     "archive_sha256": "909c00c97bbfce11607eef7d3eccd01201d591af9d26cd9ebadfe0c90fca502f",
-    "patch_sha256": "b4267c3ff9850155b54d5138984862284adf83d9be4d3389014634f1cbbba82d"
+    "patch_sha256": "a390c8a2026e7bfd4e9bb3bdb4a9df9ab1311e8cd9052da871a831c322d5baee"
   },
   "gpui": {
     "url": "https://github.com/zed-industries/zed.git",
     "commit": "a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b",
     "version": "0.2.2",
     "archive_sha256": "10c9f20251c4ed9427db19456c6f8987ffd00bf7ef82df11edc6c75b13ff9fa2",
-    "patch_sha256": "b490783ed759f01f3751804b599e3f9ce42a6ece515fa56255233a4469756e95"
+    "patch_sha256": "8666a27801ffecc7e52528216acf5bb0e6ac36f81263c037a3e36e55f6c8a097"
   },
   "gpui_macos": {
     "url": "https://github.com/zed-industries/zed.git",

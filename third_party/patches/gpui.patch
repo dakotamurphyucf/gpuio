@@ -4735,3 +4735,75 @@
          }
      });
  }
+--- a/src/window/a11y.rs
++++ b/src/window/a11y.rs
+@@ -632,6 +632,69 @@
+         }
+     }
+ 
++    /// Replace visual-line relationships on selected completed TextRun descendants.
++    /// Each inner slice is one line in logical reading order; a singleton clears
++    /// its old links. Reject empty lines, repeated/foreign/non-text IDs and old
++    /// links escaping the supplied set, without changing any nodes. Other native
++    /// text owners, values, geometry and actions remain untouched.
++    pub fn set_text_run_lines(&mut self, lines: &[Vec<NodeId>]) -> bool {
++        let mut links = FxHashMap::default();
++        for line in lines {
++            if line.is_empty() {
++                return false;
++            }
++            for (index, id) in line.iter().enumerate() {
++                let previous = index.checked_sub(1).map(|index| line[index]);
++                let next = line.get(index + 1).copied();
++                if links.insert(*id, (previous, next)).is_some() {
++                    return false;
++                }
++            }
++        }
++        if links.is_empty() {
++            return true;
++        }
++        let mut pending: FxHashSet<_> = self.parent_node().children().iter().copied().collect();
++        let mut start = self.nodes.all_nodes.len();
++        let mut found = 0;
++        for (index, (id, node)) in self.nodes.all_nodes.iter().enumerate().rev() {
++            if pending.is_empty() {
++                break;
++            }
++            start = index;
++            if pending.remove(id) {
++                pending.extend(node.children().iter().copied());
++                if links.contains_key(id) {
++                    if node.role() != accesskit::Role::TextRun
++                        || [node.previous_on_line(), node.next_on_line()]
++                            .into_iter()
++                            .flatten()
++                            .any(|id| !links.contains_key(&id))
++                    {
++                        return false;
++                    }
++                    found += 1;
++                }
++            }
++        }
++        if found != links.len() {
++            return false;
++        }
++        for (id, node) in &mut self.nodes.all_nodes[start..] {
++            if let Some((previous, next)) = links.get(id) {
++                node.clear_previous_on_line();
++                node.clear_next_on_line();
++                if let Some(previous) = previous {
++                    node.set_previous_on_line(*previous);
++                }
++                if let Some(next) = next {
++                    node.set_next_on_line(*next);
++                }
++            }
++        }
++        true
++    }
++
+     /// Clip this subtree's finalized descendant bounds in accessibility (scaled
+     /// window) coordinates. Fully clipped nodes become hidden; IDs and children
+     /// remain intact. Call after descendants finish prepaint. Hidden descendants

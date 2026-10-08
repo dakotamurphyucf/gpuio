@@ -37,7 +37,13 @@ adapter. Its [rendered-selection contract](rendered-document-selection.md) now h
 [native dispatch and actual macOS range/Copy evidence](../evidence/rendered-selection-dispatch-och17.md),
 including the later cache-lifecycle and retry qualifications linked from
 [the current status](../status.md). Those results do not establish rendered
-visual-line geometry or complete VoiceOver reading/tracking acceptance.
+complete visual-line geometry or VoiceOver reading/tracking acceptance. The later
+[rendered line qualification](../evidence/rendered-visual-lines-och17.md) links
+source-adjacent runs on the same painted line within a semantic flow, with
+bidirectional current-frame relationships. It covers native style/link/Unicode
+fragmentation, table-cell boundaries and reflow, plus actual macOS paragraph
+line/range and character-point queries. Missing layout still supplies no invented
+geometry; broader rendered geometry and screen-reader acceptance remain separate.
 
 Rendered Markdown exposes text from the actual painted nodes in reading order,
 with headings, lists, table structure, image alternatives and links. Do not add a

@@ -13,6 +13,9 @@ use gpui::{
 use super::rendered_text::RenderedFragment;
 use super::{RenderedAccessiblePartId, RenderedSemanticId, RenderedText, RenderedTextPosition};
 
+#[path = "visual_lines.rs"]
+mod visual_lines;
+
 /// A prepared top-level owner and its actual current-frame native subtree.
 /// This is not a text-run ID or authorization to dispatch an accessibility action.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -234,6 +237,9 @@ impl Frame {
         }
         state.runs = actual.iter().map(|run| (run.node, *run)).collect();
         actual.sort_by_key(|run| run.source_start);
+        if let Some(projection) = state.projection.upgrade() {
+            visual_lines::publish(&projection, &actual, builder);
+        }
         state.ordered_runs = actual;
     }
 
