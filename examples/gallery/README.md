@@ -164,6 +164,9 @@ The separate `--section notification-policy` walkthrough exercises pointer
 expansion/collapse and hover/focus timeout pausing under application Full and
 Reduced motion preferences, then restores System. These are gallery preferences;
 the test does not change macOS settings.
+`--section notification-motion` observes native entrance geometry separately:
+Full traverses intermediate positions and Reduced reaches the endpoint. It uses
+accessibility samples, not a physical FPS or per-frame pixel measurement.
 
 Selection & actions includes **Two actions, one control**, using the public
 `View.split_button` API. Cycle split/action-only/menu-only modes, disable the

@@ -1,0 +1,12 @@
+{
+  "checks/notification-motion-001.log": "4acc90d2a2f6c4a7e923e921b7d6fe23eb624282fa3c21d795f04b70e70a957e",
+  "checks/notification-motion-001/notification-entry-full.png": "e3e2ed6aff748f5b0b54a39373b8cb543d0c9623535f8f5d277e4802628cd822",
+  "checks/notification-motion-001/notification-entry-reduced.png": "faf53f1fdd3c075f4269feda2608afa741ef59dfc71543b598b5dfc536bf13a0",
+  "checks/notification-motion-001/notification-entry.json": "c1cb8e218a84e479a9fa79267485beb535e033aeb7a1e7fbaab41035c4c4862d",
+  "checks/notification-motion-installed-001.log": "32035741402aba353ad0094a865bd8b339e1123f8abf2f9e5b01ceda6c5c14c7",
+  "checks/notification-motion-installed-001/notification-entry-full.png": "e3e2ed6aff748f5b0b54a39373b8cb543d0c9623535f8f5d277e4802628cd822",
+  "checks/notification-motion-installed-001/notification-entry-reduced.png": "faf53f1fdd3c075f4269feda2608afa741ef59dfc71543b598b5dfc536bf13a0",
+  "checks/notification-motion-installed-001/notification-entry.json": "175001cd319a6ccc7a04d16ed9a3f6025e74afa1ac5865ebf69e3646ce883d80",
+  "source/scripts/gallery_notifications.py": "2ef79ae6f4d721f1bbab65b56a2259d317db657c7b97f9f9fa6c1baa0325b6d3",
+  "source/scripts/test_gallery.py": "2721f7f0e3d1ca38dcbd8cee80f01d7a553c350d9644946de71281ee992851c4"
+}

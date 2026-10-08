@@ -9,6 +9,108 @@ ANCHORS = ('Bottom right', 'Bottom center', 'Bottom left', 'Left center',
 CARDS = ('Workspace saved', 'Research complete', 'A new idea is ready')
 
 
+def exercise_motion(mac, images=None):
+    """Observe real native entrance geometry without claiming presentation FPS."""
+    from test_gallery import (
+        TITLE, GalleryMouse, activate, element_rect, focus_gallery_control,
+        reveal_gallery_control,
+    )
+    from test_canvas import screenshot
+
+    report = {'complete': False, 'policies': [],
+              'scope': 'sampled native AX entrance geometry; not per-frame pixels or presentation FPS'}
+    equal = mac.cf.CFEqual
+    equal.restype, equal.argtypes = C.c_bool, [C.c_void_p, C.c_void_p]
+    try:
+        for preference in ('Full', 'Reduced'):
+            mac.press(TITLE, 'Motion & rhythm')
+            mac.press(TITLE, 'Use full motion' if preference == 'Full' else 'Use reduced motion')
+            mac.wait_text(TITLE, 'Motion preference: ' + preference)
+            mac.press(TITLE, 'Commands & feedback')
+            reveal_gallery_control(mac, 'Layer notification cards', 'AXCheckBox')
+            if preference == 'Full':
+                activate(mac, mac.wait_find(TITLE, 'Layer notification cards', 'AXCheckBox'))
+                activate(mac, mac.wait_find(TITLE, 'Animate notifications', 'AXCheckBox'))
+            focus_gallery_control(mac, 'Show three sample notifications', 'AXButton')
+            window = mac.window(TITLE)
+            try:
+                wx, wy, ww, wh = element_rect(mac, window)
+            finally:
+                mac.release(window)
+            mouse = GalleryMouse(mac)
+            point = (wx + ww / 2, wy + 75)
+            mouse.check_owner(point)
+            mouse.send(5, point)
+            # Resolve the persistent stack and old front card before starting
+            # entry. Search only direct stack children after Show; a whole-tree
+            # search could consume the entire 400ms animation interval.
+            stack = mac.wait_find(TITLE, 'Notifications', 'AXGroup')
+            previous = mac.wait_find(TITLE, CARDS[2], 'AXGroup')
+            show = mac.wait_find(TITLE, 'Show three sample notifications', 'AXButton')
+            current = None
+            try:
+                mac.perform(show, 'AXPress')
+                start = time.monotonic()
+                while current is None:
+                    children = mac.children(stack)
+                    try:
+                        for child in children:
+                            if (mac.text(child, 'AXTitle') == CARDS[2]
+                                    and not equal(previous, child)):
+                                current = mac.retain(child)
+                                break
+                    finally:
+                        for child in children:
+                            mac.release(child)
+                    assert time.monotonic() - start < 3, 'Fresh front card never became accessible'
+                    if current is None:
+                        time.sleep(.005)
+                samples = []
+                while time.monotonic() - start < 1.2:
+                    samples.append({'seconds': time.monotonic() - start,
+                                    'bounds': element_rect(mac, current)})
+                    time.sleep(.01)
+                assert samples, 'No native geometry observations'
+                expected_bottom = wy + wh - 16
+                offsets = [s['bounds'][1] + s['bounds'][3] - expected_bottom for s in samples]
+                observation = {'preference': preference, 'samples': samples,
+                               'expected_bottom': expected_bottom,
+                               'first_offset': offsets[0], 'last_offset': offsets[-1],
+                               'intermediate_count': sum(1 < offset < 95 for offset in offsets)}
+                report['policies'].append(observation)
+                assert abs(offsets[-1]) < 1.5, ('Entry failed to reach the anchor', observation)
+                if preference == 'Full':
+                    assert observation['intermediate_count'] >= 3, (
+                        'Full-motion traversal not observed', observation)
+                    assert all(-1.5 <= offset <= 97.5 for offset in offsets), observation
+                    assert all(b <= a + 1.5 for a, b in zip(offsets, offsets[1:])), (
+                        'Entrance reversed or jumped backwards', observation)
+                else:
+                    assert all(abs(offset) < 1.5 for offset in offsets), (
+                        'Reduced-motion observations included a displaced card', observation)
+                if images:
+                    screenshot(mac, images / f'notification-entry-{preference.lower()}.png', title=TITLE)
+            finally:
+                for node in (stack, previous, show, current):
+                    if node:
+                        mac.release(node)
+        mac.press(TITLE, 'Motion & rhythm')
+        mac.press(TITLE, 'Use system motion')
+        mac.wait_text(TITLE, 'Motion preference: System')
+        report['complete'] = True
+        print('GALLERY_NOTIFICATION_MOTION_OK', json.dumps({
+            'complete': True, 'policies': [{k: v for k, v in row.items() if k != 'samples'}
+                                         for row in report['policies']]}), flush=True)
+    except BaseException as error:
+        report['error'] = f'{type(error).__name__}: {error}'
+        if images:
+            screenshot(mac, images / 'notification-entry-failure.png', title=TITLE)
+        raise
+    finally:
+        if images:
+            (images / 'notification-entry.json').write_text(json.dumps(report, indent=2) + '\n')
+
+
 def exercise_policy(mac, images=None):
     """Pointer expansion and actual active-time expiry under both motion policies."""
     from test_gallery import (

@@ -118,11 +118,21 @@ From the repository root:
 ./_build/default/examples/gallery/main.exe
 python3 scripts/test_gallery.py --section notifications --images scratch/notification-walkthrough
 python3 scripts/test_gallery.py --section notification-policy --images scratch/notification-policy
+python3 scripts/test_gallery.py --section notification-motion --images scratch/notification-motion
 ```
 
 The wrapper uses the repository toolchain. These commands are instructions, not checks run for
-this documentation change. The last two commands run native notification fixtures
+this documentation change. The last three commands run native notification fixtures
 against the built gallery; it opens and closes an actual macOS window and requires
 Accessibility access. The page has no standalone executable. Compilation does
 not establish native keyboard, focus, IME or platform acceptance. See
 [gallery instructions](README.md) and [development](../../docs/development.md).
+
+The motion fixture invokes Show with pre-resolved native controls, then observes
+the fresh front card under the retained Notifications group. This keeps tree
+searching out of most of the 400ms entrance interval. Full motion must traverse
+intermediate positions toward the bottom anchor without reversing; Reduced
+motion must stay at the endpoint in every observed sample. These accessibility
+geometry observations explain how the native presentation responds to the public
+configuration. They do not measure physical frame presentation, FPS or prove
+that no unsampled frame had a visual defect.

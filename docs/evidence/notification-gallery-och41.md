@@ -122,3 +122,39 @@ The [policy archive](notification-gallery-och41/policy-reports.tar.gz) and
 reports, captures and exact fixture sources. Documentation inventory, Python
 syntax, workflow lint and diff checks pass. A separate three-minute Foundation
 step is added; hosted acceptance on the final release source remains outstanding.
+
+## Native entrance geometry follow-up
+
+At `a90400cb` plus fixture/documentation changes, both the repository and installed
+galleries pass `--section notification-motion`. No application/runtime changes
+were required. The fixture resolves the Show button, current front card and
+retained Notifications group before starting a fresh batch. It discovers the
+replacement card through direct children and samples its actual native AX bounds
+for 1.2 seconds. This avoids consuming the entrance interval in whole-tree search.
+
+In Full motion the first observed bottom-edge displacement is 95px, followed by
+21 intermediate samples locally and 22 in the installed consumer, then zero at
+the declared bottom anchor. Observed motion stays within the 96px entrance range
+(allowing pixel rounding) and progresses toward the anchor without reversing.
+In Reduced motion every observed sample is already at that same endpoint.
+Both cases verify a fresh native identity rather than measuring an old card that
+was already stationary. Application System motion is restored and both processes
+close normally. No OS setting, input source or clipboard configuration changes.
+
+These are sampled native accessibility geometries, not a count of distinct
+presented frames, per-frame pixel evidence or physical FPS. They establish the
+observed Full/Reduced entrance behavior; they cannot exclude an unsampled visual
+defect or qualify complete animation smoothness/exit/reflow/streaming performance.
+VoiceOver, physical IME, retained-editor streaming, long-stack scrolling and
+memory/idle-resource requirements also remain separate.
+
+```sh
+python3 scripts/test_gallery.py --section notification-motion --images <fresh-directory>
+python3 scripts/test_gallery.py --section notification-motion --executable <installed-gallery> --images <fresh-directory>
+```
+
+Both first attempts pass; the [motion archive](notification-gallery-och41/motion-reports.tar.gz)
+and [manifest](notification-gallery-och41/motion-manifest.json) preserve exact
+sources, executable hashes, all samples, captures and logs. Documentation/catalog
+audits, Python syntax, workflow lint and diff checks pass. A separate two-minute
+Foundation step is added; current-source hosted acceptance remains outstanding.

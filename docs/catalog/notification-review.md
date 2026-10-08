@@ -38,6 +38,9 @@ The same evidence's [policy follow-up](../evidence/notification-gallery-och41.md
 now qualifies pointer expansion/collapse and hover/focus active-time expiry under
 application Full/Reduced preferences in both local and installed galleries.
 It does not claim immediate reduced-motion pixels or presentation timing.
+The subsequent [entrance follow-up](../evidence/notification-gallery-och41.md#native-entrance-geometry-follow-up)
+observes Full-motion intermediate native geometry and endpoint-only Reduced
+samples in both executables. This does not establish every rendered frame or FPS.
 
 Layered geometry, interrupted reflow, finite lifecycle and accepted-dismissal
 tokens now have [native foundation evidence](../evidence/toast-presentation-foundation-och41.md).
