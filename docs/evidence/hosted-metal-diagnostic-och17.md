@@ -82,8 +82,22 @@ The observed initial two-second interval motivates one new diagnostic: use the
 already-existing `--idle-before-frames-ms 2500` option before starting collection,
 keeping all frame, animation, clock, completion and teardown checks unchanged.
 [Run 37736998639](https://github.com/dakotamurphyucf/gpuio/actions/runs/37736998639),
-commit `93006c09f5fa82635a0c54c9bdecf499d4be511f`, is running at this checkpoint.
-Only its isolated workflow invocation changes; no renderer or test code changes.
-This tests startup conditioning, not a production startup fix, and the original
-failed trace remains failed. Existing required main-branch presentation failures
-remain unresolved. Local physical-Mac workload passes are separate evidence.
+commit `93006c09f5fa82635a0c54c9bdecf499d4be511f`, **fails**. Both windows finish
+all 90 frames with one initial zero-time outcome followed by 89 presentations.
+The active window has 88 animation samples, satisfying that minimum; visibility,
+distinct identities, closure and settlement pass. The strict all-presented check
+still fails. Only the isolated workflow invocation changed; no renderer or test
+code changed. The [idle experiment archive](hosted-metal-diagnostic-och17/idle2500-reports.tar.gz)
+retains ten files, verified against its
+[manifest](hosted-metal-diagnostic-och17/idle2500-reports-manifest.json).
+
+The next isolated experiment,
+[run 37740193731](https://github.com/dakotamurphyucf/gpuio/actions/runs/37740193731)
+at `7f648d9ad19c551b566a1f4fcdbdf0ea660df444`, records a separate active
+90-frame warmup before replacing the measurement sessions and running the original
+strict 90-frame phase. Its warmup reports are retained separately; the measured
+phase's acceptance predicate is unchanged, including rejection of any skipped
+frame and the animation minimum. It is running at this checkpoint. This tests
+steady-state callback behavior, not a production startup fix or cold-start pass.
+Original failures remain failed. Required main-branch presentation failures remain
+unresolved; local physical-Mac workload passes are separate evidence.

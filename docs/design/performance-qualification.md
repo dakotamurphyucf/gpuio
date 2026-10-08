@@ -188,5 +188,7 @@ outcome accounting. The external collector requires them before acknowledging
 the next cycle. Settled zero/missing/invalid-clock outcomes remain resource-only
 observations; they do not pass presentation timing requirements. Production
 rendering and the separate workload timing gates are unchanged. See the
-[implementation and initial smoke evidence](../evidence/presentation-retirement-och17.md);
-full repeated qualification remains pending there.
+[implementation and repeated resource evidence](../evidence/presentation-retirement-och17.md):
+all three full 33-cycle trials pass on the recorded physical Mac, retaining every
+callback outcome and physical-memory checkpoint. This does not qualify collector
+overhead or relax the separate timing requirements.

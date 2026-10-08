@@ -1,7 +1,7 @@
 # Active presentation collector retirement — OCH-17
 
-Status: implementation, guard tests and corrected macOS smoke pass on 2026-10-08.
-Full repeated resource qualification is still pending at this checkpoint. Existing
+Status: implementation, guard tests, corrected macOS smoke and three full resource
+repetitions pass on 2026-10-08. Existing
 CPU/entity/Metal lifecycle passes did not activate presentation collection and
 therefore did not establish retirement with that collector running.
 
@@ -95,6 +95,52 @@ retains both smoke attempts, native/build/Clippy logs, complete reports, physica
 memory samples and binary/lock reviews. All 41 members were read back and verified
 against the [manifest](presentation-retirement-och17/checkpoint-manifest.json).
 
-Next: three full runs, each with three warmups and thirty measured cycles, retaining
-all original resource limits and every outcome. Other performance, native,
-accessibility, catalog and distribution requirements remain open.
+## Three full resource repetitions
+
+All three predeclared trials pass on clean source
+`48a008cfa283a21f68e95a73a36c92ebf2715cc5`, using the same verified executable
+above and the same physical Mac. Each trial includes three warmups and thirty
+measured cycles. No compiler or second owned GUI ran concurrently. The batch
+stopped on any failure; all three completed without replacement trials.
+
+```sh
+python3 scripts/measure_resource_lifecycle.py --build-profile release \
+  --native-entities --presentation --metal-memory --physical-memory \
+  --check-closed-surfaces --check-budgets \
+  --executable _build/default/examples/resource_audit/main.exe --timeout 600 \
+  --output scratch/agents/root-20261007-access-check/resource-presentation-full-001
+```
+
+The next trials use output suffixes `002` and `003`. The archived batch script
+retains the exact order and commands.
+
+| Trial | Wall seconds | Peak RSS bytes | Final ten-cycle RSS baseline growth bytes | Closed Metal growth bytes | Presented / zero outcomes |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 001 | 122.872 | 119,439,360 | 4,685,824 | 0 | 58 / 36 |
+| 002 | 123.079 | 120,258,560 | 4,112,384 | 0 | 52 / 43 |
+| 003 | 122.540 | 119,521,280 | 8,323,072 | 0 | 65 / 30 |
+
+Each trial has 33 unique sessions and windows, all stopped, closed and settled
+with zero pending callbacks. Counts reconcile exactly, with no missing,
+not-submitted, invalid-clock, saturation, duplicate or histogram-overflow
+outcomes. Application registrations, scopes, queues and native entities pass
+their existing retirement checks. RSS and Metal growth satisfy the unchanged
+64 MiB gates; no closed checkpoint reports nonzero IOSurface accounting.
+Zero-time outcomes remain resource-only evidence, not successful presentation.
+
+Settled physical footprint peaks are 107,367,296, 101,714,816 and 103,009,024 bytes.
+Their final-window baseline growth is 17,645,568, 18,595,840 and 17,989,632 bytes.
+No physical-footprint threshold was predefined: these are observations, not a
+separate pass/fail claim or a complete census of GPU memory.
+
+All drivers and children exit zero with `complete=true`; the owned keep-awake
+process is reaped. The [full reports archive](presentation-retirement-och17/full-reports.tar.gz)
+retains 607 files, including all 99 physical-memory checkpoints, original logs,
+reports and the batch plan. Every member was read back and hash-verified against
+its [manifest](presentation-retirement-och17/full-reports-manifest.json).
+The [summary](presentation-retirement-och17/full-summary.json) records exact
+binary/report hashes and aggregate counts.
+
+This qualifies repeated active-collector resource retirement on the recorded
+physical Mac. Collector overhead and other performance, native, accessibility,
+catalog, hosted and distribution requirements remain open.
