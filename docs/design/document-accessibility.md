@@ -33,9 +33,11 @@ line links. It keeps logical selection order and omits unavailable off-layout
 geometry; word-navigation metadata remains separate. Geometry and selection
 queries do not establish complete VoiceOver reading or tracking. Rendered Markdown
 has a separate selection projection and is not covered by this source-editor
-adapter. Its [accessible-selection implementation plan](rendered-document-selection.md)
-records the reproduced missing document-level AX selection attributes and required
-ownership, semantic-tree and virtualization behavior; that plan is not implemented.
+adapter. Its [rendered-selection contract](rendered-document-selection.md) now has
+[native dispatch and actual macOS range/Copy evidence](../evidence/rendered-selection-dispatch-och17.md),
+including the later cache-lifecycle and retry qualifications linked from
+[the current status](../status.md). Those results do not establish rendered
+visual-line geometry or complete VoiceOver reading/tracking acceptance.
 
 Rendered Markdown exposes text from the actual painted nodes in reading order,
 with headings, lists, table structure, image alternatives and links. Do not add a
