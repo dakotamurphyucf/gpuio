@@ -30,7 +30,6 @@ module Chapter = struct
   ;;
 
   let carousel_id t = Carousel.Id.of_string (name t) |> ok
-  let route_id t = Navigation_stack.Id.of_string (name t) |> ok
 end
 
 module Slides = struct
@@ -80,12 +79,6 @@ module Slides = struct
       in
       { t with carousel = Carousel.with_auto_advance t.carousel auto |> ok }
   ;;
-end
-
-module Route_action = struct
-  type t =
-    | Back
-    | Forward
 end
 
 module Rail = struct
@@ -165,28 +158,12 @@ module Rail = struct
 end
 
 let component window palette graph =
+  let journey = Journey_preview.component window palette graph in
   let measured_cards = Carousel_track_preview.component window palette graph in
   let slides, slide =
     B.state_machine0
       ~default_model:Slides.initial
       ~apply_action:(fun _ model action -> Slides.apply model action)
-      graph
-  in
-  let history, navigate =
-    B.state_machine0
-      ~default_model:
-        (Navigation_stack.create
-           ~current:(Chapter.route_id Imagine)
-           (List.map Chapter.all ~f:(fun chapter ->
-              Navigation_stack.Entry.create
-                ~id:(Chapter.route_id chapter)
-                ~label:(Chapter.name chapter)
-                chapter
-              |> ok))
-         |> ok)
-      ~apply_action:(fun _ history -> function
-         | Route_action.Back -> Navigation_stack.pop history
-         | Forward -> Navigation_stack.forward history)
       graph
   in
   let rail, request =
@@ -204,20 +181,17 @@ let component window palette graph =
       graph
   in
   let draft = editor "Carousel idea" "Keep this idea as the slides move." in
-  let note = editor "Journey note" "Return here and pick up where you left off." in
   let open B.Let_syntax in
   let%arr p = palette
   and slides = slides
   and slide = slide
-  and history = history
-  and navigate = navigate
   and rail = rail
   and request = request
   and styled_labels = styled_labels
   and set_styled_labels = set_styled_labels
   and draft = draft
   and measured_cards = measured_cards
-  and note = note in
+  and journey = journey in
   let panel_style = style [ Padding (px 18.); Gap (px 14.); Width full; Height full ] in
   let button_style =
     style
@@ -227,7 +201,6 @@ let component window palette graph =
       ; Background (Background.solid (Palette.border p))
       ]
   in
-  let current = Navigation_stack.current history |> Option.value_exn in
   V.column
     ~style:(style [ Gap (px 20.) ])
     [ Palette.card
@@ -303,16 +276,6 @@ let component window palette graph =
                 ~checked:styled_labels
                 ~on_toggle:(set_styled_labels (not styled_labels))
                 "Style sidebar labels"
-            ; V.button
-                ~style:button_style
-                ~disabled:(not (Navigation_stack.can_pop history))
-                ~on_click:(navigate Back)
-                "Go back"
-            ; V.button
-                ~style:button_style
-                ~disabled:(not (Navigation_stack.can_forward history))
-                ~on_click:(navigate Forward)
-                "Continue journey"
             ]
         ; V.row
             ~style:(style [ Height (px 220.); Gap (px 14.); Overflow_y Hidden ])
@@ -354,35 +317,29 @@ let component window palette graph =
                     ())
                 ()
               |> ok
-            ; V.navigation_stack
-                history
-                ~label:"Idea journey"
-                ~hidden:Retain
+            ; V.column
                 ~style:
-                  (style
-                     [ Grow 1.
-                     ; Min_width (px 0.)
-                     ; Height full
-                     ; Background (Background.solid (Palette.background p))
-                     ; Radius 12.
-                     ])
-                ~page_style:panel_style
-                ~content:(fun entry ->
-                  let chapter = Navigation_stack.Entry.data entry in
-                  [ Palette.text p ~size:22. ("Journey: " ^ Chapter.name chapter)
-                  ; Palette.text p ~muted:true (Chapter.detail chapter)
-                  ; (match chapter with
-                     | Imagine -> Editor.view note
-                     | Shape | Share -> V.column [])
-                  ])
-                ()
+                  (style [ Grow 1.; Min_width (px 0.); Padding (px 18.); Gap (px 12.) ])
+                [ Palette.text p ~muted:true ~size:12. "WORKSPACE DESTINATION"
+                ; Palette.text
+                    p
+                    ~size:24.
+                    (Sidebar.selected rail
+                     |> Option.value_map
+                          ~default:"Choose a destination"
+                          ~f:Sidebar.Id.to_string)
+                ; Palette.text
+                    p
+                    ~muted:true
+                    "A place for the ideas and projects you want to keep close."
+                ]
             ]
-        ; Palette.text p ("Current journey: " ^ Navigation_stack.Entry.label current)
         ; Palette.text
             p
             ("Destination: "
              ^ (Sidebar.selected rail
                 |> Option.value_map ~default:"None" ~f:Sidebar.Id.to_string))
         ]
+    ; journey
     ]
 ;;

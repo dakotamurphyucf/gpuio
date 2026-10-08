@@ -80,7 +80,7 @@ Choice and display walkthroughs: [grouped capability pickers](choice_picker_prev
 [keyboard labels](keyboard_preview.md), [typed markers](marker_preview.md) and [rich tags](tag_preview.md).
 
 Page composition walkthroughs: [collections](collections_page.md), [feedback](feedback_page.md),
-[carousels and journeys](journeys_page.md), [navigation](navigation_page.md),
+[carousels and journeys](journeys_page.md), [navigation history](journey_preview.md), [navigation](navigation_page.md),
 [overlays](overlays_page.md) and [date/color pickers](pickers_page.md).
 
 Runtime and style walkthroughs: [menu observations](menu_preview.md), [runtime diagnostics](runtime_page.md),

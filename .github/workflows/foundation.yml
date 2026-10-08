@@ -338,6 +338,11 @@ jobs:
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
         timeout-minutes: 3
         run: python3 scripts/test_gallery.py --section carousel-focus --images .cache/ci/carousel-focus 2>&1 | tee .cache/ci/macos-carousel-focus.log
+      - name: Navigation history and page retention (macOS)
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 3
+        run: python3 scripts/test_gallery.py --section journey-history --images .cache/ci/journey-history 2>&1 | tee .cache/ci/macos-journey-history.log
+
       - name: macOS sidebar policies and retained appearance
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
         timeout-minutes: 3

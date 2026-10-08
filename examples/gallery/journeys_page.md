@@ -5,19 +5,18 @@ Read [journeys_page.ml](journeys_page.ml) and its [interface](journeys_page.mli)
 `Bonsai.Cont`, `V` `Gpuio_bonsai.View` and `Editor` `Gpuio_eio.Text_input`. `graph` hosts
 reactive state/controller computations; `let%arr` reads current models to derive views.
 
-`Chapter.t` defines Imagine/Shape/Share and constructs typed carousel/history IDs. `Slides.t`
+`Chapter.t` defines Imagine/Shape/Share and constructs typed carousel IDs. `Slides.t`
 holds a looping carousel and independent axis, initially first item/horizontal without auto
 advance. `Slides.apply` reduces requests, toggles axis or installs/removes a four-second native
 auto policy. `Rail` builds Projects with Orchard/Observatory children plus Archive; initially
 Orchard is selected, Projects expanded and collapse mode Icon. Its reducer handles requests,
 Icon/Offcanvas mode and branch activation Select_only/Expand/Toggle.
 
-Three `B.state_machine0` computations own slides, history and sidebar. Each returns current
-model plus an effect-producing injector; execution reduces against latest model. History is
-seeded Imagine as current with Shape/Share in its forward branch. Native Continue journey
-activation injects Forward, moves the history model to Shape and makes `let%arr` derive current
-label/page for native reconciliation. Constructing the effect does not navigate. Back protects
-the root and preserves forward history; this demo never pushes a newly visited route.
+Two local `B.state_machine0` computations own slides and sidebar. Each returns a
+current model and effect-producing injector; execution reduces against the latest
+model. Navigation history is a separate [Journey_preview](journey_preview.md)
+component, with its own reducer, root editor, new visits/replacement, motion and
+hidden-page policies. Constructing an effect does not navigate.
 
 `V.carousel` retains hidden pages and a separate native Imagine draft. Native manual/automatic
 requests feed `Slides.apply`; automatic deadlines pause during focus/hover/interaction/reduced
@@ -47,11 +46,10 @@ style and palette updates. Retaining a widget while offcanvas does not promise
 the same macOS accessibility object: AccessKit can retire objects for hidden
 subtrees and recreate them when they become exposed again.
 
-`V.navigation_stack` displays retained pages with independent Imagine note editor. Inactive
-native children are inert to input/accessibility; retaining them preserves native buffers while
-the page remains mounted. Hiding does not cancel an application Eio task or persist data beyond
-destruction. Two editor placements are separate: carousel idea and journey note do not mirror
-each other.
+`Journey_preview.component` renders its own card below the sidebar. It chooses
+Retain or Unmount explicitly for navigation pages; its walkthrough explains the
+difference in native buffer lifetime. Carousel idea and the root Journey note
+use separate controllers and do not mirror one another.
 
 Type in both Imagine fields, advance/back through history, switch carousel axis and sidebar
 mode, then inspect their independent readouts. GPUIO owns focus, page motion and native editors;

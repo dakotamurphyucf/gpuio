@@ -235,6 +235,7 @@ Generated from [coverage.json](coverage.json). Read the [review guide](coverage-
 | [icon_transform_sample.ml](gallery/icon_transform_sample.ml), [icon_transform_sample.mli](gallery/icon_transform_sample.mli) | component | [icon_transform_sample.md](gallery/icon_transform_sample.md) | reviewed |
 | [image_samples.ml](gallery/image_samples.ml), [image_samples.mli](gallery/image_samples.mli) | component | [image_samples.md](gallery/image_samples.md) | reviewed |
 | [input_page.ml](gallery/input_page.ml), [input_page.mli](gallery/input_page.mli) | component | [input_page.md](gallery/input_page.md) | reviewed |
+| [journey_preview.ml](gallery/journey_preview.ml), [journey_preview.mli](gallery/journey_preview.mli) | component | [journey_preview.md](gallery/journey_preview.md) | reviewed |
 | [journeys_page.ml](gallery/journeys_page.ml), [journeys_page.mli](gallery/journeys_page.mli) | component | [journeys_page.md](gallery/journeys_page.md) | reviewed |
 | [keyboard_preview.ml](gallery/keyboard_preview.ml), [keyboard_preview.mli](gallery/keyboard_preview.mli) | component | [keyboard_preview.md](gallery/keyboard_preview.md) | reviewed |
 | [label_preview.ml](gallery/label_preview.ml), [label_preview.mli](gallery/label_preview.mli) | component | [label_preview.md](gallery/label_preview.md) | reviewed |
@@ -504,4 +505,4 @@ Generated from [coverage.json](coverage.json). Read the [review guide](coverage-
 | --- | --- | --- | --- |
 | [main.ml](window_lifecycle/main.ml) | application-entry | [main.md](window_lifecycle/main.md) | reviewed |
 
-430 source files in 267 groups; 267 reviewed, 0 pending.
+432 source files in 268 groups; 268 reviewed, 0 pending.

@@ -30,6 +30,12 @@ Older records of a VoiceOver hold no longer apply. Access was restored after the
 
 ## Latest delivered behavior and validation
 
+The [navigation-history gallery follow-up](evidence/navigation-history-macos-och41.md)
+adds a modular public example for new visits, replacement, root/reset and explicit
+motion/retention policies. Six theme/motion combinations pass native keyboard/AX
+history and draft-lifetime checks locally and in a fresh installed consumer.
+Frame timing, VoiceOver and consolidated release acceptance remain separate.
+
 The [table-worker callback repair](evidence/api-boundaries-och17.md#obsolete-table-worker-notifications--2026-10-08)
 suppresses redundant application notifications from obsolete query completions
 while returning worker capacity to current requests. Deterministic full-inbox

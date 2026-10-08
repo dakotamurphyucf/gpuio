@@ -1,0 +1,149 @@
+[
+  {
+    "trial": "journey-native-001",
+    "executable_sha256": "81fe54e451e004ed71b46ff42562cef696e8a7ec405445ac1a4e0fc8812ddd1b",
+    "cases": [
+      {
+        "theme": "Dark",
+        "motion": "Slide",
+        "complete": true,
+        "retained_draft": true,
+        "unmounted_draft_reset": true
+      },
+      {
+        "theme": "Dark",
+        "motion": "Fade",
+        "complete": true,
+        "retained_draft": true,
+        "unmounted_draft_reset": true
+      },
+      {
+        "theme": "Dark",
+        "motion": "Immediate",
+        "complete": true,
+        "retained_draft": true,
+        "unmounted_draft_reset": true
+      },
+      {
+        "theme": "Light",
+        "motion": "Slide",
+        "complete": true,
+        "retained_draft": true,
+        "unmounted_draft_reset": true
+      },
+      {
+        "theme": "Light",
+        "motion": "Fade",
+        "complete": true,
+        "retained_draft": true,
+        "unmounted_draft_reset": true
+      },
+      {
+        "theme": "Light",
+        "motion": "Immediate",
+        "complete": true,
+        "retained_draft": true,
+        "unmounted_draft_reset": true
+      }
+    ],
+    "complete": true
+  },
+  {
+    "trial": "journey-native-002",
+    "executable_sha256": "b8434553892d833e047d112dfbc856a676f88671e91de8516a4a6b678bf94ef1",
+    "cases": [
+      {
+        "theme": "Dark",
+        "motion": "Slide",
+        "complete": true,
+        "retained_draft": true,
+        "unmounted_draft_reset": true
+      },
+      {
+        "theme": "Dark",
+        "motion": "Fade",
+        "complete": true,
+        "retained_draft": true,
+        "unmounted_draft_reset": true
+      },
+      {
+        "theme": "Dark",
+        "motion": "Immediate",
+        "complete": true,
+        "retained_draft": true,
+        "unmounted_draft_reset": true
+      },
+      {
+        "theme": "Light",
+        "motion": "Slide",
+        "complete": true,
+        "retained_draft": true,
+        "unmounted_draft_reset": true
+      },
+      {
+        "theme": "Light",
+        "motion": "Fade",
+        "complete": true,
+        "retained_draft": true,
+        "unmounted_draft_reset": true
+      },
+      {
+        "theme": "Light",
+        "motion": "Immediate",
+        "complete": true,
+        "retained_draft": true,
+        "unmounted_draft_reset": true
+      }
+    ],
+    "complete": true
+  },
+  {
+    "trial": "journey-installed-001",
+    "executable_sha256": "8bfcd5ec28a84d821090c6fd69e6fb969d64ceb3c7f453ce4cda154e5e377dc2",
+    "cases": [
+      {
+        "theme": "Dark",
+        "motion": "Slide",
+        "complete": true,
+        "retained_draft": true,
+        "unmounted_draft_reset": true
+      },
+      {
+        "theme": "Dark",
+        "motion": "Fade",
+        "complete": true,
+        "retained_draft": true,
+        "unmounted_draft_reset": true
+      },
+      {
+        "theme": "Dark",
+        "motion": "Immediate",
+        "complete": true,
+        "retained_draft": true,
+        "unmounted_draft_reset": true
+      },
+      {
+        "theme": "Light",
+        "motion": "Slide",
+        "complete": true,
+        "retained_draft": true,
+        "unmounted_draft_reset": true
+      },
+      {
+        "theme": "Light",
+        "motion": "Fade",
+        "complete": true,
+        "retained_draft": true,
+        "unmounted_draft_reset": true
+      },
+      {
+        "theme": "Light",
+        "motion": "Immediate",
+        "complete": true,
+        "retained_draft": true,
+        "unmounted_draft_reset": true
+      }
+    ],
+    "complete": true
+  }
+]

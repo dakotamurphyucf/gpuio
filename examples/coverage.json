@@ -1360,6 +1360,17 @@
     },
     {
       "sources": [
+        "examples/gallery/journey_preview.ml",
+        "examples/gallery/journey_preview.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [
+        "examples/gallery/journey_preview.md"
+      ],
+      "review": "reviewed"
+    },
+    {
+      "sources": [
         "examples/gallery/journeys_page.ml",
         "examples/gallery/journeys_page.mli"
       ],

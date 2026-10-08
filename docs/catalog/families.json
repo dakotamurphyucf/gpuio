@@ -519,12 +519,13 @@
       "id": "navigation-stack",
       "owner": "OCH-37",
       "scope": "v1",
-      "audit_status": "Exact pinned NavStack reviewed. Bounded immutable instance-keyed history, root protection/forward/replace, native slide/fade/immediate transitions and explicit retention are mapped. Custom native per-frame render closures use the extension boundary, not synchronous OCaml callbacks. Existing OCH-37 evidence is linked; current gallery/macOS/resource qualification remains open. See journey-workspace-review.md.",
+      "audit_status": "Exact pinned NavStack reviewed. Bounded immutable instance-keyed history, root protection/forward/replace, native slide/fade/immediate transitions and explicit retention are mapped. The modular public Journey preview now exposes new visits, replacement, root/reset and motion/retention policies. Actual macOS Space/AX history and root-editor retention/remount pass six theme/motion combinations locally and in a fresh installed consumer. Custom per-frame render closures use the native extension boundary. Every-frame motion, VoiceOver, scaled geometry/resources and consolidated release qualification remain separate. See journey-workspace-review.md and navigation-history-macos-och41.md.",
       "public_interface": "lib/core/navigation_stack.mli",
       "example": "examples/navigation",
       "evidence": [
         "docs/evidence/navigation-components-och37.md",
-        "docs/catalog/journey-workspace-review.md"
+        "docs/catalog/journey-workspace-review.md",
+        "docs/evidence/navigation-history-macos-och41.md"
       ],
       "gallery_page": "journeys",
       "contract": "Bounded history, separate instance identity and native navigation motion; retention does not imply Eio cancellation.",
