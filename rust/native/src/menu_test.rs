@@ -245,16 +245,9 @@ async fn platform_contexts(
             (view.session.clone(), view.transport.clone())
         })
         .unwrap();
-    let id = [1, 2]
-        .into_iter()
-        .map(|generation| WindowId::from_parts(1, generation).unwrap())
-        .find(|id| {
-            session
-                .borrow()
-                .validate_open(*id, "Menu isolation", 400., 280.)
-                .is_ok()
-        })
-        .unwrap();
+    // Command isolation retired generation 1; the artwork fixture retired 2.
+    // The standalone suite prepares the same history as the full control suite.
+    let id = WindowId::from_parts(1, 3).unwrap();
     let secondary = cx.update(|cx| {
         cx.open_window(
             WindowOptions {

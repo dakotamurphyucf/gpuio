@@ -129,3 +129,40 @@ initial preview stage between runs. This corrects test composition with earlier
 window creation; it does not change application window names. The follow-up
 archive retains the repeated-run log and the independently built executable's
 identity.
+
+## Full-suite fixture generations — 2026-10-08
+
+Hosted run [37731811839](https://github.com/dakotamurphyucf/gpuio/actions/runs/37731811839)
+at `de452dea` exposed a fixture-composition failure in `native_controls`:
+the preceding command-isolation check had retired protocol window `(1, 1)`,
+but the artwork check tried to open that same generation. The production Session
+correctly returned `StaleHandle`. The standalone menu test did not establish the
+same prior window history, so its earlier pass did not cover this composition.
+
+The fixture now uses generation 2 for artwork. The standalone menu suite reserves
+and closes generation 1 to match the full suite. The first corrected full run
+passed artwork, then exposed a second outdated assumption: the later menu-context
+fixture searched only generations 1 and 2. It now explicitly opens generation 3,
+after artwork retirement. All fixtures still share the same Session and verify
+surviving-window ownership; production generation validation is unchanged.
+
+On the local physical macOS arm64 host, both final executables exit zero:
+
+- Complete `native_controls`: 16.484 seconds, including the preceding command
+  fixture, artwork, menu contexts and all subsequent control checks.
+- Standalone `native_menus`: 4.265 seconds, including artwork, stale native actions,
+  focused-window routing and surviving-window restoration.
+- Strict native-tests all-target Clippy and workspace Rust formatting pass.
+
+These are actual native-window/AppKit checks with programmatic test input and AX
+queries, not VoiceOver speech/navigation or new physical-typing evidence.
+Observation source is `9e6fea4c` with the accompanying three-file fixture patch;
+the archive records both executable hashes and exact build/run commands. All
+owned children were reaped. The rejected first build command (`native_menu`
+instead of `native_menus`) and the intermediate failing control run are retained.
+
+The [fixture archive](native-menu-bar-icons-och41/fixture-reports.tar.gz) includes
+the original hosted failure excerpt, intermediate and passing local results,
+source patches, build/lint logs and the hosted receiver reports. Its
+[manifest](native-menu-bar-icons-och41/fixture-manifest.json) was verified against
+every archive member. Updated-source hosted acceptance remains pending.

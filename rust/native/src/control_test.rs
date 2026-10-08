@@ -1773,6 +1773,17 @@ fn run_suite(suite: Suite) {
             .borrow_mut()
             .open(1, id, "GPUIO controls test", 400., 280.)
             .unwrap();
+        #[cfg(target_os = "macos")]
+        if suite == Suite::Menus {
+            // The full controls suite runs command isolation before menus. Match
+            // its retired secondary-window generation in the standalone fixture.
+            let retired = WindowId::from_parts(1, 1).unwrap();
+            session
+                .borrow_mut()
+                .open(2, retired, "Command isolation fixture", 400., 280.)
+                .unwrap();
+            session.borrow_mut().close(retired).unwrap();
+        }
         let mut operations = vec![Op::Create(node(0), Kind::Container, "".into(), None)];
         for (slot, label, control) in [
             (1, "Check", Control::Checkbox(CheckState::Unchecked, false)),

@@ -967,7 +967,7 @@
       "id": "diagnostics",
       "owner": "OCH-17",
       "scope": "v1",
-      "audit_status": "Four pinned measurement/test-observation/accessibility sources reviewed in diagnostics-review.md. Public counters and test infrastructure have explicit units and limits. The host does not install upstream Root's NSWindow AX hit-test forwarder; equivalent point-based routing needs physical qualification. Performance/resource/VoiceOver/startup/distribution gates remain open.",
+      "audit_status": "Four pinned measurement/test-observation/accessibility sources reviewed in diagnostics-review.md. Public counters and test infrastructure have explicit units and limits. The host now installs the pinned NSWindow AX hit-test forwarder; the real two-window regression obtains exact editor identity at visible screen points. Other controls/overlays and VoiceOver still require qualification. Performance/resource/startup/distribution gates remain open.",
       "public_interface": "lib/eio/app.mli",
       "example": "examples/runtime",
       "evidence": [

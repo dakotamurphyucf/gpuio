@@ -68,7 +68,9 @@ pub(super) async fn exercise(
             (view.session.clone(), view.transport.clone())
         })
         .unwrap();
-    let window_id = WindowId::from_parts(1, 1).unwrap();
+    // The command-isolation fixture already retired generation 1. The
+    // standalone menu suite prepares the same window-slot history.
+    let window_id = WindowId::from_parts(1, 2).unwrap();
     session
         .borrow_mut()
         .open(3, window_id, "Native menu artwork", 400., 280.)

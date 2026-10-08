@@ -1,6 +1,32 @@
 # Milestone 07 hosted validation follow-up
 
-## Latest terminal run — 37713213949
+## Latest terminal run — 37731811839
+
+[Run 37731811839](https://github.com/dakotamurphyucf/gpuio/actions/runs/37731811839)
+at `de452dea` passes Linux Foundation and the separate fresh macOS extracted-app
+receiver. macOS Foundation fails three steps: native controls, GPUI Metal
+presentation hook and independent Metal API calibration. The document-profile
+step now passes on this repaired source.
+
+The controls failure is test-fixture reuse of a retired window generation, not
+a newly established native-menu production failure. The
+[fixture repair and complete local reruns](native-menu-bar-icons-och41.md#full-suite-fixture-generations--2026-10-08)
+pass both `native_controls` and `native_menus`, preserving production stale-handle
+rejection. Updated-source hosted validation remains required.
+
+The [Metal investigation](hosted-metal-diagnostic-och17.md) retains separate ARM
+and Intel experiments. Neither idle delay nor separately recorded active warmup
+has made the Intel two-window strict probe pass. These outcomes do not waive the
+required checks or invalidate the separately recorded physical-Mac results.
+
+The receiver's gallery, chat and Signal Studio reports are all complete, with
+clipboard restoration. They identify packaging revision `f0243fd5` and explicitly
+do not attest the binaries' source revisions. The job uses a separate hosted
+runner and denies development paths; it does not certify a signed/notarized
+release. Raw reports accompany the fixture archive linked above. Earlier failures
+and qualified limitations remain historical evidence below.
+
+## Earlier terminal run — 37713213949
 
 [Run 37713213949](https://github.com/dakotamurphyucf/gpuio/actions/runs/37713213949)
 at `88d3c3d8` passes Linux Foundation and the separate fresh macOS extracted-app
