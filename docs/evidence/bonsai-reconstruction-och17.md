@@ -1,9 +1,9 @@
 # Bonsai source reconstruction — OCH-17
 
-Checkpoint 2026-10-04, macOS arm64, dirty worktree based on
-`83eb87e865c86717a8bc51b9db6fe1f379d909a9`. This establishes reconstruction of
-**Bonsai itself**, not all eight members of the native Bonsai family or release
-readiness. OCH-17 remains open.
+Checkpoint 2026-10-04, macOS arm64. The initial check below establishes Bonsai
+itself from a dirty worktree based on `83eb87e865c86717a8bc51b9db6fe1f379d909a9`.
+The later [complete-family check](#complete-family-reconstruction-after-access-was-restored)
+covers all eight roots. Neither establishes release readiness; OCH-17 remains open.
 
 ## Verified source
 

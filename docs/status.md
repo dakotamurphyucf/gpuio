@@ -36,6 +36,11 @@ Older records of a VoiceOver hold no longer apply. Access was restored after the
 
 ## Latest delivered behavior and validation
 
+The [OCaml notice provenance audit](evidence/ocaml-notice-provenance-och17.md)
+verifies all 499 collected texts against original checksum-verified archives.
+The ten zero-text metadata classifications remain visible; embedded attribution
+and whole-release notice review are still open.
+
 The [loaded-list paint diagnostic](evidence/list-paint-geometry-och17.md) found no
 row overlap in 24,338 observed list paints, but the full attempt timed out with
 an inactive window before completion. This narrows the geometry investigation;

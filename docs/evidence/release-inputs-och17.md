@@ -31,9 +31,9 @@ diff -qr vendor/gpui-base FRESH_BASE
 python3 scripts/verify_accesskit_macos.py --archive ACCESSKIT_MACOS_CRATE
 ```
 
-A subsequent [Bonsai-only reconstruction](bonsai-reconstruction-och17.md) matches
-1,693 entries exactly. The other seven Bonsai-family members, transitive licenses
-and remaining release input review are not established by these checks. See
+The subsequent [complete Bonsai-family reconstruction](bonsai-reconstruction-och17.md#complete-family-reconstruction-after-access-was-restored)
+matches all 2,348 entries across eight roots. Transitive licenses and the remaining
+release input review are separate from source reconstruction. See
 [maintenance instructions](../component-adapters.md).
 
 ## Reference bundles

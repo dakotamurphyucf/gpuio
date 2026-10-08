@@ -53,6 +53,11 @@ Both include the original LGPL text and OCaml linking exception. They are retain
 unchanged; this evidence makes no interpretation of redistribution obligations.
 The compiler manual's separate license is also collected, conservatively.
 
+The subsequent [source-provenance audit](ocaml-notice-provenance-och17.md) verifies
+all 499 collected notice files against checksum-verified original archives,
+including the virtual compiler package's explicit license provider. That closes
+notice-byte provenance, not discovery completeness or release approval.
+
 ## Explicit remaining gaps
 
 Ten package rows have no independently collected text:
