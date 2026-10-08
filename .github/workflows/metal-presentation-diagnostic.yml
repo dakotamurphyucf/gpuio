@@ -12,28 +12,56 @@ defaults:
     shell: bash
 
 jobs:
-  probe:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [macos-15-intel]
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 10
+  native-hook:
+    runs-on: macos-15-intel
+    timeout-minutes: 60
+    env:
+      GPUIO_JOBS: 3
+      CARGO_INCREMENTAL: "0"
+      CARGO_TERM_COLOR: never
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-      - name: Prepare and identify display
+      - name: Prerequisites
         run: |
           mkdir -p .cache/metal-diagnostic
+          for package in pkg-config gpatch; do
+            brew list "$package" >/dev/null || brew install "$package"
+          done
+          echo "$(brew --prefix gpatch)/libexec/gnubin" >> "$GITHUB_PATH"
+      - name: Prepare and identify display
+        run: |
           xcrun swift -module-cache-path .cache/modules scripts/ci_macos_display.swift --apply > .cache/metal-diagnostic/display-setup.log
           xcrun swift -module-cache-path .cache/modules scripts/ci_macos_display.swift --check > .cache/metal-diagnostic/display-check.log
           system_profiler SPDisplaysDataType -json > .cache/metal-diagnostic/displays.json
-          pmset -g custom > .cache/metal-diagnostic/power.txt
-      - name: Compare plain and owned-window capture
-        run: python3 scripts/diagnose_hosted_metal.py --output .cache/metal-diagnostic
+      - name: Install pinned opam
+        run: python3 scripts/ci_opam.py
+      - uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
+        id: cache
+        with:
+          path: |
+            .opam-root
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: metal-hook-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('gpuio.opam.locked', 'rust-toolchain.toml', 'Cargo.lock') }}
+          restore-keys: foundation-v2-${{ runner.os }}-${{ runner.arch }}-
+      - name: Bootstrap repository environment
+        run: |
+          ./scripts/gpuio bootstrap > .cache/metal-diagnostic/bootstrap.log 2>&1
+          ./scripts/gpuio doctor > .cache/metal-diagnostic/toolchain.log
+      - uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
+        if: steps.cache.outputs.cache-hit != 'true'
+        with:
+          path: |
+            .opam-root
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: metal-hook-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('gpuio.opam.locked', 'rust-toolchain.toml', 'Cargo.lock') }}
+      - name: Unchanged two-window GPUI integration probe
+        run: python3 scripts/test_metal_presentation.py --output .cache/metal-diagnostic/native-hook
       - name: Preserve every outcome
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: metal-diagnostic-${{ matrix.os }}
+          name: metal-native-hook-intel
           include-hidden-files: true
           path: .cache/metal-diagnostic
