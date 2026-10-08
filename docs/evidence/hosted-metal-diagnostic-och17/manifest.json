@@ -1,0 +1,362 @@
+{
+  "intel-results/metal-diagnostic-macos-15-intel/capture/build.log": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "intel-results/metal-diagnostic-macos-15-intel/capture/capture-0.png": {
+    "bytes": 66678,
+    "sha256": "8aca18bf5c9cc5c0b95793f13fb4d0729f300429655e507cf524f21bf9032d6f"
+  },
+  "intel-results/metal-diagnostic-macos-15-intel/capture/capture-10.png": {
+    "bytes": 66678,
+    "sha256": "8aca18bf5c9cc5c0b95793f13fb4d0729f300429655e507cf524f21bf9032d6f"
+  },
+  "intel-results/metal-diagnostic-macos-15-intel/capture/capture-100.png": {
+    "bytes": 66678,
+    "sha256": "8aca18bf5c9cc5c0b95793f13fb4d0729f300429655e507cf524f21bf9032d6f"
+  },
+  "intel-results/metal-diagnostic-macos-15-intel/capture/capture-110.png": {
+    "bytes": 66678,
+    "sha256": "8aca18bf5c9cc5c0b95793f13fb4d0729f300429655e507cf524f21bf9032d6f"
+  },
+  "intel-results/metal-diagnostic-macos-15-intel/capture/capture-20.png": {
+    "bytes": 66678,
+    "sha256": "8aca18bf5c9cc5c0b95793f13fb4d0729f300429655e507cf524f21bf9032d6f"
+  },
+  "intel-results/metal-diagnostic-macos-15-intel/capture/capture-30.png": {
+    "bytes": 66678,
+    "sha256": "8aca18bf5c9cc5c0b95793f13fb4d0729f300429655e507cf524f21bf9032d6f"
+  },
+  "intel-results/metal-diagnostic-macos-15-intel/capture/capture-40.png": {
+    "bytes": 66678,
+    "sha256": "8aca18bf5c9cc5c0b95793f13fb4d0729f300429655e507cf524f21bf9032d6f"
+  },
+  "intel-results/metal-diagnostic-macos-15-intel/capture/capture-50.png": {
+    "bytes": 66678,
+    "sha256": "8aca18bf5c9cc5c0b95793f13fb4d0729f300429655e507cf524f21bf9032d6f"
+  },
+  "intel-results/metal-diagnostic-macos-15-intel/capture/capture-60.png": {
+    "bytes": 66678,
+    "sha256": "8aca18bf5c9cc5c0b95793f13fb4d0729f300429655e507cf524f21bf9032d6f"
+  },
+  "intel-results/metal-diagnostic-macos-15-intel/capture/capture-70.png": {
+    "bytes": 66678,
+    "sha256": "8aca18bf5c9cc5c0b95793f13fb4d0729f300429655e507cf524f21bf9032d6f"
+  },
+  "intel-results/metal-diagnostic-macos-15-intel/capture/capture-80.png": {
+    "bytes": 66678,
+    "sha256": "8aca18bf5c9cc5c0b95793f13fb4d0729f300429655e507cf524f21bf9032d6f"
+  },
+  "intel-results/metal-diagnostic-macos-15-intel/capture/capture-90.png": {
+    "bytes": 66678,
+    "sha256": "8aca18bf5c9cc5c0b95793f13fb4d0729f300429655e507cf524f21bf9032d6f"
+  },
+  "intel-results/metal-diagnostic-macos-15-intel/capture/probe.swift": {
+    "bytes": 9810,
+    "sha256": "faee33f913003d5edff2f141a37c9b70ee00387d9c3afd6fb97089f0f8b43f35"
+  },
+  "intel-results/metal-diagnostic-macos-15-intel/capture/report.json": {
+    "bytes": 59226,
+    "sha256": "9e76466231cbfd49aa2e36d33bdff0e77cbd370bec24ed7397cead8dc59ffe25"
+  },
+  "intel-results/metal-diagnostic-macos-15-intel/capture/stderr.log": {
+    "bytes": 217,
+    "sha256": "a3514a8c70a7535e52c850a8c7b4779853e89ecc78b4050692ff059970356b98"
+  },
+  "intel-results/metal-diagnostic-macos-15-intel/display-check.log": {
+    "bytes": 228,
+    "sha256": "bb3757a2a3981f4a7eb048a8403f51dc4a1d259aa325df16794ccdcf98c5aa6a"
+  },
+  "intel-results/metal-diagnostic-macos-15-intel/display-setup.log": {
+    "bytes": 228,
+    "sha256": "bb3757a2a3981f4a7eb048a8403f51dc4a1d259aa325df16794ccdcf98c5aa6a"
+  },
+  "intel-results/metal-diagnostic-macos-15-intel/displays.json": {
+    "bytes": 2424,
+    "sha256": "dc551956f88aec8a2156941c7ac8aa6225372e597ebe3861267ce86cbf724214"
+  },
+  "intel-results/metal-diagnostic-macos-15-intel/plain/build.log": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "intel-results/metal-diagnostic-macos-15-intel/plain/probe.swift": {
+    "bytes": 9170,
+    "sha256": "6a4477b8e9b4eea718da01f78293ef2f2105ea6dad1a9c53d6327648ab7e8547"
+  },
+  "intel-results/metal-diagnostic-macos-15-intel/plain/report.json": {
+    "bytes": 59069,
+    "sha256": "9a9cdd3992994b31590608e514eb730b4bd9753c37960b45f6b3a6312631856e"
+  },
+  "intel-results/metal-diagnostic-macos-15-intel/plain/stderr.log": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "intel-results/metal-diagnostic-macos-15-intel/power.txt": {
+    "bytes": 347,
+    "sha256": "55deaad4e485755051bfa9b1a26a2bb62a09f7a0528ce36d6e5910cd1c3334bf"
+  },
+  "intel-results/metal-diagnostic-macos-15-intel/summary.json": {
+    "bytes": 1103,
+    "sha256": "33b315264a3971f19a42cc37822e2c9557a66c8c392d4d909ccf9c7b709ea669"
+  },
+  "results/metal-diagnostic-macos-15/capture/build.log": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "results/metal-diagnostic-macos-15/capture/capture-0.png": {
+    "bytes": 69168,
+    "sha256": "bdceb424abf7cac2e02e363ca8dbf6eb5b11713f2869892e703b4aa622abd3ef"
+  },
+  "results/metal-diagnostic-macos-15/capture/capture-10.png": {
+    "bytes": 69168,
+    "sha256": "bdceb424abf7cac2e02e363ca8dbf6eb5b11713f2869892e703b4aa622abd3ef"
+  },
+  "results/metal-diagnostic-macos-15/capture/capture-100.png": {
+    "bytes": 69168,
+    "sha256": "bdceb424abf7cac2e02e363ca8dbf6eb5b11713f2869892e703b4aa622abd3ef"
+  },
+  "results/metal-diagnostic-macos-15/capture/capture-110.png": {
+    "bytes": 69168,
+    "sha256": "bdceb424abf7cac2e02e363ca8dbf6eb5b11713f2869892e703b4aa622abd3ef"
+  },
+  "results/metal-diagnostic-macos-15/capture/capture-20.png": {
+    "bytes": 69168,
+    "sha256": "bdceb424abf7cac2e02e363ca8dbf6eb5b11713f2869892e703b4aa622abd3ef"
+  },
+  "results/metal-diagnostic-macos-15/capture/capture-30.png": {
+    "bytes": 69168,
+    "sha256": "bdceb424abf7cac2e02e363ca8dbf6eb5b11713f2869892e703b4aa622abd3ef"
+  },
+  "results/metal-diagnostic-macos-15/capture/capture-40.png": {
+    "bytes": 69168,
+    "sha256": "bdceb424abf7cac2e02e363ca8dbf6eb5b11713f2869892e703b4aa622abd3ef"
+  },
+  "results/metal-diagnostic-macos-15/capture/capture-50.png": {
+    "bytes": 69168,
+    "sha256": "bdceb424abf7cac2e02e363ca8dbf6eb5b11713f2869892e703b4aa622abd3ef"
+  },
+  "results/metal-diagnostic-macos-15/capture/capture-60.png": {
+    "bytes": 69168,
+    "sha256": "bdceb424abf7cac2e02e363ca8dbf6eb5b11713f2869892e703b4aa622abd3ef"
+  },
+  "results/metal-diagnostic-macos-15/capture/capture-70.png": {
+    "bytes": 69168,
+    "sha256": "bdceb424abf7cac2e02e363ca8dbf6eb5b11713f2869892e703b4aa622abd3ef"
+  },
+  "results/metal-diagnostic-macos-15/capture/capture-80.png": {
+    "bytes": 69168,
+    "sha256": "bdceb424abf7cac2e02e363ca8dbf6eb5b11713f2869892e703b4aa622abd3ef"
+  },
+  "results/metal-diagnostic-macos-15/capture/capture-90.png": {
+    "bytes": 69168,
+    "sha256": "bdceb424abf7cac2e02e363ca8dbf6eb5b11713f2869892e703b4aa622abd3ef"
+  },
+  "results/metal-diagnostic-macos-15/capture/probe.swift": {
+    "bytes": 9810,
+    "sha256": "faee33f913003d5edff2f141a37c9b70ee00387d9c3afd6fb97089f0f8b43f35"
+  },
+  "results/metal-diagnostic-macos-15/capture/report.json": {
+    "bytes": 63502,
+    "sha256": "3db22a926843b168af3face1407c4028f78a2373cfc10be8b110dc89ccce8af6"
+  },
+  "results/metal-diagnostic-macos-15/capture/stderr.log": {
+    "bytes": 217,
+    "sha256": "a3514a8c70a7535e52c850a8c7b4779853e89ecc78b4050692ff059970356b98"
+  },
+  "results/metal-diagnostic-macos-15/display-check.log": {
+    "bytes": 426,
+    "sha256": "8469deaab301335897fee8d0ccdd652d7086d93b585949969fb60805d8789150"
+  },
+  "results/metal-diagnostic-macos-15/display-setup.log": {
+    "bytes": 483,
+    "sha256": "f2df9aedb315c1d8dc5c1e28d44e18c820351779ed06fb897f713125d2eab54b"
+  },
+  "results/metal-diagnostic-macos-15/displays.json": {
+    "bytes": 35,
+    "sha256": "0e2a2e10de1b28c2c98b9bf2faadb16610de1aad4b8308e92b54c13e74402c3c"
+  },
+  "results/metal-diagnostic-macos-15/plain/build.log": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "results/metal-diagnostic-macos-15/plain/probe.swift": {
+    "bytes": 9170,
+    "sha256": "6a4477b8e9b4eea718da01f78293ef2f2105ea6dad1a9c53d6327648ab7e8547"
+  },
+  "results/metal-diagnostic-macos-15/plain/report.json": {
+    "bytes": 63514,
+    "sha256": "a893aa0b1483835fe20d3faa33937dd7f9cdf3b44d88798ba428232e2afde804"
+  },
+  "results/metal-diagnostic-macos-15/plain/stderr.log": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "results/metal-diagnostic-macos-15/power.txt": {
+    "bytes": 203,
+    "sha256": "7f084b237939bdff8346389cc4aa2bcb483431ab1d5c251ded3bae7fd065dab4"
+  },
+  "results/metal-diagnostic-macos-15/summary.json": {
+    "bytes": 13258,
+    "sha256": "9e667649530bb22792276f0aa8e19cdbd963c4c5a524ca417e2b53e7aeb05beb"
+  },
+  "results/metal-diagnostic-macos-26/capture/build.log": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "results/metal-diagnostic-macos-26/capture/capture-0.png": {
+    "bytes": 75980,
+    "sha256": "dc510dd503439e10db57c8a120985a458238a75b88f9d2ff6d6e4d38f3a76d13"
+  },
+  "results/metal-diagnostic-macos-26/capture/capture-10.png": {
+    "bytes": 75845,
+    "sha256": "a3e837b966c8eb4a51d9cadb1edfe277f8982d03bc4f1c9a30b63cb2d0642c6b"
+  },
+  "results/metal-diagnostic-macos-26/capture/capture-100.png": {
+    "bytes": 75845,
+    "sha256": "a3e837b966c8eb4a51d9cadb1edfe277f8982d03bc4f1c9a30b63cb2d0642c6b"
+  },
+  "results/metal-diagnostic-macos-26/capture/capture-110.png": {
+    "bytes": 75845,
+    "sha256": "a3e837b966c8eb4a51d9cadb1edfe277f8982d03bc4f1c9a30b63cb2d0642c6b"
+  },
+  "results/metal-diagnostic-macos-26/capture/capture-20.png": {
+    "bytes": 75845,
+    "sha256": "a3e837b966c8eb4a51d9cadb1edfe277f8982d03bc4f1c9a30b63cb2d0642c6b"
+  },
+  "results/metal-diagnostic-macos-26/capture/capture-30.png": {
+    "bytes": 75845,
+    "sha256": "a3e837b966c8eb4a51d9cadb1edfe277f8982d03bc4f1c9a30b63cb2d0642c6b"
+  },
+  "results/metal-diagnostic-macos-26/capture/capture-40.png": {
+    "bytes": 75845,
+    "sha256": "a3e837b966c8eb4a51d9cadb1edfe277f8982d03bc4f1c9a30b63cb2d0642c6b"
+  },
+  "results/metal-diagnostic-macos-26/capture/capture-50.png": {
+    "bytes": 75845,
+    "sha256": "a3e837b966c8eb4a51d9cadb1edfe277f8982d03bc4f1c9a30b63cb2d0642c6b"
+  },
+  "results/metal-diagnostic-macos-26/capture/capture-60.png": {
+    "bytes": 75845,
+    "sha256": "a3e837b966c8eb4a51d9cadb1edfe277f8982d03bc4f1c9a30b63cb2d0642c6b"
+  },
+  "results/metal-diagnostic-macos-26/capture/capture-70.png": {
+    "bytes": 75845,
+    "sha256": "a3e837b966c8eb4a51d9cadb1edfe277f8982d03bc4f1c9a30b63cb2d0642c6b"
+  },
+  "results/metal-diagnostic-macos-26/capture/capture-80.png": {
+    "bytes": 75845,
+    "sha256": "a3e837b966c8eb4a51d9cadb1edfe277f8982d03bc4f1c9a30b63cb2d0642c6b"
+  },
+  "results/metal-diagnostic-macos-26/capture/capture-90.png": {
+    "bytes": 75845,
+    "sha256": "a3e837b966c8eb4a51d9cadb1edfe277f8982d03bc4f1c9a30b63cb2d0642c6b"
+  },
+  "results/metal-diagnostic-macos-26/capture/probe.swift": {
+    "bytes": 9810,
+    "sha256": "faee33f913003d5edff2f141a37c9b70ee00387d9c3afd6fb97089f0f8b43f35"
+  },
+  "results/metal-diagnostic-macos-26/capture/report.json": {
+    "bytes": 63341,
+    "sha256": "d09ef0ba98b8780ecc2da271aa69fab56ca4e4b9535cbb9f2ceaeefa0afec5df"
+  },
+  "results/metal-diagnostic-macos-26/capture/stderr.log": {
+    "bytes": 217,
+    "sha256": "a3514a8c70a7535e52c850a8c7b4779853e89ecc78b4050692ff059970356b98"
+  },
+  "results/metal-diagnostic-macos-26/display-check.log": {
+    "bytes": 426,
+    "sha256": "63bbdcd09f0b2b7403fee1b69c92c563ae6b30cd32054ca133d9a3d77498d1e9"
+  },
+  "results/metal-diagnostic-macos-26/display-setup.log": {
+    "bytes": 483,
+    "sha256": "34818ee73a9120a3e42453f3bbf48020dd338ea8738db6393d9c67cd6551217a"
+  },
+  "results/metal-diagnostic-macos-26/displays.json": {
+    "bytes": 35,
+    "sha256": "0e2a2e10de1b28c2c98b9bf2faadb16610de1aad4b8308e92b54c13e74402c3c"
+  },
+  "results/metal-diagnostic-macos-26/plain/build.log": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "results/metal-diagnostic-macos-26/plain/probe.swift": {
+    "bytes": 9170,
+    "sha256": "6a4477b8e9b4eea718da01f78293ef2f2105ea6dad1a9c53d6327648ab7e8547"
+  },
+  "results/metal-diagnostic-macos-26/plain/report.json": {
+    "bytes": 63320,
+    "sha256": "88fd849eb44e27d85daba0efbba41f5e513e34f6f51a146362e5342ea9db2c3c"
+  },
+  "results/metal-diagnostic-macos-26/plain/stderr.log": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "results/metal-diagnostic-macos-26/power.txt": {
+    "bytes": 203,
+    "sha256": "7f084b237939bdff8346389cc4aa2bcb483431ab1d5c251ded3bae7fd065dab4"
+  },
+  "results/metal-diagnostic-macos-26/summary.json": {
+    "bytes": 13258,
+    "sha256": "108342376aacae94d01b193d83401715f9f00e196eb5abf4a37928ea614c7dc0"
+  },
+  "serial-results/metal-diagnostic-macos-15-intel/display-check.log": {
+    "bytes": 228,
+    "sha256": "bb3757a2a3981f4a7eb048a8403f51dc4a1d259aa325df16794ccdcf98c5aa6a"
+  },
+  "serial-results/metal-diagnostic-macos-15-intel/display-setup.log": {
+    "bytes": 228,
+    "sha256": "bb3757a2a3981f4a7eb048a8403f51dc4a1d259aa325df16794ccdcf98c5aa6a"
+  },
+  "serial-results/metal-diagnostic-macos-15-intel/displays.json": {
+    "bytes": 2424,
+    "sha256": "10fbdd56780fb7c27c67f374e525508b2c8f6d8583787a0a36672a10c2e9e0fc"
+  },
+  "serial-results/metal-diagnostic-macos-15-intel/power.txt": {
+    "bytes": 347,
+    "sha256": "55deaad4e485755051bfa9b1a26a2bb62a09f7a0528ce36d6e5910cd1c3334bf"
+  },
+  "serial-results/metal-diagnostic-macos-15-intel/serial/build.log": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "serial-results/metal-diagnostic-macos-15-intel/serial/probe.swift": {
+    "bytes": 9414,
+    "sha256": "5d3be7de6e1b8828f4caca8571d49b3fd344ef2bca54c7c690dadfa53228db78"
+  },
+  "serial-results/metal-diagnostic-macos-15-intel/serial/report.json": {
+    "bytes": 59006,
+    "sha256": "ca04496a7351aa02f5fe62e5b325af995a86498633ecba3f4fde1ec53c97e908"
+  },
+  "serial-results/metal-diagnostic-macos-15-intel/serial/stderr.log": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "serial-results/metal-diagnostic-macos-15-intel/summary.json": {
+    "bytes": 420,
+    "sha256": "e92daeb318ecd86372d9e821d85dcadb5b8bd1227490c31cd9db5597f62df396"
+  },
+  "versions/arm64/diagnose_hosted_metal.py": {
+    "bytes": 3549,
+    "sha256": "1e72d233340be4da6144bd6d9ae1dcea17d3c82bef3ca917ff521096f07df044"
+  },
+  "versions/arm64/metal-presentation-diagnostic.yml": {
+    "bytes": 1347,
+    "sha256": "471dc52a56bae3adad6cc33d349866f692b4d9df80e524d8b0278cbd07341ee5"
+  },
+  "versions/intel/diagnose_hosted_metal.py": {
+    "bytes": 3549,
+    "sha256": "1e72d233340be4da6144bd6d9ae1dcea17d3c82bef3ca917ff521096f07df044"
+  },
+  "versions/intel/metal-presentation-diagnostic.yml": {
+    "bytes": 1343,
+    "sha256": "7d0208dde96ef9f8fd78a1bbef4daeb584bf10baf8837f35f1bbce949964f91c"
+  },
+  "versions/serial/diagnose_hosted_metal.py": {
+    "bytes": 3917,
+    "sha256": "d8023fbdac21014ad3186a14d21c1cc463c5dbfe6dd9329572ad411f675d23b2"
+  },
+  "versions/serial/metal-presentation-diagnostic.yml": {
+    "bytes": 1343,
+    "sha256": "7d0208dde96ef9f8fd78a1bbef4daeb584bf10baf8837f35f1bbce949964f91c"
+  }
+}

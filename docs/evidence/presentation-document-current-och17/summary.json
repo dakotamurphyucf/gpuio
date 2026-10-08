@@ -1,0 +1,449 @@
+{
+  "revision": "5f75aec1767852f87c914b5490534d93b238fc54",
+  "executable_source_revision": "2562490ffee13059a6ca99ddc7108556f2a3972a",
+  "executable_sha256": "a1fedc1659c24e0ab2ee211624444a6e4df8c611ca9e331c234fbb6b582b15c3",
+  "plan": "One warm-up followed by exactly three full 20 MiB aggregate (8/8/4 MiB) document trials using code from 2562490f (subsequent commits only change docs); unchanged budgets; retain every outcome; stop remaining trials on child execution failure or missing clipboard restoration",
+  "running": null,
+  "trials": [
+    {
+      "name": "warmup",
+      "driver_exit": 0,
+      "complete": true,
+      "error": null,
+      "child_returncode": 0,
+      "report_sha256": "014159619eb6b68fe1f29955bd5db7ef6d50b9f9e0f9349f38fb2cafdaf993ba",
+      "revision": "5f75aec1767852f87c914b5490534d93b238fc54",
+      "dirty": false,
+      "executable_sha256": "a1fedc1659c24e0ab2ee211624444a6e4df8c611ca9e331c234fbb6b582b15c3",
+      "budget_failures": null,
+      "peak_rss_bytes": 130908160,
+      "wall_seconds": 10.127628250047565,
+      "cpu_user_seconds": 1.203752,
+      "cpu_system_seconds": 0.342435,
+      "clipboard_restored": true,
+      "total_source_bytes": 655360,
+      "append_count": 5,
+      "interaction_count": 11,
+      "preparation_deltas": {
+        "growth": {
+          "discarded": 0,
+          "highlight_us": 6,
+          "parse_us": 247,
+          "queue_us": 20126,
+          "configure_us": 13,
+          "search_us": 0,
+          "source_bytes": 917670,
+          "completed": 10
+        },
+        "reset_and_removal": {
+          "discarded": 0,
+          "highlight_us": 13760,
+          "parse_us": 260,
+          "queue_us": 1861,
+          "configure_us": 3,
+          "search_us": 0,
+          "source_bytes": 262310,
+          "completed": 3
+        }
+      },
+      "growth": {
+        "elapsed_ns": 5916094875,
+        "histograms": {
+          "draw": {
+            "count": 250,
+            "p95": 4616191,
+            "p99": 6438911
+          },
+          "dirty_to_submission": {
+            "count": 197,
+            "p95": 11378687,
+            "p99": 14540799
+          },
+          "animation_submission_interval": {
+            "count": 0,
+            "p95": null,
+            "p99": null
+          },
+          "input_to_frame": {
+            "count": 110,
+            "p95": 10969087,
+            "p99": 11739135
+          },
+          "inputs_per_frame": {
+            "count": 110,
+            "p95": 1,
+            "p99": 1
+          }
+        },
+        "presentation": {
+          "counts": {
+            "attempted": 197,
+            "admitted": 197,
+            "saturated": 0,
+            "presented": 196,
+            "not_submitted": 0,
+            "missing": 0,
+            "zero": 1,
+            "invalid_clock": 0,
+            "duplicate_callbacks": 0,
+            "trace_truncated": 0,
+            "histogram_overflow": 0
+          },
+          "startup_transition": {
+            "skipped_frames": 1,
+            "first_presentation_ns": 37972463
+          },
+          "histograms": {
+            "submission_to_presentation": {
+              "count": 196,
+              "p95": 22773759,
+              "p99": 30015487
+            },
+            "input_to_presentation": {
+              "count": 110,
+              "p95": 26984447,
+              "p99": 31096831
+            },
+            "scheduled_presentation_interval": {
+              "count": 0,
+              "p95": null,
+              "p99": null
+            }
+          },
+          "observations": 6,
+          "all_sampled_active_visible": true
+        }
+      }
+    },
+    {
+      "name": "001",
+      "driver_exit": 0,
+      "complete": true,
+      "error": null,
+      "child_returncode": 0,
+      "report_sha256": "217924bf0367b97d56a17ff517a3bec3ea94f9b2f03cd7569f619e637904bbbd",
+      "revision": "5f75aec1767852f87c914b5490534d93b238fc54",
+      "dirty": false,
+      "executable_sha256": "a1fedc1659c24e0ab2ee211624444a6e4df8c611ca9e331c234fbb6b582b15c3",
+      "budget_failures": [],
+      "peak_rss_bytes": 226099200,
+      "wall_seconds": 149.0079696252942,
+      "cpu_user_seconds": 27.352339,
+      "cpu_system_seconds": 4.490141,
+      "clipboard_restored": true,
+      "total_source_bytes": 20971520,
+      "append_count": 160,
+      "interaction_count": 166,
+      "preparation_deltas": {
+        "growth": {
+          "completed": 165,
+          "discarded": 0,
+          "configure_us": 13,
+          "search_us": 8,
+          "source_bytes": 614465702,
+          "highlight_us": 8,
+          "parse_us": 265,
+          "queue_us": 535536
+        },
+        "reset_and_removal": {
+          "completed": 3,
+          "discarded": 0,
+          "configure_us": 3,
+          "search_us": 0,
+          "source_bytes": 8388774,
+          "highlight_us": 9317,
+          "parse_us": 205,
+          "queue_us": 5565
+        }
+      },
+      "growth": {
+        "elapsed_ns": 145775974417,
+        "histograms": {
+          "draw": {
+            "count": 6465,
+            "p95": 4448255,
+            "p99": 6242303
+          },
+          "dirty_to_submission": {
+            "count": 4857,
+            "p95": 11313151,
+            "p99": 12140543
+          },
+          "animation_submission_interval": {
+            "count": 0,
+            "p95": null,
+            "p99": null
+          },
+          "input_to_frame": {
+            "count": 3055,
+            "p95": 11304959,
+            "p99": 12058623
+          },
+          "inputs_per_frame": {
+            "count": 3055,
+            "p95": 1,
+            "p99": 1
+          }
+        },
+        "presentation": {
+          "counts": {
+            "attempted": 4857,
+            "admitted": 4857,
+            "saturated": 0,
+            "presented": 4855,
+            "not_submitted": 0,
+            "missing": 0,
+            "zero": 2,
+            "invalid_clock": 0,
+            "duplicate_callbacks": 0,
+            "trace_truncated": 761,
+            "histogram_overflow": 0
+          },
+          "startup_transition": {
+            "skipped_frames": 2,
+            "first_presentation_ns": 44248712
+          },
+          "histograms": {
+            "submission_to_presentation": {
+              "count": 4855,
+              "p95": 17973247,
+              "p99": 22233087
+            },
+            "input_to_presentation": {
+              "count": 3055,
+              "p95": 27213823,
+              "p99": 28278783
+            },
+            "scheduled_presentation_interval": {
+              "count": 0,
+              "p95": null,
+              "p99": null
+            }
+          },
+          "observations": 146,
+          "all_sampled_active_visible": true
+        }
+      }
+    },
+    {
+      "name": "002",
+      "driver_exit": 0,
+      "complete": true,
+      "error": null,
+      "child_returncode": 0,
+      "report_sha256": "03763c521184545a6bb46eb25d80b283e5dc54f67c1c59fc3cc728d7c38fe142",
+      "revision": "5f75aec1767852f87c914b5490534d93b238fc54",
+      "dirty": false,
+      "executable_sha256": "a1fedc1659c24e0ab2ee211624444a6e4df8c611ca9e331c234fbb6b582b15c3",
+      "budget_failures": [],
+      "peak_rss_bytes": 215695360,
+      "wall_seconds": 149.14255641587079,
+      "cpu_user_seconds": 27.378759,
+      "cpu_system_seconds": 4.5653179999999995,
+      "clipboard_restored": true,
+      "total_source_bytes": 20971520,
+      "append_count": 160,
+      "interaction_count": 166,
+      "preparation_deltas": {
+        "growth": {
+          "parse_us": 246,
+          "completed": 165,
+          "configure_us": 21,
+          "queue_us": 541384,
+          "search_us": 8,
+          "highlight_us": 7,
+          "discarded": 0,
+          "source_bytes": 614465702
+        },
+        "reset_and_removal": {
+          "parse_us": 211,
+          "completed": 3,
+          "configure_us": 2,
+          "queue_us": 5666,
+          "search_us": 0,
+          "highlight_us": 8630,
+          "discarded": 0,
+          "source_bytes": 8388774
+        }
+      },
+      "growth": {
+        "elapsed_ns": 145845863167,
+        "histograms": {
+          "draw": {
+            "count": 6475,
+            "p95": 4517887,
+            "p99": 6402047
+          },
+          "dirty_to_submission": {
+            "count": 4865,
+            "p95": 11345919,
+            "p99": 12320767
+          },
+          "animation_submission_interval": {
+            "count": 0,
+            "p95": null,
+            "p99": null
+          },
+          "input_to_frame": {
+            "count": 3055,
+            "p95": 11476991,
+            "p99": 12296191
+          },
+          "inputs_per_frame": {
+            "count": 3055,
+            "p95": 1,
+            "p99": 1
+          }
+        },
+        "presentation": {
+          "counts": {
+            "attempted": 4865,
+            "admitted": 4865,
+            "saturated": 0,
+            "presented": 4863,
+            "not_submitted": 0,
+            "missing": 0,
+            "zero": 2,
+            "invalid_clock": 0,
+            "duplicate_callbacks": 0,
+            "trace_truncated": 769,
+            "histogram_overflow": 0
+          },
+          "startup_transition": {
+            "skipped_frames": 2,
+            "first_presentation_ns": 46659712
+          },
+          "histograms": {
+            "submission_to_presentation": {
+              "count": 4863,
+              "p95": 17874943,
+              "p99": 22872063
+            },
+            "input_to_presentation": {
+              "count": 3055,
+              "p95": 27246591,
+              "p99": 28377087
+            },
+            "scheduled_presentation_interval": {
+              "count": 0,
+              "p95": null,
+              "p99": null
+            }
+          },
+          "observations": 146,
+          "all_sampled_active_visible": true
+        }
+      }
+    },
+    {
+      "name": "003",
+      "driver_exit": 0,
+      "complete": true,
+      "error": null,
+      "child_returncode": 0,
+      "report_sha256": "0d2b10e1eb636f98a38d4880d42e4ff6f0e2c802d99a5fa823ef8b6c354f6e98",
+      "revision": "5f75aec1767852f87c914b5490534d93b238fc54",
+      "dirty": false,
+      "executable_sha256": "a1fedc1659c24e0ab2ee211624444a6e4df8c611ca9e331c234fbb6b582b15c3",
+      "budget_failures": [],
+      "peak_rss_bytes": 212205568,
+      "wall_seconds": 148.77265429124236,
+      "cpu_user_seconds": 26.385132,
+      "cpu_system_seconds": 4.542249,
+      "clipboard_restored": true,
+      "total_source_bytes": 20971520,
+      "append_count": 160,
+      "interaction_count": 166,
+      "preparation_deltas": {
+        "growth": {
+          "configure_us": 13,
+          "highlight_us": 6,
+          "search_us": 6,
+          "queue_us": 529651,
+          "parse_us": 262,
+          "discarded": 0,
+          "completed": 165,
+          "source_bytes": 614465702
+        },
+        "reset_and_removal": {
+          "configure_us": 3,
+          "highlight_us": 9588,
+          "search_us": 0,
+          "queue_us": 5983,
+          "parse_us": 287,
+          "discarded": 0,
+          "completed": 3,
+          "source_bytes": 8388774
+        }
+      },
+      "growth": {
+        "elapsed_ns": 145454302958,
+        "histograms": {
+          "draw": {
+            "count": 6471,
+            "p95": 4431871,
+            "p99": 6213631
+          },
+          "dirty_to_submission": {
+            "count": 4865,
+            "p95": 11214847,
+            "p99": 12222463
+          },
+          "animation_submission_interval": {
+            "count": 0,
+            "p95": null,
+            "p99": null
+          },
+          "input_to_frame": {
+            "count": 3055,
+            "p95": 11304959,
+            "p99": 12238847
+          },
+          "inputs_per_frame": {
+            "count": 3055,
+            "p95": 1,
+            "p99": 1
+          }
+        },
+        "presentation": {
+          "counts": {
+            "attempted": 4865,
+            "admitted": 4865,
+            "saturated": 0,
+            "presented": 4863,
+            "not_submitted": 0,
+            "missing": 0,
+            "zero": 2,
+            "invalid_clock": 0,
+            "duplicate_callbacks": 0,
+            "trace_truncated": 769,
+            "histogram_overflow": 0
+          },
+          "startup_transition": {
+            "skipped_frames": 2,
+            "first_presentation_ns": 51320628
+          },
+          "histograms": {
+            "submission_to_presentation": {
+              "count": 4863,
+              "p95": 17678335,
+              "p99": 21725183
+            },
+            "input_to_presentation": {
+              "count": 3055,
+              "p95": 27082751,
+              "p99": 27901951
+            },
+            "scheduled_presentation_interval": {
+              "count": 0,
+              "p95": null,
+              "p99": null
+            }
+          },
+          "observations": 146,
+          "all_sampled_active_visible": true
+        }
+      }
+    }
+  ]
+}
