@@ -177,3 +177,12 @@ text survives activation/resize but a remounted page gets a fresh editor.
 This adds scoped cancellation/lifetime evidence, without claiming arbitrary capture
 loss, active-window destruction, full focus/VoiceOver or resource/performance
 acceptance.
+
+## Measured carousel keyboard focus — 2026-10-08
+
+The [focus-forwarding repair and walkthrough](../evidence/window-focus-forwarding-och17.md)
+pass twelve axis/theme/scale cases locally and in a fresh installed consumer:
+exact Tab/Shift-Tab identities at both track ends, clipped-card AX exclusion,
+native Home/End, and retained draft/selection through viewport expansion.
+The repair makes AppKit's application focus query identify the actual native
+control. It does not qualify VoiceOver or remaining presentation/resource scope.

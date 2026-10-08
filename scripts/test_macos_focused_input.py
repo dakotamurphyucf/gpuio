@@ -4,6 +4,7 @@
 No OS preferences, VoiceOver, input-source or clipboard state are changed.
 """
 import argparse
+import ctypes as C
 import json
 from pathlib import Path
 import platform
@@ -24,6 +25,31 @@ READ_ONLY_LABEL = 'Read-only focus inspection'
 DRAFT = 'Inspect λ🙂 without replacing my draft'
 
 
+def expect_application_focus(mac, title, label):
+    """Check AppKit's focused-element route, independently of leaf AXFocused."""
+    equal = mac.cf.CFEqual
+    equal.restype, equal.argtypes = C.c_bool, [C.c_void_p, C.c_void_p]
+    target = mac.wait_find(title, label, 'AXTextField')
+    actual_description = None
+    try:
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            actual = mac.attr(mac.app, 'AXFocusedUIElement')
+            try:
+                if actual and equal(actual, target):
+                    print('AX_APPLICATION_FOCUS_OK', title, label, flush=True)
+                    return
+                actual_description = ([mac.text(actual, 'AXRole'), mac.text(actual, 'AXTitle')]
+                                      if actual else None)
+            finally:
+                if actual:
+                    mac.release(actual)
+            time.sleep(.025)
+        raise AssertionError(('Application focus does not identify input', title, label, actual_description))
+    finally:
+        mac.release(target)
+
+
 def focus(mac, title, label):
     window = mac.window(title)
     assert window
@@ -38,6 +64,7 @@ def focus(mac, title, label):
     finally:
         mac.release(node)
     expect_focus(mac, label, 'AXTextField', title=title)
+    expect_application_focus(mac, title, label)
     # AX focus can precede the paint that installs native key handlers.
     time.sleep(.15)
 
@@ -47,6 +74,7 @@ def inspect(mac, title, label, owner):
     mac.key(34, flags=(1 << 20) | (1 << 17))  # Command+Shift+I.
     mac.wait_text(title, f'Focused: {owner} · kind: Input · metadata only; no value read')
     expect_focus(mac, label, 'AXTextField', title=title)
+    expect_application_focus(mac, title, label)
 
 
 def main():

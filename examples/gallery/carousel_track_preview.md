@@ -173,3 +173,27 @@ neighbor before interrupting, then checks that release cannot change Capture.
 For window deactivation it verifies that the second owned window becomes focused.
 It also distinguishes retained text from a fresh page editor. This is lifecycle
 behavior validation; it does not count GPU allocations or establish idle CPU use.
+
+### Keyboard traversal and clipped cards
+
+The viewport is a Tab stop and handles navigation keys itself. Its visible cards
+keep their native descendants in the Tab order: the Capture editor owns ordinary
+text input, and each visible neighboring button owns its own activation. A fully
+clipped card is excluded from keyboard traversal and the exposed accessibility
+tree. Navigating the viewport reveals its retained descendants again; clipping
+alone does not destroy `Editor.create`'s page-scoped draft.
+
+With this example's compact horizontal viewport at Capture, Tab visits Card draft,
+then the partially visible Explore card's button, then the track's Next control.
+At Publish, the visible Refine and Publish buttons precede Previous. In vertical
+compact mode, only Capture or Publish is visible at those respective ends. This
+order comes from the retained `~content` children and generated track controls,
+not from an OCaml key handler that manually moves focus. Shift-Tab traverses the
+same visible controls backward.
+
+`python3 scripts/test_gallery.py --section carousel-focus --images scratch/carousel-focus`
+checks those exact native focus identities on both axes, both themes and all three
+preview scales. It also expands the viewport and verifies retained draft/selection.
+The application-level macOS focus query must identify the actual control, not just
+its containing window. These checks establish keyboard and accessibility-query
+behavior; they do not establish VoiceOver speech or navigation.

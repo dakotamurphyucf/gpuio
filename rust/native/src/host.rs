@@ -2026,6 +2026,8 @@ pub fn run(transport: Arc<Transport>) {
                                         // screen-point AX queries instead of its controls.
                                         #[cfg(target_os = "macos")]
                                         gpui_base::install_window_hit_test_forwarder(window);
+                                        #[cfg(target_os = "macos")]
+                                        gpui_base::install_window_focus_forwarder(window);
                                         cx.new(|cx| {
                                             let mut view=View::new(id, session.clone(), transport.clone());
                                             view.window_title=title.clone();

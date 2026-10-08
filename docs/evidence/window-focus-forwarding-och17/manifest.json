@@ -1,0 +1,94 @@
+{
+  "scratch/agents/root-20261007-access-check/carousel-focus-native-001.log": {
+    "sha256": "880d49528c3dd2a4b4b2cfb7e2cd107b23053416e9ba4f196b60511c5cd44a74",
+    "bytes": 6329
+  },
+  "scratch/agents/root-20261007-access-check/carousel-focus-native-001/carousel-focus-report.json": {
+    "sha256": "24941d98cee3302526c48f564a91bdaf8978397d104b0a884ad628732868282e",
+    "bytes": 484
+  },
+  "scratch/agents/root-20261007-access-check/carousel-focus-native-002.log": {
+    "sha256": "832d50eb7ac610584853aa3c221bb812918cc0a52ce251b68ed1d08ee683caeb",
+    "bytes": 6410
+  },
+  "scratch/agents/root-20261007-access-check/carousel-focus-native-002/carousel-focus-report.json": {
+    "sha256": "488c3f260340efee0af638f9d006c124be7be7d8000ea5e053a09ac39f907c26",
+    "bytes": 510
+  },
+  "scratch/agents/root-20261007-access-check/carousel-focus-native-003.log": {
+    "sha256": "dd5743d8f1443c09f35a7384a7d99bcc759b80075e4b27a8753924b9592b8fdb",
+    "bytes": 9489
+  },
+  "scratch/agents/root-20261007-access-check/carousel-focus-native-003/carousel-focus-report.json": {
+    "sha256": "7a2dc4cfdc054fb33e3552d9f87245244aebcba365de3f55221170a8649ff9a0",
+    "bytes": 8489
+  },
+  "scratch/agents/root-20261007-access-check/carousel-focus-installed-001.log": {
+    "sha256": "06c4eedd911a3f09cc2ad8d10c732e55517eafcefd21a06c0fed9a912accda66",
+    "bytes": 9548
+  },
+  "scratch/agents/root-20261007-access-check/carousel-focus-installed-001/carousel-focus-report.json": {
+    "sha256": "7a2dc4cfdc054fb33e3552d9f87245244aebcba365de3f55221170a8649ff9a0",
+    "bytes": 8489
+  },
+  "scratch/agents/root-20261007-access-check/carousel-focus-build-001.log": {
+    "sha256": "132f9cb6e4189fdcf7d5ff9d027f315738568f86e2dbd5707a44bb5c43b56d0c",
+    "bytes": 100268
+  },
+  "scratch/agents/root-20261007-access-check/carousel-focus-build-002.log": {
+    "sha256": "fe72152686360f516912c11d18d4424fb755bdae3117cd8681b1e0b327dc7fa8",
+    "bytes": 100268
+  },
+  "scratch/agents/root-20261007-access-check/focus-forwarder-consumer-build.log": {
+    "sha256": "78a8cc27ec4e03b0e5045993c62dce937dc3f865ea106955cfd0994e85bf61aa",
+    "bytes": 200943
+  },
+  "scratch/agents/root-20261007-access-check/focus-forwarder-native-tests.log": {
+    "sha256": "349f0946fbd262c71da49881750ee731a7ed55ff98ef71bb0c82d34e511916a4",
+    "bytes": 721093
+  },
+  "scratch/agents/root-20261007-access-check/focus-forwarder-clippy.log": {
+    "sha256": "ed87d5be92eb75d38d26d2412bcba19f81bb81f04a9b82231122ebcb0b98abd9",
+    "bytes": 592105
+  },
+  "scratch/agents/root-20261007-access-check/focus-forwarder-fmt.log": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  "scratch/agents/root-20261007-access-check/focus-forwarder-reconstruction.log": {
+    "sha256": "0f18a5bb0fd10cbd71cdc136b9db9ee4d9dca88060f2578d643e66c7a9ed1d43",
+    "bytes": 8209
+  },
+  "scratch/agents/root-20261007-access-check/focus-forwarder-input-001.log": {
+    "sha256": "43d9a57088e8e181a342f494fc19a6d95c3bd089ae9295dd48af8177e5562f8a",
+    "bytes": 1943
+  },
+  "scratch/agents/root-20261007-access-check/focus-forwarder-input-001/report.json": {
+    "sha256": "b562fd1597f3f66884ab1750d45bf02e0e7cd1bdcb2398417ff048963ddcebdc",
+    "bytes": 643
+  },
+  "scratch/agents/root-20261007-access-check/focus-forwarder-input-001/application.log": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  "scratch/agents/root-20261007-access-check/focus-forwarder-input-001/focus-inspector.png": {
+    "sha256": "9b27bb02d106b9c93403646e87810511794ff09aa321d136f4445aeec88568db",
+    "bytes": 415976
+  },
+  "scripts/gallery_carousel_focus.py": {
+    "sha256": "b7f2d028decbc3a137bdfd50148d05ecc3688a66d2019f38355f55ee4c943aa6",
+    "bytes": 8368
+  },
+  "scripts/test_macos_focused_input.py": {
+    "sha256": "1aff1c56ba80382b78827120e206303b4682e51354c45b0e01aee762a5064222",
+    "bytes": 7807
+  },
+  "vendor/gpui-base/src/macos_accessibility.rs": {
+    "sha256": "46013e049d253f1ad6642bac69b179642526eac9281a22905247e3af6a848080",
+    "bytes": 3349
+  },
+  "examples/gallery/carousel_track_preview.ml": {
+    "sha256": "aba99a7041fd6755a13a0e7993446c176c11ebc49eab97dcf0e8001f8ba47025",
+    "bytes": 6334
+  }
+}

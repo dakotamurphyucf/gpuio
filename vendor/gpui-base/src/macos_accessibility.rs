@@ -33,6 +33,34 @@ pub fn install_window_hit_test_forwarder(window: &Window) {
     }
 }
 
+/// GPUI makes its NSWindow the native first responder. Forward AppKit's focus
+/// query to the AccessKit content view, just as screen-point queries are forwarded.
+/// Class methods outlive each window; repeated installation leaves them intact.
+pub fn install_window_focus_forwarder(window: &Window) {
+    let Some(view) = ns_view(window) else {
+        return;
+    };
+    let Some(window) = view.window() else {
+        return;
+    };
+    unsafe {
+        let class = object_getClass((&*window as *const NSWindow).cast::<AnyObject>());
+        if !class.is_null() {
+            add_method(
+                class.cast_mut(),
+                sel!(accessibilityFocusedUIElement),
+                focus_forwarder as extern "C" fn(_, _) -> _,
+            );
+        }
+    }
+}
+
+extern "C" fn focus_forwarder(this: &NSWindow, _cmd: Sel) -> *mut AnyObject {
+    this.contentView().map_or_else(null_mut, |view| unsafe {
+        msg_send![&*view, accessibilityFocusedUIElement]
+    })
+}
+
 extern "C" fn hit_test_forwarder(this: &NSWindow, _cmd: Sel, point: NSPoint) -> *mut AnyObject {
     this.contentView().map_or_else(null_mut, |view| unsafe {
         msg_send![&*view, accessibilityHitTest: point]

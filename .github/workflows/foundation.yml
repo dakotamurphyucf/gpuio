@@ -334,6 +334,10 @@ jobs:
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
         timeout-minutes: 3
         run: python3 scripts/test_gallery.py --section carousel-lifecycle --images .cache/ci/carousel-lifecycle 2>&1 | tee .cache/ci/macos-carousel-lifecycle.log
+      - name: macOS measured carousel focus and clipped cards
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 3
+        run: python3 scripts/test_gallery.py --section carousel-focus --images .cache/ci/carousel-focus 2>&1 | tee .cache/ci/macos-carousel-focus.log
       - name: macOS sidebar policies and retained appearance
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
         timeout-minutes: 3

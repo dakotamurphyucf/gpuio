@@ -30,6 +30,12 @@ Older records of a VoiceOver hold no longer apply. Access was restored after the
 
 ## Latest delivered behavior and validation
 
+The [macOS focus-forwarding repair](evidence/window-focus-forwarding-och17.md)
+fixes application accessibility queries returning the window instead of its focused
+control. Twelve native carousel axis/theme/scale cases pass locally and in a fresh
+installed consumer, alongside two-window input/undo/remount checks. VoiceOver and
+full release acceptance remain separate.
+
 The [resource API review](evidence/api-boundaries-och17.md#resource-publication-and-recovery-review--2026-10-08)
 clarifies desired state versus native publication, resource limits and recovery
 after document/chart/canvas upload failures. Deterministic runtime tests cover

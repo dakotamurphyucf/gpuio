@@ -259,3 +259,15 @@ evidence. Closing a window while a gesture is held, arbitrary capture theft,
 precise hardware trackpads, full Tab/VoiceOver, seamless looping, and measured
 resource/presentation acceptance remain outside this fixture. It does not resolve
 the separately reported loaded-list overlap.
+
+## Keyboard focus, clipping and preview scales — 2026-10-08
+
+The [window focus-forwarding repair](window-focus-forwarding-och17.md) fixes an
+application-level macOS accessibility query that returned the window instead of
+the focused control. With the repair, actual Tab/Shift-Tab traversal, explicit
+fully clipped-card exclusion, viewport Home/End and draft retention through
+viewport resizing pass twelve axis/theme/scale cases locally and in a freshly
+installed consumer. The linked evidence retains the failing-before runs and exact
+validation scope. It qualifies ordinary keyboard traversal and AX query identity;
+VoiceOver, hardware trackpads, continuous looping and resource/presentation
+acceptance remain separate.
