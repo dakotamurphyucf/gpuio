@@ -165,6 +165,12 @@ domain with synchronous work.
 | `Tree_loading` | Up to four lazy reusable workers; obsolete node/generation results cannot attach children to a replacement node. |
 | `List_search` | One current producer; cancelled fibers may still unwind concurrently and remain charged to the shared Scope task quota. This is not the pager worker-pool bound. |
 
+List/table producer results from a reset query are discarded without publishing
+another snapshot or invoking `on_change` merely to return the old worker slot.
+A queued current request can then start; its result or admission failure still
+publishes normally. A retired worker returning its slot is not itself an
+application state change.
+
 Logical cancellation immediately fences obsolete results. Physical cancellation
 is cooperative: protected cleanup can delay reuse, and these APIs do not forcibly
 terminate a blocking foreign call. List/table workers wait without polling. These

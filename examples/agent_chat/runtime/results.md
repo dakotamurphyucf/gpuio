@@ -40,7 +40,11 @@ The [Table_paging contract](../../../lib/eio/table_paging.mli) bounds reusable
 workers and newest pending boundary requests, captures immutable query settings
 at admission and rejects canceled/obsolete UI delivery. Pager data is
 window-owned, independent of native cells or whether the inspector currently
-shows Results.
+shows Results. For example, starting Slow query and then selecting a different
+query fences the old response: returning the old worker slot does not republish
+`Pager.value` or call its optional `on_change` handler. Current work can still use
+the returned slot and publish its own result. This prevents old worker cleanup
+from looking like a new result to Bonsai or application callbacks.
 
 `paged_sample` deliberately resets to an empty fresh source with a forward More
 boundary. Paged sample, Slow query and Fail next query use this path; they reset

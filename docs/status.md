@@ -30,6 +30,11 @@ Older records of a VoiceOver hold no longer apply. Access was restored after the
 
 ## Latest delivered behavior and validation
 
+The [table-worker callback repair](evidence/api-boundaries-och17.md#obsolete-table-worker-notifications--2026-10-08)
+suppresses redundant application notifications from obsolete query completions
+while returning worker capacity to current requests. Deterministic full-inbox
+before/after evidence is recorded separately from native or performance acceptance.
+
 The [list-paging ownership repair](evidence/api-boundaries-och17.md#paging-ownership-repair--2026-10-08)
 keeps cancellation cleanup inside the two-producer bound and publishes final
 reactive state on closure. Deterministic before/after regressions and the native

@@ -156,3 +156,43 @@ native output; every member was verified against the
 [summary](list-paging-ownership-och17/summary.json) records the native executable
 hash and actual environment. Hosted/Linux validation of this repair is pending;
 whole-surface API and release acceptance remain open.
+
+## Obsolete table-worker notifications — 2026-10-08
+
+The follow-up review at `cd0923f9` found that `Table_paging` correctly rejected
+old-query data but unconditionally called `notify` when the retired worker returned
+through the UI inbox. With two completed old-query loads and an inbox capacity of
+one, resetting the table produced the expected callbacks `old, old, new`; draining
+the obsolete completions incorrectly added two more `new` callbacks. The immutable
+source/query reset itself was correct. Applications attaching side effects to
+`on_change` could nevertheless perform redundant work.
+
+The adapter now publishes only an applied completion or a queued-worker admission
+failure. It always returns the slot and pumps current demand, including when the
+old result is obsolete, so notification suppression does not strand new work.
+The change follows the repaired list-pager behavior. Request capacity, concurrency,
+query fencing and explicit-retry policy are unchanged. `Tree_loading` already
+compares its cached pure snapshot before notification, and `List_search` checks
+the exact pending request before publishing; neither is changed by this repair.
+
+The new deterministic regression retains the full-inbox ordering and verifies
+that draining both old completions leaves the callback sequence unchanged and
+data empty. Existing tests cover queued current-query results under the same
+inbox pressure, worker bounds through cancellation, failures, retry and closure.
+No expectation is promoted. This is OCaml controller behavior, not an OS GUI or
+performance qualification claim.
+
+On macOS 14.5 arm64, the isolated command passes:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 @test/runtime/runtest @test/virtual_list/runtest @fmt examples/gallery/main.exe
+```
+
+The example documentation inventory and whitespace checks also pass. The
+[seven-file archive](table-retired-notifications-och17/reports.tar.gz) retains
+before/repaired implementation, interface, regression source, failing/passing logs
+and command/environment summary. Every member was checked against its
+[manifest](table-retired-notifications-och17/manifest.json). The Results walkthrough
+now traces a slow query superseded by a new query through this boundary.
+Hosted/Linux checks for the repair remain pending. No native GUI run was needed
+to reproduce or verify this OCaml-only notification defect.
