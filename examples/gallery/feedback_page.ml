@@ -3,6 +3,7 @@ open Gpuio
 module B = Bonsai.Cont
 module V = Gpuio_bonsai.View
 module State = Gpuio_gallery_model.Feedback_state
+module Samples = State.Samples
 module Palette_controller = Gpuio_eio.Palette_controller
 
 let ok = Or_error.ok_exn
@@ -98,10 +99,8 @@ let component ~search_palette app window palette graph =
   let toast_motion, toggle_toast_motion = B.toggle ~default_model:false graph in
   let sample_toasts, update_sample_toasts =
     B.state_machine0
-      ~default_model:[ 1; 2; 3 ]
-      ~apply_action:(fun _ model -> function
-         | `Show -> [ 1; 2; 3 ]
-         | `Dismiss id -> List.filter model ~f:(fun current -> current <> id))
+      ~default_model:Samples.initial
+      ~apply_action:(fun _ model action -> Samples.apply model action)
       graph
   in
   let input =
@@ -256,9 +255,9 @@ let component ~search_palette app window palette graph =
   let notifications =
     if layered
     then
-      List.map sample_toasts ~f:(fun serial ->
+      List.map (Samples.items sample_toasts) ~f:(fun item ->
         let title, text =
-          match serial with
+          match Samples.Item.number item with
           | 1 ->
             "Workspace saved", "Your workspace and open tabs are ready for next time."
           | 2 ->
@@ -268,7 +267,7 @@ let component ~search_palette app window palette graph =
           | _ -> "A new idea is ready", "Open the stack to explore the details."
         in
         V.toast
-          ~key:(Key.of_string_exn ("layered-sample-" ^ Int.to_string serial))
+          ~key:(Key.of_string_exn (Samples.Item.key item))
           ~config:
             (Toast.Config.create ~label:title ~timeout:Toast.Timeout.persistent () |> ok)
           ~style:
@@ -280,7 +279,7 @@ let component ~search_palette app window palette graph =
                ; Radius 12.
                ; Padding (px 18.)
                ])
-          ~on_dismiss:(fun _ -> update_sample_toasts (`Dismiss serial))
+          ~on_dismiss:(fun _ -> update_sample_toasts (Dismiss item))
           [ Palette.text p title; Palette.text p ~muted:true text ])
     else notifications
   in
@@ -510,7 +509,7 @@ let component ~search_palette app window palette graph =
              Palette.button
                p
                "Show three sample notifications"
-               (update_sample_toasts `Show)
+               (update_sample_toasts Show)
            else V.column [])
         ; Palette.text
             p

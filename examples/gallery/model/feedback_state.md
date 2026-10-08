@@ -56,8 +56,8 @@ Notify creates toast 2 and removes 1 from the derived view. A queued Dismiss 1
 arrives: `Option.equal Int.equal` compares it with current Some 2 and keeps toast 2.
 Dismiss 2 clears the current notification. Leaving the page injects Leave from
 its lifecycle effect, ensuring a transient save confirmation does not return with
-retained workflow stage. The page's layered sample-toasts demo has another model;
-this helper's guarantee is one saved-preview notification, not every toast on the page.
+retained workflow stage. The nested `Samples` module owns a separate model for the layered demonstration
+below; ordinary saved-preview notifications and sample cards do not share identity counters.
 
 The [existing gallery expect test](../../../test/gallery/gallery_test.ml) checks
 latest enabled state, stage advancement, notification replacement, duplicate/old
@@ -66,3 +66,31 @@ No new tests or GUI runs were performed for this guide. To add a stage, extend
 Stage.t, `label`/`next` and the page's exhaustive progress mapping together. To turn
 Save preview into real work, keep completion/error as typed model actions and use
 an Eio-owned producer separately; do not treat Notify as proof of a completed save.
+
+## Restoring a batch while a card exits
+
+`Samples.t` stores an integer batch and a bounded list of three `Samples.Item.t`
+values. Each item contains its batch and display number. The interface exposes
+`Item.number` for choosing sample text and `Item.key` for a stable view key, while
+keeping the representation abstract. `Samples.apply` handles two actions:
+
+- `Show` increments the batch and creates all three items with fresh keys. At
+  `Int.max_value` it does nothing, preserving the no-reused-identity invariant.
+- `Dismiss item` filters only that exact batch/number pair using `Item.equal`.
+  An obsolete or repeated dismissal therefore has no effect on current cards.
+
+For example, Escape begins the native exit of batch-zero item one. The card
+immediately leaves input/accessibility, but its terminal callback waits for the
+exit animation. The user clicks Show before that callback arrives. Bonsai replaces
+all three views with batch-one keys. The late `Dismiss` for batch-zero item one
+cannot remove batch-one item one. Reusing just the numbers would leave a closing
+native key mounted and could make the restored card disappear.
+
+The page hosts this reducer in a separate `B.state_machine0`. `let%arr` reads its
+current model; `List.map (Samples.items sample_toasts)` creates the keyed views.
+The callbacks capture the whole item, not just its display number. Placement,
+palette and margin changes keep these keys; explicitly showing a fresh batch
+restarts the sample cards. This demo has no retained editor inside the cards.
+The gallery expect test covers restoration before callback delivery, obsolete and
+duplicate dismissals, current dismissal and another fresh batch. The native
+notification walkthrough exercises Escape immediately followed by Show.

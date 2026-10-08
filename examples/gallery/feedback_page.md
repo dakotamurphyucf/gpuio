@@ -67,10 +67,32 @@ mounting/configuration, observation and command completion are distinct stages. 
 Notifications use stable serial-derived keys from State. A new save replaces the previous timed
 five-second toast; `on_dismiss` injects its captured serial so an older dismissal cannot remove
 a newer notification. Layered mode instead displays three persistent mock cards controlled by
-their ID list; it substitutes these for the ordinary notification view. The “Notification
+a batch of typed sample identities; it substitutes these for the ordinary notification view. The “Notification
 visible” text still reports State.notification, so it does not describe whether a substituted
 layered card is painted. Placement cycles eight anchors; insets, layering and motion are native
 presentation policies, not toast identity resets.
+
+For a concrete layered interaction, `sample_toasts` begins with `Samples.initial`: sample numbers
+1, 2 and 3 in batch zero. `Samples.items` supplies the values mapped into `V.toast`;
+`Samples.Item.key` includes both batch and number, and each dismissal effect
+captures the complete item identity. Tab from the native Notifications group reaches the oldest
+source card's close button; Escape accepts that card's dismissal. With motion
+enabled, native input eligibility ends before the exit finishes. Rust then sends
+the terminal observation, `on_dismiss` injects `Dismiss item`, the Bonsai reducer
+filters that exact batch/item identity, and the next `let%arr` omits its view. Show three sample
+notifications injects `Show`, which starts a fresh batch with three new keys.
+This also works during an exit: its old callback cannot remove a restored item.
+The pure reducer and its race test are explained in [feedback_state.md](model/feedback_state.md). Layered paint places the newest card at the anchor;
+that visual stacking does not reverse the source-order keyboard traversal.
+
+Changing `toast_anchor` updates `Toast.Placement`; the `toast_config` passed to
+`V.toast_stack` changes while the child keys remain stable. This is why moving
+notifications among anchors or changing margins does not reconstruct their
+models. `Toast.Stack.Layering.default` supplies measured expansion geometry and
+`Toast.Stack.Motion.default` supplies native entry/exit and reflow. Neither option
+adds an OCaml animation loop. While collapsed, older painted cards are decorative
+and hidden from accessibility traversal; focusing the Notifications group expands
+them for interaction.
 
 Deactivation injects Leave and closes the chooser. Asset scope and native owners retire
 separately; native toast timing/hover/focus pause remain in GPUIO, with no OCaml frame timer.
@@ -86,9 +108,12 @@ From the repository root:
 ```sh
 ./scripts/gpuio build examples/gallery/main.exe
 ./_build/default/examples/gallery/main.exe
+python3 scripts/test_gallery.py --section notifications --images scratch/notification-walkthrough
 ```
 
 The wrapper uses the repository toolchain. These commands are instructions, not checks run for
-this documentation change. The page has no standalone executable or self-test. Compilation does
+this documentation change. The last command runs the native notification fixture
+against the built gallery; it opens and closes an actual macOS window and requires
+Accessibility access. The page has no standalone executable. Compilation does
 not establish native keyboard, focus, IME or platform acceptance. See
 [gallery instructions](README.md) and [development](../../docs/development.md).

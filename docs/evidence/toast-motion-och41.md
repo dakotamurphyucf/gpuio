@@ -107,6 +107,13 @@ qualification still keep OCH-41/OCH-17/milestone 07 open.
 
 ## Remaining physical walkthrough
 
+The [2026-10-08 notification gallery follow-up](notification-gallery-och41.md)
+now qualifies settled placement/layered geometry with motion enabled and disabled,
+keyboard expansion/dismissal and sample restoration/page retirement on macOS.
+It also fixes a real Show-during-exit race in the example's identity model.
+The smoothness, editor/streaming, IME, VoiceOver, reduced-motion and resource
+portions below remain separate outstanding checks.
+
 On a qualified macOS desktop, open Feedback and enable Animate notifications.
 Save a new notification and verify smooth entry before its active lifetime begins;
 hover/focus pauses expiry. Enable layered cards, dismiss and restore samples,

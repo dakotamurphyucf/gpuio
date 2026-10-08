@@ -28,6 +28,13 @@ plus three persistent layered sample cards of different heights, expansion and
 individual dismissal/restoration. Native Host tests exercise retained editable
 children. These local checks do not close physical/release acceptance.
 
+The [2026-10-08 public macOS walkthrough](../evidence/notification-gallery-och41.md)
+now covers 34 settled anchor/theme/motion/inset cases, collapsed semantic shielding,
+keyboard expansion and dismissal, retained identity and page teardown. It fixes
+the sample application's Show-during-exit race with fresh batch keys and stale
+dismissal guards. Smoothness, VoiceOver, IME, hover expiry, reduced motion and
+resource acceptance remain separate; this is not full-family qualification.
+
 Layered geometry, interrupted reflow, finite lifecycle and accepted-dismissal
 tokens now have [native foundation evidence](../evidence/toast-presentation-foundation-och41.md).
 Those models now connect to the production Host, Core API and public gallery;

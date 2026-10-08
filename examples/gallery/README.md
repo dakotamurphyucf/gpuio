@@ -155,6 +155,11 @@ notifications** restores dismissed examples. **Animate notifications** enables n
 entry/exit and spring reflow independently of layering. Turning it on preserves
 already-present cards; new saves or restored samples show entry, and dismissal
 retires input before the exit finishes. Reduced motion settles immediately.
+The [Feedback implementation walkthrough](feedback_page.md) traces the Bonsai ID
+list, dismissal effect and native lifecycle. Its `--section notifications` test
+checks actual macOS anchor geometry, collapsed semantics, keyboard expansion,
+dismissal/restoration and page retirement; it does not measure animation FPS or
+operate VoiceOver.
 
 Selection & actions includes **Two actions, one control**, using the public
 `View.split_button` API. Cycle split/action-only/menu-only modes, disable the

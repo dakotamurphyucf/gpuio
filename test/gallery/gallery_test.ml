@@ -265,3 +265,26 @@ let%expect_test "selection intents use current state and keep one alignment" =
     (true Right (Monospace) Indeterminate)
   |}]
 ;;
+
+let%expect_test "restoring sample cards fences an exit callback already in flight" =
+  let module S = Gpuio_gallery_model.Feedback_state.Samples in
+  let old = List.hd_exn (S.items S.initial) in
+  let restored = S.apply S.initial Show in
+  let show model =
+    print_s [%sexp (List.map (S.items model) ~f:S.Item.key : string list)]
+  in
+  show restored;
+  let after_old_exit = S.apply restored (Dismiss old) in
+  show after_old_exit;
+  let current = List.hd_exn (S.items after_old_exit) in
+  let dismissed = S.apply after_old_exit (Dismiss current) in
+  show (S.apply dismissed (Dismiss current));
+  show (S.apply dismissed Show);
+  [%expect
+    {|
+    (layered-sample-1-1 layered-sample-1-2 layered-sample-1-3)
+    (layered-sample-1-1 layered-sample-1-2 layered-sample-1-3)
+    (layered-sample-1-2 layered-sample-1-3)
+    (layered-sample-2-1 layered-sample-2-2 layered-sample-2-3)
+    |}]
+;;

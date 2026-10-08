@@ -30,6 +30,12 @@ Older records of a VoiceOver hold no longer apply. Access was restored after the
 
 ## Latest delivered behavior and validation
 
+The [notification gallery follow-up](evidence/notification-gallery-och41.md)
+fixes restoration during an animated exit using fresh batch identities and stale
+dismissal guards in the OCaml example. Actual macOS placement, collapsed semantics,
+keyboard dismissal/restoration and page retirement pass alongside the gallery
+expect tests. Full toast motion/accessibility/resource and release acceptance remain.
+
 The [Developer ID tooling checkpoint](evidence/developer-id-tooling-och17.md)
 adds explicit certificate/team selection, hardened-runtime signing and strict
 verification before archiving or runtime extraction. Local portable checks and
