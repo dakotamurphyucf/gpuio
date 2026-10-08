@@ -1,5 +1,9 @@
 # Full presented-list qualification — OCH-17
 
+The [current-source repeat batch](#current-source-repeat-batch--2026-10-07)
+has two full passes and one failed idle check. Three-run acceptance remains open.
+The original startup failure below is retained unchanged.
+
 First optimized run at clean `394039d`, macOS14.5 arm64, Apple M1 Max.
 **Failed**: the initial transition takes102.723 ms, exceeding the predeclared
 100 ms bound. This is not waived or counted as a passing repetition. The
@@ -49,3 +53,64 @@ python3 scripts/measure_list_history.py --build-profile release --presentation \
 Remaining work includes diagnosing the failed transition, repeated full workload
 acceptance, presentation-collector overhead and resource qualification. VoiceOver
 was not operated or configured. OCH-17 remains open.
+
+## Current-source repeat batch — 2026-10-07
+
+A new optimized batch on clean `2562490ffee13059a6ca99ddc7108556f2a3972a`
+completed its declared one warm-up and three full trials. **Two full trials
+passed; the third failed the zero-redraw idle requirement.** No replacement
+trial was launched. This does not establish three-run acceptance.
+
+The executable SHA-256 is
+`fd3d5dabeb1d73eade70207db5a48d69120a8b7370f450d3ec20593e802843c2`.
+It was rebuilt alongside the other three presentation workloads with
+`GPUIO_JOBS=2 ./scripts/gpuio exec dune build --profile release -j2`.
+The reference remains macOS 14.5 arm64 / Apple M1 Max / 32 GiB, with the internal
+display reporting a 120 Hz mode. Mode metadata does not establish measured FPS.
+No simultaneous local compiler or second owned GUI test ran. Read-only source,
+report and hosted-CI inspection continued; application sources stayed unchanged.
+
+| Trial | Result | CPU draw p95 / p99 | Submission-to-presentation p95 / p99 | First presentation | Peak RSS bytes |
+| --- | --- | --- | --- | --- | ---: |
+| 001 | Passed | 2.621 / 3.052 ms | 32.063 / 32.227 ms | 27.324 ms | 181,764,096 |
+| 002 | Passed | 2.703 / 3.183 ms | 31.818 / 32.162 ms | 38.718 ms | 181,223,424 |
+| 003 | Failed idle assertion | Not accepted as a complete run | Not accepted as a complete run | Not accepted as a complete run | 189,120,512 |
+
+Trials 001/002 each cover all 10,000 rows forward and backward, verify row growth
+and anchor behavior, and retain at most 32 active rows. They have respectively
+27,762/28,595 draws and 27,761/28,594 presentations: one bounded, input-free
+initial zero-time outcome each. Their declared CPU, startup, presentation, RSS,
+settled 60-second idle and owned-resource cleanup checks all pass. Histograms
+cover all samples; each raw frame trace is explicitly capped at 4,096 records.
+Every sampled visibility/activation observation is true, which does not prove
+continuous visibility between observations.
+
+Trial 003 completes both traversals and the growth check, then records **14 CPU
+draws and submissions during 60.011 seconds of idle**. The child exits 2 at the
+unchanged zero-draw assertion, before normal cleanup/completion records; the
+driver and batch exit 1. Its idle Metal report has seven presented and seven
+zero-time outcomes, no pending callbacks, and no input samples. All 14 records
+have `new_scene=true`, `animating=false` and `active=true`. They occur as seven
+pairs over approximately 41.65 seconds from the first submission. All sampled
+window observations remain active and visible. These observations do not identify
+the redraw trigger or prove that no pointer/desktop interaction occurred.
+The owner was asked about interaction during this interval; its cause remains
+unverified at this checkpoint. No threshold, settling interval or workload was
+changed to accept this failure. The child and batch-owned keep-awake process
+were reaped; application-level cleanup is not claimed for this failed run.
+
+The [complete batch archive](presentation-list-current-och17/reports.tar.gz)
+contains the warm-up, all three original reports/application logs/driver logs,
+the declared runner, build log and separately labeled offline failure inspection.
+All 18 archived files were checked against the
+[SHA-256 manifest](presentation-list-current-och17/manifest.json).
+The [compact summary](presentation-list-current-och17/summary.json) preserves
+each outcome and binds it to the original report hash; it does not fill missing
+failed-run fields with passing values.
+
+This batch follows intervening native cache/lifetime repairs and the separately
+[diagnosed visibility-sensitive frame wait](list-scroll-diagnostics-och17.md).
+It does not prove the cause of the historical 102.723 ms startup failure or
+resolve the owner's visual-jitter report. Investigate the new idle failure before
+claiming repeated list qualification. Other workloads, collector overhead,
+resource validation and broader release requirements remain open.
