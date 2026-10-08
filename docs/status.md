@@ -36,6 +36,11 @@ Older records of a VoiceOver hold no longer apply. Access was restored after the
 
 ## Latest delivered behavior and validation
 
+The [loaded-list paint diagnostic](evidence/list-paint-geometry-och17.md) found no
+row overlap in 24,338 observed list paints, but the full attempt timed out with
+an inactive window before completion. This narrows the geometry investigation;
+it is neither a visual-jitter fix nor performance acceptance.
+
 Hosted run37789987337 is terminal: Linux and the separate macOS extracted-app
 receiver pass; the previously repaired scrollbar-preference and document-profile
 checks now pass too. macOS Foundation fails two carousel remount tests (now

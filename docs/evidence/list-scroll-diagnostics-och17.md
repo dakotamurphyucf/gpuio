@@ -5,6 +5,10 @@ This is diagnostic evidence, **not completed full-list performance acceptance**.
 The owner observed jarring motion and possible row overlap during the automated
 history workload. No rendering fix is claimed by this checkpoint.
 
+The subsequent [per-paint geometry diagnostic](list-paint-geometry-och17.md)
+checks row and content bounds on the original bridge workload. Its full attempt
+is also incomplete; it does not close the visual-jitter report.
+
 ## Ordinary scrolling versus benchmark traversal
 
 The benchmark calls `Controller.scroll_to` repeatedly: forward by visible ranges,

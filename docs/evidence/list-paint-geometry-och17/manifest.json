@@ -1,0 +1,96 @@
+{
+  "base_revision": "734fca1c4bb558c60149b04009dde2a6cc561e0e",
+  "diagnostic_only": true,
+  "platform": {
+    "system": "Darwin",
+    "version": "14.5",
+    "machine": "arm64"
+  },
+  "files": [
+    {
+      "path": "metadata.json",
+      "sha256": "d1a77f361d2107b8a3ea7d437ffe5357917fada5d6188359e7accf5df14d6198",
+      "bytes": 623
+    },
+    {
+      "path": "commands.txt",
+      "sha256": "32a38dc98fb9e238ef1feb524697e52847605fbf1f5d2ea1b7d61a86417c5e78",
+      "bytes": 1330
+    },
+    {
+      "path": "instrumentation.patch",
+      "sha256": "a2f7bbcdd973b4f63ec5e7976192fb35b2c6432f686a6033d5ef5e88731e3cab",
+      "bytes": 8472
+    },
+    {
+      "path": "list_view.instrumented.rs",
+      "sha256": "395c53a46adbb9ff709573dad2718b67d822227b60b502301ea37f6ecc9f816c",
+      "bytes": 54749
+    },
+    {
+      "path": "summarize.py",
+      "sha256": "ab45c3fd675bb09872c7da01d1266c6fc375ef2a989986149cfeca39f4c4d887",
+      "bytes": 1806
+    },
+    {
+      "path": "build-first.log",
+      "sha256": "4fc2b47c493f18d84d0df423ccc492c0c46f480be1b6e36415d39b3596dc9340",
+      "bytes": 101271
+    },
+    {
+      "path": "build-second.log",
+      "sha256": "14e8bb01fb4470469c4801372926bab4a7b8832827569da4288f50751b94c5dd",
+      "bytes": 100278
+    },
+    {
+      "path": "restore-build.log",
+      "sha256": "4474536754c380c67f869a734f1d2af3aaa3625511a316963f816d1b5f800c10",
+      "bytes": 100278
+    },
+    {
+      "path": "restoration.json",
+      "sha256": "248d3e587366f052957ed74d3fd9a720c64ee64ffbce57738287c87c6b14cba8",
+      "bytes": 245
+    },
+    {
+      "path": "smoke-driver.log",
+      "sha256": "469f951afd4bbee5152cf4458bbf0741fa8e61bc46e2db8dad2dbd80a60e7766",
+      "bytes": 110
+    },
+    {
+      "path": "full-driver.log",
+      "sha256": "b169c21130a5cacc319335e86bd6b6f748ada5038484b87390ca788c7b1c4790",
+      "bytes": 588
+    },
+    {
+      "path": "smoke-geometry.json",
+      "sha256": "8197350052445935bf5d287658d5e0e9b068241691fd146f3831775d2d422fe3",
+      "bytes": 395
+    },
+    {
+      "path": "full-geometry.json",
+      "sha256": "f64730129ae06e2c00d517ecf3c88697abb6779672969c20bde76b83d62beda6",
+      "bytes": 402
+    },
+    {
+      "path": "smoke/application.log",
+      "sha256": "b5e579c9bd863cfba0b870a9618d33362ea3633d9d12d93e5e3da03331b8cc35",
+      "bytes": 123545
+    },
+    {
+      "path": "smoke/report.json",
+      "sha256": "5d4c9acfacb080d00b16905fbbd8d1de35de1634b30a37b9f9a5b669baffabef",
+      "bytes": 206313
+    },
+    {
+      "path": "full/application.log",
+      "sha256": "a86e34a9e8536cfc6d0b73f3668fc81f297367be9cb6413c359e2cf8918915a1",
+      "bytes": 1150409
+    },
+    {
+      "path": "full/report.json",
+      "sha256": "1f82a8ef5d62c6706e1227b6b25e729daef0b26d994b89e7a5b0331d7c057636",
+      "bytes": 2441
+    }
+  ]
+}
