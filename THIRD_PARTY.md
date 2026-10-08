@@ -28,6 +28,12 @@ their upstream licenses in Cargo's pinned source checkouts. Cargo.lock records t
 full transitive dependency set. These dependency licenses are independent of
 GPUIO's project license. Run `cargo metadata --locked` when auditing the closure.
 
+Vendored example assets can have different terms from their surrounding code.
+The GPUI SVG example includes **Dragon clip art.svg** by **Ebaychatter0**, under
+CC BY-SA 3.0. The [asset notices](third_party/ASSET_NOTICES.md) retain its source,
+license link, attribution and byte-verified provenance. GPUIO has not changed the
+artwork or its existing upstream source/license comments.
+
 `third_party/notice-sources.json` records exact supplemental notice attributions
 for pinned packages lacking separate package-local files. Zed Apache symlinks
 were compared byte-for-byte with `third_party/licenses/zed-gpui.txt`; the nested
