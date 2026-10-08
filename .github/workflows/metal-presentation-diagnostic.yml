@@ -1,0 +1,39 @@
+name: Hosted Metal diagnostic
+
+on:
+  push:
+    branches: [diagnostic/metal-presentation-och17]
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  probe:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, macos-26]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Prepare and identify display
+        run: |
+          mkdir -p .cache/metal-diagnostic
+          xcrun swift -module-cache-path .cache/modules scripts/ci_macos_display.swift --apply > .cache/metal-diagnostic/display-setup.log
+          xcrun swift -module-cache-path .cache/modules scripts/ci_macos_display.swift --check > .cache/metal-diagnostic/display-check.log
+          system_profiler SPDisplaysDataType -json > .cache/metal-diagnostic/displays.json
+          pmset -g custom > .cache/metal-diagnostic/power.txt
+      - name: Compare plain and owned-window capture
+        run: python3 scripts/diagnose_hosted_metal.py --output .cache/metal-diagnostic
+      - name: Preserve every outcome
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: metal-diagnostic-${{ matrix.os }}
+          include-hidden-files: true
+          path: .cache/metal-diagnostic
