@@ -1714,7 +1714,7 @@ let with_menu_item_content t ~items =
 let with_menu_item_icons t ~items =
   let open Or_error.Let_syntax in
   match t.kind, t.menu with
-  | Menu, Some ({ presentation = Platform_context; _ } as config) ->
+  | Menu, Some ({ presentation = Platform_context | Platform_bar; _ } as config) ->
     let%bind items =
       List.map items ~f:(fun (path, asset) ->
         let%map config =
@@ -1728,7 +1728,8 @@ let with_menu_item_icons t ~items =
       |> Or_error.all
     in
     menu_item_slots t config ~items
-  | _ -> Or_error.error_string "menu item icons require a direct platform context menu"
+  | _ ->
+    Or_error.error_string "menu item icons require a direct platform context menu or bar"
 ;;
 
 let editor_menu

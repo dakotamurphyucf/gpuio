@@ -135,7 +135,8 @@ tracking loop still reject obsolete owners and native editor targets.
 ## Decorative icon contract
 
 `View.with_menu_item_icons view ~items` accepts item paths paired with registered
-SVG `Asset.Handle.t` values. The receiver is a direct platform context menu.
+SVG `Asset.Handle.t` values. The receiver is a direct platform context menu or
+platform menu bar.
 Unknown/duplicate paths, separators, raster handles and other receivers are
 errors. Empty items remove all icon slots. Command, submenu and section labels
 remain authoritative for both text and accessibility. Native admission accepts
@@ -171,3 +172,34 @@ atomic rejection, lease retention after registration release, density changes,
 loading/failure, no atlas charge, bitmap alpha/size/template/budget, nested icon
 placement, selection and teardown on actual macOS and an installed consumer.
 Linux fallback needs build/unit/consumer evidence; desktop acceptance stays 07b.
+
+## Menu-bar artwork
+
+The same passive icon slots support `View.menu_bar ~platform:true`, including
+nested submenu rows and repeated commands at distinct item paths. Top-level
+menu titles remain text. Existing rich-content and section-label restrictions
+for native bars are unchanged. The active window owns the application-wide
+menu, with command generation checks at dispatch.
+
+Image-worker completion and display-density changes can replace a bar's
+snapshot. Snapshot equality includes each ready image identity, position and
+transform, in addition to its menu and command state. Unrelated renders do not
+copy bitmaps or reinstall menus. Missing/loading/failed artwork omits only the
+decoration. Unlike the popup tracking contract, this extension introduces no
+guarantee of freezing a bar snapshot during AppKit tracking; existing menu
+replacement and stale-action rejection apply.
+
+Each installed bar admits at most 8 MiB of RGBA artwork, independently of the
+popup budget. GPUI retains validated RGBA values and AppKit owns a bitmap copy,
+each bounded by that allowance. Replacement can briefly retain old and new
+snapshots; external native clients retaining old NSMenuItems may extend their
+lifetimes. These payload limits are not a total-memory or OS-allocation bound.
+The existing action registry retires old Rust routes when replacing a menu;
+native item tags are not reused. Encoded/decoded source ownership still uses
+the ordinary image service budgets and mounted leases.
+
+Qualification must distinguish bitmap structure/ownership checks from actual
+menu rendering and input. Exercise readiness after registration release,
+nested/disabled artwork, transforms, source replacement, clearing, active-window
+switches and teardown, plus unchanged-render snapshot identity. The public
+Feedback page demonstrates the OCaml API; its presence alone is not acceptance.

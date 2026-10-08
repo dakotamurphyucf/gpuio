@@ -56,19 +56,20 @@ fn transformed_alpha(
     (upper * (1. - fy) + lower * fy).round().clamp(0., 255.) as u8
 }
 
-/// One per pending/tracking popup. The app-wide popup lease admits only one
-/// such snapshot; bytes count every retained NSBitmapImageRep payload, including
-/// duplicate icons. AppKit's internal rendering allocations are not measured RSS.
+/// One per native bar or pending/tracking popup snapshot. Admission counts every
+/// RGBA payload, including duplicate icons. Bars retain a GPUI-owned payload and
+/// an AppKit copy; popups retain only the AppKit copy. Internal platform rendering
+/// allocations are not measured RSS. Each owner has an independent 8 MiB limit.
 #[derive(Default)]
-pub(super) struct Budget {
+pub(in crate::host) struct Budget {
     bytes: usize,
 }
 impl Budget {
-    pub(super) fn image(
+    pub(in crate::host) fn template(
         &mut self,
         pixels: &RenderImage,
         transform: Option<Transform>,
-    ) -> Option<Retained<NSImage>> {
+    ) -> Option<gpui::MenuIcon> {
         if pixels.frame_count() != 1 || transform.is_some_and(|value| !value.is_valid()) {
             return None;
         }
@@ -85,6 +86,37 @@ impl Budget {
         if source.len() != bytes {
             return None;
         }
+        let mut output = vec![0; bytes];
+        let sampling = transform.map(|transform| {
+            let (sine, cosine) = transform.rotation_degrees.to_radians().sin_cos();
+            (transform, sine, cosine)
+        });
+        for (index, output) in output.chunks_exact_mut(4).enumerate() {
+            let alpha = match &sampling {
+                Some(sampling) => transformed_alpha(
+                    source,
+                    width,
+                    height,
+                    sampling,
+                    index as u32 % width,
+                    index as u32 / width,
+                ),
+                None => source[index * 4 + 3],
+            };
+            output.copy_from_slice(&[0, 0, 0, alpha]);
+        }
+        let icon = gpui::MenuIcon::from_rgba(width, height, output.into())?;
+        self.bytes += bytes;
+        Some(icon)
+    }
+
+    pub(super) fn image(
+        &mut self,
+        pixels: &RenderImage,
+        transform: Option<Transform>,
+    ) -> Option<Retained<NSImage>> {
+        let icon = self.template(pixels, transform)?;
+        let (width, height) = (icon.width(), icon.height());
         // SAFETY: null planes request AppKit-owned storage. All dimensions and
         // row/pixel sizes are bounded above and specify interleaved RGBA8.
         let bitmap = unsafe {
@@ -104,29 +136,11 @@ impl Budget {
         }
         // SAFETY: this freshly allocated, unshared representation owns at least
         // height * bytesPerRow writable bytes. The slice ends before sharing it.
-        let output = unsafe { std::slice::from_raw_parts_mut(data, bytes) };
-        let sampling = transform.map(|transform| {
-            let (sine, cosine) = transform.rotation_degrees.to_radians().sin_cos();
-            (transform, sine, cosine)
-        });
-        for (index, output) in output.chunks_exact_mut(4).enumerate() {
-            let alpha = match &sampling {
-                Some(sampling) => transformed_alpha(
-                    source,
-                    width,
-                    height,
-                    sampling,
-                    index as u32 % width,
-                    index as u32 / width,
-                ),
-                None => source[index * 4 + 3],
-            };
-            output.copy_from_slice(&[0, 0, 0, alpha]);
-        }
+        let output = unsafe { std::slice::from_raw_parts_mut(data, icon.rgba().len()) };
+        output.copy_from_slice(icon.rgba());
         let image = NSImage::initWithSize(NSImage::alloc(), NSSize::new(16., 16.));
         image.addRepresentation(&bitmap);
         image.setTemplate(true);
-        self.bytes += bytes;
         Some(image)
     }
 }

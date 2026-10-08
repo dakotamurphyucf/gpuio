@@ -279,6 +279,10 @@ impl MacPlatform {
                 let menu_item = NSMenuItem::new(nil).autorelease();
                 menu_item.setTitle_(menu_title);
                 menu_item.setSubmenu_(menu);
+                if let Some(image) = menu_config.icon.as_ref().and_then(crate::menu_icon::image) {
+                    let _: () =
+                        msg_send![menu_item, setImage: objc2::rc::Retained::as_ptr(&image) as id];
+                }
                 application_menu.addItem_(menu_item);
 
                 if menu_config.name == "Window" {
@@ -331,6 +335,7 @@ impl MacPlatform {
                     os_action,
                     checked,
                     disabled,
+                    icon,
                 } => {
                     // Note that this is intentionally using earlier bindings, whereas typically
                     // later ones take display precedence. See the discussion on
@@ -355,16 +360,20 @@ impl MacPlatform {
                         })
                         .map(|binding| binding.keystrokes());
 
-                    let selector = match os_action {
-                        Some(gpui::OsAction::Cut) => selector("cut:"),
-                        Some(gpui::OsAction::Copy) => selector("copy:"),
-                        Some(gpui::OsAction::Paste) => selector("paste:"),
-                        Some(gpui::OsAction::SelectAll) => selector("selectAll:"),
+                    // An explicit disabled state must survive AppKit's automatic
+                    // validation, including native edit selectors. Route those
+                    // items through our delegate with no registered action.
+                    let selector = match (disabled, os_action) {
+                        (true, _) => selector("handleGPUIMenuItem:"),
+                        (false, Some(gpui::OsAction::Cut)) => selector("cut:"),
+                        (false, Some(gpui::OsAction::Copy)) => selector("copy:"),
+                        (false, Some(gpui::OsAction::Paste)) => selector("paste:"),
+                        (false, Some(gpui::OsAction::SelectAll)) => selector("selectAll:"),
                         // "undo:" and "redo:" are always disabled in our case, as
                         // we don't have a NSTextView/NSTextField to enable them on.
-                        Some(gpui::OsAction::Undo) => selector("handleGPUIMenuItem:"),
-                        Some(gpui::OsAction::Redo) => selector("handleGPUIMenuItem:"),
-                        None => selector("handleGPUIMenuItem:"),
+                        (false, Some(gpui::OsAction::Undo | gpui::OsAction::Redo) | None) => {
+                            selector("handleGPUIMenuItem:")
+                        }
                     };
 
                     let item;
@@ -429,8 +438,16 @@ impl MacPlatform {
                         item.setState_(NSVisualEffectState::Active);
                     }
                     item.setEnabled_(if *disabled { NO } else { YES });
+                    if let Some(image) = icon.as_ref().and_then(crate::menu_icon::image) {
+                        let _: () =
+                            msg_send![item, setImage: objc2::rc::Retained::as_ptr(&image) as id];
+                    }
 
-                    let tag = actions.insert(action.boxed_clone());
+                    let tag = if *disabled {
+                        None
+                    } else {
+                        actions.insert(action.boxed_clone())
+                    };
                     if tag.is_none() {
                         item.setEnabled_(NO);
                     }
@@ -441,6 +458,7 @@ impl MacPlatform {
                     name,
                     items,
                     disabled,
+                    icon,
                 }) => {
                     let item = NSMenuItem::new(nil).autorelease();
                     let submenu = NSMenu::new(nil).autorelease();
@@ -450,6 +468,10 @@ impl MacPlatform {
                     }
                     item.setSubmenu_(submenu);
                     item.setEnabled_(if *disabled { NO } else { YES });
+                    if let Some(image) = icon.as_ref().and_then(crate::menu_icon::image) {
+                        let _: () =
+                            msg_send![item, setImage: objc2::rc::Retained::as_ptr(&image) as id];
+                    }
                     item.setTitle_(ns_string(name));
                     item
                 }

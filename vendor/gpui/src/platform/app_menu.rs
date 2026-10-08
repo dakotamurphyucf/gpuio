@@ -1,4 +1,45 @@
 use crate::{Action, App, Platform, SharedString};
+use std::sync::Arc;
+
+/// Validated RGBA8 template artwork for a 16-logical-pixel native menu slot.
+/// Owns shared pixel storage; no image worker or encoded source is kept alive.
+#[derive(Clone, PartialEq, Eq)]
+pub struct MenuIcon {
+    width: u32,
+    height: u32,
+    rgba: Arc<[u8]>,
+}
+impl MenuIcon {
+    /// Reject empty/oversized bitmaps and malformed byte counts before AppKit.
+    /// The caller separately bounds aggregate menu storage. Template tint is native.
+    pub fn from_rgba(width: u32, height: u32, rgba: Arc<[u8]>) -> Option<Self> {
+        if width == 0
+            || height == 0
+            || width > 256
+            || height > 256
+            || rgba.len() != width as usize * height as usize * 4
+        {
+            return None;
+        }
+        Some(Self {
+            width,
+            height,
+            rgba,
+        })
+    }
+    /// Physical width (1..=256 pixels).
+    pub fn width(&self) -> u32 {
+        self.width
+    }
+    /// Physical height (1..=256 pixels).
+    pub fn height(&self) -> u32 {
+        self.height
+    }
+    /// Exactly width * height * 4 interleaved RGBA8 bytes, without row padding.
+    pub fn rgba(&self) -> &[u8] {
+        &self.rgba
+    }
+}
 
 /// A menu of the application, either a main menu or a submenu
 pub struct Menu {
@@ -10,6 +51,9 @@ pub struct Menu {
 
     /// Whether this menu is disabled
     pub disabled: bool,
+
+    /// Optional native template artwork (normally used on submenu rows).
+    pub icon: Option<MenuIcon>,
 }
 
 impl Menu {
@@ -19,6 +63,7 @@ impl Menu {
             name: name.into(),
             items: vec![],
             disabled: false,
+            icon: None,
         }
     }
 
@@ -40,6 +85,7 @@ impl Menu {
             name: self.name.to_string().into(),
             items: self.items.into_iter().map(|item| item.owned()).collect(),
             disabled: self.disabled,
+            icon: self.icon,
         }
     }
 }
@@ -100,6 +146,9 @@ pub enum MenuItem {
 
         /// Whether this action is disabled
         disabled: bool,
+
+        /// Optional native template artwork.
+        icon: Option<MenuIcon>,
     },
 }
 
@@ -130,6 +179,7 @@ impl MenuItem {
             os_action: None,
             checked: false,
             disabled: false,
+            icon: None,
         }
     }
 
@@ -145,6 +195,7 @@ impl MenuItem {
             os_action: Some(os_action),
             checked: false,
             disabled: false,
+            icon: None,
         }
     }
 
@@ -159,15 +210,27 @@ impl MenuItem {
                 os_action,
                 checked,
                 disabled,
+                icon,
             } => OwnedMenuItem::Action {
                 name: name.into(),
                 action,
                 os_action,
                 checked,
                 disabled,
+                icon,
             },
             MenuItem::SystemMenu(os_menu) => OwnedMenuItem::SystemMenu(os_menu.owned()),
         }
+    }
+
+    /// Set artwork for an action or submenu; separators and system menus ignore it.
+    pub fn icon(mut self, icon: Option<MenuIcon>) -> Self {
+        match &mut self {
+            MenuItem::Action { icon: current, .. } => *current = icon,
+            MenuItem::Submenu(menu) => menu.icon = icon,
+            MenuItem::Separator | MenuItem::SystemMenu(_) => {}
+        }
+        self
     }
 
     /// Set whether this menu item is checked
@@ -244,6 +307,9 @@ pub struct OwnedMenu {
 
     /// Whether this menu is disabled
     pub disabled: bool,
+
+    /// Optional native template artwork (normally used on submenu rows).
+    pub icon: Option<MenuIcon>,
 }
 
 /// The different kinds of items that can be in a menu
@@ -274,6 +340,9 @@ pub enum OwnedMenuItem {
 
         /// Whether this action is disabled
         disabled: bool,
+
+        /// Optional native template artwork.
+        icon: Option<MenuIcon>,
     },
 }
 
@@ -288,12 +357,14 @@ impl Clone for OwnedMenuItem {
                 os_action,
                 checked,
                 disabled,
+                icon,
             } => OwnedMenuItem::Action {
                 name: name.clone(),
                 action: action.boxed_clone(),
                 os_action: *os_action,
                 checked: *checked,
                 disabled: *disabled,
+                icon: icon.clone(),
             },
             OwnedMenuItem::SystemMenu(os_menu) => OwnedMenuItem::SystemMenu(os_menu.clone()),
         }
@@ -393,6 +464,7 @@ mod tests {
             MenuItem::Action {
                 checked: false,
                 disabled: false,
+                icon: None,
                 ..
             }
         ));
@@ -412,6 +484,7 @@ mod tests {
             name: "Submenu".into(),
             items: vec![],
             disabled: true,
+            icon: None,
         });
         assert_eq!(
             match &submenu {

@@ -21,7 +21,7 @@ mod popup;
 mod popup_host;
 #[cfg(target_os = "macos")]
 #[path = "menu_popup_icon.rs"]
-mod popup_icon;
+pub(in crate::host) mod popup_icon;
 
 #[path = "menu_command_host.rs"]
 mod command_host;

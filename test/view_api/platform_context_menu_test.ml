@@ -4,6 +4,53 @@ module W = Gpuio_protocol.Wire
 
 let ok = Or_error.ok_exn
 
+let%expect_test "platform bar SVG slots preserve nested and repeated commands" =
+  let command = Command.Id.of_string "run" |> ok in
+  let child = Menu.create ~label:"Nested" [ Command command ] |> ok in
+  let menu =
+    Menu.create ~label:"Actions" [ Command command; Submenu child; Separator ] |> ok
+  in
+  let owner = Asset.Expert.Owner.create () in
+  let svg =
+    Asset.Expert.handle
+      ~owner
+      ~id:(Gpuio_protocol.Resource_id.create ~slot:0L ~generation:1L |> ok)
+      ~format:Svg
+  in
+  let path indices = Menu.Item_path.of_list indices |> ok in
+  let bar = View.menu_bar ~platform:true [ menu ] |> ok in
+  let decorated =
+    View.with_menu_item_icons
+      bar
+      ~items:[ path [ 0; 0 ], svg; path [ 0; 1 ], svg; path [ 0; 1; 0 ], svg ]
+    |> ok
+  in
+  let description = View.Expert.describe decorated in
+  assert (
+    Menu.Expert.equal_presentation
+      (Option.value_exn description.menu).presentation
+      Platform_bar);
+  let slots = List.map description.children ~f:View.Expert.describe in
+  assert (
+    List.equal
+      Int.equal
+      (List.map slots ~f:(fun slot -> List.length slot.children))
+      [ 1; 1; 1; 0 ]);
+  assert (
+    Result.is_error
+      (View.with_menu_item_content bar ~items:[ path [ 0; 0 ], View.text "Rich" ]));
+  assert (Result.is_error (View.with_menu_item_icons bar ~items:[ path [ 0; 2 ], svg ]));
+  let cleared =
+    View.with_menu_item_icons decorated ~items:[] |> ok |> View.Expert.describe
+  in
+  assert (List.is_empty cleared.children);
+  print_endline
+    "Native bar: nested SVG decorations; repeated command positions; no rich slots; \
+     explicit clear";
+  [%expect
+    {| Native bar: nested SVG decorations; repeated command positions; no rich slots; explicit clear |}]
+;;
+
 let%expect_test "platform context presentation has independent paired bytes" =
   let window = Gpuio_protocol.Window_id.create ~slot:0L ~generation:1L |> ok in
   let node = Gpuio_protocol.Node_id.create ~slot:1L ~generation:2L |> ok in

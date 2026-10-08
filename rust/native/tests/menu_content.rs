@@ -110,42 +110,47 @@ fn content_slot_projection_preserves_nested_and_duplicate_command_positions() {
 
 #[test]
 fn platform_icons_admit_only_passive_decorations_and_reject_changes_atomically() {
-    let mut operations = initial(MenuPresentation::PlatformContext);
-    for op in &mut operations {
-        if let Op::Create(node, kind, text, _) = op
-            && (7..11).any(|slot| *node == id(slot))
-        {
-            *kind = Kind::Icon;
-            text.clear();
-        }
-    }
-    let image = ImageConfig {
-        source: ImageSource::Unavailable(ImageError::Released),
-        fit: ImageFit::Contain,
-        label: None,
-    };
-    for slot in 7..11 {
-        operations.push(Op::SetImage(id(slot), image.clone()));
-    }
-    let mut tree = Tree::new(WindowId::from_parts(0, 1).unwrap());
-    tree.apply(&tx(0, operations)).unwrap();
-    let bytes = tree.retained_bytes();
-    for invalid in [
-        Op::SetHoverObserver(id(7), Some(HandlerId::from_parts(1, 1).unwrap())),
-        Op::SetImage(
-            id(7),
-            ImageConfig {
-                label: Some("Interactive label".into()),
-                ..image.clone()
-            },
-        ),
-        Op::SetText(id(7), "Rich text".into()),
-        Op::SetStyle(id(7), vec![Style::Fields(vec![Field::UserSelect(true)])]),
-        Op::Splice(id(6), 0, 0, vec![id(7)]),
+    for presentation in [
+        MenuPresentation::PlatformContext,
+        MenuPresentation::PlatformBar,
     ] {
-        assert!(tree.apply(&tx(1, vec![invalid])).is_err());
-        assert_eq!(tree.revision(), 1);
-        assert_eq!(tree.retained_bytes(), bytes);
+        let mut operations = initial(presentation);
+        for op in &mut operations {
+            if let Op::Create(node, kind, text, _) = op
+                && (7..11).any(|slot| *node == id(slot))
+            {
+                *kind = Kind::Icon;
+                text.clear();
+            }
+        }
+        let image = ImageConfig {
+            source: ImageSource::Unavailable(ImageError::Released),
+            fit: ImageFit::Contain,
+            label: None,
+        };
+        for slot in 7..11 {
+            operations.push(Op::SetImage(id(slot), image.clone()));
+        }
+        let mut tree = Tree::new(WindowId::from_parts(0, 1).unwrap());
+        tree.apply(&tx(0, operations)).unwrap();
+        let bytes = tree.retained_bytes();
+        for invalid in [
+            Op::SetHoverObserver(id(7), Some(HandlerId::from_parts(1, 1).unwrap())),
+            Op::SetImage(
+                id(7),
+                ImageConfig {
+                    label: Some("Interactive label".into()),
+                    ..image.clone()
+                },
+            ),
+            Op::SetText(id(7), "Rich text".into()),
+            Op::SetStyle(id(7), vec![Style::Fields(vec![Field::UserSelect(true)])]),
+            Op::Splice(id(6), 0, 0, vec![id(7)]),
+        ] {
+            assert!(tree.apply(&tx(1, vec![invalid])).is_err());
+            assert_eq!(tree.revision(), 1);
+            assert_eq!(tree.retained_bytes(), bytes);
+        }
     }
 }
 #[test]

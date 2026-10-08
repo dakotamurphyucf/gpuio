@@ -310,6 +310,31 @@ let component ~search_palette app window palette graph =
       |> ok
     | _ -> view
   in
+  let native_bar =
+    let nested =
+      Menu.create ~label:"Preview actions" [ Command advance; Command choose ] |> ok
+    in
+    let menu =
+      Menu.create
+        ~label:"Workspace"
+        [ Command advance; Command notify; Separator; Submenu nested ]
+      |> ok
+    in
+    (* AppKit presents the first top-level menu as the application menu. *)
+    let app_menu = Menu.create ~label:"Component Studio" [ Command choose ] |> ok in
+    let view = V.menu_bar ~platform:true [ app_menu; menu ] |> ok in
+    match menu_icon, show_content with
+    | Preview_scope.Ready icon, true ->
+      let asset = Icon.Expert.image icon |> Image.Config.asset in
+      V.with_menu_item_icons
+        view
+        ~items:
+          (List.map
+             [ [ 1; 0 ]; [ 1; 1 ]; [ 1; 3 ]; [ 1; 3; 0 ] ]
+             ~f:(fun path -> Menu.Item_path.of_list path |> ok, asset))
+      |> ok
+    | _ -> view
+  in
   let palette_status =
     match Palette_controller.snapshot palette_controller with
     | None -> "Finding commands…"
@@ -400,7 +425,8 @@ let component ~search_palette app window palette graph =
   V.command_scope
     ~commands
     ~style:(style [ Gap (px 20.) ])
-    [ Palette.card
+    [ native_bar
+    ; Palette.card
         p
         ~title:"One action, many ways to reach it"
         [ V.menu_bar ~platform:false [ menu ] |> ok |> decorate

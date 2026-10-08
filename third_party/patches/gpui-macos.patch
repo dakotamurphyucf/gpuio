@@ -280,3 +280,148 @@
                  result = callback(action.as_ref());
              }
              platform
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -50,7 +50,7 @@
+ metal = { version = "0.33" }
+ objc = { version = "0.2" }
+ objc2 = { version = "0.6" }
+-objc2-app-kit = { version = "0.3.2", default-features = false, features = ["NSAlert", "NSApplication", "NSButton", "NSControl", "NSDraggingItem", "NSGraphics", "NSImage", "NSOpenPanel", "NSPanel", "NSPasteboard", "NSResponder", "NSSavePanel", "NSScreen", "NSView", "NSWindow", "NSWorkspace", "block2", "objc2-core-foundation"] }
++objc2-app-kit = { version = "0.3.2", default-features = false, features = ["NSAlert", "NSApplication", "NSButton", "NSControl", "NSDraggingItem", "NSGraphics", "NSImage", "NSImageRep", "NSBitmapImageRep", "NSOpenPanel", "NSPanel", "NSPasteboard", "NSResponder", "NSSavePanel", "NSScreen", "NSView", "NSWindow", "NSWorkspace", "block2", "objc2-core-foundation"] }
+ objc2-foundation = { version = "=0.3.2", default-features = false, features = ["NSArray", "NSAttributedString", "NSBundle", "NSCoder", "NSData", "NSDate", "NSDictionary", "NSEnumerator", "NSError", "NSGeometry", "NSNotification", "NSNull", "NSObjCRuntime", "NSObject", "NSProcessInfo", "NSRange", "NSRunLoop", "NSSet", "NSString", "NSURL", "NSUndoManager", "NSValue", "objc2-core-foundation", "std"] }
+ objc2-screen-capture-kit = { version = "=0.3.2", default-features = false, features = ["block2", "objc2-core-graphics", "SCShareableContent", "std"] }
+ objc2-user-notifications = { version = "0.3" }
+--- a/src/gpui_macos.rs
++++ b/src/gpui_macos.rs
+@@ -10,6 +10,7 @@
+ mod events;
+ mod keyboard;
+ mod menu_actions;
++mod menu_icon;
+ mod pasteboard;
+ mod system_notifications;
+ 
+--- /dev/null
++++ b/src/menu_icon.rs
+@@ -0,0 +1,33 @@
++//! Materialize an already decoded, shape-checked template in AppKit-owned storage.
++use gpui::MenuIcon;
++use objc2::{AnyThread, rc::Retained};
++use objc2_app_kit::{NSBitmapFormat, NSBitmapImageRep, NSDeviceRGBColorSpace, NSImage};
++use objc2_foundation::NSSize;
++
++pub(super) fn image(icon: &MenuIcon) -> Option<Retained<NSImage>> {
++    let width = icon.width() as isize;
++    let height = icon.height() as isize;
++    // Null planes request AppKit-owned storage. MenuIcon validates dimensions and
++    // the exact interleaved RGBA8 byte count before reaching this boundary.
++    let bitmap = unsafe {
++        NSBitmapImageRep::initWithBitmapDataPlanes_pixelsWide_pixelsHigh_bitsPerSample_samplesPerPixel_hasAlpha_isPlanar_colorSpaceName_bitmapFormat_bytesPerRow_bitsPerPixel(
++            NSBitmapImageRep::alloc(), std::ptr::null_mut(), width, height,
++            8, 4, true, false, NSDeviceRGBColorSpace,
++            NSBitmapFormat::AlphaNonpremultiplied, width * 4, 32,
++        )
++    }?;
++    let data = bitmap.bitmapData();
++    if data.is_null()
++        || bitmap.bytesPerRow() != width * 4
++        || bitmap.pixelsWide() != width
++        || bitmap.pixelsHigh() != height
++    {
++        return None;
++    }
++    // Fresh unshared representation owns height * bytesPerRow writable bytes.
++    unsafe { std::slice::from_raw_parts_mut(data, icon.rgba().len()) }.copy_from_slice(icon.rgba());
++    let image = NSImage::initWithSize(NSImage::alloc(), NSSize::new(16., 16.));
++    image.addRepresentation(&bitmap);
++    image.setTemplate(true);
++    Some(image)
++}
+--- a/src/platform.rs
++++ b/src/platform.rs
+@@ -279,6 +279,10 @@
+                 let menu_item = NSMenuItem::new(nil).autorelease();
+                 menu_item.setTitle_(menu_title);
+                 menu_item.setSubmenu_(menu);
++                if let Some(image) = menu_config.icon.as_ref().and_then(crate::menu_icon::image) {
++                    let _: () =
++                        msg_send![menu_item, setImage: objc2::rc::Retained::as_ptr(&image) as id];
++                }
+                 application_menu.addItem_(menu_item);
+ 
+                 if menu_config.name == "Window" {
+@@ -331,6 +335,7 @@
+                     os_action,
+                     checked,
+                     disabled,
++                    icon,
+                 } => {
+                     // Note that this is intentionally using earlier bindings, whereas typically
+                     // later ones take display precedence. See the discussion on
+@@ -355,16 +360,20 @@
+                         })
+                         .map(|binding| binding.keystrokes());
+ 
+-                    let selector = match os_action {
+-                        Some(gpui::OsAction::Cut) => selector("cut:"),
+-                        Some(gpui::OsAction::Copy) => selector("copy:"),
+-                        Some(gpui::OsAction::Paste) => selector("paste:"),
+-                        Some(gpui::OsAction::SelectAll) => selector("selectAll:"),
++                    // An explicit disabled state must survive AppKit's automatic
++                    // validation, including native edit selectors. Route those
++                    // items through our delegate with no registered action.
++                    let selector = match (disabled, os_action) {
++                        (true, _) => selector("handleGPUIMenuItem:"),
++                        (false, Some(gpui::OsAction::Cut)) => selector("cut:"),
++                        (false, Some(gpui::OsAction::Copy)) => selector("copy:"),
++                        (false, Some(gpui::OsAction::Paste)) => selector("paste:"),
++                        (false, Some(gpui::OsAction::SelectAll)) => selector("selectAll:"),
+                         // "undo:" and "redo:" are always disabled in our case, as
+                         // we don't have a NSTextView/NSTextField to enable them on.
+-                        Some(gpui::OsAction::Undo) => selector("handleGPUIMenuItem:"),
+-                        Some(gpui::OsAction::Redo) => selector("handleGPUIMenuItem:"),
+-                        None => selector("handleGPUIMenuItem:"),
++                        (false, Some(gpui::OsAction::Undo | gpui::OsAction::Redo) | None) => {
++                            selector("handleGPUIMenuItem:")
++                        }
+                     };
+ 
+                     let item;
+@@ -429,8 +438,16 @@
+                         item.setState_(NSVisualEffectState::Active);
+                     }
+                     item.setEnabled_(if *disabled { NO } else { YES });
+-
+-                    let tag = actions.insert(action.boxed_clone());
++                    if let Some(image) = icon.as_ref().and_then(crate::menu_icon::image) {
++                        let _: () =
++                            msg_send![item, setImage: objc2::rc::Retained::as_ptr(&image) as id];
++                    }
++
++                    let tag = if *disabled {
++                        None
++                    } else {
++                        actions.insert(action.boxed_clone())
++                    };
+                     if tag.is_none() {
+                         item.setEnabled_(NO);
+                     }
+@@ -441,6 +458,7 @@
+                     name,
+                     items,
+                     disabled,
++                    icon,
+                 }) => {
+                     let item = NSMenuItem::new(nil).autorelease();
+                     let submenu = NSMenu::new(nil).autorelease();
+@@ -450,6 +468,10 @@
+                     }
+                     item.setSubmenu_(submenu);
+                     item.setEnabled_(if *disabled { NO } else { YES });
++                    if let Some(image) = icon.as_ref().and_then(crate::menu_icon::image) {
++                        let _: () =
++                            msg_send![item, setImage: objc2::rc::Retained::as_ptr(&image) as id];
++                    }
+                     item.setTitle_(ns_string(name));
+                     item
+                 }

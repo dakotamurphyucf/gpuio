@@ -158,7 +158,12 @@ fn platform_menu_icon(tree: &Tree, node: &Node) -> bool {
             .and_then(|slot| slot.parent)
             .and_then(|id| tree.get(id))
             .and_then(|parent| parent.menu.as_ref())
-            .is_some_and(|menu| menu.presentation == MenuPresentation::PlatformContext)
+            .is_some_and(|menu| {
+                matches!(
+                    menu.presentation,
+                    MenuPresentation::PlatformContext | MenuPresentation::PlatformBar
+                )
+            })
 }
 
 // An avatar must know which slot it will display before laying out a rich

@@ -355,6 +355,7 @@ fn run_example() {
             return;
         }
         cx.set_menus(vec![Menu {
+            icon: None,
             name: "GPUI Typography".into(),
             disabled: false,
             items: vec![],

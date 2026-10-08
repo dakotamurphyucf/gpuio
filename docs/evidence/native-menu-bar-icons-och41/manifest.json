@@ -1,0 +1,304 @@
+{
+  "metadata": {
+    "base_revision": "98e4eedfe2aa2b9bc0c8075971a6f3661d303163",
+    "machine": "Darwin arm64",
+    "native": {
+      "sha256": "89e03a28a3d31c69238091ff5b13a5dd31226d00a2d4ae2568455417ca08e149",
+      "command": [
+        "target/debug/deps/native_menus-4dc179eda3856661",
+        "--nocapture"
+      ],
+      "exit": 0,
+      "clipboard_restored": true
+    },
+    "gallery_binary_sha256": "b4564a543030a54c3c435b1cedc46b94d95085e43d158bbfd568bca7ae3b15bc",
+    "gallery_exit": 0,
+    "native_library": {
+      "passed": 1187,
+      "ignored": 2
+    },
+    "clippy_final_exit": 0,
+    "ocaml_view_api_exit": 0,
+    "gallery_build_exit": 0,
+    "format_exit": 0,
+    "reconstruction": {
+      "gpui": {
+        "files": 159,
+        "exact": true
+      },
+      "gpui-macos": {
+        "files": 19,
+        "exact": true
+      }
+    },
+    "scope": "Local macOS AppKit and standalone public gallery. No Linux, installed consumer, VoiceOver or performance acceptance."
+  },
+  "archive_sha256": "473ab489689c8099493ae0f2b34738f4da96d23e30ddd1ee6141f153dbb7a7c1",
+  "files": [
+    {
+      "path": "bar-probe.log",
+      "sha256": "66adfffffc98e8ccf452891c4de12de1a62fcb12ee5952e1d099c5114104856c",
+      "bytes": 337
+    },
+    {
+      "path": "bar-visual-1.log",
+      "sha256": "2a6fa79df4e457341fbad71427e4040ed32d34d98f3ea348b32eeb2ffb3eb884",
+      "bytes": 6817
+    },
+    {
+      "path": "bar-visual-2.log",
+      "sha256": "92c4c9641ae9467f29a6a7d5816ce236a603c03305abcf4bd67579e6d7022332",
+      "bytes": 661
+    },
+    {
+      "path": "bar-visual-3.log",
+      "sha256": "345905469044180bb026ae0cf5f018f5bdaf6a1ed56092ae2d7562ce8254a62e",
+      "bytes": 7141
+    },
+    {
+      "path": "bar-visual-4.log",
+      "sha256": "a5f453b09955ea79727d4fa723dacbd004635dd60bfd219f9c8336d0cd7ec5eb",
+      "bytes": 7141
+    },
+    {
+      "path": "bar-visual-5.log",
+      "sha256": "711eb79b56b0026211453a3f80088d62ca5d074e1ffe84684cc9bed3aa261bbf",
+      "bytes": 7440
+    },
+    {
+      "path": "bar-visual-6.log",
+      "sha256": "52a2133d8996f0fc394fc34f725ba9b7653e473de425ead0bb2a172d37c01e35",
+      "bytes": 12902
+    },
+    {
+      "path": "bar-visual-7.log",
+      "sha256": "a86d011c421976eb3ddedbb940c59d669e23bba1215e0279da397f4ff6f661df",
+      "bytes": 7629
+    },
+    {
+      "path": "bar-visual-8.log",
+      "sha256": "679b1c71001efc00086aa9e9c4d65f1b7405d2576becc245410f98cb2366a5d6",
+      "bytes": 7629
+    },
+    {
+      "path": "bar-visual-final-2.log",
+      "sha256": "aec35902c261ef38d581e3cb016c66db4863ff76f1903c66fdbd6ebc444d68c6",
+      "bytes": 3330
+    },
+    {
+      "path": "bar-visual-final.log",
+      "sha256": "55da8a8ec747bb0687cad6edb59b335a1e4529fded48f8aeac305b8c1a19d0c0",
+      "bytes": 5835
+    },
+    {
+      "path": "gallery/native-bar-cleared.png",
+      "sha256": "7243f1bd1c48a7c016a677e94ef1907d88136183111e080c949450f3695a0622",
+      "bytes": 28170
+    },
+    {
+      "path": "gallery/native-bar-nested.png",
+      "sha256": "87b3f14f312e85ab82bd01d3bd0b5ec327294a151b655158d49b87e58d4462d2",
+      "bytes": 14496
+    },
+    {
+      "path": "gallery/native-bar-ready.png",
+      "sha256": "08330f56b91568d32e9ee8840063556b95c5606706194ee3750c3f654195812b",
+      "bytes": 29485
+    },
+    {
+      "path": "gallery/native-bar-remounted.png",
+      "sha256": "80dbeaccd9f6a828948e6cbb3c26ada175edf0014fb7a7ac6b52171932f0cc24",
+      "bytes": 29469
+    },
+    {
+      "path": "gallery/native-bar-report.json",
+      "sha256": "a9c4b8ae8e08897c026672bc5a97b40b714a12f64e3d8de2df1aa401cf8e7462",
+      "bytes": 3694
+    },
+    {
+      "path": "gallery/native-bar-restored.png",
+      "sha256": "688594275052f1ed80de025c3957fa41fd2f67dc24a619570f175c0e4a29d4a1",
+      "bytes": 29504
+    },
+    {
+      "path": "gallery/native-bar-surviving-window.png",
+      "sha256": "ea0d62d3c84c0529fc861397845ea65217e9d34d4723b0c69d84e8ae7bae6719",
+      "bytes": 29577
+    },
+    {
+      "path": "menu-bar-admission.log",
+      "sha256": "eca9576439d08e35a6e3066a613d62763fd9465d4612db6023bb370464734618",
+      "bytes": 593850
+    },
+    {
+      "path": "menu-bar-catalog-audit.log",
+      "sha256": "ec7f045757abb1d7e2907d8e645fbd6c7fa3e9b0e1e808e2fdc2dd20215b9a75",
+      "bytes": 640
+    },
+    {
+      "path": "menu-bar-check.log",
+      "sha256": "afafe6081a8287401deca82199a545f8bd646caad4b2e7bae5f1bdc1ebfbd86c",
+      "bytes": 592896
+    },
+    {
+      "path": "menu-bar-disabled-after-build.log",
+      "sha256": "849b1ca841ff89fe43938c8007d77a052d515b5281a47cc71fd95754f5fb9479",
+      "bytes": 592156
+    },
+    {
+      "path": "menu-bar-disabled-after.json",
+      "sha256": "91cdcd6f8f57e23a873c957bc3f490f8e3b92852401ac97048961b3329726e6d",
+      "bytes": 219
+    },
+    {
+      "path": "menu-bar-disabled-after.log",
+      "sha256": "9b0c1919947d1c90f9b041b0a701c1afd294dbf50fcbef7dddb317feed35233a",
+      "bytes": 1098
+    },
+    {
+      "path": "menu-bar-disabled-before-build.log",
+      "sha256": "275901cf0278c615c0c261d43e42f56126fccb34ef9fe73fb931659e1fec0119",
+      "bytes": 592982
+    },
+    {
+      "path": "menu-bar-disabled-before.log",
+      "sha256": "b7808a58366cd46ae630ed6170f1a97dd950a96c1757a8ae897fc5ec1d61f930",
+      "bytes": 337
+    },
+    {
+      "path": "menu-bar-doc-audit.log",
+      "sha256": "6a6c48d5844d1ffdb3732cf30e5bb603cac1b615504a84bb2ee3b168cab6ce0b",
+      "bytes": 139
+    },
+    {
+      "path": "menu-bar-final-admission.log",
+      "sha256": "80f038550dc6a1891f4ae2dccffea61fee61ef926bc8937e808e2b5cd87a76ed",
+      "bytes": 593312
+    },
+    {
+      "path": "menu-bar-final-clippy-2.log",
+      "sha256": "edc8836de637e101b30f9e0439686c0e6a80ac7176e203640ef8736b1238a66a",
+      "bytes": 592291
+    },
+    {
+      "path": "menu-bar-final-clippy.log",
+      "sha256": "6e3adb7fccc9f50f13c926d60dd33de0c60c21054835fe51c9d8976dc8fb84b8",
+      "bytes": 593224
+    },
+    {
+      "path": "menu-bar-final-native.log",
+      "sha256": "0712cfb382e7b8d7d4b9815435a4b4f74c44af620ebe2b1d42d67f1b680c2b96",
+      "bytes": 721595
+    },
+    {
+      "path": "menu-bar-final-validation.json",
+      "sha256": "eb671b34bcab0eb147fedba76c10d9b04566a00fa055fdeb54fb370f0b06df18",
+      "bytes": 1068
+    },
+    {
+      "path": "menu-bar-format.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "menu-bar-gallery-build-2.log",
+      "sha256": "1821129e79518705135f89b8da4725475c51ca6fa45a5b54ffa5c5f77af835ad",
+      "bytes": 100179
+    },
+    {
+      "path": "menu-bar-gallery-build-final.log",
+      "sha256": "b6e27a1d65b7e3ed6fe735e9ec8c9681757a660c63cac767426a6e23424d32d2",
+      "bytes": 100281
+    },
+    {
+      "path": "menu-bar-gallery-build.log",
+      "sha256": "73d8341b819b7876ebc4a37b1d1c699ca542bee9d280cbc1851af63c0d4a8c18",
+      "bytes": 100179
+    },
+    {
+      "path": "menu-bar-gpui-reconstruction.log",
+      "sha256": "a9543fcf922599f871486d085594666a15cf4f9b2ca0ca14c1b32d91c5f40330",
+      "bytes": 1364
+    },
+    {
+      "path": "menu-bar-macos-reconstruction.log",
+      "sha256": "17c34b434f6fe99dca6e22c17639d7ed188c55c4793800b35c694915b82b8ee7",
+      "bytes": 311
+    },
+    {
+      "path": "menu-bar-native-2.json",
+      "sha256": "a91f7bd716a770a1d44b1b16fc3d4edf121aa3b67149f3d5ef9365372ada05aa",
+      "bytes": 189
+    },
+    {
+      "path": "menu-bar-native-2.log",
+      "sha256": "9b0c1919947d1c90f9b041b0a701c1afd294dbf50fcbef7dddb317feed35233a",
+      "bytes": 1098
+    },
+    {
+      "path": "menu-bar-native-build-2.log",
+      "sha256": "5efd04a41a8022c77691a2520cb6dae1b1d5039b59118d81595aa8b60a89ceb1",
+      "bytes": 592236
+    },
+    {
+      "path": "menu-bar-native-build.log",
+      "sha256": "fc89bbcd0e127439d648f7377f4efae514a22e67a8db356d1e628f6f4ab076d6",
+      "bytes": 592236
+    },
+    {
+      "path": "menu-bar-native.json",
+      "sha256": "8be9f8aec5b87809fa3096b03931a8b7c74950b3353f5d22566e29bab93d7064",
+      "bytes": 135
+    },
+    {
+      "path": "menu-bar-native.log",
+      "sha256": "5133c047882d68445f71ab01b2892afd5c491684e0a972e1f0b6903971e4a917",
+      "bytes": 2283
+    },
+    {
+      "path": "menu-bar-ocaml-tests.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "menu-bar-reconstruction.json",
+      "sha256": "39c69912744b18a4fcf5c6467039e7a9f9d24614c50cf85aa4e8cce534e64274",
+      "bytes": 114
+    },
+    {
+      "path": "metadata.json",
+      "sha256": "89686b812bda5c40aabc1c4c797c8d3e959e77f985d1defe4cd4bead5062cb94",
+      "bytes": 908
+    },
+    {
+      "path": "source.diff",
+      "sha256": "2d9256cad617e6f337bd3964a65465c256700dadc80ed91d9feb1e08192e4b85",
+      "bytes": 53040
+    },
+    {
+      "path": "source/examples/gallery/feedback_page.ml",
+      "sha256": "3a4f582cc2a172753631b40b7a850dec67820c5edc4b9e990e779e0a91b49208",
+      "bytes": 21052
+    },
+    {
+      "path": "source/rust/native/src/menu_bar_icons_test.rs",
+      "sha256": "8030b0b9f4c355001f4b2d598524f2843b4234ce449ade502c9de0fadaec90de",
+      "bytes": 8618
+    },
+    {
+      "path": "source/rust/native/tests/menu_icons.rs",
+      "sha256": "669e11a92f2df3081c8a15cd05dd39f996da23e203db55795430649439c2d52a",
+      "bytes": 1771
+    },
+    {
+      "path": "source/scripts/gallery_native_menu_bar.py",
+      "sha256": "74c3585eba9c3c1caa197b9f7f5b2107ee32e6f6b5801059f53414139403a723",
+      "bytes": 9906
+    },
+    {
+      "path": "source/vendor/gpui-macos/src/menu_icon.rs",
+      "sha256": "c23e05b0628e683e988bbeb555cd0104236741bdb8e24244aa57be1defd187ed",
+      "bytes": 1545
+    }
+  ]
+}

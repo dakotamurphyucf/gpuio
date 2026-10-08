@@ -66,7 +66,26 @@ The portable registry regressions compile the actual vendor module on both host
 platforms; the macOS `native_menus` fixture separately holds real native items
 across 128 replacements and invokes their delegates. See
 [menu retirement evidence](../evidence/native-menu-retirement-och41.md).
-This patch does not add native menu-bar icons or qualify their rendering.
+That retirement checkpoint predates the menu-bar artwork extension below.
+
+## Native menu artwork and explicit disabled state
+
+The subsequent menu-bar extension carries validated `gpui::MenuIcon` RGBA
+snapshots on action/submenu items. `menu_icon.rs` creates AppKit-owned template
+images; no encoded SVG parsing or OCaml callback runs in menu construction.
+The [artwork contract](native-popup-menu.md#menu-bar-artwork) describes worker,
+bitmap, snapshot and active-window ownership. The Feedback gallery demonstrates
+this through the public OCaml API.
+
+Actual menu opening exposed a separate validation bug: `setEnabled(false)` was
+later overridden by AppKit's automatic validation, because a generic GPUIO
+command listener existed. Explicitly disabled items now have no registered
+action. They use the GPUI delegate selector even when an OS edit selector was
+requested, so the responder chain cannot re-enable them. Enabled items retain
+their existing selector and dispatch behavior. This also avoids retaining a
+boxed action for a disabled native row; re-enabling replaces the snapshot with
+a fresh, non-reused tag. The native regression calls `NSMenu.update()` before
+checking disabled state, rather than checking construction alone.
 
 ## Reproduction and maintenance
 
@@ -78,7 +97,8 @@ The script verifies the upstream archive and `third_party/patches/gpui-macos.pat
 hashes in `third_party/sources.json`, materializes workspace dependencies without
 changing their pins/features, preserves `Cargo.toml.upstream`, and copies the
 upstream Apache license. The menu registry adds one file; all 18 reconstructed
-files match the vendored tree at the menu-retirement checkpoint.
+files match the vendored tree at the menu-retirement checkpoint. The artwork
+extension adds `menu_icon.rs`, bringing the reconstructed total to 19 files.
 No Cargo cache files are edited. When refreshing upstream, inspect the ownership
 chain and adapter destructor again, then rerun native accessibility/window-close
 behavior and the physical audit. Do not remove the patch merely because registry

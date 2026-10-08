@@ -2205,8 +2205,7 @@ impl Plan<'_> {
             let slots = &root.children[usize::from(menu.presentation.is_context())..];
             if !slots.is_empty() {
                 let items = menu.items_preorder();
-                if menu.presentation == MenuPresentation::PlatformBar || slots.len() != items.len()
-                {
+                if slots.len() != items.len() {
                     return Err(ErrorCode::InvalidTree);
                 }
                 for (slot, item) in slots.iter().zip(items) {
@@ -2217,8 +2216,10 @@ impl Plan<'_> {
                     {
                         return Err(ErrorCode::InvalidTree);
                     }
-                    if menu.presentation == MenuPresentation::PlatformContext
-                        && let Some(icon) = slot.children.first()
+                    if matches!(
+                        menu.presentation,
+                        MenuPresentation::PlatformContext | MenuPresentation::PlatformBar
+                    ) && let Some(icon) = slot.children.first()
                     {
                         let icon = self.node(*icon)?;
                         if icon.kind != Kind::Icon

@@ -10,6 +10,7 @@ mod display_link;
 mod events;
 mod keyboard;
 mod menu_actions;
+mod menu_icon;
 mod pasteboard;
 mod system_notifications;
 

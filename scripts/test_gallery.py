@@ -7225,7 +7225,7 @@ def main():
     parser.add_argument('--trace-canvas', action='store_true')
     parser.add_argument('--trace-motion', action='store_true')
     parser.add_argument('--trace-windows', action='store_true')
-    parser.add_argument('--section', choices=['all', 'core', 'shell', 'settings', 'settings-windows', 'settings-composition', 'settings-fields', 'forms', 'editor-groups', 'avatar-groups', 'sliders', 'numbers', 'otp', 'rating', 'spinners', 'progress', 'selection', 'buttons', 'button-appearance', 'menu-observation', 'menu-placement', 'split-buttons', 'split-paint', 'command-tooltip', 'checkable-navigation', 'control-appearance', 'status-regions', 'badges', 'labels', 'shimmer', 'markers', 'alerts', 'tags', 'keyboard-labels', 'binding-observations', 'descriptions', 'chat-composition', 'chat-list', 'attachments', 'attachment-paint', 'groups', 'links', 'empty', 'separators', 'styles', 'borders', 'aspect-ratio', 'pickers', 'color-preview', 'calendar-viewport', 'choice-pickers', 'overlays', 'navigation', 'feedback', 'native-popup', 'journeys', 'collections', 'selectable-lists', 'structural-tables', 'table-presentation', 'documents', 'document-links', 'document-images', 'highlighting', 'canvas', 'assets', 'clipboard', 'charts', 'chart-inspection', 'chart-content', 'chart-labels', 'chart-radar', 'chart-pie', 'chart-axes', 'chart-marks', 'chart-backgrounds', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
+    parser.add_argument('--section', choices=['all', 'core', 'shell', 'settings', 'settings-windows', 'settings-composition', 'settings-fields', 'forms', 'editor-groups', 'avatar-groups', 'sliders', 'numbers', 'otp', 'rating', 'spinners', 'progress', 'selection', 'buttons', 'button-appearance', 'menu-observation', 'menu-placement', 'split-buttons', 'split-paint', 'command-tooltip', 'checkable-navigation', 'control-appearance', 'status-regions', 'badges', 'labels', 'shimmer', 'markers', 'alerts', 'tags', 'keyboard-labels', 'binding-observations', 'descriptions', 'chat-composition', 'chat-list', 'attachments', 'attachment-paint', 'groups', 'links', 'empty', 'separators', 'styles', 'borders', 'aspect-ratio', 'pickers', 'color-preview', 'calendar-viewport', 'choice-pickers', 'overlays', 'navigation', 'feedback', 'native-popup', 'native-bar', 'journeys', 'collections', 'selectable-lists', 'structural-tables', 'table-presentation', 'documents', 'document-links', 'document-images', 'highlighting', 'canvas', 'assets', 'clipboard', 'charts', 'chart-inspection', 'chart-content', 'chart-labels', 'chart-radar', 'chart-pie', 'chart-axes', 'chart-marks', 'chart-backgrounds', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
     args = parser.parse_args()
     Mac.require_accessibility()
     if args.images:
@@ -7377,6 +7377,9 @@ def main():
                 exercise_progress(mac, args.images)
             if args.section in ('all', 'feedback'):
                 exercise_feedback(mac, args.images)
+            if args.section in ('all', 'feedback', 'native-bar'):
+                from gallery_native_menu_bar import exercise as exercise_native_bar
+                exercise_native_bar(mac, args.images)
             if args.section in ('all', 'feedback', 'native-popup'):
                 from gallery_native_popup import exercise as exercise_native_popup
                 exercise_native_popup(mac, args.images)

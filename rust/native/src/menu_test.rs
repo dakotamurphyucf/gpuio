@@ -1,6 +1,9 @@
 //! Real menu key/pointer/accessibility and native macOS menu-bar routing.
 use super::*;
 #[cfg(target_os = "macos")]
+#[path = "menu_bar_icons_test.rs"]
+mod bar_icons_test;
+#[cfg(target_os = "macos")]
 #[path = "menu_retention_test.rs"]
 mod retention_test;
 fn handler(slot: i64) -> gpuio_protocol::HandlerId {
@@ -807,6 +810,7 @@ pub(super) async fn exercise(
         // Allow its initial tree request to paint before testing popup updates.
         let _ = accessible(cx, handle, "Actions", false);
         frame(cx, handle).await;
+        bar_icons_test::exercise(cx, handle, transport).await;
     }
     focus_menu(cx, handle, 39);
     frame(cx, handle).await;

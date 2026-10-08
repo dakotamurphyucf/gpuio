@@ -457,8 +457,9 @@ val with_menu_item_content
   -> items:(Menu.Item_path.t * 'action t) list
   -> 'action t Core.Or_error.t
 
-(** Decorative SVG icons for an opt-in platform context menu. The receiver must
-    be a direct [context_menu ~platform:true]. Paths use the same validation as
+(** Decorative SVG icons for an opt-in platform context menu or menu bar. The
+    receiver must be a direct [context_menu ~platform:true] or
+    [menu_bar ~platform:true]. Paths use the same validation as
     [with_menu_item_content]; raster registrations, separators, duplicate and
     unknown paths are rejected. An empty list removes the icons.
 
@@ -471,7 +472,9 @@ val with_menu_item_content
     leases after registration release. Decoding is asynchronous; a menu opened
     before an icon is ready, or after an icon decoding/resource failure, remains
     usable without that decoration. A native popup freezes ready icons until it
-    closes. A later open observes subsequent asset updates. *)
+    closes. A later open observes subsequent asset updates. The native menu bar
+    updates ready artwork with its active-window menu snapshot; unrelated view
+    changes do not replace that snapshot. Top-level menu titles remain text. *)
 val with_menu_item_icons
   :  'action t
   -> items:(Menu.Item_path.t * Asset.Handle.t) list

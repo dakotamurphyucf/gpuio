@@ -30,6 +30,14 @@ Older records of a VoiceOver hold no longer apply. Access was restored after the
 
 ## Latest delivered behavior and validation
 
+The [native menu-bar artwork checkpoint](evidence/native-menu-bar-icons-och41.md)
+extends passive SVG item paths to platform bars. Actual AppKit and public gallery
+checks pass nested/disabled artwork, clear/restore, command delivery and window
+ownership. It also fixes AppKit validation re-enabling explicitly disabled rows.
+The native suite passes 1,187 tests (two existing skips), and strict Clippy and
+vendor reconstruction pass. Independent-consumer, final-source hosted/Linux and
+consolidated release acceptance remain open.
+
 The [document worker-pressure repair](evidence/document-worker-pressure-och17.md)
 keeps short profile updates pending while an active worker holds temporary
 preparation capacity. The unchanged memory cap still rejects persistent
@@ -43,8 +51,7 @@ The [native-menu retirement repair](evidence/native-menu-retirement-och41.md)
 fixes retained Rust commands after actual menu-bar/Dock replacement. Real AppKit
 checks pass 128 replacements, stale native-item rejection, current dispatch and
 independent Dock teardown. Three portable ownership regressions and the
-1,184-test native suite pass (two existing skips). Native bar artwork remains
-open; this ownership prerequisite does not qualify its rendering.
+1,184-test native suite pass (two existing skips). That ownership checkpoint predates the separate artwork qualification above.
 
 The [rich-header sizing follow-up](evidence/table-header-fit-och41.md) fixes the
 public gallery's clipped Inspect label using ordinary OCaml button styles.
