@@ -1,10 +1,12 @@
 # GPUIO developer preview
 
-The next release is a source-library developer preview for people building native
-OCaml applications and reporting what works, what breaks and what is missing.
-It is still being prepared; this page does not announce a published tag or a
-completed qualification. The [closeout checklist](milestone-07-closeout.md)
-records the remaining release work.
+GPUIO's source-library developer preview is for people building native OCaml
+applications and reporting what works, what breaks and what is missing.
+The first preview's release identity is **`v0.1.0-preview.1`**. Check
+[GitHub Releases](https://github.com/dakotamurphyucf/gpuio/releases) for publication
+status and the exact tagged revision; an unpublished draft is not an available
+release. The [closeout checklist](milestone-07-closeout.md) records its
+qualification scope and remaining work.
 
 ## Try an application
 
@@ -12,6 +14,21 @@ Start with the [prerequisites and isolated toolchain](development.md), then
 [build the starter](getting-started.md). The setup keeps its opam environment in
 the checkout and does not change your default switch. Rust is needed to compile
 the renderer, but ordinary application code uses the OCaml APIs.
+
+Once the release appears on GitHub Releases, clone its tag to reproduce that
+source revision:
+
+```sh
+git clone --branch v0.1.0-preview.1 --depth 1 https://github.com/dakotamurphyucf/gpuio.git
+cd gpuio
+./scripts/gpuio bootstrap
+GPUIO_JOBS=2 ./scripts/gpuio build examples/getting_started/main.exe
+_build/default/examples/getting_started/main.exe
+```
+
+The final command opens the interactive starter. A source tag identifies this
+preview as a whole; it does not establish a stable binary ABI or independently
+published opam package version.
 
 The [starter walkthrough](../examples/getting_started/README.md) explains a small
 Bonsai application, including how state, callbacks and native views fit together.
