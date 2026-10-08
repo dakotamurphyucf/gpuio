@@ -307,6 +307,10 @@ jobs:
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
         timeout-minutes: 4
         run: python3 scripts/test_gallery.py --section notifications --images .cache/ci/notifications 2>&1 | tee .cache/ci/macos-notifications.log
+      - name: macOS notification hover and active-time expiry
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 3
+        run: python3 scripts/test_gallery.py --section notification-policy --images .cache/ci/notification-policy 2>&1 | tee .cache/ci/macos-notification-policy.log
       - name: macOS public clipboard writes and feedback
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
         timeout-minutes: 3

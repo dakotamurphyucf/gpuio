@@ -34,6 +34,10 @@ keyboard expansion and dismissal, retained identity and page teardown. It fixes
 the sample application's Show-during-exit race with fresh batch keys and stale
 dismissal guards. Smoothness, VoiceOver, IME, hover expiry, reduced motion and
 resource acceptance remain separate; this is not full-family qualification.
+The same evidence's [policy follow-up](../evidence/notification-gallery-och41.md#hover-focus-and-active-time-expiry-follow-up)
+now qualifies pointer expansion/collapse and hover/focus active-time expiry under
+application Full/Reduced preferences in both local and installed galleries.
+It does not claim immediate reduced-motion pixels or presentation timing.
 
 Layered geometry, interrupted reflow, finite lifecycle and accepted-dismissal
 tokens now have [native foundation evidence](../evidence/toast-presentation-foundation-och41.md).

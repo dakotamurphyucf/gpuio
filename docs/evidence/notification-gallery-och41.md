@@ -72,3 +72,53 @@ python3 scripts/test_gallery.py --section notifications --executable <fresh-work
 
 This validates the public installed APIs and the example repair locally. It is
 not a signed distribution, clean-machine or final-source hosted result.
+
+## Hover, focus and active-time expiry follow-up
+
+At `bda282a3` plus fixture/documentation changes, the real macOS
+`--section notification-policy` walkthrough passes against both the repository
+executable and the freshly installed consumer above. No application or runtime
+code changed in this follow-up.
+
+For both application Full and Reduced motion preferences, actual pointer hover
+expands all three variable-height cards with the expected 14px gaps. Moving out
+collapses them and removes the two older cards from accessible traversal. The
+ordinary saved-preview notification then stays visible through more than 5.6
+seconds of hover, exceeding its five-second active lifetime. Moving out allows
+expiry, and the asynchronous callback updates the Bonsai status to No pending
+notification. A second save repeats this with native accessibility focus inside
+the close button, then focus outside the toast. This phase uses accessibility
+focus actions, not physical typing. Application System motion is restored and
+each owned process exits zero.
+
+| Executable | Preference | Hover pause / expiry after leaving | Focus pause / expiry after leaving |
+| --- | --- | --- | --- |
+| Repository | Full | 5.64s / 5.34s | 5.70s / 5.31s |
+| Repository | Reduced | 5.63s / 5.13s | 5.70s / 5.12s |
+| Installed consumer | Full | 5.62s / 5.40s | 5.64s / 5.35s |
+| Installed consumer | Reduced | 5.65s / 5.17s | 5.62s / 5.09s |
+
+These elapsed observations include polling, native exit and asynchronous delivery;
+they are not exact timer-deadline, input-to-paint or presentation measurements.
+They qualify functional behavior under Reduced motion, not absence of every
+intermediate animated frame. Smoothness, immediate reduced-motion pixels,
+VoiceOver, physical IME, retained-editor streaming, long-stack scrolling and
+memory/idle-resource qualification remain separate.
+
+The initial attempt completed the behavioral phases but failed on a misspelled
+final reset button. The next attempt's pointer guard rejected a toast center
+still below the window during entrance: the point belonged to Finder. The fixture
+now waits, within three seconds, for contained stable geometry before posting
+hover; it does not retry a failed ownership assertion. Both failed attempts are
+retained. No macOS setting, clipboard or input-source configuration changed.
+
+```sh
+python3 scripts/test_gallery.py --section notification-policy --images <fresh-directory>
+python3 scripts/test_gallery.py --section notification-policy --executable <installed-gallery> --images <fresh-directory>
+```
+
+The [policy archive](notification-gallery-och41/policy-reports.tar.gz) and
+[manifest](notification-gallery-och41/policy-manifest.json) retain the four runs,
+reports, captures and exact fixture sources. Documentation inventory, Python
+syntax, workflow lint and diff checks pass. A separate three-minute Foundation
+step is added; hosted acceptance on the final release source remains outstanding.

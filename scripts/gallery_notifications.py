@@ -9,6 +9,144 @@ ANCHORS = ('Bottom right', 'Bottom center', 'Bottom left', 'Left center',
 CARDS = ('Workspace saved', 'Research complete', 'A new idea is ready')
 
 
+def exercise_policy(mac, images=None):
+    """Pointer expansion and actual active-time expiry under both motion policies."""
+    from test_gallery import (
+        TITLE, GalleryMouse, activate, element_rect, focus_gallery_control,
+        reveal_gallery_control, wait_absent,
+    )
+    from test_canvas import screenshot
+
+    report = {'complete': False, 'policies': [],
+              'scope': 'real pointer/focus/timer behavior; not FPS, VoiceOver or idle-resource qualification'}
+    mouse = GalleryMouse(mac)
+
+    def toggle(label):
+        activate(mac, mac.wait_find(TITLE, label, 'AXCheckBox'))
+
+    def park():
+        window = mac.window(TITLE)
+        try:
+            x, y, width, _ = element_rect(mac, window)
+        finally:
+            mac.release(window)
+        point = (x + width / 2, y + 75)
+        mouse.check_owner(point)
+        mouse.send(5, point)
+
+    def hover(label):
+        node = mac.wait_find(TITLE, label, 'AXGroup')
+        window = mac.window(TITLE)
+        try:
+            wx, wy, ww, wh = element_rect(mac, window)
+            previous, stable = None, 0
+            deadline = time.monotonic() + 3
+            while True:
+                bounds = element_rect(mac, node)
+                x, y, width, height = bounds
+                point = (x + width / 2, y + height / 2)
+                contained = (width > 0 and height > 0 and wx <= x and wy <= y
+                             and x + width <= wx + ww and y + height <= wy + wh)
+                stable = stable + 1 if contained and previous == bounds else 0
+                if stable >= 2:
+                    break
+                assert time.monotonic() < deadline, ('Toast did not settle inside window', bounds)
+                previous = bounds
+                time.sleep(.04)
+        finally:
+            mac.release(node)
+            mac.release(window)
+        mouse.check_owner(point)
+        mouse.send(5, point)
+        return point
+
+    def wait_visible(label, seconds):
+        started = time.monotonic()
+        while time.monotonic() - started < seconds:
+            node = mac.find(TITLE, label, 'AXGroup')
+            assert node, ('Notification disappeared during paused lifetime', label)
+            mac.release(node)
+            time.sleep(.1)
+        return time.monotonic() - started
+
+    try:
+        for preference in ('Full', 'Reduced'):
+            mac.press(TITLE, 'Motion & rhythm')
+            mac.press(TITLE, 'Use full motion' if preference == 'Full' else 'Use reduced motion')
+            mac.wait_text(TITLE, 'Motion preference: ' + preference)
+            mac.press(TITLE, 'Commands & feedback')
+            reveal_gallery_control(mac, 'Layer notification cards', 'AXCheckBox')
+            if preference == 'Full':
+                toggle('Animate notifications')
+            toggle('Layer notification cards')
+            focus_gallery_control(mac, 'Show three sample notifications', 'AXButton')
+            park()
+            wait_absent(mac, CARDS[0], None)
+            wait_absent(mac, CARDS[1], None)
+            point = hover(CARDS[2])
+            bounds = []
+            for label in CARDS:
+                node = mac.wait_find(TITLE, label, 'AXGroup')
+                mac.release(node)
+            time.sleep(.8)
+            for label in CARDS:
+                node = mac.wait_find(TITLE, label, 'AXGroup')
+                try:
+                    bounds.append(element_rect(mac, node))
+                finally:
+                    mac.release(node)
+            ordered = sorted(bounds, key=lambda b: b[1])
+            for before, after in zip(ordered, ordered[1:]):
+                assert abs(after[1] - before[1] - before[3] - 14) < 1.5, bounds
+            if images:
+                screenshot(mac, images / f'notifications-hover-{preference.lower()}.png', title=TITLE)
+            park()
+            wait_absent(mac, CARDS[0], None)
+            wait_absent(mac, CARDS[1], None)
+            observation = {'preference': preference, 'hover_point': point,
+                           'expanded_bounds': bounds, 'pointer_departure_collapsed': True}
+            report['policies'].append(observation)
+
+            # Switch to the real five-second notification. Its observer updates
+            # the OCaml status; semantic disappearance alone is not expiry ack.
+            toggle('Layer notification cards')
+            focus_gallery_control(mac, 'Animate notifications', 'AXCheckBox')
+            mac.press(TITLE, 'Save preview')
+            mac.wait_text(TITLE, 'Notification visible')
+            hover('Preview saved')
+            observation['hover_pause_seconds'] = wait_visible('Preview saved', 5.6)
+            park()
+            resumed = time.monotonic()
+            mac.wait_text(TITLE, 'No pending notification')
+            wait_absent(mac, 'Preview saved', 'AXGroup')
+            observation['expiry_after_hover_seconds'] = time.monotonic() - resumed
+
+            mac.press(TITLE, 'Save preview')
+            mac.wait_text(TITLE, 'Notification visible')
+            park()
+            focus_gallery_control(mac, 'Dismiss saved preview', 'AXButton')
+            observation['focus_pause_seconds'] = wait_visible('Preview saved', 5.6)
+            focus_gallery_control(mac, 'Animate notifications', 'AXCheckBox')
+            resumed = time.monotonic()
+            mac.wait_text(TITLE, 'No pending notification')
+            wait_absent(mac, 'Preview saved', 'AXGroup')
+            observation['expiry_after_focus_seconds'] = time.monotonic() - resumed
+
+        mac.press(TITLE, 'Motion & rhythm')
+        mac.press(TITLE, 'Use system motion')
+        mac.wait_text(TITLE, 'Motion preference: System')
+        report['complete'] = True
+        print('GALLERY_NOTIFICATION_POLICY_OK', json.dumps(report), flush=True)
+    except BaseException as error:
+        report['error'] = f'{type(error).__name__}: {error}'
+        if images:
+            screenshot(mac, images / 'notification-policy-failure.png', title=TITLE)
+        raise
+    finally:
+        if images:
+            (images / 'notification-policy.json').write_text(json.dumps(report, indent=2) + '\n')
+
+
 def exercise(mac, images=None):
     from test_gallery import (
         TITLE, GalleryMouse, activate, element_rect, expect_focus,

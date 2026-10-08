@@ -94,6 +94,14 @@ adds an OCaml animation loop. While collapsed, older painted cards are decorativ
 and hidden from accessibility traversal; focusing the Notifications group expands
 them for interaction.
 
+The named Notifications group provides keyboard expansion, while hovering the
+native stack provides pointer expansion. Neither changes the Bonsai item list.
+In ordinary saved-preview mode the native five-second timeout counts eligible
+active time: hover or focus inside the toast pauses it. Leaving those scopes
+allows expiry to resume, after which `State.Dismiss serial` clears the matching
+notification and updates the status. Application Full/Reduced motion preferences
+change presentation without turning this timeout into an OCaml timer.
+
 Deactivation injects Leave and closes the chooser. Asset scope and native owners retire
 separately; native toast timing/hover/focus pause remain in GPUIO, with no OCaml frame timer.
 Page notes are native drafts, not durable storage. Adapt with real command effects and explicit
@@ -109,10 +117,11 @@ From the repository root:
 ./scripts/gpuio build examples/gallery/main.exe
 ./_build/default/examples/gallery/main.exe
 python3 scripts/test_gallery.py --section notifications --images scratch/notification-walkthrough
+python3 scripts/test_gallery.py --section notification-policy --images scratch/notification-policy
 ```
 
 The wrapper uses the repository toolchain. These commands are instructions, not checks run for
-this documentation change. The last command runs the native notification fixture
+this documentation change. The last two commands run native notification fixtures
 against the built gallery; it opens and closes an actual macOS window and requires
 Accessibility access. The page has no standalone executable. Compilation does
 not establish native keyboard, focus, IME or platform acceptance. See

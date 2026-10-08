@@ -160,6 +160,10 @@ list, dismissal effect and native lifecycle. Its `--section notifications` test
 checks actual macOS anchor geometry, collapsed semantics, keyboard expansion,
 dismissal/restoration and page retirement; it does not measure animation FPS or
 operate VoiceOver.
+The separate `--section notification-policy` walkthrough exercises pointer
+expansion/collapse and hover/focus timeout pausing under application Full and
+Reduced motion preferences, then restores System. These are gallery preferences;
+the test does not change macOS settings.
 
 Selection & actions includes **Two actions, one control**, using the public
 `View.split_button` API. Cycle split/action-only/menu-only modes, disable the

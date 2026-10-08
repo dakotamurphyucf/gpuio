@@ -35,6 +35,9 @@ fixes restoration during an animated exit using fresh batch identities and stale
 dismissal guards in the OCaml example. Actual macOS placement, collapsed semantics,
 keyboard dismissal/restoration and page retirement pass alongside the gallery
 expect tests. Full toast motion/accessibility/resource and release acceptance remain.
+Its policy follow-up also passes real pointer expansion/collapse and hover/focus
+timeout pausing under Full/Reduced application preferences, locally and in the
+installed consumer. Presentation timing and VoiceOver remain separate.
 
 The [Developer ID tooling checkpoint](evidence/developer-id-tooling-och17.md)
 adds explicit certificate/team selection, hardened-runtime signing and strict
