@@ -70,3 +70,48 @@ reduced-motion/loop geometry and movement-time retirement. Sampled geometry and
 normal exit do not establish smooth presentation, idle CPU or bounded resource
 use. Those requirements remain open; Linux GUI qualification stays deferred to
 OCH-47 while nongraphical checks remain required.
+
+## Automatic pause/resume follow-up — 2026-10-08
+
+At base `f5109d84`, the same repository and installed executables pass
+`--section carousel-automatic` on their first attempts. No production changes or
+new build were needed. The independent consumer is reused, not newly installed.
+
+The actual four-second automatic policy preserves selection for at least 5.2
+seconds under each of five conditions: viewport focus, track hover with focus
+outside, disabled navigation, the original window inactive while a second owned
+window is open, and application Reduced motion. Each release advances exactly to
+the expected next card after a fresh interval. Observed intervals are 4.12–4.35
+seconds across the ten resumes; they include setup, dispatch, Bonsai delivery
+and AX sampling and are not timer precision or presentation-latency measurements.
+After each observed transition the fixture focuses the viewport and samples a
+further 0.4 seconds of unchanged selection; it does not assert every unsampled
+frame or independently measure native pending-proposal counts.
+
+Leaving the page while a deadline is eligible, waiting beyond the interval and
+returning preserves the last selection. The retired timer does not advance the
+inactive Bonsai model in this sequence. The second window and main app close
+normally; automatic advancement is disabled and application motion restored to
+System before exit. No macOS preferences, clipboard or input source change.
+
+```sh
+python3 scripts/test_gallery.py --section carousel-automatic --images scratch/carousel-automatic
+python3 scripts/test_gallery.py --section carousel-automatic --executable /path/to/installed/main.exe --images scratch/carousel-automatic-installed
+```
+
+Local invocations retain the same 180-second exception/cleanup wrapper. A
+separate three-minute Foundation step is added. Python syntax, example/catalog
+audits, actionlint and diff checks pass. The
+[seven-file automatic archive](carousel-track-macos-och41/automatic-reports.tar.gz)
+retains both logs/reports, exact fixture/application source and original consumer
+build log. All members were verified against the
+[manifest](carousel-track-macos-och41/automatic-manifest.json); the
+[summary](carousel-track-macos-och41/automatic-summary.json) retains each interval
+observation and executable identity.
+
+This supersedes the automatic-advancement pause/resume gap above for these
+conditions. Captured drag/wheel pause, precise gesture cancellation/edges, full
+Tab/VoiceOver, all sizes/scales, movement-time retirement, continuous-loop visual
+geometry and measured resource/frame performance remain separate work. Opening
+a second window here qualifies an inactive-window pause, not independent carousel
+contents or cross-window model isolation.

@@ -27,6 +27,21 @@ windows/unavailable geometry settle. Toggle Auto supplies a four-second interval
 proposed natively and pauses during interaction, not an OCaml timer. Short tracks can use
 immediate loop-boundary jumps rather than seamless wrapping.
 
+`Toggle_auto` changes the model's optional `Auto_advance` value. Once enabled,
+Rust schedules one deadline after eligible settled paint. Focus or hover within
+the track/control group, disabled navigation, inactive windows, reduced motion
+and captured gestures cancel that deadline. Resuming starts a fresh interval;
+there is no accumulated catch-up count. At expiry Rust sends one `Auto_next`
+proposal carrying the current model revision, geometry epoch and source/target.
+`C.apply_request` checks that proposal against the latest model before selecting
+the next card. The ensuing model update permits the next native interval. Neither
+the four-second deadline nor each animation frame runs a Bonsai clock callback.
+
+Page removal retires the native timer and its event owner. The example's Bonsai
+model can retain selection/options while that page is inactive, but a retired
+native proposal cannot keep moving its selection. This differs from the native
+draft controller's page-scoped lifetime described below.
+
 For example, type into Capture, focus **Measured idea cards**, then press End.
 Rust translates the viewport key into `Request.Last`; `on_request` constructs the
 Bonsai dispatch effect and the reducer chooses the last measured stop. The next
@@ -72,3 +87,12 @@ pointer input, reorder/resize retention, looping, disabled controls and remount.
 The [recorded desktop evidence](../../docs/evidence/carousel-track-macos-och41.md)
 keeps automatic advancement, drag/wheel cancellation, VoiceOver and frame timing
 separate from this subset of the full qualification plan.
+
+For the automatic policy walkthrough, use
+`python3 scripts/test_gallery.py --section carousel-automatic --images scratch/carousel-automatic`.
+It samples the selected-card readout while focus, hover, disabled state, an
+inactive original window and application reduced motion prevent advancement,
+then checks fresh intervals and retirement after leaving the page. It temporarily
+selects the app's Full/Reduced motion policies and restores System on success;
+it does not change macOS preferences. Its interval observations include native
+dispatch, Bonsai delivery and AX sampling, not just timer precision.

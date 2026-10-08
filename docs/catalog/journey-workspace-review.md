@@ -118,3 +118,8 @@ consumer: native keys/editor retention, both axes/themes, clipped-neighbor point
 input, reorder/resize, immediate looping, disabled controls and page remount.
 Gesture ownership/cancellation, automatic timing, full focus/VoiceOver, additional
 scales/windows and measured resources remain open.
+
+Its [automatic-policy follow-up](../evidence/carousel-track-macos-och41.md#automatic-pauseresume-follow-up--2026-10-08)
+now passes five actual pause conditions, fresh native intervals and page-retired
+timers in both binaries. Gesture capture and the remaining physical/release scope
+stay open.

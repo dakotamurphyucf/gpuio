@@ -71,3 +71,8 @@ The remaining steps above are still pending; that follow-up is not full acceptan
 VoiceOver, real IME/keyboard, hardware paint/performance and broader release
 qualification remain open. Linux desktop qualification stays deferred under the
 platform release policy; required Linux automation remains separate.
+
+The [automatic-policy follow-up](carousel-track-macos-och41.md#automatic-pauseresume-follow-up--2026-10-08)
+now covers viewport-focus, group-hover, disabled, inactive-window and application
+Reduced motion pauses with fresh intervals, plus retirement on page departure.
+Captured-gesture interaction and the other remaining plan items are not implied.

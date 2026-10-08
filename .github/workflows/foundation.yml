@@ -307,6 +307,10 @@ jobs:
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
         timeout-minutes: 3
         run: python3 scripts/test_gallery.py --section carousel-track --images .cache/ci/carousel-track 2>&1 | tee .cache/ci/macos-carousel-track.log
+      - name: macOS measured carousel automatic pause and resume
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 3
+        run: python3 scripts/test_gallery.py --section carousel-automatic --images .cache/ci/carousel-automatic 2>&1 | tee .cache/ci/macos-carousel-automatic.log
       - name: macOS sidebar policies and retained appearance
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
         timeout-minutes: 3

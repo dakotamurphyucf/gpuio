@@ -4,6 +4,171 @@ import json
 import time
 
 
+def exercise_automatic(mac, images=None):
+    """Observe native four-second deadlines under real window/input policies."""
+    from test_gallery import (
+        TITLE, SECOND, GalleryMouse, activate, element_rect, focus_gallery_control,
+        reveal_gallery_control, select_gallery_appearance, wait_absent,
+    )
+
+    label = 'Measured idea cards'
+    report = {'complete': False, 'holds': [], 'resumes': [],
+              'scope': 'sampled real deadline behavior; not exact frame timing or idle resource measurement'}
+    caption = None
+    mouse = GalleryMouse(mac)
+
+    def toggle(name):
+        activate(mac, mac.wait_find(TITLE, name, 'AXCheckBox'))
+
+    def caption_for(name):
+        return mac.wait_find(TITLE, 'Selected card: ' + name, 'AXStaticText')
+
+    def read():
+        return mac.text(caption, 'AXTitle')
+
+    def hold(name, reason, seconds=5.2):
+        started = time.monotonic()
+        count = 0
+        while time.monotonic() - started < seconds:
+            assert read() == 'Selected card: ' + name, (reason, read())
+            count += 1
+            time.sleep(.05)
+        report['holds'].append(dict(reason=reason, selected=name,
+                                    seconds=time.monotonic() - started, samples=count))
+        print('CAROUSEL_AUTO_HOLD', reason, name, flush=True)
+
+    def park():
+        window = mac.window(TITLE)
+        try:
+            x, y, w, _ = element_rect(mac, window)
+        finally:
+            mac.release(window)
+        point = (x + w / 2, y + 70)
+        mouse.check_owner(point)
+        mouse.send(5, point)
+
+    def outside_focus():
+        focus_gallery_control(mac, 'Dark', 'AXButton')
+
+    def resume(name, expected, reason, *, before=None):
+        started = time.monotonic()
+        if before:
+            before()
+        outside_focus()
+        park()
+        observations = []
+        while time.monotonic() - started < 8:
+            actual = read()
+            elapsed = time.monotonic() - started
+            observations.append({'seconds': elapsed, 'selected': actual})
+            if actual != 'Selected card: ' + name:
+                assert actual == 'Selected card: ' + expected, (reason, actual)
+                assert elapsed >= 4, ('Resume did not wait a fresh four-second interval', reason, elapsed)
+                report['resumes'].append(dict(reason=reason, seconds=elapsed,
+                                              selected=expected, observations=observations))
+                # Stop the next interval before inspecting more state.
+                focus_gallery_control(mac, label, 'AXGroup')
+                hold(expected, reason + '-no-burst', seconds=.4)
+                print('CAROUSEL_AUTO_RESUME', reason, expected, elapsed, flush=True)
+                return
+            time.sleep(.05)
+        raise AssertionError(('Automatic advancement did not resume', reason, read()))
+
+    try:
+        mac.press(TITLE, 'Motion & rhythm')
+        mac.press(TITLE, 'Use full motion')
+        mac.wait_text(TITLE, 'Motion preference: Full')
+        mac.press(TITLE, 'Carousels & journeys')
+        select_gallery_appearance(mac, 'Dark')
+        toggle('Compact viewport')
+        toggle('Loop cards')
+        reveal_gallery_control(mac, label, 'AXGroup')
+        focus_gallery_control(mac, label, 'AXGroup')
+        toggle('Auto-advance cards')
+        focus_gallery_control(mac, label, 'AXGroup')
+        park()
+        caption = caption_for('Capture')
+        hold('Capture', 'viewport-focus')
+        resume('Capture', 'Explore', 'focus-release')
+
+        # Hover is independent of focus: the header has focus, pointer is in track.
+        viewport = mac.wait_find(TITLE, label, 'AXGroup')
+        try:
+            x, y, w, h = element_rect(mac, viewport)
+        finally:
+            mac.release(viewport)
+        point = (x + w / 2, y + h - 8)
+        mouse.check_owner(point)
+        mouse.send(5, point)
+        outside_focus()
+        hold('Explore', 'track-hover')
+        resume('Explore', 'Refine', 'hover-release')
+
+        toggle('Disable track navigation')
+        outside_focus()
+        park()
+        hold('Refine', 'disabled')
+        resume('Refine', 'Publish', 'reenabled',
+               before=lambda: toggle('Disable track navigation'))
+
+        # A second window makes the original inactive without leaving the app.
+        outside_focus()
+        park()
+        mac.press(TITLE, 'New window')
+        mac.wait_text(SECOND, 'A little context goes a long way')
+        hold('Publish', 'inactive-original-window')
+        mac.close(SECOND)
+        focus_gallery_control(mac, label, 'AXGroup')
+        resume('Publish', 'Capture', 'reactivated')
+
+        # Application motion policy, never a change to macOS preferences.
+        mac.release(caption)
+        caption = None
+        mac.press(TITLE, 'Motion & rhythm')
+        mac.press(TITLE, 'Use reduced motion')
+        mac.wait_text(TITLE, 'Motion preference: Reduced')
+        mac.press(TITLE, 'Carousels & journeys')
+        reveal_gallery_control(mac, label, 'AXGroup')
+        outside_focus()
+        park()
+        caption = caption_for('Capture')
+        hold('Capture', 'reduced-motion')
+        mac.release(caption)
+        caption = None
+        mac.press(TITLE, 'Motion & rhythm')
+        mac.press(TITLE, 'Use full motion')
+        mac.press(TITLE, 'Carousels & journeys')
+        reveal_gallery_control(mac, label, 'AXGroup')
+        focus_gallery_control(mac, label, 'AXGroup')
+        park()
+        caption = caption_for('Capture')
+        resume('Capture', 'Explore', 'full-motion-restored')
+
+        # Leave with an eligible timer; its retired callback must not mutate Bonsai.
+        outside_focus()
+        park()
+        mac.press(TITLE, 'Presentation')
+        wait_absent(mac, label, 'AXGroup')
+        time.sleep(5.2)
+        mac.press(TITLE, 'Carousels & journeys')
+        mac.wait_text(TITLE, 'Selected card: Explore')
+        focus_gallery_control(mac, label, 'AXGroup')
+        toggle('Auto-advance cards')
+        mac.press(TITLE, 'Motion & rhythm')
+        mac.press(TITLE, 'Use system motion')
+        mac.wait_text(TITLE, 'Motion preference: System')
+        report['complete'] = True
+        print('GALLERY_CAROUSEL_AUTO_OK', len(report['resumes']), 'fresh resumes; pause policies and retired timer', flush=True)
+    except BaseException as error:
+        report['error'] = f'{type(error).__name__}: {error}'
+        raise
+    finally:
+        if caption:
+            mac.release(caption)
+        if images:
+            (images / 'carousel-automatic-report.json').write_text(json.dumps(report, indent=2) + '\n')
+
+
 def exercise(mac, images=None):
     from mac_input_source import Sources, foreground_keys
     from test_canvas import screenshot
