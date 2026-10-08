@@ -6,7 +6,8 @@ Read [main](main.md) for the collector handshake and shared workload, and
 [OCaml configuration](ocaml/gpuio_resource_audit.md) for the checked instance/interface.
 Generated [backend selection](backend/backend.md) and [Rust registration](backend/registration.md)
 explain static composition. The [native entity audit](rust/src/lib.md) and
-[Metal probe](rust/src/metal.md) explain instrumentation ownership and accounting limits.
+[Metal probe](rust/src/metal.md) and
+[active collector retirement](rust/src/presentation.md) explain instrumentation ownership and accounting limits.
 
 This separate statically composed backend enables GPUI `leak-detection` only for
 this audit. Do not use its timings as ordinary responsiveness evidence. It uses
@@ -50,7 +51,7 @@ Keep the separate [physical-memory audit](../../docs/evidence/physical-memory-oc
 ## Optional macOS Metal allocations
 
 Pass `--metal-memory` to the collector alongside `--native-entities` to require
-the actual window renderer's Metal device counter. The schema-v2 component keeps
+the actual window renderer's Metal device counter. The schema-v3 component keeps
 only that device, checks its identity between windows, samples on render without
 requesting frames and records the settled counter after each close. The collector
 requires the matching Metal record before acknowledging the cycle. Missing or
@@ -64,3 +65,19 @@ The [design and guardrail](../../docs/design/metal-resource-qualification.md)
 distinguish sampled allocation counts from complete GPU memory and presentation.
 See [calibration and workload evidence](../../docs/evidence/metal-resource-och17.md)
 for actual coverage; a successful smoke does not qualify the full budget.
+
+## Optional active presentation collector retirement
+
+Add `--presentation` alongside `--native-entities` on macOS to start a collector
+immediately for every window, stop it on close and drop its measurement state
+before the closed-window checkpoint. The generated backend enables this audit's
+optional Cargo feature; ordinary applications remain unchanged. Without the flag,
+no presentation session is created. The separate performance-probe presentation
+feature stays off, avoiding competing sessions and its delayed-start gap.
+
+The collector requires a unique, settled, closed session with actual supported
+callback activity for every cycle before acknowledging continuation. All outcome
+counts remain explicit: closing zero-time or other settled outcomes are resource
+observations, not presentation timing acceptance. See the [implementation trace](rust/src/presentation.md)
+for ownership, commands and failure checks. This option does not change existing
+RSS, Metal allocation or physical-memory criteria.

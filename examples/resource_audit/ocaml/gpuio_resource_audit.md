@@ -8,15 +8,15 @@ It is not an OCaml memory collector or an interactive component. `X` abbreviates
 `Gpuio.Extension`; schema/codec construction is pure and does not register Rust.
 The dedicated composed backend must supply the matching factory.
 
-`Properties.t` contains warmups, measurements, cycle, and Metal requirement.
+`Properties.t` contains warmups, measurements, cycle, Metal requirement and presentation requirement.
 Validation accepts warmups 1–3, measurements 1–30, and cycle 1 through their sum.
-Encoding creates exactly four unsigned bytes, with Boolean 0/1. Decoding rejects
+Encoding creates exactly five unsigned bytes, with Boolean 0/1. Decoding rejects
 wrong lengths/trailing bytes and invalid flags/ranges before instance admission.
 `let%map.Or_error` sequences checked results here, not reactive Bonsai state or
 asynchronous effect work.
 
-`schema` pairs `qualification.resource_audit`, version 2, and fingerprint of
-[schema.txt](../schema.txt) with Rust. The properties codec has maximum four bytes.
+`schema` pairs `qualification.resource_audit`, version 3, and fingerprint of
+[schema.txt](../schema.txt) with Rust. The properties codec has maximum five bytes.
 The dummy command/event codec rejects every value: this component has no Data
 payloads or commands. Ordinary host Mounted/Failed signals still exist; declared
 one-byte maxima do not create a valid command route.
@@ -27,6 +27,10 @@ each separate sequential window, rather than updating cycle properties in one
 retained mount. Rust rejects changed properties after mounting. The workload's
 reactive `let%arr` derives a `V.extension` beside actual resources; failure becomes
 an effect raising a typed error. This library itself owns no Bonsai graph.
+
+With `~presentation:true`, mounting also starts the separate native collector
+without waiting for the performance probe. Its record is required before the
+next cycle; see [collector retirement](../rust/src/presentation.md).
 
 Mounting registers native window identity; after native close, an app-owned audit
 subscription checks settled entity state and writes qualification stdout.

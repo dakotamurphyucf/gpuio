@@ -2468,6 +2468,7 @@ dependencies = [
  "futures-lite",
  "gpui",
  "gpui-base",
+ "gpui_apple",
  "gpui_platform",
  "gpuio-document-sdk",
  "gpuio-extension-sdk",
@@ -2536,8 +2537,10 @@ version = "0.0.0"
 dependencies = [
  "gpui",
  "gpuio-extension-sdk",
+ "gpuio-native",
  "objc2 0.6.4",
  "raw-window-handle",
+ "serde_json",
 ]
 
 [[package]]

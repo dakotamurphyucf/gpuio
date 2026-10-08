@@ -4,10 +4,12 @@ open Core
     backend. After close, that backend samples live GPUI entities against a
     post-warmup baseline and writes process records for the external collector.
     [metal_memory] additionally requires macOS renderer-device allocation samples.
+    [presentation] requires active collector retirement records on native macOS.
     This does not preserve a retired component's event route. *)
 val instance
   :  warmups:int
   -> measurements:int
   -> cycle:int
   -> metal_memory:bool
+  -> presentation:bool
   -> unit Gpuio.Extension.Instance.t Or_error.t

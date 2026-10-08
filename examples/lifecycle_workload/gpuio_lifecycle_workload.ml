@@ -139,7 +139,7 @@ let component
        @ [ V.extension ~on_event:on_extension (Probe.instance ~sequence request |> ok) ])
 ;;
 
-let run ~smoke ~background ~native_entities ~metal_memory =
+let run ~smoke ~background ~native_entities ~metal_memory ~presentation =
   let warmups, measurements = if smoke then 1, 3 else 3, 30 in
   App.run ~exit_on_last_window:false (fun env app ->
     let scope = App.scope app in
@@ -221,6 +221,7 @@ let run ~smoke ~background ~native_entities ~metal_memory =
                            ~measurements
                            ~cycle
                            ~metal_memory
+                           ~presentation
                          |> ok)
                     else None)
                  ~resources

@@ -6,7 +6,12 @@ license = "Apache-2.0"
 
 [workspace]
 
+[features]
+presentation-diagnostics = ["dep:gpuio-native", "gpuio-native/presentation-diagnostics", "dep:serde_json"]
+
 [dependencies]
+gpuio-native = { path = "../../../rust/native", optional = true }
+serde_json = { version = "1", optional = true }
 gpuio-extension-sdk = { path = "../../../rust/extension-sdk" }
 gpui = { git = "https://github.com/zed-industries/zed.git", rev = "a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b", default-features = false, features = ["leak-detection"] }
 
@@ -20,9 +25,11 @@ gpui = { git = "https://github.com/zed-industries/zed.git", rev = "a57ba9b17c433
 [patch.crates-io]
 gpuio-extension-sdk = { path = "../../../rust/extension-sdk" }
 taffy = { path = "../../../vendor/taffy" }
+accesskit_macos = { path = "../../../vendor/accesskit-macos" }
+accesskit_consumer = { path = "../../../vendor/accesskit-consumer" }
 
-# This core/entity probe does not link the platform or document backends. Keep
-# their patches in backend/Cargo.toml; unused patches make locked resolution
-# order-sensitive in the pinned Cargo version.
+# Optional presentation diagnostics use the same pinned platform patches as the composed backend.
 [patch."https://github.com/zed-industries/zed.git"]
 gpui = { path = "../../../vendor/gpui" }
+gpui_macos = { path = "../../../vendor/gpui-macos" }
+gpui_apple = { path = "../../../vendor/gpui-apple" }

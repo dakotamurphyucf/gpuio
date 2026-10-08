@@ -1327,6 +1327,17 @@
     },
     {
       "sources": [
+        "examples/gallery/icon_transform_sample.ml",
+        "examples/gallery/icon_transform_sample.mli"
+      ],
+      "role": "component",
+      "walkthroughs": [
+        "examples/gallery/icon_transform_sample.md"
+      ],
+      "review": "reviewed"
+    },
+    {
+      "sources": [
         "examples/gallery/image_samples.ml",
         "examples/gallery/image_samples.mli"
       ],
@@ -2429,6 +2440,16 @@
     },
     {
       "sources": [
+        "examples/resource_audit/rust/src/presentation.rs"
+      ],
+      "role": "test-support",
+      "walkthroughs": [
+        "examples/resource_audit/rust/src/presentation.md"
+      ],
+      "review": "reviewed"
+    },
+    {
+      "sources": [
         "examples/runtime/bench.ml"
       ],
       "role": "benchmark",
@@ -2811,17 +2832,6 @@
       "role": "application-entry",
       "walkthroughs": [
         "examples/window_lifecycle/main.md"
-      ],
-      "review": "reviewed"
-    },
-    {
-      "sources": [
-        "examples/gallery/icon_transform_sample.ml",
-        "examples/gallery/icon_transform_sample.mli"
-      ],
-      "role": "component",
-      "walkthroughs": [
-        "examples/gallery/icon_transform_sample.md"
       ],
       "review": "reviewed"
     }

@@ -59,3 +59,6 @@ Adapt resources and their readiness/retirement predicates in the shared workload
 then update collector expectations. Keep this launcher explicit about which
 backend audits are enabled so ordinary diagnostics cannot imply stronger ownership
 or Metal-memory acceptance than they actually measure.
+
+This ordinary entry point also passes `~presentation:false`; active collector
+retirement is an explicit option of the separate resource audit executable.

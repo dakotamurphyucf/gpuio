@@ -16,6 +16,7 @@ import subprocess
 import time
 
 from measure_chart_stream import collect, command
+import resource_presentation
 from measure_list_history import ZERO_RESOURCES, fields, natural, sexp
 
 
@@ -130,7 +131,7 @@ def metal_records(output, *, warmups, measurements, smoke):
 
 
 class Checkpoints:
-    def __init__(self, log, samples, *, cycles, physical_memory=False, native_entities=False, warmups=3, metal_memory=False):
+    def __init__(self, log, samples, *, cycles, physical_memory=False, native_entities=False, warmups=3, metal_memory=False, presentation=False):
         self.log, self.samples, self.cycles = log, samples, cycles
         self.physical_memory, self.native_entities = physical_memory, native_entities
         self.warmups = warmups
@@ -141,6 +142,10 @@ class Checkpoints:
         if metal_memory and not native_entities:
             raise ValueError('Metal records require the native audit')
         self.metal_memory, self.metal_cycle, self.metal_device = metal_memory, 0, None
+        if presentation and not native_entities:
+            raise ValueError('Presentation retirement requires the native audit')
+        self.presentation, self.presentation_cycle = presentation, 0
+        self.presentation_sessions, self.presentation_windows = set(), set()
 
     def __call__(self, child):
         with self.log.open('rb') as stream:
@@ -168,7 +173,8 @@ class Checkpoints:
                     self.audited = cycle
                 elif (name == 'complete' and not self.audit_complete
                       and natural(value) == self.cycles == self.audited
-                      and (not self.metal_memory or self.metal_cycle == self.cycles)):
+                      and (not self.metal_memory or self.metal_cycle == self.cycles)
+                      and (not self.presentation or self.presentation_cycle == self.cycles)):
                     self.audit_complete = True
                 else:
                     raise ValueError('Native entity audit failed or emitted an invalid record')
@@ -182,6 +188,20 @@ class Checkpoints:
                         or (self.metal_device is not None and device != self.metal_device)):
                     raise ValueError('Unexpected Metal allocation checkpoint order or device')
                 self.metal_cycle, self.metal_device = cycle, device
+            elif line.startswith(resource_presentation.PREFIX.encode()):
+                if not self.presentation:
+                    raise ValueError('Unexpected presentation retirement without --presentation')
+                row = resource_presentation.record(line.decode())
+                cycle = row['cycle']
+                if (cycle != self.presentation_cycle + 1 or cycle != len(self.samples) + 1
+                        or cycle != self.audited or cycle > self.cycles
+                        or (self.metal_memory and self.metal_cycle != cycle)
+                        or row['session'] in self.presentation_sessions
+                        or row['window'] in self.presentation_windows):
+                    raise ValueError('Unexpected presentation retirement order or identity')
+                self.presentation_cycle = cycle
+                self.presentation_sessions.add(row['session'])
+                self.presentation_windows.add(row['window'])
             elif line.startswith(prefix):
                 number, snapshot = sexp(line[len(prefix):].decode())
                 cycle = natural(number)
@@ -197,6 +217,8 @@ class Checkpoints:
                 (self.audited != cycle or (cycle == self.cycles and not self.audit_complete))):
             return
         if self.metal_memory and self.metal_cycle != cycle:
+            return
+        if self.presentation and self.presentation_cycle != cycle:
             return
         # All requested records must arrive before inspecting the owned child
         # and permitting the next window. No callback is sent to a retired view.
@@ -228,6 +250,8 @@ def main():
                         help='Require the separate native-entity audit backend and matching closed-window records')
     parser.add_argument('--metal-memory', action='store_true',
                         help='macOS only: require actual renderer-device allocation records; needs --native-entities')
+    parser.add_argument('--presentation', action='store_true',
+                        help='macOS only: require active presentation collector retirement; needs --native-entities')
     parser.add_argument('--physical-memory', action='store_true',
                         help='macOS only: retain footprint/vmmap at each closed checkpoint; separate from responsiveness')
     parser.add_argument('--check-closed-surfaces', action='store_true',
@@ -245,11 +269,13 @@ def main():
         parser.error('Closed-surface checks require --physical-memory')
     if args.metal_memory and (not args.native_entities or platform.system() != 'Darwin'):
         parser.error('Metal allocation audit requires macOS and --native-entities')
+    if args.presentation and (not args.native_entities or platform.system() != 'Darwin'):
+        parser.error('Presentation retirement requires macOS and --native-entities')
     args.output.mkdir(parents=True, exist_ok=False)
     report = dict(complete=False, samples=[], platform=platform.platform(), architecture=platform.machine(),
                   build_profile=args.build_profile, smoke=args.smoke, background=args.background,
                   physical_memory=args.physical_memory, native_entities=args.native_entities,
-                  metal_memory=args.metal_memory,
+                  metal_memory=args.metal_memory, presentation=args.presentation,
                   check_closed_surfaces=args.check_closed_surfaces,
                   measurement='Settled process RSS and acknowledged application registrations; not GPU memory or native entity counts')
     log = args.output / 'application.log'
@@ -266,12 +292,12 @@ def main():
                           display=command('system_profiler', 'SPDisplaysDataType', '-json'),
                           power=command('pmset', '-g', 'batt'), thermal=command('pmset', '-g', 'therm'))
         arguments = [flag for enabled, flag in ((args.smoke, '--smoke'), (args.background, '--background'),
-                                                (args.metal_memory, '--metal-memory')) if enabled]
+                                                (args.metal_memory, '--metal-memory'), (args.presentation, '--presentation')) if enabled]
         collect(args.executable, log, report, args.timeout, arguments=arguments,
                 on_poll=Checkpoints(log, report['samples'], cycles=4 if args.smoke else 33,
                                     physical_memory=args.physical_memory,
                                     native_entities=args.native_entities, warmups=1 if args.smoke else 3,
-                                    metal_memory=args.metal_memory))
+                                    metal_memory=args.metal_memory, presentation=args.presentation))
         report['workload'] = validate(log.read_text(), report['samples'], smoke=args.smoke, background=args.background)
         if args.native_entities:
             report['native_entity_audit'] = entity_records(log.read_text(), warmups=1 if args.smoke else 3,
@@ -281,6 +307,9 @@ def main():
                                                  measurements=3 if args.smoke else 30, smoke=args.smoke)
             if args.check_budgets and not report['metal_audit']['qualification']:
                 raise ValueError('Last ten-cycle closed Metal allocation growth exceeds 64 MiB')
+        if args.presentation:
+            report['presentation_retirement'] = resource_presentation.records(
+                log.read_text(), warmups=1 if args.smoke else 3, measurements=3 if args.smoke else 30)
         if args.physical_memory:
             values = [s['physical_memory']['footprint_bytes'] for s in report['samples']]
             final = values[-min(10, len(values)):]

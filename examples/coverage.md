@@ -232,6 +232,7 @@ Generated from [coverage.json](coverage.json). Read the [review guide](coverage-
 | [group_preview.ml](gallery/group_preview.ml), [group_preview.mli](gallery/group_preview.mli) | component | [group_preview.md](gallery/group_preview.md) | reviewed |
 | [highlight_page.ml](gallery/highlight_page.ml), [highlight_page.mli](gallery/highlight_page.mli) | component | [highlight_page.md](gallery/highlight_page.md) | reviewed |
 | [horizontal_list_preview.ml](gallery/horizontal_list_preview.ml), [horizontal_list_preview.mli](gallery/horizontal_list_preview.mli) | component | [horizontal_list_preview.md](gallery/horizontal_list_preview.md) | reviewed |
+| [icon_transform_sample.ml](gallery/icon_transform_sample.ml), [icon_transform_sample.mli](gallery/icon_transform_sample.mli) | component | [icon_transform_sample.md](gallery/icon_transform_sample.md) | reviewed |
 | [image_samples.ml](gallery/image_samples.ml), [image_samples.mli](gallery/image_samples.mli) | component | [image_samples.md](gallery/image_samples.md) | reviewed |
 | [input_page.ml](gallery/input_page.ml), [input_page.mli](gallery/input_page.mli) | component | [input_page.md](gallery/input_page.md) | reviewed |
 | [journeys_page.ml](gallery/journeys_page.ml), [journeys_page.mli](gallery/journeys_page.mli) | component | [journeys_page.md](gallery/journeys_page.md) | reviewed |
@@ -424,6 +425,7 @@ Generated from [coverage.json](coverage.json). Read the [review guide](coverage-
 | [gpuio_resource_audit.ml](resource_audit/ocaml/gpuio_resource_audit.ml), [gpuio_resource_audit.mli](resource_audit/ocaml/gpuio_resource_audit.mli) | diagnostic | [gpuio_resource_audit.md](resource_audit/ocaml/gpuio_resource_audit.md) | reviewed |
 | [lib.rs](resource_audit/rust/src/lib.rs) | diagnostic | [lib.md](resource_audit/rust/src/lib.md) | reviewed |
 | [metal.rs](resource_audit/rust/src/metal.rs) | diagnostic | [metal.md](resource_audit/rust/src/metal.md) | reviewed |
+| [presentation.rs](resource_audit/rust/src/presentation.rs) | test-support | [presentation.md](resource_audit/rust/src/presentation.md) | reviewed |
 ## runtime
 
 | Source parts | Role | Walkthrough | Review |
@@ -501,10 +503,5 @@ Generated from [coverage.json](coverage.json). Read the [review guide](coverage-
 | Source parts | Role | Walkthrough | Review |
 | --- | --- | --- | --- |
 | [main.ml](window_lifecycle/main.ml) | application-entry | [main.md](window_lifecycle/main.md) | reviewed |
-## gallery
 
-| Source parts | Role | Walkthrough | Review |
-| --- | --- | --- | --- |
-| [icon_transform_sample.ml](gallery/icon_transform_sample.ml), [icon_transform_sample.mli](gallery/icon_transform_sample.mli) | component | [icon_transform_sample.md](gallery/icon_transform_sample.md) | reviewed |
-
-429 source files in 266 groups; 266 reviewed, 0 pending.
+430 source files in 267 groups; 267 reviewed, 0 pending.

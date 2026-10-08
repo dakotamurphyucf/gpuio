@@ -7,7 +7,8 @@ This small entry point parses flags and delegates to `Gpuio_lifecycle_workload.r
 It creates no Bonsai graph, window, collector, or memory measurement itself.
 `--smoke` selects one warmup plus three measured cycles; full mode selects three
 warmups plus 30 measured cycles. `--background` requests background opening.
-`--metal-memory` requires device samples. `native_entities:true` is always enabled
+`--metal-memory` requires device samples. `--presentation` requires immediate
+active collector retirement records. `native_entities:true` is always enabled
 for this executable because its Dune stanza selects the separate audit backend.
 
 The [shared workload](../lifecycle_workload/gpuio_lifecycle_workload.ml) owns
@@ -24,7 +25,8 @@ Separately, Rust's app-owned audit checks closed native entities after one secon
 The external collector validates both records and sends `continue <cycle>` on
 stdin. Without it, a direct launch waits for that acknowledgement and times out;
 this is not a standalone interactive demo. Requested Metal records add a third
-required checkpoint before continuation.
+required checkpoint before continuation; presentation retirement adds another.
+See [the native implementation](rust/src/presentation.md).
 
 From the repository root in the [repository environment](../../docs/development.md):
 

@@ -193,7 +193,9 @@ jobs:
       - name: Resource lifecycle report validation (no display)
         run: python3 scripts/test_measure_resource_lifecycle.py 2>&1 | tee .cache/ci/lifecycle-measurement-diagnostics.log
       - name: Native entity audit sensitivity (no display)
-        run: ./scripts/gpuio exec cargo test --manifest-path examples/resource_audit/rust/Cargo.toml --locked --lib 2>&1 | tee .cache/ci/native-entity-audit.log
+        run: |
+          ./scripts/gpuio exec cargo test --manifest-path examples/resource_audit/rust/Cargo.toml --locked --lib 2>&1 | tee .cache/ci/native-entity-audit.log
+          ./scripts/gpuio exec cargo test --manifest-path examples/resource_audit/rust/Cargo.toml --locked --features presentation-diagnostics --lib 2>&1 | tee .cache/ci/presentation-retirement-sensitivity.log
       - name: macOS physical-memory report validation (no display)
         run: python3 scripts/test_mac_process_memory.py 2>&1 | tee .cache/ci/physical-memory-report-diagnostics.log
       - name: macOS Metal counter calibration (no visible window)
@@ -681,7 +683,7 @@ jobs:
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
         run: |
           ./scripts/gpuio exec dune build examples/resource_audit/main.exe
-          python3 scripts/measure_resource_lifecycle.py --build-profile dev --native-entities --metal-memory --physical-memory --check-closed-surfaces --executable _build/default/examples/resource_audit/main.exe --smoke --output .cache/ci/metal-lifecycle --timeout 120
+          python3 scripts/measure_resource_lifecycle.py --build-profile dev --native-entities --presentation --metal-memory --physical-memory --check-closed-surfaces --executable _build/default/examples/resource_audit/main.exe --smoke --output .cache/ci/metal-lifecycle --timeout 120
       - name: macOS streaming documents
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
         run: |

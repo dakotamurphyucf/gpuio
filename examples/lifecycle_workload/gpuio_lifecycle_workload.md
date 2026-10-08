@@ -120,3 +120,10 @@ measurement bounds before running. A different canvas command needs its matching
 sequence check. Richer document fixtures require independent parser/render evidence;
 new asynchronous work must be scoped and tested for retirement rather than merely
 removed from the visible view.
+
+The resource audit entry point can additionally pass `~presentation:true` to
+`run`. This flag reaches each numbered `Gpuio_resource_audit.instance`; it does
+not alter Bonsai state, render timing or the delayed performance probe. The
+[native audit](../resource_audit/rust/src/presentation.md) starts its own immediate
+measurement session and requires retirement before the collector permits another
+window. The ordinary lifecycle entry point passes false.

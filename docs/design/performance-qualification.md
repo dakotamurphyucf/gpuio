@@ -171,3 +171,22 @@ passes120 actual drawable callbacks on the reference Mac. This establishes the
 platform mechanism only: GPUI integration, collector validation and actual workload
 presentation measurements are still required. Existing CPU/submission budgets
 are unchanged; no new threshold was chosen from calibration timings.
+
+
+## Active presentation collector retirement — 2026-10-08
+
+The optional resource-audit `--presentation` path starts a dedicated session on
+mount, stops on close and drops the measurement owner before closed-window
+entity/Metal checks and memory sampling. This closes a coverage gap in the older
+lifecycle audit, whose CPU probe did not reliably start presentation collection
+on short cycles. The test uses the existing one-second native settlement and
+three-warmup/thirty-cycle structure; no resource limit changes.
+
+Per-cycle value records must show actual supported drawable activity, unique
+session/window identities, closed/stopped state, zero pending frames and exact
+outcome accounting. The external collector requires them before acknowledging
+the next cycle. Settled zero/missing/invalid-clock outcomes remain resource-only
+observations; they do not pass presentation timing requirements. Production
+rendering and the separate workload timing gates are unchanged. See the
+[implementation and initial smoke evidence](../evidence/presentation-retirement-och17.md);
+full repeated qualification remains pending there.

@@ -21,7 +21,7 @@ opt-level = 1
 gpuio-native = { path = "../../../rust/native" }
 ocaml-interop = { git = "https://github.com/tizoc/ocaml-interop.git", rev = "9f941c63b8a9dcd652c6535da196f48d7a4dcc75", features = ["no-caml-startup"] }
 component_0 = { package = "gpuio-performance-probe", path = "../../performance_probe/rust" }
-component_1 = { package = "gpuio-resource-audit", path = "../rust" }
+component_1 = { package = "gpuio-resource-audit", path = "../rust", features = ["presentation-diagnostics"] }
 document_profile_0 = { package = "gpuio-example-document", path = "../../document_profile_package/rust" }
 
 [patch.crates-io]

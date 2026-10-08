@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Verify lifecycle coverage, baseline limits, handshake sampling and child cleanup."""
 import copy
+import json
+import resource_presentation
 import hashlib
 import re
 import io
@@ -32,6 +34,79 @@ def fixture(smoke=False):
         samples.append(dict(cycle=cycle, rss_bytes=100 * 1024**2, elapsed_seconds=cycle * 2.0))
     lines.append(f'GPUIO_LIFECYCLE complete {measurements}')
     return '\n'.join(lines), samples
+
+
+def presentation_row(cycle=1):
+    row = dict(schema=1, cycle=cycle, session=cycle+10, window=cycle+100,
+               accepting=False, window_closed=True, pending=0,
+               **{k: 0 for k in resource_presentation.COUNTS})
+    row.update(attempted=2, admitted=2, presented=1, zero=1)
+    return row
+
+
+def presentation_line(row):
+    return resource_presentation.PREFIX + json.dumps(row) + '\n'
+
+
+class PresentationRetirement(unittest.TestCase):
+    def test_resource_outcomes_do_not_become_timing_success(self):
+        row = presentation_row()
+        row.update(presented=0, zero=1, missing=1)
+        self.assertEqual(resource_presentation.record(presentation_line(row)), row)
+        output = ''.join(presentation_line(presentation_row(n)) for n in range(1, 5))
+        self.assertEqual(len(resource_presentation.records(output, warmups=1, measurements=3)['cycles']), 4)
+
+    def test_rejects_missing_reused_and_unretired_measurements(self):
+        good = presentation_row()
+        for key, value in [('pending',1), ('accepting',True), ('window_closed',False),
+                           ('admitted',3), ('presented',0), ('saturated',1),
+                           ('duplicate_callbacks',1), ('schema',2), ('cycle',0),
+                           ('session',0), ('window',0), ('zero',True), ('attempted',2**64)]:
+            with self.subTest(key=key), self.assertRaises(ValueError):
+                resource_presentation.record(presentation_line({**good,key:value}))
+        with self.assertRaises(ValueError):
+            resource_presentation.record(presentation_line(good).replace('"schema": 1', '"schema": 1, "schema": 1'))
+        rows = [presentation_row(n) for n in range(1,5)]
+        for changed in (rows[:-1], rows + [rows[-1]], rows[::-1],
+                        [rows[0], {**rows[1], 'session': rows[0]['session']}, *rows[2:]],
+                        [rows[0], {**rows[1], 'window': rows[0]['window']}, *rows[2:]]):
+            with self.assertRaises(ValueError):
+                resource_presentation.records(''.join(map(presentation_line,changed)), warmups=1, measurements=3)
+
+    def test_checkpoint_waits_for_retirement_and_final_completion(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            log = Path(tmp)/'app.log'
+            samples = []
+            child = SimpleNamespace(pid=123, stdin=io.BytesIO())
+            checkpoint = Checkpoints(log, samples, cycles=2, warmups=1, native_entities=True, presentation=True)
+            text = ''
+            for cycle in (1,2):
+                phase = 'baseline' if cycle == 1 else 'checked'
+                text += f'GPUIO_LIFECYCLE checkpoint ({cycle} {snapshot()})\nGPUIO_ENTITY_AUDIT checkpoint ({cycle} {phase})\n'
+                log.write_text(text)
+                checkpoint(child)
+                self.assertEqual(len(samples),cycle-1)
+                text += presentation_line(presentation_row(cycle))
+                log.write_text(text)
+                with patch('measure_resource_lifecycle.subprocess.check_output', return_value='12345'):
+                    checkpoint(child)
+                self.assertEqual(len(samples),1)  # last cycle still needs complete
+            text += 'GPUIO_ENTITY_AUDIT complete 2\n'
+            log.write_text(text)
+            with patch('measure_resource_lifecycle.subprocess.check_output', return_value='12345'):
+                checkpoint(child)
+            self.assertEqual(child.stdin.getvalue(), b'continue 1\ncontinue 2\n')
+
+    def test_retirement_cannot_arrive_unrequested_or_before_entity(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            log = Path(tmp)/'app.log'
+            log.write_text(presentation_line(presentation_row()))
+            child = SimpleNamespace(pid=123, stdin=io.BytesIO())
+            for enabled in (True,False):
+                reader = Checkpoints(log, [], cycles=4, warmups=1, native_entities=True, presentation=enabled)
+                with self.assertRaises(ValueError):
+                    reader(child)
+            self.assertEqual(child.stdin.getvalue(),b'')
 
 
 class LifecycleReport(unittest.TestCase):

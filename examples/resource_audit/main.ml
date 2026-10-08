@@ -7,4 +7,5 @@ let () =
     ~background:(flag "--background")
     ~native_entities:true
     ~metal_memory:(flag "--metal-memory")
+    ~presentation:(flag "--presentation")
 ;;
