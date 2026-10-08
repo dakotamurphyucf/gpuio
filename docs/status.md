@@ -36,12 +36,13 @@ Older records of a VoiceOver hold no longer apply. Access was restored after the
 
 ## Latest delivered behavior and validation
 
-Hosted run37772649589 is terminal: Linux passes; macOS fails the old scrollbar/
-document-profile checks and both unresolved Metal probes. The fresh receiver
-passes gallery and Signal Studio, but its Agent Workspace Python harness traps
-at attachment selection. [CI evidence](evidence/milestone-07-ci.md) records this
-new failure and the added fatal-stack/native-crash diagnostics. Updated-source
-hosted acceptance remains required.
+Hosted run37789987337 is terminal: Linux and the separate macOS extracted-app
+receiver pass; the previously repaired scrollbar-preference and document-profile
+checks now pass too. macOS Foundation fails two carousel remount tests (now
+repaired locally) and both unresolved Metal presentation probes. All three
+receiver apps finish without reproducing the earlier Python trap. See
+[CI evidence](evidence/milestone-07-ci.md); later local changes still need hosted
+validation, and signed-release acceptance remains open.
 
 The [scope cancellation repair](evidence/scope-cancellation-och17.md) prevents a
 raising cleanup from stranding sibling scopes, producers or resource accounting.

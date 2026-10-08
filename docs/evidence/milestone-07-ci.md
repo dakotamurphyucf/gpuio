@@ -1,12 +1,33 @@
 # Milestone 07 hosted validation follow-up
 
-## In-progress follow-up — 37789987337 (2026-10-08)
+## Terminal run — 37789987337 (2026-10-08)
 
-Linux Foundation has completed successfully. macOS is still running at this
-checkpoint; its automatic-carousel and interrupted-drag steps fail at page
-return. The [local reproduction and test-driver repair](carousel-remount-harness-och41.md)
-identify a missing visibility precondition. This run predates that repair;
-no final whole-run or updated-source acceptance is claimed.
+[Run37789987337](https://github.com/dakotamurphyucf/gpuio/actions/runs/37789987337)
+at `2d429f2a` completes: Linux Foundation and the separate fresh macOS extracted-app
+receiver pass. The corrected scrollbar-preference and public document-profile
+checks now pass on hosted macOS. Foundation's four failing macOS steps are the
+automatic carousel, interrupted-drag carousel and both Metal presentation probes.
+The [carousel remount driver repair](carousel-remount-harness-och41.md) has local
+and installed before/after evidence; this run predates it.
+
+Both GPUI windows finish with 90 zero presentation timestamps, no positive
+presentations and no missing/lost entries. The standalone Apple Paravirtual
+calibration records 120 zero timestamps and fails its unchanged clock checks.
+These results do not qualify presentation. No gate/classifier change is made.
+
+All three extracted-app reports (gallery, Agent Workspace, Signal Studio) are
+complete and restore the clipboard. Existing development paths are denied;
+absent paths are recorded as absent. This receiver run does not reproduce the
+prior Python SIGTRAP. It does not establish its cause or qualify Developer ID,
+notarization or signed-release distribution. Reports distinguish packaging
+revision `c57ba2f9` from binary build provenance, which is not attested by that
+field; archive/executable hashes identify the exact tested artifacts.
+
+The [verified eleven-artifact archive](foundation-37789987337-och17/reports.tar.gz)
+and [manifest](foundation-37789987337-och17/manifest.json) preserve terminal
+job/step metadata, presentation reports, transfer verification and all receiver
+reports. Later local repairs and matrices require a new hosted run. OCH-17/OCH-41
+remain open; neither the whole run nor release acceptance is green.
 
 ## Terminal run — 37772649589 (2026-10-08)
 
