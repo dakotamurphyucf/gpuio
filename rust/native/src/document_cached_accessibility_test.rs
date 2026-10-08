@@ -3,6 +3,8 @@
 mod owners;
 #[path = "document_cached_registration_test.rs"]
 mod registration;
+#[path = "document_cached_retry_test.rs"]
+mod retry;
 #[path = "document_cached_text_test.rs"]
 mod text;
 use super::*;

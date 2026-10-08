@@ -282,7 +282,16 @@ impl<V: View> IntoElement for ViewElement<V> {
     }
 }
 
+#[doc(hidden)]
+pub struct ViewPrepaintState {
+    element: Option<AnyElement>,
+    range: Option<Range<PrepaintStateIndex>>,
+}
+
 struct ViewElementState {
+    // Fresh state left by an aborted prepaint has no corresponding rendered
+    // frame data yet. It must never be treated as a reusable scene.
+    painted: bool,
     prepaint_range: Range<PrepaintStateIndex>,
     paint_range: Range<PaintIndex>,
     cache_key: ViewElementCacheKey,
@@ -298,7 +307,7 @@ struct ViewElementCacheKey {
 
 impl<V: View> Element for ViewElement<V> {
     type RequestLayoutState = Option<AnyElement>;
-    type PrepaintState = Option<AnyElement>;
+    type PrepaintState = ViewPrepaintState;
 
     fn id(&self) -> Option<ElementId> {
         self.entity_id.map(ElementId::View)
@@ -368,14 +377,17 @@ impl<V: View> Element for ViewElement<V> {
         element: &mut Self::RequestLayoutState,
         window: &mut Window,
         cx: &mut App,
-    ) -> Option<AnyElement> {
+    ) -> ViewPrepaintState {
         if let Some(entity_id) = self.entity_id {
             // Stateful path.
             window.set_view_id(entity_id);
             window.with_rendered_view(entity_id, |window| {
                 if let Some(mut element) = element.take() {
                     element.prepaint(window, cx);
-                    return Some(element);
+                    return ViewPrepaintState {
+                        element: Some(element),
+                        range: None,
+                    };
                 }
 
                 window.with_element_state::<ViewElementState, _>(
@@ -385,7 +397,8 @@ impl<V: View> Element for ViewElement<V> {
                         let text_style = window.text_style();
                         let a11y = window.a11y.cache_context(window.focus);
 
-                        if let Some(mut element_state) = element_state
+                        if let Some(element_state) = element_state
+                            && element_state.painted
                             && element_state.cache_key.a11y == a11y
                             && element_state.cache_key.bounds == bounds
                             && element_state.cache_key.content_mask == content_mask
@@ -398,9 +411,16 @@ impl<V: View> Element for ViewElement<V> {
                             cx.entities
                                 .extend_accessed(&element_state.accessed_entities);
                             let prepaint_end = window.prepaint_index();
-                            element_state.prepaint_range = prepaint_start..prepaint_end;
-
-                            return (None, element_state);
+                            // The transaction can still abort this attempt.
+                            // Keep reading the last painted frame's ranges until
+                            // paint commits the successful attempt's indices.
+                            return (
+                                ViewPrepaintState {
+                                    element: None,
+                                    range: Some(prepaint_start..prepaint_end),
+                                },
+                                element_state,
+                            );
                         }
 
                         let refreshing = mem::replace(&mut window.refreshing, true);
@@ -421,8 +441,12 @@ impl<V: View> Element for ViewElement<V> {
                         window.refreshing = refreshing;
 
                         (
-                            Some(element),
+                            ViewPrepaintState {
+                                element: Some(element),
+                                range: Some(prepaint_start.clone()..prepaint_end.clone()),
+                            },
                             ViewElementState {
+                                painted: false,
                                 accessed_entities,
                                 prepaint_range: prepaint_start..prepaint_end,
                                 paint_range: PaintIndex::default()..PaintIndex::default(),
@@ -445,7 +469,10 @@ impl<V: View> Element for ViewElement<V> {
                     element.as_mut().unwrap().prepaint(window, cx);
                 },
             );
-            Some(element.take().unwrap())
+            ViewPrepaintState {
+                element: element.take(),
+                range: None,
+            }
         }
     }
 
@@ -471,7 +498,7 @@ impl<V: View> Element for ViewElement<V> {
             );
         } else {
             // Stateless path: just paint the element.
-            paint_component(std::any::type_name::<V>(), element, window, cx);
+            paint_component(std::any::type_name::<V>(), &mut element.element, window, cx);
         }
     }
 }
@@ -490,7 +517,7 @@ fn paint_view(
     entity_id: EntityId,
     cached: bool,
     global_id: Option<&GlobalElementId>,
-    element: &mut Option<AnyElement>,
+    prepaint: &mut ViewPrepaintState,
     window: &mut Window,
     cx: &mut App,
 ) {
@@ -504,7 +531,7 @@ fn paint_view(
 
                     let paint_start = window.paint_index();
 
-                    if let Some(element) = element {
+                    if let Some(element) = &mut prepaint.element {
                         let refreshing = mem::replace(&mut window.refreshing, true);
                         element.paint(window, cx);
                         window.refreshing = refreshing;
@@ -514,12 +541,15 @@ fn paint_view(
 
                     let paint_end = window.paint_index();
                     element_state.paint_range = paint_start..paint_end;
+                    element_state.prepaint_range =
+                        prepaint.range.take().expect("cached prepaint range");
+                    element_state.painted = true;
 
                     ((), element_state)
                 },
             )
         } else {
-            element.as_mut().unwrap().paint(window, cx);
+            prepaint.element.as_mut().unwrap().paint(window, cx);
         }
     });
 }

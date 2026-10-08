@@ -891,3 +891,15 @@ The selection layer replays finish-frame scheduling without duplicating input
 listeners, which GPUI already replays. The ordinary end-of-frame sweep still
 clears missing participants, including retained text that is removed and remounted.
 Geometry is shared during reuse; changing effective scope alone uses copy-on-write.
+
+### Retrying cached prepaint
+
+A prepaint attempt can be abandoned by `Window::transact`. Cache replay indices
+must continue to refer to the last painted frame until a successful paint commits
+the next range. GPUI therefore keeps candidate prepaint indices in attempt-local
+`ViewPrepaintState` and marks newly prepared cache state unusable until painted.
+This prevents a rolled-back attempt from using current-frame offsets against the
+previous snapshot, while preserving actual cache reuse on a valid retry.
+[Native regression evidence](../evidence/cached-prepaint-retry-och17.md) also
+qualifies prepared-source replacement and stale selection rejection on cached
+TextViews; it does not imply rollback of arbitrary application mutations.

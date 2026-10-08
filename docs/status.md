@@ -5,6 +5,17 @@ release** is in progress. **OCH-41 and OCH-17 remain open.** Owner-requested **O
 Markdown walkthroughs for every example component; its documentation acceptance is complete. This page separates
 current work from historical checkpoints; it does not certify release readiness.
 
+[Cached prepaint retries and source replacement](evidence/cached-prepaint-retry-och17.md)
+now pass after fixing a reproduced crash: an aborted prepaint had overwritten
+saved cache indices with offsets into discarded frame data. Candidate indices
+now commit only at paint; unpainted state cannot be reused as a scene. Native
+retry/source-replacement regressions pass, including deferred controls, stable
+render counts, stale-selection rejection and updated semantics. All 1,175 native
+tests (2 ignored), strict lint/formatting, actual desktop/workspace/gallery,
+exact GPUI reconstruction and real macOS range/Copy checks pass. Remaining work
+is the explicit macOS accessibility, consolidated catalog, performance/resources,
+notices/distribution/API and required hosted/Linux release acceptance below.
+
 [Cached native text selection](evidence/cached-text-selection-och17.md) now
 preserves real Base TextView selection during actual scene-cache reuse. Native
 paint lifecycle replay covers scoped/deferred text, cached selection layers,
@@ -12,8 +23,8 @@ current Copy order and removal/remount cleanup. Raw prepaint registration remain
 compatible; cached explicit logical order has a dedicated method. All 1,173 native
 tests pass (2 ignored), along with strict lint/formatting, workspace, actual
 desktop, gallery rebuild, exact GPUI/Base reconstruction and real macOS range/Copy
-regression. Dedicated rollback/context/dirty-source qualification, VoiceOver and
-full catalog/performance/resource/distribution/platform gates remain open.
+regression at that checkpoint. The later retry/source-replacement evidence above
+adds those qualifications; VoiceOver and the full release gates remain open.
 
 [Cached accessibility callback ownership](evidence/cached-accessibility-owners-och17.md)
 now releases removed uncached controls in the same completed frame even when the

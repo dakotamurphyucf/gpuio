@@ -254,3 +254,84 @@ fn cached_text_and_uncached_plain_text_share_current_copy_order() {
     assert_eq!(renders.load(Ordering::Relaxed), count);
     assert_eq!(cx.update(TextSelection::selected_text), "Plain\nCached");
 }
+
+#[test]
+fn changed_preparation_invalidates_cached_text_and_old_selection_requests() {
+    let mut app = TestAppContext::single();
+    app.update(gpui_base::init);
+    let renders = Arc::new(AtomicUsize::new(0));
+    let (parent, cx) = app.add_window_view(|_, cx| TextParent {
+        child: cx.new(|cx| Text {
+            text: cx.new(|cx| {
+                let mut text = TextViewState::externally_prepared(cx);
+                text.set_prepared(
+                    PreparedText::parse("Old text", MarkdownExtensions::default()).unwrap(),
+                    None,
+                    cx,
+                );
+                text
+            }),
+            renders: renders.clone(),
+            layer_inside: false,
+            deferred: false,
+            scope: TextSelectionScopeId::default(),
+        }),
+        mounted: true,
+        layer_inside: false,
+        plain: None,
+        plain_first: false,
+    });
+    let text = parent.read_with(cx, |p, cx| p.child.read(cx).text.clone());
+    cx.simulate_a11y_active(true);
+    draw(cx);
+    text.update(cx, |text, cx| text.select_all(cx));
+    draw(cx);
+    let before = renders.load(Ordering::Relaxed);
+    parent.update(cx, |_, cx| cx.notify());
+    draw(cx);
+    assert_eq!(renders.load(Ordering::Relaxed), before);
+    assert_eq!(cx.update(TextSelection::selected_text), "Old text");
+    text.update(cx, |text, cx| {
+        let projection = text.rendered_text().unwrap();
+        let request = text
+            .prepare_rendered_selection(
+                &projection.position(0).unwrap(),
+                &projection.position(3).unwrap(),
+            )
+            .unwrap();
+        text.set_prepared(
+            PreparedText::parse("New 世界 content", MarkdownExtensions::default()).unwrap(),
+            None,
+            cx,
+        );
+        assert!(matches!(
+            text.apply_rendered_selection(request, cx),
+            Err(gpui_base::text::RenderedSelectionError::StaleRequest)
+        ));
+    });
+    draw(cx);
+    assert!(
+        renders.load(Ordering::Relaxed) > before,
+        "content change invalidates cache without manual refresh"
+    );
+    assert_eq!(cx.update(TextSelection::selected_text), "");
+    let tree = cx.a11y_tree().unwrap();
+    assert!(tree.nodes.iter().any(|(_, node)| {
+        node.value()
+            .is_some_and(|value| value.contains("New 世界 content"))
+    }));
+    assert!(
+        !tree
+            .nodes
+            .iter()
+            .any(|(_, node)| node.value().is_some_and(|value| value.contains("Old text")))
+    );
+    text.update(cx, |text, cx| text.select_all(cx));
+    draw(cx);
+    assert_eq!(cx.update(TextSelection::selected_text), "New 世界 content");
+    let updated = renders.load(Ordering::Relaxed);
+    parent.update(cx, |_, cx| cx.notify());
+    draw(cx);
+    assert_eq!(renders.load(Ordering::Relaxed), updated);
+    assert_eq!(cx.update(TextSelection::selected_text), "New 世界 content");
+}
