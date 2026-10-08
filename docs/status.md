@@ -30,6 +30,14 @@ Older records of a VoiceOver hold no longer apply. Access was restored after the
 
 ## Latest delivered behavior and validation
 
+The [hover-layout repair](evidence/hover-layout-och41.md) fixes stale hover paint
+when initial paint or a layout change puts a widget under a stationary pointer.
+Two original native cases fail. Five focused regressions and the full
+1,184-test native suite pass (two existing skips), including preserved
+hover-driven layout. The repaired real table walkthrough passes scoped
+paint/reset, fixed geometry and input across two themes and three scales. This is separate from the loaded-list scrolling report and does not
+establish full catalog, VoiceOver or performance acceptance.
+
 The [loaded-list scroll investigation](evidence/list-scroll-diagnostics-och17.md)
 distinguishes automated row jumps from ordinary wheel input. Eighty wheel steps
 showed no sampled row overlap; 524 retained-row comparisons matched their pixel

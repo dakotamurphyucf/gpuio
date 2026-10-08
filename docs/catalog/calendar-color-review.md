@@ -54,7 +54,8 @@ retention and explicit commit/cancel, clear actions and trigger expansion/focus.
 It also reproduces and repairs a native nonmodal focus-context loss. This narrows
 the historical physical gaps above; it does not qualify multi-month layout,
 calendar/panel physical navigation, hover-preview pixels or the whole family.
-VoiceOver remains on hold.
+VoiceOver qualification remains pending. The owner lifted the earlier testing
+hold on 2026-10-05; actual screen-reader evidence is still required.
 
 [A further installed walkthrough](../evidence/installed-calendar-color-och41.md)
 qualifies 1/2/3/12-pane logical viewports and unique date targets against an

@@ -4807,3 +4807,47 @@
      /// Clip this subtree's finalized descendant bounds in accessibility (scaled
      /// window) coordinates. Fully clipped nodes become hidden; IDs and children
      /// remain intact. Call after descendants finish prepaint. Hidden descendants
+--- a/src/elements/div.rs
++++ b/src/elements/div.rs
+@@ -2892,6 +2892,10 @@
+                     .and_then(|state| state.hover_state.as_ref())
+                     .cloned()
+             });
++            // GPUIO: first paint or relayout can change hover without mouse input.
++            // Remember painted state separately: the stored state also feeds layout
++            // and must still be reconciled on the next pointer movement.
++            let painted_hovered = hitbox.is_hovered(window);
+             let current_view = window.current_view();
+ 
+             window.on_mouse_event(move |_: &MouseMoveEvent, phase, window, cx| {
+@@ -2899,7 +2903,9 @@
+                 let was_hovered = hover_state
+                     .as_ref()
+                     .is_some_and(|state| state.borrow().element);
+-                if phase == DispatchPhase::Capture && hovered != was_hovered {
++                if phase == DispatchPhase::Capture
++                    && (hovered != was_hovered || hovered != painted_hovered)
++                {
+                     if let Some(hover_state) = &hover_state {
+                         hover_state.borrow_mut().element = hovered;
+                         cx.notify(current_view);
+@@ -2914,6 +2920,7 @@
+                     .as_ref()
+                     .and_then(|element| element.hover_state.as_ref())
+                     .cloned();
++                let painted_group_hovered = group_hitbox_id.is_hovered(window);
+                 let current_view = window.current_view();
+ 
+                 window.on_mouse_event(move |_: &MouseMoveEvent, phase, window, cx| {
+@@ -2921,7 +2928,10 @@
+                     let was_group_hovered = hover_state
+                         .as_ref()
+                         .is_some_and(|state| state.borrow().group);
+-                    if phase == DispatchPhase::Capture && group_hovered != was_group_hovered {
++                    if phase == DispatchPhase::Capture
++                        && (group_hovered != was_group_hovered
++                            || group_hovered != painted_group_hovered)
++                    {
+                         if let Some(hover_state) = &hover_state {
+                             hover_state.borrow_mut().group = group_hovered;
+                             cx.notify(current_view);

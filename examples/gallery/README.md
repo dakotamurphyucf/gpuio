@@ -1207,3 +1207,15 @@ native ownership and event flow, including diagnostic and platform limits.
 The [Charts & data walkthrough](charts_page.md#radar-projection-controls) explains
 Radar's shared maximum, fixed radius and label spacing controls, including why
 the original-data table and selection values remain unchanged.
+
+For **Result table → Header and row styling**, the focused macOS walkthrough is:
+
+```sh
+python3 scripts/test_gallery.py --section table-presentation --images scratch/table-presentation
+```
+
+It checks actual window pixels, fixed cell geometry, rich-header accessibility
+identity during style updates, native pointer/keyboard selection and page
+retirement/remount. Theme/scale controls belong to the gallery; the walkthrough
+explains their use in [the Collections implementation](collections_page.md).
+A script's presence does not establish a passing platform result.

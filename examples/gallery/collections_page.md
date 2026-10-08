@@ -50,6 +50,23 @@ emits `Grid.Request`, updates latest config/data, derives adapter input and reco
 order. Select last result uses one controller batch for selection plus reveal, guarded against
 retired/reincarnated targets.
 
+**Header and row styling** toggles `Grid.scoped_presentation`. `header_presentation`
+derives checked `Table_presentation.Header` metadata: the current palette's surface
+background, bold text and accent text on hover. The active-row callback receives
+reactive `data`, grid and palette values; `let%arr` recomputes its checked
+`Table_presentation.Row` when any of those inputs changes. Rows divisible by five
+get an 8% accent tint and heavier text. Hover, selected and pressed refinements
+use native interaction state; OCaml does not receive every pointer movement.
+Turning the option off sends empty presentation metadata, which clears these
+customizations while keeping native table geometry and selection ownership.
+
+For example, clicking the toggle injects `Toggle_scoped_presentation` into the
+Bonsai state machine. Its reducer flips the Boolean, the header/active-row
+computations derive new metadata, and GPUIO applies that metadata to retained
+native table elements. It does not replace the data collection or sort the rows.
+The separate **Inspect** header button injects `Header_action`; the notice confirms
+that its activation is independent of the column's sort action.
+
 GPUIO owns measurement, native focus/scroll and bounded owners; Bonsai owns source/configuration
 and retained options. Page destruction retires adapters/row computations; native hiding is not
 application task cancellation. Adapt with stable domain IDs, explicit remote sorting/loading

@@ -464,3 +464,6 @@ mod horizontal_list_test;
 mod document_profile_fixture;
 
 mod window_frame;
+
+#[cfg(all(test, feature = "native-image-tests"))]
+mod hover_layout_test;
