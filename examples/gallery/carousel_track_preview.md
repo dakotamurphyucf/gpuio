@@ -96,3 +96,31 @@ then checks fresh intervals and retirement after leaving the page. It temporaril
 selects the app's Full/Reduced motion policies and restores System on success;
 it does not change macOS preferences. Its interval observations include native
 dispatch, Bonsai delivery and AX sampling, not just timer precision.
+
+### Background dragging and child input
+
+`V.carousel_track` also installs native pointer handling around these retained
+cards. No OCaml drag callback is needed. A primary-button press in noninteractive
+card space starts a possible drag; moving at least eight pixels predominantly
+along the configured axis claims it. Rust previews the measured offset while
+the button is held. The Bonsai selection and caption still show the accepted
+card during that preview.
+
+Releasing a claimed drag chooses the nearest measured card and sends the same
+typed selection request used by the controls. The component's `Request` action
+passes it through `C.apply_request`, and the next reactive view supplies the
+accepted model. For example, dragging left from Capture toward Explore first
+moves the native track, then changes the caption after release and Bonsai
+delivery. Escape cancels the preview without submitting that selection.
+
+The wrapper respects native child controls: a drag in `Editor.view draft` belongs
+to the text input and selects text. Cross-axis movement, movement below the
+threshold and a disabled track do not select another card. Disabled viewports
+also reject focus; disabling navigation does not turn child editing into a
+background gesture.
+
+Use `python3 scripts/test_gallery.py --section carousel-drag --images scratch/carousel-drag`
+for the desktop pointer walkthrough. It checks both axes/themes, release,
+Escape, axis locking, small movements, disabled navigation and native text
+selection. Wheel/trackpad delivery and presentation timing require separate
+checks; this walkthrough does not establish those properties.

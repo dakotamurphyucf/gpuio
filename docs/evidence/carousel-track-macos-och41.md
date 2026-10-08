@@ -115,3 +115,48 @@ Tab/VoiceOver, all sizes/scales, movement-time retirement, continuous-loop visua
 geometry and measured resource/frame performance remain separate work. Opening
 a second window here qualifies an inactive-window pause, not independent carousel
 contents or cross-window model isolation.
+
+## Pointer ownership and cancellation follow-up — 2026-10-08
+
+At base `5d07a92b`, the repository gallery and the independent consumer built for
+the [scroll adapter checkpoint](macos-scroll-phases-och41.md) pass twenty pointer
+cases each. No production code changes or new consumer build are needed here.
+The fixture covers both axes and Dark/Light at Comfortable scale in a compact
+viewport with the default movement policy.
+
+For each combination, a 200-pixel background drag reveals the next card while
+the accepted selection remains Capture. Releasing selects Explore through the
+public Bonsai reducer. Repeating that preview and pressing Escape before release
+keeps Capture selected. The final fixture checks the candidate button's visible
+center before cancellation, so an undelivered drag cannot pass as a cancelled
+one. Cross-axis movement, a five-pixel movement and disabled navigation all keep
+Capture selected. A native drag inside the card's text input selects nonempty
+text without changing the carousel selection. Post-release sampling checks for
+delayed commits; it is not an every-frame assertion.
+
+```sh
+python3 scripts/test_gallery.py --section carousel-drag --images scratch/carousel-drag
+python3 scripts/test_gallery.py --section carousel-drag --executable /path/to/installed/main.exe --images scratch/carousel-drag-installed
+```
+
+The initial fixture incorrectly requested focus on a disabled viewport and
+failed after the first four cases. Disabled viewports intentionally reject focus;
+the corrected fixture preserves the preceding Capture selection and verifies
+actual disabled pointer behavior. Local `002` then passed all cases. Final local
+`003` and installed `001` add theme metadata and positive preview checks and both
+pass. All children exit normally. Local runs use the 180-second exception/cleanup
+wrapper; Foundation adds a separate three-minute step. Syntax, documentation and
+catalog audits, actionlint and whitespace checks pass.
+
+The [pointer archive](carousel-track-macos-och41/drag-reports.tar.gz) and verified
+[manifest](carousel-track-macos-och41/drag-manifest.json) retain all attempts,
+reports and the final fixture/application source. Executable identities are in
+the raw logs and match the scroll adapter checkpoint. The adjacent walkthrough
+now explains native preview ownership, release-to-Bonsai selection, cancellation
+and native child input rather than presenting dragging as an OCaml callback.
+
+This qualifies OS pointer routing and Escape cancellation for these cases.
+Hardware trackpad/line-wheel ownership and edges, capture loss, other sizes/scales,
+full Tab/VoiceOver, movement-time retirement, seamless loop geometry and measured
+resource/presentation behavior remain separate. It does not close the loaded-list
+overlap report or establish performance from sampled AX positions.

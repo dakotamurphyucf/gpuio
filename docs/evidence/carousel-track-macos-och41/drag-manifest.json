@@ -1,0 +1,13 @@
+{
+  "carousel-drag-001.log": "e4b412295fecc93b950e57d5e7a740401fc1a44c9e36cc51ccb520a7255f9ae7",
+  "carousel-drag-001/carousel-drag-report.json": "4fc4a1e2e54bd1dfc03a9f10272191f0db70e4b444553466be655b8a0bbe4d7a",
+  "carousel-drag-002.log": "c88165a70a5591ae326519397f5f677395a9e5ee3f1519538617d1b4050b956b",
+  "carousel-drag-002/carousel-drag-report.json": "80be85ac63b1775eb2a7eecc09f56d930817532dd02e5340ae55cad11c871328",
+  "carousel-drag-003.log": "dd6a1ab611916d6e0d4b0b1fa775779c5e9e2056d525dd53e940f40de2167978",
+  "carousel-drag-003/carousel-drag-report.json": "64fe5f22a2f067f0a99e78a2e96d52ca2f1a91a7ef24b687c914d6f99e526725",
+  "carousel-drag-installed-001.log": "0bf13ffeaf883a3207f962c6402ef7485106ed92c10d9e7a2a51bfb394a43f1c",
+  "carousel-drag-installed-001/carousel-drag-report.json": "64fe5f22a2f067f0a99e78a2e96d52ca2f1a91a7ef24b687c914d6f99e526725",
+  "source/scripts/gallery_carousel_drag.py": "718a0a5f708901233584433f7a1123c4ffaa8fa438403830e534c2ea66b5b00a",
+  "source/scripts/test_gallery.py": "1830153526636cff7c500950d265824e0abf9c01c8e96287130c74134d95ba41",
+  "source/examples/gallery/carousel_track_preview.ml": "aba99a7041fd6755a13a0e7993446c176c11ebc49eab97dcf0e8001f8ba47025"
+}

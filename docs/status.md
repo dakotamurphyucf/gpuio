@@ -40,7 +40,10 @@ The [measured carousel desktop follow-up](evidence/carousel-track-macos-och41.md
 passes native keys/editing, both axes/themes, clipped-neighbor pointer selection,
 reorder/resize retention and remount locally and in the installed gallery.
 Its automatic-policy follow-up also passes five pause conditions, fresh resumes
-and page-retired timers. Gestures, full focus/accessibility and resources remain open.
+and page-retired timers. Twenty OS pointer cases and native child text selection
+now pass locally and in the installed consumer, including observed drag previews
+and Escape cancellation. Wheel handoff, full focus/accessibility and resources
+remain open.
 
 The [sidebar desktop walkthrough](evidence/sidebar-macos-och41.md) passes
 branch policies, actual keyboard/pointer selection, twelve appearance cases,

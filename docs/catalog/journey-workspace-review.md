@@ -129,3 +129,10 @@ now preserves cancelled scroll phases at the macOS input boundary. Real AppKit
 factory conversion and GPUIO routing/state tests cover their separate layers;
 synthetic desktop cancellation delivery remains unqualified. This does not close
 the physical gesture/edge-handoff or smooth-presentation requirements.
+
+The [pointer follow-up](../evidence/carousel-track-macos-och41.md#pointer-ownership-and-cancellation-follow-up--2026-10-08)
+qualifies twenty actual OS drag cases on both axes/themes plus native child text
+selection, locally and in the installed consumer. Escape cancels an observed
+preview, while release commits selection; cross-axis, small and disabled gestures
+do not. Wheel handoff, full accessibility, other geometry and presentation/resource
+acceptance remain separate.
