@@ -112,3 +112,20 @@ Clippy's initial assertion-style failure is retained too.
 [Reports and source](native-menu-bar-icons-och41/reports.tar.gz) have a
 [SHA-256 manifest](native-menu-bar-icons-och41/manifest.json). OCH-41 and OCH-17
 remain In Progress.
+
+## Installed-consumer and driver-composition follow-up
+
+The [header/consumer follow-up](gallery-header-layout-och41.md#independently-installed-consumer)
+now qualifies this same menu-bar section against freshly staged public libraries
+and an independent gallery build. Native opening, nested/cleared/restored
+silhouettes, pointer dispatch, disabled state, active-window ownership and
+remount pass; its child exits zero. This adds installed-consumer evidence beyond
+the original local checkpoint above, without adding Linux, VoiceOver,
+performance or whole-family acceptance.
+
+The driver now discovers the new window instead of assuming its serial is two.
+Two consecutive complete local exercises in one process pass, preserving the
+initial preview stage between runs. This corrects test composition with earlier
+window creation; it does not change application window names. The follow-up
+archive retains the repeated-run log and the independently built executable's
+identity.

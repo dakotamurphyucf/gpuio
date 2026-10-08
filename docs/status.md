@@ -30,13 +30,19 @@ Older records of a VoiceOver hold no longer apply. Access was restored after the
 
 ## Latest delivered behavior and validation
 
+The [gallery header/consumer follow-up](evidence/gallery-header-layout-och41.md)
+fixes clipped header controls through ordinary OCaml wrapping styles. Both local
+and independently installed galleries pass 59 shell-layout cases and actual New
+window activation. The installed native menu-bar walkthrough also passes. These
+are scoped shell/public-API results, not full-gallery or release acceptance.
+
 The [native menu-bar artwork checkpoint](evidence/native-menu-bar-icons-och41.md)
 extends passive SVG item paths to platform bars. Actual AppKit and public gallery
 checks pass nested/disabled artwork, clear/restore, command delivery and window
 ownership. It also fixes AppKit validation re-enabling explicitly disabled rows.
 The native suite passes 1,187 tests (two existing skips), and strict Clippy and
-vendor reconstruction pass. Independent-consumer, final-source hosted/Linux and
-consolidated release acceptance remain open.
+vendor reconstruction pass. The linked follow-up adds installed-consumer evidence; final-source hosted/Linux
+and consolidated release acceptance remain open.
 
 The [document worker-pressure repair](evidence/document-worker-pressure-och17.md)
 keeps short profile updates pending while an active worker holds temporary

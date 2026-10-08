@@ -29,6 +29,15 @@ The rail has its own scrolling region. The workspace's content uses
 `Grow`, `Min_width 0` and `Min_height 0` so it can shrink and scroll inside a
 bounded window instead of forcing an oversized flex child.
 
+The header also wraps. Its heading column uses a 320-logical-pixel `Basis`,
+`Grow 1` and `Min_width 0`: it takes spare space while allowing the description
+to wrap. Appearance, scale and New window controls form a separate row with
+`Shrink 0` and `Max_width 100%`. The outer row can move that toolbar below the
+heading; the toolbar can wrap its own buttons when necessary. This keeps long
+page descriptions and Large-scale text from pushing controls beyond the window.
+It uses ordinary layout styles, without a Bonsai breakpoint model or resize
+callback. The active page's model and editor owners are unaffected by reflow.
+
 The page scroll container has a key derived from `Page.key`, independent of its
 displayed title or list position. Changing the page therefore changes this
 native container's identity. That does not independently describe how every
@@ -54,3 +63,9 @@ padding/text constraints. To add a control, extend `Actions` and supply the
 effect in `Component`; keep the shell's rendering deterministic from its inputs.
 The [Palette helpers](palette.md) share theme styling without requiring inheritance
 or a separate widget framework.
+
+For the focused macOS header-layout check, build the gallery and run
+`python3 scripts/test_gallery.py --section header-layout --images scratch/header`.
+The check uses actual window/control bounds, captures representative renders,
+and clicks New window. It does not qualify every page's internal layout or
+screen-reader behavior.

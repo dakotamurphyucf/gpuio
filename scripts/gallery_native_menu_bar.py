@@ -222,15 +222,32 @@ def exercise(mac, images):
         toggle('Enable preview command')
         expect_enabled(mac, 'Advance preview', True)
         # Another window without a bar must not inherit this window's commands.
-        from test_gallery import SECOND
+        def window_titles():
+            windows = mac.children(mac.app, 'AXWindows')
+            try:
+                return {mac.text(window, 'AXTitle') for window in windows}
+            finally:
+                for window in windows:
+                    mac.release(window)
+        original_windows = window_titles()
         mac.press(TITLE, 'New window')
-        mac.wait_text(SECOND, 'A little context goes a long way')
+        deadline = time.monotonic()+10
+        added = set()
+        while not added and time.monotonic()<deadline:
+            added = window_titles()-original_windows
+            if not added:
+                time.sleep(.03)
+        assert len(added) == 1, ('Expected one new gallery window', added)
+        secondary_title = added.pop()
+        evidence['window_ownership'] = {'created': secondary_title}
+        print('GALLERY_NATIVE_BAR_SECONDARY', secondary_title, flush=True)
+        mac.wait_text(secondary_title, 'A little context goes a long way')
         time.sleep(.2)
         stale = bar_item(mac, 'Workspace')
         if stale:
             mac.release(stale)
             raise AssertionError('Second window inherited the first menu bar')
-        mac.close(SECOND)
+        mac.close(secondary_title)
         window = mac.window(TITLE)
         try:
             mac.perform(window, 'AXRaise')

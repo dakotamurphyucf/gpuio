@@ -91,23 +91,30 @@ let view ~palette:p ~(snapshot : Snapshot.t) ~(actions : Actions.t) ~content =
             (style
                [ Grow 1.; Min_width (px 0.); Height full; Padding (px 30.); Gap (px 22.) ])
           [ View.row
-              ~style:(style [ Align_items Center; Gap (px 10.) ])
+              ~style:(style [ Align_items Center; Wrap Wrap; Gap (px 16.) ])
               [ View.column
-                  ~style:(style [ Grow 1.; Gap (px 8.) ])
+                  ~style:
+                    (style [ Grow 1.; Basis (px 320.); Min_width (px 0.); Gap (px 8.) ])
                   [ Palette.text p ~size:30. (Page.title page)
                   ; Palette.text p ~muted:true (Page.description page)
                   ]
-              ; Palette.button p (Appearance.label appearance) actions.toggle_appearance
-              ; Palette.button
-                  p
-                  ~selected:
-                    (Appearance.Preference.equal
-                       (Theme_selection.preference preference)
-                       System)
-                  "Follow system"
-                  actions.follow_system
-              ; Palette.button p (Appearance.Scale.label scale) actions.next_scale
-              ; Palette.button p "New window" actions.open_window
+              ; View.row
+                  ~style:(style [ Wrap Wrap; Shrink 0.; Max_width full; Gap (px 10.) ])
+                  [ Palette.button
+                      p
+                      (Appearance.label appearance)
+                      actions.toggle_appearance
+                  ; Palette.button
+                      p
+                      ~selected:
+                        (Appearance.Preference.equal
+                           (Theme_selection.preference preference)
+                           System)
+                      "Follow system"
+                      actions.follow_system
+                  ; Palette.button p (Appearance.Scale.label scale) actions.next_scale
+                  ; Palette.button p "New window" actions.open_window
+                  ]
               ]
           ; (View.column
                ~key:(Key.of_string ("preview-" ^ Page.key page) |> ok)
