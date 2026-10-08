@@ -65,3 +65,10 @@ binary/report hashes and partial interval counts without claiming acceptance.
 The [opt-in foreground input follow-up](foreground-input-diagnostic-och17.md)
 adds event-kind and lost-entry counts for diagnosis. Its quiet and injected-input
 smokes validate instrumentation only; they do not complete this comparison.
+
+The subsequent [full-workload diagnostic](foreground-input-diagnostic-och17.md#full-workload-diagnostic-follow-up--2026-10-08)
+completes 10,000 rows and sixty-second idle with zero idle draws, inputs and lost
+journal entries. History journal entries are overwritten and reported separately.
+The earlier input-heavy result is therefore not inevitable, but its producer is
+still unidentified. Diagnostic instrumentation remains enabled, so this is not
+an additional paired trial or completed overhead estimate.

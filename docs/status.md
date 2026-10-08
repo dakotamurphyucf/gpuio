@@ -64,8 +64,11 @@ It adds scoped evidence without a production change; broader release gates remai
 
 The [foreground input diagnostic](evidence/foreground-input-diagnostic-och17.md)
 now distinguishes quiet intervals from event-kind counts in opt-in runs. Quiet and
-four-mouse-movement checks validate collection; diagnostic runs cannot qualify
-performance. The reported visual overlap and full overhead comparison remain open.
+four-mouse-movement checks validate collection. A subsequent full 10,000-row
+diagnostic completes sixty-second idle with zero draws, inputs and lost entries;
+its history journal is truncated and reported separately. These diagnostic runs
+cannot qualify performance or identify the earlier event producer. The reported
+visual overlap and full overhead comparison remain open.
 
 The [notification gallery follow-up](evidence/notification-gallery-och41.md)
 fixes restoration during an animated exit using fresh batch identities and stale

@@ -56,3 +56,41 @@ The owner confirmed switching away from or covering the previously queried
 timed-out benchmark window. This supports a visibility contribution to that
 frame wait; it does not explain the separately reported visual overlap or prove
 the cause of older idle redraws. No long benchmark was rerun for this checkpoint.
+
+## Full-workload diagnostic follow-up — 2026-10-08
+
+One predeclared diagnostic reuses the exact executable above, with the journal
+enabled and the unchanged 10,000-row traversal, row growth and sixty-second idle.
+It completes normally in 302.902 seconds, including the application's cleanup
+marker and zero windows, pending requests and native command queue. The child and
+owned keep-awake process are reaped. No compiler or second owned GUI runs alongside
+it, and the helper injects no input. It requests activation once and checks foreground state during startup, then
+releases its AX reference and makes no later AX queries. Exact preflight-to-capture ordering was not separately timestamped;
+this is diagnostic evidence, not an unperturbed acceptance trial.
+
+| Phase | CPU interval seconds | Draw samples | Input-bearing samples | Journal inputs / lost entries |
+| --- | ---: | ---: | ---: | ---: |
+| Full history | 237.833 | 28,452 | 0 | 0 / 101,433 |
+| Settled idle | 60.008 | 0 | 0 | 0 / 0 |
+
+All 238 history and 60 idle window observations are active/visible; neither
+observation list is truncated. The bounded foreground journal overwrites older
+history entries, so its zero retained input count is not a complete history
+event census. The independent CPU histogram records zero input-bearing samples.
+The idle collector starts fresh and loses no entries: that full interval has
+zero input events and zero draws.
+
+This demonstrates that the full fixture can settle without drawing; the earlier
+900-input/908-draw idle result is not inevitable on every execution. It does not
+identify that event producer, explain the separate fourteen-draw/no-input failure,
+resolve the historical startup outlier or establish the cause of reported row
+overlap. No retry-until-pass loop or threshold change was used. The next paired
+overhead comparison still needs controlled desktop conditions, final optimized
+paired builds and diagnostics disabled, with all original workload/budget checks.
+This journal-enabled result must not count as one of those acceptance runs.
+
+The [five-file archive](foreground-input-diagnostic-och17/full-reports.tar.gz)
+retains the predeclared plan, exact helper/command and binary hash, raw application
+log, console log and final summary. Every member was read back and checked against
+its [manifest](foreground-input-diagnostic-och17/full-manifest.json). No production
+source or performance validator changes accompany this follow-up.
