@@ -135,7 +135,7 @@ def exercise_shell(mac, images):
 
 
 def reveal_gallery_control(mac, label, role, *, scroll_fraction=.78, scroll_in_left_gutter=False,
-                           top_margin=170):
+                           top_margin=170, search_files=False):
     # This helper sends desktop pointer events. Re-establish window ownership
     # for each action group; raising does not request focus on the target leaf.
     # The owner guard below still rejects occlusion before sending a click/wheel.
@@ -152,7 +152,7 @@ def reveal_gallery_control(mac, label, role, *, scroll_fraction=.78, scroll_in_l
     locate = mac.cg.CGEventSetLocation
     locate.restype, locate.argtypes = None, [C.c_void_p, GalleryMouse.Point]
     for _ in range(24):
-        node = mac.wait_find(TITLE, label, role)
+        node = mac.wait_find(TITLE, label, role, search_files=search_files)
         try:
             x, y, w, h = element_rect(mac, node)
         finally:
@@ -2870,12 +2870,12 @@ def open_picker(mac, trigger, cancel):
     mac.release(mac.wait_find(TITLE, cancel, 'AXButton'))
 
 
-def expect_focus(mac, trigger, role="AXButton", *, title=TITLE, focused=True):
+def expect_focus(mac, trigger, role="AXButton", *, title=TITLE, focused=True, search_files=False):
     get = mac.cf.CFBooleanGetValue
     get.restype, get.argtypes = C.c_bool, [C.c_void_p]
     deadline = time.monotonic() + 10
     while time.monotonic() < deadline:
-        node = mac.wait_find(title, trigger, role)
+        node = mac.wait_find(title, trigger, role, search_files=search_files)
         value = mac.attr(node, 'AXFocused')
         try:
             if value and bool(get(value)) == focused:
@@ -4259,10 +4259,10 @@ def exercise_diff_controls(mac, images):
           'native keyboard activation, word-toggle source preservation, streamed file append, theme/scale retention and generation reset', flush=True)
 
 
-def wait_absent(mac, label, role):
+def wait_absent(mac, label, role, *, search_files=False):
     deadline = time.monotonic() + 10
     while time.monotonic() < deadline:
-        node = mac.find(TITLE, label, role)
+        node = mac.find(TITLE, label, role, search_files=search_files)
         if not node:
             return
         mac.release(node)
@@ -5525,7 +5525,7 @@ def raise_gallery(mac):
         mac.release(window)
 
 
-def focus_gallery_control(mac, label, role):
+def focus_gallery_control(mac, label, role, *, search_files=False):
     # Foregrounding and the GPUI activation observation are asynchronous. This
     # establishes focus before input; retention assertions still use expect_focus
     # without requesting focus again.
@@ -5534,7 +5534,7 @@ def focus_gallery_control(mac, label, role):
     get.restype, get.argtypes = C.c_bool, [C.c_void_p]
     deadline, requests = time.monotonic() + 10, 0
     while time.monotonic() < deadline:
-        node = mac.wait_find(TITLE, label, role)
+        node = mac.wait_find(TITLE, label, role, search_files=search_files)
         try:
             mac.set(node, 'AXFocused', mac.true)
             requests += 1
@@ -7139,7 +7139,7 @@ def main():
     parser.add_argument('--trace-canvas', action='store_true')
     parser.add_argument('--trace-motion', action='store_true')
     parser.add_argument('--trace-windows', action='store_true')
-    parser.add_argument('--section', choices=['all', 'core', 'shell', 'header-layout', 'settings', 'settings-windows', 'settings-composition', 'settings-fields', 'forms', 'editor-groups', 'avatar-groups', 'sliders', 'numbers', 'otp', 'rating', 'spinners', 'progress', 'selection', 'buttons', 'button-appearance', 'menu-observation', 'menu-placement', 'split-buttons', 'split-paint', 'command-tooltip', 'checkable-navigation', 'control-appearance', 'status-regions', 'badges', 'labels', 'shimmer', 'markers', 'alerts', 'tags', 'keyboard-labels', 'binding-observations', 'descriptions', 'chat-composition', 'chat-list', 'attachments', 'attachment-paint', 'groups', 'links', 'empty', 'separators', 'styles', 'borders', 'aspect-ratio', 'pickers', 'color-preview', 'calendar-viewport', 'choice-pickers', 'overlays', 'overlay-matrix', 'navigation', 'pagination', 'disclosure', 'tabs', 'split-group', 'feedback', 'notifications', 'notification-policy', 'notification-motion', 'native-popup', 'native-bar', 'journeys', 'journey-history', 'sidebar', 'carousel-track', 'carousel-automatic', 'carousel-drag', 'carousel-wheel', 'carousel-lifecycle', 'carousel-focus', 'collections', 'scrollbars', 'message-follow', 'horizontal-list', 'selectable-lists', 'selectable-matrix', 'structural-tables', 'table-presentation', 'documents', 'document-links', 'document-images', 'highlighting', 'canvas', 'assets', 'clipboard', 'charts', 'chart-inspection', 'chart-content', 'chart-labels', 'chart-radar', 'chart-pie', 'chart-axes', 'chart-marks', 'chart-backgrounds', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
+    parser.add_argument('--section', choices=['all', 'core', 'shell', 'header-layout', 'settings', 'settings-windows', 'settings-composition', 'settings-fields', 'forms', 'editor-groups', 'avatar-groups', 'sliders', 'numbers', 'otp', 'rating', 'spinners', 'progress', 'selection', 'buttons', 'button-appearance', 'menu-observation', 'menu-placement', 'split-buttons', 'split-paint', 'command-tooltip', 'checkable-navigation', 'control-appearance', 'status-regions', 'badges', 'labels', 'shimmer', 'markers', 'alerts', 'tags', 'keyboard-labels', 'binding-observations', 'descriptions', 'chat-composition', 'chat-list', 'attachments', 'attachment-paint', 'groups', 'links', 'empty', 'separators', 'styles', 'borders', 'aspect-ratio', 'pickers', 'color-preview', 'calendar-viewport', 'choice-pickers', 'overlays', 'overlay-matrix', 'navigation', 'pagination', 'disclosure', 'tabs', 'split-group', 'feedback', 'notifications', 'notification-policy', 'notification-motion', 'native-popup', 'native-bar', 'journeys', 'journey-history', 'sidebar', 'carousel-track', 'carousel-automatic', 'carousel-drag', 'carousel-wheel', 'carousel-lifecycle', 'carousel-focus', 'collections', 'scrollbars', 'managed-scrollbars', 'message-follow', 'horizontal-list', 'selectable-lists', 'selectable-matrix', 'structural-tables', 'table-presentation', 'documents', 'document-links', 'document-images', 'highlighting', 'canvas', 'assets', 'clipboard', 'charts', 'chart-inspection', 'chart-content', 'chart-labels', 'chart-radar', 'chart-pie', 'chart-axes', 'chart-marks', 'chart-backgrounds', 'motion', 'responsive', 'extensions', 'input', 'observations', 'desktop', 'runtime'], default='all')
     args = parser.parse_args()
     Mac.require_accessibility()
     if args.images:
@@ -7358,9 +7358,9 @@ def main():
             if args.section in ('all', 'collections', 'structural-tables'):
                 from gallery_structural_table import exercise as exercise_structural_table
                 exercise_structural_table(mac, args.images)
-            if args.section == 'scrollbars':
+            if args.section in ('scrollbars', 'managed-scrollbars'):
                 from gallery_scrollbars import exercise as exercise_scrollbars
-                exercise_scrollbars(mac, args.images)
+                exercise_scrollbars(mac, args.images, managed=args.section == 'managed-scrollbars')
             if args.section == 'message-follow':
                 from gallery_message_follow import exercise as exercise_message_follow
                 exercise_message_follow(mac, args.images)

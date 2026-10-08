@@ -334,6 +334,10 @@ jobs:
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
         timeout-minutes: 4
         run: python3 scripts/test_gallery.py --section scrollbars --images .cache/ci/scrollbars 2>&1 | tee .cache/ci/macos-scrollbars.log
+      - name: macOS managed collection scrollbar input and retained offsets
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 6
+        run: python3 scripts/test_gallery.py --section managed-scrollbars --images .cache/ci/managed-scrollbars 2>&1 | tee .cache/ci/macos-managed-scrollbars.log
       - name: macOS message follow input and reading anchors
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
         timeout-minutes: 4

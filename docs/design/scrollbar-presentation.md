@@ -60,6 +60,17 @@ The attaching operation appends protocol tag 108, without changing earlier tags
 or record layouts. Admission reserves bounded native state as well as the label
 and description; invalid configuration and quota overflow reject the transaction.
 
+The Bonsai `Virtual_list` (including paged/reactive variants), `Tree_rows`,
+`Tree`, `Selectable_list` and `Table` components accept
+`?scrollbar:Scrollbar.t option Bonsai.Cont.t`. Pass the reactive description there:
+the adapter attaches it to the actual native viewport, inside its layout wrappers.
+`View.with_scrollbar (Output.view output) ...` only decorates that returned root;
+it does not descend through a Bonsai wrapper to find the managed owner. An outer
+container without overflow therefore retains dormant metadata. Changing the
+component argument, including clearing it with `None`, keeps the existing row
+computations and native scroll owner. The configuration's scrollbar enable flag
+still takes precedence. This adds no bridge operation or second scroll handle.
+
 ## Native ownership and geometry
 
 One native viewport owns offsets, clamping, wheel routing and content measurement.

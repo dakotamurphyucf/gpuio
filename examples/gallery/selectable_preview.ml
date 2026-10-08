@@ -223,6 +223,7 @@ let component t window palette scrollbar graph =
   in
   let output =
     L.component
+      ~scrollbar
       source
       ~layout
       ~config
@@ -299,8 +300,7 @@ let component t window palette scrollbar graph =
   and multiple = multiple
   and set_multiple = set_multiple
   and notice = notice
-  and set_notice = set_notice
-  and scrollbar = scrollbar in
+  and set_notice = set_notice in
   let output = ok output in
   let controller = L.Output.controller output in
   let report f =
@@ -393,7 +393,7 @@ let component t window palette scrollbar graph =
             "Cancel search"
             (E.of_thunk (fun () -> P.cancel t.search ~epoch:(P.Snapshot.epoch snapshot)))
         ]
-    ; V.with_scrollbar (L.Output.view output) scrollbar |> ok
+    ; L.Output.view output
     ; V.row
         ~style:(style [ Gap (px 8.); Wrap Wrap ])
         [ Palette.button

@@ -4,7 +4,7 @@ import json
 import time
 
 
-def exercise(mac, images=None):
+def exercise(mac, images=None, *, managed=False):
     from mac_input_source import foreground_keys
     from test_canvas import screenshot
     from test_gallery import (
@@ -12,7 +12,7 @@ def exercise(mac, images=None):
         reveal_gallery_control, select_gallery_appearance, wait_absent,
     )
 
-    report = {'complete': False, 'cases': []}
+    report = {'complete': False, 'managed': managed, 'cases': []}
     mouse = GalleryMouse(mac)
     original_post = mac.post_key
     prefix = 'Collection preview — '
@@ -39,7 +39,7 @@ def exercise(mac, images=None):
                 mac.release(raw)
 
     def state(axis):
-        node = mac.wait_find(TITLE, prefix+axis, 'AXScrollBar')
+        node = mac.wait_find(TITLE, prefix+axis, 'AXScrollBar', search_files=managed)
         try:
             return {'value': number(node, 'AXValue'),
                     'maximum': number(node, 'AXMaxValue'),
@@ -61,9 +61,9 @@ def exercise(mac, images=None):
         return wait_value(axis, lambda s: abs(s['value']-value) <= .05)
 
     def focus(axis):
-        reveal_gallery_control(mac, prefix+axis, 'AXScrollBar', scroll_fraction=.24)
-        focus_gallery_control(mac, prefix+axis, 'AXScrollBar')
-        expect_focus(mac, prefix+axis, 'AXScrollBar')
+        reveal_gallery_control(mac, prefix+axis, 'AXScrollBar', scroll_fraction=.24, search_files=managed)
+        focus_gallery_control(mac, prefix+axis, 'AXScrollBar', search_files=managed)
+        expect_focus(mac, prefix+axis, 'AXScrollBar', search_files=managed)
 
     def reveal_viewport():
         return reveal_gallery_control(
@@ -77,7 +77,7 @@ def exercise(mac, images=None):
         return same(axis, 0)
 
     def action(axis, name):
-        node = mac.wait_find(TITLE, prefix+axis, 'AXScrollBar')
+        node = mac.wait_find(TITLE, prefix+axis, 'AXScrollBar', search_files=managed)
         try:
             mac.perform(node, name)
         finally:
@@ -91,6 +91,78 @@ def exercise(mac, images=None):
 
     try:
         foreground_keys(mac)
+        if managed:
+            owners = (
+                ('Message list', 'Preview conversation', None, 'First entry'),
+                ('Outline tree', 'Preview outline', 'AXOutline', 'Reveal observatory'),
+                ('Result table', 'Preview results', 'AXTable', 'First result'),
+            )
+            for theme in ('Light', 'Dark'):
+                select_gallery_appearance(mac, theme)
+                for scale, next_scale in (('Comfortable', 'Large'), ('Large', 'Compact'), ('Compact', 'Comfortable')):
+                    press('Lists, trees & tables')
+                    press('Always visible')
+                    for mode, label, role, reset in owners:
+                        case = {'theme': theme, 'scale': scale, 'owner': mode}
+                        report['cases'].append(case)
+                        press(mode)
+                        press(reset)
+                        reveal_gallery_control(mac, label, role, scroll_in_left_gutter=True)
+                        if mode == 'Outline tree':
+                            # Reveal opens Research/Sketches; expanding Archive
+                            # produces seven 36px rows in the 235px viewport.
+                            focus_gallery_control(mac, 'Archive', 'AXRow', search_files=True)
+                            mac.key(124)
+                            time.sleep(.15)
+                        home('vertical')
+                        case['start'] = state('vertical')
+                        assert case['start']['maximum'] > 0, case
+                        mac.key(125)
+                        case['step'] = wait_value('vertical', lambda s: s['value'] > 0)
+                        mac.key(126)
+                        same('vertical', 0)
+                        action('vertical', 'AXIncrement')
+                        wait_value('vertical', lambda s: s['value'] > 0)
+                        action('vertical', 'AXDecrement')
+                        same('vertical', 0)
+                        focus('vertical')
+                        mac.key(119)
+                        case['end'] = wait_value('vertical', lambda s: abs(s['value']-s['maximum']) < .05)
+                        assert case['end']['value'] > 0, case
+                        if mode == 'Message list':
+                            mac.wait_text(TITLE, 'Entry 0999')
+                        elif mode == 'Outline tree':
+                            mac.release(mac.wait_find(TITLE, 'Release checklist', 'AXRow', search_files=True))
+                        else:
+                            mac.release(mac.wait_find(TITLE, '0999', 'AXCell', search_files=True))
+                        home('vertical')
+                        mac.key(125)
+                        offset = wait_value('vertical', lambda s: s['value'] > 0)['value']
+                        for control in ('Gradient thumbs', 'Animate scrollbars'):
+                            press(control)
+                            reveal_gallery_control(mac, label, role, scroll_in_left_gutter=True)
+                            same('vertical', offset)
+                            press(control)
+                            reveal_gallery_control(mac, label, role, scroll_in_left_gutter=True)
+                            same('vertical', offset)
+                        press('Custom scrollbars')
+                        reveal_gallery_control(mac, label, role, scroll_in_left_gutter=True)
+                        wait_absent(mac, prefix+'vertical', 'AXScrollBar', search_files=managed)
+                        press('Custom scrollbars')
+                        reveal_gallery_control(mac, label, role, scroll_in_left_gutter=True)
+                        same('vertical', offset)
+                        if images:
+                            screenshot(mac, images/f'managed-{mode}-{theme}-{scale}.png', title=TITLE)
+                        case['retained_offset'] = offset
+                        case['complete'] = True
+                        print('GALLERY_MANAGED_SCROLLBARS_CASE', mode, theme, scale, 'PASS', flush=True)
+                    press('Presentation')
+                    wait_absent(mac, prefix+'vertical', 'AXScrollBar', search_files=managed)
+                    press(scale)
+                    mac.release(mac.wait_find(TITLE, next_scale, 'AXButton'))
+            report['complete'] = True
+            print('GALLERY_MANAGED_SCROLLBARS_OK 18 cases', flush=True)
+            return
         for theme in ('Light', 'Dark'):
             select_gallery_appearance(mac, theme)
             for scale, next_scale in (('Comfortable', 'Large'), ('Large', 'Compact'), ('Compact', 'Comfortable')):
@@ -175,7 +247,7 @@ def exercise(mac, images=None):
                 reveal_viewport()
                 press('Both axes')
                 reveal_viewport()
-                wait_absent(mac, prefix+'vertical', 'AXScrollBar')
+                wait_absent(mac, prefix+'vertical', 'AXScrollBar', search_files=managed)
                 same('horizontal', horizontal)
                 press('Horizontal only')
                 reveal_viewport()
@@ -188,7 +260,7 @@ def exercise(mac, images=None):
                 press('Custom scrollbars')
                 reveal_viewport()
                 wait_absent(mac, prefix+'horizontal', 'AXScrollBar')
-                wait_absent(mac, prefix+'vertical', 'AXScrollBar')
+                wait_absent(mac, prefix+'vertical', 'AXScrollBar', search_files=managed)
                 press('Custom scrollbars')
                 reveal_viewport()
                 same('horizontal', horizontal)
@@ -206,7 +278,7 @@ def exercise(mac, images=None):
                 reveal_viewport()
                 same('vertical', vertical)
                 press('Presentation')
-                wait_absent(mac, prefix+'vertical', 'AXScrollBar')
+                wait_absent(mac, prefix+'vertical', 'AXScrollBar', search_files=managed)
                 wait_absent(mac, prefix+'horizontal', 'AXScrollBar')
                 case['complete'] = True
                 print('GALLERY_SCROLLBARS_CASE', theme, scale, 'PASS', flush=True)
@@ -222,4 +294,4 @@ def exercise(mac, images=None):
     finally:
         mac.post_key = original_post
         if images:
-            (images/'scrollbars-report.json').write_text(json.dumps(report, indent=2)+'\n')
+            (images/('managed-scrollbars-report.json' if managed else 'scrollbars-report.json')).write_text(json.dumps(report, indent=2)+'\n')

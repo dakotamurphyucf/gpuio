@@ -36,6 +36,13 @@ Older records of a VoiceOver hold no longer apply. Access was restored after the
 
 ## Latest delivered behavior and validation
 
+The [managed-scrollbar routing repair](evidence/managed-scrollbar-routing-och41.md)
+adds a reactive component argument that reaches native viewports inside Bonsai
+layout wrappers. All five adapter regressions and the full OCaml suite pass;
+the repository and freshly installed galleries each pass 18 scoped
+theme/size/owner input cases.
+Frame timing, VoiceOver and broader release acceptance remain separate.
+
 The [force-close cleanup repair](evidence/force-close-cleanup-och17.md) ensures
 raising cleanup cannot skip queued native close/shutdown work or leave the
 opening-window path unwoken. Regression tests cover first-failure propagation,

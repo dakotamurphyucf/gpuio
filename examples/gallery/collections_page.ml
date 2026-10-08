@@ -290,20 +290,11 @@ let follow_button p on_click =
 let component app searchable window palette graph =
   let structural = Structural_table_preview.component palette graph in
   let scrollbars = Scrollbar_preview.component app window palette graph in
+  let scrollbar = B.map scrollbars ~f:Scrollbar_preview.description in
   let selectable =
-    Selectable_preview.component
-      searchable
-      window
-      palette
-      (B.map scrollbars ~f:Scrollbar_preview.description)
-      graph
+    Selectable_preview.component searchable window palette scrollbar graph
   in
-  let cards =
-    Horizontal_list_preview.component
-      palette
-      (B.map scrollbars ~f:Scrollbar_preview.description)
-      graph
-  in
+  let cards = Horizontal_list_preview.component palette scrollbar graph in
   let mode, set_mode = B.state Mode.Messages graph in
   let jump_enabled, toggle_jump = B.toggle ~default_model:true graph in
   let fade_enabled, toggle_fade = B.toggle ~default_model:true graph in
@@ -362,6 +353,7 @@ let component app searchable window palette graph =
                ; Shrink 0.
                ])
           [ Palette.text p data ])
+      ~scrollbar
       graph
   in
   let tree =
@@ -371,6 +363,7 @@ let component app searchable window palette graph =
       ~config:(Virtual_list.Config.create ~height:(Fixed 36.) ~max_active:16 () |> ok)
       ~style:(viewport_style 235.)
       ~initial_expanded:(B.return [ tree_id "research" ])
+      ~scrollbar
       graph
   in
   let headers =
@@ -463,6 +456,7 @@ let component app searchable window palette graph =
           ~column:(Table_column.id column)
           ~copy_text:text
           (Palette.text p text))
+      ~scrollbar
       graph
   in
   let%arr p = palette
@@ -494,9 +488,6 @@ let component app searchable window palette graph =
     |> Tree_state.selected
     |> List.map ~f:Tree.Id.to_string
     |> String.concat ~sep:", "
-  in
-  let decorate view =
-    V.with_scrollbar view (Scrollbar_preview.description scrollbars) |> ok
   in
   let previews =
     [ ( Mode.Messages
@@ -550,7 +541,7 @@ let component app searchable window palette graph =
               ~fade:(Option.some_if fade_enabled (Palette.background p))
               ~jump:
                 (follow_button p (L.Controller.jump_to_latest (L.Output.controller list)))
-              (decorate (L.Output.view list))
+              (L.Output.view list)
           ; Palette.text
               p
               (sprintf
@@ -575,7 +566,7 @@ let component app searchable window palette graph =
       , Palette.card
           p
           ~title:"An outline with structure"
-          [ decorate (Forest.Output.view tree)
+          [ Forest.Output.view tree
           ; Palette.text p ("Selected outline: " ^ selected)
           ; Palette.button
               p
@@ -655,7 +646,7 @@ let component app searchable window palette graph =
                   "Header and row styling"
                   (grid_request Toggle_scoped_presentation)
               ]
-          ; decorate (T.Output.view table)
+          ; T.Output.view table
           ; Palette.text p ("Table selection: " ^ Grid.describe (T.Output.selection table))
           ; Palette.text p ~muted:true grid.notice
           ; Palette.text

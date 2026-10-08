@@ -17,7 +17,12 @@ it.
 child computations are created before mode selection. The final keyed `V.tab_panel` wrappers
 activate one view while retaining the others under native panel policy; this is not `match%sub`
 removal of the Bonsai computation. Shared [scrollbar descriptions](scrollbar_preview.md)
-decorate independent native viewports without sharing offsets.
+are derived once with `B.map scrollbars ~f:Scrollbar_preview.description` and passed
+as `~scrollbar` to each managed component. Each adapter applies that reactive option
+to its native viewport inside the layout wrappers; offsets remain independent.
+For example, switching Gradient thumbs updates the description, recomputes native
+presentation and keeps the existing list owner and row computations. Applying
+`View.with_scrollbar` to the returned outer layout would not reach that owner.
 [Cards](horizontal_list_preview.md) and [structural table](structural_table_preview.md) have
 their own companions.
 

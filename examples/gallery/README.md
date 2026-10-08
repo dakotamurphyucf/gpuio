@@ -964,7 +964,10 @@ Collections now shares **Scroll your way** controls across its message list,
 outline, result table and new **Scrollbars** tab. Choose Always visible, On hover
 or While scrolling; cycle Both/Horizontal/Vertical; toggle gradient thumb states,
 finite motion or the entire custom description. These controls use only public
-`Scrollbar` values and `View.with_scrollbar`. Turning custom presentation off
+`Scrollbar` values, `View.with_scrollbar` for the ordinary viewport, and the
+managed Bonsai components’ `~scrollbar` argument for lists, trees and tables.
+That argument targets the native owner inside the component’s layout wrappers.
+Turning custom presentation off
 restores the viewport's default (ordinary containers have no default painted bar).
 The two-axis preview adds up to sixty keyed rows and resets to twenty-four without
 replacing its native scroll owner. Existing message history/growth controls remain
@@ -1254,3 +1257,8 @@ Use `--section scrollbars` for the ordinary-viewport scrollbar input matrix:
 keys/range actions, pointer drag/cancel and retained offsets through appearance,
 axis and content changes. See the [code walkthrough](scrollbar_preview.md) and
 [scoped physical evidence](../../docs/evidence/scrollbar-input-macos-och41.md).
+
+Use `--section managed-scrollbars` for the message-list, outline and result-table
+matrix across Light/Dark and all three application sizes. It exercises native
+range keys, AX increment/decrement, style changes with retained offsets and
+page retirement. This is separate from frame timing and VoiceOver testing.

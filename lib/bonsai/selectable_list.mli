@@ -109,7 +109,12 @@ end
     presentation. Label callbacks must supply a valid nonempty accessible label
     for each option. Decorations preserve content semantics. Row models follow
     Managed_rows' reset/lifetime contract. The viewport needs a bounded extent.
-    Both axes are supported; changing [config] preserves surviving row models. *)
+    Both axes are supported; changing [config] preserves surviving row models.
+
+    [scrollbar] configures the actual native viewport, inside any layout
+    wrappers. It defaults to [B.return None], which retains legacy native
+    presentation. Changing it preserves the viewport and mounted row state;
+    [config]'s scrollbar enable flag still takes precedence. *)
 val component
   :  ('key, 'data, 'cmp) Gpuio.List_collection.t B.t
   -> layout:('key, 'cmp) Gpuio.List_rows.Layout.t B.t
@@ -119,6 +124,7 @@ val component
   -> item_label:(key:'key -> 'data -> string)
   -> ?key:Gpuio.Key.t
   -> ?style:Gpuio.Style.t B.t
+  -> ?scrollbar:Gpuio.Scrollbar.t option B.t
   -> ?initial_selected:'key list B.t
   -> ?query:Gpuio.Key.t B.t
   -> ?before:unit Bonsai.Effect.t Gpuio.View.t list B.t

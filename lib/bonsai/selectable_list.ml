@@ -277,6 +277,7 @@ let inner
       source
       ~layout
       ~config
+      ~scrollbar
       ~interaction
       ~label
       ~item_label
@@ -456,6 +457,7 @@ let inner
           collection
           ~row_key:Rows.Key.to_view_key
           ~config
+          ~scrollbar
           ~accessibility
           ~input
           ~render_row:render
@@ -508,6 +510,7 @@ let component
       ~item_label
       ?key
       ?(style = B.return fill)
+      ?(scrollbar = B.return None)
       ?(initial_selected = B.return [])
       ?query
       ?(before = B.return [])
@@ -533,6 +536,7 @@ let component
             source
             ~layout
             ~config
+            ~scrollbar
             ~interaction
             ~label
             ~item_label

@@ -115,12 +115,18 @@ end
     row's managed lifetime, independently of columns. Eviction tears it down;
     durable application work belongs outside it. Presentation updates retain
     native geometry, scroll owners and cell computations. Native interaction
-    states are resolved locally without callbacks into OCaml. *)
+    states are resolved locally without callbacks into OCaml.
+
+    [scrollbar] configures the actual native viewport, inside any layout
+    wrappers. It defaults to [B.return None], which retains legacy native
+    presentation. Changing it preserves the viewport and mounted row state;
+    [config]'s scrollbar enable flag still takes precedence. *)
 val component
   :  'data Gpuio.Table_data.t B.t
   -> config:Config.t B.t
   -> ?key:Gpuio.Key.t
   -> ?style:Gpuio.Style.t B.t
+  -> ?scrollbar:Gpuio.Scrollbar.t option B.t
   -> ?headers:unit Bonsai.Effect.t Gpuio.View.t Gpuio.Table_header.t list B.t
   -> ?header_presentation:Gpuio.Table_presentation.Header.t B.t
   -> ?render_row_presentation:
@@ -153,6 +159,7 @@ val paged
   -> config:Config.t B.t
   -> ?key:Gpuio.Key.t
   -> ?style:Gpuio.Style.t B.t
+  -> ?scrollbar:Gpuio.Scrollbar.t option B.t
   -> ?headers:unit Bonsai.Effect.t Gpuio.View.t Gpuio.Table_header.t list B.t
   -> ?header_presentation:Gpuio.Table_presentation.Header.t B.t
   -> ?render_row_presentation:

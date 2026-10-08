@@ -101,7 +101,12 @@ end
     Collection/order metadata and one accepted immutable collection snapshot are
     O(logical rows). Only the requested/pinned/prefetched subset creates row computations.
     Measurement invalidations compare against the accepted snapshot, including when
-    streaming updates coalesce while native acceptance is pending. *)
+    streaming updates coalesce while native acceptance is pending.
+
+    [scrollbar] configures the actual native viewport, inside any layout
+    wrappers. It defaults to [B.return None], which retains legacy native
+    presentation. Changing it preserves the viewport and mounted row state;
+    [config]'s scrollbar enable flag still takes precedence. *)
 val component
   :  ('key, 'cmp) B.comparator
   -> ('key, 'data, 'cmp) Gpuio.List_collection.t B.t
@@ -109,6 +114,7 @@ val component
   -> config:Config.t
   -> ?key:Gpuio.Key.t
   -> ?style:Gpuio.Style.t B.t
+  -> ?scrollbar:Gpuio.Scrollbar.t option B.t
   -> ?accessibility:Gpuio.Accessibility.t B.t
   -> ?on_tree_input:('key Gpuio.Tree_input.t -> unit Bonsai.Effect.t) B.t
   -> ?input:'key Input.t B.t
@@ -136,6 +142,7 @@ val component_with_config
   -> config:Config.t B.t
   -> ?key:Gpuio.Key.t
   -> ?style:Gpuio.Style.t B.t
+  -> ?scrollbar:Gpuio.Scrollbar.t option B.t
   -> ?accessibility:Gpuio.Accessibility.t B.t
   -> ?on_tree_input:('key Gpuio.Tree_input.t -> unit Bonsai.Effect.t) B.t
   -> ?input:'key Input.t B.t
@@ -184,6 +191,7 @@ val paged
   -> config:Config.t
   -> ?key:Gpuio.Key.t
   -> ?style:Gpuio.Style.t B.t
+  -> ?scrollbar:Gpuio.Scrollbar.t option B.t
   -> ?accessibility:Gpuio.Accessibility.t B.t
   -> ?on_tree_input:('key Gpuio.Tree_input.t -> unit Bonsai.Effect.t) B.t
   -> ?input:'key Input.t B.t
@@ -209,6 +217,7 @@ val paged_with_config
   -> config:Config.t B.t
   -> ?key:Gpuio.Key.t
   -> ?style:Gpuio.Style.t B.t
+  -> ?scrollbar:Gpuio.Scrollbar.t option B.t
   -> ?accessibility:Gpuio.Accessibility.t B.t
   -> ?on_tree_input:('key Gpuio.Tree_input.t -> unit Bonsai.Effect.t) B.t
   -> ?input:'key Input.t B.t

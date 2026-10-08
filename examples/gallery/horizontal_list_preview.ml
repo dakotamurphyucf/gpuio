@@ -71,6 +71,7 @@ let component palette scrollbar graph =
   in
   let output =
     L.component_with_config
+      ~scrollbar
       (module Int)
       source
       ~row_key:Key.of_int
@@ -137,8 +138,7 @@ let component palette scrollbar graph =
   and source = source
   and change_source = change_source
   and horizontal = horizontal
-  and set_horizontal = set_horizontal
-  and scrollbar = scrollbar in
+  and set_horizontal = set_horizontal in
   let output = ok output in
   let controller = L.Output.controller output in
   let first, _ = C.nth source 0 |> Option.value_exn in
@@ -182,7 +182,7 @@ let component palette scrollbar graph =
             (if horizontal then "Use vertical axis" else "Use horizontal axis")
             (set_horizontal (not horizontal))
         ]
-    ; V.with_scrollbar (L.Output.view output) scrollbar |> ok
+    ; L.Output.view output
     ; Palette.text
         p
         (sprintf

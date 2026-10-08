@@ -17,6 +17,9 @@ descriptions and views. Constructing effects does not read system preferences or
 activation executes that effect, updates reactive Vars, derives
 [`Scrollbar.create`](../../lib/core/scrollbar.mli), and reconciles every preview using the
 shared description without replacing their native scroll owners.
+The ordinary viewport uses `V.with_scrollbar`. Managed previews instead pass
+`~scrollbar` to their Bonsai component, which reaches the native viewport inside
+its layout wrappers; decorating the returned outer layout would not do that.
 
 Use system preference sequences `let%bind`: admits one request, sets busy, awaits
 Desktop.scrollbar_preference, then publishes only if scope remains active. Auto_hide maps to

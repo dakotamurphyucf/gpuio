@@ -92,6 +92,9 @@ width. Both set `max_active = 16` and use a 360-pixel-high viewport. Config chan
 row state/controller rather than replacing collection. [Managed rows](../../lib/bonsai/managed_rows.mli)
 retain only the requested/pinned subset; logical data is still O(loaded records).
 The optional scrollbar description comes from Collections' scrollbar preview.
+`L.component ~scrollbar` passes that reactive option to the native owner inside
+the adapter's layout wrappers. The final view uses `L.Output.view` directly;
+clearing or changing the description does not replace the list or its row models.
 
 Each `render_row` has local Inspect count of 0. Decorations are Heading 3; options show
 label/detail and disabled text. Inspect wraps `E.Many`(local setter + Secondary

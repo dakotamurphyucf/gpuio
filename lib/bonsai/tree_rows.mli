@@ -91,13 +91,19 @@ end
     the move; no hierarchy update is implicit.
 
     Supply bounded viewport geometry through [style] or the parent. No callbacks
-    enter OCaml synchronously from native layout and no I/O occurs in evaluation. *)
+    enter OCaml synchronously from native layout and no I/O occurs in evaluation.
+
+    [scrollbar] configures the actual native viewport, inside any layout
+    wrappers. It defaults to [B.return None], which retains legacy native
+    presentation. Changing it preserves the viewport and mounted row state;
+    [config]'s scrollbar enable flag still takes precedence. *)
 val component
   :  'data Loading_model.Snapshot.t B.t
   -> state:Gpuio.Tree_state.t B.t
   -> config:Gpuio.Virtual_list.Config.t
   -> ?key:Gpuio.Key.t
   -> ?style:Gpuio.Style.t B.t
+  -> ?scrollbar:Gpuio.Scrollbar.t option B.t
   -> ?accessibility:Gpuio.Accessibility.t B.t
   -> ?on_request:(Gpuio.Tree_interaction.Request.t -> unit Bonsai.Effect.t) B.t
   -> ?allow_moves:bool B.t

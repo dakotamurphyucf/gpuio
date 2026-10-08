@@ -106,13 +106,19 @@ end
 
     Bounds, cache and fixed/estimated row heights follow [config]. Give the tree
     bounded geometry through [style] or its parent. No synchronous OCaml callback
-    runs during native layout/paint, and no I/O runs during Bonsai evaluation. *)
+    runs during native layout/paint, and no I/O runs during Bonsai evaluation.
+
+    [scrollbar] configures the actual native viewport, inside any layout
+    wrappers. It defaults to [B.return None], which retains legacy native
+    presentation. Changing it preserves the viewport and mounted row state;
+    [config]'s scrollbar enable flag still takes precedence. *)
 val component
   :  'data Gpuio.Tree_loading.Snapshot.t B.t
   -> config:Gpuio.Virtual_list.Config.t
   -> label:string
   -> ?key:Gpuio.Key.t
   -> ?style:Gpuio.Style.t B.t
+  -> ?scrollbar:Gpuio.Scrollbar.t option B.t
   -> ?mode:Gpuio.Tree_state.Mode.t B.t
   -> ?initial_selected:Gpuio.Tree.Id.t list B.t
   -> ?initial_expanded:Gpuio.Tree.Id.t list B.t

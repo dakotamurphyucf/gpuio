@@ -679,6 +679,7 @@ let component
       ~config
       ?key
       ?(style = B.return fill)
+      ?(scrollbar = B.return None)
       ?(headers = B.return [])
       ?(header_presentation = B.return Gpuio.Table_presentation.Header.empty)
       ?(render_row_presentation =
@@ -717,8 +718,11 @@ let component
           graph)
       graph
   in
-  let%arr outputs = outputs in
-  Map.data outputs |> List.hd_exn
+  let%arr outputs = outputs
+  and scrollbar = scrollbar in
+  let%bind.Or_error output = Map.data outputs |> List.hd_exn in
+  let%map.Or_error view = Gpuio.View.with_scrollbar output.Output.view scrollbar in
+  { output with Output.view }
 ;;
 
 module Paging = Virtual_list.Paging
@@ -745,6 +749,7 @@ let paged
       ~config
       ?key
       ?style
+      ?scrollbar
       ?headers
       ?header_presentation
       ?render_row_presentation
@@ -764,6 +769,7 @@ let paged
       ~config
       ?key
       ?style
+      ?scrollbar
       ?headers
       ?header_presentation
       ?render_row_presentation

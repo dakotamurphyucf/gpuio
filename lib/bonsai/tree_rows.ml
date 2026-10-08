@@ -157,6 +157,7 @@ let inner
       source
       ~state
       ~config
+      ~scrollbar
       ?accessibility
       ?on_request
       ~allow_moves
@@ -246,6 +247,7 @@ let inner
       collection
       ~row_key:Rows.Key.to_view_key
       ~config
+      ~scrollbar
       ?accessibility
       ?on_tree_input
       ~tree_moves:allow_moves
@@ -333,6 +335,7 @@ let component
       ~config
       ?key
       ?(style = B.return fill)
+      ?(scrollbar = B.return None)
       ?accessibility
       ?on_request
       ?(allow_moves = B.return false)
@@ -363,6 +366,7 @@ let component
             source
             ~state
             ~config
+            ~scrollbar
             ?accessibility
             ?on_request
             ~allow_moves

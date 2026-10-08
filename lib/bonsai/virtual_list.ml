@@ -503,6 +503,7 @@ let component_with_config
       ~config
       ?key
       ?(style = B.return fill)
+      ?(scrollbar = B.return None)
       ?accessibility
       ?on_tree_input
       ?input
@@ -547,13 +548,15 @@ let component_with_config
   in
   let%arr results = results
   and style = style
-  and input = input in
+  and input = input
+  and scrollbar = scrollbar in
   let result = Map.data results |> List.hd_exn in
-  Or_error.map result ~f:(fun output ->
+  Or_error.bind result ~f:(fun output ->
+    let%map.Or_error view = Gpuio.View.with_scrollbar output.view scrollbar in
     let children =
       match input with
-      | None -> [ output.view ]
-      | Some input -> input.Input.before @ (output.view :: input.after)
+      | None -> [ view ]
+      | Some input -> input.Input.before @ (view :: input.after)
     in
     { output with Output.view = Gpuio.View.column ?key ~style children })
 ;;
@@ -565,6 +568,7 @@ let component
       ~config
       ?key
       ?style
+      ?scrollbar
       ?accessibility
       ?on_tree_input
       ?input
@@ -582,6 +586,7 @@ let component
     ~config:(B.return config)
     ?key
     ?style
+    ?scrollbar
     ?accessibility
     ?on_tree_input
     ?input
@@ -632,6 +637,7 @@ let paged_with_config
       ~config
       ?key
       ?style
+      ?scrollbar
       ?accessibility
       ?on_tree_input
       ?input
@@ -657,6 +663,7 @@ let paged_with_config
       ~config
       ?key
       ?style
+      ?scrollbar
       ?accessibility
       ?on_tree_input
       ?input
@@ -711,6 +718,7 @@ let paged
       ~config
       ?key
       ?style
+      ?scrollbar
       ?accessibility
       ?on_tree_input
       ?input
@@ -729,6 +737,7 @@ let paged
     ~config:(B.return config)
     ?key
     ?style
+    ?scrollbar
     ?accessibility
     ?on_tree_input
     ?input
