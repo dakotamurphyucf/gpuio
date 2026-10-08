@@ -193,6 +193,8 @@ jobs:
         run: python3 scripts/test_measure_list_history.py 2>&1 | tee .cache/ci/list-measurement-diagnostics.log
       - name: Presentation report pairing and failure sensitivity (no display)
         run: python3 scripts/test_presentation_report.py 2>&1 | tee .cache/ci/presentation-report-diagnostics.log
+      - name: Hosted Metal timing availability classification (no display)
+        run: python3 scripts/test_metal_timing_availability.py 2>&1 | tee .cache/ci/metal-availability-tests.log
       - name: Table performance report validation
         run: python3 scripts/test_measure_table_history.py 2>&1 | tee .cache/ci/table-measurement-diagnostics.log
       - name: Resource lifecycle report validation (no display)
@@ -907,18 +909,22 @@ jobs:
               summary.write("Linux GUI checks are informational; full acceptance is tracked in OCH-47.\n\n")
               summary.write(f"X11: {result['x11']}; Wayland: {result['wayland']}\n")
           PY
-      # Keep both independent presentation probes observable on failure, and do
-      # not let a presentation failure suppress unrelated native/consumer checks.
+      # Preview CI distinguishes fully delivered zero-time callbacks from errors.
+      # This does not qualify timing or waive physical core-workload measurements.
+      # Crashes, partial reports, callback loss and failed retirement still fail.
       - name: macOS GPUI Metal presentation hook
         if: runner.os == 'macOS' && !cancelled()
-        run: python3 scripts/test_metal_presentation.py --output .cache/ci/metal-presentation-hook
+        run: python3 scripts/test_metal_presentation.py --allow-unavailable-timing --output .cache/ci/metal-presentation-hook
       - name: macOS Metal presentation API calibration
         if: runner.os == 'macOS' && !cancelled()
         timeout-minutes: 2
         run: |
           system_profiler SPDisplaysDataType -json > .cache/ci/metal-presentation-display.json
           xcrun swiftc -O scripts/qualify_metal_presentation.swift -o .cache/ci/metal-presentation-probe
-          .cache/ci/metal-presentation-probe > .cache/ci/metal-presentation-calibration.json
+          python3 scripts/metal_timing_availability.py --api-binary .cache/ci/metal-presentation-probe --output .cache/ci/metal-api-availability
+      - name: Check independent Metal timing evidence
+        if: runner.os == 'macOS' && !cancelled()
+        run: python3 scripts/metal_timing_availability.py --hook-output .cache/ci/metal-presentation-hook --api-output .cache/ci/metal-api-availability --output .cache/ci/metal-preview-summary
       - name: Record environment
         if: always()
         run: |

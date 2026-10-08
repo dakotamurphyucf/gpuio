@@ -170,12 +170,24 @@ final class Probe: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
         let drawableIDs = rows.compactMap { $0["drawable_id"] as? UInt64 }
         if Set(drawableIDs).count != 120 { failures.append("Missing or repeated drawable identities") }
+        // Report cleanup after performing it, even when timing is unavailable.
+        // Presented/completed callbacks capture only Records, not native owners.
+        window?.delegate = nil
+        window?.close()
+        let windowClosed = window?.isVisible != true
+        window = nil
+        layer = nil
+        queue = nil
+        if !windowClosed { failures.append("Owned probe window did not close") }
         let report: [String: Any] = [
+            "schema": 2, "kind": "metal_api_qualification",
             "complete": failures.isEmpty, "failures": failures, "device": deviceName,
             "os": ProcessInfo.processInfo.operatingSystemVersionString,
             "requested_frames": 120, "submitted_frames": sent,
             "startup_wait_ticks": startupWaitTicks,
             "scope": "Metal API/host-clock qualification; not GPUI workload, GPU throughput or photon measurement",
+            "cleanup": ["window_closed": windowClosed, "timer_stopped": timer == nil,
+                        "layer_released": layer == nil, "queue_released": queue == nil],
             "frames": rows,
         ]
         do {
@@ -183,11 +195,6 @@ final class Probe: NSObject, NSApplicationDelegate, NSWindowDelegate {
             FileHandle.standardOutput.write(data)
             FileHandle.standardOutput.write(Data("\n".utf8))
         } catch { fputs("Cannot encode presentation report: \(error)\n", stderr) }
-        window?.delegate = nil
-        window?.close()
-        window = nil
-        layer = nil
-        queue = nil
         exit(failures.isEmpty ? 0 : 1)
     }
 }

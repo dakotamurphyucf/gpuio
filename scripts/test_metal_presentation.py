@@ -21,6 +21,8 @@ def main():
     parser.add_argument("--binary", type=Path, help="Use an already built probe")
     parser.add_argument("--idle-before-frames-ms", type=int, default=0,
                         help="Observe native idle-to-active behavior without the OCaml bridge (0..5000)")
+    parser.add_argument("--allow-unavailable-timing", action="store_true",
+                        help="Preview CI only: classify complete, retired all-zero callback reports as unavailable")
     args = parser.parse_args()
     if not 0 <= args.idle_before_frames_ms <= 5000:
         parser.error("Idle delay must be between 0 and 5000 ms")
@@ -52,11 +54,22 @@ def main():
     with (output / "native.log").open("w") as log:
         result = subprocess.run([str(binary.resolve())], cwd=ROOT, env=environment,
                                 stdout=log, stderr=subprocess.STDOUT, timeout=25 + args.idle_before_frames_ms / 1000, check=True)
-    data = json.loads(report.read_text())
-    if data.get("schema") != 1 or data.get("kind") != "gpui_metal_hook_qualification" or data.get("passed") is not True:
-        raise RuntimeError(f"Native qualification did not pass; inspect {report}")
+    from metal_timing_availability import load_report
+    data = load_report(report)
     if data.get("idle_before_frames_ms") != args.idle_before_frames_ms:
         raise RuntimeError("Native probe did not report the requested idle setup")
+    if args.allow_unavailable_timing:
+        from metal_timing_availability import classify_hook
+        status = classify_hook(data)
+        classification = {"status": status, "child_exit": result.returncode,
+                          "scope": "Hosted preview timing availability; not physical workload acceptance"}
+        (output / "availability.json").write_text(json.dumps(classification, indent=2) + "\n")
+        print(json.dumps(classification))
+        if status == "unavailable":
+            print("::warning::Hosted GPUI Metal returned only zero presentation timestamps; timing unavailable. Physical qualification remains required.")
+        return
+    if data.get("schema") != 1 or data.get("kind") != "gpui_metal_hook_qualification" or data.get("passed") is not True:
+        raise RuntimeError(f"Native qualification did not pass; inspect {report}")
     if len(data.get("sessions", [])) != 2:
         raise RuntimeError("Missing independent window results")
     print(json.dumps({"passed": True, "exit_code": result.returncode, "report": str(report),

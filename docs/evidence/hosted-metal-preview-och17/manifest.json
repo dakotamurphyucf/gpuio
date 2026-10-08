@@ -1,0 +1,97 @@
+[
+  {
+    "path": "verify.py",
+    "bytes": 1808,
+    "sha256": "d821780cb628a5b7a8aca2d0be1fec4963a682d86bc013d1a427abd272ff8ff9"
+  },
+  {
+    "path": "validation.json",
+    "bytes": 1514,
+    "sha256": "60dd26f1ffafae9d2ad084425321735ce4839cae4ec00563e2ebb05b5634f5d2"
+  },
+  {
+    "path": "outcomes.json",
+    "bytes": 513,
+    "sha256": "a1c25b974102644b71c35e4fa4b3c7f591f07726f186af31fb2b26fcc1646985"
+  },
+  {
+    "path": "batch.log",
+    "bytes": 62,
+    "sha256": "21a13e2d39f64dcccd8e819d551d86c3c75f24c466ee32e25e14dff0460d4813"
+  },
+  {
+    "path": "swift-build.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "api.log",
+    "bytes": 773,
+    "sha256": "12d8daa6e8b57c67f2dde8bbe86613631a98a60e11cfdb26b808a4a5fc53575e"
+  },
+  {
+    "path": "hook.log",
+    "bytes": 888,
+    "sha256": "4afcd8f5d277b87198c3c69029336ace91482fe9f32cbc37cbb745369894d113"
+  },
+  {
+    "path": "api/report.json",
+    "bytes": 59866,
+    "sha256": "f609940cc749239a2bb6c2a1bd96bbbef6fca46378343910e6e81775763eedac"
+  },
+  {
+    "path": "api/stderr.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "hook/report.json",
+    "bytes": 81830,
+    "sha256": "d796d4cb70b19dc23b9f47a9945c40ce02e072f714e66f9e7494c10aa6aff1ad"
+  },
+  {
+    "path": "hook/native.log",
+    "bytes": 144,
+    "sha256": "44359f375aebdb0a2719343bdc8022c7e7a847acb7bde8fe34a84159efb8df81"
+  },
+  {
+    "path": "hook/build.jsonl",
+    "bytes": 3421816,
+    "sha256": "e9f12a00578fbcdbaecb2a34b108b71f858c0d6f0f2696d56399252ccd3aff69"
+  },
+  {
+    "path": "hook/build.log",
+    "bytes": 825,
+    "sha256": "2c96f838b642ecca204ec20a0164e5529a7e0c11c78c58dd94099fe6355269dd"
+  },
+  {
+    "path": "metal-classifier-tests.log",
+    "bytes": 107,
+    "sha256": "b88294b8d138fbc271cecda9651730cdfd8d54c22df35cd450afce2dcd4cb8e6"
+  },
+  {
+    "path": "metal_timing_availability.py",
+    "bytes": 10814,
+    "sha256": "dcb628eb48d7349664c2240edca178e926d435f0ef93520af1aa92d16220355c"
+  },
+  {
+    "path": "test_metal_timing_availability.py",
+    "bytes": 12071,
+    "sha256": "2f9f7d5c29715252335e2fe47e3a9f7b32d7a56fa0c9c7246f6795a1d9854e1d"
+  },
+  {
+    "path": "test_metal_presentation.py",
+    "bytes": 4566,
+    "sha256": "924046d4ee2d1ad2d18be967d06d2df696bf94b36e6a17904876bc0d306d54e8"
+  },
+  {
+    "path": "qualify_metal_presentation.swift",
+    "bytes": 9701,
+    "sha256": "6cc3c33fcdeaed04000304fe8dc914b152c45f4ccf673fa869bf246499966605"
+  },
+  {
+    "path": "native_metal_presentation.rs",
+    "bytes": 10504,
+    "sha256": "7913e7b25579c9c6e1a38f294cfef9cce98665e0839af53dde3c233453e73209"
+  }
+]

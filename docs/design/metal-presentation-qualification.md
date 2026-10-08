@@ -16,8 +16,10 @@ three trials, collector correctness and idle/resource checks. Table/document
 presentation results remain scoped evidence and targeted diagnostics. This does
 not turn unavailable timestamps into passing measurements. Under the subsequent
 developer-preview decision, broader hosted timing availability moves to OCH-164;
-required physical core timing remains. Implement/review the preview CI distinction
-before treating current hosted failures as nonblocking.
+required physical core timing remains. The [preview CI classifier](../evidence/hosted-metal-preview-och17.md)
+implements a narrow all-zero-time result, retaining complete callback/retirement
+requirements. Portable validation passes; native and hosted validation remain.
+Do not relabel historical failed probes as passing measurements.
 
 ## Observation source
 

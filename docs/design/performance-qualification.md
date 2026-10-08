@@ -27,9 +27,10 @@ Prior passing table/document results are retained, not repeated merely to satisf
 an obsolete blanket matrix requirement. Required correctness CI remains intact.
 The subsequent developer-preview decision separates hosted timing availability
 from physical core-workload performance: stable-release hosted qualification
-moves to OCH-164. The current CI workflow still needs a reviewed change that
-preserves correctness/cleanup checks and reports specifically unavailable timing
-honestly; it must not suppress crashes, malformed reports or ownership failures.
+moves to OCH-164. The [preview CI classifier](../evidence/hosted-metal-preview-och17.md)
+distinguishes complete all-zero-time reports from failures while preserving
+correctness/cleanup checks. Portable validation passes; native and hosted validation
+remain. Crashes, malformed reports and ownership failures must still fail.
 [The closeout checklist](../milestone-07-closeout.md) tracks the remaining work.
 
 ## Reference environment
