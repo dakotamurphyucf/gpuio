@@ -20,13 +20,18 @@ mod macos {
     struct Probe {
         frames: usize,
         running: bool,
+        coasting: bool,
+        renders: usize,
         index: usize,
     }
     impl Render for Probe {
         fn render(&mut self, window: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
-            if self.running && self.frames < FRAMES {
-                self.frames += 1;
+            if self.running {
+                self.renders += 1;
                 if self.frames < FRAMES {
+                    self.frames += 1;
+                }
+                if self.frames < FRAMES || self.coasting {
                     window.request_animation_frame();
                 }
             }
@@ -99,7 +104,7 @@ mod macos {
                 .all(|r| r.outcome == Outcome::Presented && r.inputs == 0)
     }
 
-    pub fn run(path: PathBuf, idle_before_frames: Duration, warmup: bool) {
+    pub fn run(path: PathBuf, idle_before_frames: Duration, warmup: bool, continuous_warmup: bool) {
         gpui_platform::application().run(move |cx| {
             cx.set_quit_mode(gpui::QuitMode::Explicit);
             let bounds = Bounds::centered(None, size(px(760.), px(280.)), cx);
@@ -118,6 +123,8 @@ mod macos {
                             cx.new(|_| Probe {
                                 frames: 0,
                                 running: false,
+                                coasting: false,
+                                renders: 0,
                                 index,
                             })
                         },
@@ -153,11 +160,13 @@ mod macos {
                 // This is steady-state hookup qualification, not cold startup.
                 let mut warmup_reports = Vec::new();
                 let mut warmup_finished = !warmup;
+                let mut transition_unmeasured_render_counts = Vec::new();
                 if warmup {
                     let preflight = windows.iter().map(|w| {
                         w.update(cx, |view, window, cx| {
                             let session = Session::start(window, Limits::default()).unwrap();
                             view.running = true;
+                            view.coasting = continuous_warmup;
                             cx.notify();
                             session
                         }).unwrap()
@@ -171,6 +180,12 @@ mod macos {
                         cx.background_executor().timer(Duration::from_millis(20)).await;
                     }
                     for session in &preflight { session.stop(); }
+                    // Continue scheduling frames while old callbacks settle.
+                    // These transition renders are explicitly unmeasured; do not
+                    // count them as successful warmup or measured presentations.
+                    let transition_start = windows.iter().map(|window| {
+                        window.update(cx, |view, _, _| view.renders).unwrap()
+                    }).collect::<Vec<_>>();
                     let settlement = Instant::now();
                     while settlement.elapsed() < Duration::from_secs(2)
                         && preflight.iter().any(|s| s.pending() != 0) {
@@ -181,10 +196,14 @@ mod macos {
                     // Snapshots retain values only. Drop the old measurement
                     // owners before starting distinct replacement sessions.
                     drop(preflight);
+                    transition_unmeasured_render_counts = windows.iter().zip(transition_start).map(|(window, before)| {
+                        window.update(cx, |view, _, _| view.renders - before).unwrap()
+                    }).collect::<Vec<_>>();
                     for window in &windows {
                         window.update(cx, |view, _, _| {
                             view.frames = 0;
-                            view.running = false;
+                            view.running = continuous_warmup;
+                            view.coasting = false;
                         }).unwrap();
                     }
                 }
@@ -194,7 +213,9 @@ mod macos {
                         w.update(cx, |view, window, cx| {
                             let session = Session::start(window, Limits::default()).unwrap();
                             view.running = true;
-                            cx.notify();
+                            // Coasting already queued the next animation frame.
+                            // Avoid an idle-to-active notify at this boundary.
+                            if !continuous_warmup { cx.notify(); }
                             session
                         })
                         .unwrap()
@@ -243,7 +264,7 @@ mod macos {
                 let valid = warmup_finished && animation_samples &&
                     visible && end_visible && finished && distinct && sessions.iter().all(accepted);
                 let output = json!({"schema": 1, "kind": "gpui_metal_hook_qualification",
-                    "passed": valid, "warmup": warmup, "warmup_finished": warmup_finished, "warmup_sessions": warmup_reports, "idle_before_frames_ms": idle_before_frames.as_millis(), "visible_at_start": visible, "visible_at_end": end_visible,
+                    "passed": valid, "continuous_warmup": continuous_warmup, "transition_unmeasured_render_counts": transition_unmeasured_render_counts, "warmup": warmup, "warmup_finished": warmup_finished, "warmup_sessions": warmup_reports, "idle_before_frames_ms": idle_before_frames.as_millis(), "visible_at_start": visible, "visible_at_end": end_visible,
                     "finished": finished, "frames_per_window": FRAMES, "distinct": distinct, "animation_samples": animation_samples,
                     "sessions": sessions.iter().map(report).collect::<Vec<_>>()});
                 std::fs::write(&path, serde_json::to_vec_pretty(&output).unwrap()).unwrap();
@@ -275,6 +296,7 @@ fn main() {
             path.into(),
             std::time::Duration::from_millis(idle_ms),
             std::env::var("GPUIO_PRESENTATION_WARMUP").is_ok_and(|v| v == "1"),
+            std::env::var("GPUIO_PRESENTATION_CONTINUOUS_WARMUP").is_ok_and(|v| v == "1"),
         );
     }
     #[cfg(not(target_os = "macos"))]

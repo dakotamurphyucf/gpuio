@@ -56,12 +56,15 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
           key: metal-hook-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('gpuio.opam.locked', 'rust-toolchain.toml', 'Cargo.lock') }}
-      - name: Two-window GPUI probe with separately recorded active warmup
-        run: python3 scripts/test_metal_presentation.py --warmup --output .cache/metal-diagnostic/native-hook
+      - name: Three predeclared continuous-warmup probes, stop on any failure
+        run: |
+          for trial in 001 002 003; do
+            python3 scripts/test_metal_presentation.py --warmup --continuous-warmup --output ".cache/metal-diagnostic/native-hook-$trial"
+          done
       - name: Preserve every outcome
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: metal-native-hook-intel-warmup
+          name: metal-native-hook-intel-continuous
           include-hidden-files: true
           path: .cache/metal-diagnostic

@@ -22,7 +22,10 @@ def main():
     parser.add_argument("--idle-before-frames-ms", type=int, default=0,
                         help="Observe native idle-to-active behavior without the OCaml bridge (0..5000)")
     parser.add_argument('--warmup', action='store_true', help='Record a separate active warmup before unchanged strict measured frames')
+    parser.add_argument('--continuous-warmup', action='store_true', help='Keep animation scheduled while warmup callbacks settle; report transition render counts')
     args = parser.parse_args()
+    if args.continuous_warmup and not args.warmup:
+        parser.error('Continuous warmup requires --warmup')
     if not 0 <= args.idle_before_frames_ms <= 5000:
         parser.error("Idle delay must be between 0 and 5000 ms")
     if sys.platform != "darwin":
@@ -49,7 +52,8 @@ def main():
         binary = Path(candidates[0])
     environment = {**os.environ, "GPUIO_PRESENTATION_REPORT": str(report),
                    "GPUIO_PRESENTATION_IDLE_MS": str(args.idle_before_frames_ms),
-                   "GPUIO_PRESENTATION_WARMUP": "1" if args.warmup else "0"}
+                   "GPUIO_PRESENTATION_WARMUP": "1" if args.warmup else "0",
+                   "GPUIO_PRESENTATION_CONTINUOUS_WARMUP": "1" if args.continuous_warmup else "0"}
     # subprocess.run kills and reaps the child on timeout; no detached process.
     with (output / "native.log").open("w") as log:
         result = subprocess.run([str(binary.resolve())], cwd=ROOT, env=environment,
@@ -63,6 +67,11 @@ def main():
         raise RuntimeError('Missing or mismatched warmup configuration/finish')
     if len(data.get('warmup_sessions', [])) != (2 if args.warmup else 0):
         raise RuntimeError('Missing separate warmup records')
+    if data.get('continuous_warmup') != args.continuous_warmup:
+        raise RuntimeError('Missing or mismatched continuous warmup configuration')
+    transition = data.get('transition_unmeasured_render_counts', [])
+    if len(transition) != (2 if args.warmup else 0) or any(type(n) is not int or n < 0 for n in transition):
+        raise RuntimeError('Missing or invalid unmeasured transition render counts')
     if len(data.get("sessions", [])) != 2:
         raise RuntimeError("Missing independent window results")
     print(json.dumps({"passed": True, "exit_code": result.returncode, "report": str(report),
