@@ -277,13 +277,17 @@ let render_item
                     ; Font_weight 600
                     ; Align_items Center
                     ]
+                ; style (if horizontal then [] else [ Width full ])
                 ; label_style
                 ; item.label_style
                 ; style (if horizontal then [ Width label_width; Shrink 0. ] else [])
                 ])
            (List.filter_opt
               [ Option.map item.label ~f:(fun label ->
-                  View.column ~key:(key "label-content") [ label ])
+                  View.column
+                    ~key:(key "label-content")
+                    ~style:(style [ Grow 1.; Min_width (px 0.) ])
+                    [ label ])
               ; (if item.required
                  then
                    Some

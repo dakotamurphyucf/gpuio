@@ -306,11 +306,7 @@ let%expect_test
       assert (has overridden "item" (Align_items 4L));
       assert (has overridden "label" (Font_size 21.));
       assert (has overridden "label" (Font_weight 700L));
-      assert (
-        not
-          (List.exists (fields (named overridden "label").style) ~f:(function
-             | W.Field.Width _ -> true
-             | _ -> false)));
+      assert (has overridden "label" (Width (Percent 100.)));
       assert (has overridden "declared-control" (Height (Px 37.))));
   print_endline
     "four size policies; item layout/size and slot overrides; control height unchanged";

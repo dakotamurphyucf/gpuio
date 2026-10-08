@@ -47,6 +47,7 @@ def exercise(mac, images=None):
         nonlocal cases
         root = rect('Workspace form')
         label = rect('Form name label')
+        summary_label = rect('Form summary label')
         control = rect(name, 'AXTextField')
         summary = rect('Form summary content')
         footer = rect('Form footer content')
@@ -56,6 +57,12 @@ def exercise(mac, images=None):
         span = min(columns, 2) if mixed else 1
         width = track * span + gap * (span - 1)
         expected = width - 112 - inner_gap if horizontal else width
+        # These short labels fit in the narrowest declared label allocation.
+        # Position/column checks alone missed min-content collapse into a
+        # single-character-wide, many-line label in vertical forms.
+        assert label[2] >= 80 and label[3] <= 80, ('rich form label collapsed', label)
+        assert summary_label[2] >= 100 and summary_label[3] <= 40, (
+            'short summary label wrapped vertically', summary_label)
         assert abs(control[2] - expected) < 1.1, ('form input width', columns, horizontal, size, mixed, control, expected, root)
         if horizontal:
             assert abs(control[0] - label[0] - 112 - inner_gap) < 1.1, ('form horizontal label', label, control)

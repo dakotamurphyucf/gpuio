@@ -291,6 +291,10 @@ jobs:
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
         timeout-minutes: 3
         run: python3 scripts/test_gallery_editor_geometry.py --report .cache/ci/editor-range-geometry.json 2>&1 | tee .cache/ci/macos-editor-range-geometry.log
+      - name: macOS screen-point accessibility routing
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 3
+        run: python3 scripts/test_macos_hit_testing.py --output .cache/ci/ax-point-routing 2>&1 | tee .cache/ci/macos-ax-point-routing.log
       - name: macOS public clipboard writes and feedback
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
         timeout-minutes: 3

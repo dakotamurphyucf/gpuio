@@ -97,6 +97,9 @@ end
 (** A native column grid of stable keyed items, followed by an optional full-width
     footer aligned to the trailing edge. Defaults: one column, vertical labels,
     Medium spacing, 160px label width, absent-label indentation, Start alignment.
+    Vertical labels default to the item width; horizontal labels reserve their
+    configured width. Rich label content shares that allocation with the required
+    marker and may wrap within it.
     Columns are in 1..1024. Reject duplicate keys and placements extending outside
     the explicit columns (including negative-line resolution and equal-line spans).
     Changing columns/orientation/slots does not reparent an item's content.

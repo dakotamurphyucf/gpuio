@@ -8,6 +8,12 @@ Read [form_preview.ml](form_preview.ml) and its [interface](form_preview.mli). [
 
 Other keyed items use `Form.Item.create`: preferences contains a controlled switch/checkbox with a 96-pixel label-width override, unlabeled contains the mock inspection action, and summary spans all columns with explicit Vertical/Small overrides. `Form.create` uses key `workspace-form`, columns, collection layout/size, 112-pixel labels and a mock save footer. Item overrides inherit unspecified settings. `named` groups rich content for accessibility; arbitrary items need caller-supplied semantics, unlike `of_field` association.
 
+The 112-pixel label allocation applies in horizontal layout. Vertical labels use
+the item width by default. Inside either label row, the rich content grows into
+the space beside the required marker and wraps within that allocation. The
+`named` group's `Min_width 0` permits wrapping; it does not assign a width by
+itself. This matters when composing multiple text nodes into a label.
+
 Native activation of **Form columns** executes its injected unit action, advances the latest model, and causes `let%arr` to derive a new valid grid. GPUIO reconciles the existing keyed editor within it. Type a draft, change orientation/columns, reverse entries and add/remove the sample error to exercise continuity. Clicking Form notifications runs its toggle effect, updates that boolean and derives the switch’s checked description. Save/inspect only increment actions; no validation, permission request or persistence occurs.
 
 Form columns accept 1–1024, reject duplicate item keys and out-of-range placement. Structural grid/placement fields are applied after custom styles; use typed layout arguments instead of state styles to alter structure. Size affects spacing/label typography, not the caller-sized editor. Bonsai owns options/preferences; GPUIO owns editing/layout and native leases. No background worker or asset scope exists. Adapt with domain-stable keys, real validation results and explicit save effects; mirror draft text if it must survive page destruction, rather than assuming Form retains it permanently.

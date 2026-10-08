@@ -135,3 +135,10 @@ the same local session directory. All 919 native library tests pass, with the
 two existing private-bus skips. Other controls, overlay routing, VoiceOver speech,
 real input-method candidate windows and Linux desktop acceptance remain separate
 qualification work.
+
+## Control and overlay follow-up — 2026-10-08
+
+The [broader screen-point fixture](form-label-point-routing-och17.md) now passes
+21 exact system-wide AX hits across controls, overlays and restored triggers.
+It also exposed and repaired collapsed rich form labels. This extends the
+two-window evidence above; full catalog geometry and VoiceOver remain open.
