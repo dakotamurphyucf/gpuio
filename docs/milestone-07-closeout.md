@@ -49,14 +49,14 @@ block the preview. Linux desktop remains OCH-47. Old failures stay recorded.
 
 ## Remaining checklist
 
-All rows below are open closure items, not claims that their implementation is
-absent. Existing evidence reduces the work. The implementing agent owns execution;
-no other agent is assigned by this plan.
+C1 is complete as a coverage reconciliation; the other rows remain open. Existing
+evidence reduces the work. The implementing agent owns execution; no other agent
+is assigned by this plan.
 
 | ID / ticket | Existing evidence to preserve | Next action | Exit condition / dependency |
 | --- | --- | --- | --- |
-| C1 / OCH-41 — preview coverage inventory | [41 v1 families](catalog/families.json), scoped gallery/consumer results; OCH-48 walkthroughs complete | Make one bounded pass mapping each required family to an example and existing behavior evidence; name ordinary-use blockers and disclosed limits. Stop opening exhaustive permutation reviews. | Each family has a usable public example and meaningful scoped evidence or a named preview blocker. Publish the finite blocker list as the next deliverable. |
-| C2 / OCH-41 — fix preview blockers | Latest [managed scrollbar repair](evidence/managed-scrollbar-routing-och41.md): full OCaml suite and root/installed 18-case passes | Fix C1’s concrete blockers in user-impact order; validate affected paths. | Public examples and component families work for normal use; known limitations documented. Broader theme/gesture/assistive edge cases are OCH-164 unless they reveal an ordinary-use blocker. |
+| **C1 complete** / OCH-41 — preview coverage inventory | [Reviewed mapping](catalog/preview-coverage.md): 41 v1 families plus five accepted additions, public routes and scoped behavior evidence | No new missing-family implementation blocker found. Keep old results scoped to their actual revisions. | Inventory closed; C2/final integration and the five shared preview gates remain. |
+| C2 / OCH-41 — fix preview blockers | [C1 reconciliation](catalog/preview-coverage.md) found no new independent catalog implementation blocker; latest scrollbar root/installed checks pass | Resolve any concrete current-candidate integration failure; link the existing list-scrolling issue to P1 instead of duplicating it. | Pending final integration, not another broad family audit. Full assistive/gesture permutations remain OCH-164. |
 | P1 / OCH-17 — long-list timing and scrolling | [List trials](evidence/presentation-list-full-och17.md), [paint geometry](evidence/list-paint-geometry-och17.md): two valid full passes, one idle failure, subsequent interrupted diagnostics | Use existing diagnostics for a short discriminating experiment on idle/jitter; then complete the focused list qualification. | Three valid optimized trials meet retained list/input/presentation/memory/idle bounds; observable scrolling failures resolved. Needs an uninterrupted visible-window interval. Historical startup/chart findings stay documented follow-ups unless a current user-facing regression reproduces. |
 | P2 / OCH-17 — rapid updates, idle and bounded resources | Three full typing passes and three 33-cycle resource trials at recorded revisions; [overhead attempts](evidence/collector-overhead-och17.md) incomplete | Review change impact, complete the representative collector comparison needed to trust the two core timing workloads, and validate affected streaming/typing/resource paths. | Retained streaming/input budgets, measurement validity, settled idle and cleanup bounds pass. Existing table/document timing evidence is retained; no blanket repeat of their full timing matrices. |
 | D1 / OCH-17 — notices and release inputs | [499 OCaml texts verified](evidence/ocaml-notice-provenance-och17.md), eight reconstructed vendor roots, existing Rust/source-equivalence research | Finish unresolved Rust/embedded/asset/system/helper attribution and the assembled bundle review. Do not repeat completed archive provenance searches without a new lead. | Reviewed notices and reproducible release inputs match the actual artifact contents; unresolved classifications have a documented supported disposition. |
@@ -72,8 +72,8 @@ Developer ID/notarized reference-app distribution. Existing passes and failures
 remain scoped evidence. A reproducible crash, data/input loss, unusable core
 interaction or unbounded resource growth still blocks the preview.
 
-Next: C1's bounded reconciliation, yielding the exact blocker list. Then close
-P1/P2 and C2; use D1/R1 during CI waits. Batch R2 integration throughout and publish
+C1 is closed. Next: P1/P2's concrete performance/measurement gaps; use D1/R1
+during CI waits and keep C2 tied to actual integration failures. Batch R2 integration throughout and publish
 only after the seven preview closure items are satisfied. Do not wait for Apple
 signing credentials or full screen-reader certification to publish the source
 library preview; do not advertise those unqualified capabilities.

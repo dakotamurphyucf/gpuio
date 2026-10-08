@@ -44,6 +44,11 @@ Older records of a VoiceOver hold no longer apply. Access was restored after the
 
 ## Latest delivered behavior and validation
 
+The [preview coverage reconciliation](catalog/preview-coverage.md) closes C1:
+41 required families and five accepted additions have public example routes and
+scoped behavior evidence. No new missing-family implementation blocker was found.
+P1/P2, notices, release-facing docs and final candidate integration remain open.
+
 The [managed-scrollbar routing repair](evidence/managed-scrollbar-routing-och41.md)
 adds a reactive component argument that reaches native viewports inside Bonsai
 layout wrappers. All five adapter regressions and the full OCaml suite pass;
@@ -391,10 +396,9 @@ current release candidate.
 
 ## Next action and history
 
-Follow the [closeout checklist](milestone-07-closeout.md): first reconcile existing
-catalog evidence into a concrete gap list, then prioritize the two core performance
-workloads and executable accessibility work. Continue notices/API review while
-waiting for CI or external setup. Fix named required defects; reuse valid evidence
+Follow the [closeout checklist](milestone-07-closeout.md): C1 is complete; prioritize the two core performance
+workloads and their measurement validity. Continue notices/API review while
+waiting for CI. Broader accessibility qualification is OCH-164. Fix named required defects; reuse valid evidence
 and retain failed trials. Batch coherent changes; required merge gates remain.
 
 The complete pre-consolidation status snapshot and older checkpoints are preserved

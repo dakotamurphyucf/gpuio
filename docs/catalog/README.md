@@ -1,5 +1,11 @@
 # Pinned component catalog
 
+Start with the [developer-preview reconciliation](preview-coverage.md): all 41
+v1 families and five accepted additions map to existing public examples and
+scoped behavior evidence. It names the remaining preview gates. Older review
+checkpoints below retain historical gaps; do not treat them as new work without
+checking the later evidence and current preview scope.
+
 OCH-41 is building the implementation coverage ledger and public gallery. The
 files currently here establish reproducible source inputs; they do **not** claim
 that every source entry is implemented or validated.
