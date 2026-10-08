@@ -1,5 +1,10 @@
 # Collector overhead attempts — OCH-17
 
+The later [current-source comparison](preview-list-comparison-och17.md) completes
+both warmups and all six fixed full trials. It quantifies total instrumentation
+cost and supplies three passing list timing/idle trials. The incomplete attempts
+below remain historical failures, with their original limits and unknown causes.
+
 The comparison is **incomplete**, not an overhead result. These attempts use clean
 `9e6fea4c46e368a748c51e2b87b9d704af2f83b8` on the physical M1 Max/macOS 14.5.
 Both optimized executables use the same OCaml list workload. Cargo feature graphs

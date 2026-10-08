@@ -1,0 +1,352 @@
+{
+  "build": {
+    "exit": 0,
+    "command": "GPUIO_JOBS=2 ./scripts/gpuio exec dune build --profile release -j2 examples/performance_plain/main.exe examples/performance_presented/list/main.exe",
+    "revision": "31bffeee8752a965fd53d3e565c26c95295766ca",
+    "binaries": {
+      "A": {
+        "path": "_build/default/examples/performance_plain/main.exe",
+        "sha256": "d6f2e2eb7ef46c16997ae4741f05b08f37730d32575d5ddce5a7d48ce6cc6ae2",
+        "bytes": 94509624,
+        "feature_command": [
+          "./scripts/gpuio",
+          "exec",
+          "cargo",
+          "tree",
+          "--locked",
+          "--offline",
+          "--manifest-path",
+          "Cargo.toml",
+          "-p",
+          "gpuio-native",
+          "--edges",
+          "normal",
+          "--format",
+          "{p} features=[{f}]"
+        ],
+        "selected_features": [
+          "gpuio-native v0.0.0 (/Users/dakotamurphy/gpuio/rust/native) features=[default,wayland,x11]",
+          "\u251c\u2500\u2500 gpui v0.2.2 (/Users/dakotamurphy/gpuio/vendor/gpui) features=[wayland,x11]",
+          "\u2502   \u251c\u2500\u2500 gpui v0.2.2 (/Users/dakotamurphy/gpuio/vendor/gpui) features=[wayland,x11] (*)",
+          "\u2502   \u251c\u2500\u2500 gpui v0.2.2 (/Users/dakotamurphy/gpuio/vendor/gpui) features=[wayland,x11] (*)",
+          "\u2502       \u251c\u2500\u2500 gpui v0.2.2 (/Users/dakotamurphy/gpuio/vendor/gpui) features=[wayland,x11] (*)",
+          "\u2502       \u251c\u2500\u2500 gpui_apple v0.1.0 (/Users/dakotamurphy/gpuio/vendor/gpui-apple) features=[default,runtime_shaders]",
+          "\u2502       \u2502   \u251c\u2500\u2500 gpui v0.2.2 (/Users/dakotamurphy/gpuio/vendor/gpui) features=[wayland,x11] (*)",
+          "\u2502       \u2514\u2500\u2500 gpui v0.2.2 (/Users/dakotamurphy/gpuio/vendor/gpui) features=[wayland,x11] (*)",
+          "\u2502   \u2514\u2500\u2500 gpui v0.2.2 (/Users/dakotamurphy/gpuio/vendor/gpui) features=[wayland,x11] (*)",
+          "\u2502   \u251c\u2500\u2500 gpui v0.2.2 (/Users/dakotamurphy/gpuio/vendor/gpui) features=[wayland,x11] (*)"
+        ]
+      },
+      "B": {
+        "path": "_build/default/examples/performance_presented/list/main.exe",
+        "sha256": "9afbcbc18b8913f9f5343287a208f1b2a4802b73a1822e9dbab64e4f7d746f16",
+        "bytes": 95549832,
+        "feature_command": [
+          "./scripts/gpuio",
+          "exec",
+          "cargo",
+          "tree",
+          "--locked",
+          "--offline",
+          "--manifest-path",
+          "examples/performance_presented/backend/Cargo.toml",
+          "-p",
+          "gpuio-presentation-backend",
+          "--edges",
+          "normal",
+          "--format",
+          "{p} features=[{f}]"
+        ],
+        "selected_features": [
+          "\u2502       \u2502   \u251c\u2500\u2500 gpui v0.2.2 (/Users/dakotamurphy/gpuio/vendor/gpui) features=[presentation-diagnostics,profiler,wayland,x11]",
+          "\u2502           \u2514\u2500\u2500 gpui v0.2.2 (/Users/dakotamurphy/gpuio/vendor/gpui) features=[presentation-diagnostics,profiler,wayland,x11] (*)",
+          "\u251c\u2500\u2500 gpuio-native v0.0.0 (/Users/dakotamurphy/gpuio/rust/native) features=[default,performance-diagnostics,presentation-diagnostics,wayland,x11]",
+          "\u2502   \u251c\u2500\u2500 gpui v0.2.2 (/Users/dakotamurphy/gpuio/vendor/gpui) features=[presentation-diagnostics,profiler,wayland,x11] (*)",
+          "\u2502   \u251c\u2500\u2500 gpui_apple v0.1.0 (/Users/dakotamurphy/gpuio/vendor/gpui-apple) features=[default,presentation-diagnostics,runtime_shaders]",
+          "\u2502   \u2502   \u251c\u2500\u2500 gpui v0.2.2 (/Users/dakotamurphy/gpuio/vendor/gpui) features=[presentation-diagnostics,profiler,wayland,x11] (*)",
+          "\u2502   \u2502   \u251c\u2500\u2500 gpui v0.2.2 (/Users/dakotamurphy/gpuio/vendor/gpui) features=[presentation-diagnostics,profiler,wayland,x11] (*)",
+          "\u2502   \u2502       \u251c\u2500\u2500 gpui v0.2.2 (/Users/dakotamurphy/gpuio/vendor/gpui) features=[presentation-diagnostics,profiler,wayland,x11] (*)",
+          "\u2502   \u2502       \u251c\u2500\u2500 gpui_apple v0.1.0 (/Users/dakotamurphy/gpuio/vendor/gpui-apple) features=[default,presentation-diagnostics,runtime_shaders] (*)",
+          "\u2502   \u2502   \u2514\u2500\u2500 gpui v0.2.2 (/Users/dakotamurphy/gpuio/vendor/gpui) features=[presentation-diagnostics,profiler,wayland,x11] (*)",
+          "\u2502   \u2502   \u251c\u2500\u2500 gpui v0.2.2 (/Users/dakotamurphy/gpuio/vendor/gpui) features=[presentation-diagnostics,profiler,wayland,x11] (*)",
+          "\u251c\u2500\u2500 gpuio-performance-probe v0.0.0 (/Users/dakotamurphy/gpuio/examples/performance_probe/rust) features=[presentation-diagnostics]",
+          "\u2502   \u251c\u2500\u2500 gpuio-native v0.0.0 (/Users/dakotamurphy/gpuio/rust/native) features=[default,performance-diagnostics,presentation-diagnostics,wayland,x11] (*)"
+        ]
+      }
+    },
+    "feature_verification": true
+  },
+  "plan": "Prior unassisted batch stopped at inactive B warmup frame timeout. This distinct batch applies the same one-time foreground preflight to BOTH variants, completes it before history begins, never reactivates mid-run, and retains all prior failures. One smoke warmup per variant, then fixed A1/B1/B2/A2/A3/B3. A=ordinary backend wall-clock; B=active CPU+presentation diagnostics. Same 10k rows/full traversal/growth/60s idle/cleanup. Stop on any failed trial; preserve all attempts. No post-hoc thresholds. Total instrumentation comparison, not pure presentation callback overhead.",
+  "trials": [
+    {
+      "name": "A-warmup",
+      "variant": "A",
+      "smoke": true,
+      "report_sha256": "3237def496e8cbc0d5558b4271df7c4e36b05904a7e18a19b0eda3841c2d342a",
+      "observation_revision": "31bffeee8752a965fd53d3e565c26c95295766ca",
+      "observation_dirty": false,
+      "history_seconds": 2.516781459,
+      "wall_seconds": 10.780774458311498,
+      "cpu_seconds": 0.807736,
+      "peak_rss_bytes": 100810752,
+      "coverage": {
+        "forward": 96,
+        "backward": 96,
+        "peak_active": 32
+      },
+      "foreground_preflight": {
+        "policy": "One owned-window raise/activation before the history begin record; no activation or AX queries during measurement",
+        "requested": true,
+        "confirmed": true,
+        "request_seconds": 2.561217125505209,
+        "confirmed_seconds": 2.5643877098336816
+      }
+    },
+    {
+      "name": "B-warmup",
+      "variant": "B",
+      "smoke": true,
+      "report_sha256": "8bfa9fb57996c0abba6c869ac1261ce44161b3d75362ccbb80827ddc7954929d",
+      "observation_revision": "31bffeee8752a965fd53d3e565c26c95295766ca",
+      "observation_dirty": false,
+      "history_seconds": 1.927594833,
+      "wall_seconds": 10.648996124975383,
+      "cpu_seconds": 0.827399,
+      "peak_rss_bytes": 105070592,
+      "coverage": {
+        "forward": 96,
+        "backward": 96,
+        "peak_active": 32
+      },
+      "foreground_preflight": {
+        "policy": "One owned-window raise/activation before the history begin record; no activation or AX queries during measurement",
+        "requested": true,
+        "confirmed": true,
+        "request_seconds": 2.342565624974668,
+        "confirmed_seconds": 2.3433034578338265
+      },
+      "draw": {
+        "count": 230,
+        "p95": 1440767,
+        "p99": 1651711
+      },
+      "idle_draws": 0
+    },
+    {
+      "name": "A1",
+      "variant": "A",
+      "smoke": false,
+      "report_sha256": "509f6b90036431c081ddec1685b9e593b68b5a6b3a7c3af0c23a58950f9b096f",
+      "observation_revision": "31bffeee8752a965fd53d3e565c26c95295766ca",
+      "observation_dirty": false,
+      "history_seconds": 246.656773708,
+      "wall_seconds": 311.0058512920514,
+      "cpu_seconds": 93.802904,
+      "peak_rss_bytes": 160350208,
+      "coverage": {
+        "forward": 10000,
+        "backward": 10000,
+        "peak_active": 32
+      },
+      "foreground_preflight": {
+        "policy": "One owned-window raise/activation before the history begin record; no activation or AX queries during measurement",
+        "requested": true,
+        "confirmed": true,
+        "request_seconds": 0.2904051672667265,
+        "confirmed_seconds": 0.29140112455934286
+      }
+    },
+    {
+      "name": "B1",
+      "variant": "B",
+      "smoke": false,
+      "report_sha256": "d50fcab82685fb59b5ab6ea7f76dd44427bea7e7ed735c195e894e85312e9e77",
+      "observation_revision": "365eee427ad18db978d0d7441e3164b4092e01a4",
+      "observation_dirty": false,
+      "history_seconds": 237.187486875,
+      "wall_seconds": 303.05847266688943,
+      "cpu_seconds": 122.442724,
+      "peak_rss_bytes": 178192384,
+      "coverage": {
+        "forward": 10000,
+        "backward": 10000,
+        "peak_active": 32
+      },
+      "foreground_preflight": {
+        "policy": "One owned-window raise/activation before the history begin record; no activation or AX queries during measurement",
+        "requested": true,
+        "confirmed": true,
+        "request_seconds": 0.2790724579244852,
+        "confirmed_seconds": 0.27958045806735754
+      },
+      "draw": {
+        "count": 28335,
+        "p95": 3403775,
+        "p99": 4227071
+      },
+      "idle_draws": 0
+    },
+    {
+      "name": "B2",
+      "variant": "B",
+      "smoke": false,
+      "report_sha256": "497bd0ceb76bd48188d315ba14943acd67849cfc1aa612de3f6e20c654079a4d",
+      "observation_revision": "365eee427ad18db978d0d7441e3164b4092e01a4",
+      "observation_dirty": true,
+      "history_seconds": 237.160378666,
+      "wall_seconds": 303.08415495976806,
+      "cpu_seconds": 121.145183,
+      "peak_rss_bytes": 181174272,
+      "coverage": {
+        "forward": 10000,
+        "backward": 10000,
+        "peak_active": 32
+      },
+      "foreground_preflight": {
+        "policy": "One owned-window raise/activation before the history begin record; no activation or AX queries during measurement",
+        "requested": true,
+        "confirmed": true,
+        "request_seconds": 0.3257930828258395,
+        "confirmed_seconds": 0.3264641249552369
+      },
+      "draw": {
+        "count": 28349,
+        "p95": 3315711,
+        "p99": 4190207
+      },
+      "idle_draws": 0
+    },
+    {
+      "name": "A2",
+      "variant": "A",
+      "smoke": false,
+      "report_sha256": "7c68fe499718c5bfadc2d9f1908abab8b8ad8f5cdd46bef553139c46a2704d8a",
+      "observation_revision": "365eee427ad18db978d0d7441e3164b4092e01a4",
+      "observation_dirty": true,
+      "history_seconds": 233.215999917,
+      "wall_seconds": 297.6361600831151,
+      "cpu_seconds": 115.503855,
+      "peak_rss_bytes": 159629312,
+      "coverage": {
+        "forward": 10000,
+        "backward": 10000,
+        "peak_active": 32
+      },
+      "foreground_preflight": {
+        "policy": "One owned-window raise/activation before the history begin record; no activation or AX queries during measurement",
+        "requested": true,
+        "confirmed": true,
+        "request_seconds": 0.2860447494313121,
+        "confirmed_seconds": 0.2865589167922735
+      }
+    },
+    {
+      "name": "A3",
+      "variant": "A",
+      "smoke": false,
+      "report_sha256": "071d7854818cf72298966815743089184ae86cbe75b6823ce91acb661821c125",
+      "observation_revision": "365eee427ad18db978d0d7441e3164b4092e01a4",
+      "observation_dirty": true,
+      "history_seconds": 240.055035042,
+      "wall_seconds": 304.51800254080445,
+      "cpu_seconds": 104.446322,
+      "peak_rss_bytes": 159694848,
+      "coverage": {
+        "forward": 10000,
+        "backward": 10000,
+        "peak_active": 32
+      },
+      "foreground_preflight": {
+        "policy": "One owned-window raise/activation before the history begin record; no activation or AX queries during measurement",
+        "requested": true,
+        "confirmed": true,
+        "request_seconds": 0.3248666664585471,
+        "confirmed_seconds": 0.32552829198539257
+      }
+    },
+    {
+      "name": "B3",
+      "variant": "B",
+      "smoke": false,
+      "report_sha256": "2be548ba4fc5625e40cf5dbd38654838696172fe80dfa4ea43770a11e7d51cd6",
+      "observation_revision": "365eee427ad18db978d0d7441e3164b4092e01a4",
+      "observation_dirty": true,
+      "history_seconds": 238.575400084,
+      "wall_seconds": 304.5079119578004,
+      "cpu_seconds": 110.382546,
+      "peak_rss_bytes": 174555136,
+      "coverage": {
+        "forward": 10000,
+        "backward": 10000,
+        "peak_active": 32
+      },
+      "foreground_preflight": {
+        "policy": "One owned-window raise/activation before the history begin record; no activation or AX queries during measurement",
+        "requested": true,
+        "confirmed": true,
+        "request_seconds": 0.31167058274149895,
+        "confirmed_seconds": 0.31238133274018764
+      },
+      "draw": {
+        "count": 28492,
+        "p95": 3276799,
+        "p99": 4159487
+      },
+      "idle_draws": 0
+    }
+  ],
+  "comparison": {
+    "history_seconds": {
+      "A": {
+        "min": 233.215999917,
+        "median": 240.055035042,
+        "max": 246.656773708
+      },
+      "B": {
+        "min": 237.160378666,
+        "median": 237.187486875,
+        "max": 238.575400084
+      },
+      "median_B_over_A": 0.9880546218641142
+    },
+    "wall_seconds": {
+      "A": {
+        "min": 297.6361600831151,
+        "median": 304.51800254080445,
+        "max": 311.0058512920514
+      },
+      "B": {
+        "min": 303.05847266688943,
+        "median": 303.08415495976806,
+        "max": 304.5079119578004
+      },
+      "median_B_over_A": 0.9952914193280108
+    },
+    "cpu_seconds": {
+      "A": {
+        "min": 93.802904,
+        "median": 104.446322,
+        "max": 115.503855
+      },
+      "B": {
+        "min": 110.382546,
+        "median": 121.145183,
+        "max": 122.442724
+      },
+      "median_B_over_A": 1.1598798376069193
+    },
+    "peak_rss_bytes": {
+      "A": {
+        "min": 159629312,
+        "median": 159694848,
+        "max": 160350208
+      },
+      "B": {
+        "min": 174555136,
+        "median": 178192384,
+        "max": 181174272
+      },
+      "median_B_over_A": 1.1158305119523957
+    }
+  }
+}
