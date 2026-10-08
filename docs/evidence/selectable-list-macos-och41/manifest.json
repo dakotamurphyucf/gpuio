@@ -1,0 +1,196 @@
+{
+  "base_revision": "31c3da40f560b268d5bef15364d328381b77c6a0",
+  "platform": {
+    "system": "Darwin",
+    "version": "14.5",
+    "machine": "arm64"
+  },
+  "binary_sha256": {
+    "searchable-native-003": "d5f449133a950b268e2d9022ad18e3265623598f8cf5dc04a26a467fe0e92bf8",
+    "searchable-installed-001": "f306c78fe75dc623f1ff39df1ce69c0f536a1e300501646df17d950aead1ce5b"
+  },
+  "results": {
+    "searchable-native-003": {
+      "complete": true,
+      "cases": [
+        {
+          "theme": "Light",
+          "scale": "Comfortable",
+          "complete": true
+        },
+        {
+          "theme": "Light",
+          "scale": "Large",
+          "complete": true
+        },
+        {
+          "theme": "Light",
+          "scale": "Compact",
+          "complete": true
+        },
+        {
+          "theme": "Dark",
+          "scale": "Comfortable",
+          "complete": true
+        },
+        {
+          "theme": "Dark",
+          "scale": "Large",
+          "complete": true
+        },
+        {
+          "theme": "Dark",
+          "scale": "Compact",
+          "complete": true
+        }
+      ]
+    },
+    "searchable-installed-001": {
+      "complete": true,
+      "cases": [
+        {
+          "theme": "Light",
+          "scale": "Comfortable",
+          "complete": true
+        },
+        {
+          "theme": "Light",
+          "scale": "Large",
+          "complete": true
+        },
+        {
+          "theme": "Light",
+          "scale": "Compact",
+          "complete": true
+        },
+        {
+          "theme": "Dark",
+          "scale": "Comfortable",
+          "complete": true
+        },
+        {
+          "theme": "Dark",
+          "scale": "Large",
+          "complete": true
+        },
+        {
+          "theme": "Dark",
+          "scale": "Compact",
+          "complete": true
+        }
+      ]
+    }
+  },
+  "files": [
+    {
+      "path": "searchable-native-003.log",
+      "bytes": 7166,
+      "sha256": "69721b8872a4ea3d420592a01294fa06e9b3c0cec0a26d42a35ec14b151a630c"
+    },
+    {
+      "path": "searchable-native-003/Dark-Comfortable/gallery-selectable-list.png",
+      "bytes": 447397,
+      "sha256": "3405343bcdbc1bea9d68beedbe9c2ef9e30c23f2dce8073c546f3fe5e4852f62"
+    },
+    {
+      "path": "searchable-native-003/Dark-Compact/gallery-selectable-list.png",
+      "bytes": 422989,
+      "sha256": "22ca79987031847d05b693eae41c764f497ee96c44c8bb7e33b398653383c8d6"
+    },
+    {
+      "path": "searchable-native-003/Dark-Large/gallery-selectable-list.png",
+      "bytes": 443768,
+      "sha256": "2712fec39eb1ec3cd9591a95add5e7fe3345aa35086f70d842b96a2ce635a210"
+    },
+    {
+      "path": "searchable-native-003/Light-Comfortable/gallery-selectable-list.png",
+      "bytes": 445260,
+      "sha256": "c326a95404d636827f8075065a3f86fdc4ed75efd9a587897fed4aaefc17a9ee"
+    },
+    {
+      "path": "searchable-native-003/Light-Compact/gallery-selectable-list.png",
+      "bytes": 418891,
+      "sha256": "d51b792660358b51867066320ccf704bbccf93edb60dfd7f81a094fb576131ce"
+    },
+    {
+      "path": "searchable-native-003/Light-Large/gallery-selectable-list.png",
+      "bytes": 443569,
+      "sha256": "65982363a620bff8b5d2f3279d318b47e18577fb26a14132fb4d29a9d7734291"
+    },
+    {
+      "path": "searchable-native-003/searchable-report.json",
+      "bytes": 557,
+      "sha256": "2583edafaf3a1cb8c40eed8647438146c12af2bd1fbaae469f6a8e1969c00385"
+    },
+    {
+      "path": "searchable-installed-001.log",
+      "bytes": 7220,
+      "sha256": "d31239de5221791af79acd2021a7beaff53a51cf16810037ab8aebc60fcb56ed"
+    },
+    {
+      "path": "searchable-installed-001/Dark-Comfortable/gallery-selectable-list.png",
+      "bytes": 447397,
+      "sha256": "3405343bcdbc1bea9d68beedbe9c2ef9e30c23f2dce8073c546f3fe5e4852f62"
+    },
+    {
+      "path": "searchable-installed-001/Dark-Compact/gallery-selectable-list.png",
+      "bytes": 422989,
+      "sha256": "22ca79987031847d05b693eae41c764f497ee96c44c8bb7e33b398653383c8d6"
+    },
+    {
+      "path": "searchable-installed-001/Dark-Large/gallery-selectable-list.png",
+      "bytes": 443768,
+      "sha256": "2712fec39eb1ec3cd9591a95add5e7fe3345aa35086f70d842b96a2ce635a210"
+    },
+    {
+      "path": "searchable-installed-001/Light-Comfortable/gallery-selectable-list.png",
+      "bytes": 445260,
+      "sha256": "c326a95404d636827f8075065a3f86fdc4ed75efd9a587897fed4aaefc17a9ee"
+    },
+    {
+      "path": "searchable-installed-001/Light-Compact/gallery-selectable-list.png",
+      "bytes": 418891,
+      "sha256": "d51b792660358b51867066320ccf704bbccf93edb60dfd7f81a094fb576131ce"
+    },
+    {
+      "path": "searchable-installed-001/Light-Large/gallery-selectable-list.png",
+      "bytes": 443569,
+      "sha256": "65982363a620bff8b5d2f3279d318b47e18577fb26a14132fb4d29a9d7734291"
+    },
+    {
+      "path": "searchable-installed-001/searchable-report.json",
+      "bytes": 557,
+      "sha256": "2583edafaf3a1cb8c40eed8647438146c12af2bd1fbaae469f6a8e1969c00385"
+    },
+    {
+      "path": "searchable-native-001.log",
+      "bytes": 6266,
+      "sha256": "d620b8a94fb54a81997226d06b44910c863f218ca67737f220dd456bd1fd7507"
+    },
+    {
+      "path": "searchable-native-001/searchable-report.json",
+      "bytes": 557,
+      "sha256": "2583edafaf3a1cb8c40eed8647438146c12af2bd1fbaae469f6a8e1969c00385"
+    },
+    {
+      "path": "searchable-native-002.log",
+      "bytes": 10739,
+      "sha256": "67e10459c86c08be18141eb02b23071053d5a0223a3232f858efcbdd4b6cdb7a"
+    },
+    {
+      "path": "searchable-native-002/searchable-report.json",
+      "bytes": 230,
+      "sha256": "a3eba2a5bc39bb576188cff1280d5ab1c4226b2576fb6ce248fd29781bb0e4ef"
+    },
+    {
+      "path": "searchable-native-001/Dark-Large/gallery-selectable-list.png",
+      "bytes": 443768,
+      "sha256": "2712fec39eb1ec3cd9591a95add5e7fe3345aa35086f70d842b96a2ce635a210"
+    },
+    {
+      "path": "searchable-lint-comparison.json",
+      "bytes": 48,
+      "sha256": "c13e65f25c7f393cd7082ec478f57b84d49db50f2c1797b0950213084d1cae2d"
+    }
+  ]
+}

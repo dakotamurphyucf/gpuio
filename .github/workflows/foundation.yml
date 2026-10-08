@@ -326,6 +326,10 @@ jobs:
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
         timeout-minutes: 4
         run: python3 scripts/test_gallery.py --section pagination --images .cache/ci/pagination 2>&1 | tee .cache/ci/macos-pagination-gallery.log
+      - name: macOS searchable list keyboard and source lifetimes
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 4
+        run: python3 scripts/test_gallery.py --section selectable-matrix --images .cache/ci/selectable-matrix 2>&1 | tee .cache/ci/macos-selectable-matrix.log
       - name: macOS horizontal list input and geometry
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
         timeout-minutes: 4

@@ -6,6 +6,10 @@ now connect asynchronous search to the [managed component](selectable-list-manag
 Physical desktop, VoiceOver, resource/performance and release acceptance remain
 open. No upstream or dependency changes were made for this layer.
 
+The later [physical macOS matrix](selectable-list-macos-och41.md) records
+repository/installed keyboard and appearance qualification. The unrun statements
+below describe this earlier implementation checkpoint.
+
 ## Search ownership
 
 One scope-owned controller holds the loaded collection, latest immutable snapshot

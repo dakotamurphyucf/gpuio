@@ -133,9 +133,13 @@ exercise asynchronous results and failure recovery without a network service.
 Change orientation, inspect a row, update its detail or start a new collection.
 Arrows move the cursor, Space on the list toggles selection, Enter confirms and
 Command-Enter previews; the query retains its own editing/composition behavior.
-Use `scripts/test_gallery.py --section selectable-lists` for the physical macOS
-walkthrough when desktop automation is available. See [search evidence](../../docs/evidence/selectable-list-search-och41.md)
-for the current local coverage and remaining physical qualification.
+Use `scripts/test_gallery.py --section selectable-lists` for the focused native
+walkthrough, or `--section selectable-matrix` for both themes and all three
+application sizes. [Physical evidence](../../docs/evidence/selectable-list-macos-och41.md)
+records repository/installed results; [search ownership evidence](../../docs/evidence/selectable-list-search-och41.md)
+records deterministic scheduler/selection behavior. VoiceOver and measured
+resources remain separate. The [code walkthrough](selectable_preview.md) explains
+how committed editor events reach the scoped search controller.
 
 Navigation includes **A workspace that adapts to you**, built with public
 `View.split_group`: edit a retained draft, reorder/hide/insert/remove panels,

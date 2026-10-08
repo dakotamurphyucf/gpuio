@@ -43,6 +43,13 @@ at attachment selection. [CI evidence](evidence/milestone-07-ci.md) records this
 new failure and the added fatal-stack/native-crash diagnostics. Updated-source
 hosted acceptance remains required.
 
+The [searchable-list desktop matrix](evidence/selectable-list-macos-och41.md)
+passes both themes and three application sizes locally and in the installed
+consumer: native query typing, confirmation/context/cancel intents, hidden
+selection, fetched membership, retry, axis changes and source reset. It adds
+scoped evidence without a production change; broader pointer, VoiceOver and
+performance/resource acceptance remain separate.
+
 The [horizontal-card desktop follow-up](evidence/horizontal-list-macos-och41.md)
 fixes a clipped reaction button in the OCaml example through palette-scaled card
 and viewport sizing. Repository and installed tests pass both axes, themes and

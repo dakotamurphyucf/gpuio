@@ -109,7 +109,9 @@ Update current detail checks cursor membership in latest collection and uses `C.
 followed by `P.update_source ~refresh:false`. This declares matching/order unchanged,
 keeps visibility/epoch and makes newer detail win over an older pending upsert.
 New collection passes fresh initial(), fences old source work/selection targets
-and starts a fresh search. It is not a cosmetic clearing of one row.
+and starts a fresh search using the existing query. It preserves the live editor
+text; `initial_text` is a mount seed, not a command to reset a retained editor.
+It is not a cosmetic clearing of one row.
 
 Concrete trace: select IDs in multiple mode → type remote with no composition →
 old results become stale/disabled while scoped producer waits → valid page merges
@@ -123,3 +125,27 @@ and selected preferences outside rows; guard actual delayed row completions. Do
 not describe this fake remote path as network acceptance or `max_active` as a bound
 on retained collection bytes. Public search/selection tests and physical native
 harnesses establish different behavior from this source review.
+
+
+## Desktop walkthrough
+
+`python3 scripts/test_gallery.py --section selectable-matrix --images scratch/searchable`
+executes the focused search walkthrough in both themes and all three application
+sizes. Down in the query moves the list cursor; Return and Command-Return route
+Primary and Secondary confirmation. Space on the list changes selection.
+Shift-F10 requests the Context intent shown in the notice; it does not create an
+OS menu or execute Copy/Pin/Open. Escape clears the cursor while retaining the
+selection. Typing `remote` through the OS keyboard route triggers the committed
+editor observation, calls `P.set_query`, and eventually merges the two fetched
+records while preserving the hidden selection.
+
+The driver also checks point updates, orientation changes, no matches, failed
+search/retry, source replacement and page retirement. `offline` is a deterministic
+fixture query that succeeds after one failure and returns the original entries;
+it is not an external network request. New collection drops fetched membership
+and selection while retaining `offline` in the native query editor. No IME
+composition is exercised by this US/ABC-layout typing sequence.
+
+[Physical macOS evidence](../../docs/evidence/selectable-list-macos-och41.md)
+records repository and installed runs. These checks do not qualify VoiceOver,
+all pointer gestures, search latency, payload memory or physical frame timing.
